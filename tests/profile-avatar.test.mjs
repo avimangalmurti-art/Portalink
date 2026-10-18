@@ -6,9 +6,29 @@ import ts from 'typescript';
 import React from 'react';
 
 /** Render the real components with controlled state and invoke their actual event handlers. */
-function avatarHarness(props) {
+function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 0 } = {}) {
   const instances = new Map();
+  const elements = new Map();
   let current;
+  function eventTarget(attributes = {}) {
+    const listeners = new Map();
+    return { ...attributes, listeners,
+      addEventListener(name, callback) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(callback); },
+      removeEventListener(name, callback) { listeners.get(name)?.delete(callback); if (listeners.get(name)?.size === 0) listeners.delete(name); },
+      emit(name, event = {}) { for (const callback of [...(listeners.get(name) ?? [])]) callback(event); },
+    };
+  }
+  const document = eventTarget({ activeElement: null });
+  const viewport = eventTarget({ height, offsetTop });
+  const window = eventTarget({ innerHeight: 912, visualViewport: viewport });
+  class HTMLElement {
+    constructor() {
+      this.isConnected = true;
+      const styles = new Map();
+      this.style = { setProperty: (name, value) => styles.set(name, value), getPropertyValue: (name) => styles.get(name) ?? '' };
+    }
+    focus() { document.activeElement = this; }
+  }
   const react = {
     ...React,
     useState(initial) {
@@ -17,8 +37,18 @@ function avatarHarness(props) {
       if (!(index in slots)) slots[index] = typeof initial === 'function' ? initial() : initial;
       return [slots[index], (next) => { slots[index] = typeof next === 'function' ? next(slots[index]) : next; }];
     },
-    useEffect() {},
-    useRef(value) { return { current: value }; },
+    useEffect(callback, dependencies) {
+      const index = current.cursor++;
+      const previous = current.slots[index];
+      if (!previous || !dependencies || dependencies.some((value, item) => value !== previous.dependencies?.[item])) {
+        current.slots[index] = { callback, dependencies, cleanup: previous?.cleanup, pending: true };
+      }
+    },
+    useRef(value) {
+      const index = current.cursor++;
+      if (!(index in current.slots)) current.slots[index] = { current: value };
+      return current.slots[index];
+    },
     useId() { return 'avatar-preview'; },
   };
   const image = { ResponsiveImage: ({ decorative, priority, measureWidth, ...attributes }) => React.createElement('img', { ...attributes, 'data-test-priority': priority, 'data-test-measure-width': measureWidth }) };
@@ -26,23 +56,43 @@ function avatarHarness(props) {
     const exports = {};
     vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-    }).outputText, { exports, require: (id) => id === 'react' ? react : imports[id] });
+    }).outputText, { exports, window, document, HTMLElement, require: (id) => {
+      if (id === 'react') return react;
+      assert.ok(id in imports, `Unexpected import: ${id}`);
+      return imports[id];
+    } });
     return exports;
   }
+  const dialogViewport = load('../src/hooks/useDialogViewport.ts', {});
   const creator = load('../src/components/profile/CreatorAvatar.tsx', { '../ui/ResponsiveImage': image });
   const { ProfileAvatar } = load('../src/components/profile/ProfileAvatar.tsx', {
     './CreatorAvatar': creator,
     '../ui/ResponsiveImage': image,
     '../ui/ModalPortal': { ModalPortal: ({ children }) => children },
+    '../../hooks/useDialogViewport': dialogViewport,
+    '../../presentation/usePresentation': { usePresentation: () => presentation },
   });
+  let visited;
+  let visitedElements;
   function expand(node, path = 'root') {
+    if (Array.isArray(node)) return { children: node.map((child, index) => expand(child, `${path}.${index}`)) };
     if (!React.isValidElement(node)) return node;
     if (typeof node.type === 'function') {
-      if (!instances.has(path)) instances.set(path, []);
-      current = { slots: instances.get(path), cursor: 0 };
+      if (!instances.has(path)) instances.set(path, { slots: [], cursor: 0 });
+      current = instances.get(path);
+      current.cursor = 0;
+      visited.add(path);
       return expand(node.type(node.props), `${path}.render`);
     }
-    return { type: node.type, props: node.props, children: React.Children.toArray(node.props.children).map((child, index) => expand(child, `${path}.${index}`)) };
+    let element;
+    if (typeof node.type === 'string') {
+      if (!elements.has(path)) elements.set(path, new HTMLElement());
+      element = elements.get(path);
+      element.isConnected = true;
+      visitedElements.add(path);
+      if (node.ref) node.ref.current = element;
+    }
+    return { type: node.type, props: node.props, element, children: React.Children.toArray(node.props.children).map((child, index) => expand(child, `${path}.${index}`)) };
   }
   function find(node, predicate) {
     if (!node || typeof node !== 'object') return null;
@@ -51,7 +101,24 @@ function avatarHarness(props) {
     return null;
   }
   return {
-    render: () => expand(React.createElement(ProfileAvatar, props)),
+    render() {
+      visited = new Set();
+      visitedElements = new Set();
+      const tree = expand(React.createElement(ProfileAvatar, props));
+      for (const [path, element] of elements) if (!visitedElements.has(path)) { element.isConnected = false; elements.delete(path); }
+      for (const [path, instance] of instances) {
+        if (!visited.has(path)) {
+          for (const slot of instance.slots) slot?.cleanup?.();
+          instances.delete(path);
+        } else for (const slot of instance.slots) if (slot?.pending) {
+          slot.pending = false;
+          slot.cleanup?.();
+          slot.cleanup = slot.callback();
+        }
+      }
+      return tree;
+    },
+    document, window, viewport,
     find,
   };
 }
@@ -100,4 +167,68 @@ test('shared identity can prioritize its avatar while ordinary and opened avatar
     const dialog = h.find(h.render(), node => node.props?.role === 'dialog');
     assert.equal(h.find(dialog, node => node.type === 'img').props['data-test-priority'], true);
   }
+});
+
+test('mobile avatar preview follows the visible viewport and restores focus without retaining listeners', () => {
+  const h = avatarHarness({ name: 'Synthetic Creator' }, { presentation: 'mobile', height: 780 });
+  const opener = h.find(h.render(), node => node.type === 'button');
+  opener.element.focus();
+  opener.props.onClick();
+  let tree = h.render();
+  let dialog = h.find(tree, node => node.props?.role === 'dialog');
+  assert.equal(dialog.props['data-presentation'], 'mobile');
+  assert.equal(h.document.activeElement, dialog.element);
+  assert.equal(dialog.element.style.getPropertyValue('--dialog-viewport-height'), '780px');
+  const backdrop = h.find(tree, node => node.props?.['data-avatar-preview-backdrop'] === '');
+  assert.equal(backdrop.props['aria-hidden'], 'true', 'The decorative under-toolbar surface is excluded from accessibility');
+  assert.equal(backdrop.props.role, undefined, 'The actual preview remains the only dialog');
+
+  h.viewport.height = 450;
+  h.viewport.offsetTop = 44;
+  h.viewport.emit('resize');
+  assert.equal(dialog.element.style.getPropertyValue('--dialog-viewport-height'), '450px');
+  assert.equal(dialog.element.style.getPropertyValue('--dialog-viewport-top'), '44px');
+  h.viewport.offsetTop = 62;
+  h.viewport.emit('scroll');
+  assert.equal(dialog.element.style.getPropertyValue('--dialog-viewport-top'), '62px');
+  tree = h.render();
+  dialog = h.find(tree, node => node.props?.role === 'dialog');
+  assert.equal(h.document.activeElement, dialog.element, 'An ordinary render preserves the focused dialog and stable viewport ref');
+
+  let prevented = 0;
+  h.document.emit('keydown', { key: 'Tab', preventDefault() { prevented++; } });
+  assert.equal(prevented, 1);
+  assert.equal(h.document.activeElement, dialog.element);
+  h.document.emit('keydown', { key: 'Escape', preventDefault() { prevented++; }, stopPropagation() {} });
+  assert.equal(h.find(h.render(), node => node.props?.role === 'dialog'), null);
+  assert.equal(h.document.activeElement, opener.element);
+  assert.equal(h.viewport.listeners.size, 0);
+  assert.equal(h.window.listeners.size, 0);
+  assert.equal(h.document.listeners.size, 0);
+
+  opener.props.onClick();
+  dialog = h.find(h.render(), node => node.props?.role === 'dialog');
+  assert.equal(dialog.element.style.getPropertyValue('--dialog-viewport-top'), '62px', 'Reopening measures the current viewport');
+  dialog.props.onClick();
+  h.render();
+  assert.equal(h.document.activeElement, opener.element, 'Tap dismissal retains the existing focus return behavior');
+  assert.equal(h.viewport.listeners.size, 0);
+});
+
+test('web avatar retains its existing preview without mobile viewport subscriptions or decorative sibling', () => {
+  const h = avatarHarness({ name: 'Synthetic Creator' }, { height: 300, offsetTop: 44 });
+  const opener = h.find(h.render(), node => node.type === 'button');
+  opener.element.focus();
+  opener.props.onClick();
+  const tree = h.render();
+  const dialog = h.find(tree, node => node.props?.role === 'dialog');
+  assert.equal(dialog.props['data-presentation'], 'web');
+  assert.equal(dialog.element.style.getPropertyValue('--dialog-viewport-height'), '');
+  assert.equal(dialog.element.style.getPropertyValue('--dialog-viewport-top'), '');
+  assert.equal(h.viewport.listeners.size, 0);
+  assert.equal(h.window.listeners.size, 0);
+  assert.equal(h.find(tree, node => node.props?.['data-avatar-preview-backdrop'] === ''), null);
+  dialog.props.onClick();
+  h.render();
+  assert.equal(h.document.activeElement, opener.element);
 });

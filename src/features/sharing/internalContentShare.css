@@ -24,3 +24,15 @@
 .internal-share-feedback {padding:20px;flex:1;}
 .project-inline-share .internal-share-header {padding-inline:0;}
 .app-shell .internal-share-page[role=dialog] {margin-inline:auto;border:0!important;border-radius:0!important;box-shadow:none!important;background:var(--surface-raised)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
+
+/* Recipient results use the visible phone screen; browser panning may already
+   have moved its top below some or all of the display cutout. */
+.internal-share-screen[data-presentation=mobile] .internal-share-page {padding-top:max(0px,calc(var(--safe-area-top,env(safe-area-inset-top,0px)) - max(0px,var(--dialog-viewport-top,0px))));}
+.internal-share-screen[data-presentation=mobile] .internal-share-header {align-items:center;padding:8px 16px;}
+.internal-share-screen[data-presentation=mobile] .internal-share-header h1 {margin:0 0 2px;}
+.internal-share-screen[data-presentation=mobile] .internal-share-page [data-recipient-appearance=account-search] .side-panel-control-stack {padding:0 16px 4px;}
+.internal-share-screen[data-presentation=mobile] .internal-share-page [data-recipient-appearance=account-search] .side-panel-content-inset {padding-inline:16px;}
+.internal-share-screen[data-presentation=mobile] [data-recipient-appearance=account-search]>p {margin:0;padding-block:8px;}
+.internal-share-screen[data-presentation=mobile] [data-recipient-appearance=account-search] h3 {padding-top:8px;}
+.internal-share-screen[data-presentation=mobile] [data-recipient-appearance=account-search] [data-mobile-scroll-end] {padding-bottom:8px;}
+.internal-share-screen[data-presentation=mobile] .internal-share-footer {padding-inline:16px;}

@@ -7,20 +7,22 @@ import ts from 'typescript';
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
 const messageImports={react:React,'react-router-dom':{Link:'link'},'../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},'../../features/sharing/shareModel':compile('../src/features/sharing/shareModel.ts',{})};
 function compile(file,mocks,extra='') {
- const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(new URL(file,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}}).outputText+extra,{exports,require:n=>mocks[n]??{},URL});return exports;
+ const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(new URL(file,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}}).outputText+extra,{exports,require:n=>mocks[n]??{},URL,Error});return exports;
 }
-function harness(conversation={id:'thread',status:'active'},send=async()=>({id:'message'})) {
- let cursor=0;const slots=[],calls=[];
+function harness(conversation={id:'thread',status:'active'},send=async()=>({id:'message'}),{presentation='web',inline=false,keyboard=false}={}) {
+ let cursor=0,keyboardOpen=keyboard;const slots=[],calls=[],keyboardCalls=[];
  const react={...React,useRef:v=>slots[cursor++]??={current:v},useState:v=>{const i=cursor++;if(!(i in slots))slots[i]=v;return[slots[i],next=>{slots[i]=next;}];}};
  const {dialog}=compile('../src/features/sharing/InternalContentShare.tsx',{react,
  '../../contexts/ServicesContext':{useServices:()=>({messaging:{getOrCreateConversation:async id=>{calls.push(['recipient',id]);return conversation;},sendMessage:async(...args)=>{calls.push(['send',...args]);return send();}}})},
  '../../components/messages/NewChatPanel':{NewChatPanel:'recipients'},'../../components/ui/ModalPortal':{ModalPortal:'portal'},
  '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},'../../hooks/useModalFocus':{useModalFocus(){}},
+ '../../presentation/usePresentation':{usePresentation:()=>presentation},'./useRecipientKeyboard':{useRecipientKeyboard:enabled=>{keyboardCalls.push(enabled);return enabled&&keyboardOpen;}},
+ 'lucide-react':{ArrowLeftIcon:'back-icon'},
  },'\nexports.dialog=InternalContentShareDialog;');
- const render=()=>{cursor=0;return dialog({target:{title:'Project',url:'https://portalink.test/p/creator/c/portal/work',onSent:()=>calls.push(['confirmed'])},onClose:()=>calls.push(['close'])});};
+ const render=()=>{cursor=0;return dialog({target:{title:'Project',url:'https://portalink.test/p/creator/c/portal/work',onSent:()=>calls.push(['confirmed'])},onClose:()=>calls.push(['close']),inline});};
  const button=label=>nodes(render()).find(n=>n.type==='button'&&n.props.children===label);
  const select=()=>nodes(render()).find(n=>n.type==='recipients').props.onSelectCreator('recipient');
- return {render,button,select,calls};
+ return {render,button,select,calls,keyboardCalls,setKeyboard:open=>{keyboardOpen=open;}};
 }
 test('internal sharing requires recipient selection and explicit Send, and confirms only successful sends',async()=>{
  let complete;const h=harness(undefined,()=>new Promise(resolve=>{complete=resolve;}));
@@ -61,4 +63,50 @@ test('sharing uses an opaque full-screen recipient search with Back and explicit
  const back=tree.find(n=>n.type==='button'&&n.props['aria-label']==='Back');
  back.props.onClick();assert.deepEqual(h.calls,[['close']]);
  assert.equal(h.button('Send').props.disabled,true);
+});
+
+test('mobile recipient typing removes footer actions, preserves selection and restores explicit sending after keyboard dismissal',async()=>{
+ const h=harness(undefined,undefined,{presentation:'mobile'});
+ assert.ok(h.button('Cancel'));assert.equal(h.button('Send').props.disabled,true);
+ h.setKeyboard(true);
+ let tree=nodes(h.render());
+ assert.equal(h.button('Cancel'),undefined);assert.equal(h.button('Send'),undefined);
+ assert.equal(tree.some(n=>n.type==='footer'),false,'Removing the whole empty footer releases its space to results');
+ assert.ok(tree.find(n=>n.type==='button'&&n.props['aria-label']==='Back'));
+ h.select();
+ assert.equal(nodes(h.render()).find(n=>n.type==='recipients').props.selectedCreatorId,'recipient');
+ assert.deepEqual(h.calls,[],'Choosing a recipient while typing never sends automatically');
+ h.setKeyboard(false);
+ assert.ok(h.button('Cancel'));assert.equal(h.button('Send').props.disabled,false);
+ assert.equal(nodes(h.render()).find(n=>n.type==='recipients').props.selectedCreatorId,'recipient');
+ h.button('Send').props.onClick();
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.calls.filter(call=>call[0]==='send').length,1);
+ assert.ok(h.button('Done'));
+ assert.equal(h.keyboardCalls.at(-1),false,'Successful sending disables recipient keyboard detection');
+});
+
+test('mobile Back remains available while typing and a sending error remains visible without the hidden actions',async()=>{
+ const h=harness(undefined,async()=>{throw new Error('Synthetic send failure');},{presentation:'mobile'});
+ h.select();h.button('Send').props.onClick();
+ await new Promise(resolve=>setImmediate(resolve));
+ h.setKeyboard(true);
+ const tree=nodes(h.render());
+ assert.equal(h.button('Cancel'),undefined);assert.equal(h.button('Send'),undefined);
+ assert.equal(tree.find(n=>n.props.role==='alert').props.children,'Synthetic send failure');
+ assert.ok(tree.some(n=>n.type==='footer'),'The existing error is retained when actions are hidden');
+ assert.equal(tree.some(n=>n.props.role==='status'&&n.props.children==='Recipient selected'),false);
+ const back=tree.find(n=>n.type==='button'&&n.props['aria-label']==='Back');
+ assert.equal(back.props.disabled,false);back.props.onClick();
+ assert.equal(h.calls.at(-1)[0],'close');
+});
+
+test('WEB and inline sharing keep their actions without enabling the mobile modal keyboard behavior',()=>{
+ for(const options of [{presentation:'web'},{presentation:'mobile',inline:true},{presentation:'web',inline:true}]){
+  const h=harness(undefined,undefined,{...options,keyboard:true});
+  assert.ok(h.button('Cancel'));assert.equal(h.button('Send').props.disabled,true);
+  assert.equal(h.keyboardCalls.at(-1),false);
+  h.select();assert.equal(h.button('Send').props.disabled,false);
+  assert.deepEqual(h.calls,[]);
+ }
 });

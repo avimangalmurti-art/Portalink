@@ -13,7 +13,8 @@ const textOf = node => React.isValidElement(node) ? React.Children.toArray(node.
 // This verifies interaction/state behavior; it is not browser layout evidence.
 function harness(overrides = {}) {
   const slots = [], requests = [], changes = [], selected = [], timers = new Map();
-  let cursor = 0, dirty = true, tree, effects = [], now = 0, nextTimer = 0, focused = 0;
+  let cursor = 0, dirty = true, tree, effects = [], deferredEffects = [], now = 0, nextTimer = 0, focused = 0, blurred = 0;
+  const focusOptions = [];
   const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
   const react = { ...React,
     useId: () => 'location-search',
@@ -46,24 +47,37 @@ function harness(overrides = {}) {
     clearTimeout(id) { timers.delete(id); },
   } });
   const props = { label: 'Location', value: '', onChange(value) { changes.push(value); props.value = value; dirty = true; }, onSelect(place) { selected.push(place); }, ...overrides };
+  const inputElement = {
+    focus(options) { focused++; focusOptions.push(options); nodes(tree).find(node => node.type === 'input').props.onFocus(); },
+    blur() { blurred++; tree.props.onBlur({ currentTarget: { contains: () => false }, relatedTarget: null }); },
+  };
+  function renderPass() {
+    cursor = 0; dirty = false; effects = [];
+    tree = LocationSearch(props);
+    nodes(tree).find(node => node.type === 'input').ref.current = inputElement;
+  }
   function render() {
+    for (const effect of deferredEffects.splice(0)) effect();
     for (let pass = 0; dirty; pass++) {
       assert.ok(pass < 20, 'Component effects must settle');
-      cursor = 0; dirty = false; effects = [];
-      tree = LocationSearch(props);
-      nodes(tree).find(node => node.type === 'input').ref.current = { focus() { focused++; } };
+      renderPass();
       for (const effect of effects) effect();
     }
     return tree;
   }
   const input = () => nodes(render()).find(node => node.type === 'input');
   const h = {
-    render, input, requests, changes, selected,
+    render, input, requests, changes, selected, focusOptions,
     options: () => nodes(render()).filter(node => node.props.role === 'option'),
     status: () => textOf(nodes(render()).find(node => node.props.role === 'status')),
     focus() { input().props.onFocus(); render(); },
     search(value) { input().props.onChange({ target: { value } }); render(); },
     update(next) { Object.assign(props, next); dirty = true; render(); },
+    updateBeforeEffects(next) { Object.assign(props, next); renderPass(); deferredEffects.push(...effects); return tree; },
+    keyBeforeEffects(key) {
+      const event = { key, nativeEvent: { isComposing: false }, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
+      nodes(tree).find(node => node.type === 'input').props.onKeyDown(event); return event;
+    },
     blur(stillInside = false) { render().props.onBlur({ currentTarget: { contains: () => stillInside }, relatedTarget: null }); render(); },
     key(key, composing = false, event = {}) {
       const e = { key, nativeEvent: { isComposing: composing }, defaultPrevented: false, stopped: false,
@@ -78,6 +92,7 @@ function harness(overrides = {}) {
     async flush() { for (let i = 0; i < 10; i++) { await Promise.resolve(); render(); } },
     dispose() { for (const slot of slots) slot?.cleanup?.(); },
     get focused() { return focused; },
+    get blurred() { return blurred; },
   };
   render();
   return h;
@@ -238,10 +253,60 @@ test('choosing a place waits for Enter when confirmation is separate', async t =
  const confirmed=[];
  const h=harness({onConfirm:place=>confirmed.push(place)});t.after(()=>h.dispose());
  h.search('London');h.advance(180);h.requests[0].resolve([london]);await h.flush();
+ assert.equal(h.input().props.enterKeyHint,undefined);
+ assert.equal(h.options()[0].props.onMouseDown,undefined,'Existing shared/profile defaults do not add the mobile focus behavior');
  h.options()[0].props.onClick();h.render();
  assert.deepEqual(h.selected,[london]);assert.equal(confirmed.length,0);
+ assert.equal(h.focused,0);assert.equal(h.blurred,0);
  h.key('Enter');assert.deepEqual(confirmed,[london]);
  h.search('Paris');h.key('Enter');assert.equal(confirmed.length,1,'Changing the query clears the selected place');
+});
+
+test('mobile city tap retains input focus, closes suggestions after focus events and confirms the exact chosen duplicate on Enter',async t=>{
+ const confirmed=[],ontario={...london,id:'city-6058560',regionName:'Ontario',countryName:'Canada'};
+ const h=harness({keepFocusOnSelect:true,blurOnSelect:true,onConfirm:place=>confirmed.push(place)});t.after(()=>h.dispose());
+ h.search('London');h.advance(180);h.requests[0].resolve([london,ontario]);await h.flush();
+ assert.equal(h.input().props.enterKeyHint,'search');
+ const chosen=h.options()[1];let prevented=0;
+ chosen.props.onPointerDown({preventDefault(){prevented++;}});
+ chosen.props.onMouseDown({preventDefault(){prevented++;}});
+ assert.equal(prevented,2);
+ chosen.props.onClick();h.update({value:'London, Ontario, CA'});
+ assert.deepEqual(h.selected,[ontario]);assert.deepEqual(confirmed,[]);
+ assert.equal(h.focused,1);assert.equal(h.focusOptions[0]?.preventScroll,true);assert.equal(h.blurred,0);
+ assert.equal(h.input().props['aria-expanded'],false,'Synchronous onFocus must not reopen the popup after a tap');
+ assert.equal(h.options().length,0);
+ h.focus();
+ assert.equal(h.options().length,0,'Refocusing cannot revive the previous first London result');
+ h.key('Enter',true);assert.deepEqual(confirmed,[]);
+ assert.equal(h.key('Enter').defaultPrevented,true);
+ assert.deepEqual(confirmed,[ontario]);assert.equal(h.blurred,1);
+});
+
+test('editing after selection clears confirmation and late requests cannot replace or reopen the chosen city',async t=>{
+ const confirmed=[];
+ const h=harness({keepFocusOnSelect:true,onConfirm:place=>confirmed.push(place)});t.after(()=>h.dispose());
+ h.search('Old London');h.advance(180);
+ h.search('Paris');h.advance(180);h.requests[1].resolve([paris]);await h.flush();
+ h.options()[0].props.onClick();h.update({value:'Paris, Île-de-France, FR'});
+ h.requests[0].resolve([london]);await h.flush();
+ assert.equal(h.input().props['aria-expanded'],false);assert.equal(h.options().length,0);
+ h.key('Enter');assert.deepEqual(confirmed,[paris]);
+ h.search('London');
+ assert.equal(h.key('Enter').defaultPrevented,false,'Edited input cannot confirm the previous city while a new search is pending');
+ assert.deepEqual(confirmed,[paris]);
+ h.advance(180);h.requests[2].resolve([london]);await h.flush();h.key('Enter');
+ assert.deepEqual(confirmed,[paris,london]);
+});
+
+test('Enter and ARIA never expose results from a previous controlled query before passive effects clear them',async t=>{
+ const h=harness();t.after(()=>h.dispose());h.search('London');h.advance(180);h.requests[0].resolve([london]);await h.flush();
+ const snapshot=h.updateBeforeEffects({value:'Paris'});
+ const input=nodes(snapshot).find(node=>node.type==='input');
+ assert.equal(input.props['aria-activedescendant'],undefined);
+ assert.equal(nodes(snapshot).some(node=>node.props.role==='option'),false);
+ assert.equal(h.keyBeforeEffects('Enter').defaultPrevented,false);
+ assert.deepEqual(h.selected,[]);h.render();
 });
 
 test('globe city menu limits matches to five cities and updates recommendations with the query',async t=>{
