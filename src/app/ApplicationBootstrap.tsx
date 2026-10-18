@@ -38,7 +38,8 @@ function readSharedViewerProfileId(): string | null {
 
 /**
  * Restore the session while the opening clip plays once. MOBILE enters the app
- * at the clip's end; WEB retains its ready-layout/artwork Home handoff.
+ * at the clip's end, showing Hello World for a guest root visit; WEB retains
+ * its ready-layout/artwork Home handoff.
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
@@ -60,10 +61,10 @@ export function ApplicationBootstrap() {
   const isAuthCallback = !oauthFailed && /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
   const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
   const isWelcomeInvite = pathname === '/' && (new URLSearchParams(search).get('welcome') === '1' || oauthFailed) && !isAuthCallback && !isRecovery;
-  // Only an explicit invitation/account return owns the welcome scene.
-  // Ordinary launches finish their one intro directly in the app, including guests.
-  const [landingPath] = useState(() => isWelcomeInvite
-    && !isAuthCallback && pathname === '/' ? '/' : null);
+  // Mobile guests choose how to enter from Hello World. A prior public-view
+  // context keeps its destination unless this is an explicit invitation.
+  const [landingPath] = useState(() => (isWelcomeInvite || (openingPresentation === 'mobile' && !readSharedViewerProfileId()))
+    && !isAuthCallback && !isRecovery && pathname === '/' ? '/' : null);
   const [hasLeftLanding, setHasLeftLanding] = useState(false);
   const [hasPresentedLanding, setHasPresentedLanding] = useState(false);
   const [hasStartupCompleted, setHasStartupCompleted] = useState(isSharedView);
@@ -148,7 +149,7 @@ export function ApplicationBootstrap() {
     }
   }, [auth.isAuthenticated, auth.isInitializing, isWelcomeInvite, routeSharedProfileId, sessionSharedProfileId]);
 
-  const timedIntroEnded = openingPresentation === 'mobile' && hasSplashCompleted && !landingPath && !holdLanding && !hasPresentedLanding && !isRecovery && !waitingForHome;
+  const timedIntroEnded = openingPresentation === 'mobile' && hasSplashCompleted && (!landingPath || hasLeftLanding) && !holdLanding && !isRecovery && !waitingForHome;
   // Keep speculative screen warming out of the opening clip. MOBILE readiness
   // reports may arrive underneath it, but cannot extend the video handoff.
   const appStartupPending = waitingForHome || (openingPresentation === 'mobile' && !hasSplashCompleted && !hasStartupCompleted);
