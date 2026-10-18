@@ -610,6 +610,9 @@ test('one registration form validates account and profile fields before the sing
   assert.equal(step, 'verification');
   const success = nodes(tree).find(node => node.props?.title === 'Check your email');
   assert.ok(success.props.description.includes('confirmation link'));
+  assert.match(success.props.description, /If you’re new to Portalink/);
+  assert.match(success.props.description, /Already have an account\? Sign in instead/);
+  assert.doesNotMatch(success.props.description, /link sent to|account is ready/);
   assert.equal(nodes(tree).some(node => node.type === 'Welcome'), false);
   }
 });

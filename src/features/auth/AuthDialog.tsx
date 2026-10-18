@@ -266,7 +266,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
   // Confirmation and an immediate session are distinct provider outcomes.
   if (result) {
     return <div className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
-        <FormSuccess title={result.requiresEmailVerification ? "Check your email" : "Finishing setup"} description={result.requiresEmailVerification ? `Open the confirmation link sent to ${result.email} to finish creating your account and profile. Your profile details are saved.` : "Your account is ready. We’re finishing your profile."} />
+        <FormSuccess title={result.requiresEmailVerification ? "Check your email" : "Finishing setup"} description={result.requiresEmailVerification ? `If you’re new to Portalink, check ${result.email} for a confirmation link to continue signup. Already have an account? Sign in instead. Your signup details are saved on this device.` : "Your account is ready. We’re finishing your profile."} />
         {result.requiresEmailVerification && <>
           <Button variant="secondary" size="lg" fullWidth onClick={() => props.onViewChange('signIn')}>Back to sign in</Button>
           <ViewLink label="Use a different email" onSelect={() => {

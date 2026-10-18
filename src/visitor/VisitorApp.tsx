@@ -34,6 +34,7 @@ const AuthDialog = lazy(() => import('../features/auth/AuthDialog').then(module 
 const CollaborationPage = lazy(() => import('../components/profile/CollaborationPage').then(module => ({ default: module.CollaborationPage })));
 const ControlCenterPage = lazy(() => import('../components/ControlCenterPage').then(module => ({ default: module.ControlCenterPage })));
 const ProfileOnboardingDialog = lazy(() => import('../features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
+const FirstLoginWelcome = lazy(() => import('../components/auth/FirstLoginWelcome').then(module => ({ default: module.FirstLoginWelcome })));
 type SharedRoute = Extract<AppRoute, { kind: 'sharedProfile' | 'sharedCategory' | 'sharedProject' }>
   | { kind: 'sharedCollaboration'; profileId: string };
 const isProfileId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -162,6 +163,16 @@ export function VisitorApp() {
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
   const openProject = (category: string, id: string) => { if (profileId) { beginProjectContinuity(id); navigate(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix); } };
   const pending = <LoadingSkeleton kind={projectId ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…"/>;
+  const profileOnboarding = <ProfileOnboardingDialog key={auth.user?.id} isOpen theme={theme} systemGray={systemGray}
+    onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}
+    onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
+    onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}
+    onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })}
+    completionActionLabel={deferredIntent.current?.kind === 'messages' ? 'Continue to messages' : 'Return to catalogue'}
+    onDismiss={() => { setOnboardingOpen(false); deferredIntent.current = null; }}
+    onComplete={id => { setOnboardingOpen(false); const intent = deferredIntent.current; deferredIntent.current = null;
+      if (intent?.kind === 'my-profile') window.location.assign(buildPath('profile', { profileId: id })); else fulfilIntent(intent);
+    }} />;
   return <AppPresentation showFloatingActions={!projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode}
@@ -206,16 +217,9 @@ export function VisitorApp() {
           onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })} />
       </DeferredDialog>
       {onboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <DeferredSurface active onClose={() => { setOnboardingOpen(false); deferredIntent.current = null; }}>
-        <ProfileOnboardingDialog key={auth.user?.id} isOpen theme={theme} systemGray={systemGray}
-          onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}
-          onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
-          onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}
-          onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })}
-          completionActionLabel={deferredIntent.current?.kind === 'messages' ? 'Continue to messages' : 'Return to catalogue'}
-          onDismiss={() => { setOnboardingOpen(false); deferredIntent.current = null; }}
-          onComplete={id => { setOnboardingOpen(false); const intent = deferredIntent.current; deferredIntent.current = null;
-            if (intent?.kind === 'my-profile') window.location.assign(buildPath('profile', { profileId: id })); else fulfilIntent(intent);
-          }} />
+        {presentation === 'mobile'
+          ? <FirstLoginWelcome key={auth.user?.id} accountId={auth.user?.id ?? ''}>{profileOnboarding}</FirstLoginWelcome>
+          : profileOnboarding}
       </DeferredSurface>}
     </MobileBackProvider>
   </AppPresentation>;
