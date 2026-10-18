@@ -5832,31 +5832,67 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   color: var(--text-primary) !important;
 }
 
-/* Every Studio collection uses the centered Insights title/control row. */
-/* Drafts no longer reserves space for the hidden options button. */
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-drafts-heading,
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell:has([data-studio-pill='drafts'][aria-pressed='true']) .studio-mobile-header-fallback {
-  padding-right: 0;
+/* Studio titles and actions occupy separate cells, including long titles. */
+/* Keep the divider stationary during horizontal scrolling. The opaque header
+   material resets all background properties, so retain this decorative layer. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills {
+  background-image: linear-gradient(var(--hairline), var(--hairline)) !important;
+  background-size: calc(100% - var(--mobile-navigation-inset-start, 16px) - var(--mobile-screen-action-right, 16px)) 1px !important;
+  background-position: var(--mobile-navigation-inset-start, 16px) bottom !important;
+  background-repeat: no-repeat !important;
 }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-collection-title {
-  display: block !important;
-  position: absolute;
-  inset-inline: 76px;
-  top: 8px;
-  height: 44px;
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills::after { content: none; }
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-mobile-shell-header,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-page > header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  height: auto;
+  min-height: 68px;
+  max-height: none;
+  padding: 8px var(--mobile-screen-action-right, 16px) 16px var(--mobile-navigation-inset-start, 16px);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-mobile-header-controls, .studio-bookmarks-navigation, .studio-bookmarks-controls, .studio-drafts-heading, .studio-mobile-header-fallback) {
+  display: contents;
+  padding: 0;
   margin: 0;
-  display: grid !important;
-  place-items: center;
-  text-align: center;
-  font-size: 22px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-collection-title,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-page > header h1 {
+  display: flex !important;
+  position: static;
+  grid-column: 2;
+  grid-row: 1;
+  align-items: center;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  margin: 0;
+  text-align: start;
+  font-size: 20px;
   font-weight: 650;
-  line-height: 1.15;
-  pointer-events: none;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) {
-  margin-right: 0;
-  padding-inline: 8px;
+  grid-column: 3;
+  grid-row: 1;
+  width: auto;
+  min-width: 64px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+  box-shadow: none;
   font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
 }
 #root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-drafts-title, .studio-header h1),
 #root .codex-shell[data-presentation='mobile'] .studio-citation-shell > section > h2 {
@@ -5871,15 +5907,86 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   background: var(--hairline);
   pointer-events: none;
 }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back) {
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back),
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-page > header button:not(.mobile-context-button) {
   display: grid;
   place-items: center;
+  grid-column: 1;
+  grid-row: 1;
+  flex: 0 0 44px;
   width: 44px;
   height: 44px;
   min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--hairline);
   border-radius: 14px;
   background: var(--navigation-surface);
   color: var(--navigation-foreground);
+  box-shadow: none;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-page > header button svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Collection forms and empty states share Studio's quiet control treatment. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-content, .studio-workbench-scroll) {
+  padding-inline: var(--mobile-navigation-inset-start, 16px) var(--mobile-screen-action-right, 16px);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-search {
+  min-height: 44px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-search input {
+  min-width: 0;
+  min-height: 42px;
+  font-size: 16px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .references-tab-heading {
+  margin-block: 12px 16px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .references-tab-heading button,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-period :is(button, select) {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 200px;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--type-body-size, 16px);
+  line-height: var(--type-body-leading, 24px);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-empty-state p { margin: 0; max-width: 46ch; }
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-empty-title {
+  color: var(--text-primary);
+  font-size: var(--type-title-2-size, 17px);
+  font-weight: 500;
+  line-height: var(--type-title-2-leading, 22px);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-drafts-list:empty { display: none; }
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citations-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px var(--mobile-screen-action-right, 16px) var(--mobile-dock-clearance, 104px) var(--mobile-navigation-inset-start, 16px);
 }
 
 /* Draw inbox search focus inside its rounded shell so header clipping cannot cut it off. */

@@ -12,19 +12,17 @@ test('Studio rail precedes the collection header and selected pills never scroll
 });
 
 
-test('mobile Studio header receives existing collection controls and hides its redundant title',()=>{
+test('mobile Studio header receives existing collection controls without replacing their behavior',()=>{
  const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
  assert.match(source,/className="studio-mobile-header-controls" ref=\{setHeaderHost\}/);
  assert.match(source,/<BookmarksList headerHost=\{mobile\?headerHost:undefined\}/);
  assert.match(source,/<StudioDraftsList key="drafts" headerHost=\{mobile\?headerHost:undefined\}/);
- const css=readFileSync('src/presentation/mobile/mobile.css','utf8');
- assert.match(css, /data-presentation='mobile'\] \.studio-mobile-shell-header h1 \{ display: none;/);
 });
 
 test('mobile landing overview is the first tab, with reference-style fallback header controls', () => {
  const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
  assert.match(source,/mobile\?\['overview'\]:\[\]\),'drafts',\.\.\.\(!mobile\?\['published'\]:\[\]\)/);
- assert.match(source,/collection\?\?\(mobile\?'overview':'all'\)/);
+ assert.match(source,/collection\?\?\(mobile\?'overview':null\)/);
  assert.match(source,/mobile&&!collectionHeader&&!insightsOverview&&<div className="studio-mobile-header-fallback"/);
  assert.match(source,/aria-label="Back from Studio"/);
  assert.match(source,/className="studio-text-control" aria-label="Select items" disabled>Select/);

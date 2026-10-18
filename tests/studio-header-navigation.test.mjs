@@ -17,32 +17,56 @@ test('Studio header exposes Bookmarks without New project or Insights', () => {
 });
 
 test('mobile Drafts restores Back while WEB retains its existing navigation', () => {
- const react = {...React,useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
+ const slots=[];let cursor=0,presentation='web';
+ const react = {...React,useState(initial){const index=cursor++;if(!(index in slots))slots[index]=typeof initial==='function'?initial():initial;return[slots[index],value=>{slots[index]=typeof value==='function'?value(slots[index]):value;}];}};
  const {StudioDraftsList} = sourceModule('src/features/studio/StudioDraftsList.tsx',{
   react,
-  'react-dom':{createPortal:children=>children},
+  'react-dom':{createPortal:(children,host)=>React.createElement('header-portal',{host},children)},
   'lucide-react':{ChevronLeftIcon:'chevron'},
   '../../components/ui/ModalPortal':{ModalPortal:'modal'},
   '../../components/publishing/ProjectFormDialog':{ProjectDiscardConfirmation:'confirmation'},
+  '../../presentation/usePresentation':{usePresentation:()=>presentation},
+  './StudioEmptyState':{StudioEmptyState:'empty'},
   '../../presentation/mobile/MobileContextActions':{MobileContextButton:'actions',useMobileScreenActions(){}},
   '../../presentation/mobile/contextActions':{contextActions:kind=>({kind})},
  });
- const props={drafts:[],onBack(){},onResume(){},onDiscard:async()=>{},onBookmarks(){},onReads(){}};
- const mobile = nodes(StudioDraftsList({...props,hideBack:true}));
- assert.equal(mobile.some(n=>n.props['aria-label']==='Back from Drafts'),true);
+ const calls=[],host={};
+ const props={drafts:[{id:'draft-one',metadata:{title:'A real draft'},stage:'details',createdAt:'2026-10-18T00:00:00Z'}],onBack(){calls.push('back');},onResume(){calls.push('resume');},onDiscard:async()=>{},onBookmarks(){},onReads(){}};
+ const render=overrides=>{cursor=0;presentation=overrides?.headerHost?'mobile':'web';return nodes(StudioDraftsList({...props,...overrides}));};
+ let mobile=render({headerHost:host});
+ const portal=mobile.find(n=>n.type==='header-portal');
+ assert.equal(portal.props.host,host);
+ assert.ok(nodes(portal).some(n=>n.props['aria-label']==='Back from Drafts'));
+ const select=mobile.find(n=>n.type==='button'&&n.props.children==='Select');
+ assert.equal(select.props.disabled,false);
+ select.props.onClick();
+ mobile=render({headerHost:host});
+ assert.ok(mobile.some(n=>n.type==='button'&&n.props.children==='Done'));
+ mobile.find(n=>n.type==='button'&&n.props['aria-pressed']===false&&n.props.className!=='studio-drafts-control').props.onClick();
+ mobile=render({headerHost:host});
+ assert.equal(mobile.find(n=>n.type==='li').props['data-selected'],true);
+ mobile.find(n=>n.props['aria-label']==='Back from Drafts').props.onClick();
+ mobile=render({headerHost:host});
  assert.ok(mobile.some(n=>n.type==='button'&&n.props.children==='Select'));
- const web = nodes(StudioDraftsList(props));
- assert.ok(web.some(n=>n.props['aria-label']==='Back from Drafts'));
+ assert.equal(mobile.some(n=>n.props['aria-label']==='Selected draft actions'),false);
+ assert.deepEqual(calls,[],'Back exits selection before leaving Drafts.');
+ mobile.find(n=>n.props['aria-label']==='Back from Drafts').props.onClick();
+ assert.deepEqual(calls,['back']);
+ const web=render({headerHost:undefined});
+ assert.equal(web.some(n=>n.type==='header-portal'),false);
+ const webBack=web.find(n=>n.props['aria-label']==='Back from Drafts');
+ assert.ok(webBack);
+ assert.deepEqual(React.Children.toArray(webBack.props.children.props.children),['← ','Studio']);
 });
 
 test('mobile Studio starts on Insights, and selecting Drafts switches the content with consistent header controls', () => {
  let params=new URLSearchParams(), mobile=true, registered;
- const effects=[],paramWrites=[];
+ const effects=[],paramWrites=[],navigations=[];
  let workbench={data:{profile:{projects:[{id:'real-work-fixture'}]},drafts:[]},retry(){}};
  const react={...React,useEffect:effect=>effects.push(effect),useMemo:fn=>fn(),useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
  const imports={
-  react,'react-router-dom':{useLocation:()=>({state:{}}),useNavigate:()=>()=>{},useSearchParams:()=>[params,(next,options)=>{params=new URLSearchParams(next);paramWrites.push({params,options});}]},
-  'lucide-react':{},
+  react,'react-router-dom':{useLocation:()=>({state:{}}),useNavigate:()=>((path,options)=>navigations.push({path,options})),useSearchParams:()=>[params,(next,options)=>{params=new URLSearchParams(next);paramWrites.push({params,options});}]},
+  'lucide-react':{ChevronLeftIcon:'chevron'},
   '../../presentation/usePresentation':{usePresentation:()=>mobile?'mobile':'web'},
   '../library/PersonalPages':{InsightsPage:'insights'},
   '../citations/StudioCitations':{StudioCitations:'citations'},
@@ -52,10 +76,10 @@ test('mobile Studio starts on Insights, and selecting Drafts switches the conten
   '../../presentation/mobile/MobileBackNavigation':{ScreenBack:'screen-back'},
   '../../presentation/mobile/MobileContextActions':{useMobileScreenActions(model){registered=model;}},
   '../../presentation/mobile/contextActions':{contextActions:kind=>({kind})},
-  '../../components/ui/StateViews':{},
+  '../../components/ui/StateViews':{LoadingState:'loading',ErrorState:'error'},
   '../projects/ProjectEditorDialog':{ProjectEditorDialog:'editor'},
   '../projects/useProjectManagement':{useProjectManagement:()=>({editor:{result:null}})},
-  '../publishing/PublishProjectDialog':{},'./discardStudioDraft':{},'../publishing/firstProjectDraft':{},
+  '../publishing/PublishProjectDialog':{PublishProjectDialog:'publisher'},'./discardStudioDraft':{},'../publishing/firstProjectDraft':{},
   '../sharing/shareModel':{},'../../utils/copyPublicLink':{},
   './StudioOverview':{StudioOverview:'overview'},
   './StudioBookmarksList':{StudioPage:'collection'},'./StudioDraftsList':{StudioDraftsList:'drafts'},
@@ -73,6 +97,7 @@ test('mobile Studio starts on Insights, and selecting Drafts switches the conten
  assert.equal(pills.some(n=>n.props['data-studio-pill']==='all'),false);
  assert.equal(pills[0].props['aria-pressed'],true);
  assert.ok(tree.some(n=>n.type==='insights'));
+ assert.equal(tree.find(n=>n.type==='insights').props.studio,true);
  assert.equal(tree.some(n=>n.type==='overview'),false);
  assert.equal(tree.some(n=>n.props['aria-label']==='Back from Studio'),false);
  pills.find(n=>n.props['data-studio-pill']==='drafts').props.onClick();
@@ -100,6 +125,14 @@ test('mobile Studio starts on Insights, and selecting Drafts switches the conten
   assert.equal(emptyTree.filter(n=>n.props.className==='studio-mobile-header-fallback').length,fallback,`${collection}: empty Studio retains one header fallback`);
   assert.equal(emptyTree.filter(n=>n.type==='header'&&n.props.showBookmarks===false).length,fallback,`${collection}: fallback contains screen actions header`);
   assert.equal(registered, null,`${collection}: screen or list child provides its actions`);
+  if(collection==='cited') {
+   const header=emptyTree.find(n=>n.props.className==='studio-mobile-header-fallback');
+   assert.equal(nodes(header).some(n=>n.props['aria-label']==='Select items'),false,'Cited must not offer selection when no selection action exists.');
+   assert.deepEqual(emptyTree.filter(n=>n.type==='h1').map(n=>n.props.children),['Your citations']);
+   nodes(header).find(n=>n.props['aria-label']==='Back from Studio').props.onClick();
+   assert.equal(navigations.at(-1).path,'/studio');
+   assert.equal(navigations.at(-1).options.replace,true);
+  }
  }
  effects.length=0;
  for(const isMobile of [true,false])for(const key of ['collection','category']) {
@@ -117,6 +150,8 @@ test('mobile Studio starts on Insights, and selecting Drafts switches the conten
   params=new URLSearchParams({collection:'drafts'});workbench={...state,retry(){}};
   const unavailableTree=nodes(StudioPage(props));
   assert.equal(unavailableTree.filter(n=>n.props.className==='studio-mobile-header-fallback').length,1,'Unavailable Drafts retains fallback');
+  assert.equal(unavailableTree.find(n=>n.props['aria-label']==='Select items').props.disabled,true,'Unavailable Drafts retains its disabled selection affordance.');
+  assert.ok(unavailableTree.some(n=>n.props['aria-label']==='Back from Studio'));
   assert.equal(registered,null);
  }
 });
