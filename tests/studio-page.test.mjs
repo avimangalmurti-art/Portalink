@@ -21,7 +21,7 @@ const rows = [
   { kind: 'activity', id: 'activity:n1', title: 'Message', secondary: 'Hello', href: '/messages?conversation=1', notification: { id: 'n1', isUnread: true } },
 ];
 
-function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, hideBack = false, citations = [], extraRows = [] } = {}) {
+function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, presentation = headerHost ? 'mobile' : 'web', hideBack = false, citations = [], extraRows = [] } = {}) {
   let params = new URLSearchParams(initialSearch), cursor = 0, dirty = true, effects = [], tree;
   const slots = [], history = [], calls = [], frames = [];
   const currentRows = [...rows, ...extraRows];
@@ -39,7 +39,7 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
   };
   const deps = {
     '../citations/publicOrigin': { PUBLIC_ORIGIN: 'https://portalinknetworks.com' },
-    '../../presentation/usePresentation': {usePresentation:()=>headerHost?'mobile':'web'},
+    '../../presentation/usePresentation': {usePresentation:()=>presentation},
     './StudioEmptyState': {StudioEmptyState:'studio-empty'},
     '../references/useReferences':{useReferences:()=>({externalReferences:async()=>[]})},
     '../references/ExportSheet':{ExportSheet:'export-sheet'},
@@ -120,21 +120,30 @@ test('share links use public canonical destinations and retain exact saved-page 
 });
 
 
-test('mobile selection and Back render in the header host and retain selection behavior', () => {
+test('mobile search owns Select and selection-only Back without a duplicate header, while WEB keeps its portal', () => {
  const host = {};
  const page = pageHarness({ initialSearch: 'category=bookmarks', headerHost: host });
- const portal = page.nodes.find(node => node.type === 'header-portal');
- assert.equal(portal.props.host, host);
- assert.ok(nodes(portal).some(node => node.props['aria-label'] === 'Back from Bookmarks'));
- assert.ok(nodes(portal).some(node => node.props['aria-label'] === 'Select items'));
- assert.equal(page.nodes.filter(node => node.props.className === 'studio-bookmarks-navigation').length, 1);
+ assert.equal(page.nodes.some(node=>node.type==='header-portal'||node.type==='h1'||node.props['aria-label']==='Back from Bookmarks'||node.props['aria-label']==='Bookmarks options'),false);
+ const toolbar=page.nodes.find(node=>node.props.className==='studio-inline-toolbar');
+ assert.ok(nodes(toolbar).some(node=>node.type==='input'&&node.props['aria-label']==='Search Studio'));
+ assert.ok(nodes(toolbar).some(node=>node.props['aria-label']==='Select items'));
+ assert.equal(page.button('Back from selection'),undefined);
  page.button('Select items').props.onClick();
  assert.ok(page.button('Exit selection'));
- page.button('Back from Bookmarks').props.onClick();
+ page.nodes.find(node=>node.type==='studio-row').props.onSelect();
+ assert.equal(page.nodes.find(node=>node.type==='studio-row').props.selected,true);
+ page.button('Back from selection').props.onClick();
  assert.ok(page.button('Select items'));
+ assert.equal(page.button('Back from selection'),undefined);
+ assert.equal(page.nodes.find(node=>node.type==='studio-row').props.selected,false);
  assert.deepEqual(page.calls, []);
- page.button('Back from Bookmarks').props.onClick();
+ page.nodes.find(node=>node.type==='back').props.action();
  assert.deepEqual(page.calls, [['back']]);
+ const web=pageHarness({initialSearch:'category=bookmarks',headerHost:host,presentation:'web'});
+ const portal=web.nodes.find(node=>node.type==='header-portal');
+ assert.equal(portal.props.host,host);
+ assert.ok(nodes(portal).some(node=>node.props['aria-label']==='Back from Bookmarks'));
+ assert.equal(web.nodes.filter(node=>node.type==='h1').length,1);
 });
 
 test('collection selection wins over a stale legacy category and drives actual rows', () => {
@@ -164,13 +173,18 @@ test('switching collections updates heading, rows and selection together', () =>
  assert.deepEqual(page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id), ['activity:n1']);
 });
 
-test('mobile Studio retains Back, Select and Done together in the header', () => {
+test('mobile delegated Back exits selection and Done returns to the stable local toolbar', () => {
  const page = pageHarness({ initialSearch:'collection=published', headerHost:{}, hideBack:true });
- assert.equal(page.nodes.some(node => node.props.className === 'studio-bookmarks-back'), true);
+ assert.equal(page.nodes.some(node => node.props.className === 'studio-bookmarks-back'), false);
  page.button('Select items').props.onClick();
  assert.ok(page.button('Exit selection'));
+ page.nodes.find(node=>node.type==='back').props.action();
+ assert.ok(page.button('Select items'));
+ assert.deepEqual(page.calls,[]);
+ page.button('Select items').props.onClick();
  page.button('Exit selection').props.onClick();
  assert.ok(page.button('Select items'));
+ assert.equal(page.button('Back from selection'),undefined);
 });
 
 test('Published references live within row metadata, hide zero, and keep the reference link', async()=>{

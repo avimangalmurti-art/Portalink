@@ -50,6 +50,7 @@ function RowPreview({ row }: { row: StudioItem }) {
 
 /** A private, mobile presentation of existing collections and service actions. */
 export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = false, headerHost }: Props) {
+  const mobile = usePresentation() === 'mobile';
   const [citeItem,setCiteItem]=useState<CitationItem|null>(null);
   const [citationLabels,setCitationLabels]=useState<Record<string,string>>({});
   const sendContent = useInternalContentShare();
@@ -77,6 +78,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   account.current = auth.user?.id;
   const selectButton = useRef<HTMLButtonElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const priorSave = useRef(management.editor.result);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
@@ -104,7 +106,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const canSelect = visibleRows.length > 0 && !bulkPending && !isRefreshing;
   const restoreSelectionFocus = () => requestAnimationFrame(() => {
     const target = selectButton.current;
-    (target && !target.disabled ? target : heading.current)?.focus({ preventScroll: true });
+    (target && !target.disabled ? target : mobile ? searchInput.current : heading.current)?.focus({ preventScroll: true });
   });
   const closeSelection = () => {
     if (busy.current) return;
@@ -188,7 +190,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
       const active = document.activeElement;
       if (active instanceof HTMLElement && active !== document.body && active !== document.documentElement && !active.closest('[data-studio-row]')) return;
       const remaining = Array.from(scroller.current?.querySelectorAll<HTMLElement>('[data-studio-row]') ?? []).find(element => element.dataset.studioRow === row.id);
-      (remaining?.querySelector<HTMLElement>('button[data-studio-row-control]') ?? heading.current)?.focus({ preventScroll: true });
+      (remaining?.querySelector<HTMLElement>('button[data-studio-row-control]') ?? (mobile ? searchInput.current : heading.current))?.focus({ preventScroll: true });
     });
   }
 
@@ -222,22 +224,24 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const viewActions: StudioRowAction[] = [{ id: 'refresh', label: 'Refresh', icon: RefreshCwIcon, disabled: data.status === 'loading', onAction: data.refresh },...(category==='published'?[{id:'export',label:'Export',onAction:()=>setExportProject('all')}]:[])];
   const statusLine = data.status === 'loading' ? 'Updating…' : data.updatedAt ? `Updated ${new Date(data.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Your private workspace';
 
+  const selectionControl = <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>;
+  const search = <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input ref={mobile ? searchInput : undefined} type="search" aria-label="Search Studio" placeholder={`Search ${collectionTitle.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>;
   const navigation = <div className="studio-bookmarks-navigation">
         <button type="button" className="studio-bookmarks-back" aria-label={`Back from ${collectionTitle}`} disabled={bulkPending} onClick={back}>{headerHost?<ChevronLeftIcon aria-hidden="true" />:<><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></>}</button>
         <div className="studio-bookmarks-controls">
-          <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>
+          {selectionControl}
           <div data-inline-screen-actions=""><button type="button" className="mobile-context-button studio-round-control" data-keep-color="" aria-label={`${collectionTitle} options`} aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button></div>
         </div>
       </div>;
   return <section className="mobile-studio" data-mobile-studio="" data-studio-selecting={selecting ? 'true' : 'false'} aria-label="Studio">
     <ScreenBack action={back}>{null}</ScreenBack>
     <header className="studio-header">
-      {headerHost ? createPortal(navigation, headerHost) : navigation}
-      <div className="studio-heading">
+      {!mobile && (headerHost ? createPortal(navigation, headerHost) : navigation)}
+      {!mobile && <div className="studio-heading">
         <h1 ref={heading} tabIndex={-1} className="studio-title">{collectionTitle}</h1>
         <p className="studio-status">{statusLine}</p>
-      </div>
-      <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input type="search" aria-label="Search Studio" placeholder={`Search ${collectionTitle.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
+      </div>}
+      {mobile ? <div className="studio-inline-toolbar">{selecting && <button type="button" className="studio-selection-back" aria-label="Back from selection" disabled={bulkPending} onClick={closeSelection}><InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl /></button>}{search}{selectionControl}</div> : search}
       {category === 'bookmarks' && <div className="studio-bookmark-tabs" role="group" aria-label="Saved collection">{STUDIO_BOOKMARK_TABS.map(kind => <button key={kind} type="button" aria-pressed={tab === kind} disabled={bulkPending} onClick={() => chooseTab(kind)}>{kind === 'projects' ? 'Projects' : kind === 'pages' ? 'Pages' : 'Creators'}</button>)}</div>}
       {selecting && <div className="studio-selection-summary"><span role="status">{selectedRows.length} selected</span><button type="button" disabled={!canSelect} onClick={() => setSelected(selectedRows.length === visibleRows.length ? new Set() : new Set(visibleRows.map(row => row.id)))}>{selectedRows.length === visibleRows.length ? 'Deselect all' : 'Select all shown'}</button></div>}
     </header>

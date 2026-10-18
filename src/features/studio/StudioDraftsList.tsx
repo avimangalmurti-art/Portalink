@@ -2,25 +2,30 @@ import { ModalPortal } from '../../components/ui/ModalPortal';
 import { ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
 import { ChevronLeftIcon } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { usePresentation } from '../../presentation/usePresentation';
+import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { StudioEmptyState } from './StudioEmptyState';
 import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import type { DraftResume } from './workbenchModel';
 export function StudioDraftsList({drafts,onBack,onResume,onDiscard,onNew,onBookmarks,onReads,headerHost}:{headerHost?:HTMLElement|null;drafts:DraftResume[];onBack:()=>void;onResume:(draft:DraftResume)=>void;onDiscard:(ids:string[])=>Promise<void>;onNew?:()=>void;onBookmarks:()=>void;onReads:()=>void}) {
  const mobile=usePresentation()==='mobile';
+ const selectionControl=useRef<HTMLButtonElement>(null);
  const [selecting,setSelecting]=useState(false),[selected,setSelected]=useState<Set<string>>(new Set()),[confirm,setConfirm]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const finishSelection=()=>{if(busy)return;setSelecting(false);setSelected(new Set());setError('');};
- useMobileScreenActions(contextActions('studio',{signedIn:true,owner:true},{handlers:{newProject:onNew,drafts:finishSelection,bookmarks:onBookmarks,reads:onReads,select:drafts.length?()=>setSelecting(true):undefined}}));
+ const finishSelection=()=>{if(busy)return;if(mobile)selectionControl.current?.focus({preventScroll:true});setSelecting(false);setSelected(new Set());setError('');};
+ useMobileScreenActions(mobile?null:contextActions('studio',{signedIn:true,owner:true},{handlers:{newProject:onNew,drafts:finishSelection,bookmarks:onBookmarks,reads:onReads,select:drafts.length?()=>setSelecting(true):undefined}}));
  const selectedDrafts=drafts.filter(d=>selected.has(d.id));
  const toggle=(id:string)=>setSelected(v=>{const next=new Set(v);if(next.has(id))next.delete(id);else next.add(id);return next;});
  const navigation = <div className="studio-drafts-heading"><button type="button" className="studio-drafts-back" aria-label="Back from Drafts" disabled={busy} onClick={()=>selecting?finishSelection():onBack()}>{headerHost ? <ChevronLeftIcon aria-hidden="true" /> : <>← {selecting?'Done':'Studio'}</>}</button>
    <button type="button" className="studio-drafts-control" disabled={busy||!drafts.length} aria-pressed={selecting} onClick={()=>selecting?finishSelection():setSelecting(true)}>{selecting?'Done':'Select'}</button><div data-inline-screen-actions=""><MobileContextButton /></div></div>;
  return <section className="mobile-studio studio-workbench" data-studio-selecting={selecting?'true':'false'} aria-label="Drafts">
   <header className="studio-workbench-header">
-   {headerHost ? createPortal(navigation, headerHost) : navigation}<h1 className="studio-drafts-title">Drafts</h1>
-   <p>{selecting?'Tap drafts to select them for removal.':'Tap a draft to continue editing.'}</p>
+   {mobile?<div className="studio-drafts-heading studio-drafts-inline-controls">
+    <ScreenBack action={selecting?finishSelection:onBack} visibleOnMobile>{selecting&&<button type="button" className="studio-drafts-back" aria-label="Back from Drafts" disabled={busy} onClick={finishSelection}><ChevronLeftIcon aria-hidden="true" /></button>}</ScreenBack>
+    <p className="studio-drafts-instruction">{selecting?'Tap drafts to select them for removal.':'Tap a draft to continue editing.'}</p>
+    <button ref={selectionControl} type="button" className="studio-drafts-control" disabled={busy||!drafts.length} aria-pressed={selecting} onClick={()=>selecting?finishSelection():setSelecting(true)}>{selecting?'Done':'Select'}</button>
+   </div>:<>{headerHost ? createPortal(navigation, headerHost) : navigation}<h1 className="studio-drafts-title">Drafts</h1><p>{selecting?'Tap drafts to select them for removal.':'Tap a draft to continue editing.'}</p></>}
    {selecting&&<div className="studio-selection-summary"><span role="status">{selectedDrafts.length} selected</span><button type="button" disabled={busy} onClick={()=>setSelected(selectedDrafts.length===drafts.length?new Set():new Set(drafts.map(d=>d.id)))}>{selectedDrafts.length===drafts.length?'Deselect all':'Select all'}</button></div>}
   </header>
   <div className="studio-workbench-scroll"><ul className="studio-drafts-list inset-row-group">{drafts.map(d=><li key={d.id} data-selected={selecting&&selected.has(d.id)}>

@@ -98,7 +98,7 @@ export function InsightsPage({ onBack, studio = false }: { onBack: () => void; s
   const query = useCallback(() => creatorSaves.getSaveInsights(), [creatorSaves]);
   const state = useAccountQuery(query, { key: 'insights:audience', scope: creatorSaves });
   return <section aria-label="Private creator insights" className={isMobile ? 'mobile-insights-page' : undefined}>
-    <PersonalHeader insights studio={studio} title={projectId ? "Reads" : isMobile ? "Your insights" : "Insights"} onBack={projectId ? () => setParams({}) : onBack} />
+    {(!isMobile || !studio || projectId) && <PersonalHeader insights studio={studio} title={projectId ? "Reads" : isMobile ? "Your insights" : "Insights"} onBack={projectId ? () => setParams({}) : onBack} />}
     <div className={isMobile ? 'mobile-insights-scroll' : undefined}>{projectId ? <Suspense fallback={<LoadingState label="Loading Reads" />}><ReadsProject key={projectId} projectId={projectId}/></Suspense> : <>
     {isMobile ? <Suspense fallback={<LoadingState kind="insights" label="Loading insights" />}><MobileInsights saves={state} /></Suspense> : <div className="px-[var(--content-gutter)] py-6">
       <div className="flex items-center justify-between gap-4"><p className="text-[13px] text-[var(--text-secondary)]">Only you can see these insights.</p><button type="button" onClick={state.retry} disabled={state.loading || state.refreshing} className="shape-compact px-3 py-2 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Refresh</button></div>

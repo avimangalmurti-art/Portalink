@@ -7,7 +7,7 @@ const citation=sourceModule('src/features/citations/model.ts'),model=sourceModul
 const nodes=tree=>!tree||typeof tree!=='object'?[]:[tree,...React.Children.toArray(tree.props?.children).flatMap(nodes)];
 const label=node=>React.Children.toArray(node.props.children).filter(value=>typeof value==='string').join('');
 function component(file,name,imports,props){const slots=[];let cursor=0,dirty=true,tree,effects=[];const same=(a,b)=>a&&b&&a.length===b.length&&a.every((value,i)=>Object.is(value,b[i]));const react={...React,useState(initial){const index=cursor++;slots[index]??={value:typeof initial==='function'?initial():initial};return[slots[index].value,next=>{slots[index].value=typeof next==='function'?next(slots[index].value):next;dirty=true;}];},useRef(initial){const index=cursor++;slots[index]??={current:initial};return slots[index];},useEffect(effect,deps){const index=cursor++;if(!same(slots[index]?.deps,deps)){const prior=slots[index];slots[index]={deps};effects.push(()=>{prior?.cleanup?.();slots[index].cleanup=effect();});}}};
- const loaded=sourceModule(file,{react,...imports}),render=()=>{cursor=0;dirty=false;effects=[];tree=loaded[name](props);effects.forEach(effect=>effect());return tree;};return{get tree(){return dirty?render():tree;},async flush(){for(let i=0;i<30;i++){if(dirty)render();await Promise.resolve();}return tree;},button(text){return nodes(this.tree).find(node=>node.type==='button'&&label(node)===text);},dispose(){slots.forEach(slot=>slot?.cleanup?.());}};
+ const loaded=sourceModule(file,{react,...imports},{requestAnimationFrame:callback=>{callback();return 1;}}),render=()=>{cursor=0;dirty=false;effects=[];tree=loaded[name](props);effects.forEach(effect=>effect());return tree;};return{get tree(){return dirty?render():tree;},async flush(){for(let i=0;i<30;i++){if(dirty)render();await Promise.resolve();}return tree;},button(text){return nodes(this.tree).find(node=>node.type==='button'&&label(node)===text);},dispose(){slots.forEach(slot=>slot?.cleanup?.());}};
 }
 const sheetImports={ '../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useModalFocus':{useModalFocus(){}},'./model':model,'./references.css':{}};
 test('Add reference resolves for review, defaults to the first recently edited project, and saves only on confirmation',async()=>{
@@ -29,12 +29,37 @@ test('own-page Copy citation reuses the exact /cite block without creating a cit
  const item={id:'page-9',creatorId:'owner',projectId:'project',creator:'Creator',projectTitle:'Work',kind:'page',number:9,madeOn:'2024-01-02'};const source=sourceModule('src/features/references/ownCitation.ts',{'../citations/service':{resolveImageId:async()=>null,resolvePageId:async(id,index)=>{assert.equal(index,8);return'page-9';},resolveCitationItem:async()=>item},'../citations/model':citation,'../citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.example'}});assert.equal(await source.ownPageCitation('owner','project','attachment',8),citation.plainCitation(item,'https://portalink.example'));await assert.rejects(source.ownPageCitation('other','project','attachment',8),/unavailable/);
 });
 
-test('References retains header selection and lets owners edit a free-text row without a URL',async()=>{
+test('References keeps mobile selection beside search, selection-only Back, WEB header and free-text editing',async()=>{
  const row={id:'text-ref',project_id:'project',owner_profile_id:'owner',kind:'text',raw_input:'Notes',resolved:{title:'Notes',verified:false},created_at:'2026-10-12'};
  const service={externalReferences:async()=>[row],deleteExternalReference:async()=>{}};
+ for(const presentation of ['mobile','web']) {
+ const navigation=[];
  const h=component('src/features/references/ReferencesTab.tsx','ReferencesTab',{
- 'lucide-react':{ChevronLeftIcon:'chevron'},'react-router-dom':{useNavigate:()=>()=>{}},'react-dom':{createPortal:n=>n},'../studio/StudioEmptyState':{StudioEmptyState:'empty'},'../../components/ui/StateViews':{LoadingSkeleton:'loading'},
+ 'lucide-react':{ChevronLeftIcon:'chevron'},'react-router-dom':{useNavigate:()=>path=>navigation.push(path)},'react-dom':{createPortal:(children,host)=>React.createElement('header-portal',{host},children)},'../studio/StudioEmptyState':{StudioEmptyState:'empty'},'../../components/ui/StateViews':{LoadingSkeleton:'loading'},
+ '../../presentation/usePresentation':{usePresentation:()=>presentation},'../../presentation/mobile/MobileBackNavigation':{ScreenBack:'screen-back'},'../../components/ui/InterfaceIcon':{InterfaceIcon:'icon'},
  '../../presentation/mobile/MobileContextActions':{useMobileScreenActions(){},MobileContextButton:'context'},'../../presentation/mobile/contextActions':{contextActions:()=>({})},'../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'owner',isAuthenticated:true})},'../studio/StudioRow':{StudioRow:'row'},'../studio/StudioActionSheet':{StudioActionSheet:'actions'},'../citations/service':{listCitations:async()=>[],citationProject:async()=>({title:'Work'})},'../citations/model':citation,'./useReferences':{useReferences:()=>service},'./model':model,'./AddReferenceSheet':{AddReferenceSheet:'editor'},'./ExportSheet':{ExportSheet:'export'}
  },{headerHost:{}});await h.flush();assert.equal(nodes(h.tree).some(n=>n.type==='h2'),false);assert.equal(nodes(h.tree).find(n=>n.type==='input').props.type,'search');assert.ok(h.button('Select'));
+ if(presentation==='mobile') {
+  assert.equal(nodes(h.tree).some(n=>n.type==='header-portal'||n.type==='h1'||n.props['aria-label']==='Back from References'||n.props['aria-label']==='Back from selection'),false);
+  const toolbar=nodes(h.tree).find(n=>n.props.className==='studio-inline-toolbar');
+  assert.ok(nodes(toolbar).some(n=>n.type==='input'&&n.props['aria-label']==='Search references'));
+  assert.ok(nodes(toolbar).some(n=>n.props['aria-label']==='Select items'));
+  h.button('Select').props.onClick();await h.flush();
+  nodes(h.tree).find(n=>n.type==='row').props.onSelect();await h.flush();
+  assert.equal(nodes(h.tree).find(n=>n.type==='row').props.selected,true);
+  nodes(h.tree).find(n=>n.props['aria-label']==='Back from selection').props.onClick();await h.flush();
+  assert.equal(nodes(h.tree).find(n=>n.type==='row').props.selected,false);
+  assert.equal(nodes(h.tree).some(n=>n.props['aria-label']==='Back from selection'),false);
+  assert.deepEqual(navigation,[]);
+  h.button('Select').props.onClick();await h.flush();
+  nodes(h.tree).find(n=>n.type==='screen-back').props.action();await h.flush();
+  assert.ok(h.button('Select'));assert.deepEqual(navigation,[]);
+  nodes(h.tree).find(n=>n.type==='screen-back').props.action();
+  assert.deepEqual(navigation,['/studio']);
+ } else {
+  assert.ok(nodes(h.tree).some(n=>n.type==='header-portal'));
+  assert.ok(nodes(h.tree).some(n=>n.props['aria-label']==='Back from References'));
+ }
  const reference=nodes(h.tree).find(n=>n.type==='row');assert.equal(typeof reference.props.onOpen,'function');reference.props.onOpen();nodes(h.tree).find(n=>n.type==='actions').props.actions.find(a=>a.id==='edit-reference').onAction();assert.equal(nodes(h.tree).find(n=>n.type==='editor').props.initial.id,'text-ref');h.dispose();
+ }
 });
