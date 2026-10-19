@@ -1,8 +1,0 @@
-.project-creation-progress {display:flex;align-items:center;gap:var(--ui-surface-gap,16px);list-style:none;margin:0;padding:0;flex:none;}
-.project-creation-progress li {display:flex;align-items:center;gap:6px;min-width:0;flex:1;font-size:13px;line-height:1.4;color:var(--text-secondary);}
-.project-creation-progress li>span {display:grid;place-items:center;width:20px;height:20px;flex:none;border-radius:50%;border:1px solid var(--hairline-strong);font-size:11px;}
-.project-creation-progress li[aria-current=step] {color:var(--text-primary);font-weight:600;}
-.project-creation-progress li[aria-current=step]>span {background:var(--accent-primary);border-color:var(--accent-primary);color:var(--accent-foreground);}
-.project-creation-progress li[data-complete]>span {color:var(--accent-text);}
-.project-creation-context {margin:0;font-size:13px;line-height:1.4;color:var(--text-secondary);overflow-wrap:anywhere;}
-.project-creation-orientation {display:flex;flex:none;flex-direction:column;gap:12px;padding-block:var(--ui-surface-gap,16px);}

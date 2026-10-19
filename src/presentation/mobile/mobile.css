@@ -6013,7 +6013,8 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   background: var(--surface-canvas) !important; color: var(--text-primary); overflow: hidden;
   border: 0 !important; border-radius: 0 !important; box-shadow: none !important; outline: none;
 }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-publish] .mobile-publish-step-heading h3:focus { outline: none !important; }
+#root .codex-shell[data-presentation='mobile'] .project-form-screen > header h1:focus { outline: none !important; }
+#root .codex-shell[data-presentation='mobile'] .project-form-screen > [data-mobile-publish] { padding-top: var(--ui-surface-gap, 16px); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header {
   flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 12px;
   padding-bottom: 12px; margin-bottom: 0; border-bottom: 1px solid var(--hairline);

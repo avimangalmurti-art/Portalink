@@ -16,7 +16,7 @@ const component = (tree, name) => nodes(tree).find(node => node.type === name);
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 function harness(overrides = {}, props = {}, presentation = 'mobile') {
-  const calls = [], focus = [], slots = []; let cursor = 0, effects = [], editingStep = 'files';
+  const calls = [], focus = [], focusCalls = [], scrollCalls = [], slots = []; let cursor = 0, effects = [], editingStep = 'files';
   const flow = { step: 'metadata', state: 'editing', isSavingDraft: false, isDiscarding: false,
     draft: { id: 'draft-a' }, metadata: { title: 'Quiet Rooms', summary: 'A study of space.' }, location: 'London', fieldErrors: {},
     media: { items: [{ id: 'image-a', isCover: true, metadata: { coverPageNumber: 2 } }], isComplete: true, state: 'ready' },
@@ -26,18 +26,26 @@ function harness(overrides = {}, props = {}, presentation = 'mobile') {
     setStep: value => { flow.step = value; }, dismissSaveDraftError: () => calls.push('dismiss-save'),
     goToPreview: async () => { calls.push('save'); flow.step = 'preview'; }, ...overrides };
   const exports = {};
-  vm.runInNewContext(compiled, { exports, document: { getElementById: id => ({ focus: () => focus.push(id) }) }, require(name) {
-    if (name === 'react') return { ...React, useRef: value => slots[cursor++] ??= { current: value }, useEffect: fn => effects.push(fn) };
+  const focused = (id, options) => { focus.push(id); focusCalls.push({id,options}); };
+  vm.runInNewContext(compiled, { exports, document: { getElementById: id => ({ focus: options => focused(id,options) }) }, require(name) {
+    if (name === 'react') return { ...React, useRef: value => slots[cursor++] ??= { current: value }, useEffect(fn,deps) {
+      const index=cursor++,previous=slots[index];
+      if(!previous||!deps||deps.some((value,item)=>!Object.is(value,previous.deps?.[item]))) {slots[index]={deps};effects.push(fn);}
+    } };
     if (name === './validation') return { TITLE_MAX_LENGTH: 80 };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     return new Proxy({}, { get: (_, key) => key });
   } });
   const render = (step = editingStep) => { editingStep = step; cursor = 0; effects = [];
     const tree = exports.MobilePublishFlow({ flow, editingStep, onEditingStepChange: value => { editingStep = value; }, categoryLabel: 'Interiors', notices: React.createElement('aside', null, 'Service notices'), ...props });
+    for(const node of nodes(tree)){
+      if(node.ref&&node.type==='h3')node.ref.current={focus:options=>focused(node.props.id,options)};
+      if(node.ref&&node.props.className?.includes('mobile-publish-body'))node.ref.current={scrollTo:options=>scrollCalls.push(options)};
+    }
     effects.forEach(fn => fn()); return tree;
   };
   const submit = async tree => { tree.props.onSubmit({ preventDefault() {} }); await tick(); };
-  return { flow, render, submit, calls, focus };
+  return { flow, render, submit, calls, focus, focusCalls, scrollCalls };
 }
 
 test('Files → Details → Review preserves the same draft, files, cover and metadata without publishing', async () => {
@@ -180,8 +188,7 @@ test('MOBILE Back follows the declared step order and WEB retains its original n
 });
 test('details-first project setup goes from files directly to review without a duplicate form or early publication',async()=>{
  const h=harness({}, {detailsFirst:true});let tree=h.render();
- const progress=component(tree,'ProjectCreationProgress');
- assert.deepEqual(Array.from(progress.props.steps),['details','files','review']);assert.equal(progress.props.current,'files');
+ assert.equal(nodes(tree).some(node=>node.type==='ol'||node.props['aria-current']==='step'),false);
  assert.ok(button(tree,'Review project'));
  await h.submit(tree);tree=h.render();
  assert.equal(h.flow.step,'preview');assert.deepEqual(h.calls,['save']);
@@ -190,18 +197,49 @@ test('details-first project setup goes from files directly to review without a d
  assert.ok(component(tree,'ProfileField'));assert.equal(h.flow.metadata.title,'Quiet Rooms');
 });
 
-test('MOBILE uses the shared progress and one quiet portal context while WEB retains its existing rail and copy',()=>{
- const mobile=harness({media:{items:[],isComplete:false,state:'empty'}},{detailsFirst:true}),tree=mobile.render();
- assert.equal(component(tree,'ProjectCreationProgress').props.current,'files');
- assert.equal(nodes(tree).some(node=>node.props.className==='mobile-publish-progress'),false);
- assert.equal(nodes(tree).find(node=>node.type==='h3').props.children,'Add files');
- assert.equal(nodes(tree).filter(node=>node.props.className==='project-creation-context').length,1);
- assert.equal(button(tree,'Review project').props.disabled,true);
- assert.doesNotMatch(text(tree),/Create your cover|Choose an image, adjust the crop/);
- const prepared=harness().render();assert.equal(nodes(prepared).find(node=>node.type==='h3').props.children,'Choose a cover');
- const web=harness({media:{items:[],isComplete:false,state:'empty'}},{detailsFirst:true},'web').render();
- assert.equal(component(web,'ProjectCreationProgress'),undefined);
- assert.deepEqual(nodes(web).filter(node=>node.type==='li').map(node=>React.Children.toArray(node.props.children).at(-1)),['Details','Files','Review']);
- assert.equal(nodes(web).find(node=>node.type==='h3').props.children,'Create your cover');
- assert.equal(button(web,'Continue to upload').props.disabled,true);
+test('MOBILE leaves each stage title to its screen frame and removes the duplicate heading, context and tracker',()=>{
+ for(const media of [{items:[],isComplete:false,state:'empty'},{items:[{id:'file',family:'image',metadata:{}}],isComplete:true,state:'ready'}]){
+  const h=harness({media},{detailsFirst:true});
+  for(const stage of ['files','details','review']){
+   if(stage==='review')h.flow.step='preview';
+   const tree=h.render(stage==='review'?'files':stage),all=nodes(tree);
+   assert.equal(all.some(node=>node.type==='h1'||node.type==='h2'||node.type==='h3'),false);
+   assert.equal(all.some(node=>node.type==='ol'||node.props['aria-current']==='step'||node.props.className==='project-creation-orientation'||node.props.className==='project-creation-context'),false);
+   if(stage==='files')assert.equal(button(tree,'Review project').props.disabled,!media.isComplete);
+   if(stage==='details')assert.equal(all.find(node=>node.props.className==='project-form-details').props['aria-labelledby'],'publish-dialog-title');
+  }
+ }
+});
+
+test('MOBILE stage changes focus and label the single outer title without scrolling the page',()=>{
+ const h=harness({}, {screenTitleId:'custom-authoring-title'});
+ h.render('files');h.render('files');
+ assert.equal(h.focusCalls.length,1,'Unchanged stages do not refocus the title');
+ let tree=h.render('details');
+ assert.equal(nodes(tree).find(node=>node.props.className==='project-form-details').props['aria-labelledby'],'custom-authoring-title');
+ h.flow.step='preview';h.render();
+ assert.deepEqual(h.focus,['custom-authoring-title','custom-authoring-title','custom-authoring-title']);
+ assert.ok(h.focusCalls.every(call=>call.options?.preventScroll===true));
+ assert.equal(h.scrollCalls.length,3);assert.ok(h.scrollCalls.every(call=>call.top===0));
+ h.flow.invalidField='summary';h.flow.fieldErrors={summary:'Invalid description'};h.flow.step='metadata';
+ tree=h.render('details');assert.equal(h.focus.at(-1),'publish-summary','Validation still gives the invalid field final focus');
+});
+
+test('WEB keeps its existing numbered rail, inline headings, explanatory copy and heading focus',()=>{
+ for(const detailsFirst of [false,true]){
+  const h=harness({media:{items:[],isComplete:false,state:'empty'}},{detailsFirst,screenTitleId:'mobile-only-title'},'web');
+  for(const [stage,expected] of [['files','Create your cover'],['details','Project details'],['review','Review project']]){
+   if(stage==='review')h.flow.step='preview';
+   const tree=h.render(stage==='review'?'files':stage),all=nodes(tree),rail=all.find(node=>node.type==='ol');
+   assert.equal(rail.props['aria-label'],'Upload steps');
+   const labels=detailsFirst?['Details','Files','Review']:['Files','Details','Review'];
+   assert.deepEqual(nodes(rail).filter(node=>node.type==='li').map(node=>React.Children.toArray(node.props.children).at(-1)),labels);
+   assert.equal(nodes(rail).find(node=>node.props['aria-current']==='step').props.children.at(-1),stage[0].toUpperCase()+stage.slice(1));
+   assert.equal(all.find(node=>node.type==='h3').props.children,expected);
+   if(stage==='files'){assert.match(text(tree),/Choose an image, adjust the crop and make it look its best\./);assert.equal(button(tree,detailsFirst?'Continue to upload':'Continue').props.disabled,true);}
+   if(stage==='details')assert.equal(all.find(node=>node.props.className==='project-form-details').props['aria-labelledby'],'mobile-publish-step-title');
+  }
+  assert.ok(h.focusCalls.every(call=>call.id==='mobile-publish-step-title'&&call.options?.preventScroll===true));
+  assert.equal(h.focusCalls.length,3);
+ }
 });

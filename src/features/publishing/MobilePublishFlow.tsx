@@ -15,19 +15,19 @@ import { Button } from '../../components/ui/Button';
 import type { usePublishProject } from './usePublishProject';
 import { TITLE_MAX_LENGTH } from './validation';
 import { usePresentation } from '../../presentation/usePresentation';
-import { ProjectCreationProgress } from './ProjectCreationProgress';
 
 export type MobilePublishStep = 'files' | 'details';
 type Flow = ReturnType<typeof usePublishProject>;
 
 /** Presentation steps share the existing draft, validation and upload lifecycle. */
-export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, notices, firstProject, detailsFirst = false, categoryLabel }: {
+export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, notices, firstProject, detailsFirst = false, screenTitleId = 'publish-dialog-title' }: {
   detailsFirst?: boolean;
   firstProject?: { name: string; categories: string[]; onSkip: () => void };
   flow: Flow;
   editingStep: MobilePublishStep;
   onEditingStepChange: (step: MobilePublishStep) => void;
   categoryLabel: string;
+  screenTitleId?: string;
   notices: React.ReactNode;
 }) {
   const mobile = usePresentation() === 'mobile';
@@ -43,11 +43,12 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
   const advancing = useRef(false);
   const preparing = flow.media.state === 'selecting';
   const busy = flow.state === 'publishing' || flow.isSavingDraft || flow.isDiscarding || flow.upload.isCleaningUp || preparing;
-  const titles = { files: mobile ? flow.media.items.length ? 'Choose a cover' : 'Add files' : 'Create your cover', details: 'Project details', review: 'Review project' };
+  const titles = { files: 'Create your cover', details: 'Project details', review: 'Review project' };
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
-    headingRef.current?.focus({ preventScroll: true });
-  }, [stage]);
+    if (mobile) document.getElementById(screenTitleId)?.focus({ preventScroll: true });
+    else headingRef.current?.focus({ preventScroll: true });
+  }, [stage, mobile, screenTitleId]);
   useEffect(() => {
     if (flow.invalidField && stage === 'details') document.getElementById(`publish-${flow.invalidField}`)?.focus();
   }, [flow.invalidField, flow.fieldErrors, stage]);
@@ -83,21 +84,21 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
     : null;
   const editAction = (label: string, target: MobilePublishStep) => <button type="button" className={mobile ? 'mobile-review-edit' : undefined} aria-label={label} disabled={busy || flow.hasCommittedProject || (target === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(target)}><PencilIcon size={16} aria-hidden="true" />Edit</button>;
   return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" data-cover-step={stage === 'files' || undefined} data-details-step={stage === 'details' || undefined} data-review-step={stage === 'review' || undefined} data-first-project={Boolean(firstProject) || undefined} aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
-    {mobile ? <div className="project-creation-orientation"><ProjectCreationProgress current={stage} steps={stages}/>{categoryLabel && <p className="project-creation-context">{categoryLabel}</p>}</div> : <ol className="mobile-publish-progress" aria-label="Upload steps">
+    {!mobile && <ol className="mobile-publish-progress" aria-label="Upload steps">
       {(detailsFirst ? ['Details', 'Files', 'Review'] : ['Files', 'Details', 'Review']).map((label, stepIndex) => <li key={label} aria-current={stepIndex === index ? 'step' : undefined} data-complete={stepIndex < index || undefined}>
         <span aria-hidden="true">{stepIndex < index ? <CheckIcon size={14} /> : stepIndex + 1}</span>{label}
       </li>)}
     </ol>}
     {flow.state === 'publishing' && <PublishingProgress flow={flow} />}
     <div ref={bodyRef} className="mobile-publish-body scrollbar-slim">
-      <header className="mobile-publish-step-heading">
+      {!mobile && <header className="mobile-publish-step-heading">
         <h3 id="mobile-publish-step-title" ref={headingRef} tabIndex={-1}>{titles[stage]}</h3>
         {stage === 'files' && !mobile && <p>Choose an image, adjust the crop and make it look its best.</p>}
-      </header>
+      </header>}
       {notices}
       {flow.saveDraftError && <p role="alert" className="mobile-publish-error">{flow.saveDraftError} Your details and files are still here. Try again.</p>}
       {flow.localDraftError && <p role="alert" className="mobile-publish-error">{flow.localDraftError} Your work is still open here.</p>}
-      {stage === 'files' ? <MobileCoverFiles media={flow.media} upload={flow.upload} disabled={busy} /> : stage === 'details' ? <section className="project-form-details" aria-labelledby="mobile-publish-step-title">
+      {stage === 'files' ? <MobileCoverFiles media={flow.media} upload={flow.upload} disabled={busy} /> : stage === 'details' ? <section className="project-form-details" aria-labelledby={mobile ? screenTitleId : 'mobile-publish-step-title'}>
         <ProfileField id="publish-title" label="Title" required requiredIndicator="asterisk" workspace clearable value={flow.metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={flow.fieldErrors.title} disabled={busy} onChange={value => flow.setField('title', value)} />
         <ProfileField id="publish-summary" label="Description" formatting optional optionalParentheses workspace multiline value={flow.metadata.summary} placeholder="Describe the work" error={flow.fieldErrors.summary} disabled={busy} onChange={value => flow.setField('summary', value)} />
         <ProjectCitationFields metadata={flow.metadata} disabled={busy} onChange={flow.setCitationFields}/>

@@ -75,6 +75,59 @@ test('mobile delegates to the guided flow while WEB keeps its existing form', ()
   assert.equal(web.find(node => node.type === 'MediaPicker').props.compact, false);
 });
 
+test('actual MOBILE parent titles follow Files, Details and Review including restored and committed drafts',()=>{
+ const h=harness('mobile');
+ for(const [flow,expected,editingStep] of [
+  [{},'Files & cover','files'],
+  [{firstProjectStage:'files',media:{items:[{id:'file'}]}},'Files & cover','files'],
+  [{firstProjectStage:'details'},'New project','details'],
+  [{step:'preview',firstProjectStage:'details'},'Review project','details'],
+  [{hasCommittedProject:true,firstProjectStage:'files'},'Review project','files'],
+  [{hasCommittedProject:true,firstProjectStage:'details',state:'failed'},'Review project','details'],
+ ]){
+  const tree=h.render(flow,{firstProject:{madeIn:'2026-05',name:'Mira',categories:['Work']}});
+  assert.equal(tree.type,'ProjectFormScreen');assert.equal(tree.props.title,expected);
+  assert.equal(tree.props.titleId,'publish-dialog-title');
+  const guided=nodes(tree).find(node=>node.type==='MobilePublishFlow');
+  assert.equal(guided.props.editingStep,editingStep);
+  assert.equal(guided.props.flow.hasCommittedProject,flow.hasCommittedProject);
+ }
+ const setupEntry=h.render({firstProjectStage:'files'},{initialMetadata:{title:'Title from setup',summary:''}});
+ assert.equal(setupEntry.props.title,'Files & cover');
+ assert.equal(nodes(setupEntry).find(node=>node.type==='MobilePublishFlow').props.detailsFirst,true);
+});
+
+test('WEB parent keeps New project or its existing made-in year title across all stages',()=>{
+ for(const flow of [{firstProjectStage:'files'},{firstProjectStage:'details'},{step:'preview'},{hasCommittedProject:true,step:'metadata'}]){
+  const normal=harness('web').render(flow);
+  assert.equal(normal.type,'ProjectFormDialog');assert.equal(normal.props.title,'New project');
+  const dated=harness('web').render({...flow,metadata:{title:'Work',summary:'',creationDetails:{madeIn:'2024-07'}}},{firstProject:{madeIn:'2026-05',name:'Mira',categories:['Work']}});
+  assert.equal(dated.props.title,'Add work from 2024');
+  const fallback=harness('web').render(flow,{firstProject:{madeIn:'2026-05',name:'Mira',categories:['Work']}});
+  assert.equal(fallback.props.title,'Add work from 2026');
+ }
+});
+
+test('the actual MOBILE screen frame exposes one focusable heading as its dialog label',()=>{
+ const frameSource=readFileSync(new URL('../src/components/publishing/ProjectFormDialog.tsx',import.meta.url),'utf8');
+ const frameExports={};
+ vm.runInNewContext(ts.transpileModule(frameSource,{compilerOptions:{jsx:ts.JsxEmit.React,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText,{
+  React,exports:frameExports,require(name){
+   if(name==='react')return {...React,useRef:value=>({current:value}),useLayoutEffect(){}};
+   if(name.endsWith('/useModalFocus'))return {useModalFocus(){}};
+   if(name.endsWith('/useDialogViewport'))return {useDialogViewport:()=>({current:null})};
+   if(name==='./useAuthoringFocus')return {useAuthoringFocus(){}};
+   return new Proxy({},{get:(_,key)=>key});
+  },
+ });
+ for(const title of ['New project','Files & cover','Review project']){
+  const frame=frameExports.ProjectFormScreen({title,titleId:'publish-dialog-title',onClose(){},children:React.createElement('form',null)}),all=nodes(frame);
+  const headings=all.filter(node=>typeof node.type==='string'&&/^h[1-6]$/.test(node.type)),dialog=all.find(node=>node.props?.role==='dialog');
+  assert.equal(headings.length,1);assert.equal(headings[0].type,'h1');assert.equal(headings[0].props.children,title);
+  assert.equal(headings[0].props.tabIndex,-1);assert.equal(dialog.props['aria-labelledby'],headings[0].props.id);
+ }
+});
+
 test('mobile cannot close while details are saving, files preparing or cleanup is pending', () => {
   for (const state of [{ isSavingDraft: true }, { media: { items: [], state: 'selecting' } }, { upload: { isCleaningUp: true } }]) {
     assert.equal(harness('mobile').render(state).props.closeDisabled, true);

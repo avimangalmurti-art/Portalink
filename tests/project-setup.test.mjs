@@ -4,7 +4,7 @@ function load(file,mocks){const exports={};vm.runInNewContext(ts.transpileModule
 const validation=load('../src/features/publishing/validation.ts',{}),category=load('../src/features/profile/useCategoryManagement.ts',{});
 function harness(create=async name=>({id:'created',label:name}),confirm){
  let categories=[{id:'existing',label:'Design'}];let cursor=0;const slots=[],calls=[],cleanups=[];let mounted=false;const react={...React,useEffect(effect){if(!mounted){cleanups.push(effect());}},useRef:v=>slots[cursor++]??={current:v},useState:v=>{const i=cursor++;if(!(i in slots))slots[i]=v;return[slots[i],v=>slots[i]=v];}};
- const {ProjectSetupScreen}=load('../src/features/publishing/ProjectSetupScreen.tsx',{'react':react,'lucide-react':{PlusIcon:'plus-icon',CheckIcon:'check-icon',UsersIcon:'users-icon',XIcon:'close-icon'},'../../components/profile/categoryIcons':{getCategoryIcon:name=>'portal-icon-'+name},'./validation':validation,'../profile/useCategoryManagement':category,'../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},'../../hooks/useModalFocus':{useModalFocus(){}},'../../components/publishing/useAuthoringFocus':{useAuthoringFocus(){}},'./ProjectCreationProgress':{ProjectCreationProgress:'ProjectCreationProgress'}});
+ const {ProjectSetupScreen}=load('../src/features/publishing/ProjectSetupScreen.tsx',{'react':react,'lucide-react':{PlusIcon:'plus-icon',UsersIcon:'users-icon',XIcon:'close-icon'},'../../components/profile/categoryIcons':{getCategoryIcon:name=>'portal-icon-'+name},'./validation':validation,'../profile/useCategoryManagement':category,'../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},'../../hooks/useModalFocus':{useModalFocus(){}},'../../components/publishing/useAuthoringFocus':{useAuthoringFocus(){}}});
  const render=()=>{cursor=0;const tree=ProjectSetupScreen({categories,onCreatePortal:async n=>{calls.push(['create',n]);return create(n)},onConfirmPortal:confirm,onContinue:v=>calls.push(['continue',v]),onClose:()=>calls.push(['close'])});mounted=true;return tree;};
  const change=(label,value)=>{const n=nodes(render()).find(n=>n.props['aria-label']===label||n.type==='textarea'&&label==='Description (optional)'||n.props.name==='title'&&label==='Project title');n.props.onChange({target:{value}})};
  const submit=()=>nodes(render()).find(n=>n.type==='form').props.onSubmit({preventDefault(){}});
@@ -27,25 +27,15 @@ test('setup focuses title and follows the selected portal icon without creating 
 test('secondary add portal action preserves project details and defers creation until continue',()=>{const h=harness();h.change('Project title','Existing title');h.change('Description (optional)','Existing description');const action=nodes(h.render()).find(n=>n.type==='button'&&n.props.className==='project-setup-add-portal');assert.equal(action.props.type,'button');action.props.onClick();const tree=nodes(h.render());assert.equal(tree.find(n=>n.props['aria-label']==='Portal').props.value,'new');assert.equal(tree.find(n=>n.props['aria-label']==='New portal name').props.autoFocus,true);assert.equal(tree.find(n=>n.props.name==='title').props.value,'Existing title');assert.equal(tree.find(n=>n.type==='textarea').props.value,'Existing description');assert.equal(h.calls.length,0);});
 test('description is optional and empty text hands off without inventing content',async()=>{const h=harness();h.change('Project title','Project');const textarea=nodes(h.render()).find(n=>n.type==='textarea');assert.equal(textarea.props.required,undefined);h.submit();await tick();assert.equal(h.calls.at(-1)[0],'continue');assert.equal(h.calls.at(-1)[1].summary,'');});
 
-test('mobile setup has one explicit continue action and starts the shared creation progress on Details',()=>{
+test('mobile setup has one screen title and one explicit continue action without a step tracker',()=>{
  const all=nodes(harness().render()),header=all.find(node=>node.type==='header');
+ const headings=all.filter(node=>typeof node.type==='string'&&/^h[1-6]$/.test(node.type));
+ assert.equal(headings.length,1);assert.equal(headings[0].type,'h1');
+ assert.equal(headings[0].props.children,'New project');
+ assert.equal(headings[0].props.id,all.find(node=>node.props.role==='dialog').props['aria-labelledby']);
  assert.equal(nodes(header).filter(node=>node.type==='button').length,1);
  assert.equal(nodes(header).find(node=>node.type==='button').props['aria-label'],'Cancel new project');
  assert.equal(all.filter(node=>node.type==='button'&&node.props.type==='submit').length,1);
- assert.equal(all.find(node=>node.type==='ProjectCreationProgress').props.current,'details');
+ assert.equal(all.some(node=>node.type==='ol'||node.props['aria-current']==='step'||node.props.className==='project-creation-orientation'),false);
  assert.equal(all.find(node=>node.props.className==='project-setup-header-balance').props['aria-hidden'],'true');
-});
-
-test('shared creation progress shows the actual order and current stage without interactive navigation',()=>{
- const {ProjectCreationProgress}=load('../src/features/publishing/ProjectCreationProgress.tsx',{'react':React,'lucide-react':{CheckIcon:'check-icon'}});
- for(const steps of [['details','files','review'],['files','details','review']]){
-  for(const current of steps){
-   const tree=ProjectCreationProgress({steps,current}),all=nodes(tree),items=all.filter(node=>node.type==='li');
-   assert.equal(tree.props['aria-label'],'Project creation steps');
-   assert.deepEqual(items.map(item=>React.Children.toArray(item.props.children).at(-1)),steps.map(step=>step[0].toUpperCase()+step.slice(1)));
-   assert.deepEqual(items.map(item=>item.props['aria-current']),steps.map(step=>step===current?'step':undefined));
-   assert.deepEqual(items.map(item=>Boolean(item.props['data-complete'])),steps.map((_,index)=>index<steps.indexOf(current)));
-   assert.equal(all.some(node=>node.type==='button'||node.type==='a'),false);
-  }
- }
 });
