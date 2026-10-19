@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
 import {sourceModule} from './helpers/source-module.mjs';
+import {authReturnOriginFixture,officialAuthOrigin} from './helpers/auth-return-origin-fixture.mjs';
 const share=sourceModule('src/features/sharing/shareModel.ts');
 const validation=sourceModule('src/features/profile/validation.ts',{'../sharing/shareModel':share});
 const registration=sourceModule('src/features/auth/registration.ts',{'../sharing/shareModel':share,'../profile/validation':validation});
@@ -20,20 +21,21 @@ test('verified social identities receive stable display defaults, never metadata
  assert.equal(socialRegistration({...user,app_metadata:{provider:'apple'},user_metadata:{}}).name,'creator');
 });
 
-test('OAuth uses the same project client and an origin-bound callback with sanitized public destination',async()=>{
+test('OAuth uses the same project client and official callback with sanitized public destination',async()=>{
  const calls=[];
  const service=sourceModule('src/services/supabase/authService.ts',{
   '../../types/auth':sourceModule('src/types/auth.ts'),
   './client':{requireSupabase:()=>({auth:{signInWithOAuth:async input=>{calls.push(input);return {error:null};}}})},
   '../../utils/passwordRecoveryReturn':{},'../../features/auth/registration':registration,'../../features/auth/socialRegistration':{socialRegistration},
+  '../../utils/authReturnOrigin':authReturnOriginFixture,
  },{window:{location:{origin:'https://portalink.example.test'}}}).supabaseAuthService;
  await service.signInWithOAuth('google','/share/creator?access_token=secret&page=2');
  assert.equal(calls[0].provider,'google');
  const url=new URL(calls[0].options.redirectTo);
- assert.equal(url.origin,'https://portalink.example.test');assert.equal(url.pathname,'/');
+ assert.equal(url.origin,officialAuthOrigin);assert.equal(url.pathname,'/');
  assert.equal(url.searchParams.get('onboarding_return'),'/share/creator?page=2');
  await service.signInWithOAuth('apple','https://outside.test/share/a');
- assert.equal(calls[1].options.redirectTo,'https://portalink.example.test/?entry=oauth');
+ assert.equal(calls[1].options.redirectTo,officialAuthOrigin+'/?entry=oauth');
 });
 
 function agreementHarness(){

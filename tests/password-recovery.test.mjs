@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
+import { authReturnOriginFixture, officialAuthOrigin } from './helpers/auth-return-origin-fixture.mjs';
 
 function load(path, imports = {}, globals = {}) {
   const exports = {};
@@ -123,6 +124,7 @@ function serviceHarness({ callbackFailed = false } = {}) {
       },
     },
     '../../utils/passwordRecoveryReturn': returnHelpers,
+    '../../utils/authReturnOrigin': authReturnOriginFixture,
   }, { window: browser });
   return { auth, tracker, updates, browser, get requested() { return requested; },
     recover() { tracker.record('PASSWORD_RECOVERY', current); },
@@ -138,7 +140,7 @@ test('email requests use the reset form return URL and do not authorize a passwo
   const env = serviceHarness();
   const result = await env.auth.requestPasswordReset({ email: ' Person@Example.test ' });
   assert.equal(env.requested.email, 'person@example.test');
-  assert.equal(env.requested.options.redirectTo, 'https://portalink.test/?auth=reset-password');
+  assert.equal(env.requested.options.redirectTo, officialAuthOrigin + '/?auth=reset-password');
   assert.equal(result.deliveryConfirmed, true);
   assert.equal(await env.auth.getRecoverySession(), null);
   await assert.rejects(env.auth.updatePassword({ password: 'new-password-example' }), { code: 'recovery_session_invalid' });

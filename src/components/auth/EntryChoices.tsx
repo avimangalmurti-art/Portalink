@@ -4,13 +4,15 @@ import { useAuth } from '../../contexts/AuthContext';
 import { readSharedReturnPath } from '../../features/auth/registration';
 import './oneScreenEntry.css';
 import { EntryAgreements, EntryLegal } from './EntryAgreements';
-import { usePresentation } from '../../presentation/usePresentation';
+import { usePresentation, type Presentation } from '../../presentation/usePresentation';
 
-export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, children, returnPath, onDisagree }: {
+export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, children, returnPath, onDisagree, presentation }: {
   ready?: boolean; onEmail?: () => void; onSignIn: () => void; onGuest: () => void;
-  children?: React.ReactNode; returnPath?: string; onDisagree?: () => void;
+  children?: React.ReactNode; returnPath?: string; onDisagree?: () => void; presentation?: Presentation;
 }) {
-  const mobile = usePresentation() === 'mobile';
+  const contextualPresentation = usePresentation();
+  // The opening scene precedes the app host and already knows its presentation.
+  const mobile = (presentation ?? contextualPresentation) === 'mobile';
   const { auth: service } = useServices();
   const auth = useAuth();
   const [providers, setProviders] = useState<{ google: boolean; apple: boolean } | null>(null);

@@ -1257,6 +1257,9 @@ button[data-portalink-tile],
 }
 .explore-feed-card,
 [data-profile-page] .project-preview-card { --project-thumbnail-radius: 6px; }
+#root .codex-shell[data-presentation='mobile'] .project-preview-card { --project-thumbnail-radius: 6px; }
+#root .codex-shell[data-presentation='mobile'] .explore-feed-card,
+#root .codex-shell[data-presentation='mobile'] [data-profile-page] .project-preview-card { --project-thumbnail-radius: 3px; }
 .project-preview-card { isolation: isolate; }
 .project-preview-card[data-expanded='true'] { z-index: 2; }
 .project-card-frame,

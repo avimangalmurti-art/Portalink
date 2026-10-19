@@ -76,7 +76,7 @@ test('registration composition stays in the active route kind and keeps canonica
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 
-function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout}={}) {
+function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,model:providedModel}={}) {
  const slots=[], calls=[], motions=[], measurements={viewport:0,panel:0}; let cursor=0, escape, tree;
  class ElementStub {
   constructor(kind='header') { this.kind=kind; this.captured=new Set(); }
@@ -109,7 +109,7 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout}={}
   '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:viewport})},
   '../../hooks/useModalFocus':{useModalFocus:(open,_ref,onClose,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=onClose;}},
  },{Element:ElementStub});
- const model=contextActions('home',{signedIn:true},{handlers:{explore:()=>calls.push('explore'),newProject:()=>calls.push('new')}});
+ const model=providedModel??contextActions('home',{signedIn:true},{handlers:{explore:()=>calls.push('explore'),newProject:()=>calls.push('new')}});
  const render=()=>{
   cursor=0;tree=MobileActionSheet({model,onClose:()=>calls.push('close'),onAction:action=>action.run(),layout});
   nodes(tree).find(node=>node.props.role==='dialog').ref.current=dialog;
@@ -122,6 +122,7 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout}={}
  const resizeButton=()=>find(node=>node.props.className==='mobile-context-resize');
  return {render,find,calls,motions,viewport,measurements,escape:()=>escape(),pointer,header,resize,close,resizeButton,
   dialog:()=>find(node=>node.props.role==='dialog'),
+  scrim:()=>find(node=>node.props.className?.includes('mobile-context-scrim')),
   clickResize:(detail=1)=>resizeButton().props.onClick({detail}),
  };
 }
@@ -133,6 +134,63 @@ test('file-sheet opt-in provides an explicit Done action while ordinary sheets r
  assert.equal(done.props.children,'Done');done.props.onClick();assert.deepEqual(files.calls,['close']);
  const ordinary=sheetHarness();assert.equal(ordinary.dialog().props['data-sheet-layout'],undefined);
  assert.ok(ordinary.find(node=>node.props['aria-label']==='Close actions'));
+});
+
+test('owner profile actions open expanded and can collapse and reexpand without losing any action',()=>{
+ const actionIds=['newProject','editProfile','share','viewAsVisitor','thenNow','reorder','insights','bookmarks','copy','settings'];
+ const model=contextActions('profile',{signedIn:true,owner:true},{handlers:Object.fromEntries(actionIds.map(id=>[id,()=>id]))});
+ const h=sheetHarness({model}),labels=()=>nodes(h.render()).filter(node=>node.type==='button').flatMap(node=>nodes(node).filter(child=>child.type==='span'&&typeof child.props.children==='string').map(child=>child.props.children));
+ assert.equal(h.dialog().props['data-expanded'],true);
+ assert.equal(h.resizeButton().props['aria-label'],'Collapse actions');assert.equal(h.resizeButton().props['aria-expanded'],true);
+ const initialLabels=labels();assert.equal(initialLabels.length,10);assert.equal(initialLabels.at(-1),'Settings');
+ assert.ok(initialLabels.includes('New project'));assert.ok(initialLabels.includes('Copy public catalogue link'));
+ h.clickResize(0);assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.resizeButton().props['aria-label'],'Expand actions');
+ assert.deepEqual(labels(),initialLabels);
+ h.clickResize(0);assert.equal(h.dialog().props['data-expanded'],true);assert.equal(h.resizeButton().props['aria-expanded'],true);
+ assert.deepEqual(labels(),initialLabels);assert.deepEqual(h.calls,[]);
+ h.find(node=>node.props['aria-label']==='Close actions').props.onClick();assert.deepEqual(h.calls,['close']);
+});
+
+test('expanded profile New project and last Settings row delegate the same real context callbacks',()=>{
+ for(const actionId of ['newProject','settings']){
+  const delegated=[],model=contextActions('profile',{signedIn:true,owner:true},{handlers:{newProject:()=>delegated.push('newProject'),editProfile(){},share(){},viewAsVisitor(){},thenNow(){},reorder(){},insights(){},bookmarks(){},copy(){},settings:()=>delegated.push('settings')}});
+  const h=sheetHarness({model}),action=[...model.primary,...model.groups.flat()].find(item=>item.id===actionId);
+  assert.equal(h.dialog().props['data-expanded'],true);
+  h.find(node=>node.type==='button'&&nodes(node).some(child=>child.type==='span'&&child.props.children===action.label)).props.onClick({currentTarget:{closest:()=>h.viewport}});
+  assert.deepEqual(delegated,[actionId]);assert.equal(h.motions.length,1);
+  assert.equal(h.motions[0].immediate,true);assert.equal(h.motions[0].scope,h.viewport);
+ }
+});
+
+test('owner profile scrim follows the measured visual viewport origin and height through both detents',()=>{
+ const model=contextActions('profile',{signedIn:true,owner:true},{handlers});
+ for(const viewportHeight of [912,684,600]){
+  const h=sheetHarness({model,viewportHeight,safeTop:59});
+  for(const expanded of [true,false,true]){
+   assert.equal(h.dialog().props['data-expanded'],expanded);
+   const style=h.scrim().props.style;
+   assert.equal(style.top,'var(--dialog-viewport-top, 0px)');
+   assert.equal(style.bottom,'auto','The owner sheet must not remain anchored to the taller layout viewport');
+   assert.equal(style.height,'var(--dialog-viewport-height, 100dvh)');
+   h.clickResize(0);
+  }
+ }
+});
+
+test('visitor, project and ordinary action sheets retain their collapsed entry; file layout is never opted in by a profile model',()=>{
+ const profile=contextActions('profile',{signedIn:true,owner:true},{handlers});
+ for(const options of [
+  {},
+  {model:contextActions('profile',{signedIn:false,owner:false},{handlers})},
+  {model:contextActions('profile',{signedIn:true,owner:false},{handlers})},
+  {model:contextActions('project',{signedIn:true,owner:true},{handlers})},
+  {model:profile,layout:'files'},
+ ]){
+  const h=sheetHarness(options);assert.equal(h.dialog().props['data-expanded'],false);
+  assert.equal(h.resizeButton().props['aria-expanded'],false);assert.equal(h.resizeButton().props['aria-label'],'Expand actions');
+  assert.equal(h.scrim().props.style.top,undefined);assert.equal(h.scrim().props.style.bottom,0);
+  assert.equal(h.scrim().props.style.height,'var(--dialog-viewport-height, 100dvh)');
+ }
 });
 
 test('the common sheet supports close, backdrop, Escape, swipe and action delegation without placeholders', () => {
@@ -432,7 +490,6 @@ test('workbench has Drafts and Bookmarks; Select is only supplied by collection 
  test('action sheets keep one safe panel height and reserve the visible collapsed body without layout animation', () => {
  const source = readFileSync(new URL('../src/components/messages/MobileActionSheet.tsx', import.meta.url), 'utf8');
  const css = readFileSync(new URL('../src/presentation/mobile/mobile.css', import.meta.url), 'utf8');
- assert.match(source, /style=\{\{bottom:0,height:/);
  assert.match(css, /mobile-context-scrim \{[^}]*top: auto; bottom: 0; padding: 0;/);
  assert.match(css, /mobile-context-sheet \{\s*position: absolute; bottom: 0; margin-block: 0;/);
  const rules=css.match(/#root \.codex-shell \[data-presentation='mobile'\] \.mobile-context-sheet[^}]+}/g).join('\n');

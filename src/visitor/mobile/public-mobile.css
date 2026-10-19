@@ -1994,10 +1994,11 @@
 }
 #root .codex-shell[data-presentation='mobile'] [data-project-stage] { background-color: var(--codex-workspace-bg); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
-  padding-bottom: max(var(--mobile-content-safe-bottom), var(--mobile-dock-bottom));
+  --focused-safe-bottom: max(8px, var(--safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--focused-safe-bottom);
 }
 #root .codex-shell[data-presentation='mobile'].shared-portalink-shell [data-mobile-focused-view] {
-  padding-bottom: calc(max(var(--mobile-content-safe-bottom), var(--mobile-dock-bottom)) + var(--shared-sign-in-height, 0px) + 8px);
+  padding-bottom: calc(var(--focused-safe-bottom) + var(--shared-sign-in-height, 0px) + 16px);
 }
 html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)),
 html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body,

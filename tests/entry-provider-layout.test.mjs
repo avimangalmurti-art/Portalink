@@ -15,3 +15,17 @@ test('mobile email precedes providers and compact links retain sign-in and guest
  }
  assert.equal(email,2);assert.equal(signIn,2);assert.equal(guest,2);
 });
+
+test('the bootstrap presentation override works before an app context exists and preserves the entry callbacks',()=>{
+ for(const [contextual,presentation] of [['web','mobile'],['mobile','web']]){
+  const calls=[],onEmail=()=>calls.push('email'),onSignIn=()=>calls.push('signIn'),onGuest=()=>calls.push('guest');
+  const tree=render({google:false,apple:false},contextual,{presentation,onEmail,onSignIn,onGuest}),all=nodes(tree);
+  const email=all.find(node=>node.props.className==='entry-email'),providers=all.find(node=>node.props.className==='entry-providers');
+  assert.equal(all.indexOf(email)<all.indexOf(providers),presentation==='mobile');
+  assert.equal(email.props.onClick,onEmail);email.props.onClick();
+  const links=nodes(all.find(node=>node.props.className==='entry-links')).filter(node=>node.type==='button');
+  assert.equal(links[0].props.onClick,onSignIn);assert.equal(links[1].props.onClick,onGuest);links.forEach(node=>node.props.onClick());
+  assert.deepEqual(calls,['email','signIn','guest']);
+  assert.ok(nodes(providers).filter(node=>node.type==='button').every(node=>node.props.disabled));
+ }
+});

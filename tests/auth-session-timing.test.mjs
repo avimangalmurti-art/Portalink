@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { authReturnOriginFixture } from './helpers/auth-return-origin-fixture.mjs';
 
 function load(path, imports = {}, globals = {}) {
   const exports = {};
@@ -119,6 +120,7 @@ function serviceHarness() {
     './client': { requireSupabase: () => client, passwordRecovery: { read: () => null },
       recoveryCallbackFailed: false, accountDeletionEnabled: false },
     '../../utils/passwordRecoveryReturn': {},
+    '../../utils/authReturnOrigin': authReturnOriginFixture,
   }, { window: { location: { origin: 'https://portalink.example.test' }, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout } }).supabaseAuthService;
   return { auth, state, clock,
     emit(event, next = state.current) { state.current = next; assert.ok(state.callback, 'Subscribe before emitting provider events'); state.callback(event, next); },

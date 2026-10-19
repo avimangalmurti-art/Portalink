@@ -10,6 +10,21 @@
 
 .reads-view > .reads-chart + h3 {margin-top:24px}
 
+/* This caption belongs to its card, not the opaque mobile screen-header material. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] .reads-chart > header {
+  background: transparent !important;
+  align-items: baseline;
+}
+[data-presentation='mobile'] .reads-chart > header h3 {
+  min-width: 0;
+  margin: 0;
+  line-height: 1.4;
+}
+[data-presentation='mobile'] .reads-chart > header > span {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .reads-weekly-character { display: none; }
 [data-presentation='mobile'] .reads-weekly-metrics { list-style: disc; padding-inline-start: 24px; margin: 8px 0; font-size: 22px; font-weight: 650; }
 [data-presentation='mobile'] .reads-weekly > div { align-items: flex-end; gap: 10px; }

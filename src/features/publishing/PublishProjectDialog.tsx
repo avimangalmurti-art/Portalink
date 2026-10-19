@@ -43,7 +43,7 @@ export function PublishProjectDialog({
 }: PublishProjectDialogProps) {
   const isMobile = usePresentation() === 'mobile';
   const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
-  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: false, initialMetadata });
+  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: false, initialMetadata, awaitProfile: isMobile });
   const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? 'Review project' : publishFlow.firstProjectStage === 'details' ? 'New project' : 'Files & cover';
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);

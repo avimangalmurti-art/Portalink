@@ -14,13 +14,16 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   const [dragging,setDragging]=useState(false);
   const [interacted,setInteracted]=useState(false);
   const dialogRef = useRef<HTMLDivElement>(null), viewportRef = useDialogViewport(), titleId = useId();
-  const [expanded, setExpanded] = useState(false);
+  const ownerProfile = layout === 'actions' && model.kind === 'profile' && Boolean(model.viewer?.owner);
+  // The owner menu has primary tiles plus catalogue/settings actions. Use the
+  // available screen on entry instead of hiding its lower rows at the detent.
+  const [expanded, setExpanded] = useState(ownerProfile);
   const dismiss = () => motion.close(onClose, viewportRef.current);
   const start = useRef<{x:number;y:number;id:number;rest:number;offset:number} | null>(null);
   const dragged = useRef(false);
   const cancelDrag = () => { start.current = null; setDragging(false); setDragY(0); };
   useModalFocus(true, dialogRef, dismiss, true);
-  return <ModalPortal><div data-presentation="mobile" data-sheet-layout={layout === 'files' ? layout : undefined} ref={viewportRef} data-motion-scrim="" data-motion-closing={motion.closing || undefined} className="mobile-context-scrim modal-scrim" style={{bottom:0,height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)dismiss();}}>
+  return <ModalPortal><div data-presentation="mobile" data-sheet-layout={layout === 'files' ? layout : undefined} ref={viewportRef} data-motion-scrim="" data-motion-closing={motion.closing || undefined} className="mobile-context-scrim modal-scrim" style={{...(ownerProfile ? {top:'var(--dialog-viewport-top, 0px)',bottom:'auto'} : {bottom:0}),height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)dismiss();}}>
     <div data-ui-surface="sheet" data-sheet-layout={layout === 'files' ? layout : undefined} ref={dialogRef} className="mobile-context-sheet" data-expanded={expanded} data-motion-sheet="" data-motion-closing={motion.closing || undefined} data-sheet-dragging={dragging || undefined} data-sheet-interacted={interacted || undefined} style={{['--sheet-drag-y' as string]:`${dragY}px`}} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
       <header onPointerDown={e=>{
         if(!e.isPrimary||e.button!==0||start.current)return;

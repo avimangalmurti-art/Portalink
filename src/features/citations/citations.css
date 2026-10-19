@@ -25,3 +25,6 @@
 .cite-attach {display:grid;gap:12px;border-top:1px solid var(--hairline,#7776);padding-top:16px;}
 
 .cite-source-sheet button {background:var(--surface-sunken,#333);color:var(--text-primary,#fff);text-align:center;}
+.cite-source-sheet .cite-copy-action {display:flex;align-items:center;justify-content:center;gap:8px;}
+/* The copied attribute is emitted only for MOBILE, including standalone citation links. */
+.cite-source-sheet .cite-copy-action[data-copy-state='copied'] {background:var(--status-success,#30d158);border-color:var(--status-success,#30d158);color:#000;}

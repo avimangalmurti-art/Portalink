@@ -93,7 +93,7 @@ function compile(path, imports, globals) {
 function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false, bootVideo = undefined, findBootVideo = undefined } = {}) {
   const h = hooks();
   let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false;
-  const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [];
+  const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [], viewportCalls = [];
   h.window.addEventListener=(name,fn)=>windowListeners.set(name,fn);
   h.window.removeEventListener=(name,fn)=>{if(windowListeners.get(name)===fn)windowListeners.delete(name);};
   let frameId = 0;
@@ -146,6 +146,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     react: h.react, 'framer-motion': { motion: { div: 'div' }, useReducedMotion: () => reduced },
     '../../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
     '../../hooks/useModalFocus': { useModalFocus(open) { modalCalls.push(open); } },
+    '../../hooks/useDialogViewport': { useDialogViewport(enabled=true) { const ref=h.react.useRef(null);viewportCalls.push({enabled,ref});return ref; } },
     './splashPoster': { SPLASH_POSTER_DATA_URL: 'data:image/webp;base64,inline-poster-fixture' },
   }, { window: h.window, document, Event });
   const onComplete = () => completed++;
@@ -172,7 +173,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     setHandoff(value) { welcomeHandoff = value; },
     setLanding(value) { landing = value; },
     timer(delay) { const entry = [...h.timers.entries()].find(([, timer]) => timer.delay === delay); assert.ok(entry, `missing timer ${delay}`); h.timers.delete(entry[0]); entry[1].fn(); },
-    listeners, docListeners, windowListeners, frames, modalCalls,
+    listeners, docListeners, windowListeners, frames, modalCalls, viewportCalls,
     restore() { windowListeners.get('pageshow')?.(); },
     leave() { windowListeners.get('pagehide')?.(); },
     gesture() { docListeners.get('pointerup')?.(); },
@@ -990,11 +991,35 @@ test('ordinary root and invitation fragments retain welcome unless authenticatio
 
 const welcome = {ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'View shared content'};
 
+test('only a visible MOBILE welcome subscribes its own stable frame to the dialog viewport',()=>{
+ const mobile=loader({presentation:'mobile',landing:welcome});
+ const first=mobile.render(),ref=mobile.viewportCalls.at(-1).ref;
+ assert.equal(mobile.viewportCalls.at(-1).enabled,true);assert.equal(first.tree.ref,ref);
+ mobile.setHidden(true);mobile.render();assert.equal(mobile.viewportCalls.at(-1).enabled,false);
+ mobile.setHidden(false);mobile.render();assert.equal(mobile.viewportCalls.at(-1).enabled,true);
+ assert.ok(mobile.viewportCalls.every(call=>call.ref===ref),'Hiding an account form does not replace the scene frame');
+ mobile.setLanding({...welcome,ready:false});mobile.render();assert.equal(mobile.viewportCalls.at(-1).enabled,true,'Loading entry actions still need the correct visible frame');
+ mobile.setLanding(undefined);mobile.setHandoff(true);mobile.render();assert.equal(mobile.viewportCalls.at(-1).enabled,true,'The retained welcome keeps its measured frame through handoff');
+ mobile.unmount();
+ for(const options of [{presentation:'web',landing:welcome},{presentation:'mobile',timedIntro:true},{presentation:'mobile',welcomeMedia:true},{presentation:'mobile',stillOnly:true}]){
+  const h=loader(options);h.render();assert.equal(h.viewportCalls.at(-1).enabled,false);h.unmount();
+ }
+});
+
+test('a guest arriving during the fixed intro enables viewport measurement only after its natural end',()=>{
+ const h=loader({presentation:'mobile',timedIntro:true});h.render();assert.equal(h.viewportCalls.at(-1).enabled,false);
+ h.setLanding(welcome);h.render();assert.equal(h.viewportCalls.at(-1).enabled,false);
+ h.start();h.paint();h.emit('ended');const completed=h.render();
+ assert.equal(completed.tree.props['data-share-landing'],'true');assert.equal(h.viewportCalls.at(-1).enabled,true);
+ assert.equal(h.completed,1);assert.equal(h.video.loop,true);h.unmount();
+});
+
 test('welcome loops without an exit deadline and keeps all entry actions available on BOTH',()=>{
   for(const presentation of ['mobile','web']) {
     const h=loader({presentation,landing:welcome}),{media,tree}=h.render();assert.equal(media.props.loop,true);
     assert.equal(tree.props.children[1].props['aria-busy'],false);
     assert.equal(tree.props.children[1].props.children[0].type,'EntryChoices');
+    assert.equal(tree.props.children[1].props.children[0].props.presentation,presentation,'Bootstrap entry choices must receive the loader presentation before the app provider exists');
     assert.equal(tree.props.children[1].props.children[0].props.onEmail,welcome.onCreateAccount);
     h.start();h.paint();assert.equal(h.completed,1);assert.equal(h.timers.size,0);
     for(let cycle=0;cycle<3;cycle++){h.emit('waiting');assert.equal(h.render().media.props.style.opacity,1);h.start();h.paint();assert.equal(h.timers.size,0);}

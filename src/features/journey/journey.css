@@ -33,6 +33,27 @@
 .journey-pair-grid .journey-portal { font-weight: 400; }
 .journey-pair { margin-top: 24px; }
 
+/* Both mobile entries pin the same Timeline controls inside the identity header. */
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls {
+  padding: 12px var(--mobile-screen-action-right, var(--mobile-navigation-inset-end, 16px)) 16px var(--mobile-navigation-inset-start, 16px);
+  background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-toolbar { margin: 0; width: 100%; }
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button {
+  min-width: 0; min-height: 44px; padding: 8px 4px; border-radius: 12px;
+  background: var(--surface-sunken) !important; color: var(--text-primary) !important;
+  font-size: 14px; font-weight: 600; white-space: nowrap;
+}
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button::before { content: none; }
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button[aria-pressed='true'] { background: var(--text-primary) !important; color: var(--surface-canvas) !important; }
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button:disabled { opacity: .5; }
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* The controls supply the 16px content gap in both entries. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-page][data-profile-journey]:has(> .profile-header-region) > #profile-content:not(.mobile-profile-workspace-content) { padding-top: 0; }
+#root .codex-shell[data-presentation='mobile'] [data-profile-journey] .journey-view[data-timeline-order] { padding-top: 0; padding-inline: var(--mobile-navigation-inset-start, 16px) var(--mobile-screen-action-right, var(--mobile-navigation-inset-end, 16px)); }
+#root .codex-shell[data-presentation='mobile'] [data-profile-journey] .journey-view[data-timeline-order] > .journey-pair:first-child { margin-top: 0; }
+
 /* Desktop Journey keeps its identity and switch above the scrolling year rail. */
 #root .codex-shell[data-presentation='web'] [data-profile-journey] > .profile-header-region {
   display: block; position: sticky; top: 0; z-index: 30; flex-shrink: 0; isolation: isolate;

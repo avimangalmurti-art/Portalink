@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { sourceModule } from './source-module.mjs';
 
 export function deferred() {
   let resolve, reject;
@@ -58,6 +59,7 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
     ...globals,
     require(name) {
       if (Object.hasOwn(dependencies, name)) return dependencies[name];
+      if (name.endsWith('/citations/publicOrigin')) return sourceModule('src/features/citations/publicOrigin.ts');
       if (name.endsWith('/engagement/capabilities')) { const nested = {}; vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../../src/features/engagement/capabilities.ts', import.meta.url), 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:nested}); return nested; }
       if (name.endsWith('/sharing/InternalContentShare')) return { useInternalContentShare: () => () => { throw new Error('Unexpected share in media state fixture'); } };
       if (name === 'react') return react;

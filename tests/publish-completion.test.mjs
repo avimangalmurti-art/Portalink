@@ -19,6 +19,7 @@ function harness(presentation = 'web') {
   let cursor = 0;
   const refs = [];
   const calls = [];
+  const hookCalls = [];
   const stubReact = { ...React,
     useEffect: (effect) => effects.push(effect),
     useRef: (value) => refs[cursor++] ?? (refs[cursor - 1] = { current: value }),
@@ -30,7 +31,7 @@ function harness(presentation = 'web') {
     require: (name) => {
       if (name === 'react') return stubReact;
       if (name === 'framer-motion') return { AnimatePresence: React.Fragment, motion: { div: 'div', section: 'section' }, useReducedMotion: () => true };
-      if (name === './usePublishProject') return { usePublishProject: () => currentFlow };
+      if (name === './usePublishProject') return { usePublishProject: (...args) => { hookCalls.push(args); return currentFlow; } };
       if (name === './validation') return { TITLE_MAX_LENGTH: 80 };
       if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
       return new Proxy({}, { get: (_, key) => key });
@@ -53,7 +54,7 @@ function harness(presentation = 'web') {
     effects.forEach((effect) => effect());
     return tree;
   }
-  return { render, calls };
+  return { render, calls, hookCalls };
 }
 function nodes(tree) {
   if (!tree || typeof tree !== 'object') return [];
@@ -73,6 +74,38 @@ test('mobile delegates to the guided flow while WEB keeps its existing form', ()
   assert.ok(!web.some(node => node.type === 'MobilePublishFlow'));
   assert.ok(!web.some(node => node.props?.id === 'publish-location'));
   assert.equal(web.find(node => node.type === 'MediaPicker').props.compact, false);
+});
+
+test('the real dialog requests a fresh-profile completion handoff only for MOBILE', () => {
+  const initialMetadata = { title: 'From setup', summary: '' };
+  for (const presentation of ['mobile', 'web']) for (const firstProject of [undefined, { madeIn: '2026-05', name: 'Mira', categories: ['Work'] }]) {
+    const h = harness(presentation);
+    h.render({}, { firstProject, initialMetadata });
+    const args = h.hookCalls[0];
+    assert.deepEqual(args.slice(0, 4), ['creator', 'category', true, 'Typography']);
+    assert.equal(args[4], presentation === 'mobile');
+    assert.equal(args[5], false, 'Ordinary project publishing must not become the onboarding flow');
+    assert.equal(args[7].persist, false);
+    assert.equal(args[7].initialMetadata, initialMetadata);
+    assert.equal(args[7].awaitProfile, presentation === 'mobile');
+  }
+});
+
+test('MOBILE retains Review while a committed project awaits its profile and announces only completion', () => {
+  const h = harness('mobile');
+  const pending = h.render({ step: 'preview', state: 'publishing', hasCommittedProject: true });
+  assert.equal(pending.props.title, 'Review project');
+  assert.equal(pending.props.closeDisabled, true);
+  assert.equal(h.calls.length, 0);
+  const failed = h.render({ step: 'preview', state: 'failed', hasCommittedProject: true, publish: { status: 'error', error: 'Try again to open the updated catalogue.' } });
+  assert.equal(failed.props.title, 'Review project');
+  const notices = nodes(failed).find(node => node.type === 'MobilePublishFlow').props.notices;
+  assert.ok(nodes(notices).some(node => node.props?.role === 'alert'));
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.render({ step: 'done', state: 'published', result: published }), null);
+  h.render({ step: 'done', state: 'published', result: published });
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].result, published);
 });
 
 test('actual MOBILE parent titles follow Files, Details and Review including restored and committed drafts',()=>{

@@ -6,6 +6,7 @@ import ts from 'typescript';
 import React from 'react';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { deferred, hookHarness } from './helpers/hook-harness.mjs';
+import { authReturnOriginFixture } from './helpers/auth-return-origin-fixture.mjs';
 
 const compile = (path) => ts.transpileModule(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
@@ -38,6 +39,7 @@ function authService(client, enabled = true) {
     if (name.endsWith('/features/auth/registration')) return { readRegistrationProfile: () => undefined };
     if (name.endsWith('/types/auth')) return authTypes;
     if (name.endsWith('/utils/passwordRecoveryReturn')) return {};
+    if (name.endsWith('/utils/authReturnOrigin')) return authReturnOriginFixture;
     throw new Error(name);
   } });
   return exports.supabaseAuthService;

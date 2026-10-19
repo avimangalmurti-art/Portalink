@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { authReturnOriginFixture, officialAuthOrigin } from './helpers/auth-return-origin-fixture.mjs';
 
 function load(path, imports = {}, globals = {}) {
   const exports = {};
@@ -56,7 +57,8 @@ function serviceHarness() {
   const auth = load('../src/services/supabase/authService.ts', {
     '../../types/auth': types,
     './client': { requireSupabase: () => client, createPasswordRecoveryClient: boundClient, passwordRecovery: { read: () => null }, accountDeletionEnabled: false },
-    '../../utils/passwordRecoveryReturn': {}, '../../features/auth/registration': {}
+    '../../utils/passwordRecoveryReturn': {}, '../../features/auth/registration': {},
+    '../../utils/authReturnOrigin': authReturnOriginFixture,
   }, { window: { location: { origin: 'https://example.test' } } }).supabaseAuthService;
   return { auth, state };
 }
@@ -82,13 +84,13 @@ test('identity changing during password verification prevents the write and clea
   await assert.rejects(auth.changePassword(password), error => error.code === 'reauthentication_required');
   assert.equal(state.writes.length, 0); assert.deepEqual(state.revocations, [['bound', 'local']]);
 });
-test('email change is pending, leaves confirmed address intact, and uses the existing origin', async () => {
+test('email change is pending, leaves confirmed address intact, and uses the official return origin', async () => {
   const { auth, state } = serviceHarness();
   const result = await auth.requestEmailChange({ accountId: 'a', newEmail: ' NEW@example.test ' });
   assert.equal(result.status, 'pending'); assert.equal(result.email, 'new@example.test');
   assert.equal(state.user.email, 'old@example.test');
   assert.equal(state.writes[0].input.email, 'new@example.test');
-  assert.equal(state.writes[0].options.emailRedirectTo, 'https://example.test');
+  assert.equal(state.writes[0].options.emailRedirectTo, officialAuthOrigin);
   assert.deepEqual(state.revocations, []);
 });
 test('email write is blocked when identity changes during binding', async () => {

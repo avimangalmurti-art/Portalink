@@ -8,6 +8,7 @@ import type {
 } from '../../types/auth';
 import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase, readSocialProviders } from './client';
 import { clearPasswordRecoveryReturn, passwordRecoveryRedirect } from '../../utils/passwordRecoveryReturn';
+import { authReturnOrigin } from '../../utils/authReturnOrigin';
 import { readRegistrationDraft, readRegistrationProfile, readSharedReturnPath } from '../../features/auth/registration';
 import { socialRegistration } from '../../features/auth/socialRegistration';
 
@@ -277,7 +278,7 @@ export const supabaseAuthService: AuthService = {
   },
 
   async signInWithOAuth(provider, returnPath) {
-    const redirect = new URL('/', window.location.origin);
+    const redirect = new URL('/', authReturnOrigin(window.location.origin));
     redirect.searchParams.set('entry', 'oauth');
     const safePath = readSharedReturnPath(returnPath);
     if (safePath) redirect.searchParams.set('onboarding_return', safePath);
@@ -297,7 +298,7 @@ export const supabaseAuthService: AuthService = {
     const { data, error } = await client.auth.signUp({
       email,
       password: input.password,
-      options: { emailRedirectTo: window.location.origin,
+      options: { emailRedirectTo: authReturnOrigin(window.location.origin),
         data: registration ? { portalink_registration: registration } : undefined },
     });
     if (error) {
@@ -318,7 +319,7 @@ export const supabaseAuthService: AuthService = {
   async requestPasswordReset(input) {
     const email = input.email.trim().toLowerCase();
     const { error } = await requireSupabase().auth.resetPasswordForEmail(email, {
-      redirectTo: passwordRecoveryRedirect(window.location.origin),
+      redirectTo: passwordRecoveryRedirect(authReturnOrigin(window.location.origin)),
     });
     if (error) throw authFailure(error, 'The reset email could not be requested.');
     return {
@@ -541,7 +542,7 @@ export const supabaseAuthService: AuthService = {
     if (established.error) throw authFailure(established.error, 'Your session could not be checked.');
     if (established.data.session?.user.id !== input.accountId) throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your email address.');
     await assertCurrentAccount(input.accountId, generation);
-    const { error } = await bound.updateUser({ email }, { emailRedirectTo: window.location.origin });
+    const { error } = await bound.updateUser({ email }, { emailRedirectTo: authReturnOrigin(window.location.origin) });
     if (error) throw authFailure(error, 'The email change could not be requested.');
     return {
       status: 'pending',
@@ -561,7 +562,7 @@ export const supabaseAuthService: AuthService = {
     const { error } = await requireSupabase().auth.resend({
       type: input.target === 'pending-email' ? 'email_change' : 'signup',
       email,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: authReturnOrigin(window.location.origin) },
     });
     if (error) throw authFailure(error, 'The verification email could not be sent.');
     return { status: 'sent', email, message: 'A verification email has been sent.' };

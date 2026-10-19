@@ -491,6 +491,35 @@ test('shared mobile Journey switch stays in every profile header and exits porta
   }
 });
 
+test('public MOBILE Timeline portals its real toolbar into the profile header and always remains read-only',()=>{
+ const h=visitorProfileHarness({presentation:'mobile',showJourney:true});h.state.view='journey';
+ let tree=h.render();
+ const header=nodes(tree).find(node=>node.props?.className==='profile-header-region contents');
+ const host=nodes(header).find(node=>node.props?.className==='timeline-header-controls');
+ assert.ok(host);assert.equal(typeof host.ref,'function');
+ const attached={nodeType:1,id:'synthetic-timeline-toolbar-host'};host.ref(attached);
+ for(const [signedIn,own] of [[false,false],[true,false],[true,true]]){
+  Object.assign(h.state,{signedIn,own});tree=h.render();
+  const timeline=one(tree,'lazy:../features/journey/JourneyView');
+  assert.equal(timeline.props.toolbarHost,attached);assert.equal(timeline.props.owner,false);
+  assert.equal(timeline.props.profile,h.bioProfile);
+ }
+ host.ref(null);assert.equal(one(h.render(),'lazy:../features/journey/JourneyView').props.toolbarHost,null);
+});
+
+test('public catalogue, portal views and denied Timeline never mount a mobile toolbar host; WEB keeps its in-flow toolbar',()=>{
+ const host=tree=>nodes(tree).find(node=>node.props?.className==='timeline-header-controls');
+ const mobile=visitorProfileHarness({presentation:'mobile',showJourney:true});
+ assert.equal(host(mobile.render()),undefined);
+ mobile.state.view='journey';mobile.state.categoryId='portal';assert.equal(host(mobile.render()),undefined);
+ mobile.state.categoryId=null;mobile.state.search.set('view','portals');assert.equal(host(mobile.render()),undefined);
+ const denied=visitorProfileHarness({presentation:'mobile',showJourney:false});denied.state.view='journey';
+ assert.equal(host(denied.render()),undefined);assert.equal(one(denied.render(),'lazy:../features/journey/JourneyView'),undefined);
+ const web=visitorProfileHarness({presentation:'web',showJourney:true});web.state.view='journey';
+ const tree=web.render(),timeline=one(tree,'lazy:../features/journey/JourneyView');
+ assert.equal(host(tree),undefined);assert.equal(timeline.props.toolbarHost??null,null);assert.equal(timeline.props.owner,false);
+});
+
 test('shared Journey permission and WEB switch placement are unchanged', () => {
   for (const presentation of ['mobile', 'web']) {
     const denied = visitorProfileHarness({ presentation, showJourney: false });

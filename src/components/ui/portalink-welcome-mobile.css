@@ -35,11 +35,21 @@
 [data-presentation='mobile'].portalink-splash[data-share-landing] {
   outline: none;
   background: #fdffff !important;
-  height: var(--mobile-launch-height, 100dvh);
+  top: var(--dialog-viewport-top, 0px);
+  bottom: auto;
+  height: var(--dialog-viewport-height, var(--mobile-launch-height, 100dvh));
   min-height: 0;
-  grid-template-rows: minmax(0, 1fr) auto;
-  padding-top: max(12px, env(safe-area-inset-top, 0px));
-  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  grid-template-rows: minmax(140px, 1fr) auto;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 12px;
+  padding-top: max(12px, calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) - var(--dialog-viewport-top, 0px)));
+  padding-bottom: max(12px, var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+}
+[data-presentation='mobile'].portalink-splash[data-share-landing]:has(.entry-inline-form) {
+  grid-template-rows: minmax(140px, calc(var(--dialog-viewport-height, 100dvh) * .28)) auto;
 }
 [data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media {
   width: 100%;

@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import { setTimeout } from 'node:timers';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { authReturnOriginFixture, officialAuthOrigin } from './helpers/auth-return-origin-fixture.mjs';
 
 function load(path, imports = {}, globals = {}) {
   const exports = {};
@@ -81,6 +82,7 @@ function serviceHarness() {
       './client': { requireSupabase: () => client, passwordRecovery: { read: () => state.recovery ? { accountId: state.current?.user.id } : null },
         recoveryCallbackFailed: false, accountDeletionEnabled: false },
       '../../utils/passwordRecoveryReturn': {},
+      '../../utils/authReturnOrigin': authReturnOriginFixture,
     }, { window: { location: { origin: 'https://portalink.example.test' }, setTimeout } }).supabaseAuthService;
   }
   return { state, newService, auth: newService(), saveLocal(email, value = draft()) {
@@ -94,7 +96,7 @@ test('signup metadata survives email confirmation in a fresh service without a l
   assert.equal(result.requiresEmailVerification, true); assert.equal(result.session, null);
   const submitted = h.state.signup[0];
   assert.equal(submitted.email, 'creator@example.test');
-  assert.equal(submitted.options.emailRedirectTo, 'https://portalink.example.test');
+  assert.equal(submitted.options.emailRedirectTo, officialAuthOrigin);
   const saved = submitted.options.data.portalink_registration;
   assert.equal(saved.name, 'Example Creator'); assert.equal(saved.location, 'London, GB');
   assert.equal(saved.isPrivate, true); assert.equal(saved.systemGray, 'gray4'); assert.equal(saved.accentColor, '#AF52DE');

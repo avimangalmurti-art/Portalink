@@ -172,6 +172,7 @@ test('Cite dismisses a fast downward drag even before the move state renders',()
  const react={...React,useEffect(){},useRef:value=>({current:value}),useState:value=>[value,()=>{}]};
  const {CiteSheet}=sourceModule('src/features/citations/CiteSheet.tsx',{
   react,'../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close:onClose})},
+  '../../presentation/usePresentation':{usePresentation:()=> 'web'},'lucide-react':{CheckIcon:'check-icon'},'../../components/ui/InterfaceIcon':{InterfaceIcon:'interface-icon'},
   './formats':{formatCitation:()=>'',citationFormatLabels:{mla:'MLA'}},'./publicOrigin':{PUBLIC_ORIGIN:'https://example.test'},'../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:true,viewerProfileId:'owner'})},
   '../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../services/supabase/client':{},'./model':{},'./service':{},'./citations.css':{},'../../hooks/useModalFocus':{useModalFocus(){}},
  },{Element:ElementStub});

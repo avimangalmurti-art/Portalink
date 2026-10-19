@@ -3319,14 +3319,15 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 #root .codex-shell[data-presentation='mobile'] [data-document-reading-view]:not(:has([data-mobile-focused-view])) [data-document-reader-header] {
   position: fixed;
 }
-/* Focused readers keep the same canvas at the status/home-indicator edges.
-   Their footer clears the shared account bar, including enlarged text. */
+/* Focused controls have their own rows; reclaim the normal reader's action
+   clearance while keeping the safe area and shared account bar clear. */
 #root .codex-shell[data-presentation='mobile'] [data-project-stage] { background-color: var(--codex-workspace-bg); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
-  padding-bottom: max(var(--mobile-content-safe-bottom), var(--mobile-dock-bottom));
+  --focused-safe-bottom: max(8px, var(--safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--focused-safe-bottom);
 }
 #root .codex-shell[data-presentation='mobile'].shared-portalink-shell [data-mobile-focused-view] {
-  padding-bottom: calc(max(var(--mobile-content-safe-bottom), var(--mobile-dock-bottom)) + var(--shared-sign-in-height, 0px) + 8px);
+  padding-bottom: calc(var(--focused-safe-bottom) + var(--shared-sign-in-height, 0px) + 16px);
 }
 /* Context sheets share the app's appearance and material tokens on body portals. */
 [data-presentation='mobile'].mobile-context-scrim { position: fixed; inset-inline: 0; top: auto; bottom: 0; padding: 0; box-sizing: border-box; z-index: 100; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; background: rgb(0 0 0 / 46%); }
@@ -5507,19 +5508,6 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within .location-search-results { position:relative; top:auto; min-height:0; flex:1; display:flex; flex-direction:column; }
 #root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within .location-search-results ul { max-height:none; min-height:0; overflow-y:auto; flex:1; }
 
-/* Timeline controls live inside the existing sticky identity header. */
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls { padding: 12px var(--mobile-screen-action-right) 16px var(--mobile-navigation-inset-start); background: var(--surface-canvas); }
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-toolbar { margin: 0; width: 100%; }
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; width: 100%; }
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button { min-width: 0; min-height: 44px; padding: 8px; border-radius: 12px; background: var(--surface-sunken) !important; color: var(--text-primary) !important; font-size: 18px; font-weight: 600; }
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button::before { content: none; }
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button[aria-pressed='true'] { background: var(--text-primary) !important; color: var(--surface-canvas) !important; }
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button:disabled { opacity: .5; }
-#root .codex-shell[data-presentation='mobile'] [data-profile-journey] .journey-view[data-timeline-order] { padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right); }
-
-
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls button:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
-
 /* Card artwork owns the space; labels wrap only between complete words. */
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item {position:relative;padding-inline-end:0;}
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-options {position:absolute;top:4px;inset-inline-end:4px;z-index:2;}
@@ -5611,17 +5599,6 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   background: transparent;
   color: var(--text-primary);
   touch-action: manipulation;
-}
-
-/* Keep the Timeline's four view choices evenly spaced in its pinned row. */
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button {
-  font-size: 14px;
-  padding-inline: 4px;
-  white-space: nowrap;
 }
 
 /* Studio collection pills replace the obscured screen-level options trigger. */

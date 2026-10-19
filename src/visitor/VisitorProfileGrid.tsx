@@ -34,6 +34,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const portalsView = !categoryId && search.get('view') === 'portals';
   const isJourney = profile.showJourney === true && journey.view === 'journey' && !categoryId && !portalsView;
   const profilePageRef = useRef<HTMLDivElement>(null);
+  const [timelineToolbarHost, setTimelineToolbarHost] = useState<HTMLDivElement | null>(null);
   useMobileHeaderMaterial(!isMobile && isJourney, profile.id, profilePageRef, true);
   const category = profile.categories.find(item => item.id === categoryId);
   const density = useProjectGridDensity(profile, false);
@@ -69,13 +70,14 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
         </div>
       </header>}
       {!isMobile && isJourney && <JourneyToggle view="journey" onChange={journey.select} />}
+      {isMobile && isJourney && <div className="timeline-header-controls" ref={setTimelineToolbarHost} />}
     </div>
     {bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
     {!isMobile && profile.showJourney === true && !categoryId && !portalsView && !isJourney && <JourneyToggle view="portfolio" onChange={journey.select} />}
     <div id="profile-content" className="min-w-0 w-full px-[var(--content-gutter)] pb-4">
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
-      {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView profile={profile} owner={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
+      {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView toolbarHost={isMobile ? timelineToolbarHost : null} profile={profile} owner={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
         : projects.length ? <JustifiedImageWall label={`${profile.name} — profile imagery`} columns={density.columns} onColumnsChange={density.setColumns} allowLayoutControls={false} items={items} />
         : <p className="px-3 py-10 text-[var(--text-secondary)]">No published projects here yet.</p>}
     </div>

@@ -33,7 +33,7 @@ const EMPTY_METADATA: DraftMetadata = {
 };
 /** The order fields are validated and focused in — the order they are read. */
 const FIELD_ORDER: Array<'title' | 'summary'> = ['title', 'summary'];
-export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '', workspace?: { initialMetadata?: Pick<DraftMetadata, 'title' | 'summary'>; persist: boolean; resume?: ProjectDraft; activation?: boolean }) {
+export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '', workspace?: { initialMetadata?: Pick<DraftMetadata, 'title' | 'summary'>; persist: boolean; resume?: ProjectDraft; activation?: boolean; awaitProfile?: boolean }) {
   const {
     projects: projectService, profiles: profileService
   } = useServices();
@@ -41,6 +41,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     invalidateProfiles, cacheProfile
   } = useProfileData();
   const auth = useAuth();
+  const waitForProfile = firstProject || workspace?.awaitProfile === true;
   // A project is a collection of assets of any family, so preparation is not
   // scoped to the category's presentation format.
   const media = useMediaPreparation();
@@ -332,11 +333,11 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         try { await projectService.updateProjectCreationDetails(published.projectId, metadata.creationDetails); published.creationDetailsPending = false; }
         catch { throw new Error('Your project is published. Its date, field and answers still need saving. Retry to save only these details.'); }
       }
-      if (firstProject) {
+      if (waitForProfile) {
         // Keep the real cover in Review until the canonical profile contains the
         // committed tile. Closing first would briefly reveal the zero-work view.
         const refreshed = await profileService.getProfile(profileId);
-        if (!refreshed.projects.some(project => project.id === published.projectId)) {
+        if (refreshed.id !== profileId || !refreshed.projects.some(project => project.id === published.projectId)) {
           throw new Error('Your project is published. Try again to open the updated catalogue.');
         }
         invalidateProfiles();
@@ -353,7 +354,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         // longer needed by anything and are released immediately.
         media.clear();
       }
-      if (!firstProject) invalidateProfiles();
+      if (!waitForProfile) invalidateProfiles();
       setResult(published);
       setStep('done');
     } finally {

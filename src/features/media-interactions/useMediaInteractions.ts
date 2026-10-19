@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { mediaInteractionRequest as apiRequest } from './mediaInteractionRequest';
 import { readMediaInteraction } from './mediaInteractionBatch';
 import { readSharedReturnPath } from '../auth/registration';
+import { PUBLIC_ORIGIN } from '../citations/publicOrigin';
 
 export type MediaEngagementKind = 'like' | 'save' | 'repost';
 
@@ -49,7 +50,11 @@ function targetKey(target: MediaInteractionTarget): string {
 }
 
 export function mediaDeepLink(target: MediaInteractionTarget): URL {
-  const url = new URL(window.location.href);
+  const current = new URL(window.location.href);
+  const url = new URL(PUBLIC_ORIGIN);
+  url.pathname = current.pathname;
+  const safePath = readSharedReturnPath(current.pathname + current.search);
+  if (safePath) url.search = new URL(safePath, PUBLIC_ORIGIN).search;
   url.searchParams.set('media', target.attachmentId);
   url.searchParams.set('page', String(target.pageIndex + 1));
   return url;

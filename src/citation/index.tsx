@@ -5,7 +5,7 @@ import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
 import React,{lazy,Suspense,useEffect,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {readPublicCitation,readCitationAppearance,readCitedIn} from './publicRead';
-import {plainCitation,bibCitation,type CitationItem} from '../features/citations/model';
+import {plainCitation,bibCitation,citationUrl,type CitationItem} from '../features/citations/model';
 import { CitationCards } from './CitationCards';
 import { RouteError, routeErrorKind, type RouteErrorKind } from '../components/ui/RouteError';
 import type { PublicAppearance } from '../types/domain';
@@ -29,7 +29,7 @@ function CitationApp(){
  const [cited,setCited]=useState<Awaited<ReturnType<typeof readCitedIn>>>([]);
  useEffect(()=>{if(!item)return;let live=true;void readCitedIn(item.id).then(rows=>{if(live)setCited(rows);}).catch(()=>undefined);if(new URLSearchParams(location.search).get('cite')==='1'||sessionStorage.getItem('portalink:cite-intent')===item.id){sessionStorage.removeItem('portalink:cite-intent');setOpen(true);}return()=>{live=false;};},[item]);
  const copy=async(bib:boolean)=>{if(!item)return;try{await navigator.clipboard.writeText(bib?bibCitation(item,PUBLIC_ORIGIN):plainCitation(item,PUBLIC_ORIGIN));setStatus('Citation copied.');}catch{setStatus('Citation could not be copied.');}};
- const share=async()=>{if(!item)return;try{if(navigator.share)await navigator.share({url:location.href,title:item.projectTitle});else{await navigator.clipboard.writeText(location.href);setStatus('Link copied.');}}catch(error){if(!(error instanceof DOMException&&error.name==='AbortError'))setStatus('Link could not be shared.');}};
+ const share=async()=>{if(!item)return;const url=citationUrl(item,PUBLIC_ORIGIN);try{if(navigator.share)await navigator.share({url,title:item.projectTitle});else{await navigator.clipboard.writeText(url);setStatus('Link copied.');}}catch(error){if(!(error instanceof DOMException&&error.name==='AbortError'))setStatus('Link could not be shared.');}};
  return <main className="app-shell citation-entry" data-theme={theme}><ImageMotion/>{phase==='loading'?<LoadingSkeleton label="Loading citation…"/>:phase!=='ready'?<RouteError kind={phase} onBack={()=>history.length>1?history.back():location.assign('/')} onHome={()=>location.assign('/')} />:item&&<><CitationCards item={item} onCopy={bib=>void copy(bib)} onCite={()=>setOpen(true)} onShare={()=>void share()} status={status}
  preview={item.sourceUrl?<img src={item.sourceUrl} width={previewSize?.width} height={previewSize?.height} alt={`${item.projectTitle}, ${item.kind} ${item.number}`}/>:item.kind==='page'?<Suspense fallback={<LoadingSkeleton kind="reader" label="Loading page…"/>}><CitationPagePreview item={item}/></Suspense>:<p>Image preview is not available.</p>}
  citedIn={cited.length>0?<section className="citation-cited-card"><h2>Cited in {cited.length} {cited.length===1?'project':'projects'}</h2><ul>{cited.map(row=><li key={row.id}><a href={`/share/${encodeURIComponent(row.project.profileId)}/c/${encodeURIComponent(row.project.categoryId)}/${encodeURIComponent(row.project.id)}`}>{row.project.title} · {row.project.creator}</a><time>{row.created_at.slice(0,10)}</time></li>)}</ul></section>:null}/>{open&&<Suspense fallback={<LoadingSkeleton label="Opening Cite…"/>}><CitationInteraction item={item} onClose={()=>setOpen(false)}/></Suspense>}</>}</main>;
