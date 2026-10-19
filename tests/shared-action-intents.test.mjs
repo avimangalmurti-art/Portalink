@@ -53,19 +53,44 @@ test('shared interaction intents retain each content destination and only safe r
 });
 
 function mediaSetup(window = browser()) {
-  const gates = [], reads = [], writes = [];
+  const gates = [], reads = [], writes = [], shares = [];
   const auth = { isAuthenticated: false, user: null, requestAuthenticatedDestination: intent => gates.push(intent) };
   const hook = hookHarness(new URL('../src/features/media-interactions/useMediaInteractions.ts', import.meta.url),
     'useMediaInteractions', {}, auth, [target, true], undefined, {
       '../auth/registration': registration,
+      '../sharing/InternalContentShare': { useInternalContentShare: () => value => shares.push(value) },
       './mediaInteractionBatch': { readMediaInteraction(value, account) { reads.push({ value, account }); return Promise.resolve(record()); } },
       '../reads/pageHeadings': sourceModule('src/features/reads/pageHeadings.ts'),
     './mediaInteractionRequest': { mediaInteractionRequest(url, init, required) { writes.push({ url, init, required }); return Promise.resolve(record()); } },
     }, { window });
-  return { hook, auth, gates, reads, writes, window,
+  return { hook, auth, gates, reads, writes, shares, window,
     async signIn() { auth.isAuthenticated = true; auth.user = { id: 'visitor' }; hook.rerender(); await hook.flush(); },
   };
 }
+
+test('page sharing uses the official public address and exact media target without callback state', async () => {
+  for (const origin of ['https://portalinknetworksinc.avimangalmurti566055.chatgpt.site', 'http://127.0.0.1:5173', 'https://portalinknetworks.com']) {
+    const route = '/portalite/c/category/project';
+    const window = browser(`${origin}${route}?view=projects&via=friend8&page=2&media=old&code=secret&entry=oauth&access_token=secret#refresh_token=secret`);
+    const h = mediaSetup(window);
+    try {
+      await h.hook.flush();
+      await h.hook.value.share();
+      assert.equal(h.shares.length, 1);
+      const shared = h.shares[0], url = new URL(shared.url);
+      assert.equal(shared.title, target.label);
+      assert.equal(url.origin, 'https://portalinknetworks.com');
+      assert.equal(url.pathname, route);
+      assert.deepEqual([...url.searchParams], [['via', 'friend8'], ['view', 'projects'], ['page', '5'], ['media', 'document-a']]);
+      assert.equal(url.hash, '');
+      assert.doesNotMatch(shared.url, /chatgpt\.site|127\.0\.0\.1|secret|token|entry=|code=/);
+      assert.equal(h.hook.value.shareState, 'idle');
+      assert.equal(h.writes.length, 0);
+      shared.onSent(); await h.hook.flush();
+      assert.equal(h.hook.value.shareState, 'shared');
+    } finally { h.hook.dispose(); }
+  }
+});
 
 test('shared page save returns through sign-in to the clicked media/page and requires a deliberate authenticated press', async () => {
   const h = mediaSetup();

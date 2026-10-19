@@ -79,6 +79,7 @@ function densityHarness({ readOnly = false, mobile = false } = {}) {
   const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
   const layout = compile('../src/features/projects/pageLayout.ts', () => ({}));
   const { ProjectMediaViewer } = compile('../src/components/media/ProjectMediaViewer.tsx', name => {
+    if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
@@ -93,7 +94,7 @@ function densityHarness({ readOnly = false, mobile = false } = {}) {
     if (name.endsWith('/useProjectComments')) return { useProjectComments: () => ({}) };
     return new Proxy({}, { get: () => () => null });
   }, { URL, URLSearchParams, performance: { now: () => 1000 }, WheelEvent: { DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2 },
-    window: { location: { search: '', pathname: '/p/creator/c/category/project', origin: 'https://portalink.test' }, setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); } },
+    window: { location: { search: '', hash: '', pathname: '/p/creator/c/category/project', origin: 'https://portalink.test' }, setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); } },
   });
   const attachments = ['one', 'two'].map(id => ({ id, kind: 'image', displayName: id, typeLabel: 'Image' }));
   const setPages = next => { pages = next; };

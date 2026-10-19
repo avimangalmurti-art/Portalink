@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import React from 'react';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 function execute(source, globals = {}) {
@@ -123,7 +124,7 @@ test('thumbnail drag, wheel and keyboard crop the draft without leaving empty bo
   h.dispose();
 });
 
-test('creation rejects blank descriptions while allowing unrestricted prose', () => {
+test('creation accepts optional blank descriptions and unrestricted prose', () => {
   const validators = execute(read('features/publishing/validation.ts'));
   for (const summary of ['', '  \n ', 'Detailed project description. '.repeat(10000)]) {
     let errors;
@@ -131,8 +132,8 @@ test('creation rejects blank descriptions while allowing unrestricted prose', ()
       firstProject: false, metadata: { title: 'Project', summary }, validateTitle: validators.validateTitle,
       FIELD_ORDER: ['title', 'summary'], setFieldErrors: (next) => { errors = next; }, setInvalidField() {},
     });
-    assert.equal(validate(), Boolean(summary.trim()));
-    assert.equal(Boolean(errors.summary), !summary.trim());
+    assert.equal(validate(), true);
+    assert.equal(errors.summary, null);
   }
 });
 
@@ -184,4 +185,29 @@ test('removing a file destroys its pending PDF loader and ignores late page coun
   h.unmount(); h.finish(); await h.flush();
   assert.equal(h.destroyed, 1);
   assert.equal(h.counts.length, 0);
+});
+
+test('touch crop instructions reach the editable thumbnail and help while the shared defaults stay unchanged',()=>{
+ const source=read('components/publishing/CoverFilmstrip.tsx');
+ const walk=node=>React.isValidElement(node)?[node,...React.Children.toArray(node.props.children).flatMap(walk)]:[];
+ for(const instructions of [undefined,'Drag to reposition. Use the slider to zoom.']){
+  const instances=new Map();let current;
+  const react={...React,useEffect(){},useRef(value){const index=current.cursor++;return current.slots[index]??={current:value};},useState(initial){const index=current.cursor++;if(!(index in current.slots))current.slots[index]=initial;const slots=current.slots;return[slots[index],next=>{slots[index]=typeof next==='function'?next(slots[index]):next;}];}};
+  const exports={};vm.runInNewContext(ts.transpileModule(source+'\nexports.Thumbnail=CoverThumbnail;',{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require(name){
+   if(name==='react')return react;
+   if(name.endsWith('/assetTypes'))return{canBeCover:()=>true};
+   if(name.endsWith('/coverFrame'))return{normalizeProjectCoverFrame:frame=>({x:.5,y:.5,zoom:1,...frame})};
+   if(name.endsWith('/imageCrop'))return geometry;
+   if(name.endsWith('/useInlineCoverCrop'))return{useInlineCoverCrop:()=>({})};
+   if(name==='lucide-react')return new Proxy({},{get:(_,key)=>key});
+   return {};
+  }});
+  const render=(id,callback)=>{if(!instances.has(id))instances.set(id,{slots:[],cursor:0});current=instances.get(id);current.cursor=0;return callback();};
+  const item={id:'image',family:'image',capability:'native',isCover:true,displayTitle:'Artwork',previewUrl:'blob:synthetic',metadata:{}};
+  const thumbnail=()=>render('thumbnail',()=>exports.Thumbnail({item,page:1,selected:true,disabled:false,frame:{x:.5,y:.5,zoom:1,aspectRatio:4/3},onSelect(){},onChange(){},onReady(){},cropInstructions:instructions}));
+  walk(thumbnail()).find(node=>node.type==='img').props.onLoad({currentTarget:{naturalWidth:1200,naturalHeight:900}});
+  assert.equal(walk(thumbnail()).find(node=>node.type==='button').props.title,instructions??'Drag to reposition · Scroll to zoom');
+  const strip=render('strip',()=>exports.CoverFilmstrip({media:{items:[item]},disabled:false,focused:true,cropInstructions:instructions}));
+  assert.equal(walk(strip).find(node=>node.props.id==='cover-crop-help').props.children,instructions??'Drag or use arrow keys to reposition the selected cover. Scroll to zoom.');
+ }
 });

@@ -28,7 +28,7 @@ test('contact never falls back to authentication email and requires explicit opt
  assert.equal(e.contactHref(profile({email:'auth@example.com'})),null);
  assert.equal(e.contactHref(profile({contactEmail:'work@example.com'})),null);
  assert.equal(e.contactHref(profile({contactEmailPublic:true,contactEmail:'work@example.com',isPrivate:true})),null);
- assert.equal(e.contactHref(profile({contactEmailPublic:true,contactEmail:'work@example.com'})),'mailto:work%40example.com?subject=Your%20portfolio%20%E2%80%94%20Mira%20Chen');
+ assert.equal(e.contactHref(profile({contactEmailPublic:true,contactEmail:'work@example.com'})),'mailto:work%40example.com?subject=Your%20catalogue%20%E2%80%94%20Mira%20Chen');
  for(const email of ['a@b.com?bcc=evil@x.com','a\nb@c.com','a@b.com,other@c.com',''])assert.equal(e.contactHref(profile({contactEmailPublic:true,contactEmail:email})),null);
 });
 test('read time uses rounded 20-second pages, with no invented zero-page duration',()=>{

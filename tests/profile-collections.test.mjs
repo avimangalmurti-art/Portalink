@@ -14,6 +14,7 @@ function compile(path, imports, globals = {}) {
 }
 const employer = compile('../src/features/employer/employer.ts', name => { assert.fail(`Unexpected employer import: ${name}`); });
 const journeyHelpers = compile('../src/features/journey/journey.ts', () => ({}));
+const gridDensity = compile('../src/utils/projectGridDensity.ts', () => ({}));
 const socialTypes = compile('../src/types/social.ts', () => ({}));
 const engagementTypes = compile('../src/types/engagement.ts', () => ({}));
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
@@ -194,12 +195,16 @@ function profileHarness(search = '', options = {}) {
       }
     }, useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; }, useMemo: (fn) => fn() };
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
+    if (name.endsWith('/MobileBackNavigation')) return { ScreenBack: 'ScreenBack', useMobileScreenActive: () => true };
+    if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
+    if (name.endsWith('/copyPublicLink')) return { copyPublicLink: async value => options.onCopy?.(value) };
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
     if (name === 'react-router-dom') return { useLocation: () => ({ state: null }), useNavigate: () => (target, options) => navigation.push({ target, options }), useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
+    if (name.endsWith('/useMobileHeaderMaterial')) return { useMobileHeaderMaterial() {} };
     if (name.endsWith('/useProfileSwipeReturn')) return { useProfileSwipeReturn() {} };
     if (name.endsWith('/useMobilePortalPopupSize')) return { useMobilePortalPopupSize: () => ({ current: null }) };
     if (name.endsWith('/useReorderOutsideTap')) return { useReorderOutsideTap: (enabled, root, finish) => { outside = { enabled, finish }; } };
@@ -219,7 +224,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: options.editorProjectId ?? null } }) };
     if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
-    if (name.endsWith('/projectGridDensity')) return { MIN_PROJECT_GRID_COLUMNS: 2, MAX_PROJECT_GRID_COLUMNS: 13 };
+    if (name.endsWith('/projectGridDensity')) return gridDensity;
     if (name.endsWith('/profileLinks')) return { ...linkHelpers, resolveProfileLinks: () => linkHelpers.resolveProfileLinks(options.links ?? [], {}) };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
@@ -231,7 +236,7 @@ function profileHarness(search = '', options = {}) {
   } };
 }
 
-test('mobile header keeps its Journey choice when expanded alongside counts and links', () => {
+test('mobile header keeps its Journey choice while hiding counts and links until Portfolio returns', () => {
   const h = profileHarness('', { presentation: 'mobile' });
   const toggle = tree => nodes(tree).find(node => node.type === 'JourneyToggle');
   let tree = h.render();
@@ -244,22 +249,28 @@ test('mobile header keeps its Journey choice when expanded alongside counts and 
   toggle(tree).props.onChange('journey');
   tree = h.render();
   assert.equal(toggle(tree).props.view, 'journey');
+  assert.equal(nodes(tree).some(node => node.type?.name === 'ProfileStats'), false);
+  assert.equal(nodes(tree).some(node => node.props?.['data-mobile-profile-links'] !== undefined), false);
   assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
   openProfileOptions(h);
   tree = h.render();
   assert.equal(toggle(tree).props.view, 'journey');
   assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
   const all = nodes(tree);
-  const stats = all.find(node => node.type?.name === 'ProfileStats');
-  assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
+  assert.equal(all.some(node => node.type?.name === 'ProfileStats'), false);
+  assert.equal(all.some(node => node.props?.['data-mobile-profile-links'] !== undefined), false);
   const tools = all.find(node => node.props?.id === 'profile-navigation-tools');
-  assert.ok(all.indexOf(stats) < all.indexOf(tools));
   assert.equal(nodes(tools).some(node => node.type === 'JourneyToggle'), false);
   assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
   toggle(tree).props.onChange('portfolio');
   tree = h.render();
   assert.equal(toggle(tree).props.view, 'portfolio');
   assert.equal(nodes(tree).find(node => node.props?.className === 'profile-compact-header').props['data-expanded'], true);
+  const restored = nodes(tree);
+  const stats = restored.find(node => node.type?.name === 'ProfileStats');
+  assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
+  assert.equal(restored.some(node => node.props?.['data-mobile-profile-links'] !== undefined), true);
+  assert.ok(restored.indexOf(stats) < restored.indexOf(restored.find(node => node.props?.id === 'profile-navigation-tools')));
   openProfileOptions(h);
   assert.equal(toggle(h.render()).props.view, 'portfolio');
 });
@@ -383,6 +394,10 @@ test('disclosed mobile portal count floats the supplied chooser above the wall a
       const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
       nodes(stats.type(stats.props)).filter(node => node.type === 'button')[1].props.onClick();
       const portalTree = h.render();
+      const portalSurface = nodes(portalTree).find(node => node.type === 'DeferredSurface');
+      assert.equal(portalSurface?.props.children, mobilePortalsView, 'The lazy chooser has its own loading/error boundary');
+      assert.equal(portalSurface.props.active, true);
+      assert.equal(portalSurface.props.resetKey, 'owner');
       assert.ok(nodes(portalTree).some(node => node.props === mobilePortalsView.props));
       assert.ok(wall(portalTree), 'Opening Portals must leave the artwork mounted underneath');
       const underlay = nodes(portalTree).find(node => node.props?.className === 'mobile-profile-wall scrollbar-overlay');
@@ -396,7 +411,7 @@ test('disclosed mobile portal count floats the supplied chooser above the wall a
       assert.equal(h.navigation.at(-1).replace, false);
       const restored = profileHarness(h.search(), { presentation: 'mobile', viewerRole, props: { mobilePortalsView } }).render();
       assert.ok(nodes(restored).some(node => node.props === mobilePortalsView.props));
-      nodes(portalTree).find(node => node.props?.['aria-label'] === 'Close portals').props.onClick();
+      portalSurface.props.onClose();
       const closed = h.render();
       assert.equal(nodes(closed).some(node => node.props === mobilePortalsView.props), false);
       const restoredWall = nodes(closed).find(node => node.props?.className === underlay.props.className);
@@ -435,16 +450,21 @@ test('mobile wall restores and records document scroll through a project and on 
   const props = { mobileWallScrollMemory: { read: () => savedTop, save: top => { savedTop = top; } } };
   const options = { presentation: 'mobile', projects: reorderProjects, props, window, document: {} };
   const h = profileHarness('', options);
-  h.render(); h.flushEffects();
+  const show = (fixture, updates) => {
+    const tree = fixture.render(updates);
+    tree.ref.current = { closest: () => null };
+    fixture.flushEffects();
+  };
+  show(h);
   window.scrollY = 408; listeners.get('scroll')();
   assert.equal(savedTop, 408);
-  h.render({ mobileContent: React.createElement('project') }); h.flushEffects();
+  show(h, { mobileContent: React.createElement('project') });
   assert.equal(listeners.has('scroll'), false);
   window.scrollY = 0;
-  h.render(); h.flushEffects();
+  show(h);
   assert.equal(window.scrollY, 408);
   window.scrollY = 0;
-  const remounted = profileHarness('', options); remounted.render(); remounted.flushEffects();
+  const remounted = profileHarness('', options); show(remounted);
   assert.equal(window.scrollY, 408);
 });
 
@@ -601,7 +621,7 @@ test('mobile profile keeps links and visitor controls visible without duplicate 
     const h = profileHarness('', {presentation:'mobile',viewerRole,links});
     const tree = openProfileOptions(h);
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
-    assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton'));
+    assert.equal(nodes(tree).some(node => node.type === 'MobileContextButton'), viewerRole !== 'owner');
     assert.deepEqual(Array.from(grid.props.links.filter(link => link.action), link => link.action), viewerRole === 'owner' ? ['bio','collaboration'] : ['bio','collaboration','message']);
     assert.deepEqual(JSON.parse(JSON.stringify(grid.props.links.filter(link => !link.action))), links);
     assert.equal(nodes(tree).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);
@@ -627,7 +647,7 @@ function openProfileOptions(h) {
   const tree = h.render();
   const toggle = nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options');
   if (toggle) toggle.props.onClick();
-  else assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton'), 'MOBILE delegates options to the global actions sheet');
+  else assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton') || h.action('viewAsVisitor'), 'MOBILE owner delegates to the standard floating Actions button');
   return h.render();
 }
 
@@ -674,6 +694,18 @@ test('mobile owner reorder is available through the action popup with no passive
   assert.equal(reorderControl(web.render()), undefined);
   reorderControl(openProfileOptions(web)).props.onClick();
   assert.equal(wall(web.render()).props.reorderMode.enabled, true);
+});
+
+test('profile copy normalizes a supplied preview-host URL without losing public path or state', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const copies = [];
+    const h = profileHarness('', { presentation, onCopy: value => copies.push(value), props: {
+      shareUrl: 'https://old-preview.test/share/owner?view=portals&via=friend#portfolio',
+    } });
+    h.render();
+    await h.action('copy').run();
+    assert.deepEqual(copies, ['https://portalinknetworks.com/share/owner?view=portals&via=friend#portfolio']);
+  }
 });
 
 test('mobile owner header keeps Bio and links while Edit and Share work through the action popup', () => {
@@ -997,14 +1029,14 @@ test('mobile nested profile headers retain Portfolio/Journey and return to the s
   }
 });
 
-test('mobile connection profiles expose pull return and return through history to the selected list; WEB stays unchanged', () => {
+test('mobile connection profiles expose icon Back and return through history to the selected list; WEB stays unchanged', () => {
   for (const kind of ['followers', 'following']) {
     const h = profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'mobile', window:{history:{state:{idx:2}}}});
-    const back = nodes(h.render()).find(node => node.props['aria-label'] === 'Swipe down to return to previous screen');
-    assert.ok(back); back.props.onClick({detail:0});
+    const back = nodes(h.render()).find(node => node.props['aria-label'] === 'Back to previous screen');
+    assert.ok(back); back.props.onClick({detail:1});
     assert.equal(h.navigation.at(-1).target, -1);
     const direct = profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'mobile', window:{history:{state:{idx:0}}}});
-    nodes(direct.render()).find(node => node.props['aria-label'] === 'Swipe down to return to previous screen').props.onClick({detail:0});
+    nodes(direct.render()).find(node => node.props['aria-label'] === 'Back to previous screen').props.onClick({detail:1});
     assert.equal(direct.navigation.at(-1).target, `/p/source?view=${kind}`);
     assert.equal(direct.navigation.at(-1).options.replace, true);
     assert.equal(nodes(profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'web'}).render()).some(node => node.props['data-connections-back'] !== undefined), false);
@@ -1017,4 +1049,11 @@ test('confirmed mutuals can list both connection directions',async()=>{
  const h=serviceHarness('mutual',null,true); const page=await h.service.listProfileConnections('owner',kind);
  assert.equal(page.items[0].profileId,'person');
  }
+});
+
+test('mobile Profile separator changes the existing wall density and stays absent from WEB and shared portfolios',()=>{
+ const h=profileHarness('',{presentation:'mobile',projects:reorderProjects});
+ const slider=()=>nodes(h.render()).find(n=>n.props.label==='Profile content per row');assert.ok(slider());slider().props.onChange(8);
+ assert.equal(slider().props.columns,8);assert.equal(wall(h.render()).props.columns,8);
+ for(const options of [{presentation:'web'},{presentation:'mobile',isSharedView:true}])assert.equal(nodes(profileHarness('',{...options,projects:reorderProjects}).render()).some(n=>n.props.label==='Profile content per row'),false);
 });
