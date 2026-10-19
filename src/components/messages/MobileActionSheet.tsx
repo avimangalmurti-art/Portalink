@@ -8,7 +8,7 @@ import { ModalPortal } from '../ui/ModalPortal';
 import type { ContextActions, ContextAction } from '../../presentation/mobile/contextActions';
 
 /** Shared message/context sheet: one viewport, focus, scrim and swipe lifecycle. */
-export function MobileActionSheet({ model, onClose, onAction, beforeActions, children }: { model: ContextActions; onClose: () => void; onAction: (action: ContextAction) => void; beforeActions?: React.ReactNode; children?: React.ReactNode }) {
+export function MobileActionSheet({ model, onClose, onAction, beforeActions, children, layout = 'actions' }: { model: ContextActions; onClose: () => void; onAction: (action: ContextAction) => void; beforeActions?: React.ReactNode; children?: React.ReactNode; layout?: 'actions' | 'files' }) {
   const motion=useSheetMotion(onClose);
   const [dragY,setDragY]=useState(0);
   const [dragging,setDragging]=useState(false);
@@ -20,8 +20,8 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   const dragged = useRef(false);
   const cancelDrag = () => { start.current = null; setDragging(false); setDragY(0); };
   useModalFocus(true, dialogRef, dismiss, true);
-  return <ModalPortal><div data-presentation="mobile" ref={viewportRef} data-motion-scrim="" data-motion-closing={motion.closing || undefined} className="mobile-context-scrim modal-scrim" style={{bottom:0,height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)dismiss();}}>
-    <div data-ui-surface="sheet" ref={dialogRef} className="mobile-context-sheet" data-expanded={expanded} data-motion-sheet="" data-motion-closing={motion.closing || undefined} data-sheet-dragging={dragging || undefined} data-sheet-interacted={interacted || undefined} style={{['--sheet-drag-y' as string]:`${dragY}px`}} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+  return <ModalPortal><div data-presentation="mobile" data-sheet-layout={layout === 'files' ? layout : undefined} ref={viewportRef} data-motion-scrim="" data-motion-closing={motion.closing || undefined} className="mobile-context-scrim modal-scrim" style={{bottom:0,height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)dismiss();}}>
+    <div data-ui-surface="sheet" data-sheet-layout={layout === 'files' ? layout : undefined} ref={dialogRef} className="mobile-context-sheet" data-expanded={expanded} data-motion-sheet="" data-motion-closing={motion.closing || undefined} data-sheet-dragging={dragging || undefined} data-sheet-interacted={interacted || undefined} style={{['--sheet-drag-y' as string]:`${dragY}px`}} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
       <header onPointerDown={e=>{
         if(!e.isPrimary||e.button!==0||start.current)return;
         if(e.target instanceof Element&&e.target.closest('button:not(.mobile-context-resize)'))return;
@@ -64,7 +64,7 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
           setInteracted(true);
           setExpanded(value=>!value);
         }}><span className="mobile-context-handle" aria-hidden="true" /></button>
-        <div className="mobile-context-heading">{model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="secondary" onClick={dismiss} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
+        <div className="mobile-context-heading">{model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" data-ui-control={layout === 'files' ? 'button' : 'icon'} data-control-size="md" data-control-variant="secondary" onClick={dismiss} aria-label={layout === 'files' ? 'Done reordering files' : 'Close actions'}>{layout === 'files' ? 'Done' : <InterfaceIcon icon={XIcon}/>}</button></div>
       </header>
       <div className="mobile-context-body">
         {beforeActions}

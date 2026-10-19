@@ -1,7 +1,7 @@
 import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import { useLayoutEffect, useRef, type ReactNode, type RefObject, type ComponentProps } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeftIcon, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { ModalPortal } from '../ui/ModalPortal';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -9,6 +9,7 @@ import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import './project-dialog.css';
 import { useTouchTap } from '../../hooks/useTouchTap';
+import { useAuthoringFocus } from './useAuthoringFocus';
 
 /** The existing New project presentation, shared with editing published work. */
 export function ProjectFormDialog({ title, titleId, description, onClose, closeDisabled = false, dialogRef, confirmation, children, mobileFlow = false, topLayer = false }: {
@@ -68,8 +69,10 @@ export function ProjectDiscardConfirmation({ title, description, error, busy = f
 /** Mobile publishing occupies its own screen rather than a modal surface. */
 export function ProjectFormScreen({title,titleId,description,onClose,closeDisabled,confirmation,children}: ComponentProps<typeof ProjectFormDialog>) {
   const viewport = useDialogViewport<HTMLElement>();
-  return <ModalPortal><section ref={viewport} className="project-form-screen" aria-labelledby={titleId}>
-    <header><button type="button" aria-label="Back" disabled={closeDisabled} onClick={onClose}><ArrowLeftIcon size={24} aria-hidden="true" /></button><div><h1 id={titleId}>{title}</h1>{description && <p>{description}</p>}</div></header>
+  useAuthoringFocus(viewport);
+  useModalFocus(true, viewport, () => { if (!closeDisabled) onClose(); }, true);
+  return <ModalPortal><div className="mobile-upload-surface-backdrop" aria-hidden="true" /><section ref={viewport} className="project-form-screen" data-mobile-upload-surface="create" role="dialog" aria-modal="true" tabIndex={-1} aria-labelledby={titleId}>
+    <header><button type="button" aria-label="Close new project" disabled={closeDisabled} onClick={onClose}><XIcon size={22} aria-hidden="true" /></button><div><h1 id={titleId}>{title}</h1>{description && <p>{description}</p>}</div></header>
     {children}{confirmation}
   </section></ModalPortal>;
 }

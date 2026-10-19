@@ -15,7 +15,7 @@ const button = (tree, label) => nodes(tree).find(node => (node.type === 'Button'
 const component = (tree, name) => nodes(tree).find(node => node.type === name);
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-function harness(overrides = {}, props = {}) {
+function harness(overrides = {}, props = {}, presentation = 'mobile') {
   const calls = [], focus = [], slots = []; let cursor = 0, effects = [], editingStep = 'files';
   const flow = { step: 'metadata', state: 'editing', isSavingDraft: false, isDiscarding: false,
     draft: { id: 'draft-a' }, metadata: { title: 'Quiet Rooms', summary: 'A study of space.' }, location: 'London', fieldErrors: {},
@@ -29,6 +29,7 @@ function harness(overrides = {}, props = {}) {
   vm.runInNewContext(compiled, { exports, document: { getElementById: id => ({ focus: () => focus.push(id) }) }, require(name) {
     if (name === 'react') return { ...React, useRef: value => slots[cursor++] ??= { current: value }, useEffect: fn => effects.push(fn) };
     if (name === './validation') return { TITLE_MAX_LENGTH: 80 };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     return new Proxy({}, { get: (_, key) => key });
   } });
   const render = (step = editingStep) => { editingStep = step; cursor = 0; effects = [];
@@ -103,8 +104,8 @@ test('review retains transport controls and stored-file locks, and only final Pu
   assert.equal(action(tree, 'Edit selected files').props.disabled, true);
   button(tree, 'Back').props.onClick(); tree = h.render();
   assert.ok(button(tree, 'Review project'));
-  button(tree, 'Back').props.onClick(); tree = h.render();
-  assert.equal(component(tree, 'MobileCoverFiles').props.upload.phase, 'uploaded');
+  assert.equal(button(tree, 'Back').props.disabled, true, 'Stored files cannot be reopened through step Back');
+  assert.ok(component(tree, 'ProfileField'));
 });
 
 test('saving, publishing, cleanup and discard block navigation and final submission', async () => {
@@ -139,8 +140,8 @@ test('legacy first-project drafts use one editable description instead of story 
 
 
 
-test('Review shows ordered summaries, omits empty location and limits file thumbnails without changing state', () => {
- const h=harness({step:'preview',location:'',media:{items:Array.from({length:8},(_,n)=>({id:String(n),family:'image',previewUrl:`image-${n}`,metadata:{}})),isComplete:true,state:'ready'}});
+test('WEB Review keeps ordered summaries and its existing thumbnail summary without changing state', () => {
+ const h=harness({step:'preview',location:'',media:{items:Array.from({length:8},(_,n)=>({id:String(n),family:'image',previewUrl:`image-${n}`,metadata:{}})),isComplete:true,state:'ready'}},{},'web');
  const tree=h.render();
  const summaries=nodes(tree).filter(n=>n.type==='section').map(n=>n.props['aria-label']);
  assert.deepEqual(summaries,['Cover','Project details','Selected files']);
@@ -150,6 +151,32 @@ test('Review shows ordered summaries, omits empty location and limits file thumb
  assert.ok(!text(tree).includes('Location'));assert.ok(!text(tree).includes('Your files upload'));
  assert.equal(h.flow.media.items.length,8);
  action(tree,'Edit project details').props.onClick();assert.equal(h.flow.metadata.summary,'A study of space.');
+});
+
+test('MOBILE Review includes every selected file and labels the optional empty description',()=>{
+ const items=Array.from({length:15},(_,index)=>({id:`file-${index}`,displayTitle:`Artwork ${index+1}`,family:'image',previewUrl:`image-${index}`,metadata:{}}));
+ const h=harness({step:'preview',metadata:{title:'Title only',summary:''},media:{items,isComplete:true,state:'ready'}}),tree=h.render();
+ assert.deepEqual(nodes(tree).filter(node=>node.type==='img').map(node=>node.props.src),items.map(item=>item.previewUrl));
+ assert.equal(nodes(tree).filter(node=>node.props.role==='img').length,15);
+ assert.ok(text(tree).includes('Description (optional)'));assert.ok(text(tree).includes('Not added'));assert.ok(text(tree).includes('15 files'));
+ assert.equal(nodes(tree).some(node=>node.props.className==='mobile-review-more'),false);
+ action(tree,'Edit selected files').props.onClick();
+ assert.equal(component(h.render(),'MobileCoverFiles').props.media.items,items);assert.equal(h.flow.metadata.summary,'');
+});
+
+test('MOBILE Back follows the declared step order and WEB retains its original navigation',()=>{
+ for(const detailsFirst of [false,true]){
+  const h=harness({}, {detailsFirst}),first=detailsFirst?'details':'files',second=detailsFirst?'files':'details';
+  assert.equal(button(h.render(first),'Back'),undefined);
+  let tree=h.render(second),back=button(tree,'Back');
+  assert.equal(back.props['aria-label'],detailsFirst?'Back to project details':'Back to files');
+  back.props.onClick();assert.equal(button(h.render(),'Back'),undefined);
+  h.flow.step='preview';tree=h.render();back=button(tree,'Back');
+  assert.equal(back.props['aria-label'],detailsFirst?'Back to files':'Back to project details');
+  back.props.onClick();assert.ok(component(h.render(),second==='files'?'MobileCoverFiles':'ProfileField'));
+ }
+ const web=harness({step:'preview'},{detailsFirst:true},'web');button(web.render(),'Back').props.onClick();
+ assert.ok(component(web.render(),'ProfileField'));assert.equal(button(web.render(),'Back').props['aria-label'],undefined);
 });
 test('details-first project setup goes from files directly to review without a duplicate form or early publication',async()=>{
  const h=harness({}, {detailsFirst:true});let tree=h.render();

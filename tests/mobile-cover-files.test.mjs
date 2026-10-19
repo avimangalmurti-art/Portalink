@@ -7,9 +7,10 @@ import ts from 'typescript';
 const compiled=ts.transpileModule(readFileSync(new URL('../src/features/publishing/MobileCoverFiles.tsx',import.meta.url),'utf8'),{compilerOptions:{jsx:ts.JsxEmit.React,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText;
 const nodes=t=>!React.isValidElement(t)?[]:[t,...React.Children.toArray(t.props.children).flatMap(nodes)];
 const text=t=>typeof t==='string'||typeof t==='number'?String(t):Array.isArray(t)?t.map(text).join(''):React.isValidElement(t)?text(t.props.children):'';
-function harness(disabled=false,phase='idle'){
+function harness(disabled=false,phase='idle',{presentation='mobile',count=2}={}){
  let open=false;const calls=[];const media={items:[{id:'a',isCover:true,family:'image',capability:'native',displayTitle:'Artwork A',previewUrl:'a.jpg'},{id:'b',isCover:false,family:'image',capability:'native',displayTitle:'Artwork B',previewUrl:'b.jpg'}],select:files=>calls.push(files),setCover:id=>calls.push(id)};
- const exports={};vm.runInNewContext(compiled,{exports,require(name){if(name==='react')return{...React,useRef:()=>({current:{click:()=>calls.push('picker')}}),useState:()=>[open,v=>{open=v;}]};if(name==='./assetTypes')return{canBeCover:()=>true};return new Proxy({},{get:(_,key)=>key});}});
+ if(count!==2)media.items=Array.from({length:count},(_,index)=>({id:`file-${index+1}`,isCover:index===0,family:'image',capability:'native',displayTitle:`Artwork ${index+1}`,previewUrl:`image-${index+1}.png`}));
+ const exports={};vm.runInNewContext(compiled,{exports,require(name){if(name==='react')return{...React,useRef:()=>({current:{click:()=>calls.push('picker')}}),useState:()=>[open,v=>{open=v;}]};if(name.endsWith('/usePresentation'))return{usePresentation:()=>presentation};if(name==='./assetTypes')return{canBeCover:()=>true};return new Proxy({},{get:(_,key)=>key});}});
  const render=()=>exports.MobileCoverFiles({media,upload:{phase},disabled});return{render,calls,media};
 }
 test('default cover workspace keeps file management behind Reorder and passes the original draft through',()=>{
@@ -22,8 +23,25 @@ test('default cover workspace keeps file management behind Reorder and passes th
  all.find(n=>n.type==='button'&&text(n)==='Reorder').props.onClick();
  const sheet=nodes(h.render()).find(n=>n.type==='MobileActionSheet');
  assert.equal(sheet.props.model.title,'Reorder');
+ assert.equal(sheet.props.layout,'files');
  assert.equal(nodes(sheet).find(n=>n.type==='MediaPicker').props.media,h.media);
+ assert.equal(nodes(sheet).find(n=>n.type==='MediaPicker').props.mobileFileManager,true);
  sheet.props.onClose();assert.equal(nodes(h.render()).find(n=>n.type==='MobileActionSheet'),undefined);
+});
+
+test('all fifteen MOBILE files remain selectable as cover while WEB keeps its existing summary',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=harness(false,'idle',{presentation,count:15});
+  const all=nodes(h.render()),thumbnails=all.filter(n=>n.type==='button'&&n.props['aria-label']?.startsWith('Use Artwork'));
+  assert.equal(thumbnails.length,presentation==='mobile'?15:4);
+  assert.equal(all.find(node=>node.type==='CoverFilmstrip').props.cropInstructions,presentation==='mobile'?'Drag to reposition. Use the slider to zoom.':undefined);
+  if(presentation==='mobile'){thumbnails[14].props.onClick();assert.equal(h.calls.at(-1),'file-15');}
+  all.find(n=>n.type==='button'&&text(n)==='Reorder').props.onClick();
+  const sheet=nodes(h.render()).find(n=>n.type==='MobileActionSheet'),picker=nodes(sheet).find(n=>n.type==='MediaPicker');
+  assert.equal(sheet.props.layout,presentation==='mobile'?'files':undefined);
+  assert.equal(picker.props.mobileFileManager,presentation==='mobile'?true:undefined);
+  assert.equal(picker.props.media,h.media);assert.equal(h.media.items.length,15);
+ }
 });
 test('Add accepts a batch and thumbnail selection updates the same draft',()=>{
  const h=harness(),all=nodes(h.render()),input=all.find(n=>n.type==='input');assert.equal(input.props.multiple,true);

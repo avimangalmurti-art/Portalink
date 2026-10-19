@@ -76,7 +76,7 @@ test('registration composition stays in the active route kind and keeps canonica
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 
-function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0}={}) {
+function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout}={}) {
  const slots=[], calls=[], motions=[], measurements={viewport:0,panel:0}; let cursor=0, escape, tree;
  class ElementStub {
   constructor(kind='header') { this.kind=kind; this.captured=new Set(); }
@@ -111,7 +111,7 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0}={}) {
  },{Element:ElementStub});
  const model=contextActions('home',{signedIn:true},{handlers:{explore:()=>calls.push('explore'),newProject:()=>calls.push('new')}});
  const render=()=>{
-  cursor=0;tree=MobileActionSheet({model,onClose:()=>calls.push('close'),onAction:action=>action.run()});
+  cursor=0;tree=MobileActionSheet({model,onClose:()=>calls.push('close'),onAction:action=>action.run(),layout});
   nodes(tree).find(node=>node.props.role==='dialog').ref.current=dialog;
   return tree;
  };
@@ -125,6 +125,15 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0}={}) {
   clickResize:(detail=1)=>resizeButton().props.onClick({detail}),
  };
 }
+
+test('file-sheet opt-in provides an explicit Done action while ordinary sheets retain their existing close control',()=>{
+ const files=sheetHarness({layout:'files'}),tree=files.render();
+ assert.equal(files.dialog().props['data-sheet-layout'],'files');
+ const done=nodes(tree).find(node=>node.props['aria-label']==='Done reordering files');
+ assert.equal(done.props.children,'Done');done.props.onClick();assert.deepEqual(files.calls,['close']);
+ const ordinary=sheetHarness();assert.equal(ordinary.dialog().props['data-sheet-layout'],undefined);
+ assert.ok(ordinary.find(node=>node.props['aria-label']==='Close actions'));
+});
 
 test('the common sheet supports close, backdrop, Escape, swipe and action delegation without placeholders', () => {
  const h=sheetHarness(),list=nodes(h.render());

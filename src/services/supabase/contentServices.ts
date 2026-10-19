@@ -595,8 +595,8 @@ export const supabaseProjectService: ProjectService = {
   },
 
   async updateProject(input: UpdateProjectInput): Promise<UpdateProjectResult> {
-    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
-      throw new ProjectMutationError('invalid_metadata', 'A title and description are required.');
+    if (!input.metadata.title.trim()) {
+      throw new ProjectMutationError('invalid_metadata', 'A title is required.');
     }
     const { data, error } = await requireSupabase().rpc('update_project_citation_fields', {
       p_made_on: input.metadata.madeOn ?? null,

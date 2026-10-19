@@ -673,10 +673,9 @@ export const mockProjectService: ProjectService = {
       // The work may have been deleted in another view since the editor opened.
       throw new ProjectMutationError('not_found', 'That project no longer exists, so there was nothing to save.');
     }
-    // Defence in depth: the public fields are required here too, so no path can
-    // strip a published project down to invented or empty metadata.
-    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
-      throw new ProjectMutationError('invalid_metadata', 'A title and a description are both required.');
+    // Match creation: every project needs a title; its description is optional.
+    if (!input.metadata.title.trim()) {
+      throw new ProjectMutationError('invalid_metadata', 'A title is required.');
     }
     if (input.metadata.title.trim().toLowerCase() === PROTOTYPE_PUBLISH_FAILURE_TITLE) {
       // Exercises the failure path: nothing is written, so the published project

@@ -199,6 +199,7 @@ test('first-project recovery retains safe close and locked fields after switchin
   }).outputText;
   vm.runInNewContext(compiledFlow, {exports, require(name) {
     if (name === 'react') return {...React, useRef: value => ({current:value}), useEffect() {}};
+    if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
     if (name === './firstProject') return {EMPTY_CREATION:{answers:{what:'',did:'',learned:''}}};
     return new Proxy({}, {get:(_,key)=>key});
   }});
