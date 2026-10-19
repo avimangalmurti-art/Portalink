@@ -106,6 +106,7 @@ function ImagePage({
       onToggleFocus(attachment.id);
     }
   }} onKeyDown={isFocused ? undefined : (event) => {
+    if (event.target !== event.currentTarget) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onToggleFocus(attachment.id);
@@ -118,8 +119,8 @@ function ImagePage({
       {status === 'loading' && <div data-page-loading="" data-initial-page-loading={pageNumber === 1 ? '' : undefined} style={loadingStyle} role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
           <span className="premium-media-loading-mark" aria-hidden="true" />
         </div>}
-      {status === 'error' ? <div className="flex min-h-[240px] w-full items-center justify-center p-8">
-          <ErrorState title="This image could not be displayed" description={attachment.fileName} onRetry={() => {
+      {status === 'error' ? <div onPointerUp={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} style={loadingStyle} data-page-loading="" className="flex min-h-[240px] w-full items-center justify-center p-5">
+          <ErrorState title="This image could not be displayed" description="Check your connection, then try loading this image again." onRetry={() => {
         setStatus('loading');
         setAttempt((current) => current + 1);
       }} />

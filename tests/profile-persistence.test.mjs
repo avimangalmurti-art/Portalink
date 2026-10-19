@@ -141,10 +141,14 @@ test('lightweight layout reads and saves never hydrate portfolio content and enf
   assert.deepEqual(plain(h.db.profiles[0]), { ...original, project_grid_columns: 5 });
   assert.ok(h.tableCalls.every(table => table === 'profiles'));
   assert.deepEqual(h.writes, [{ table: 'profiles', id: 'owner', patch: { project_grid_columns: 5 } }]);
-  for (const value of [1, 14, 2.5]) await assert.rejects(h.profiles.updateProjectGridLayout('owner', value), /between 2 and 13/);
-  h.viewAs('visitor'); await assert.rejects(h.profiles.updateProjectGridLayout('owner', 7), /zero/);
-  h.viewAs(null); await assert.rejects(h.profiles.updateProjectGridLayout('owner', 7), /Sign in/);
-  assert.equal(h.db.profiles[0].project_grid_columns, 5);
+  assert.deepEqual(plain(await h.profiles.updateProjectGridLayout('owner', 1)), { id: 'owner', projectGridColumns: 1 });
+  assert.deepEqual(plain(await h.profiles.getProjectGridLayout('owner')), { id: 'owner', projectGridColumns: 1 });
+  assert.deepEqual(plain(h.db.profiles[0]), { ...original, project_grid_columns: 1 });
+  assert.ok(h.tableCalls.every(table => table === 'profiles'));
+  for (const value of [0, 14, 2.5]) await assert.rejects(h.profiles.updateProjectGridLayout('owner', value), /between 1 and 13/);
+  h.viewAs('visitor'); await assert.rejects(h.profiles.updateProjectGridLayout('owner', 1), /zero/);
+  h.viewAs(null); await assert.rejects(h.profiles.updateProjectGridLayout('owner', 1), /Sign in/);
+  assert.equal(h.db.profiles[0].project_grid_columns, 1);
 });
 
 test('profile order survives reload and a portal reorder preserves other portals positions',async()=>{
@@ -191,19 +195,19 @@ test('duplicate or foreign project IDs are rejected before any arrangement updat
   }
 });
 
-test('project grid normalization clamps the whole 2–13 range and defaults malformed input',()=>{
+test('project grid normalization clamps the whole 1–13 range and still defaults malformed input to two',()=>{
   const normalize=gridDensity.normalizeProjectGridColumns;
-  for(let columns=2;columns<=13;columns++)assert.equal(normalize(columns),columns);
-  assert.equal(normalize(-10),2);assert.equal(normalize(14),13);assert.equal(normalize(4.6),5);
+  for(let columns=1;columns<=13;columns++)assert.equal(normalize(columns),columns);
+  assert.equal(normalize(-10),1);assert.equal(normalize(0),1);assert.equal(normalize(14),13);assert.equal(normalize(4.6),5);
   for(const invalid of [undefined,null,NaN,Infinity,-Infinity,'5',{},[]])assert.equal(normalize(invalid),2);
 });
 
 test('saved project density is read by owners, other accounts and anonymous public visitors',async()=>{
   const h=fixture();
   assert.equal((await h.profiles.getProfile('owner')).projectGridColumns,2);
-  await h.profiles.updateProfile('owner',{projectGridColumns:5});
+  await h.profiles.updateProfile('owner',{projectGridColumns:1});
   for(const viewer of ['account','other-account',null]){
-    h.viewAs(viewer);assert.equal((await h.profiles.getProfile('owner')).projectGridColumns,5);
+    h.viewAs(viewer);assert.equal((await h.profiles.getProfile('owner')).projectGridColumns,1);
   }
 });
 
@@ -223,7 +227,7 @@ test('density-only saves preserve all profile fields and project order; reorder 
 });
 
 test('density saves reject invalid counts, guest writes and non-owner updates without false success',async()=>{
-  for(const count of [1,14,5.5,NaN,Infinity,null,'5']){
+  for(const count of [0,14,5.5,NaN,Infinity,null,'5']){
     const h=fixture();await assert.rejects(h.profiles.updateProfile('owner',{projectGridColumns:count}),/Projects per row/);
     assert.equal(h.writes.length,0);
   }
@@ -232,7 +236,7 @@ test('density saves reject invalid counts, guest writes and non-owner updates wi
     await assert.rejects(h.profiles.updateProfile('owner',{projectGridColumns:5}));
     assert.equal(h.writes.length,0);
   }
-  for(const count of [2,13]){
+  for(const count of [1,2,13]){
     const h=fixture();await h.profiles.updateProfile('owner',{projectGridColumns:count});
     assert.equal((await h.profiles.getProfile('owner')).projectGridColumns,count);
   }

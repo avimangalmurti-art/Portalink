@@ -1,4 +1,5 @@
 import { plainFormattedText } from '../components/text/textFormatting';
+import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
 import { portfolioPath, shareCardText, type PortfolioCard } from '../features/sharing/shareModel';
 import { readCoverThumbnail } from '../services/supabase/coverThumbnailReads';
 type PreviewConfiguration = { supabaseUrl: string; publishableKey: string };
@@ -138,7 +139,7 @@ async function readProject(target: SharedTarget, origin: string, config: Preview
   return rows?.length === 1 && visibleProject(rows[0], target) ? rows[0] : null;
 }
 
-function coverImage(project: Row, profileId: string): Preview['image'] | null {
+export function coverImage(project: Row, profileId: string): Preview['image'] | null {
   const thumbnail = readCoverThumbnail(project.cover_thumbnail, profileId, String(project.id));
   const selected = thumbnail?.social ?? thumbnail?.variants.find(item => item.size === 800);
   if (thumbnail && selected) return { path: selected.path, width: selected.width, height: selected.height, public: thumbnail.bucket === 'project-covers', alt: text(project.title, 120) || 'Project cover' };
@@ -228,12 +229,12 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
   };
 }
 
-async function signImage(path: string, origin: string, config: PreviewConfiguration, signal: AbortSignal): Promise<string | null> {
+export async function signImage(path: string, origin: string, config: PreviewConfiguration, signal: AbortSignal, fetcher: typeof fetch = fetch, expiresIn = 21_600): Promise<string | null> {
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const expectedPath = `/storage/v1/object/sign/project-media/${encodedPath}`;
-  const response = await fetch(`${origin}${expectedPath}`, {
+  const response = await fetcher(`${origin}${expectedPath}`, {
     method: 'POST', headers: { apikey: config.publishableKey, 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ expiresIn: 21_600 }), cache: 'no-store', redirect: 'manual', signal,
+    body: JSON.stringify({ expiresIn }), cache: 'no-store', redirect: 'manual', signal,
   });
   if (!response.ok) return null;
   const body = record(await response.json());
@@ -300,9 +301,9 @@ export async function withSharedPreview(response: Response, request: Request, co
       if (cached && cached.expiresAt > Date.now() && cached.configuration === configuration && cached.fingerprint === fingerprint && cached.shell === shell) {
         html = cached.html;
       } else {
-        const image = preview.image.public ? `${url.origin}/media/${preview.image.avatar ? 'avatars' : 'covers'}/${preview.image.path}` : await signImage(preview.image.path, origin, config, signal);
+        const image = preview.image.public ? `${PUBLIC_ORIGIN}/media/${preview.image.avatar ? 'avatars' : 'covers'}/${preview.image.path}` : await signImage(preview.image.path, origin, config, signal);
         if (image) {
-          html = rewriteHead(shell, preview, image, `${url.origin}${url.pathname.replace(/\/$/, '')}`);
+          html = rewriteHead(shell, preview, image, `${PUBLIC_ORIGIN}${url.pathname.replace(/\/$/, '')}`);
           previewCache.delete(cacheKey);
           previewCache.set(cacheKey, { configuration, fingerprint, shell, html, expiresAt: Date.now() + CACHE_MILLISECONDS });
           while (previewCache.size > MAX_CACHE_ENTRIES) {
@@ -321,13 +322,13 @@ export async function withSharedPreview(response: Response, request: Request, co
 }
 
 /** The sheet consumes precisely the same anonymous visibility read and card fields as crawlers. */
-export async function readPortfolioCard(profileId: string, siteOrigin: string, config: PreviewConfiguration): Promise<PortfolioCard | null> {
+export async function readPortfolioCard(profileId: string, _siteOrigin: string, config: PreviewConfiguration): Promise<PortfolioCard | null> {
   if (!uuid.test(profileId)) return null;
   const origin = serviceOrigin(config);
   if (!origin) return null;
   const signal = AbortSignal.timeout(5000);
   const preview = await readPublicPreview({ profileId }, origin, config, signal);
   if (!preview) return null;
-  const image = preview.image.public ? `${siteOrigin}/media/${preview.image.avatar ? 'avatars' : 'covers'}/${preview.image.path}` : await signImage(preview.image.path, origin, config, signal);
-  return { title: preview.title, description: preview.description, image, width: preview.image.width, height: preview.image.height, url: new URL(portfolioPath(profileId, preview.handle), siteOrigin).href };
+  const image = preview.image.public ? `${PUBLIC_ORIGIN}/media/${preview.image.avatar ? 'avatars' : 'covers'}/${preview.image.path}` : await signImage(preview.image.path, origin, config, signal);
+  return { title: preview.title, description: preview.description, image, width: preview.image.width, height: preview.image.height, url: new URL(portfolioPath(profileId, preview.handle), PUBLIC_ORIGIN).href };
 }

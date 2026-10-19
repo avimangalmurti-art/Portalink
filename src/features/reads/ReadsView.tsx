@@ -13,13 +13,13 @@ function Count({label,value}:{label:string;value:number}){return <div><dd>{value
 export function ReadsList(){
   const {reads}=useServices(),navigate=useNavigate();
   const load=useCallback(()=>reads?reads.list():Promise.reject(new Error('Reads are not available yet.')),[reads]);
-  const state=useAccountQuery(load);
+  const state=useAccountQuery(load,reads?{key:'reads:list:30d',scope:reads}:undefined);
   return <section className="reads-view" aria-label="Project reads"><h2>Reads</h2><p>Anonymous reach over the last 30 days. Only you can see this.</p>{state.loading?<p role="status">Loading Reads…</p>:state.error?<p>Reads are not available yet.</p>:<ul className="reads-project-list">{state.data?.map(row=><li key={row.projectId}><button onClick={()=>navigate(`/insights?project=${row.projectId}`)}><strong>{row.title}</strong><span>{row.opened} opened · {row.finished} read to the end</span></button></li>)}</ul>}</section>;
 }
 export function ReadsProject({projectId}:{projectId:string}){
   const {reads}=useServices(),[params,setParams]=useSearchParams();const page=params.has('page')?Number(params.get('page')):null;
   const isMobile=usePresentation()==='mobile';const period=(READ_PERIODS.find(item=>item.key===params.get('period'))?.key ?? (isMobile?'7d':'30d')) as ReadPeriod;
-  const load=useCallback(()=>reads?reads.summary(projectId,period):Promise.reject(new Error('Reads are not available yet.')),[reads,projectId,period]);const state=useAccountQuery(load);
+  const load=useCallback(()=>reads?reads.summary(projectId,period):Promise.reject(new Error('Reads are not available yet.')),[reads,projectId,period]);const state=useAccountQuery(load,reads?{key:JSON.stringify(['reads:summary',projectId,period]),scope:reads}:undefined);
   if(state.loading)return <p role="status" className="reads-view">Loading Reads…</p>;
   if(state.error||!state.data)return <div className="reads-view"><p role="alert">Reads could not be loaded. Only the project owner can see them.</p><Button onClick={state.retry}>Try again</Button></div>;
   const row=state.data;if(page!==null&&Number.isInteger(page)&&page>=0&&page<row.pageCount)return <ReadPageDetail summary={row} page={page} period={period} onBack={()=>setParams({project:projectId,period})}/>;

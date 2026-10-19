@@ -1,3 +1,4 @@
+import {DocumentGridPreview} from './DocumentGridPreview';
 import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
@@ -239,7 +240,7 @@ export function DocumentAttachment({
               focusPage(index);
             }
           }} data-focused-page-scroll={focusedPageIndex === index ? '' : undefined} onScroll={isMobile && focusedPageIndex === index ? (event) => updateViewerMemory(`${memoryKey}:page:${index}`, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }) : undefined} className={`${focusedPageIndex === index ? 'h-full min-h-0 items-start justify-start overflow-auto overscroll-contain' : 'touch-manipulation justify-center'} group/media relative flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
-            <img
+            {isMobile && focusedPageIndex === null && columnCount > 1 ? <DocumentGridPreview source={page.sourceUrl} width={page.width} height={page.height} label={`${attachment.displayName}, page ${page.withinDocumentIndex}`} onReady={()=>markRumPdf(viewTokenRef.current)}/> : <img
               data-media-page-surface=""
               src={page.sourceUrl}
               alt={`${attachment.displayName}, page ${page.withinDocumentIndex}`}
@@ -257,7 +258,7 @@ export function DocumentAttachment({
               }}
               className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : verticalReading ? 'h-auto w-full' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: readingMode || verticalReading ? 'auto' : `${zoom * 100}%`, flexShrink: readingMode || verticalReading ? 0 : undefined } : undefined}
-            />
+            />}
             {showMediaInteractions && !isMobile && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} pageCount={renderedPages.length} isOwner={isOwner} target={{
               projectId,
               attachmentId: attachment.id,

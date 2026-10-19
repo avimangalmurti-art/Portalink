@@ -1,0 +1,22 @@
+/* Retained screens keep layout/state but do not participate in the active shell. */
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer[data-mobile-screen-retained] {
+  display: none !important; position: fixed; inset: var(--mobile-viewport-top, 0px) 0 auto; height: var(--mobile-viewport-height, 100dvh); min-height: 0; overflow: hidden;
+  visibility: hidden; pointer-events: none; opacity: 1 !important;
+  transform: none !important; transition: none !important; animation: none !important;
+}
+html[data-mobile-pull-dismiss] #root .codex-shell[data-presentation='mobile'] .app-screen-layer[data-mobile-screen-underlay] {
+  display: block !important; visibility: visible;
+}
+#root .codex-shell.codex-shell[data-presentation='mobile'] .app-screen-layer[data-profile-pulling] {
+  position: fixed !important; inset: var(--mobile-viewport-top, 0px) 0 auto !important; height: var(--mobile-viewport-height, 100dvh) !important; min-height: 0 !important; overflow: hidden;
+  transform: translate3d(0, var(--profile-pull-offset, 0px), 0);
+  transition: none !important; will-change: transform;
+  border-radius: 24px 24px 0 0;
+}
+html[data-mobile-pull-dismiss] #root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell.codex-shell[data-presentation='mobile'] .app-screen-layer[data-profile-pulling] { will-change: auto; }
+}
+
+/* A viewport change keeps inactive mobile instances mounted and hidden on WEB. */
+[data-presentation='web'] .app-screen-layer[data-mobile-screen-retained] { display: none !important; pointer-events: none; }

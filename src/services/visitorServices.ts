@@ -19,6 +19,7 @@ export const visitorServices: Services = {
     // A visitor cache is always public, even for a signed-in owner following
     // their own share link. Ordinary owner reads retain their separate registry.
     getProfile: profileId => supabaseProfileReadService.getSharedProfile(profileId),
+    getProfileOverview: profileId => supabaseProfileReadService.getSharedProfile(profileId),
   }),
   projects: deferredService(() => import('./supabase/contentServices').then(module => module.supabaseProjectService), {
     getProject: projectReads.getProject,
