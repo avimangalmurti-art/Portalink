@@ -1,6 +1,8 @@
+import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useModalFocus } from '../../hooks/useModalFocus';
+import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { createPortal } from 'react-dom';
 import { usePresentation } from '../../presentation/usePresentation';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
@@ -75,8 +77,8 @@ function ReorderableProfileLinkRow({
 
   if (compact) {
     return <Reorder.Item value={link.id} dragListener={false} dragControls={dragControls} layout="position" transition={{
-      duration: shouldReduceMotion ? 0 : 0.16,
-      ease: [0.22, 1, 0.36, 1]
+      duration: shouldReduceMotion ? 0 : motionSeconds('base'),
+      ease: motionCurve()
     }} whileDrag={{
       zIndex: 120,
       scale: 1.015,
@@ -125,8 +127,8 @@ function ReorderableProfileLinkRow({
   }
 
   return <Reorder.Item value={link.id} dragListener={false} dragControls={dragControls} layout="position" transition={{
-    duration: shouldReduceMotion ? 0 : 0.16,
-    ease: [0.22, 1, 0.36, 1]
+    duration: shouldReduceMotion ? 0 : motionSeconds('base'),
+    ease: motionCurve()
   }} whileDrag={{
     zIndex: 120,
     scale: 1.015,
@@ -208,12 +210,16 @@ export function ProfileLinksEditor({
   }, [links, selectedId]);
 
   const iconDialogRef = useRef<HTMLElement>(null);
+  const iconViewportRef = useDialogViewport(isChoosingIcon && presentation === 'mobile');
   useModalFocus(isChoosingIcon && links.some((link) => link.id === selectedId), iconDialogRef, () => setIsChoosingIcon(false));
   useEffect(() => {
     if (!isChoosingIcon) return;
-    const frame = requestAnimationFrame(() => iconDialogRef.current?.querySelector<HTMLInputElement>('input')?.focus());
+    const frame = requestAnimationFrame(() => {
+      if (presentation === 'mobile') iconDialogRef.current?.focus();
+      else iconDialogRef.current?.querySelector<HTMLInputElement>('input')?.focus();
+    });
     return () => cancelAnimationFrame(frame);
-  }, [isChoosingIcon]);
+  }, [isChoosingIcon, presentation]);
 
   const selected = links.find((link) => link.id === selectedId) ?? null;
   const DraftIcon = getCategoryIcon(draftIconName);
@@ -287,27 +293,27 @@ export function ProfileLinksEditor({
     </fieldset>
 
     {isChoosingIcon && selected ? createPortal(
-      <div data-presentation={presentation} data-link-icon-screen="" role="presentation" onMouseDown={(event) => {
+      <div ref={iconViewportRef} data-mobile-icon-create={presentation==='mobile'?'link':undefined} data-presentation={presentation} data-link-icon-screen="" role="presentation" onMouseDown={(event) => {
         if (event.target === event.currentTarget) setIsChoosingIcon(false);
       }} className="modal-scrim fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-4">
-        <section data-link-icon-form="" ref={iconDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {
+        <section data-icon-create-panel="" data-link-icon-form="" ref={iconDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault();
             event.stopPropagation();
             setIsChoosingIcon(false);
           }
         }} className="flex max-h-[min(720px,92dvh)] w-full max-w-[560px] flex-col overflow-hidden rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[0_24px_60px_rgba(0,0,0,0.34)]">
-          <div className="relative flex shrink-0 items-center justify-center px-4 pb-2 pt-4">
+          <div data-icon-create-header="" className="relative flex shrink-0 items-center justify-center px-4 pb-2 pt-4">
             <button type="button" onClick={() => setIsChoosingIcon(false)} aria-label="Close icon picker" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="absolute left-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
             </button>
             <h2 id="profile-link-icon-heading" className="text-medium font-semibold">Choose link icon</h2>
           </div>
 
-          <div className={presentation === 'mobile' ? "min-h-0 flex flex-1 flex-col overflow-hidden px-6 pb-4" : "min-h-0 flex-1 overflow-y-auto px-6 pb-4"}>
+          <div data-icon-create-body="" className={presentation === 'mobile' ? "min-h-0 flex flex-1 flex-col overflow-hidden px-6 pb-4" : "min-h-0 flex-1 overflow-y-auto px-6 pb-4"}>
             <div data-link-icon-pinned="" className={presentation === 'mobile' ? "shrink-0" : "contents"}>
-            <div className="flex justify-center pt-4">
-              <span aria-hidden="true" className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)]">
+            <div data-icon-create-preview-row="" className="flex justify-center pt-4">
+              <span data-icon-create-preview="" aria-hidden="true" className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)]">
                 <DraftIcon className="h-10 w-10" />
               </span>
             </div>
@@ -315,29 +321,29 @@ export function ProfileLinksEditor({
               {draftIconOption?.label ?? (selected.label || 'Profile link')}
             </p>
 
-            <label className="text-control-shell mt-5 flex h-11 items-center gap-2 rounded-[10px] px-3">
+            <div data-icon-create-field=""><label className="text-control-shell mt-5 flex h-11 items-center gap-2 rounded-[10px] px-3">
               <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
               <span className="sr-only">Search link icons</span>
               <input type="search" value={iconQuery} onChange={(event) => setIconQuery(event.target.value)} placeholder="Search Instagram, YouTube, maps…" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
-            </label>
+            </label>{presentation==='mobile'&&<button type="button" aria-label="Search link icons" onClick={()=>iconDialogRef.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus()}><InterfaceIcon icon={SearchIcon} size="lg"/></button>}</div>
 
             </div>
             <div data-link-icon-scroll="" data-portal-icon-scroll={presentation === 'mobile' ? '' : undefined} className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents"}>
-            <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Profile link icon" className="mt-5 grid grid-cols-5 gap-2.5 pb-2 sm:grid-cols-7">
+            <div data-link-brand-icons="" role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Profile link icon" className="mt-5 grid grid-cols-5 gap-2.5 pb-2 sm:grid-cols-7">
               {filteredIconOptions.map((option) => {
                 const Icon = getCategoryIcon(option.name);
                 const isSelected = option.name === draftIconName;
-                return <button key={option.name} type="button" role="radio" aria-checked={isSelected} tabIndex={option.name === tabbableIconName ? 0 : -1} aria-label={option.label} title={option.label} onClick={() => setDraftIconName(option.name)} className={`flex aspect-square items-center justify-center rounded-full transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--accent-text)] ring-2 ring-[var(--focus-ring)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+                return <button key={option.name} type="button" role="radio" aria-checked={isSelected} tabIndex={option.name === tabbableIconName ? 0 : -1} aria-label={option.label} title={option.label} onClick={() => setDraftIconName(option.name)} className={`flex aspect-square items-center justify-center rounded-full transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--accent-text)] ring-2 ring-[var(--focus-ring)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
                   <Icon className="h-[19px] w-[19px]" aria-hidden="true" />
                 </button>;
               })}
             </div>
-            {presentation === 'mobile' && <PortalIconLibrary selected={draftIconName} onSelect={setDraftIconName} searchQuery={iconQuery} label="More link icons" />}
+            {presentation === 'mobile' && <PortalIconLibrary selected={draftIconName} onSelect={setDraftIconName} searchQuery={iconQuery} compact additionalOptions={profileLinkIconOptions} label="More link icons" />}
             {presentation !== 'mobile' && filteredIconOptions.length === 0 ? <p className="py-8 text-center text-[12px] text-[var(--text-secondary)]">No matching icons</p> : null}
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] px-6 py-4">
+          <div data-icon-create-footer="" className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] px-6 py-4">
             <button type="button" onClick={() => setIsChoosingIcon(false)} data-ui-control="button" data-control-size="lg" data-control-variant="secondary" className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               Cancel
             </button>

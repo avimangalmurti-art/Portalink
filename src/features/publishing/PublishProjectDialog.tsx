@@ -21,6 +21,7 @@ import type { ProjectDraft, PublishResult } from '../../types/publishing';
  * re-checked by the service — hiding this dialog is UX, not authorization.
  */
 type PublishProjectDialogProps = {
+  initialMetadata?: {title:string;summary:string};
   resumeDraft?: ProjectDraft;
   firstProject?: { madeIn?: string; name: string; categories: string[] };
   isOpen: boolean;
@@ -31,6 +32,7 @@ type PublishProjectDialogProps = {
   onPublished: (result: PublishResult, title: string) => void;
 };
 export function PublishProjectDialog({
+  initialMetadata,
   isOpen,
   firstProject,
   profileId,
@@ -41,7 +43,8 @@ export function PublishProjectDialog({
 }: PublishProjectDialogProps) {
   const isMobile = usePresentation() === 'mobile';
   const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
-  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: false });
+  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: false, initialMetadata, awaitProfile: isMobile });
+  const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? 'Review project' : publishFlow.firstProjectStage === 'details' ? 'New project' : 'Files & cover';
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
@@ -131,7 +134,6 @@ export function PublishProjectDialog({
     setField
   } = publishFlow;
   const publishHint = !metadata.title.trim() ? 'Add a title to publish.'
-    : !metadata.summary.trim() ? 'Add a description to publish.'
     : metadata.title.trim().length > TITLE_MAX_LENGTH ? `Keep the title within ${TITLE_MAX_LENGTH} characters.`
     : !media.items.length ? 'Add a file to publish.'
     : publishFlow.upload.isBusy ? 'Wait for your files to finish uploading.' : null;
@@ -163,7 +165,7 @@ export function PublishProjectDialog({
                 </div>}
 
   </>;
-  return <PublishFrame mobileFlow={isMobile} title={firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
+  return <PublishFrame mobileFlow={isMobile} title={isMobile ? mobileTitle : firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
     publishFlow.dismissDiscardError();
     setIsConfirmingDiscard(false);
   }} onDiscard={async () => {
@@ -177,7 +179,7 @@ export function PublishProjectDialog({
               <ErrorState description={publishFlow.draftError} />
             </div> : (!publishFlow.draft && !firstProject) || publishFlow.restoringDraft ? <div className="project-form-content scrollbar-slim">
               <LoadingState label="Starting a draft" />
-            </div> : isMobile || firstProject ? <MobilePublishFlow flow={publishFlow} editingStep={isMobile || firstProject ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={isMobile || firstProject ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
+            </div> : isMobile || firstProject ? <MobilePublishFlow detailsFirst={Boolean(initialMetadata)} flow={publishFlow} editingStep={isMobile || firstProject ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={isMobile || firstProject ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
           event.preventDefault();
           if (publishFlow.canPublish && !publishFlow.isSavingDraft) {
             void publishFlow.publish.run();
@@ -198,7 +200,7 @@ export function PublishProjectDialog({
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
                     <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('title', value)} />
-                     <ProfileField id="publish-summary" label="Description" formatting={isMobile} required multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('summary', value)} />
+                     <ProfileField id="publish-summary" label="Description" formatting={isMobile} optional optionalParentheses multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('summary', value)} />
                     <ProjectCitationFields metadata={metadata} disabled={isPublishing || publishFlow.hasCommittedProject} onChange={publishFlow.setCitationFields}/>
                     {isMobile ? <ProfileField id="publish-location" label="Location" optional value={publishFlow.location} maxLength={80} placeholder="City or place" disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={publishFlow.setLocation} /> : publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                         <p>Project relevance: <strong className="font-semibold text-[var(--text-primary)]">{publishFlow.inferredRelevance.contentGeography.label}</strong>. This describes the work; Portalink city pages use the city chosen on your profile.</p>

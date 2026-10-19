@@ -103,6 +103,15 @@ function normalise(email: string) {
   return email.trim().toLowerCase();
 }
 export const prototypeAuthService: AuthService = {
+  async listAccountSessions() {
+    throw new AuthServiceError('unsupported', 'Device sessions require a connected account.');
+  },
+  async revokeAccountSession() {
+    throw new AuthServiceError('unsupported', 'Device sessions require a connected account.');
+  },
+  async signOutOtherSessions() {
+    throw new AuthServiceError('unsupported', 'This prototype has no other signed-in sessions.');
+  },
   async getSession(): Promise<AuthSession | null> {
     // Nothing is restored from storage: the prototype starts signed out.
     return settle(currentSession, 300);

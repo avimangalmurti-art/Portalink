@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import React from 'react';
 import vm from 'node:vm';
 import ts from 'typescript';
+import postcss from 'postcss';
 const read=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 const nodes=tree=>React.isValidElement(tree)?[tree,...React.Children.toArray(tree.props.children).flatMap(nodes)]:[];
 test('dock orders Explore, Messages, Studio and Profile, with no rail or separate compose',()=>{
@@ -25,7 +26,7 @@ test('dock orders Explore, Messages, Studio and Profile, with no rail or separat
   const destination=nodes(tree).find(n=>n.props.item?.label===label);
   destination.type(destination.props).props.onClick({type:'click',target:{}});
  }
- assert.deepEqual(destinations,[['messages',[]],['profile',[]]],'Navigation taps must not become recipient/profile arguments');
+ assert.deepEqual(destinations,[['messages',[true]],['profile',[]]],'Navigation taps must not become recipient/profile arguments');
  const linkedTree=exports.MobileNavigation({onMessages(){},onProfile(){},profileHref:'/p/me',isProfileActive:true});
  const linkedProfile=nodes(linkedTree).find(n=>n.props.item?.label==='Profile');
  assert.equal(linkedProfile.type(linkedProfile.props).props.state.profileFromDock,true,'Dock profile navigation identifies its root destination');
@@ -52,4 +53,28 @@ test('installed dock is bounded to the visible viewport and keeps its safe-area 
  assert.match(dock,/position: absolute/);
  assert.match(dock,/bottom: max\(8px, var\(--safe-area-bottom\)\)/);
  assert.doesNotMatch(read('../src/visitor/mobile/public-mobile.css'),/--mobile-dock-viewport-height/);
+});
+
+test('only installed focused platform readers use the settled visible viewport bound',()=>{
+ const css=postcss.parse(read('../src/presentation/mobile/mobile.css'));
+ const reader="#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view]";
+ const installedFocused=`${reader}:has([data-mobile-focused-view]):where(html[data-standalone] *)`;
+ const readerBounds=[];
+ css.walkRules(rule=>{
+  if(rule.selector.includes('[data-mobile-project-view]')&&rule.nodes.some(node=>node.type==='decl'&&node.value.includes('--mobile-dock-viewport-height'))) readerBounds.push(rule);
+ });
+ assert.equal(readerBounds.length,1,'the measured bound must not spread to the overview or other reader states');
+ const bound=readerBounds[0];
+ assert.equal(bound.selector,installedFocused,'Safari, WEB and unfocused readers retain their existing sizing');
+ assert.deepEqual(bound.nodes.filter(node=>node.type==='decl').map(({prop,value,important})=>({prop,value,important:Boolean(important)})),[
+  {prop:'height',value:'min(100dvh, var(--mobile-dock-viewport-height, 100dvh))',important:false},
+ ],'bound the focused stage without changing inherited launch sizing, safe insets or positioning');
+ const baseline=css.nodes.find(node=>node.type==='rule'&&node.selector===reader&&node.nodes.some(decl=>decl.prop==='height'));
+ assert.ok(baseline);
+ assert.equal(baseline.nodes.find(node=>node.prop==='height').value,'var(--mobile-viewport-height, 100dvh)');
+ assert.ok(css.nodes.indexOf(bound)>css.nodes.indexOf(baseline),'the focused bound must win the base reader height');
+ const overview=css.nodes.find(node=>node.type==='rule'&&node.selector.includes(`${reader}:has([data-mobile-page-reader]):not(:has([data-mobile-focused-view]))`));
+ assert.equal(overview?.nodes.find(node=>node.prop==='height')?.value,'auto','continuous overview scrolling stays independent of the focused stage');
+ assert.doesNotMatch(read('../src/visitor/mobile/public-mobile.css'),/--mobile-dock-viewport-height/);
+ assert.doesNotMatch(read('../src/presentation/web/web.css'),/--mobile-dock-viewport-height/);
 });

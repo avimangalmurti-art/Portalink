@@ -19,6 +19,7 @@ function harness(presentation = 'web') {
   let cursor = 0;
   const refs = [];
   const calls = [];
+  const hookCalls = [];
   const stubReact = { ...React,
     useEffect: (effect) => effects.push(effect),
     useRef: (value) => refs[cursor++] ?? (refs[cursor - 1] = { current: value }),
@@ -30,7 +31,7 @@ function harness(presentation = 'web') {
     require: (name) => {
       if (name === 'react') return stubReact;
       if (name === 'framer-motion') return { AnimatePresence: React.Fragment, motion: { div: 'div', section: 'section' }, useReducedMotion: () => true };
-      if (name === './usePublishProject') return { usePublishProject: () => currentFlow };
+      if (name === './usePublishProject') return { usePublishProject: (...args) => { hookCalls.push(args); return currentFlow; } };
       if (name === './validation') return { TITLE_MAX_LENGTH: 80 };
       if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
       return new Proxy({}, { get: (_, key) => key });
@@ -53,7 +54,7 @@ function harness(presentation = 'web') {
     effects.forEach((effect) => effect());
     return tree;
   }
-  return { render, calls };
+  return { render, calls, hookCalls };
 }
 function nodes(tree) {
   if (!tree || typeof tree !== 'object') return [];
@@ -73,6 +74,91 @@ test('mobile delegates to the guided flow while WEB keeps its existing form', ()
   assert.ok(!web.some(node => node.type === 'MobilePublishFlow'));
   assert.ok(!web.some(node => node.props?.id === 'publish-location'));
   assert.equal(web.find(node => node.type === 'MediaPicker').props.compact, false);
+});
+
+test('the real dialog requests a fresh-profile completion handoff only for MOBILE', () => {
+  const initialMetadata = { title: 'From setup', summary: '' };
+  for (const presentation of ['mobile', 'web']) for (const firstProject of [undefined, { madeIn: '2026-05', name: 'Mira', categories: ['Work'] }]) {
+    const h = harness(presentation);
+    h.render({}, { firstProject, initialMetadata });
+    const args = h.hookCalls[0];
+    assert.deepEqual(args.slice(0, 4), ['creator', 'category', true, 'Typography']);
+    assert.equal(args[4], presentation === 'mobile');
+    assert.equal(args[5], false, 'Ordinary project publishing must not become the onboarding flow');
+    assert.equal(args[7].persist, false);
+    assert.equal(args[7].initialMetadata, initialMetadata);
+    assert.equal(args[7].awaitProfile, presentation === 'mobile');
+  }
+});
+
+test('MOBILE retains Review while a committed project awaits its profile and announces only completion', () => {
+  const h = harness('mobile');
+  const pending = h.render({ step: 'preview', state: 'publishing', hasCommittedProject: true });
+  assert.equal(pending.props.title, 'Review project');
+  assert.equal(pending.props.closeDisabled, true);
+  assert.equal(h.calls.length, 0);
+  const failed = h.render({ step: 'preview', state: 'failed', hasCommittedProject: true, publish: { status: 'error', error: 'Try again to open the updated catalogue.' } });
+  assert.equal(failed.props.title, 'Review project');
+  const notices = nodes(failed).find(node => node.type === 'MobilePublishFlow').props.notices;
+  assert.ok(nodes(notices).some(node => node.props?.role === 'alert'));
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.render({ step: 'done', state: 'published', result: published }), null);
+  h.render({ step: 'done', state: 'published', result: published });
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].result, published);
+});
+
+test('actual MOBILE parent titles follow Files, Details and Review including restored and committed drafts',()=>{
+ const h=harness('mobile');
+ for(const [flow,expected,editingStep] of [
+  [{},'Files & cover','files'],
+  [{firstProjectStage:'files',media:{items:[{id:'file'}]}},'Files & cover','files'],
+  [{firstProjectStage:'details'},'New project','details'],
+  [{step:'preview',firstProjectStage:'details'},'Review project','details'],
+  [{hasCommittedProject:true,firstProjectStage:'files'},'Review project','files'],
+  [{hasCommittedProject:true,firstProjectStage:'details',state:'failed'},'Review project','details'],
+ ]){
+  const tree=h.render(flow,{firstProject:{madeIn:'2026-05',name:'Mira',categories:['Work']}});
+  assert.equal(tree.type,'ProjectFormScreen');assert.equal(tree.props.title,expected);
+  assert.equal(tree.props.titleId,'publish-dialog-title');
+  const guided=nodes(tree).find(node=>node.type==='MobilePublishFlow');
+  assert.equal(guided.props.editingStep,editingStep);
+  assert.equal(guided.props.flow.hasCommittedProject,flow.hasCommittedProject);
+ }
+ const setupEntry=h.render({firstProjectStage:'files'},{initialMetadata:{title:'Title from setup',summary:''}});
+ assert.equal(setupEntry.props.title,'Files & cover');
+ assert.equal(nodes(setupEntry).find(node=>node.type==='MobilePublishFlow').props.detailsFirst,true);
+});
+
+test('WEB parent keeps New project or its existing made-in year title across all stages',()=>{
+ for(const flow of [{firstProjectStage:'files'},{firstProjectStage:'details'},{step:'preview'},{hasCommittedProject:true,step:'metadata'}]){
+  const normal=harness('web').render(flow);
+  assert.equal(normal.type,'ProjectFormDialog');assert.equal(normal.props.title,'New project');
+  const dated=harness('web').render({...flow,metadata:{title:'Work',summary:'',creationDetails:{madeIn:'2024-07'}}},{firstProject:{madeIn:'2026-05',name:'Mira',categories:['Work']}});
+  assert.equal(dated.props.title,'Add work from 2024');
+  const fallback=harness('web').render(flow,{firstProject:{madeIn:'2026-05',name:'Mira',categories:['Work']}});
+  assert.equal(fallback.props.title,'Add work from 2026');
+ }
+});
+
+test('the actual MOBILE screen frame exposes one focusable heading as its dialog label',()=>{
+ const frameSource=readFileSync(new URL('../src/components/publishing/ProjectFormDialog.tsx',import.meta.url),'utf8');
+ const frameExports={};
+ vm.runInNewContext(ts.transpileModule(frameSource,{compilerOptions:{jsx:ts.JsxEmit.React,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText,{
+  React,exports:frameExports,require(name){
+   if(name==='react')return {...React,useRef:value=>({current:value}),useLayoutEffect(){}};
+   if(name.endsWith('/useModalFocus'))return {useModalFocus(){}};
+   if(name.endsWith('/useDialogViewport'))return {useDialogViewport:()=>({current:null})};
+   if(name==='./useAuthoringFocus')return {useAuthoringFocus(){}};
+   return new Proxy({},{get:(_,key)=>key});
+  },
+ });
+ for(const title of ['New project','Files & cover','Review project']){
+  const frame=frameExports.ProjectFormScreen({title,titleId:'publish-dialog-title',onClose(){},children:React.createElement('form',null)}),all=nodes(frame);
+  const headings=all.filter(node=>typeof node.type==='string'&&/^h[1-6]$/.test(node.type)),dialog=all.find(node=>node.props?.role==='dialog');
+  assert.equal(headings.length,1);assert.equal(headings[0].type,'h1');assert.equal(headings[0].props.children,title);
+  assert.equal(headings[0].props.tabIndex,-1);assert.equal(dialog.props['aria-labelledby'],headings[0].props.id);
+ }
 });
 
 test('mobile cannot close while details are saving, files preparing or cleanup is pending', () => {
@@ -123,13 +209,12 @@ test('disabled Publish explains the missing detail, then clears the helper when 
   for (const presentation of ['web']) {
   for (const [title, summary, expected] of [
     ['  ', '', 'Add a title to publish.'],
-    ['My project', '  ', 'Add a description to publish.'],
   ]) {
     const tree = harness(presentation).render({ metadata: { title, summary }, canPublish: false, media: { items: [{}] } });
     assert.ok(nodes(tree).some((node) => node.props?.role === 'status' && node.props.children === expected));
     assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, true);
   }
-  const tree = harness(presentation).render({ firstProject: false, metadata: { title: 'My project', summary: 'About the work' }, canPublish: true, media: { items: [{}] } });
+  const tree = harness(presentation).render({ firstProject: false, metadata: { title: 'My project', summary: '' }, canPublish: true, media: { items: [{}] } });
   assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, false);
   assert.ok(!nodes(tree).some((node) => node.props?.role === 'status'));
   assert.ok(nodes(tree).some((node) => node.props?.id === 'publish-details-label' && node.props.children === 'Project details'));
@@ -200,6 +285,7 @@ test('first-project recovery retains safe close and locked fields after switchin
   }).outputText;
   vm.runInNewContext(compiledFlow, {exports, require(name) {
     if (name === 'react') return {...React, useRef: value => ({current:value}), useEffect() {}};
+    if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
     if (name === './firstProject') return {EMPTY_CREATION:{answers:{what:'',did:'',learned:''}}};
     return new Proxy({}, {get:(_,key)=>key});
   }});
