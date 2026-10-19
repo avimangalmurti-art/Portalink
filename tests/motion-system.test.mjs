@@ -70,10 +70,13 @@ test('deferred dock handlers retain dock motion and other links use push motion'
  class ElementStub{closest(selector){return selector==='.mobile-navigation-dock'?this:null;}}
  const react={...React,useContext:()=>context,useLayoutEffect:fn=>fn(),useMemo:fn=>fn(),useRef:value=>({current:value})};
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  '../../features/publishing/mobileAuthoringHistory':{replaceMobileAuthoringDestination:()=>false},
+  './navigationContext':{ImmediateNavigationContext:{Provider:'immediate-provider'}},
   react,'react-dom':{flushSync:fn=>fn()},'framer-motion':{MotionConfig:'motion-config',useReducedMotion:()=>false},'react-router-dom':{UNSAFE_NavigationContext:{Provider:'provider'},useLocation:()=>({pathname:'/studio'})},
   './ImageMotion':{ImageMotion:'images'},'../../features/sharing/shareModel':{handleFromPath:()=>null},'./motion':{motionMs:()=>120,motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1],motionUpdate:(fn,mode)=>{modes.push(mode);fn();}},
  },{Element:ElementStub,URL,document:{addEventListener(_event,fn){click=fn},removeEventListener(){}},window:{location:{href:'https://example.test/studio'},setTimeout:fn=>timers.push(fn)}});
- const wrapper=MotionNavigation({children:'screen'}),tree=wrapper.type(wrapper.props),navigator=tree.props.value.navigator;
+ const wrapper=MotionNavigation({children:'screen'}),immediate=wrapper.type(wrapper.props),tree=immediate.props.children,navigator=tree.props.value.navigator;
+ assert.equal(immediate.props.value,context.navigator);
  click({target:new ElementStub()});navigator.push('/messages');assert.deepEqual(modes,['dock']);
  timers.forEach(fn=>fn());navigator.push('/p/creator');assert.deepEqual(modes,['dock','push']);
 });
@@ -87,11 +90,13 @@ function profileNavigation(initial='/p/creator',motion){
  const context={navigator:{createHref:href,push:(...args)=>commit('push',...args),replace:(...args)=>commit('replace',...args),go:delta=>calls.push(['go',delta])}};
  const react={...React,useContext:()=>context,useLayoutEffect:fn=>fn(),useMemo:fn=>fn(),useRef:value=>({current:value})};
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  '../../features/publishing/mobileAuthoringHistory':{replaceMobileAuthoringDestination:()=>false},
+  './navigationContext':{ImmediateNavigationContext:{Provider:'immediate-provider'}},
   react,'react-dom':{flushSync:fn=>fn()},'framer-motion':{MotionConfig:'motion-config',useReducedMotion:()=>false},'react-router-dom':{UNSAFE_NavigationContext:{Provider:'provider'},useLocation:()=>location},
   './ImageMotion':{ImageMotion:'images'},'../../features/sharing/shareModel':sourceModule('src/features/sharing/shareModel.ts'),
   './motion':{motionMs:()=>120,motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1],interruptNavigationMotion:()=>{interruptions++;motion?.interruptNavigationMotion();},motionUpdate:(fn,mode)=>{modes.push(mode);return motion?motion.motionUpdate(fn,mode):fn();}},
  },{URL,URLSearchParams,Event:class{constructor(type){this.type=type;}},document:{documentElement:{dataset:{}},addEventListener(){return;},removeEventListener(){return;},dispatchEvent:event=>notifications.push(event.type)},window});
- const wrapper=MotionNavigation({children:'profile'}),tree=wrapper.type(wrapper.props);
+ const wrapper=MotionNavigation({children:'profile'}),tree=wrapper.type(wrapper.props).props.children;
  return {navigator:tree.props.value.navigator,calls,modes,notifications,location,get interruptions(){return interruptions;},pop:()=>listeners.get('popstate')?.()};
 }
 
@@ -186,6 +191,8 @@ test('Cite dismisses a fast downward drag even before the move state renders',()
 test('standalone citation previews get motion defaults without requiring a router',()=>{
  let locationReads=0;
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  '../../features/publishing/mobileAuthoringHistory':{replaceMobileAuthoringDestination:()=>false},
+  './navigationContext':{ImmediateNavigationContext:{Provider:'immediate-provider'}},
   react:{...React,useContext:()=>null},'react-dom':{},'react-router-dom':{UNSAFE_NavigationContext:{},useLocation:()=>{locationReads++;throw Error('No router');}},
   'framer-motion':{MotionConfig:'motion-config',useReducedMotion:()=>false},'./ImageMotion':{ImageMotion:'images'},
   './motion':{motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1]},'../../features/sharing/shareModel':{handleFromPath:()=>null},

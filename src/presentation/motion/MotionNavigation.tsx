@@ -5,6 +5,9 @@ import {UNSAFE_NavigationContext,useLocation} from 'react-router-dom';
 import {ImageMotion} from './ImageMotion';
 import {motionUpdate,interruptNavigationMotion,motionMs,motionSeconds,motionCurve,type NavigationMotion} from './motion';
 import {handleFromPath} from '../../features/sharing/shareModel';
+import {replaceMobileAuthoringDestination} from '../../features/publishing/mobileAuthoringHistory';
+
+import {ImmediateNavigationContext} from './navigationContext';
 /** One adapter preserves the router's URLs, history and permission decisions. */
 export function MotionNavigation({children}:{children:React.ReactNode}){
  const context=useContext(UNSAFE_NavigationContext);
@@ -36,6 +39,7 @@ function RoutedMotionNavigation({children}:{children:React.ReactNode}){
   }
   function mode(to:Parameters<typeof original.push>[0]):NavigationMotion{const destination=new URL(original.createHref(to),window.location.href);if(dock.current){dock.current=false;return 'dock';}return destination.pathname===latest.current.pathname&&new URLSearchParams(destination.search).has('collection')?'tabs':'push';}
   return {...original,push:(...args:Parameters<typeof original.push>)=>{
+   if(replaceMobileAuthoringDestination(original,args[0],args[1],args[2],()=>{dock.current=false;interruptNavigationMotion();before();}))return;
    const destination=new URL(original.createHref(args[0]),window.location.href);
    if(profileViewChange(destination)){dock.current=false;interruptNavigationMotion();before('tabs');return original.push(...args);}
    const direction=mode(args[0]);return motionUpdate(()=>{before(direction);original.push(...args);},direction);
@@ -47,5 +51,5 @@ function RoutedMotionNavigation({children}:{children:React.ReactNode}){
    const direction=mode(args[0]);motionUpdate(()=>{before(direction);original.replace(...args);},direction);
   },go:(delta:number)=>{before();return motionUpdate(()=>new Promise<void>(resolve=>{const done=()=>{window.removeEventListener('popstate',onPop);window.clearTimeout(timer);resolve();};const onPop=()=>{flushSync(()=>undefined);done();};const timer=window.setTimeout(done,motionMs('slow'));window.addEventListener('popstate',onPop,{once:true});original.go(delta);}),delta<0?'back':'push');}};
  },[context.navigator]);
- return <UNSAFE_NavigationContext.Provider value={{...context,navigator}}><MotionDefaults>{children}</MotionDefaults></UNSAFE_NavigationContext.Provider>;
+ return <ImmediateNavigationContext.Provider value={context.navigator}><UNSAFE_NavigationContext.Provider value={{...context,navigator}}><MotionDefaults>{children}</MotionDefaults></UNSAFE_NavigationContext.Provider></ImmediateNavigationContext.Provider>;
 }

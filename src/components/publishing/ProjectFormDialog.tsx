@@ -72,7 +72,7 @@ export function ProjectDiscardConfirmation({ title, description, error, busy = f
 export function ProjectFormScreen({title,titleId,onClose,closeDisabled,confirmation,children}: ComponentProps<typeof ProjectFormDialog>) {
   const viewport = useDialogViewport<HTMLElement>();
   useAuthoringFocus(viewport);
-  useModalFocus(true, viewport, () => { if (!closeDisabled) onClose(); }, true);
+  useModalFocus(true, viewport, () => { if (!closeDisabled) return onClose(); }, true);
   return <ModalPortal><div className="mobile-upload-surface-backdrop" aria-hidden="true" /><section ref={viewport} className="project-form-screen" data-mobile-upload-surface="create" data-material="content" role="dialog" aria-modal="true" tabIndex={-1} aria-labelledby={titleId}>
     <header><button type="button" aria-label="Close new project" disabled={closeDisabled} onClick={onClose}><XIcon size={22} aria-hidden="true" /></button><h1 id={titleId} tabIndex={-1}>{title}</h1></header>
     {children}{confirmation}

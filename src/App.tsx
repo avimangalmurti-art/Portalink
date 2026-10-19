@@ -6,7 +6,7 @@ import { rememberLivePortfolio, shouldStartFirstProject } from './features/publi
 import { MobileScreenActions } from './presentation/mobile/MobileContextActions';
 import { SharedContextActions } from './presentation/mobile/SharedContextActions';
 import { contextActions } from './presentation/mobile/contextActions';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import type { ProductDetailState } from './components/AppDetailPage';
 import type { FeatureCardApp } from './components/FeatureCard';
@@ -59,6 +59,9 @@ import { canResumeRegistration, readSharedReturnPath } from './features/auth/reg
 import { AppPresentation, AppPresentationProvider } from './presentation/AppPresentation';
 import { usePresentation } from './presentation/usePresentation';
 import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
+import { ImmediateNavigationContext } from './presentation/motion/navigationContext';
+import { dismissTopModal } from './hooks/useModalFocus';
+import { useMobileAuthoringHistory } from './features/publishing/useMobileAuthoringHistory';
 import type { HomeStartupProps } from './app/homeStartup';
 import { loadMessagesPage, loadStudioPage, loadSearchPage, loadSettingsPage, loadProfilePage, loadCategoryPage, loadProfileEditorPage, warmScreenForPath, warmCommonScreens } from './app/screenModules';
 
@@ -1103,6 +1106,17 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const canShowPublisher = isPublishOpen && isOwnerMode && publishAccountId !== null
     && publishAccountId === auth.user?.id
     && Boolean(viewedProfile?.categories.some(category => category.id === publishTargetCategoryId));
+  const immediateNavigator = useContext(ImmediateNavigationContext);
+  useMobileAuthoringHistory({
+    enabled: presentation === 'mobile' && !isSharedRoute && Boolean(auth.user?.id && auth.viewerProfileId),
+    active: Boolean(projectSetupAccountId && projectSetupAccountId === auth.user?.id && isOwnerMode) || canShowPublisher,
+    scope: JSON.stringify([auth.user?.id, auth.viewerProfileId]),
+    href: `${pathname}${search}${screenLocation.hash}`,
+    state: navigationState,
+    navigator: immediateNavigator,
+    dismissTopModal,
+    reopen: requestMobilePublish,
+  });
   /** Opening or closing a project inside its category is a change of URL. */
   function selectProject(projectId: string | null, replace = false) {
     if (!activeCategory || !viewedProfileId) {

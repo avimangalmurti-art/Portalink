@@ -52,6 +52,7 @@ export function PublishProjectDialog({
   const announcedProjectRef = useRef<string | null>(null);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const closeFlight = useRef(false);
   const [mobileEditingStep, setMobileEditingStep] = useState<MobilePublishStep>('files');
   const {
     step,
@@ -119,7 +120,7 @@ export function PublishProjectDialog({
     return null;
   }
   async function requestClose() {
-    if (isRecovering) {
+    if (isRecovering || (isMobile && closeFlight.current)) {
       return;
     }
     // Bytes are moving. Closing here would abandon an upload silently, so the
@@ -129,10 +130,11 @@ export function PublishProjectDialog({
       return;
     }
     if (isMobile && (publishFlow.isDirty || publishFlow.hasCommittedProject)) {
+      closeFlight.current = true;
       setIsClosing(true);
       try { await publishFlow.saveLocalDraft(); if (publishFlow.isOpeningCurrent?.() !== false) onClose(); }
       catch { /* The flow shows its storage error and retains the open work. */ }
-      finally { setIsClosing(false); }
+      finally { closeFlight.current = false; setIsClosing(false); }
       return;
     }
     if (step !== 'done' && !await publishFlow.discard()) { setIsConfirmingDiscard(true); return; }
