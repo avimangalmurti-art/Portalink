@@ -13,6 +13,7 @@ import { BentoFeedGrid } from './BentoFeedGrid';
 import type { BentoCellItem } from './BentoFeedGrid';
 import { JustifiedImageWall } from '../profile/JustifiedImageWall';
 import { usePresentation } from '../../presentation/usePresentation';
+import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 import { getProjectAspectRatio } from '../../utils/projectPresentation';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
@@ -98,6 +99,9 @@ export function HomeFeed({
   onStartupReady,
 }: HomeFeedProps) {
   const isMobile = usePresentation() === 'mobile';
+  const screenActive = useMobileScreenActive();
+  // Retained screens must not move the active route's shared document.
+  const canOwnScroll = !isMobile || screenActive;
   const navigate = useNavigate();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
@@ -183,7 +187,7 @@ export function HomeFeed({
   // real scroll surface once its cards exist, so Back lands
   // on the work the viewer left instead of quietly returning them to the top.
   useLayoutEffect(() => {
-    if (!layoutReady || hasRestoredScrollRef.current || ((feed.status === 'idle' || feed.status === 'loading') && projects.length === 0)) {
+    if (!canOwnScroll || !layoutReady || hasRestoredScrollRef.current || ((feed.status === 'idle' || feed.status === 'loading') && projects.length === 0)) {
       return undefined;
     }
     hasRestoredScrollRef.current = true;
@@ -201,10 +205,10 @@ export function HomeFeed({
     };
     frame = requestAnimationFrame(restore);
     return () => { cancelAnimationFrame(frame); if (!completed) hasRestoredScrollRef.current = false; };
-  }, [feed.status, projects.length, layoutReady, isMobile]);
+  }, [feed.status, projects.length, layoutReady, isMobile, canOwnScroll]);
 
   useLayoutEffect(() => {
-    if (!isMobile) return;
+    if (!isMobile || !canOwnScroll) return;
     const remember = () => {
       if (!hasRestoredScrollRef.current || autoScrollRef.current?.closest('.screen-exit')) return;
       latestScrollTopRef.current = window.scrollY;
@@ -212,16 +216,17 @@ export function HomeFeed({
     };
     window.addEventListener('scroll', remember, { passive: true });
     return () => window.removeEventListener('scroll', remember);
-  }, [isMobile, scrollMemoryKey]);
+  }, [isMobile, scrollMemoryKey, canOwnScroll]);
 
   const rememberScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    if (!canOwnScroll) return;
     latestScrollTopRef.current = event.currentTarget.scrollTop;
     if (persistFrameRef.current) return;
     persistFrameRef.current = requestAnimationFrame(() => {
       persistFrameRef.current = 0;
       writeFeedScroll(scrollMemoryKey, latestScrollTopRef.current);
     });
-  }, [scrollMemoryKey]);
+  }, [scrollMemoryKey, canOwnScroll]);
 
   useLayoutEffect(() => () => {
     cancelAnimationFrame(persistFrameRef.current);

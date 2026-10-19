@@ -4,7 +4,7 @@ import { rememberAccount } from '../features/follows/recentAccounts';
 import { visitorPreviewPath } from '../features/profile/visitorPreview';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
 import { DeferredSurface } from './ui/DeferredDialog';
-import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
+import { ScreenBack, useMobileScreenActive } from '../presentation/mobile/MobileBackNavigation';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { useAuth } from '../contexts/AuthContext';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
@@ -410,6 +410,7 @@ export function UserProfilePage({
 }: UserProfilePageProps) {
   const [timelineToolbarHost,setTimelineToolbarHost] = useState<HTMLDivElement|null>(null);
   const isMobile = usePresentation() === 'mobile';
+  const screenActive = useMobileScreenActive();
   const [searchParams, setSearchParams] = useSearchParams();
   const showsOwnerTools = canAuthor(viewerRole) && !isSharedView;
   const auth = useAuth();
@@ -684,8 +685,11 @@ export function UserProfilePage({
   const wallMemoryRef = useRef(mobileWallScrollMemory);
   wallMemoryRef.current = mobileWallScrollMemory;
   useEffect(() => {
-    if (!isMobileWall) return;
-    const frame = requestAnimationFrame(() => window.scrollTo({ top: wallMemoryRef.current?.read() ?? mobileWallScroll.current.top, behavior: 'auto' }));
+    if (!isMobileWall || !screenActive) return;
+    const frame = requestAnimationFrame(() => {
+      if (!profilePageRef.current || profilePageRef.current.closest('.screen-exit')) return;
+      window.scrollTo({ top: wallMemoryRef.current?.read() ?? mobileWallScroll.current.top, behavior: 'auto' });
+    });
     const remember = () => {
       if (profilePageRef.current?.closest('.screen-exit')) return;
       mobileWallScroll.current.top = window.scrollY;
@@ -693,7 +697,7 @@ export function UserProfilePage({
     };
     window.addEventListener('scroll', remember, { passive: true });
     return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', remember); };
-  }, [isMobileWall, profile.id]);
+  }, [isMobileWall, profile.id, screenActive]);
 
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;

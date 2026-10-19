@@ -569,6 +569,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     return () => window.clearTimeout(timer);
   }, [publishConfirmation]);
   const [projectSetupAccountId, setProjectSetupAccountId] = useState<string | null>(null);
+  const [mobileRecoveryDraft, setMobileRecoveryDraft] = useState<import('./features/publishing/firstProjectDraft').DeviceDraft | null>(null);
+  const [mobileRecoveryError, setMobileRecoveryError] = useState('');
   const [projectSetupMetadata, setProjectSetupMetadata] = useState<{categoryId:string;categoryLabel:string;title:string;summary:string} | undefined>();
   const [publishTargetCategoryId, setPublishTargetCategoryId] = useState<string | null>(null);
   const [publishAccountId, setPublishAccountId] = useState<string | null>(null);
@@ -589,6 +591,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     setGlobalCreateAccountId(null);
     setPublishAccountId(null);
     setProjectSetupAccountId(null);
+    setMobileRecoveryDraft(null);
+    setMobileRecoveryError('');
     setProjectSetupMetadata(undefined);
     setIsPublishOpen(false);
     setPublishResumeDraft(undefined);
@@ -997,6 +1001,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   }
   function closePublisher() {
     setProjectSetupAccountId(null);
+    setMobileRecoveryDraft(null);
+    setMobileRecoveryError('');
     setProjectSetupMetadata(undefined);
     if (firstProjectPublisher && auth.viewerProfileId) nav.profile(auth.viewerProfileId);
     setIsPublishOpen(false);
@@ -1035,10 +1041,25 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       return;
     }
     if (presentation === 'mobile') {
-      setProjectSetupAccountId(auth.user?.id ?? null);
-      setProjectSetupMetadata(undefined);
-      setGlobalCreateAccountId(null);
-      return;
+      let current = true;
+      const accountId = auth.user?.id;
+      void (async () => {
+        let recoverable: import('./features/publishing/firstProjectDraft').DeviceDraft | null = null;
+        let recoveryError = '';
+        try {
+          const {listDeviceDrafts, latestDeviceDraft} = await import('./features/publishing/firstProjectDraft');
+          if (accountId) recoverable = latestDeviceDraft(await listDeviceDrafts(accountId, viewedProfile.id, true), viewedProfile.categories.map(category=>category.id));
+        } catch {
+          recoveryError = 'Saved upload drafts could not be checked. Your work has not been removed. Close and reopen New project to try again.';
+        }
+        if (!current) return;
+        setMobileRecoveryDraft(recoverable);
+        setMobileRecoveryError(recoveryError);
+        setProjectSetupAccountId(accountId ?? null);
+        setProjectSetupMetadata(undefined);
+        setGlobalCreateAccountId(null);
+      })();
+      return () => { current = false; };
     }
     let current = true;
     const createAccountId = auth.user?.id;
@@ -1425,7 +1446,17 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}
-      {projectSetupAccountId && projectSetupAccountId === auth.user?.id && isOwnerMode && <DeferredDialog active onClose={closePublisher}><ProjectSetupScreen key={projectSetupAccountId} categories={(viewedProfile?.categories ?? []).map(category=>({...category,iconName:management.categoryIcons[category.id]??category.iconName}))} initialCategoryId={activeCategory?.id} onCreatePortal={name => management.createCategory(name, 'Grid2X2Icon')} onConfirmPortal={async category => {
+      {projectSetupAccountId && projectSetupAccountId === auth.user?.id && isOwnerMode && <DeferredDialog active onClose={closePublisher}><ProjectSetupScreen key={`${projectSetupAccountId}:${auth.viewerProfileId}`} accountId={projectSetupAccountId} profileId={auth.viewerProfileId??undefined} recoveryDraft={mobileRecoveryDraft??undefined} recoveryError={mobileRecoveryError} onResumeDraft={draft => {
+        if (draft.profileId !== auth.viewerProfileId || !viewedProfile?.categories.some(category=>category.id===draft.categoryId)) return;
+        setProjectSetupMetadata(undefined);
+        setPublishResumeDraft(draft);
+        setIsFirstProjectPublish(viewedProfile.projects.length === 0);
+        setPublishTargetCategoryId(draft.categoryId);
+        setPublishAccountId(auth.user?.id??null);
+        setFirstProjectPublisher(false);
+        setProjectSetupAccountId(null);
+        setIsPublishOpen(true);
+      }} categories={(viewedProfile?.categories ?? []).map(category=>({...category,iconName:management.categoryIcons[category.id]??category.iconName}))} initialCategoryId={activeCategory?.id} onCreatePortal={name => management.createCategory(name, 'Grid2X2Icon')} onConfirmPortal={async category => {
         if (!viewedProfileId) throw new Error('Choose your profile before continuing.');
         invalidateProfiles();
         const profile = await fetchProfile(viewedProfileId, 'overview');

@@ -55,15 +55,17 @@ export function ProjectFormDialog({ title, titleId, description, onClose, closeD
   return <ModalPortal>{topLayer ? <dialog ref={nativeRef} className="project-choice-modal" aria-modal="true" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); requestClose(); }}>{content}</dialog> : content}</ModalPortal>;
 }
 
-export function ProjectDiscardConfirmation({ title, description, error, busy = false, onKeep, onDiscard }: {
+export function ProjectDiscardConfirmation({ title, description, error, busy = false, keepLabel = 'Keep editing', confirmLabel = 'Discard changes', onKeep, onDiscard }: {
   title: string;
   description: string;
   error?: string | null;
   busy?: boolean;
+  keepLabel?: string;
+  confirmLabel?: string;
   onKeep: () => void;
   onDiscard: () => void | Promise<void>;
 }) {
-  return <ConfirmationDialog title={title} description={description} confirmLabel="Discard changes" cancelLabel="Keep editing" variant="destructive" error={error} pending={busy} pendingLabel="Discarding…" onCancel={onKeep} onConfirm={onDiscard}/>;
+  return <ConfirmationDialog title={title} description={description} confirmLabel={confirmLabel} cancelLabel={keepLabel} variant="destructive" error={error} pending={busy} pendingLabel="Discarding…" onCancel={onKeep} onConfirm={onDiscard}/>;
 }
 
 /** Mobile publishing occupies its own screen rather than a modal surface. */

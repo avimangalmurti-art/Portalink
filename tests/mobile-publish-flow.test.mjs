@@ -125,6 +125,19 @@ test('saving, publishing, cleanup and discard block navigation and final submiss
   }
 });
 
+test('saving on mobile close locks fields, cover edits and submission until dismissal settles', async () => {
+  const h = harness({}, {closing:true});
+  assert.equal(component(h.render(), 'MobileCoverFiles').props.disabled, true);
+  const details = h.render('details');
+  assert.ok(nodes(details).filter(node=>node.type==='ProfileField').every(node=>node.props.disabled));
+  await h.submit(details);
+  h.flow.step='preview';
+  const review=h.render();
+  assert.equal(button(review,'Publish project').props.disabled,true);
+  await h.submit(review);
+  assert.deepEqual(h.calls,[]);
+});
+
 test('legacy first-project drafts use one editable description instead of story questions', () => {
  const h=harness({metadata:{title:'Saved title',summary:'Saved description',creationDetails:{answers:{what:'Old answer',did:'Old role',learned:'Old lesson'}}}}, {firstProject:{name:'Creator',categories:['Work']}});
  const tree=h.render('details');

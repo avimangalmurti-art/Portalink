@@ -3407,16 +3407,11 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   --navigation-item-surface: var(--navigation-pressed-surface);
   --navigation-item-foreground: var(--navigation-pressed-foreground);
 }
-/* The document scrolls in the continuous reader; focused media and its index
-   can scroll internally. Hide only their indicators, never scrolling itself. */
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)),
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body,
+/* Keep local zoom/index indicators separate from the document's edge scrollbar. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view],
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] * {
   scrollbar-width: none;
 }
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *))::-webkit-scrollbar,
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body::-webkit-scrollbar,
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view]::-webkit-scrollbar,
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] *::-webkit-scrollbar {
   display: none;
@@ -4619,13 +4614,14 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   background: var(--surface-canvas); backdrop-filter: none; -webkit-backdrop-filter: none;
 }
 
-/* A mobile document has no full-height scrollbar; internal scrollers retain theirs. */
-html:has(.codex-shell[data-presentation='mobile']),
-html:has(.codex-shell[data-presentation='mobile']) body {
+/* An open modal owns its indicator; the background document must not reserve
+   a second scrollbar gutter beside a full-width screen or sheet. */
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)),
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)) body {
   scrollbar-width: none;
 }
-html:has(.codex-shell[data-presentation='mobile'])::-webkit-scrollbar,
-html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *))::-webkit-scrollbar,
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)) body::-webkit-scrollbar {
   display: none;
 }
 
@@ -5991,7 +5987,21 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   border: 0 !important; border-radius: 0 !important; box-shadow: none !important; outline: none;
 }
 #root .codex-shell[data-presentation='mobile'] .project-form-screen > header h1:focus { outline: none !important; }
-#root .codex-shell[data-presentation='mobile'] .project-form-screen > [data-mobile-publish] { padding-top: var(--ui-surface-gap, 16px); }
+/* The scrollport reaches the screen edge; its content keeps the existing inset. */
+#root .codex-shell[data-presentation='mobile'] .project-form-screen > [data-mobile-publish] {
+  margin-inline: calc(-1 * var(--ui-surface-inset, 20px));
+  padding-top: var(--ui-surface-gap, 16px);
+}
+#root .codex-shell[data-presentation='mobile'] .project-form-screen > [data-mobile-publish] > .mobile-publish-body {
+  padding-inline: var(--ui-surface-inset, 20px);
+}
+#root .codex-shell[data-presentation='mobile'] .project-form-screen > [data-mobile-publish] > .mobile-publish-actions {
+  margin-inline: var(--ui-surface-inset, 20px);
+}
+#root .codex-shell[data-presentation='mobile'] :is(.project-form-screen, .mobile-project-editor-screen) > .project-form-content:not([data-mobile-publish]) {
+  margin-inline: calc(-1 * var(--ui-surface-inset, 20px));
+  padding-inline: var(--ui-surface-inset, 20px);
+}
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header {
   flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 12px;
   padding-bottom: 12px; margin-bottom: 0; border-bottom: 1px solid var(--hairline);
@@ -6017,7 +6027,7 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 
 /* File management keeps the shared sheet material and its full-height list. */
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-sheet-layout='files'] > .mobile-context-body {
-  flex: 1 1 0; min-height: 0; display: flex; overflow: hidden;
+  flex: 1 1 0; min-height: 0; display: flex; overflow: hidden; padding-inline: 0;
 }
 #root .codex-shell [data-presentation='mobile'] [data-sheet-layout='files'] .mobile-context-heading > button {
   width: auto; min-width: 64px; min-height: 44px; padding-inline: 12px;
@@ -6027,6 +6037,9 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px;
 }
 #root .codex-shell [data-presentation='mobile'] .mobile-reorder-summary { flex: none; margin: 0; color: var(--text-secondary); font-size: 13px; }
+#root .codex-shell [data-presentation='mobile'] :is(.mobile-reorder-summary, [data-mobile-file-manager] [data-file-manager-header]) {
+  padding-inline: 16px;
+}
 #root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] {
   flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
 }
@@ -6035,7 +6048,7 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 }
 #root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] .project-media-list {
   flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden;
-  overscroll-behavior-y: contain; padding-bottom: 8px;
+  overscroll-behavior-y: contain; padding: 0 16px 8px;
 }
 #root .codex-shell [data-presentation='mobile'] [data-media-file-row] {
   display: grid; grid-template-columns: 20px 44px minmax(0, 1fr) 44px; gap: 4px 8px;

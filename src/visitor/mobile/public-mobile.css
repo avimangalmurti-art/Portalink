@@ -2000,14 +2000,21 @@
 #root .codex-shell[data-presentation='mobile'].shared-portalink-shell [data-mobile-focused-view] {
   padding-bottom: calc(var(--focused-safe-bottom) + var(--shared-sign-in-height, 0px) + 16px);
 }
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)),
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body,
+/* An open modal owns its indicator instead of the background document. */
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)),
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)) body {
+  scrollbar-width: none;
+}
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *))::-webkit-scrollbar,
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)) body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Keep local zoom/index indicators separate from the document's edge scrollbar. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view],
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] * {
   scrollbar-width: none;
 }
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *))::-webkit-scrollbar,
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body::-webkit-scrollbar,
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view]::-webkit-scrollbar,
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] *::-webkit-scrollbar {
   display: none;

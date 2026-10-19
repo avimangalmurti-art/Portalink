@@ -29,3 +29,7 @@
 #root .codex-shell .project-setup-page .project-setup-identity input {font-size:28px!important;line-height:1.3;min-height:44px;font-weight:600;text-align:center;}
 #root .codex-shell .project-setup-page .project-setup-row button:disabled {opacity:1;color:var(--text-secondary);}
 .project-setup-row select {border-radius:var(--ui-control-radius,12px);padding-inline:10px;}
+.project-setup-recovery,.project-setup-recovered {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;font-size:13px;color:var(--text-secondary);}
+.project-setup-recovery>span,.project-setup-recovered>span {min-width:0;overflow-wrap:anywhere;}
+.project-setup-recovery button,.project-setup-recovered button {flex:none;min-height:44px;padding:8px 12px;border:1px solid var(--hairline);border-radius:var(--ui-control-radius,12px);background:var(--surface-sunken);color:var(--text-primary);font:inherit;font-weight:600;}
+.project-setup-save-status {font-size:13px;line-height:1.5;color:var(--text-secondary);margin:0 0 12px;}

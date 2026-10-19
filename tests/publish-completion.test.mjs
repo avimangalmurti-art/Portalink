@@ -85,7 +85,7 @@ test('the real dialog requests a fresh-profile completion handoff only for MOBIL
     assert.deepEqual(args.slice(0, 4), ['creator', 'category', true, 'Typography']);
     assert.equal(args[4], presentation === 'mobile');
     assert.equal(args[5], false, 'Ordinary project publishing must not become the onboarding flow');
-    assert.equal(args[7].persist, false);
+    assert.equal(args[7].persist, presentation === 'mobile');
     assert.equal(args[7].initialMetadata, initialMetadata);
     assert.equal(args[7].awaitProfile, presentation === 'mobile');
   }

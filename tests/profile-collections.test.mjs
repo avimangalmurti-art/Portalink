@@ -195,6 +195,7 @@ function profileHarness(search = '', options = {}) {
       }
     }, useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; }, useMemo: (fn) => fn() };
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
+    if (name.endsWith('/MobileBackNavigation')) return { ScreenBack: 'ScreenBack', useMobileScreenActive: () => true };
     if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
     if (name.endsWith('/copyPublicLink')) return { copyPublicLink: async value => options.onCopy?.(value) };
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
@@ -449,16 +450,21 @@ test('mobile wall restores and records document scroll through a project and on 
   const props = { mobileWallScrollMemory: { read: () => savedTop, save: top => { savedTop = top; } } };
   const options = { presentation: 'mobile', projects: reorderProjects, props, window, document: {} };
   const h = profileHarness('', options);
-  h.render(); h.flushEffects();
+  const show = (fixture, updates) => {
+    const tree = fixture.render(updates);
+    tree.ref.current = { closest: () => null };
+    fixture.flushEffects();
+  };
+  show(h);
   window.scrollY = 408; listeners.get('scroll')();
   assert.equal(savedTop, 408);
-  h.render({ mobileContent: React.createElement('project') }); h.flushEffects();
+  show(h, { mobileContent: React.createElement('project') });
   assert.equal(listeners.has('scroll'), false);
   window.scrollY = 0;
-  h.render(); h.flushEffects();
+  show(h);
   assert.equal(window.scrollY, 408);
   window.scrollY = 0;
-  const remounted = profileHarness('', options); remounted.render(); remounted.flushEffects();
+  const remounted = profileHarness('', options); show(remounted);
   assert.equal(window.scrollY, 408);
 });
 

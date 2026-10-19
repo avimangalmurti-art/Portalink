@@ -30,6 +30,9 @@ function harness() {
   const calls = [];
   let pendingIntent = null;
   const context = vm.createContext({
+    mobileRecoveryDraft: null, mobileRecoveryError: '',
+    setMobileRecoveryDraft: value => { context.mobileRecoveryDraft = value; },
+    setMobileRecoveryError: value => { context.mobileRecoveryError = value; },
     React, result: null, projectSetupMetadata:undefined, projectSetupAccountId:null, setOptionalSetupAccount() {}, setProjectSetupAccountId:value=>context.projectSetupAccountId=value, setProjectSetupMetadata:value=>context.projectSetupMetadata=value, presentation: 'web', journeyMadeIn: null, firstProjectPublisher: false, isFirstProjectPublish: false, setFirstProjectPublisher: value => { context.firstProjectPublisher=value; }, setJourneyMadeIn: value => { context.journeyMadeIn=value; }, setIsFirstProjectPublish: value => { context.isFirstProjectPublish=value; }, require(name) { assert.equal(name, './features/publishing/firstProjectDraft'); return { readFirstProjectDraft: async () => null }; }, setGlobalCreateError() {}, defaultCategoryRequest: {current:null}, auth: { phase: 'unauthenticated', isAuthenticated: false, viewerProfileId: null, user: null,
       requestAuthenticatedDestination(intent) { pendingIntent = intent; calls.push(['auth', plain(intent)]); },
       consumePendingIntent() { const intent = pendingIntent; pendingIntent = null; return intent; },
@@ -183,6 +186,7 @@ function homeHarness(presentation, feed, props) {
     useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}] };
   const stateViews = compile('src/components/ui/StateViews.tsx', name => name === 'react' ? React : placeholder);
   const { HomeFeed } = compile('src/components/home/HomeFeed.tsx', name => {
+    if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
     if(name.endsWith('/useHomePullRefresh'))return {useHomePullRefresh:()=>''};
     if(name.endsWith('/useHomeStartupReadiness'))return {useHomeStartupReadiness(options){readiness=options;}};
     if (name === 'react') return react;

@@ -43,6 +43,7 @@ function harness(presentation = 'mobile', props = {}, signedIn = true) {
     if (name.endsWith('/useHomePullRefresh')) return {useHomePullRefresh:(_ref,enabled,_busy,refresh)=>{refreshGesture=enabled?refresh:null;return '';}};
     if (name.endsWith('/useHomeStartupReadiness')) return {useHomeStartupReadiness:options=>{readiness=options;}};
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: signedIn ? 'owner' : null,isAuthenticated:signedIn }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null, close() {} }, deletion: { projectId: null, cancel() {} } }) };
     if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ ...ownerProfile, layout: signedIn ? ownerProfile.profile : null }) };

@@ -20,7 +20,8 @@ export type MobilePublishStep = 'files' | 'details';
 type Flow = ReturnType<typeof usePublishProject>;
 
 /** Presentation steps share the existing draft, validation and upload lifecycle. */
-export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, notices, firstProject, detailsFirst = false, screenTitleId = 'publish-dialog-title' }: {
+export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, notices, firstProject, closing = false, detailsFirst = false, screenTitleId = 'publish-dialog-title' }: {
+  closing?: boolean;
   detailsFirst?: boolean;
   firstProject?: { name: string; categories: string[]; onSkip: () => void };
   flow: Flow;
@@ -42,7 +43,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
   const bodyRef = useRef<HTMLDivElement>(null);
   const advancing = useRef(false);
   const preparing = flow.media.state === 'selecting';
-  const busy = flow.state === 'publishing' || flow.isSavingDraft || flow.isDiscarding || flow.upload.isCleaningUp || preparing;
+  const busy = closing || flow.state === 'publishing' || flow.isSavingDraft || flow.isDiscarding || flow.upload.isCleaningUp || preparing;
   const titles = { files: 'Create your cover', details: 'Project details', review: 'Review project' };
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });

@@ -22,7 +22,7 @@ function harness({ retryResult = [{ id: 'stored', storagePath: 'confirmed/path' 
   const calls = [];
   let complete;
   const context = vm.createContext({
-    committedPublish: { current: undefined }, setHasCommittedProject: () => {}, saveLocalDraft: async () => {}, draftCompleted: { current: false }, firstProject, workspace: { persist: false, awaitProfile }, persistWorkspace: false, resumeId: undefined, auth: {},
+    opening: {active:true}, committedPublish: { current: undefined }, setHasCommittedProject: () => {}, saveLocalDraft: async () => {}, draftCompleted: { current: false }, firstProject, workspace: { persist: false, awaitProfile }, persistWorkspace: false, resumeId: undefined, auth: {},
     draft: { id: 'draft', categoryId: 'portal' }, profileId: 'owner', categoryId: 'portal', isPublishingRef: { current: false }, validate: () => true,
     metadata: { title: 'Project', summary: 'Description' }, manualLocation: true, hasChosenLocation: true, location: 'London',
     ignoreInferredLocation: false, inferredRelevance: {},
@@ -34,6 +34,7 @@ function harness({ retryResult = [{ id: 'stored', storagePath: 'confirmed/path' 
     cacheProfile: profile => calls.push(['cache', profile]),
     invalidateProfiles: () => calls.push('invalidate'), setResult: result => calls.push(['result', result.projectId]), setStep: step => calls.push(['step',step]),
   });
+  context.currentOpening={current:context.opening};
   const compile = expression => ts.transpileModule(`result = (${expression});`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   vm.runInContext(compile(callbacks.publish), context);
   const publish = context.result;

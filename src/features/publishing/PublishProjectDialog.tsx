@@ -33,6 +33,7 @@ type PublishProjectDialogProps = {
 };
 export function PublishProjectDialog({
   initialMetadata,
+  resumeDraft,
   isOpen,
   firstProject,
   profileId,
@@ -43,13 +44,14 @@ export function PublishProjectDialog({
 }: PublishProjectDialogProps) {
   const isMobile = usePresentation() === 'mobile';
   const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
-  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: false, initialMetadata, awaitProfile: isMobile });
+  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: isMobile, resume: isMobile ? resumeDraft : undefined, initialMetadata, awaitProfile: isMobile });
   const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? 'Review project' : publishFlow.firstProjectStage === 'details' ? 'New project' : 'Files & cover';
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
   const announcedProjectRef = useRef<string | null>(null);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [mobileEditingStep, setMobileEditingStep] = useState<MobilePublishStep>('files');
   const {
     step,
@@ -57,7 +59,8 @@ export function PublishProjectDialog({
     media
   } = publishFlow;
   const isPublishing = state === 'publishing';
-  const isRecovering = isPublishing || publishFlow.isSavingDraft || publishFlow.isDiscarding || publishFlow.upload.isBusy || publishFlow.upload.isCleaningUp || (isMobile && media.state === 'selecting');
+  const removingLocalCopy = isMobile && Boolean(resumeDraft) && Boolean(publishFlow.draftError) && !publishFlow.draft;
+  const isRecovering = isClosing || isPublishing || publishFlow.isSavingDraft || publishFlow.isDiscarding || publishFlow.upload.isBusy || publishFlow.upload.isCleaningUp || (isMobile && media.state === 'selecting');
   useEffect(() => {
     if (!isOpen) {
       setIsConfirmingDiscard(false);
@@ -125,8 +128,15 @@ export function PublishProjectDialog({
       uploadErrorRef.current?.focus();
       return;
     }
+    if (isMobile && (publishFlow.isDirty || publishFlow.hasCommittedProject)) {
+      setIsClosing(true);
+      try { await publishFlow.saveLocalDraft(); if (publishFlow.isOpeningCurrent?.() !== false) onClose(); }
+      catch { /* The flow shows its storage error and retains the open work. */ }
+      finally { setIsClosing(false); }
+      return;
+    }
     if (step !== 'done' && !await publishFlow.discard()) { setIsConfirmingDiscard(true); return; }
-    onClose();
+    if (publishFlow.isOpeningCurrent?.() !== false) onClose();
   }
   const {
     metadata,
@@ -138,6 +148,11 @@ export function PublishProjectDialog({
     : !media.items.length ? 'Add a file to publish.'
     : publishFlow.upload.isBusy ? 'Wait for your files to finish uploading.' : null;
   const notices = <>
+              {isMobile && publishFlow.isDirty && <div className="mobile-draft-status">
+                <span role="status" aria-live="polite">{publishFlow.localDraftStatus === 'error' ? 'Not saved on this device' : publishFlow.localDraftStatus === 'saved' ? 'Saved on this device' : 'Saving on this device…'}</span>
+                {publishFlow.localDraftStatus === 'error' && <button type="button" disabled={isRecovering} onClick={()=>void publishFlow.saveLocalDraft().catch(()=>undefined)}>Retry save</button>}
+                {!publishFlow.hasCommittedProject && <button type="button" disabled={isRecovering} onClick={()=>setIsConfirmingDiscard(true)}>Discard draft</button>}
+              </div>}
               {/* The transfer itself was refused. Retrying re-sends the same
                files; nothing the creator chose has been reset. Deliberately
                separate from a publish failure, because the recovery differs. */}
@@ -165,21 +180,23 @@ export function PublishProjectDialog({
                 </div>}
 
   </>;
-  return <PublishFrame mobileFlow={isMobile} title={isMobile ? mobileTitle : firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
+  return <PublishFrame mobileFlow={isMobile} title={isMobile ? mobileTitle : firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title={removingLocalCopy ? 'Remove saved copy?' : publishFlow.hasDiscardedDraft ? 'Finish removing this draft?' : 'Discard this draft?'} description={removingLocalCopy ? 'This removes the saved files and details from this device. Published work and uploaded files remain in your account.' : publishFlow.hasDiscardedDraft ? 'The draft was removed from your account. Try again to clear its saved copy on this device.' : 'Your details and selected files will be lost.'} confirmLabel={removingLocalCopy ? 'Remove saved copy' : undefined} error={publishFlow.discardError} busy={publishFlow.isDiscarding} keepLabel={publishFlow.hasDiscardedDraft ? 'Close' : undefined} onKeep={() => {
+    if (publishFlow.hasDiscardedDraft) { onClose(); return; }
     publishFlow.dismissDiscardError();
     setIsConfirmingDiscard(false);
   }} onDiscard={async () => {
-    if (!await publishFlow.discard()) return;
+    if (!await (removingLocalCopy ? publishFlow.removeLocalDraft() : publishFlow.discard())) return;
     setIsConfirmingDiscard(false);
-    onClose();
+    if (publishFlow.isOpeningCurrent?.() !== false) onClose();
   }} /> : null}>
           {!publishFlow.isOwner ? <div className="project-form-content scrollbar-slim">
               <ErrorState description="Only the owner of this profile can publish work here." />
             </div> : publishFlow.draftError ? <div className="project-form-content scrollbar-slim">
-              <ErrorState description={publishFlow.draftError} />
+              <ErrorState description={publishFlow.draftError} onRetry={publishFlow.retryStartDraft} />
+              {removingLocalCopy && <Button type="button" variant="secondary" size="lg" onClick={()=>setIsConfirmingDiscard(true)}>Remove saved copy</Button>}
             </div> : (!publishFlow.draft && !firstProject) || publishFlow.restoringDraft ? <div className="project-form-content scrollbar-slim">
               <LoadingState label="Starting a draft" />
-            </div> : isMobile || firstProject ? <MobilePublishFlow detailsFirst={Boolean(initialMetadata)} flow={publishFlow} editingStep={isMobile || firstProject ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={isMobile || firstProject ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
+            </div> : isMobile || firstProject ? <MobilePublishFlow closing={isClosing} detailsFirst={Boolean(initialMetadata) || Boolean(isMobile && resumeDraft && metadata.title.trim())} flow={publishFlow} editingStep={isMobile || firstProject ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={isMobile || firstProject ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
           event.preventDefault();
           if (publishFlow.canPublish && !publishFlow.isSavingDraft) {
             void publishFlow.publish.run();

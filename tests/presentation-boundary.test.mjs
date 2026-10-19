@@ -219,7 +219,7 @@ test('every platform CSS selector is scoped, including nested rules and selector
             || (node.prop === 'overflow' && node.value === 'hidden')
             || (node.prop === 'overscroll-behavior-y' && node.value === 'none')
           ));
-        const mobileRoot = "html:has(.codex-shell[data-presentation='mobile'])";
+        const mobileRoot = "html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *))";
         const mobileDocumentScrollbar = mode === 'mobile' && rule.nodes.length === 1 && rule.nodes.every(node => node.type === 'decl' && !node.important && (
           ([mobileRoot, `${mobileRoot} body`].includes(selector) && node.prop === 'scrollbar-width' && node.value === 'none')
           || ([`${mobileRoot}::-webkit-scrollbar`,`${mobileRoot} body::-webkit-scrollbar`].includes(selector) && node.prop === 'display' && node.value === 'none')
