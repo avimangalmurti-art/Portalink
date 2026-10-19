@@ -44,6 +44,7 @@ export function PublishProjectDialog({
   const isMobile = usePresentation() === 'mobile';
   const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
   const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: false, initialMetadata });
+  const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? 'Review project' : publishFlow.firstProjectStage === 'details' ? 'New project' : 'Files & cover';
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
@@ -164,7 +165,7 @@ export function PublishProjectDialog({
                 </div>}
 
   </>;
-  return <PublishFrame mobileFlow={isMobile} title={firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
+  return <PublishFrame mobileFlow={isMobile} title={isMobile ? mobileTitle : firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
     publishFlow.dismissDiscardError();
     setIsConfirmingDiscard(false);
   }} onDiscard={async () => {

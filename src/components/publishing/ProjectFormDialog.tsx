@@ -72,7 +72,7 @@ export function ProjectFormScreen({title,titleId,onClose,closeDisabled,confirmat
   useAuthoringFocus(viewport);
   useModalFocus(true, viewport, () => { if (!closeDisabled) onClose(); }, true);
   return <ModalPortal><div className="mobile-upload-surface-backdrop" aria-hidden="true" /><section ref={viewport} className="project-form-screen" data-mobile-upload-surface="create" data-material="content" role="dialog" aria-modal="true" tabIndex={-1} aria-labelledby={titleId}>
-    <header><button type="button" aria-label="Close new project" disabled={closeDisabled} onClick={onClose}><XIcon size={22} aria-hidden="true" /></button><h1 id={titleId}>{title}</h1></header>
+    <header><button type="button" aria-label="Close new project" disabled={closeDisabled} onClick={onClose}><XIcon size={22} aria-hidden="true" /></button><h1 id={titleId} tabIndex={-1}>{title}</h1></header>
     {children}{confirmation}
   </section></ModalPortal>;
 }
