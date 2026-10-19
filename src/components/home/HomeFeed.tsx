@@ -8,6 +8,7 @@ import { useHomePullRefresh } from './useHomePullRefresh';
 import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
+import { useMobileFeedRecovery } from '../../features/discovery/useMobileFeedRecovery';
 import { ProjectFeedCard } from './ProjectFeedCard';
 import { BentoFeedGrid } from './BentoFeedGrid';
 import type { BentoCellItem } from './BentoFeedGrid';
@@ -121,6 +122,11 @@ export function HomeFeed({
   const [scrollRestored, setScrollRestored] = useState(false);
   const [noteReadiness, setNoteReadiness] = useState<{ account: string | null; attempt: number; settled: boolean } | null>(null);
   const account = user?.id ?? null;
+  const recoveryIdentity = useMemo(() => ({ account, locationId }), [account, locationId]);
+  const cancelRecovery = useMobileFeedRecovery({ enabled: isMobile && screenActive && !categoriesOpen, identity: recoveryIdentity, feed });
+  const { retry: requestFeedRetry, loadMore: requestMore } = feed;
+  const retryFeed = useCallback(() => { cancelRecovery(); requestFeedRetry(); }, [cancelRecovery, requestFeedRetry]);
+  const loadMoreFeed = useCallback(() => { cancelRecovery(); requestMore(); }, [cancelRecovery, requestMore]);
   const reportNoteReadiness = useCallback((settled: boolean) => setNoteReadiness(current => current?.account === account && current.attempt === startupAttempt && current.settled === settled ? current : { account, attempt: startupAttempt, settled }), [account, startupAttempt]);
   const previousStartupAttempt = useRef(startupAttempt);
   const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
@@ -148,7 +154,7 @@ export function HomeFeed({
   }, [feed.featured, feed.projects]);
   const documentProjects = useMemo(() => new Set(projects.filter(view => view.project.cover && view.project.coverKind === 'document' && !view.project.coverThumbnail).map(view => view.project.id)), [projects]);
   const firstProjectHome = isMobile && Boolean(firstProjectAction) && projects.length === 0;
-  const retryFeed = feed.retry, retryLayout = ownerLayout.retry;
+  const retryLayout = ownerLayout.retry;
   useEffect(() => {
     if (startupPending && !locationId && previousStartupAttempt.current !== startupAttempt) {
       retryFeed(); retryLayout();
@@ -233,8 +239,8 @@ export function HomeFeed({
     writeFeedScroll(scrollMemoryKey, latestScrollTopRef.current);
   }, [scrollMemoryKey]);
 
-  const {isRefreshing,status:feedStatus,retry}=feed;
-  const refreshHome=useCallback(()=>{if(isRefreshing||feedStatus==='loading')return;setHasReloaded(true);retry();},[isRefreshing,feedStatus,retry]);
+  const {isRefreshing,status:feedStatus}=feed;
+  const refreshHome=useCallback(()=>{if(isRefreshing||feedStatus==='loading')return;setHasReloaded(true);retryFeed();},[isRefreshing,feedStatus,retryFeed]);
   const pullLabel=useHomePullRefresh(autoScrollRef,showMobileSearch && !categoriesOpen && !(firstProjectAction && projects.length===0),feed.isRefreshing||feed.status==='loading',refreshHome);
   if(isMobile && categoriesOpen)return <ExploreCategories onBack={()=>setCategoriesOpen(false)}/>;
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
@@ -274,7 +280,7 @@ export function HomeFeed({
               ? <ErrorState
                   title="Your Home feed could not be loaded"
                   description={feed.error ?? undefined}
-                  onRetry={feed.retry}
+                  onRetry={retryFeed}
                 />
               : null}
             {feed.isEmpty
@@ -314,7 +320,7 @@ export function HomeFeed({
             {feed.nextCursor && <div className="flex flex-col items-center gap-2 py-5">
               {feed.loadMoreError && <p role="status" className="text-[13px] text-[var(--text-secondary)]">{feed.loadMoreError}</p>}
               <button type="button" className="min-h-11 rounded-full border border-[var(--border-subtle)] px-6 py-2 text-[var(--text-primary)] disabled:opacity-50"
-                disabled={feed.isLoadingMore || feed.isRefreshing} aria-busy={feed.isLoadingMore} onClick={feed.loadMore}>
+                disabled={feed.isLoadingMore || feed.isRefreshing} aria-busy={feed.isLoadingMore} onClick={loadMoreFeed}>
                 {feed.isLoadingMore ? 'Loading…' : feed.loadMoreError ? 'Retry loading more' : 'Load more'}
               </button>
             </div>}

@@ -42,6 +42,7 @@ function harness(presentation = 'mobile', props = {}, signedIn = true) {
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileScreenActions(model) { actions=model; } };
     if (name.endsWith('/useHomePullRefresh')) return {useHomePullRefresh:(_ref,enabled,_busy,refresh)=>{refreshGesture=enabled?refresh:null;return '';}};
     if (name.endsWith('/useHomeStartupReadiness')) return {useHomeStartupReadiness:options=>{readiness=options;}};
+    if (name.endsWith('/useMobileFeedRecovery')) return { useMobileFeedRecovery: () => () => {} };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: signedIn ? 'owner' : null,isAuthenticated:signedIn }) };
