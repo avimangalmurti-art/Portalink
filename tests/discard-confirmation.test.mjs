@@ -26,7 +26,7 @@ test('externally pending and unavailable operations cannot run',()=>{
  for(const overrides of [{pending:true},{confirmDisabled:true}]){const h=harness(overrides),tree=h.render();h.button(tree,1).props.onClick();assert.deepEqual(h.calls,[]);}
 });
 test('project discard adapter preserves existing error and async cleanup contract',()=>{
- const api=sourceModule('src/components/publishing/ProjectFormDialog.tsx',{react:React,'framer-motion':{},'lucide-react':{},'../../hooks/useModalFocus':{},'../../hooks/useTouchTap':{},'../ui/ModalPortal':{},'../ui/InterfaceIcon':{},'../ui/ConfirmationDialog':{ConfirmationDialog:'confirmation'},'../../hooks/useDialogViewport':{},'./project-dialog.css':{}},{React});
+ const api=sourceModule('src/components/publishing/ProjectFormDialog.tsx',{react:React,'framer-motion':{},'lucide-react':{},'../../hooks/useModalFocus':{},'../../hooks/useTouchTap':{},'../ui/ModalPortal':{},'../ui/InterfaceIcon':{},'../ui/ConfirmationDialog':{ConfirmationDialog:'confirmation'},'../../hooks/useDialogViewport':{},'./useAuthoringFocus':{},'./project-dialog.css':{}},{React});
  const cleanup=async()=>{};const tree=api.ProjectDiscardConfirmation({title:'Discard draft?',description:'Draft files will be lost.',error:'Cleanup failed.',busy:true,onKeep:()=>{},onDiscard:cleanup});assert.equal(tree.type,'confirmation');assert.equal(tree.props.pending,true);assert.equal(tree.props.error,'Cleanup failed.');assert.equal(tree.props.onConfirm,cleanup);assert.equal(tree.props.cancelLabel,'Keep editing');
 });
 

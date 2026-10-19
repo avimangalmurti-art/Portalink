@@ -6000,3 +6000,106 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   pointer-events: none;
 }
+
+/* Mobile authoring: opaque task surfaces, one body scroller, reachable controls. */
+#root .codex-shell[data-presentation='mobile'] .mobile-upload-surface-backdrop {
+  position: fixed; inset: 0; height: max(100%, 100lvh); z-index: 80;
+  pointer-events: none; background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface]:is(.project-form-screen, .mobile-project-editor-screen) {
+  z-index: 80; top: var(--dialog-viewport-top, 0px); bottom: auto;
+  height: var(--dialog-viewport-height, 100dvh); max-height: none; min-height: 0;
+  padding: calc(max(0px, var(--safe-area-top, env(safe-area-inset-top, 0px)) - var(--dialog-viewport-top, 0px)) + 8px) 16px max(12px, env(safe-area-inset-bottom, 0px));
+  background: var(--surface-canvas); color: var(--text-primary); overflow: hidden;
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important; outline: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-publish] .mobile-publish-step-heading h3:focus { outline: none !important; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header {
+  flex: none; display: flex; align-items: center; gap: 12px; padding-bottom: 16px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header > button {
+  flex: 0 0 44px; display: grid; place-items: center; width: 44px; height: 44px;
+  border-radius: 12px; background: var(--surface-inset); color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] h1 { margin: 0; text-align: start; font-size: 20px; line-height: 1.25; font-weight: 650; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header p { font-size: 13px; margin-top: 4px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen #project-editor-form {
+  padding-bottom: 0; scroll-padding-block: 16px; overflow-x: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-form-actions {
+  position: static; inset: auto; margin: 8px 0 0; padding-block: 12px 0;
+  border-top: 1px solid var(--hairline); background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-form-details { flex: none; gap: 20px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen #project-summary { min-height: 200px; font-size: 16px; line-height: 1.5; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-form-media--edit > .project-media-list { max-height: none; overflow: visible; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen :is(input, textarea, select) { font-size: 16px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-form-actions button[type=submit] { min-height: 48px; border-radius: 12px; }
+
+/* File management opts into the sheet lifecycle without the action-menu list cap. */
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-sheet-layout='files'] {
+  background: var(--surface-canvas) !important;
+}
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-sheet-layout='files'] > .mobile-context-body {
+  flex: 1 1 0; min-height: 0; display: flex; overflow: hidden;
+}
+#root .codex-shell [data-presentation='mobile'] [data-sheet-layout='files'] .mobile-context-heading > button {
+  width: auto; min-width: 64px; min-height: 44px; padding-inline: 12px;
+  border-radius: 12px; font-size: 14px; font-weight: 600;
+}
+#root .codex-shell [data-presentation='mobile'] .mobile-reorder-files {
+  flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px;
+}
+#root .codex-shell [data-presentation='mobile'] .mobile-reorder-summary { flex: none; margin: 0; color: var(--text-secondary); font-size: 13px; }
+#root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+#root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] > .project-media-selection {
+  flex: 1 1 0; min-height: 0; overflow: hidden;
+}
+#root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] .project-media-list {
+  flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior-y: contain; padding-bottom: 8px;
+}
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] {
+  display: grid; grid-template-columns: 24px 40px minmax(0, 1fr) 44px; gap: 4px 8px;
+  padding: 8px; border: 1px solid var(--hairline); border-radius: 12px;
+}
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > [data-file-order] { grid-column: 1; grid-row: 1; text-align: center; font-size: 13px; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > :is(img, span:not([data-file-order])) { grid-column: 2; grid-row: 1; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > div.min-w-0 { grid-column: 3; grid-row: 1; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > div.shrink-0 { grid-column: 4; grid-row: 1; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > .mobile-file-reorder-controls { grid-column: 2 / -1; grid-row: 2; display: flex; justify-content: flex-end; gap: 8px; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] :is(.mobile-file-reorder-controls button, button[aria-haspopup='menu']) {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+  border: 1px solid var(--hairline); background: var(--surface-raised);
+}
+#root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] [data-file-manager-header] button { min-height: 44px; min-width: 44px; }
+
+/* Cover adjustments use the same full-screen workspace and active appearance. */
+#root .codex-shell[data-presentation='mobile'] .image-reposition-overlay[data-mobile-upload-surface='cover'] {
+  padding: 0; background: var(--surface-canvas); z-index: 90;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog {
+  width: 100%; max-width: none; height: 100%; max-height: 100%; border: 0;
+  border-radius: 0 !important; box-shadow: none !important; border: 0 !important; background: var(--surface-canvas);
+  padding-top: calc(max(0px, var(--safe-area-top, env(safe-area-inset-top, 0px)) - var(--dialog-viewport-top, 0px)) + 8px);
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog > header { padding: 0 16px 16px; border: 0; min-height: 44px; gap: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog > header h2 { font-size: 20px; line-height: 1.25; font-weight: 650; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog > header button { width: 44px; height: 44px; min-height: 44px; border-radius: 12px; background: var(--surface-inset); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-body { padding: 0 16px; gap: 16px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-body select { min-height: 44px; max-width: 65%; font-size: 14px; border-radius: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner { flex: 1 0 auto; min-height: 420px; gap: 16px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-stage { flex: 1 0 240px; min-height: 220px; padding: 12px; border: 1px solid var(--hairline); border-radius: 16px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner input[type='range'] { min-height: 44px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner button { min-height: 44px; min-width: 44px; border-radius: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child { padding-top: 12px; border-top: 1px solid var(--hairline); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child { flex-wrap: nowrap; gap: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child > button { min-height: 48px; font-size: 16px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child > button:first-child { min-width: 88px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child > button:last-child { flex: 1; }
+@media (max-height: 600px) {
+  #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header { padding-bottom: 8px; }
+}

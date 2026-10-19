@@ -14,6 +14,7 @@ import { ProfileField } from '../../components/profile/ProfileField';
 import { Button } from '../../components/ui/Button';
 import type { usePublishProject } from './usePublishProject';
 import { TITLE_MAX_LENGTH } from './validation';
+import { usePresentation } from '../../presentation/usePresentation';
 
 export type MobilePublishStep = 'files' | 'details';
 type Flow = ReturnType<typeof usePublishProject>;
@@ -28,9 +29,14 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
   categoryLabel: string;
   notices: React.ReactNode;
 }) {
+  const mobile = usePresentation() === 'mobile';
   const stage = flow.hasCommittedProject || flow.step === 'preview' ? 'review' : editingStep;
   const stages = detailsFirst ? ['details', 'files', 'review'] : ['files', 'details', 'review'];
   const index = stages.indexOf(stage);
+  const previousStage = index > 0 ? stages[index - 1] : null;
+  const backStep = mobile
+    ? previousStage === 'files' || previousStage === 'details' ? previousStage : null
+    : stage !== 'files' || detailsFirst ? stage === 'review' || stage === 'files' ? 'details' : 'files' : null;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const advancing = useRef(false);
@@ -74,7 +80,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
   };
   const hint = stage === 'files' ? (preparing ? 'Preparing your files…' : !flow.media.isComplete ? 'Choose at least one file to continue.' : null)
     : null;
-  const editAction = (label: string, target: MobilePublishStep) => <button type="button" aria-label={label} disabled={busy || flow.hasCommittedProject || (target === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(target)}><PencilIcon size={16} aria-hidden="true" />Edit</button>;
+  const editAction = (label: string, target: MobilePublishStep) => <button type="button" className={mobile ? 'mobile-review-edit' : undefined} aria-label={label} disabled={busy || flow.hasCommittedProject || (target === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(target)}><PencilIcon size={16} aria-hidden="true" />Edit</button>;
   return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" data-cover-step={stage === 'files' || undefined} data-details-step={stage === 'details' || undefined} data-review-step={stage === 'review' || undefined} data-first-project={Boolean(firstProject) || undefined} aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
     <ol className="mobile-publish-progress" aria-label="Upload steps">
       {(detailsFirst ? ['Details', 'Files', 'Review'] : ['Files', 'Details', 'Review']).map((label, stepIndex) => <li key={label} aria-current={stepIndex === index ? 'step' : undefined} data-complete={stepIndex < index || undefined}>
@@ -95,21 +101,21 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
         <ProfileField id="publish-summary" label="Description" formatting optional optionalParentheses workspace multiline value={flow.metadata.summary} placeholder="Describe the work" error={flow.fieldErrors.summary} disabled={busy} onChange={value => flow.setField('summary', value)} />
         <ProjectCitationFields metadata={flow.metadata} disabled={busy} onChange={flow.setCitationFields}/>
         <ProfileField id="publish-location" label="Location" optional optionalParentheses workspace clearable leadingIcon={<MapPinIcon size={20} aria-hidden="true" />} value={flow.location} maxLength={80} placeholder="City or place" disabled={busy} onChange={flow.setLocation} />
-      </section> : <div className="mobile-publish-review">
-        <section className="mobile-review-card mobile-review-cover" aria-label="Cover">
+      </section> : <div className={`mobile-publish-review${mobile ? ' mobile-publish-review--compact' : ''}`}>
+        <section className={`mobile-review-card mobile-review-cover${mobile ? ' mobile-review-cover--primary' : ''}`} aria-label="Cover">
           <header><h4>Cover</h4>{editAction('Edit cover', 'files')}</header>
           <CoverFilmstrip compact readOnly media={flow.media} disabled />
         </section>
         <section className="mobile-review-card mobile-publish-review-details" aria-label="Project details">
           <header><h4>Project details</h4>{editAction('Edit project details', 'details')}</header>
           <dl><div><dt>Title</dt><dd>{flow.metadata.title.trim()}</dd></div>
-            {flow.metadata.summary.trim() && <div><dt>Description</dt><dd className="mobile-review-summary"><FormattedText text={flow.metadata.summary.trim()} /></dd></div>}
+            {(mobile || flow.metadata.summary.trim()) && <div><dt>Description{mobile && <span className="mobile-review-optional"> (optional)</span>}</dt><dd className={flow.metadata.summary.trim() ? 'mobile-review-summary' : 'mobile-review-empty'}>{flow.metadata.summary.trim() ? <FormattedText text={flow.metadata.summary.trim()} /> : 'Not added'}</dd></div>}
             {flow.location.trim() && <div><dt>Location</dt><dd><MapPinIcon size={16} aria-hidden="true" />{flow.location.trim()}</dd></div>}
           </dl>
         </section>
         <section className="mobile-review-card mobile-review-files" aria-label="Selected files">
           <header><h4>Selected files</h4>{editAction('Edit selected files', 'files')}</header>
-          <div className="mobile-review-file-summary"><div className="mobile-review-thumbnails">{flow.media.items.slice(0, 3).map(item => <span key={item.id}>{item.previewUrl && item.family === 'image' ? <img src={item.previewUrl} alt="" /> : <FileIcon size={24} aria-hidden="true" />}</span>)}{flow.media.items.length > 3 && <span className="mobile-review-more">+{flow.media.items.length - 3}</span>}</div><span>{flow.media.items.length} {flow.media.items.length === 1 ? 'file' : 'files'}</span></div>
+          <div className="mobile-review-file-summary"><div className="mobile-review-thumbnails" role={mobile ? 'group' : undefined} aria-label={mobile ? 'Selected project files' : undefined}>{(mobile ? flow.media.items : flow.media.items.slice(0, 3)).map((item, fileIndex) => <span key={item.id} role={mobile ? 'img' : undefined} aria-label={mobile ? `File ${fileIndex + 1}: ${item.displayTitle}` : undefined}>{item.previewUrl && item.family === 'image' ? <img src={item.previewUrl} alt="" /> : <FileIcon size={24} aria-hidden="true" />}</span>)}{!mobile && flow.media.items.length > 3 && <span className="mobile-review-more">+{flow.media.items.length - 3}</span>}</div><span>{flow.media.items.length} {flow.media.items.length === 1 ? 'file' : 'files'}</span></div>
         </section>
         {/* Exceptional transport states retain the existing retry/cleanup actions. */}
         {(flow.upload.failure || flow.upload.cleanupError) && <div className="mobile-review-transport"><MediaPicker compact media={flow.media} upload={flow.upload} disabled /></div>}
@@ -118,7 +124,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
     <footer className="mobile-publish-actions">
       {hint && <p id="mobile-publish-hint" role="status">{hint}</p>}
       <div>
-        {(stage !== 'files' || detailsFirst) && <Button type="button" variant="secondary" size="lg" disabled={busy || flow.hasCommittedProject} onClick={() => edit(stage === 'review' || stage === 'files' ? 'details' : 'files')}><ArrowLeftIcon size={18} aria-hidden="true" />Back</Button>}
+        {backStep && <Button type="button" variant="secondary" size="lg" aria-label={mobile ? `Back to ${backStep === 'files' ? 'files' : 'project details'}` : undefined} disabled={busy || flow.hasCommittedProject || (mobile && backStep === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(backStep)}><ArrowLeftIcon size={18} aria-hidden="true" />Back</Button>}
         <Button type="submit" variant="primary" size="lg" fullWidth isLoading={flow.state === 'publishing' || flow.isSavingDraft}
           disabled={busy || (stage === 'files' && !flow.media.isComplete) || (stage === 'review' && !flow.canPublish)}>
           {flow.state === 'publishing' ? 'Publishing…' : flow.isSavingDraft ? 'Saving details…' : stage === 'review' ? flow.hasCommittedProject ? 'Finish saving details' : 'Publish project' : detailsFirst && !flow.media.isComplete ? 'Continue to upload' : stage === 'details' || detailsFirst ? 'Review project' : 'Continue'}
