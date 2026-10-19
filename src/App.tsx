@@ -1500,8 +1500,10 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
             ? `${title} published.${result.message ? ` ${result.message}` : ''}`
             : `${title} added for this session only. Reloading will clear it.`,
         });
-        if (firstProjectPublisher && auth.viewerProfileId) {
-          if (isFirstProjectPublish && result.mediaPersisted && !result.sessionOnly && !viewedProfile?.isPrivate) rememberLivePortfolio(auth.viewerProfileId, result.projectId);
+        // Mobile finishes on the complete profile, where identity and the refreshed
+        // catalogue stay together. WEB retains its existing project-reader return.
+        if ((presentation === 'mobile' || firstProjectPublisher) && auth.viewerProfileId) {
+          if (firstProjectPublisher && isFirstProjectPublish && result.mediaPersisted && !result.sessionOnly && !viewedProfile?.isPrivate) rememberLivePortfolio(auth.viewerProfileId, result.projectId);
           nav.profile(auth.viewerProfileId);
           return;
         }
