@@ -33,8 +33,8 @@ export function SharedSignInBar({ name }: { name?: string }) {
     setDismissed(true);
     document.querySelector<HTMLElement>('#app-viewport .app-screen-layer:not([aria-hidden="true"]) > main')?.focus({ preventScroll: true });
   };
-  return <aside ref={barRef} className="shared-sign-in-bar" data-shared-sign-in-bar="" aria-label="Portfolio account options">
-    <span className="shared-sign-in-identity">Viewing {name}'s portfolio</span>
+  return <aside ref={barRef} className="shared-sign-in-bar" data-shared-sign-in-bar="" aria-label="Catalogue account options">
+    <span className="shared-sign-in-identity">Viewing {name}'s catalogue</span>
     <span className="shared-sign-in-actions">
       <span aria-hidden="true">·</span>
       <button type="button" disabled={auth.phase === 'authenticating'} onClick={() => requestAccount('signIn')}>Sign in</button>

@@ -88,10 +88,10 @@ export function TypographyInspector({
     }
   };
   return <div ref={containerRef} className="relative shrink-0">
-      {triggerVariant === 'menu' ? <button ref={triggerRef} type="button" role="menuitem" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      {triggerVariant === 'menu' ? <button ref={triggerRef} type="button" role="menuitem" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={TypeIcon} size="sm" weight="medium" />
           Change typography…
-        </button> : <button ref={triggerRef} type="button" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" aria-label="Project typography" title="Typography" className="side-panel-header-control side-panel-header-icon flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        </button> : <button ref={triggerRef} type="button" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" aria-label="Project typography" title="Typography" className="side-panel-header-control side-panel-header-icon flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <TypeIcon className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>}
 

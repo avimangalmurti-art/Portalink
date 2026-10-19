@@ -27,6 +27,7 @@ type Props = {
   onWarmCreator?: () => void;
   creatorHref?: string;
   label?: string;
+  contentTypeLabel?: string;
   href?: string;
   onCollapse?: () => void;
   className?: string;
@@ -47,7 +48,7 @@ type Props = {
 
 /** Artwork stays fixed; each presentation places the extension over the next row. */
 export function ProjectPreviewCard({ contextHandlers, onEditDescription, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
-  label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
+  label = `Open ${project.title}`, contentTypeLabel, href, onCollapse, className = '', sizes, priority = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio, sharedCoverFallback = false, allowPdfFallback = true, allowVideoFallback = true }: Props) {
   const [popupOpen, setPopupOpen] = useState(false);
   const isMobile = usePresentation() === 'mobile';
@@ -78,6 +79,7 @@ export function ProjectPreviewCard({ contextHandlers, onEditDescription, project
       {isMobile && !disabled && <button type="button" data-keep-color="" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={popupOpen}
         onClick={event => { event.stopPropagation(); setPopupOpen(true); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>}
+      {isMobile && contentTypeLabel && <span className="mobile-feed-content-type">{contentTypeLabel}</span>}
       {editor}
     </div>
     {isMobile && popupOpen && <MobileProjectPopup project={project} creator={creator} onEditDescription={onEditDescription} contextHandlers={contextHandlers} onClose={() => setPopupOpen(false)} onOpenComments={onOpenComments} />}

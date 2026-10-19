@@ -1,3 +1,4 @@
+import { ownPageCitation } from '../references/ownCitation';
 import { useCiteTarget } from '../citations/useCiteTarget';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { readSharedReturnPath } from '../auth/registration';
@@ -100,10 +101,16 @@ export function MediaInteractionBar({
     auth.requestAuthenticatedDestination({ kind: 'route', path, label: 'engage with this page' }, 'signUp');
     return true;
   };
+  const [citationStatus,setCitationStatus]=useState('');
+  const copyIdentity=useRef<string|null>(null);
+  copyIdentity.current=`${auth.user?.id??''}:${target.projectId}:${target.attachmentId}:${target.pageIndex}`;
+  useEffect(()=>()=>{copyIdentity.current=null;},[]);
+  useEffect(()=>setCitationStatus(''),[target.attachmentId,target.pageIndex,auth.viewerProfileId]);
   const citation = useCiteTarget(target.attachmentId,target.pageIndex,isVisible || contextOnly);
   const current = currentPage?.projectId === target.projectId && currentPage.attachmentId === target.attachmentId && currentPage.pageIndex === target.pageIndex;
   useMobileScreenActions(current ? contextActions(currentPage?.shared ? 'shared' : 'project', { signedIn: auth.isAuthenticated, owner: isOwner }, { handlers: {
-    cite: !isOwner ? () => citation.open() : undefined,
+    copyCitation: isOwner&&auth.viewerProfileId?async()=>{const identity=copyIdentity.current;try{const text=await ownPageCitation(auth.viewerProfileId!,target.projectId,target.attachmentId,target.pageIndex);if(copyIdentity.current!==identity)return;await navigator.clipboard.writeText(text);setCitationStatus('Citation copied.');}catch(caught){if(copyIdentity.current===identity)setCitationStatus(caught instanceof Error?caught.message:'Citation could not be copied.');}}:undefined,
+    cite: () => citation.open(),
     share: () => activity.share(),
     savePage: sharedGuest || (!activity.isResolvingEngagement && activity.pendingKind !== 'save') ? () => savePage() : undefined,
     comment: () => { if (!requireAccount()) setCommentsOpen(true); },
@@ -132,8 +139,8 @@ export function MediaInteractionBar({
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
-      gridTemplateColumns: `repeat(${isOwner ? 3 : 4}, minmax(44px, 1fr))`,
-        minWidth: isOwner ? 132 : 176
+      gridTemplateColumns: `repeat(${isMobileFocused ? 4 : isOwner ? 3 : 4}, minmax(44px, 1fr))`,
+        minWidth: isMobileFocused ? 196 : isOwner ? 132 : 176
     } as React.CSSProperties}>
       {ACTIONS.map(({ kind, label, icon: Icon }, index) => {
         const engaged = activity.record.engaged[kind];
@@ -174,7 +181,7 @@ export function MediaInteractionBar({
         <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="currentColor" />
         {counts[ACTIONS.length] ? <span className="media-item-action-count font-semibold tabular-nums">{counts[ACTIONS.length]}</span> : null}
       </button>
-      {!isOwner && <button type="button" aria-label="Cite this page" title="Cite" onClick={()=>void citation.open()} className="media-item-action"><InterfaceIcon icon={QuoteIcon} size="sm" weight="regular" keepColor /></button>}
+      <button type="button" aria-label="Cite this page" title="Cite" onClick={()=>void citation.open()} className="media-item-action"><InterfaceIcon icon={QuoteIcon} size="sm" weight="regular" keepColor /></button>
       <button
         type="button"
         aria-pressed={activity.shareState === 'shared'}
@@ -186,6 +193,7 @@ export function MediaInteractionBar({
       </button>
     </div>
 
+    {citationStatus&&<span role="status">{citationStatus}</span>}
     {counter ? <span data-media-page-count="" aria-label={`Page ${target.pageIndex + 1} of ${pageCount}`} className="premium-viewer-page-counter premium-viewer-page-counter--inline pointer-events-none shrink-0 rounded-full px-2 py-1 text-center text-[12px] font-medium tabular-nums text-white" style={{ width: counterWidth }}>{counter}</span> : null}
     </div>
 

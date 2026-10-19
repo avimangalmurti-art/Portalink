@@ -11,17 +11,18 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import './follow-content-info.css';
 
 /** Reading-only presentation: the existing viewer retains page, zoom and scroll state. */
-export function FollowContentInfoPopup({ projectId, title, description, creatorHeader, engagement, onOptions, onComments, onRequireAccount, onClose }: {
+export function FollowContentInfoPopup({ projectId, title, description, creatorHeader, engagement, onOptions, onComments, onRequireAccount, onClose, engagementContent, optionsContent }: {
   projectId: string; title: string; description?: string; creatorHeader: React.ReactNode;
-  engagement: ProjectEngagementLifecycle; onOptions: () => void; onComments: () => void;
-  onRequireAccount?: () => void; onClose: () => void;
+  engagement: ProjectEngagementLifecycle; onOptions?: () => void; onComments: () => void;
+  onRequireAccount?: () => void; onClose: () => void; engagementContent?: React.ReactNode; optionsContent?: React.ReactNode;
 }) {
   const viewport = useDialogViewport();
   const panel = useRef<HTMLElement>(null);
   const layer = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const [closing, setClosing] = useState(false);
-  const comments = useProjectComments(projectId);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const comments = useProjectComments(engagementContent ? null : projectId);
   const dismiss = () => {
     if (closing) return;
     setClosing(true);
@@ -41,19 +42,19 @@ export function FollowContentInfoPopup({ projectId, title, description, creatorH
     <div ref={viewport} className="follow-info-overlay" data-closing={closing || undefined}
       style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
       onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) dismiss(); }}>
-      <section ref={panel} id="mobile-project-popup" className="follow-info-panel" role="dialog" aria-modal="true" aria-labelledby="follow-info-title" tabIndex={-1}>
-        <header className="follow-info-header">{creatorHeader}<button type="button" aria-label="Content options" className="follow-info-options" onClick={onOptions}><InterfaceIcon icon={MoreHorizontalIcon} /></button></header>
+      <section data-ui-surface="popup" ref={panel} id="mobile-project-popup" className="follow-info-panel" role="dialog" aria-modal="true" aria-labelledby="follow-info-title" tabIndex={-1}>
+        <header className="follow-info-header">{creatorHeader}{(optionsContent || onOptions) && <button type="button" aria-label="Content options" data-ui-control="icon" data-control-size="md" data-control-variant="secondary" className="follow-info-options" aria-expanded={optionsContent ? optionsOpen : undefined} onClick={() => optionsContent ? setOptionsOpen(open => !open) : onOptions?.()}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}{optionsContent && optionsOpen && <div className="follow-info-owner-menu">{optionsContent}</div>}</header>
         <h2 id="follow-info-title">{title}</h2>
         <div className="follow-info-description scrollbar-overlay" tabIndex={0} aria-label="Content description"><FormattedText text={description || 'This project has no description.'} /></div>
         <footer className="follow-info-engagement">
-          <div role="group" aria-label={`Engagement for ${title}`}>
+          {engagementContent ?? <><div role="group" aria-label={`Engagement for ${title}`}>
             <button type="button" aria-label={`Comments: ${title}`} onClick={onComments}><InterfaceIcon icon={MessageCircleIcon} />{comments.phase === 'ready' && <span>{comments.totalCount}</span>}</button>
             {(['save', 'repost'] as const).map(kind => <button key={kind} type="button" aria-label={`${kind === 'save' ? 'Bookmark' : 'Repost'}: ${title}`} aria-pressed={engagement.isEngaged(kind)}
               disabled={!onRequireAccount && (engagement.isPending(kind) || engagement.isResolving || engagement.resolveError !== null)} onClick={() => onRequireAccount ? onRequireAccount() : engagement.toggle(kind)}>
               <InterfaceIcon icon={kind === 'save' ? BookmarkIcon : Repeat2Icon} fill={engagement.isEngaged(kind) ? 'currentColor' : 'none'} />{engagement.count(kind) !== null && <span>{engagement.count(kind)}</span>}
             </button>)}
           </div>
-          <EngagementFeedback engagement={engagement} />
+          <EngagementFeedback engagement={engagement} /></>}
         </footer>
       </section>
     </div>
