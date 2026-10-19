@@ -388,7 +388,7 @@ function AssetRow({
       <span aria-hidden="true" data-file-order={mobileFileManager ? index + 1 : undefined} className={`shrink-0 text-[var(--text-tertiary)] ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}`}>
         {mobileFileManager ? index + 1 : <GripVerticalIcon className="h-4 w-4" />}
       </span>
-      {mobileFileManager ? <div className="mobile-file-reorder-controls"><button type="button" disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`}><ArrowUpIcon size={18} aria-hidden="true" /></button><button type="button" disabled={disabled || index === total - 1} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`}><ArrowDownIcon size={18} aria-hidden="true" /></button></div> : <><button type="button" disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Up</button>
+      {!mobileFileManager && <><button type="button" disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Up</button>
       <button type="button" disabled={disabled || index === total - 1} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Down</button></>}
 
       {asset.previewUrl && asset.family === 'image' ? <ResponsiveImage src={asset.previewUrl} alt={`Local preview of ${asset.fileName}`} width={40} height={40} sizes="40px" className="h-10 w-10 shrink-0 rounded-[7px] object-cover" /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[7px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
@@ -407,7 +407,7 @@ function AssetRow({
              moving, not about server-side conversion afterwards. */}
           {transportState ? ` · ${transportState}` : ''}
         </p>
-        {resolutionNotice && <p role="status" className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">{resolutionNotice}</p>}
+        {resolutionNotice && !mobileFileManager && <p role="status" className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">{resolutionNotice}</p>}
         {/* A per-file bar only when the service attributes bytes to this file. */}
         {transport?.item?.state === 'uploading' && <span role="progressbar" aria-label={`Upload progress for ${asset.displayTitle}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(transport.item.fraction * 100)} className="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
             <span className="block h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none" style={{
@@ -443,6 +443,16 @@ function AssetRow({
         }} />
           </div></ModalPortal>}
       </div>
+      {mobileFileManager && <div className="mobile-file-row-actions">
+        {resolutionNotice && <details className="mobile-file-quality">
+          <summary>Check resolution</summary>
+          <p>{resolutionNotice}</p>
+        </details>}
+        <div className="mobile-file-reorder-controls">
+          <button type="button" disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`}><ArrowUpIcon size={18} aria-hidden="true" /></button>
+          <button type="button" disabled={disabled || index === total - 1} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`}><ArrowDownIcon size={18} aria-hidden="true" /></button>
+        </div>
+      </div>}
     </li>;
 }
 function MenuAction({

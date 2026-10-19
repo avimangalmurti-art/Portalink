@@ -19,7 +19,7 @@ export function ImageRepositionDialog({ title, onClose, controls, preparing = fa
   const requestClose = () => { if (!savingRef.current) onClose(); };
   useModalFocus(true, ref, requestClose);
   return <ModalPortal>{isMobile && <div className="mobile-upload-surface-backdrop" aria-hidden="true" />}<div ref={overlayRef} data-mobile-upload-surface={isMobile ? 'cover' : undefined} className="image-reposition-overlay modal-scrim z-[80] bg-black/40" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}>
-    <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={headingId} className="image-reposition-dialog shape-container flex flex-col bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xl outline-none">
+    <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" data-material={isMobile ? 'content' : undefined} aria-labelledby={headingId} className="image-reposition-dialog shape-container flex flex-col bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xl outline-none">
       <header className="flex shrink-0 items-center gap-3 border-b border-[var(--hairline)] px-5 py-3">
         <h2 id={headingId} className="min-w-0 flex-1 text-[16px] font-semibold">{title}</h2>
         <button type="button" disabled={saving} onClick={requestClose} aria-label="Cancel image repositioning" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="shrink-0 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} /></button>

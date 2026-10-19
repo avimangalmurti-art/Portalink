@@ -15,12 +15,13 @@ import { Button } from '../../components/ui/Button';
 import type { usePublishProject } from './usePublishProject';
 import { TITLE_MAX_LENGTH } from './validation';
 import { usePresentation } from '../../presentation/usePresentation';
+import { ProjectCreationProgress } from './ProjectCreationProgress';
 
 export type MobilePublishStep = 'files' | 'details';
 type Flow = ReturnType<typeof usePublishProject>;
 
 /** Presentation steps share the existing draft, validation and upload lifecycle. */
-export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, notices, firstProject, detailsFirst = false }: {
+export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, notices, firstProject, detailsFirst = false, categoryLabel }: {
   detailsFirst?: boolean;
   firstProject?: { name: string; categories: string[]; onSkip: () => void };
   flow: Flow;
@@ -31,7 +32,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
 }) {
   const mobile = usePresentation() === 'mobile';
   const stage = flow.hasCommittedProject || flow.step === 'preview' ? 'review' : editingStep;
-  const stages = detailsFirst ? ['details', 'files', 'review'] : ['files', 'details', 'review'];
+  const stages = detailsFirst ? ['details', 'files', 'review'] as const : ['files', 'details', 'review'] as const;
   const index = stages.indexOf(stage);
   const previousStage = index > 0 ? stages[index - 1] : null;
   const backStep = mobile
@@ -42,7 +43,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
   const advancing = useRef(false);
   const preparing = flow.media.state === 'selecting';
   const busy = flow.state === 'publishing' || flow.isSavingDraft || flow.isDiscarding || flow.upload.isCleaningUp || preparing;
-  const titles = { files: 'Create your cover', details: 'Project details', review: 'Review project' };
+  const titles = { files: mobile ? flow.media.items.length ? 'Choose a cover' : 'Add files' : 'Create your cover', details: 'Project details', review: 'Review project' };
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
     headingRef.current?.focus({ preventScroll: true });
@@ -82,16 +83,16 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
     : null;
   const editAction = (label: string, target: MobilePublishStep) => <button type="button" className={mobile ? 'mobile-review-edit' : undefined} aria-label={label} disabled={busy || flow.hasCommittedProject || (target === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(target)}><PencilIcon size={16} aria-hidden="true" />Edit</button>;
   return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" data-cover-step={stage === 'files' || undefined} data-details-step={stage === 'details' || undefined} data-review-step={stage === 'review' || undefined} data-first-project={Boolean(firstProject) || undefined} aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
-    <ol className="mobile-publish-progress" aria-label="Upload steps">
+    {mobile ? <div className="project-creation-orientation"><ProjectCreationProgress current={stage} steps={stages}/>{categoryLabel && <p className="project-creation-context">{categoryLabel}</p>}</div> : <ol className="mobile-publish-progress" aria-label="Upload steps">
       {(detailsFirst ? ['Details', 'Files', 'Review'] : ['Files', 'Details', 'Review']).map((label, stepIndex) => <li key={label} aria-current={stepIndex === index ? 'step' : undefined} data-complete={stepIndex < index || undefined}>
         <span aria-hidden="true">{stepIndex < index ? <CheckIcon size={14} /> : stepIndex + 1}</span>{label}
       </li>)}
-    </ol>
+    </ol>}
     {flow.state === 'publishing' && <PublishingProgress flow={flow} />}
     <div ref={bodyRef} className="mobile-publish-body scrollbar-slim">
       <header className="mobile-publish-step-heading">
         <h3 id="mobile-publish-step-title" ref={headingRef} tabIndex={-1}>{titles[stage]}</h3>
-        {stage === 'files' && <p>Choose an image, adjust the crop and make it look its best.</p>}
+        {stage === 'files' && !mobile && <p>Choose an image, adjust the crop and make it look its best.</p>}
       </header>
       {notices}
       {flow.saveDraftError && <p role="alert" className="mobile-publish-error">{flow.saveDraftError} Your details and files are still here. Try again.</p>}
@@ -127,7 +128,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
         {backStep && <Button type="button" variant="secondary" size="lg" aria-label={mobile ? `Back to ${backStep === 'files' ? 'files' : 'project details'}` : undefined} disabled={busy || flow.hasCommittedProject || (mobile && backStep === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(backStep)}><ArrowLeftIcon size={18} aria-hidden="true" />Back</Button>}
         <Button type="submit" variant="primary" size="lg" fullWidth isLoading={flow.state === 'publishing' || flow.isSavingDraft}
           disabled={busy || (stage === 'files' && !flow.media.isComplete) || (stage === 'review' && !flow.canPublish)}>
-          {flow.state === 'publishing' ? 'Publishing…' : flow.isSavingDraft ? 'Saving details…' : stage === 'review' ? flow.hasCommittedProject ? 'Finish saving details' : 'Publish project' : detailsFirst && !flow.media.isComplete ? 'Continue to upload' : stage === 'details' || detailsFirst ? 'Review project' : 'Continue'}
+          {flow.state === 'publishing' ? 'Publishing…' : flow.isSavingDraft ? 'Saving details…' : stage === 'review' ? flow.hasCommittedProject ? 'Finish saving details' : 'Publish project' : mobile && stage === 'files' ? detailsFirst ? 'Review project' : 'Continue to details' : detailsFirst && !flow.media.isComplete ? 'Continue to upload' : stage === 'details' || detailsFirst ? 'Review project' : 'Continue'}
           {!busy && <ArrowRightIcon size={20} aria-hidden="true" />}
         </Button>
       </div>

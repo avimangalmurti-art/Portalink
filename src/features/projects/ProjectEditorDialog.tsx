@@ -290,7 +290,7 @@ function MobileProjectEditorScreen({ title, titleId, onClose, closeDisabled, dia
   const requestClose = () => { if (!closeDisabled) onClose(); };
   useImperativeHandle<HTMLElement | null, HTMLElement | null>(dialogRef, () => viewport.current, [viewport]);
   useModalFocus(true, viewport, requestClose, true);
-  return <ModalPortal><div className="mobile-upload-surface-backdrop" aria-hidden="true" /><section ref={viewport} className="mobile-project-editor-screen" data-mobile-upload-surface="editor" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+  return <ModalPortal><div className="mobile-upload-surface-backdrop" aria-hidden="true" /><section ref={viewport} className="mobile-project-editor-screen" data-mobile-upload-surface="editor" data-material="content" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId}>
     <ScreenBack visibleOnMobile action={requestClose}><header><button type="button" aria-label="Back" onClick={requestClose} disabled={closeDisabled}><ArrowLeftIcon aria-hidden="true" size={24} /></button><h1 id={titleId}>{title}</h1></header></ScreenBack>
     {children}{confirmation}
   </section></ModalPortal>;

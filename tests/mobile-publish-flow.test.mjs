@@ -64,8 +64,8 @@ test('Files → Details → Review preserves the same draft, files, cover and me
 test('no files or file preparation blocks Continue and Enter', async () => {
   for (const media of [{ items: [], isComplete: false, state: 'empty' }, { items: [{}], isComplete: true, state: 'selecting' }]) {
     const h = harness({ media }), tree = h.render();
-    assert.equal(button(tree, 'Continue').props.disabled, true);
-    await h.submit(tree); assert.ok(button(h.render(), 'Continue')); assert.deepEqual(h.calls, []);
+    assert.equal(button(tree, 'Continue to details').props.disabled, true);
+    await h.submit(tree); assert.ok(button(h.render(), 'Continue to details')); assert.deepEqual(h.calls, []);
   }
 });
 
@@ -86,7 +86,7 @@ test('validation/save failure stays on Details and repeated submits cannot dupli
 test('Back and edit retain input while dismissing a stale upload retry snapshot', () => {
   const h = harness({ step: 'preview' }), media = h.flow.media;
   action(h.render(), 'Edit selected files').props.onClick();
-  assert.ok(button(h.render(), 'Continue')); assert.equal(h.flow.media, media);
+  assert.ok(button(h.render(), 'Continue to details')); assert.equal(h.flow.media, media);
   assert.deepEqual(h.calls, ['dismiss-upload', 'reset-error', 'dismiss-save']);
   assert.equal(h.flow.location, 'London'); assert.equal(h.flow.metadata.title, 'Quiet Rooms');
 });
@@ -131,7 +131,7 @@ test('legacy first-project drafts use one editable description instead of story 
  test('legacy drafts can add files and continue without a title on the Files step', async () => {
  const h=harness({metadata:{title:'',summary:'Description',creationDetails:{madeIn:'2026-07',field:'Old field'}}},{firstProject:{name:'Creator',categories:['Work']}});
  let tree=h.render('files');
- assert.ok(button(tree,'Continue'));
+ assert.ok(button(tree,'Continue to details'));
  await h.submit(tree);
  assert.ok(button(h.render(),'Review project'));
  h.flow.step='preview';tree=h.render();
@@ -180,11 +180,28 @@ test('MOBILE Back follows the declared step order and WEB retains its original n
 });
 test('details-first project setup goes from files directly to review without a duplicate form or early publication',async()=>{
  const h=harness({}, {detailsFirst:true});let tree=h.render();
- assert.deepEqual(nodes(tree).filter(n=>n.type==='li').map(n=>React.Children.toArray(n.props.children).at(-1)),['Details','Files','Review']);
+ const progress=component(tree,'ProjectCreationProgress');
+ assert.deepEqual(Array.from(progress.props.steps),['details','files','review']);assert.equal(progress.props.current,'files');
  assert.ok(button(tree,'Review project'));
  await h.submit(tree);tree=h.render();
  assert.equal(h.flow.step,'preview');assert.deepEqual(h.calls,['save']);
  assert.ok(button(tree,'Publish project'));
  action(tree,'Edit project details').props.onClick();tree=h.render();
  assert.ok(component(tree,'ProfileField'));assert.equal(h.flow.metadata.title,'Quiet Rooms');
+});
+
+test('MOBILE uses the shared progress and one quiet portal context while WEB retains its existing rail and copy',()=>{
+ const mobile=harness({media:{items:[],isComplete:false,state:'empty'}},{detailsFirst:true}),tree=mobile.render();
+ assert.equal(component(tree,'ProjectCreationProgress').props.current,'files');
+ assert.equal(nodes(tree).some(node=>node.props.className==='mobile-publish-progress'),false);
+ assert.equal(nodes(tree).find(node=>node.type==='h3').props.children,'Add files');
+ assert.equal(nodes(tree).filter(node=>node.props.className==='project-creation-context').length,1);
+ assert.equal(button(tree,'Review project').props.disabled,true);
+ assert.doesNotMatch(text(tree),/Create your cover|Choose an image, adjust the crop/);
+ const prepared=harness().render();assert.equal(nodes(prepared).find(node=>node.type==='h3').props.children,'Choose a cover');
+ const web=harness({media:{items:[],isComplete:false,state:'empty'}},{detailsFirst:true},'web').render();
+ assert.equal(component(web,'ProjectCreationProgress'),undefined);
+ assert.deepEqual(nodes(web).filter(node=>node.type==='li').map(node=>React.Children.toArray(node.props.children).at(-1)),['Details','Files','Review']);
+ assert.equal(nodes(web).find(node=>node.type==='h3').props.children,'Create your cover');
+ assert.equal(button(web,'Continue to upload').props.disabled,true);
 });
