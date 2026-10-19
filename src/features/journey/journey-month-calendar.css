@@ -1,0 +1,60 @@
+.journey-month-calendar-overlay {
+  position: fixed; inset-inline: 0; top: var(--dialog-viewport-top, 0px); height: var(--dialog-viewport-height, 100dvh);
+  z-index: 180; display: grid; place-items: center; padding: 28px; background: rgb(0 0 0 / 36%);
+  color: var(--text-primary); overscroll-behavior: none;
+}
+.journey-month-calendar-screen {
+  display: flex; flex-direction: column; width: min(760px, 100%); height: min(860px, 100%); min-height: 0;
+  overflow: hidden; border: 1px solid var(--hairline-strong); border-radius: 20px; background: var(--surface-canvas);
+  box-shadow: 0 24px 72px rgb(0 0 0 / 22%); outline: none;
+}
+.journey-month-calendar-toolbar {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) 64px; gap: 8px; align-items: center; flex: none;
+  min-height: 72px; padding: 8px 20px; border-bottom: 1px solid var(--hairline); isolation: isolate;
+  background: color-mix(in srgb, var(--surface-canvas) 88%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(140%); backdrop-filter: blur(20px) saturate(140%);
+}
+.journey-month-calendar-toolbar button {
+  display: grid; place-items: center; min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--accent-text);
+  border-radius: 12px; padding: 0 8px; cursor: pointer;
+}
+.journey-month-calendar-toolbar .journey-month-calendar-close { color: var(--text-primary); }
+.journey-month-calendar-navigation { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.journey-month-calendar-navigation > span { min-width: 86px; text-align: center; font-size: 17px; font-weight: 600; white-space: nowrap; }
+.journey-month-calendar-today { font-size: 15px; font-weight: 500; }
+.journey-month-calendar-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px 36px; }
+.journey-month-calendar-month { scroll-margin-block-start: 20px; margin: 0 0 40px; }
+.journey-month-calendar-month:last-child { margin-bottom: 0; }
+.journey-month-calendar-month h2 { margin: 0 0 20px; font-size: 42px; font-weight: 650; line-height: 1.12; letter-spacing: -0.03em; }
+.journey-month-calendar-month h2 > small { display: block; margin-top: 6px; font-size: 14px; font-weight: 400; line-height: 1.3; letter-spacing: 0; color: var(--text-secondary); }
+.journey-month-calendar-month table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.journey-month-calendar-month th { height: 32px; padding: 0; text-align: center; font-size: 12px; line-height: 1; font-weight: 500; color: var(--text-secondary); }
+.journey-month-calendar-month tbody > tr { border-top: 1px solid var(--hairline); }
+.journey-month-calendar-month td { height: 86px; padding: 8px 0; vertical-align: top; text-align: center; }
+.journey-month-calendar-overlay .journey-month-calendar-screen .journey-month-calendar-month td > button {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 7px; width: 100%; min-height: 64px;
+  margin: 0; padding: 0; border: 0; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 10px;
+}
+.journey-month-calendar-overlay .journey-month-calendar-screen .journey-month-calendar-month td > button:disabled { opacity: 1; cursor: default; color: var(--text-primary); }
+.journey-month-calendar-number { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-size: 28px; font-weight: 400; line-height: 1; }
+.journey-month-calendar-overlay .journey-month-calendar-screen .journey-month-calendar-month td[data-weekend] button:not([data-has-work]):not([aria-current='date']) { color: var(--text-secondary); }
+.journey-month-calendar-overlay .journey-month-calendar-screen .journey-month-calendar-month button[aria-current='date'] .journey-month-calendar-number { background: var(--accent-primary); color: var(--accent-foreground); }
+.journey-month-calendar-dots { display: flex; justify-content: center; align-items: center; gap: 4px; min-height: 5px; }
+.journey-month-calendar-dots > span { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-primary); }
+.journey-month-calendar-dots > span:nth-child(2) { opacity: 0.7; }
+.journey-month-calendar-dots > span:nth-child(3) { opacity: 0.45; }
+.journey-month-calendar-dots > span[data-work-category='citation'] { background: var(--text-secondary); }
+.journey-month-calendar-screen button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.journey-month-calendar-overlay:where(.reduce-translucency *, .high-contrast *) .journey-month-calendar-toolbar { background: var(--surface-canvas); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.journey-month-calendar-overlay[data-presentation='mobile'] { padding: 0; background: var(--surface-canvas); }
+.journey-month-calendar-overlay[data-presentation='mobile'] .journey-month-calendar-screen { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; }
+.journey-month-calendar-overlay[data-presentation='mobile'] .journey-month-calendar-toolbar {
+  min-height: calc(64px + env(safe-area-inset-top, 0px)); padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  padding-inline-start: max(12px, env(safe-area-inset-left, 0px)); padding-inline-end: max(12px, env(safe-area-inset-right, 0px));
+}
+.journey-month-calendar-overlay[data-presentation='mobile'] .journey-month-calendar-scroll {
+  padding: 20px max(16px, env(safe-area-inset-right, 0px)) calc(28px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.journey-month-calendar-overlay[data-presentation='mobile'] .journey-month-calendar-month { margin-bottom: 32px; }
+.journey-month-calendar-overlay[data-presentation='mobile'] .journey-month-calendar-month h2 { font-size: 38px; }
+.journey-month-calendar-overlay[data-presentation='mobile'] .journey-month-calendar-month td { height: 76px; }

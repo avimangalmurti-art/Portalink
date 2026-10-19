@@ -80,15 +80,15 @@ export function FeatureCard({
       </button>
 
       <div className="flex items-center gap-2 border-t border-[var(--hairline)] bg-[var(--surface-raised)] px-3 py-2">
-        <button type="button" onClick={viewItem} aria-label={`View ${appName}`} className="shape-concentric h-10 w-10 shrink-0 bg-[var(--surface-sunken)] ring-1 ring-[var(--hairline)] transition-[transform,background-color] duration-180 ease-out hover:-translate-y-0.5 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" />
-        <button type="button" onClick={viewItem} aria-label={`View ${appName}`} className="min-w-0 flex-1 text-left transition-[transform,filter] duration-180 ease-out hover:-translate-y-0.5 hover:brightness-95 focus:outline-none">
+        <button type="button" onClick={viewItem} aria-label={`View ${appName}`} className="shape-concentric h-10 w-10 shrink-0 bg-[var(--surface-sunken)] ring-1 ring-[var(--hairline)] transition-[transform,background-color] duration-[var(--m-base)] ease-[var(--m-enter)] hover:-translate-y-0.5 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" />
+        <button type="button" onClick={viewItem} aria-label={`View ${appName}`} className="min-w-0 flex-1 text-left transition-[transform,filter] duration-[var(--m-base)] ease-[var(--m-enter)] hover:-translate-y-0.5 hover:brightness-95 focus:outline-none">
           <span className="block truncate text-[13px] font-semibold text-[var(--text-primary)]">{appName}</span>
           <span className="block truncate text-[11px] text-[var(--text-secondary)]">{appTagline}</span>
         </button>
         <button type="button" onClick={viewItem} aria-label={`View ${appName} for ${getItemPrice(appName)}`} style={{
         color: 'var(--accent-text)',
         backgroundColor: 'var(--accent-soft)'
-      }} className="shape-capsule px-3 py-1 text-[12px] font-semibold transition-[transform,background-color] duration-180 ease-out hover:-translate-y-0.5 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{getItemPrice(appName)}</button>
+      }} className="shape-capsule px-3 py-1 text-[12px] font-semibold transition-[transform,background-color] duration-[var(--m-base)] ease-[var(--m-enter)] hover:-translate-y-0.5 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{getItemPrice(appName)}</button>
       </div>
     </article>;
 }

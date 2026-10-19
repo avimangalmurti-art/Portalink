@@ -1,9 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 import { createPasswordRecoveryTracker } from './passwordRecovery';
 import { rumSupabaseFetch } from '../../features/performance/rum';
+import { createSessionRevocationObserver } from './sessionRevocation';
 
 const projectUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
+
+export async function readSocialProviders() {
+  requireSupabase();
+  const response = await fetch(`${projectUrl}/auth/v1/settings`, {
+    headers: { apikey: publishableKey }, signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error('Sign-in options could not be checked.');
+  const settings = await response.json();
+  return { google: settings.external?.google === true, apple: settings.external?.apple === true };
+}
 const configuredRuntimeMode = import.meta.env.VITE_RUNTIME_MODE?.trim().toLowerCase() ?? '';
 
 if (configuredRuntimeMode && configuredRuntimeMode !== 'prototype' && configuredRuntimeMode !== 'production') {
@@ -48,9 +59,28 @@ if (isProductionRuntime && !isSupabaseConfigured) {
   );
 }
 
+let observedAccessToken: string | null = null;
+const sessionRevocation = createSessionRevocationObserver({
+  fetch: rumSupabaseFetch,
+  endpoint: `${projectUrl}/rest/v1/rpc/require_active_account_session`,
+  publishableKey,
+  currentToken: () => observedAccessToken,
+  onRevoked: (token) => {
+    if (observedAccessToken !== token) return;
+    observedAccessToken = null;
+    // Run outside Auth callbacks/locks. Do not sign out a replacement login.
+    window.setTimeout(() => {
+      if (observedAccessToken !== null && observedAccessToken !== token) return;
+      observedAccessToken = null;
+      void supabase?.removeAllChannels();
+      void supabase?.auth.signOut({ scope: 'local' });
+    }, 0);
+  },
+});
+
 export const supabase = isSupabaseConfigured
   ? createClient(projectUrl, publishableKey, {
-      global: { fetch: rumSupabaseFetch },
+      global: { fetch: sessionRevocation.fetch },
       auth: {
         storageKey: authStorageKey,
         persistSession: true,
@@ -63,6 +93,17 @@ export const supabase = isSupabaseConfigured
 // Register before React mounts: the SDK emits PASSWORD_RECOVERY only once
 // while consuming the link, and late subscribers receive INITIAL_SESSION.
 supabase?.auth.onAuthStateChange((event, session) => passwordRecovery.record(event, session));
+supabase?.auth.onAuthStateChange((_event, session) => {
+  observedAccessToken = session?.access_token ?? null;
+});
+if (supabase && typeof window !== 'undefined') {
+  const checkVisibleSession = () => { if (document.visibilityState === 'visible') void sessionRevocation.check(); };
+  // Backend requests reject immediately. Idle foreground UI notices within 15s;
+  // waking a suspended phone/browser checks immediately on focus/visibility.
+  window.setInterval(checkVisibleSession, 15_000);
+  window.addEventListener('focus', checkVisibleSession);
+  document.addEventListener('visibilitychange', checkVisibleSession);
+}
 
 /** Password writes stay bound to the recovered account if another tab signs in. */
 export function createPasswordRecoveryClient() {
