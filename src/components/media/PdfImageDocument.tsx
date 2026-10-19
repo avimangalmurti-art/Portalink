@@ -14,6 +14,7 @@ import { MediaInteractionBar } from '../../features/media-interactions/MediaInte
 import { FocusedPageExitControl } from './FocusedPageExitControl';
 import { FocusedPageCounter } from './FocusedPageCounter';
 import { markRumPdf, rumViewToken } from '../../features/performance/rum';
+import { useMobileMediaRecovery } from './useMobileMediaRecovery';
 
 const MAX_RENDER_DIMENSION = 2048;
 const PDF_LOAD_TIMEOUT_MS = 30_000;
@@ -57,6 +58,8 @@ type PdfImagePageProps = {
   focusMemoryKey?: string;
   onToggleFocus: (pageNumber: number) => void;
   onSettled: (pageNumber: number) => void;
+  onRecoverDocument?: () => void;
+  recoveryKey?: string;
 };
 
 function PdfImagePage({
@@ -73,7 +76,9 @@ function PdfImagePage({
   isOwner,
   focusMemoryKey,
   onToggleFocus,
-  onSettled
+  onSettled,
+  onRecoverDocument,
+  recoveryKey
 }: PdfImagePageProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -89,6 +94,25 @@ function PdfImagePage({
   const [paintedPageNumber, setPaintedPageNumber] = useState<number | null>(null);
   const [nearViewport, setNearViewport] = useState(false);
   const enabled = requestedEnabled && (!retainCanvasWhileLoading || isFocused || nearViewport);
+  const recoveryIdentity = useRef({ document, pageNumber });
+  if (recoveryIdentity.current.document !== document || recoveryIdentity.current.pageNumber !== pageNumber) {
+    recoveryIdentity.current = { document, pageNumber };
+  }
+  const retry = () => {
+    // PDF.js retains rejected page/range promises in its transport. A fresh
+    // mobile document read clears those failures without replacing this reader.
+    if (retainCanvasWhileLoading && onRecoverDocument) {
+      onRecoverDocument();
+      return;
+    }
+    setPage(null);
+    setStatus('loading');
+    setAttempt(current => current + 1);
+  };
+  const cancelRecovery = useMobileMediaRecovery({
+    hostRef, identity: recoveryKey ?? recoveryIdentity.current, enabled: retainCanvasWhileLoading && enabled,
+    failed: status === 'failed', loading: status === 'loading' || status === 'waiting', onRetry: retry,
+  });
   useEffect(() => {
     const host = hostRef.current;
     if (!retainCanvasWhileLoading || isFocused || !host) return;
@@ -292,7 +316,10 @@ function PdfImagePage({
     aria-pressed={isFocused ? undefined : false}
     aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Single-page view' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`}
     aria-busy={status === 'waiting' || status === 'loading' || (retainCanvasWhileLoading && paintedPageNumber !== pageNumber)}
-    onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })}
+    onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => {
+      if (retainCanvasWhileLoading && status !== 'ready') return;
+      updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft });
+    }}
     onDoubleClick={isFocused ? undefined : (event) => {
       event.preventDefault();
       if (performance.now() - lastTouchToggleAtRef.current < 500) return;
@@ -331,9 +358,8 @@ function PdfImagePage({
       <button
         type="button"
         onClick={() => {
-          setPage(null);
-          setStatus('loading');
-          setAttempt((current) => current + 1);
+          cancelRecovery();
+          retry();
         }}
         aria-label={`Retry ${label}, page ${pageNumber}`}
         className="inline-flex items-center justify-center rounded-[var(--control-radius)] p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
@@ -372,6 +398,21 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   const onPageCountRef = useRef(onPageCount);
   const settledPagesRef = useRef(new Set<number>());
   const [document, setDocument] = useState<PdfDocument | null>(null);
+  const [readAttempt, setReadAttempt] = useState(0);
+  const recoveryInFlight = useRef(false);
+  const hasDocument = useRef(false);
+  const activeLoadingTask = useRef<PdfLoadingTask | null>(null);
+  const mobileImportRecovery = useRef(false);
+  useEffect(() => () => {
+    void activeLoadingTask.current?.destroy();
+    activeLoadingTask.current = null;
+  }, []);
+  const readIdentity = useRef({ source, memoryKey, readingMode, verticalReading });
+  const recoverDocument = useCallback(() => {
+    if (recoveryInFlight.current) return;
+    recoveryInFlight.current = true;
+    setReadAttempt(current => current + 1);
+  }, []);
   useEffect(() => {
     onPreviewDocument?.(document);
     return () => onPreviewDocument?.(null);
@@ -434,14 +475,30 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     let cancelled = false;
     let loadingTask: PdfLoadingTask | null = null;
     let loadTimeout: number | undefined;
-
-    settledPagesRef.current.clear();
-    setDocument(null);
-    setPageCount(0);
-    setRenderThrough(0);
-    setFocusedPageNumber(verticalReading ? null : linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? (readingMode ? 1 : null));
+    const previous = readIdentity.current;
+    const sameRead = previous.source === source && previous.memoryKey === memoryKey &&
+      previous.readingMode === readingMode && previous.verticalReading === verticalReading;
+    const recovering = sameRead && hasDocument.current;
+    readIdentity.current = { source, memoryKey, readingMode, verticalReading };
+    recoveryInFlight.current = true;
+    if (!recovering) {
+      void activeLoadingTask.current?.destroy();
+      activeLoadingTask.current = null;
+      hasDocument.current = false;
+      settledPagesRef.current.clear();
+      setDocument(null);
+      setPageCount(0);
+      setRenderThrough(0);
+      setFocusedPageNumber(verticalReading ? null : linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? (readingMode ? 1 : null));
+    }
+    const fail = () => {
+      recoveryInFlight.current = false;
+      void loadingTask?.destroy();
+      // A failed reconnection keeps the existing canvas and page selection.
+      if (!recovering) onErrorRef.current();
+    };
     void (async () => {
-      const pdfjs = await loadPdfJs();
+      const pdfjs = await loadPdfJs(mobileImportRecovery.current);
       if (cancelled) {
         return;
       }
@@ -452,7 +509,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
         }
         cancelled = true;
         void loadingTask?.destroy();
-        onErrorRef.current();
+        fail();
       }, PDF_LOAD_TIMEOUT_MS);
       const nextDocument = await loadingTask.promise;
       if (cancelled) {
@@ -460,23 +517,29 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
         return;
       }
       window.clearTimeout(loadTimeout);
+      recoveryInFlight.current = false;
+      hasDocument.current = true;
+      const previousTask = activeLoadingTask.current;
+      activeLoadingTask.current = loadingTask;
       setDocument(nextDocument);
+      if (previousTask !== loadingTask) void previousTask?.destroy();
       setPageCount(nextDocument.numPages);
       setFocusedPageNumber((current) => current === null ? null : Math.min(nextDocument.numPages, Math.max(1, current)));
       onPageCountRef.current?.(nextDocument.numPages);
     })().catch(() => {
       if (!cancelled) {
         window.clearTimeout(loadTimeout);
-        onErrorRef.current();
+        fail();
       }
     });
 
     return () => {
       cancelled = true;
       window.clearTimeout(loadTimeout);
-      void loadingTask?.destroy();
+      // Keep an adopted transport alive while its replacement is in flight.
+      if (activeLoadingTask.current !== loadingTask) void loadingTask?.destroy();
     };
-  }, [linkedPageNumber, memoryKey, source, readingMode, verticalReading]);
+  }, [linkedPageNumber, memoryKey, source, readingMode, verticalReading, readAttempt]);
 
   const focusPage = useCallback((pageNumber: number) => {
     setFocusedPageNumber(pageNumber);
@@ -507,6 +570,8 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     if (next !== focusedPageNumber) focusPage(next);
   }, [focusPage, focusedPageNumber, pageCount]);
   const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPageNumber !== null, zoom, onMove: moveFocusedPage, onExit: exitFocus, readingMode });
+  // Resizing alone must not replace the active PDF transport.
+  mobileImportRecovery.current = isMobile;
   useEffect(() => {
     if (focusedPageNumber !== null && pageCount > 0 && focusedPageNumber > pageCount) exitFocus();
   }, [exitFocus, focusedPageNumber, pageCount]);
@@ -566,6 +631,8 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           focusMemoryKey={focusedPageNumber === pageNumber ? `${memoryKey}:page:${pageNumber}` : undefined}
           onToggleFocus={focusPage}
           onSettled={handlePageSettled}
+          onRecoverDocument={isMobile ? recoverDocument : undefined}
+          recoveryKey={`${memoryKey}:${source}:${pageNumber}`}
         />
       </li>)}
     </ol>}

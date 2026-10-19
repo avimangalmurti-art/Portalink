@@ -11,6 +11,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import { FocusedPageExitControl } from './FocusedPageExitControl';
 import { FocusedPageCounter } from './FocusedPageCounter';
+import { useMobileMediaRecovery } from './useMobileMediaRecovery';
 
 function deepLinkedImageId(pages: ProjectAttachment[]): string | null {
   if (typeof window === 'undefined') return null;
@@ -46,6 +47,24 @@ function ImagePage({
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   // Remounting the element is what a retry actually means for an image.
   const [attempt, setAttempt] = useState(0);
+  const recoveryIdentity = `${projectId}:${attachment.id}:${attachment.sourceUrl ?? ''}`;
+  const previousSource = useRef(recoveryIdentity);
+  useLayoutEffect(() => {
+    if (previousSource.current === recoveryIdentity) return;
+    previousSource.current = recoveryIdentity;
+    if (isMobile) {
+      setStatus('loading');
+      setAttempt(current => current + 1);
+    }
+  }, [isMobile, recoveryIdentity]);
+  const retry = () => {
+    setStatus('loading');
+    setAttempt(current => current + 1);
+  };
+  const cancelRecovery = useMobileMediaRecovery({
+    hostRef, identity: recoveryIdentity, enabled: isMobile && shouldRender && Boolean(attachment.sourceUrl),
+    failed: status === 'error', loading: status === 'loading', onRetry: retry,
+  });
   const loadingStyle = {
     '--page-loading-ratio': attachment.metadata?.widthPixels && attachment.metadata?.heightPixels
       ? `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}` : undefined,
@@ -86,7 +105,7 @@ function ImagePage({
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
-  return <li ref={hostRef} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })} onDoubleClick={isFocused ? undefined : (event) => {
+  return <li ref={hostRef} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={isFocused ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
@@ -121,8 +140,8 @@ function ImagePage({
         </div>}
       {status === 'error' ? <div onPointerUp={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} style={loadingStyle} data-page-loading="" className="flex min-h-[240px] w-full items-center justify-center p-5">
           <ErrorState title="This image could not be displayed" description="Check your connection, then try loading this image again." onRetry={() => {
-        setStatus('loading');
-        setAttempt((current) => current + 1);
+        cancelRecovery();
+        retry();
       }} />
         </div> : <ResponsiveImage data-media-page-surface="" key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} loading={isMobile ? 'eager' : 'lazy'} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media m-auto max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}

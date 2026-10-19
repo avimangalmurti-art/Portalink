@@ -15,6 +15,8 @@ function harness(retainCanvasWhileLoading = true, focused = true, throwRender = 
   const slots = [], effects = [], tasks = [];
   const queuePageRender = sourceModule('src/components/media/pageRenderQueue.ts').createPageRenderQueue();
   let cursor = 0, dirty = false, tree, props, intersection;
+  let recovery, recoveryCancels = 0;
+  const memoryWrites = [];
   class Canvas {
     width = 300; height = 150; painted = null;
     ownerDocument = { createElement: () => new Canvas() };
@@ -44,7 +46,8 @@ function harness(retainCanvasWhileLoading = true, focused = true, throwRender = 
     require(name) {
       if (name === 'react') return hooks;
       if (name === './pageRenderQueue') return {queuePageRender};
-      if (name === './viewerMemory') return { readViewerMemory: () => ({}), updateViewerMemory() {} };
+      if (name === './viewerMemory') return { readViewerMemory: () => ({ scrollTop: 140, scrollLeft: 70 }), updateViewerMemory: (...args) => memoryWrites.push(args) };
+      if (name === './useMobileMediaRecovery') return { useMobileMediaRecovery: options => { recovery = options; return () => { recoveryCancels++; }; } };
       if (name === '../../features/performance/rum') return { rumViewToken: () => null, markRumPdf() {} };
       return { InterfaceIcon: () => null, RotateCcwIcon: () => null };
     },
@@ -52,6 +55,7 @@ function harness(retainCanvasWhileLoading = true, focused = true, throwRender = 
   props = { projectId: 'project', attachmentId: 'pdf', label: 'Work', pageNumber: 1, enabled: true,
     isFocused: focused, zoom: 1, retainCanvasWhileLoading, showMediaInteractions: false, onSettled() {},
     document: { getPage: async pageNumber => ({ pageNumber, cleanup() {},
+      getTextContent: async () => ({ items: [] }),
       getViewport: ({ scale }) => ({ width: 600 * scale, height: (pageNumber === 1 ? 900 : 800) * scale }),
       render({ canvas: target }) {
         if (throwRender) throw new Error('Canvas allocation failed');
@@ -76,7 +80,9 @@ function harness(retainCanvasWhileLoading = true, focused = true, throwRender = 
       await Promise.resolve();
     }
   }
-  return { canvas, tasks, flush, get tree() { return tree; },
+  return { canvas, host, tasks, flush, memoryWrites, get tree() { return tree; }, get recovery() { return recovery; }, get recoveryCancels() { return recoveryCancels; },
+    async retry() { recovery.onRetry(); await flush(); },
+    async setProps(patch) { props = { ...props, ...patch }; dirty = true; await flush(); },
     async intersect(visible) { intersection([{ isIntersecting: visible }]); await flush(); },
     async move(pageNumber) { props = { ...props, pageNumber }; dirty = true; await flush(); },
     unmount() { for (const slot of slots) slot?.cleanup?.(); },
@@ -114,6 +120,44 @@ test('WEB retains direct canvas rendering', async () => {
   const h = harness(false); await h.flush();
   assert.equal(h.tasks[0].target, h.canvas);
   h.tasks[0].finish(); await h.flush(); assert.equal(h.canvas.painted, 1); h.unmount();
+});
+
+test('mobile failed-page recovery retries in place while preserving paint, zoom and saved pan', async () => {
+  const h = harness(); await h.flush(); h.tasks[0].finish(); await h.flush();
+  await h.setProps({ focusMemoryKey: 'reader:page:2', zoom: 2.5 });
+  await h.move(2); h.tasks.at(-1).fail(); await h.flush();
+  const identity = h.recovery.identity, oldCanvas = h.canvas;
+  assert.equal(h.recovery.failed, true); assert.equal(h.recovery.enabled, true);
+  h.tree.props.onScroll({ currentTarget: { scrollTop: 0, scrollLeft: 0 } });
+  assert.equal(h.memoryWrites.length, 0, 'failed content must not overwrite saved pan with clamped offsets');
+  await h.retry();
+  assert.equal(h.canvas, oldCanvas); assert.equal(h.canvas.painted, 1);
+  assert.equal(h.recovery.identity, identity);
+  assert.equal(h.recovery.loading, true);
+  h.tasks.at(-1).finish(); await h.flush();
+  assert.equal(h.canvas.painted, 2); assert.equal(h.recovery.failed, false);
+  assert.equal(h.recovery.loading, false, 'replacement must be ready before accepting scroll writes');
+  assert.equal(h.host.scrollTop, 140); assert.equal(h.host.scrollLeft, 70);
+  const canvases = [];
+  function visit(node) { if (!node || typeof node !== 'object') return; if (node.type === 'canvas') canvases.push(node); React.Children.forEach(node.props?.children, visit); }
+  visit(h.tree);
+  assert.equal(canvases[0].props.style.width, '975px');
+  h.tree.props.onScroll({ currentTarget: { scrollTop: 170, scrollLeft: 90 } });
+  assert.equal(h.memoryWrites[0][0], 'reader:page:2');
+  assert.deepEqual({ ...h.memoryWrites[0][1] }, { scrollTop: 170, scrollLeft: 90 });
+  h.unmount();
+});
+
+test('WEB page recovery remains disabled and manual retry cancels any queued mobile intent', async () => {
+  const web = harness(false); await web.flush(); web.tasks[0].fail(); await web.flush();
+  assert.equal(web.recovery.enabled, false);
+  const buttons = [];
+  function visit(node) { if (!node || typeof node !== 'object') return; if (node.type === 'button') buttons.push(node); React.Children.forEach(node.props?.children, visit); }
+  visit(web.tree);
+  buttons.find(node => node.props['aria-label'] === 'Retry Work, page 1').props.onClick();
+  await web.flush();
+  assert.equal(web.recoveryCancels, 1); assert.equal(web.tasks.length, 2);
+  web.unmount();
 });
 
 test('failed replacements preserve the last paint and expose a retry instead of a white page', async () => {
