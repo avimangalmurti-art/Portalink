@@ -14,7 +14,7 @@ export function useAuthoringFocus(frameRef: RefObject<HTMLElement>, enabled = tr
       if (viewport && Math.abs(viewport.scale - 1) > 0.01) return;
       const active = document.activeElement;
       if (!(active instanceof HTMLElement) || !frame.contains(active) || !active.matches(editableSelector)) return;
-      const scroller = active.closest<HTMLElement>('.mobile-publish-body, #project-editor-form');
+      const scroller = active.closest<HTMLElement>('.mobile-publish-body, #project-editor-form, #project-setup-form');
       if (!scroller || !frame.contains(scroller)) return;
       const fieldBounds = active.getBoundingClientRect();
       const scrollBounds = scroller.getBoundingClientRect();

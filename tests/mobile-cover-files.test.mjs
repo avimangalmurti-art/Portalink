@@ -52,3 +52,17 @@ test('Add accepts a batch and thumbnail selection updates the same draft',()=>{
 test('busy or already uploaded files cannot be changed through cover or file controls',()=>{
  for(const h of[harness(true),harness(false,'uploaded')]){const all=nodes(h.render());assert.equal(all.find(n=>n.type==='CoverFilmstrip').props.disabled,true);for(const n of all.filter(n=>n.type==='button'||n.type==='input'))assert.equal(n.props.disabled,true);}
 });
+
+test('empty MOBILE Files has an explicit chooser before cover authoring and WEB keeps its original empty control',()=>{
+ const mobile=harness(false,'idle',{count:0}),tree=mobile.render(),all=nodes(tree);
+ const chooser=all.find(node=>node.props['aria-label']==='Choose project files');
+ assert.ok(chooser);assert.match(text(chooser),/Choose files/);assert.match(text(chooser),/Choose a cover next/);
+ assert.equal(all.find(node=>node.props['aria-label']==='Selected files'),undefined);
+ chooser.props.onClick();assert.deepEqual(mobile.calls,['picker']);
+ const target={files:[{name:'first.png'},{name:'second.pdf'}],value:'picked'};
+ all.find(node=>node.type==='input').props.onChange({target});assert.equal(mobile.calls.at(-1),target.files);assert.equal(target.value,'');
+ const web=nodes(harness(false,'idle',{count:0,presentation:'web'}).render());
+ assert.ok(web.find(node=>node.props['aria-label']==='Choose an image'));
+ assert.ok(web.find(node=>node.props['aria-label']==='Selected files'));
+ assert.equal(web.some(node=>node.props.className==='mobile-cover-empty-copy'),false);
+});
