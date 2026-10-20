@@ -1949,6 +1949,11 @@ button[data-portalink-tile],
   transform-origin: 50% 58%;
   will-change: transform;
 }
+/* The outer sortable cell owns drag movement; idle mobile artwork stays still. */
+[data-presentation='mobile'] .profile-project-reorder-card {
+  animation: none;
+  will-change: auto;
+}
 @media (prefers-reduced-motion: reduce) {
   .profile-project-reorder-card {
     animation: none !important;
