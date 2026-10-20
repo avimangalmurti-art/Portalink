@@ -22,7 +22,7 @@ type PageProgress = {
 };
 
 /** Private Studio presentation over the same account collections as Saved/Inbox. */
-export function useStudioData(category: StudioCategory = 'all', tab: StudioBookmarkTab = 'projects') {
+export function useStudioData(category: StudioCategory = 'bookmarks', tab: StudioBookmarkTab = 'projects') {
   const auth = useAuth();
   const account = auth.user?.id ?? null;
   const services = useServices();
@@ -65,16 +65,15 @@ export function useStudioData(category: StudioCategory = 'all', tab: StudioBookm
   const rows = sections.flatMap(section => section.rows);
 
   const checks: Array<{ loading: boolean; error?: string | null; at: number | null }> = [];
-  if (category === 'published' || category === 'all') checks.push({ loading: published.loading, error: published.error, at: published.fetchedAt });
-  if (category === 'all' || category === 'bookmarks' && tab === 'projects') checks.push({ loading: savedProjects.phase === 'loading', error: savedProjects.error, at: savedProjects.updatedAt });
-  if (category === 'all' || category === 'bookmarks' && tab === 'pages') checks.push({ loading: pages.loading, error: pages.error, at: pages.fetchedAt });
-  if (category === 'all' || category === 'bookmarks' && tab === 'creators') checks.push({ loading: creators.loading, error: creators.error, at: creators.fetchedAt });
-  if (category === 'activity' || category === 'all') checks.push({ loading: activity.status === 'loading' || activity.status === 'idle', error: activity.error, at: activity.updatedAt });
+  if (category === 'published') checks.push({ loading: published.loading, error: published.error, at: published.fetchedAt });
+  if (category === 'bookmarks' && tab === 'projects') checks.push({ loading: savedProjects.phase === 'loading', error: savedProjects.error, at: savedProjects.updatedAt });
+  if (category === 'bookmarks' && tab === 'pages') checks.push({ loading: pages.loading, error: pages.error, at: pages.fetchedAt });
+  if (category === 'bookmarks' && tab === 'creators') checks.push({ loading: creators.loading, error: creators.error, at: creators.fetchedAt });
+  if (category === 'activity') checks.push({ loading: activity.status === 'loading' || activity.status === 'idle', error: activity.error, at: activity.updatedAt });
   const error = checks.map(check => check.error).filter(Boolean).join(' ') || null;
   const status = error ? 'error' as const : checks.some(check => check.loading) ? 'loading' as const : 'ready' as const;
   const times = checks.flatMap(check => check.at === null ? [] : [check.at]);
-  // All describes the oldest successful read represented by this screen. Never
-  // imply that a failed or not-yet-completed request just refreshed its content.
+  // Never imply that a failed or not-yet-completed request refreshed this screen.
   const updatedAt = status === 'ready' && times.length ? Math.min(...times) : null;
 
   async function loadMore() {
@@ -132,7 +131,7 @@ export function useStudioData(category: StudioCategory = 'all', tab: StudioBookm
     published.retry(); creators.retry(); pages.retry(); savedProjects.retry(); activity.retry();
   }
 
-  const showsPages = category === 'all' || category === 'bookmarks' && tab === 'pages';
+  const showsPages = category === 'bookmarks' && tab === 'pages';
   return {
     rows, sections, status, error, refresh, updatedAt,
     hasMore: showsPages && Boolean(pageBatch?.nextCursor), loadMore,

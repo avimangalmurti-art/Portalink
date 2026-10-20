@@ -46,7 +46,9 @@ test('single-column rendered documents retain vertical reading and the existing 
     if (name === './useFocusedPageSwipe') return { useFocusedPageSwipe: () => ({ isMobile: true, swipeStyle: {}, swipeHandlers: {} }) };
     if (name === './viewerMemory') return { readViewerMemory: () => ({focusedPageNumber: 1}), updateViewerMemory: (key, patch) => writes.push({ key, patch }) };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value, MAX_PAGES_PER_ROW: 7 };
+    if (name === './DocumentGridPreview') return {DocumentGridPreview:'document-grid-preview'};
     if (name === './PdfImageDocument') return { PdfImageDocument: 'live-pdf' };
+    if (name === './useMobileMediaRecovery') return { useMobileMediaRecovery: () => () => undefined };
     return new Proxy({}, { get: () => 'control' });
   } });
   const attachment = { id: 'pdf', displayName: 'Report', sourceUrl: 'report.pdf', metadata: { renderedPages: [1, 2, 3].map(index => ({ withinDocumentIndex: index, sourceUrl: `page-${index}.png`, storagePath: `page-${index}`, width: 600, height: 900 })) } };
@@ -54,20 +56,21 @@ test('single-column rendered documents retain vertical reading and the existing 
   const tree = render();
   const list = nodes(tree).find(node => node.type === 'ol');
   assert.equal(list.props.style.gridTemplateColumns, 'repeat(1, minmax(0, 1fr))');
-  assert.equal(nodes(list).filter(node => node.type === 'img').length, 3);
-  assert.ok(nodes(list).filter(node => node.type === 'img').every(node => node.props.className.includes('w-full')), 'Pages fill width even if the stored image is small');
-  const pages = nodes(list).filter(node => node.type === 'img');
+  const pageImages = tree => nodes(tree).filter(node => node.type === 'img' || node.type?.name === 'RecoverableDocumentImage');
+  assert.equal(pageImages(list).length, 3);
+  assert.ok(pageImages(list).every(node => node.props.className.includes('w-full')), 'Pages fill width even if the stored image is small');
+  const pages = pageImages(list);
   assert.equal(pages[0].props.fetchpriority, 'high');
   assert.equal(pages[1].props.fetchpriority, 'auto');
   assert.ok(pages.every(page => page.props.fetchPriority === undefined), 'React 18 receives the supported lowercase DOM attribute');
   assert.ok(nodes(tree).some(node => /overflow-y-auto/.test(node.props.className ?? '')));
   const denser = render({ columns: 2 });
   assert.equal(nodes(denser).find(node => node.type === 'ol').props.style.gridTemplateColumns, 'repeat(2, minmax(0, 1fr))');
-  assert.equal(nodes(denser).filter(node => node.type === 'img').length, 3, 'explicit density keeps every page in vertical document flow');
+  assert.equal(nodes(denser).filter(node => node.type === 'document-grid-preview').length, 3, 'explicit density keeps every page in vertical document flow');
   const firstPage = nodes(list).find(node => node.type === 'li');
   const touch = { pointerType: 'touch', clientX: 90, clientY: 100, preventDefault() { /* Synthetic touch event. */ } };
   firstPage.props.onPointerUp(touch); now += 100; firstPage.props.onPointerUp(touch);
-  assert.equal(nodes(render()).filter(node => node.type === 'img').length, 1);
+  assert.equal(pageImages(render()).length, 1);
   assert.equal(writes.at(-1).patch.focusedPageNumber, 0);
   assert.match(writes.at(-1).key, /^shared:document:/);
   const live = nodes(render({ attachment: { ...attachment, metadata: {} } })).find(node => node.type === 'live-pdf');
@@ -88,4 +91,18 @@ test('live PDF overview fits width even when the page is taller than the viewpor
     assert.equal(vm.runInNewContext(scale, { readingMode: true, isFocused: true, widthScale: width / 600, heightScale: 300 / 900 }), width / 600);
     assert.equal(vm.runInNewContext(scale, { readingMode: false, isFocused: true, widthScale: width / 600, heightScale: 300 / 900 }), 300 / 900);
   }
+});
+
+test('saved-page links choose the actual single-page viewer on mobile while normal reading stays vertical',()=>{
+ const file=ts.createSourceFile('viewer.tsx',read('../src/components/media/ProjectMediaViewer.tsx'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ const names=['singlePageQuery','singlePageNumber','isSavedSinglePage','isDocumentReading','isVerticalReading'];const initializers=new Map();
+ function visit(node){if(ts.isVariableDeclaration(node)&&names.includes(node.name.getText(file)))initializers.set(node.name.getText(file),node.initializer.getText(file));ts.forEachChild(node,visit);}visit(file);
+ assert.equal(initializers.size,names.length);
+ const code=names.map(name=>`const ${name}=${initializers.get(name)};`).join('\n')+'result={isSavedSinglePage,isDocumentReading,isVerticalReading};';
+ const evaluate=(search,kind='document',isMobileViewer=true)=>{const scope={window:{location:{search}},URLSearchParams,active:{id:'document',kind},isMobileViewer};vm.runInNewContext(code,scope);return scope.result;};
+ assert.equal(evaluate('?media=document&page=23&view=page').isSavedSinglePage,true);
+ assert.equal(evaluate('?media=document&page=23&view=page').isVerticalReading,false);
+ assert.equal(evaluate('?media=document&page=2&view=page','image').isVerticalReading,false);
+ for(const search of ['', '?media=document&page=23','?media=other&page=23&view=page','?media=document&page=0&view=page','?media=document&page=bad&view=page'])assert.equal(evaluate(search).isVerticalReading,true);
+ assert.equal(evaluate('?media=document&page=23&view=page','document',false).isVerticalReading,false);
 });

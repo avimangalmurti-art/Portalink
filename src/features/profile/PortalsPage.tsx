@@ -1,6 +1,6 @@
 import { SavedChangeNotice } from '../../components/ui/SavedChangeNotice';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XIcon } from 'lucide-react';
+import { CheckIcon, LayoutGridIcon, ListIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import type { ProfileQuery } from '../../contexts/ProfileDataContext';
 import type { ProfileOnboardingStatus } from '../../types/profile';
@@ -30,6 +30,7 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
 }) {
   const presentation = usePresentation();
   const auth = useAuth();
+  const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [isAdding, setIsAdding] = useState(false);
   const [renaming, setRenaming] = useState<{ id: string; label: string } | null>(null);
   const active = useRef(true);
@@ -76,7 +77,7 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
   } else if (profile.categories.length === 0) {
     content = <EmptyState title="No portals yet" />;
   } else {
-    content = <MobileReorderList items={categories} label={ownsProfile ? 'Your portals' : `${profile.name} portals`} className="mobile-portals-list" itemClassName="mobile-portal-item"
+    content = <MobileReorderList items={categories} label={ownsProfile ? 'Your portals' : `${profile.name} portals`} className="mobile-portals-list" layout={layout} itemClassName="mobile-portal-item"
       disabled={!ownsProfile || actionsDisabled || Boolean(renaming) || isAdding}
       groupForItem={category => ownsProfile && management.arrangement?.hiddenCategoryIds.includes(category.id) ? 'hidden' : 'visible'}
       onReorder={reordered => { if (ownsProfile && !actionsDisabled) void management.reorderCategories(reordered.map(category => category.id)); }}
@@ -100,10 +101,11 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
       </>} />;
   }
 
-  return <section data-saved-change-scope="" className="mobile-portals-page" aria-labelledby="mobile-portals-title">
+  return <section data-saved-change-scope="" className="mobile-portals-page" data-portals-layout={layout} aria-labelledby="mobile-portals-title">
     <header data-mobile-safe-header="" className="global-control-header shrink-0 gap-2 px-4">
       <button type="button" aria-label="Go back" title="Go back" className="mobile-portal-action" onClick={onBack}><InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" mirroredInRtl /></button>
       <h1 id="mobile-portals-title" className="min-w-0 flex-1 truncate text-[20px] font-semibold">Portals</h1>
+      {profile && status === 'ready' && (profileContext || ownsProfile) && <button type="button" className="mobile-portal-action" aria-label={layout === 'list' ? 'Show portals as cards' : 'Show portals as list'} title={layout === 'list' ? 'Card view' : 'List view'} onClick={() => setLayout(current => current === 'list' ? 'grid' : 'list')}><InterfaceIcon icon={layout === 'list' ? LayoutGridIcon : ListIcon} size="lg" /></button>}
       {ownsProfile && <button type="button" aria-label="Add portal" aria-haspopup="dialog" disabled={actionsDisabled} className="mobile-portal-action" onClick={() => { management.dismissFailure(); setIsAdding(true); }}><InterfaceIcon icon={PlusIcon} size="lg" weight="medium" /></button>}
     </header>
     <div className="mobile-portals-scroll scrollbar-overlay" data-mobile-scroll-end="">

@@ -377,11 +377,12 @@ export function useRouteNavigator() {
     portals: () => navigate(routes.portals.path),
     insights: () => navigate(routes.insights.path),
     studio: () => navigate(routes.studio.path),
-    messages: (conversationId?: Id, replace = false, recipientId?: Id) => {
+    messages: (conversationId?: Id, replace = false, recipientId?: Id, state?: Record<string, unknown>) => {
       const params = new URLSearchParams();
       if (conversationId) params.set('conversation', conversationId);
       if (recipientId) params.set('recipient', recipientId);
-      navigate(`${routes.messages.path}${params.size ? `?${params.toString()}` : ''}`, { replace });
+      const entryState = state ?? (locationRef.current.pathname === routes.messages.path ? locationRef.current.state : undefined);
+      navigate(`${routes.messages.path}${params.size ? `?${params.toString()}` : ''}`, { replace, ...(entryState ? { state: entryState } : {}) });
     },
     controlCenter: () => {
       const current = locationRef.current;

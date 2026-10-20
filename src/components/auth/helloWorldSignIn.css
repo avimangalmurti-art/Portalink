@@ -1,7 +1,7 @@
 /* Sign-in shares Hello World's canvas and animation on both presentations.
    Scope every override to this view; signup and recovery retain their frames. */
 #root .codex-shell .auth-signin-experience.account-welcome-overlay[data-account-signin] {
-  background: #f8fdfc !important;
+  background: #fdffff !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -9,14 +9,14 @@
   --text-primary: #071326;
   --text-secondary: #626a78;
   --text-tertiary: #626a78;
-  --surface-sunken: #f8fdfc;
+  --surface-sunken: #fdffff;
   --hairline-strong: #929aa4;
   --control-hover-surface: #edf2f3;
   --focus-ring: #071326;
   --status-danger: #b42318;
   color: #071326 !important;
   color-scheme: light;
-  background: #f8fdfc !important;
+  background: #fdffff !important;
   border: 0 !important;
   box-shadow: none !important;
 }
@@ -39,7 +39,7 @@
   overflow: hidden;
   height: clamp(180px, calc(var(--dialog-viewport-height, 100dvh) - 400px), 380px);
   margin-bottom: 16px;
-  background: #f8fdfc;
+  background: #fdffff;
   pointer-events: none;
 }
 #root .codex-shell [data-account-signin] .portalink-splash-media {
@@ -56,7 +56,7 @@
   border-radius: 18px !important;
   corner-shape: round;
   color: #071326 !important;
-  background: #f8fdfc !important;
+  background: #fdffff !important;
 }
 #root .codex-shell [data-account-signin] form button[type='submit'] {
   min-height: 52px;

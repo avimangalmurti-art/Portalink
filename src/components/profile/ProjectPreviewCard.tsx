@@ -13,10 +13,13 @@ import { ProjectCover } from '../media/ProjectCover';
 import { ProjectHoverDetails } from './ProjectHoverDetails';
 import type { ImagePriority } from '../ui/ResponsiveImage';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { warmProjectDocumentRenderer } from '../media/warmDocumentRenderer';
 
 const ProjectPreviewExtension = lazy(() => import('./ProjectPreviewExtension').then(module => ({ default: module.ProjectPreviewExtension })));
 
 type Props = {
+  /** Retained catalogues keep their layout/state but cannot own body popups. */
+  active?: boolean;
   onEditDescription?: () => void;
   contextHandlers?: ContextTarget['handlers'];
   project: Project;
@@ -27,6 +30,7 @@ type Props = {
   onWarmCreator?: () => void;
   creatorHref?: string;
   label?: string;
+  contentTypeLabel?: string;
   href?: string;
   onCollapse?: () => void;
   className?: string;
@@ -46,10 +50,11 @@ type Props = {
 };
 
 /** Artwork stays fixed; each presentation places the extension over the next row. */
-export function ProjectPreviewCard({ contextHandlers, onEditDescription, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
-  label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
+export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescription, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
+  label = `Open ${project.title}`, contentTypeLabel, href, onCollapse, className = '', sizes, priority = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio, sharedCoverFallback = false, allowPdfFallback = true, allowVideoFallback = true }: Props) {
   const [popupOpen, setPopupOpen] = useState(false);
+  useEffect(() => { if (!active) setPopupOpen(false); }, [active]);
   const isMobile = usePresentation() === 'mobile';
   const press = useMobileProjectContext(project, creator.id, contextHandlers, disabled);
   // On phones artwork opens the work on its first tap. Details have a separate
@@ -60,7 +65,10 @@ export function ProjectPreviewCard({ contextHandlers, onEditDescription, project
   const openProps = {
     'data-preview-open': '', 'data-project-continuity-surface': '', 'data-project-continuity-id': project.id,
     style: projectContinuityStyle(project.id), onPointerEnter: onWarmCreator, onFocus: onWarmCreator,
-    onClick: (event: React.MouseEvent<HTMLElement>) => preview.open(event, href ? () => undefined : onOpen),
+    onClick: (event: React.MouseEvent<HTMLElement>) => preview.open(event, () => {
+      if (isMobile) warmProjectDocumentRenderer(project);
+      if (!href) onOpen();
+    }),
     'aria-label': label, 'aria-expanded': isMobile ? undefined : preview.expanded,
     className: 'project-preview-artwork absolute inset-0 block h-full w-full overflow-hidden bg-[var(--surface-sunken)] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
   };
@@ -78,9 +86,10 @@ export function ProjectPreviewCard({ contextHandlers, onEditDescription, project
       {isMobile && !disabled && <button type="button" data-keep-color="" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={popupOpen}
         onClick={event => { event.stopPropagation(); setPopupOpen(true); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>}
+      {isMobile && contentTypeLabel && <span className="mobile-feed-content-type">{contentTypeLabel}</span>}
       {editor}
     </div>
-    {isMobile && popupOpen && <MobileProjectPopup project={project} creator={creator} onEditDescription={onEditDescription} contextHandlers={contextHandlers} onClose={() => setPopupOpen(false)} onOpenComments={onOpenComments} />}
+    {active && isMobile && popupOpen && <MobileProjectPopup project={project} creator={creator} onEditDescription={onEditDescription} contextHandlers={contextHandlers} onClose={() => setPopupOpen(false)} onOpenComments={onOpenComments} />}
     {!isMobile && hasExtension && <Suspense fallback={null}><ProjectPreviewExtension expanded={preview.expanded} creator={creator}
       projectId={project.id} creatorHref={creatorHref} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator}
       onOpenComments={onOpenComments} showCreator={showCreator} showEngagementMetrics={showEngagementMetrics}

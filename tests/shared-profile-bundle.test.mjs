@@ -115,7 +115,13 @@ test('isolated SQL covers public bundle, private fallback, immutable paths, revi
       create publication supabase_realtime;
       alter default privileges in schema public grant all on tables to anon,authenticated,service_role;
     `);
-    for (const name of readdirSync(directory).filter(name => name.endsWith('.sql') && !name.startsWith('20261007')).sort()) await db.exec(readFileSync(new URL(name, directory), 'utf8').replace(/create extension if not exists pgcrypto;/i, ''));
+    // This legacy bundle fixture has no Auth sessions/PostgREST roles; immediate-session-revocation tests cover that migration separately.
+    for (const name of readdirSync(directory).filter(name => name.endsWith('.sql') && !name.startsWith('20261007') && name !== '202610120002_immediate_account_session_revocation.sql').sort()) {
+      // The timeline migration depends on Journey, which lives in pending/ rather
+      // than the numbered directory. Install its real prerequisite in this local DB.
+      if (name === '202610150002_profile_timeline_pairs.sql') await db.exec(read('../supabase/pending/profile_journey.sql'));
+      await db.exec(readFileSync(new URL(name, directory), 'utf8').replace(/create extension if not exists pgcrypto;/i, ''));
+    }
     for (const name of ['cover_thumbnail_schema.sql', 'project_covers_public_bucket.sql', 'shared_profile_bundle.sql']) {
       await db.exec(read(`../supabase/pending/${name}`)); await db.exec(read(`../supabase/pending/${name}`));
     }
