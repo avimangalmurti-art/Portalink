@@ -194,6 +194,9 @@ test('public bootstrap honors a newly opened creator link while retaining guest 
     window: { sessionStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, setTimeout: () => 1 },
     require: name => name.endsWith('/shareModel') ? shareModel : name === 'react' ? fakeReact : name === 'react-router-dom' ? router : name.includes('AuthContext') ? { useAuth: () => ({ isAuthenticated: false, isInitializing: false }) }
       : name.includes('useViewportPresentation') ? { useViewportPresentation: () => 'web' }
+      : name.includes('useMobileInstall') ? { useMobileInstallCapture() {} }
+      : name.includes('useMobileResumeSession') ? { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) }
+      : name.includes('MobileResumeContext') ? { MobileResumeProvider: 'resume-provider' }
       : name === './routes' ? { routes, buildPath: (_, params) => `/share/${params.profileId}` }
       : name === './screenModules' ? { warmScreenForPath: () => Promise.resolve([]) } : {},
   });

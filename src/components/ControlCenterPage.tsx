@@ -12,6 +12,8 @@ import { DeleteAccountDialog } from '../features/auth/DeleteAccountDialog';
 import { AccountSecurityPage } from '../features/auth/AccountSecurityPage';
 import type { AppearanceTheme, StoredAppearanceMode } from '../utils/appearancePreferences';
 import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
+import { usePresentation } from '../presentation/usePresentation';
+import { MobileHomeScreenInstall } from '../features/install/MobileHomeScreenInstall';
 import './settings/settings-page.css';
 
 type ControlCenterPageProps = {
@@ -48,6 +50,7 @@ function SettingsSection({ id, title, subtitle, children, active, onOpen }: {
 
 /** A normal shell destination; the sidebar gear never opens a settings modal. */
 export function ControlCenterPage(props: ControlCenterPageProps) {
+  const isMobile = usePresentation() === 'mobile';
   const auth = useAuth();
   const nav = useRouteNavigator();
   const location = useLocation(), navigate = useNavigate();
@@ -158,6 +161,7 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
       </SettingsSection>
       <SettingsSection active={section} onOpen={openSection} id="about" title="About" subtitle="Version, legal and more">
         <p>Portalink Networks</p><p>Web app</p>
+        {isMobile && <MobileHomeScreenInstall />}
       </SettingsSection>
     </div>
     {deletingAccount && <DeleteAccountDialog isOpen onClose={() => setDeletingAccount(false)} />}

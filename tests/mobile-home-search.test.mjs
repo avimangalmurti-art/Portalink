@@ -38,11 +38,12 @@ function harness(presentation = 'mobile', props = {}, signedIn = true) {
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
-    if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+    if (name === 'react-router-dom') return { useNavigate: () => () => {}, useLocation: () => ({ pathname: props.locationId ? `/portalink/${props.locationId}` : '/', search: '', hash: '' }) };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileScreenActions(model) { actions=model; } };
     if (name.endsWith('/useHomePullRefresh')) return {useHomePullRefresh:(_ref,enabled,_busy,refresh)=>{refreshGesture=enabled?refresh:null;return '';}};
     if (name.endsWith('/useHomeStartupReadiness')) return {useHomeStartupReadiness:options=>{readiness=options;}};
     if (name.endsWith('/useMobileFeedRecovery')) return { useMobileFeedRecovery: () => () => {} };
+    if (name.endsWith('/useMobileFeedResume')) return { useMobileFeedResume: () => ({ restoring: false, handled: false }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: signedIn ? 'owner' : null,isAuthenticated:signedIn }) };

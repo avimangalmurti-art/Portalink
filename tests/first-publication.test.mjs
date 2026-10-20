@@ -191,7 +191,9 @@ function homeHarness(presentation, feed, props) {
     if(name.endsWith('/useHomeStartupReadiness'))return {useHomeStartupReadiness(options){readiness=options;}};
     if (name === 'react') return react;
     if (name.endsWith('/MobileContextActions')) return {useMobileScreenActions() {}, useMobileContextActions:()=>null};
-    if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+    if (name === 'react-router-dom') return { useNavigate: () => () => {}, useLocation: () => ({ pathname: '/', search: '', hash: '' }) };
+    if (name.endsWith('/useMobileFeedResume')) return { useMobileFeedResume: () => ({ restoring: false, handled: false }) };
+    if (name.endsWith('/useMobileFeedRecovery')) return { useMobileFeedRecovery: () => () => {} };
     if (name.endsWith('/useFeed')) return { useFeed: () => feed };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null, close() {} }, deletion: { projectId: null, cancel() {} } }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };

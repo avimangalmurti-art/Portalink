@@ -11,6 +11,9 @@ import { PORTALINK_SPLASH_EXIT_EVENT } from './splashLifecycle';
 import { useViewportPresentation } from '../presentation/useViewportPresentation';
 import { warmScreenForPath } from './screenModules';
 import { HOME_STARTUP_TIMEOUT_MS } from './homeStartup';
+import { useMobileInstallCapture } from '../features/install/useMobileInstall';
+import { useMobileResumeSession } from '../presentation/mobile/useMobileResumeSession';
+import { MobileResumeProvider } from '../presentation/mobile/MobileResumeContext';
 
 const SHARED_VIEWER_PROFILE_KEY = 'portalink.sharedViewerProfileId';
 
@@ -37,16 +40,17 @@ function readSharedViewerProfileId(): string | null {
 }
 
 /**
- * Restore the session while the opening clip plays once. MOBILE enters the app
- * at the clip's end, showing Hello World for a guest root visit; WEB retains
- * its ready-layout/artwork Home handoff.
+ * Restore the session alongside the opening clip. Returning MOBILE accounts
+ * enter as soon as authentication is ready; guests retain Hello World and WEB
+ * retains its ready-layout/artwork Home handoff.
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
-  const { pathname, search = '', hash = '' } = useLocation();
+  const { pathname, search = '', hash = '', key: locationKey } = useLocation();
   const isHandleView = Boolean(handleFromPath(pathname));
   const isSharedView = isHandleView || /^\/share(?:\/|$)/i.test(pathname);
   const presentation = useViewportPresentation();
+  useMobileInstallCapture(presentation === 'mobile');
   // MOBILE public links own their entry and design even when opened from the
   // platform router. The worker/dev server selects share.html on this request.
   const usePublicEntry = isHandleView || (presentation === 'mobile' && isSharedView);
@@ -61,6 +65,9 @@ export function ApplicationBootstrap() {
   const isAuthCallback = !oauthFailed && /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
   const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
   const isWelcomeInvite = pathname === '/' && (new URLSearchParams(search).get('welcome') === '1' || oauthFailed) && !isAuthCallback && !isRecovery;
+  const resumeBlocked = isAuthCallback || isRecovery || isWelcomeInvite || Boolean(auth.pendingView) || auth.isSessionUnavailable || auth.phase === 'authenticating' || auth.phase === 'signing-out';
+  const resume = useMobileResumeSession({ mobile: presentation === 'mobile', accountId: auth.isAuthenticated ? auth.user?.id ?? null : null,
+    authReady: !auth.isInitializing && !auth.isSessionUnavailable, pathname, search, hash, locationKey, blocked: resumeBlocked });
   // Mobile guests choose how to enter from Hello World. A prior public-view
   // context keeps its destination unless this is an explicit invitation.
   const [landingPath] = useState(() => (isWelcomeInvite || (openingPresentation === 'mobile' && !readSharedViewerProfileId()))
@@ -70,6 +77,18 @@ export function ApplicationBootstrap() {
   const [hasStartupCompleted, setHasStartupCompleted] = useState(isSharedView);
   const [hasSplashCompleted, setHasSplashCompleted] = useState(false);
   const completeSplash = useCallback(() => setHasSplashCompleted(true), []);
+  // A restored account can enter immediately; first-visit welcome and WEB keep their existing intro.
+  const returningMobileReady = openingPresentation === 'mobile' && auth.isAuthenticated && !auth.isInitializing && !resumeBlocked && !hasPresentedLanding;
+  const startupCompleted = hasStartupCompleted || returningMobileReady;
+  useEffect(() => {
+    if (!returningMobileReady) return;
+    setHasSplashCompleted(true);
+    const video = document.getElementById('portalink-preboot-video') as HTMLVideoElement | null;
+    video?.dispatchEvent(new Event('portalink:splash-adopt'));
+    video?.pause();
+    document.getElementById('portalink-preboot')?.remove();
+    window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
+  }, [returningMobileReady]);
   const routeSharedProfileId = sharedProfileIdFromPath(pathname);
   const sessionSharedProfileId = isWelcomeInvite ? null : readSharedViewerProfileId();
   // A newly opened public URL is authoritative, even after visiting another creator.
@@ -129,8 +148,8 @@ export function ApplicationBootstrap() {
 
   useEffect(() => {
     // Ready screens load beneath the splash while its complete intro plays.
-    if (!auth.isInitializing && (hasSplashCompleted || hasPresentedLanding) && !holdLanding && (!homeStartupTarget || homeReady)) setHasStartupCompleted(true);
-  }, [auth.isInitializing, hasSplashCompleted, hasPresentedLanding, holdLanding, homeStartupTarget, homeReady]);
+    if (!auth.isInitializing && (hasSplashCompleted || hasPresentedLanding || returningMobileReady) && !holdLanding && (!homeStartupTarget || homeReady)) setHasStartupCompleted(true);
+  }, [auth.isInitializing, hasSplashCompleted, hasPresentedLanding, holdLanding, homeStartupTarget, homeReady, returningMobileReady]);
 
   const startAccount = (view: 'signIn' | 'signUp' | 'forgotPassword') => {
     auth.requestAuth(view);
@@ -149,20 +168,20 @@ export function ApplicationBootstrap() {
     }
   }, [auth.isAuthenticated, auth.isInitializing, isWelcomeInvite, routeSharedProfileId, sessionSharedProfileId]);
 
-  const timedIntroEnded = openingPresentation === 'mobile' && hasSplashCompleted && (!landingPath || hasLeftLanding) && !holdLanding && !isRecovery && !waitingForHome;
+  const timedIntroEnded = openingPresentation === 'mobile' && (hasSplashCompleted || returningMobileReady) && (!landingPath || hasLeftLanding) && !holdLanding && !isRecovery && !waitingForHome;
   // Keep speculative screen warming out of the opening clip. MOBILE readiness
   // reports may arrive underneath it, but cannot extend the video handoff.
-  const appStartupPending = waitingForHome || (openingPresentation === 'mobile' && !hasSplashCompleted && !hasStartupCompleted);
+  const appStartupPending = waitingForHome || (openingPresentation === 'mobile' && !hasSplashCompleted && !startupCompleted);
 
   return <>
-      {usePublicEntry ? null : shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : !auth.isInitializing ? <App homeStartupPending={appStartupPending} homeStartupAttempt={homeAttempt} onHomeStartupReady={reportHomeContent} onHomeStartupShellReady={reportHomeShell} /> : null}
+      {usePublicEntry ? null : shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : resume.resumeTo ? <Navigate replace to={resume.resumeTo} /> : !auth.isInitializing ? <MobileResumeProvider enabled={presentation === 'mobile' && !resumeBlocked} accountId={auth.isAuthenticated ? auth.user?.id ?? null : null} record={resume.launchRecord}><App homeStartupPending={appStartupPending} homeStartupAttempt={homeAttempt} onHomeStartupReady={reportHomeContent} onHomeStartupShellReady={reportHomeShell} /></MobileResumeProvider> : null}
       <AnimatePresence onExitComplete={() => {
         // The World view deliberately waits for this handoff before painting
         // its expensive cartography and blur layers. That keeps the full-screen
         // splash fade on the compositor instead of competing with globe work.
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
-        {!isSharedView && (!hasStartupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={hasStartupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
+        {!isSharedView && (!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={startupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery}
           welcomeHandoff={hasPresentedLanding && !holdLanding}
           hidden={Boolean(landingPath && ((!auth.isAuthenticated && auth.pendingView) || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite && hasPresentedLanding)))}

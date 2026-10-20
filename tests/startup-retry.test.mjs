@@ -41,13 +41,16 @@ function bootstrap(presentation, authenticated = true) {
     './homeStartup': { HOME_STARTUP_TIMEOUT_MS: 12000 },
     '../features/sharing/shareModel': { handleFromPath: () => null },
     '../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
+    '../features/install/useMobileInstall': { useMobileInstallCapture() {} },
+    '../presentation/mobile/useMobileResumeSession': { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) },
+    '../presentation/mobile/MobileResumeContext': { MobileResumeProvider: 'resume-provider' },
   }, { window: {
     sessionStorage: { getItem: () => null, removeItem() { return; } },
     setTimeout(callback, delay) { timers.set(++timer, { callback, delay }); return timer; },
     clearTimeout(id) { timers.delete(id); },
   } });
   return {
-    render() { cursor = 0; effects = []; const tree = ApplicationBootstrap(); effects.forEach(effect => effect()); return tree.props.children; },
+    render() { cursor = 0; effects = []; const tree = ApplicationBootstrap(); effects.forEach(effect => effect()); return tree.props.children.map(child => child?.type === 'resume-provider' ? child.props.children : child); },
     timeout() { const pending = [...timers.values()].find(item => item.delay === 12000); assert.ok(pending); pending.callback(); },
   };
 }

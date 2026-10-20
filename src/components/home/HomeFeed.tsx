@@ -1,6 +1,6 @@
 import { DensitySeparator } from '../ui/DensitySeparator';
 import { ExploreCategories } from './ExploreCategories';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { Globe2Icon, HomeIcon, CircleUserRoundIcon, LayoutGridIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -24,6 +24,7 @@ import { useProjectGridDensity } from '../../features/profile/useProjectGridDens
 import { useProjectManagement } from '../../features/projects/useProjectManagement';
 import { DeferredDialog } from '../ui/DeferredDialog';
 import { useHomeStartupReadiness } from './useHomeStartupReadiness';
+import { useMobileFeedResume } from '../../presentation/mobile/useMobileFeedResume';
 
 const ProjectEditorDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.ProjectEditorDialog })));
 const DeleteProjectDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.DeleteProjectDialog })));
@@ -104,6 +105,7 @@ export function HomeFeed({
   // Retained screens must not move the active route's shared document.
   const canOwnScroll = !isMobile || screenActive;
   const navigate = useNavigate();
+  const routeLocation = useLocation();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile });
   const { viewerProfileId, isAuthenticated, user } = useAuth();
@@ -153,6 +155,11 @@ export function HomeFeed({
     return Array.from(new Map(ordered.map((view) => [view.project.id, view])).values());
   }, [feed.featured, feed.projects]);
   const documentProjects = useMemo(() => new Set(projects.filter(view => view.project.cover && view.project.coverKind === 'document' && !view.project.coverThumbnail).map(view => view.project.id)), [projects]);
+  const projectIds = useMemo(() => projects.map(view => view.project.id), [projects]);
+  const feedPath = locationId ? `/portalink/${encodeURIComponent(locationId)}` : '/';
+  const coldResume = useMobileFeedResume({ enabled: isMobile && canOwnScroll && !categoriesOpen && routeLocation.pathname === feedPath && !routeLocation.search && !routeLocation.hash,
+    accountId: isAuthenticated ? user?.id ?? null : null, path: feedPath, host: autoScrollRef, projectIds, ready: feed.status === 'success' && layoutReady, saveReady: scrollRestored,
+    failed: Boolean(feed.error || feed.refreshError || feed.loadMoreError), busy: feed.isLoadingMore || feed.isRefreshing, nextCursor: feed.nextCursor, loadMore: requestMore });
   const firstProjectHome = isMobile && Boolean(firstProjectAction) && projects.length === 0;
   const retryLayout = ownerLayout.retry;
   useEffect(() => {
@@ -193,6 +200,11 @@ export function HomeFeed({
   // real scroll surface once its cards exist, so Back lands
   // on the work the viewer left instead of quietly returning them to the top.
   useLayoutEffect(() => {
+    if (isMobile && coldResume.handled) {
+      hasRestoredScrollRef.current = !coldResume.restoring;
+      setScrollRestored(!coldResume.restoring);
+      return;
+    }
     if (!canOwnScroll || !layoutReady || hasRestoredScrollRef.current || ((feed.status === 'idle' || feed.status === 'loading') && projects.length === 0)) {
       return undefined;
     }
@@ -211,7 +223,7 @@ export function HomeFeed({
     };
     frame = requestAnimationFrame(restore);
     return () => { cancelAnimationFrame(frame); if (!completed) hasRestoredScrollRef.current = false; };
-  }, [feed.status, projects.length, layoutReady, isMobile, canOwnScroll]);
+  }, [feed.status, projects.length, layoutReady, isMobile, canOwnScroll, coldResume.handled, coldResume.restoring]);
 
   useLayoutEffect(() => {
     if (!isMobile || !canOwnScroll) return;
