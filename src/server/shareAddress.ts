@@ -1,4 +1,6 @@
 import { handleFromPath, parseResolution, portfolioPath, validHandle, type HandleResolution } from '../features/sharing/shareModel';
+import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
+import { canRedirectPublicRequest, canResolvePublicAddress } from './publicOriginRedirect';
 export type ShareConfiguration = { supabaseUrl: string; publishableKey: string };
 export async function publicShareRpc(config: ShareConfiguration, name: string, args: Record<string, string>) {
   // workerd supports manual/follow only. Reject 3xx below without following
@@ -12,6 +14,8 @@ export async function publicShareRpc(config: ShareConfiguration, name: string, a
   return response.json();
 }
 export async function resolveShareRequest(request: Request, config: ShareConfiguration): Promise<{ redirect?: Response; resolution?: HandleResolution; missing?: boolean; unavailable?: boolean }> {
+  if (!canResolvePublicAddress(request)) return {};
+  const redirectAllowed = canRedirectPublicRequest(request);
   const url = new URL(request.url), handle = handleFromPath(url.pathname);
   try {
     if (handle) {
@@ -19,22 +23,24 @@ export async function resolveShareRequest(request: Request, config: ShareConfigu
       if (!resolution) return { missing: true };
       const suffix = url.pathname.slice(handle.length + 1).replace(/\/$/, '');
       const canonical = portfolioPath(resolution.profileId, resolution.handle) + suffix;
-      if (url.pathname !== canonical) return { redirect: permanent(canonical + url.search, url), resolution };
+      if (url.pathname !== canonical && redirectAllowed) return { redirect: permanent(canonical + url.search), resolution };
       return { resolution };
     }
     const uuid = /^\/share\/([a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})(\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?|\/collaboration)?\/?$/i.exec(url.pathname);
     if (uuid) {
       const data = await publicShareRpc(config, 'profile_share_address', { p_profile_id: uuid[1] });
-      if (typeof data?.handle === 'string' && validHandle(data.handle)) return { redirect: permanent(portfolioPath(uuid[1], data.handle) + (uuid[2] ?? '') + url.search, url) };
+      if (typeof data?.handle === 'string' && validHandle(data.handle) && redirectAllowed) return { redirect: permanent(portfolioPath(uuid[1], data.handle) + (uuid[2] ?? '') + url.search) };
     }
   } catch { return handle ? { unavailable: true } : {}; }
   return {};
 }
-function permanent(path: string, url: URL): Response { return new Response(null, { status: 301, headers: { location: new URL(path, url.origin).href, 'cache-control': 'private, no-store' } }); }
+function permanent(path: string): Response { return new Response(null, { status: 301, headers: { location: new URL(path, PUBLIC_ORIGIN).href, 'cache-control': 'private, no-store' } }); }
 export function injectShareResolution(html: string, resolution?: HandleResolution, canonicalUrl?: string): string {
   if (!resolution) return html;
   if (canonicalUrl) {
-    const escaped = canonicalUrl.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] ?? char));
+    const official = new URL(PUBLIC_ORIGIN);
+    official.pathname = new URL(canonicalUrl, PUBLIC_ORIGIN).pathname;
+    const escaped = official.href.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] ?? char));
     html = html.replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi, '').replace(/<meta\b[^>]*property=["']og:url["'][^>]*>/gi, '');
     html = html.replace('<head>', `<head><link rel="canonical" href="${escaped}"><meta property="og:url" content="${escaped}">`);
   }
@@ -51,7 +57,7 @@ export async function publicSitemap(request: Request, config: ShareConfiguration
       const response = await fetch(`${config.supabaseUrl}/rest/v1/profiles?${query}`, {headers:{apikey:config.publishableKey},credentials:'omit',redirect:'manual',cache:'no-store',signal:AbortSignal.timeout(2500)});
       if (!response.ok) throw new Error('Unavailable');
       const rows = await response.json() as Array<{id:string;handle:string}>;
-      for (const row of rows) if (/^[a-f0-9-]{36}$/i.test(row.id) && validHandle(row.handle)) urls.add(new URL(portfolioPath(row.id,row.handle),request.url).href);
+      for (const row of rows) if (/^[a-f0-9-]{36}$/i.test(row.id) && validHandle(row.handle)) urls.add(new URL(portfolioPath(row.id,row.handle),PUBLIC_ORIGIN).href);
       if (rows.length < 1000) break;
     }
     const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${[...urls].map(url=>`<url><loc>${url.replace(/&/g,'&amp;')}</loc></url>`).join('')}</urlset>`;

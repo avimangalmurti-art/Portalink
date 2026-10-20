@@ -6,9 +6,11 @@ import type {
   AuthSession,
   AuthUser,
 } from '../../types/auth';
-import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase } from './client';
+import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase, readSocialProviders } from './client';
 import { clearPasswordRecoveryReturn, passwordRecoveryRedirect } from '../../utils/passwordRecoveryReturn';
-import { readRegistrationDraft, readRegistrationProfile } from '../../features/auth/registration';
+import { authReturnOrigin } from '../../utils/authReturnOrigin';
+import { readRegistrationDraft, readRegistrationProfile, readSharedReturnPath } from '../../features/auth/registration';
+import { socialRegistration } from '../../features/auth/socialRegistration';
 
 function textMetadata(user: User, key: string): string {
   const value: unknown = user.user_metadata?.[key];
@@ -129,6 +131,9 @@ async function mapAuthSession(session: Session, generation: number): Promise<Aut
   }
   const email = user.email ?? '';
   const displayName = identity.displayName || textMetadata(user, 'display_name') || textMetadata(user, 'full_name') || email.split('@')[0] || 'Creator';
+  if (!identity.profileId && !isPasswordRecovery && !registration && ['google', 'apple'].includes(user.app_metadata?.provider ?? '')) {
+    registration = socialRegistration(user, new URLSearchParams(window.location.search).get('onboarding_return') ?? undefined);
+  }
   const mapped: AuthUser = {
     id: user.id,
     email,
@@ -268,6 +273,21 @@ export const supabaseAuthService: AuthService = {
     return mapped;
   },
 
+  async getSocialProviders() {
+    return readSocialProviders();
+  },
+
+  async signInWithOAuth(provider, returnPath) {
+    const redirect = new URL('/', authReturnOrigin(window.location.origin));
+    redirect.searchParams.set('entry', 'oauth');
+    const safePath = readSharedReturnPath(returnPath);
+    if (safePath) redirect.searchParams.set('onboarding_return', safePath);
+    const { error } = await requireSupabase().auth.signInWithOAuth({
+      provider, options: { redirectTo: redirect.href },
+    });
+    if (error) throw authFailure(error, 'Sign in could not be started.');
+  },
+
   async signUp(input) {
     const client = requireSupabase();
     const email = input.email.trim().toLowerCase();
@@ -278,7 +298,7 @@ export const supabaseAuthService: AuthService = {
     const { data, error } = await client.auth.signUp({
       email,
       password: input.password,
-      options: { emailRedirectTo: window.location.origin,
+      options: { emailRedirectTo: authReturnOrigin(window.location.origin),
         data: registration ? { portalink_registration: registration } : undefined },
     });
     if (error) {
@@ -291,15 +311,15 @@ export const supabaseAuthService: AuthService = {
     };
   },
 
-  async signOut() {
-    const { error } = await requireSupabase().auth.signOut();
+  async signOut(scope = 'global') {
+    const { error } = await requireSupabase().auth.signOut({ scope });
     if (error) throw authFailure(error, 'Sign out failed.');
   },
 
   async requestPasswordReset(input) {
     const email = input.email.trim().toLowerCase();
     const { error } = await requireSupabase().auth.resetPasswordForEmail(email, {
-      redirectTo: passwordRecoveryRedirect(window.location.origin),
+      redirectTo: passwordRecoveryRedirect(authReturnOrigin(window.location.origin)),
     });
     if (error) throw authFailure(error, 'The reset email could not be requested.');
     return {
@@ -415,6 +435,52 @@ export const supabaseAuthService: AuthService = {
     };
   },
 
+  async signOutOtherSessions(accountId) {
+    const client = requireSupabase();
+    const generation = sessionGeneration;
+    const { data, error } = await client.auth.getSession();
+    if (error) throw authFailure(error, 'Your session could not be checked.');
+    if (!data.session || data.session.user.id !== accountId) {
+      throw new AuthServiceError('reauthentication_required', 'Sign in again to manage your sessions.');
+    }
+    await assertCurrentAccount(accountId, generation);
+    // Bind revocation to the captured account even if another tab changes identity.
+    const bound = createPasswordRecoveryClient();
+    const established = await bound.setSession({ access_token: data.session.access_token, refresh_token: data.session.refresh_token });
+    if (established.error) throw authFailure(established.error, 'Your session could not be checked.');
+    if (established.data.session?.user.id !== accountId) throw new AuthServiceError('reauthentication_required', 'Sign in again to manage your sessions.');
+    await assertCurrentAccount(accountId, generation);
+    const result = await bound.signOut({ scope: 'others' });
+    if (result.error) throw authFailure(result.error, 'Other sessions could not be signed out.');
+  },
+
+  async listAccountSessions(accountId, cursor) {
+    const generation = sessionGeneration;
+    await assertCurrentAccount(accountId, generation);
+    const { data, error } = await requireSupabase().rpc('list_my_account_sessions', {
+      p_before: cursor?.createdAt ?? null, p_before_id: cursor?.id ?? null,
+    });
+    await assertCurrentAccount(accountId, generation);
+    if (error) {
+      if (error.code === 'PGRST202' || error.code === '42883') throw new AuthServiceError('unsupported', 'The device list is not available yet. You can still use the session sign-out controls below.');
+      throw authFailure(error, 'Your signed-in sessions could not be loaded.');
+    }
+    const rows = (data ?? []) as { id: string; user_agent: string | null; created_at: string; refreshed_at: string | null; is_current: boolean }[];
+    const sessions = rows.slice(0, 50).map(row => ({ id: row.id, userAgent: row.user_agent, createdAt: row.created_at, refreshedAt: row.refreshed_at, isCurrent: row.is_current }));
+    const last = sessions.at(-1);
+    return { sessions, nextCursor: rows.length > 50 && last ? { createdAt: last.createdAt, id: last.id } : null };
+  },
+
+  async revokeAccountSession(accountId, sessionId) {
+    const generation = sessionGeneration;
+    await assertCurrentAccount(accountId, generation);
+    const { data, error } = await requireSupabase().rpc('revoke_my_account_session', { p_session_id: sessionId });
+    await assertCurrentAccount(accountId, generation);
+    if (error) throw authFailure(error, 'This session could not be signed out.');
+    if (typeof data !== 'boolean') throw new AuthServiceError('unknown', 'The session sign-out could not be confirmed. Refresh the list before trying again.');
+    return data;
+  },
+
   async getAccountSecurityState(): Promise<AccountSecurityState> {
     const user = await currentProviderUser();
     const providerUser = user as User & { new_email?: string; email_change_sent_at?: string };
@@ -433,18 +499,26 @@ export const supabaseAuthService: AuthService = {
   },
 
   async changePassword(input) {
-    const client = requireSupabase();
+    const generation = sessionGeneration;
     const user = await currentProviderUser();
     if (user.id !== input.accountId || !user.email) {
       throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your password.');
     }
-    const verified = await client.auth.signInWithPassword({
+    const verifier = createPasswordRecoveryClient();
+    const verified = await verifier.signInWithPassword({
       email: user.email,
       password: input.currentPassword,
     });
     if (verified.error) throw authFailure(verified.error, 'The current password is incorrect.');
-    const { error } = await client.auth.updateUser({ password: input.newPassword });
-    if (error) throw authFailure(error, 'The password could not be changed.');
+    try {
+      if (verified.data.user?.id !== input.accountId) throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your password.');
+      await assertCurrentAccount(input.accountId, generation);
+      const { error } = await verifier.updateUser({ password: input.newPassword });
+      if (error) throw authFailure(error, 'The password could not be changed.');
+    } finally {
+      // This temporary verification session never replaces the app's session.
+      await verifier.signOut({ scope: 'local' }).catch(() => undefined);
+    }
     return {
       isChanged: true,
       message: 'Your password has been changed.',
@@ -453,12 +527,22 @@ export const supabaseAuthService: AuthService = {
   },
 
   async requestEmailChange(input) {
+    const generation = sessionGeneration;
     const user = await currentProviderUser();
     if (user.id !== input.accountId) {
       throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your email address.');
     }
     const email = input.newEmail.trim().toLowerCase();
-    const { error } = await requireSupabase().auth.updateUser({ email });
+    if (email === user.email?.toLowerCase()) throw new AuthServiceError('invalid_email', 'That is already the address on this account.');
+    const current = await requireSupabase().auth.getSession();
+    if (current.error) throw authFailure(current.error, 'Your session could not be checked.');
+    if (!current.data.session || current.data.session.user.id !== input.accountId) throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your email address.');
+    const bound = createPasswordRecoveryClient();
+    const established = await bound.setSession({ access_token: current.data.session.access_token, refresh_token: current.data.session.refresh_token });
+    if (established.error) throw authFailure(established.error, 'Your session could not be checked.');
+    if (established.data.session?.user.id !== input.accountId) throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your email address.');
+    await assertCurrentAccount(input.accountId, generation);
+    const { error } = await bound.updateUser({ email }, { emailRedirectTo: authReturnOrigin(window.location.origin) });
     if (error) throw authFailure(error, 'The email change could not be requested.');
     return {
       status: 'pending',
@@ -478,7 +562,7 @@ export const supabaseAuthService: AuthService = {
     const { error } = await requireSupabase().auth.resend({
       type: input.target === 'pending-email' ? 'email_change' : 'signup',
       email,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: authReturnOrigin(window.location.origin) },
     });
     if (error) throw authFailure(error, 'The verification email could not be sent.');
     return { status: 'sent', email, message: 'A verification email has been sent.' };

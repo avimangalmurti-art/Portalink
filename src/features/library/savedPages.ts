@@ -23,12 +23,13 @@ export function savedPagePresentation(target: SavedPageTarget, view: ProjectView
   const attachments = view.project.attachments ?? [];
   const attachment = attachments.find((item) => item.id === target.attachmentId);
   if (!attachment || !['image', 'document'].includes(attachment.kind)) return null;
+  if (attachment.kind === 'image' && target.pageIndex !== 0) return null;
   const metadata = attachment.metadata;
   const imageNumber = attachments.filter((item) => item.kind === 'image').findIndex((item) => item.id === attachment.id) + 1;
   const pageNumber = attachment.kind === 'image' ? imageNumber : target.pageIndex + 1;
   if (attachment.kind === 'document' && metadata?.pageCount && pageNumber > metadata.pageCount) return null;
-  const renderedPage = attachment.kind === 'document' ? metadata?.renderedPages?.find((page) => page.withinDocumentIndex === pageNumber) : undefined;
-  const query = new URLSearchParams({ media: attachment.id, page: String(pageNumber) });
+  const renderedPage = attachment.kind === 'document' ? metadata?.renderedPages?.find((page) => page.withinDocumentIndex === pageNumber && (!page.attachmentId || page.attachmentId === attachment.id)) : undefined;
+  const query = new URLSearchParams({ media: attachment.id, page: String(pageNumber), view: 'page' });
   return {
     view,
     pageNumber,

@@ -4,6 +4,9 @@ import { positionMediaComments } from './mediaCommentsPosition';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
+import { useSheetMotion } from '../../presentation/motion/useSheetMotion';
+import { reducedMotion } from '../../presentation/motion/motion';
+import './media-comments-motion.css';
 
 function popupHost() {
   // Native fullscreen hides portals outside its element. Both hosts inherit
@@ -17,32 +20,50 @@ type Props = {
   anchorRef: RefObject<HTMLDivElement>;
   triggerRef: RefObject<HTMLButtonElement>;
   onClose: () => void;
-  children: React.ReactNode;
+  mobileMotion?: boolean;
+  children: React.ReactNode | ((dismiss: () => void) => React.ReactNode);
 };
 
 export function MediaCommentsPopover(props: Props) {
   return usePresentation() === 'mobile' ? <MobileMediaCommentsSheet {...props} /> : <AnchoredMediaComments {...props} />;
 }
 
-function MobileMediaCommentsSheet({ id, label, anchorRef, onClose, children }: Props) {
-  const viewportRef = useDialogViewport();
+function MobileMediaCommentsSheet({ id, label, anchorRef, onClose, children, mobileMotion = false }: Props) {
+  const motion = useSheetMotion(onClose, 'base');
+  const finish = motion.finish;
+  const closing = mobileMotion && motion.closing;
+  // Keep a decorative exit at its painted position while focus dismisses the keyboard.
+  const viewportRef = useDialogViewport(!closing);
   const panelRef = useRef<HTMLElement>(null);
   const [host] = useState(popupHost);
-  useModalFocus(true, panelRef, onClose);
+  const dismiss = () => {
+    if (!mobileMotion) { onClose(); return; }
+    if (closing) return;
+    const overlay = viewportRef.current;
+    if (overlay) overlay.style.setProperty('--motion-exit-opacity', getComputedStyle(overlay).opacity);
+    motion.close();
+  };
   useEffect(() => {
     // Leaving native fullscreen changes the portal host. Close the sheet so
     // its focus/keyboard hooks never keep references to replaced DOM nodes.
     // The parent retains the draft when the user opens comments again.
-    const changeHost = () => onClose();
+    const changeHost = () => mobileMotion ? finish() : onClose();
     document.addEventListener('fullscreenchange', changeHost);
     return () => document.removeEventListener('fullscreenchange', changeHost);
-  }, [onClose]);
+  }, [onClose, mobileMotion, finish]);
+  useEffect(() => {
+    if (!mobileMotion) return;
+    window.addEventListener('popstate', finish, true);
+    return () => window.removeEventListener('popstate', finish, true);
+  }, [mobileMotion, finish]);
   useLayoutEffect(() => {
+    if (closing) return;
     const frame = anchorRef.current?.closest('[data-presentation="mobile"]');
     frame?.setAttribute('data-page-comments-open', '');
     return () => { frame?.removeAttribute('data-page-comments-open'); };
-  }, [anchorRef]);
+  }, [anchorRef, closing]);
   useEffect(() => {
+    if (closing) return;
     const viewport = window.visualViewport;
     const update = () => {
       const keyboardOpen = viewport && window.innerHeight - viewport.height - viewport.offsetTop > 120;
@@ -55,15 +76,17 @@ function MobileMediaCommentsSheet({ id, label, anchorRef, onClose, children }: P
       viewport?.removeEventListener('resize', update);
       viewport?.removeEventListener('scroll', update);
     };
-  }, [viewportRef]);
+  }, [viewportRef, closing]);
+  // Release viewport listeners before focus return can collapse the keyboard.
+  useModalFocus(!closing, panelRef, dismiss, mobileMotion);
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
-  return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-mobile-media-comments=""
+  return createPortal(<div ref={element => { if (element) element.inert = closing; }} data-presentation="mobile" data-mobile-comments-motion={mobileMotion || undefined} data-closing={closing || undefined} data-reduce-motion={mobileMotion && reducedMotion() || undefined} aria-hidden={closing || undefined}><div ref={viewportRef} data-mobile-media-comments=""
     style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
-    onPointerDown={event => { stop(event); if (event.target === event.currentTarget) onClose(); }}
+    onPointerDown={event => { stop(event); if (event.target === event.currentTarget) dismiss(); }}
     onPointerUp={stop} onClick={stop} onDoubleClick={stop} onWheel={stop} onTouchMove={stop} onKeyDown={stop}>
     <section ref={panelRef} id={id} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label}
       data-media-interaction="" className="mobile-media-comments-sheet">
-      {children}
+      {typeof children === 'function' ? children(dismiss) : children}
     </section>
   </div></div>, host);
 }
@@ -155,5 +178,5 @@ function AnchoredMediaComments({ id, label, anchorRef, triggerRef, onClose, chil
       triggerRef.current?.focus({ preventScroll: true });
     }}
     onKeyDown={stop}
-  >{children}</section>, host);
+  >{typeof children === 'function' ? children(onClose) : children}</section>, host);
 }
