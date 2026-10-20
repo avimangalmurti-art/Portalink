@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 const source=readFileSync(new URL('../src/components/media/FollowContentInfoPopup.tsx',import.meta.url),'utf8');
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
-function render({guest=false,reduce=false}={}) {
+function render({guest=false,reduce=false,hasOptions=true}={}) {
  const calls=[],effects=[],timers=[]; const reader={inert:false};
  const host={querySelectorAll:()=>[reader]};
  const mocks={react:{...React,useState:initial=>[initial,()=>{}],useRef:()=>({current:null}),useEffect:fn=>effects.push(fn),useLayoutEffect:fn=>effects.push(fn)},
@@ -15,7 +15,7 @@ function render({guest=false,reduce=false}={}) {
   '../../features/engagement/EngagementBar':{EngagementFeedback:'feedback'},'../text/FormattedText':{FormattedText:'formatted'},'../ui/InterfaceIcon':{InterfaceIcon:'icon'},'./follow-content-info.css':{}};
  const exports={};
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{esModuleInterop:true,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,{exports,require:id=>{assert.ok(id in mocks,id);return mocks[id];},document:{querySelector:()=>host},window:{matchMedia:()=>({matches:reduce})},setTimeout:(fn,ms)=>{timers.push({fn,ms});return 1;},clearTimeout(){}});
- const tree=exports.FollowContentInfoPopup({projectId:'actual-id',title:'Real title',description:'First paragraph\n\nSecond paragraph',creatorHeader:React.createElement('button',null,'Real creator'),engagement:{count:kind=>kind==='save'?12:4,isEngaged:kind=>kind==='save',isPending:()=>false,isResolving:false,resolveError:null,toggle:kind=>calls.push(kind)},onOptions:()=>calls.push('options'),onComments:()=>calls.push('comments'),onRequireAccount:guest?()=>calls.push('signup'):undefined,onClose:()=>calls.push('close')});
+ const tree=exports.FollowContentInfoPopup({projectId:'actual-id',title:'Real title',description:'First paragraph\n\nSecond paragraph',creatorHeader:React.createElement('button',null,'Real creator'),engagement:{count:kind=>kind==='save'?12:4,isEngaged:kind=>kind==='save',isPending:()=>false,isResolving:false,resolveError:null,toggle:kind=>calls.push(kind)},onOptions:hasOptions?()=>calls.push('options'):undefined,onComments:()=>calls.push('comments'),onRequireAccount:guest?()=>calls.push('signup'):undefined,onClose:()=>calls.push('close')});
  return {tree,calls,effects,timers,reader};
 }
 test('Follow popup uses real content and exactly comments/bookmark/repost, with existing callbacks',()=>{
@@ -40,3 +40,10 @@ test('reader inert state is restored, and guests use existing signup gate',()=>{
 });
 
 
+
+test('search preview omits unavailable three-dot menu while keeping content and engagement',()=>{
+ const {tree}=render({hasOptions:false});const all=nodes(tree);
+ assert.equal(all.some(n=>n.props['aria-label']==='Content options'),false);
+ assert.equal(all.find(n=>n.type==='h2').props.children,'Real title');
+ assert.equal(nodes(all.find(n=>n.props.role==='group')).filter(n=>n.type==='button').length,3);
+});
