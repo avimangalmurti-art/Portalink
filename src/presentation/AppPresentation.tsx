@@ -16,6 +16,7 @@ import './web/web.css';
 import './navigation.css';
 import './controls.css';
 import './surfaces.css';
+import './mobile/shapes.css';
 
 /** One presentation choice also covers the shell's appearance state. */
 export function AppPresentationProvider({ children }: { children: React.ReactNode }) {
