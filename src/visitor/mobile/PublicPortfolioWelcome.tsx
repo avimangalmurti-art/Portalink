@@ -27,10 +27,10 @@ export function PublicPortfolioWelcome({ appearance, onComplete }: {
   }, []);
   useModalFocus(true, dialog, onComplete, true);
   return <ModalPortal><div ref={viewport} data-public-welcome="" style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}>
-    <div ref={dialog} className="public-welcome-dialog" role="dialog" aria-modal="true" aria-label={intro ? 'Opening portfolio' : 'Choose your appearance'} tabIndex={-1}>
+    <div ref={dialog} className="public-welcome-dialog" role="dialog" aria-modal="true" aria-label={intro ? 'Opening catalogue' : 'Choose your appearance'} tabIndex={-1}>
       {intro ? <><PortalinkSplashLoader timedIntro onComplete={finishIntro} /><button type="button" className="public-welcome-skip" onClick={finishIntro}>Skip intro</button></> :
         <section className="public-welcome-sheet">
-          <header><h1>Choose your appearance</h1><p>See it on the portfolio behind you.</p></header>
+          <header><h1>Choose your appearance</h1><p>See it on the catalogue behind you.</p></header>
           <div className="public-welcome-options">
             <div className="public-welcome-mode" role="radiogroup" aria-label="Appearance" onKeyDown={handleRadioGroupKeyDown}>
               {(['auto', 'light', 'dark'] as const).map(mode => <button type="button" key={mode} role="radio" aria-checked={appearance.mode === mode} tabIndex={appearance.mode === mode ? 0 : -1} onClick={() => appearance.chooseMode(mode)}>{mode === 'auto' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</button>)}
@@ -41,7 +41,7 @@ export function PublicPortfolioWelcome({ appearance, onComplete }: {
               onHighContrastChange={highContrast => appearance.chooseAppearance({ highContrast })} reduceTranslucency={appearance.reduceTranslucency}
               onReduceTranslucencyChange={reduceTranslucency => appearance.chooseAppearance({ reduceTranslucency })} />
           </div>
-          <footer><button type="button" onClick={onComplete}>View portfolio</button></footer>
+          <footer><button type="button" onClick={onComplete}>View catalogue</button></footer>
         </section>}
     </div>
   </div></ModalPortal>;

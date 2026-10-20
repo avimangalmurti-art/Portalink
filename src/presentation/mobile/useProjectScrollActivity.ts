@@ -2,9 +2,8 @@ import { useEffect, type RefObject } from 'react';
 
 // Let short reading pauses settle before bringing interface chrome back.
 const SCROLL_IDLE_DELAY = 700;
-// Overview pages use a 320ms double-tap window. Wait before treating a tap as
-// chrome control so both pointer-up events still reach their page renderer.
-const SINGLE_TAP_DELAY = 340;
+// Match the page renderer's double-tap window without delaying the first tap.
+const DOUBLE_TAP_WINDOW = 320;
 
 // Only interface surfaces: page/image buttons remain part of the artwork.
 const controlsSelector = [
@@ -30,9 +29,11 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     const frame = navigation.current?.closest<HTMLElement>('[data-presentation="mobile"]');
     if (!enabled || !frame) return;
     let hidden = false, scrollIntent = false;
-    let idleTimer: number | undefined, tapTimer: number | undefined;
-    let pendingTap: { target: Element; x: number; y: number; time: number } | null = null;
-    let gesture: { id: number; x: number; y: number; time: number; moved: boolean; stage: boolean; tap: boolean; doubleTap: boolean; reveal: boolean } | null = null;
+    let idleTimer: number | undefined;
+    let idleDeadline: number | undefined;
+    let pendingTap: { target: Element; x: number; y: number; time: number; hidden: boolean; idleDeadline: number | undefined } | null = null;
+    let gesture: { id: number; x: number; y: number; time: number; moved: boolean; stage: boolean; tap: boolean;
+      doubleTapState: { hidden: boolean; idleDeadline: number | undefined } | null; reveal: boolean; idleDeadline: number | undefined } | null = null;
     const controls = new Map<HTMLElement, boolean | null>();
     const videos = new Map<HTMLVideoElement, boolean>();
     const modalOpen = () => Boolean(frame.querySelector('[aria-modal="true"], [role="menu"]'));
@@ -46,8 +47,8 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
         !target.closest('[inert], [data-project-reading-control], input, textarea, select, [contenteditable="true"]');
     };
     const tapSurface = (target: Element) => target.closest('[role="button"], [data-focused-page-scroll]') ?? target.closest('[data-project-stage]');
-    const clearTap = () => { window.clearTimeout(tapTimer); tapTimer = undefined; pendingTap = null; };
-    const clearIdle = () => { window.clearTimeout(idleTimer); idleTimer = undefined; };
+    const clearTap = () => { pendingTap = null; };
+    const clearIdle = () => { window.clearTimeout(idleTimer); idleTimer = undefined; idleDeadline = undefined; };
     const syncControls = () => {
       frame.querySelectorAll<HTMLElement>(controlsSelector).forEach(element => {
         // Back must remain usable at every scroll position; the portal/index
@@ -86,6 +87,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       clearTap();
       hide();
       clearIdle();
+      idleDeadline = performance.now() + SCROLL_IDLE_DELAY;
       idleTimer = window.setTimeout(restore, SCROLL_IDLE_DELAY);
     };
     const wheel = (event: WheelEvent) => {
@@ -99,12 +101,13 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       if (event.button !== 0 || !inFrame(event.target) || modalOpen()) { gesture = null; return; }
       scrollIntent = false;
       const stage = inStage(event.target);
-      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, moved: false, stage, reveal: hidden,
+      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, moved: false, stage, reveal: hidden, idleDeadline,
         // Let media players, links, editing fields and 3D canvases own their taps.
         tap: stage && !event.target.closest('audio, iframe, model-viewer, canvas[role="img"], a[href], button, [role="slider"], [role="menu"], [role="dialog"], [contenteditable="true"]') &&
           (!event.target.closest('video') || hidden),
-        doubleTap: Boolean(previous && event.timeStamp - previous.time < 320 &&
-          Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 24 && tapSurface(previous.target) === tapSurface(event.target)) };
+        doubleTapState: previous && previous.target.isConnected && event.timeStamp - previous.time >= 0 &&
+          event.timeStamp - previous.time < DOUBLE_TAP_WINDOW && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 24 &&
+          tapSurface(previous.target) === tapSurface(event.target) ? { hidden: previous.hidden, idleDeadline: previous.idleDeadline } : null };
     };
     const move = (event: PointerEvent) => {
       if (!gesture || gesture.id !== event.pointerId) return;
@@ -120,17 +123,29 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     };
     const up = (event: PointerEvent) => {
       const start = gesture; gesture = null;
-      if (!start || !start.tap || start.doubleTap || start.id !== event.pointerId || start.moved || !inStage(event.target) ||
+      if (!start || !start.tap || start.id !== event.pointerId || start.moved || !inStage(event.target) || !event.target.isConnected ||
         event.timeStamp - start.time > 450 || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8 || modalOpen()) return;
       const target = event.target;
-      pendingTap = { target, x: event.clientX, y: event.clientY, time: event.timeStamp };
-      tapTimer = window.setTimeout(() => {
-        clearTap();
-        if (!target.isConnected || !inStage(target) || modalOpen()) return;
-        // The tapped page may gain focus before pointer-up. Preserve the tap's
-        // original intent instead of hiding controls that focus just revealed.
-        if (start.reveal) restore(); else hide();
-      }, SINGLE_TAP_DELAY);
+      clearIdle();
+      if (start.doubleTapState !== null) {
+        // Undo the first tap's chrome change; both untouched pointer-up events
+        // still reach the page's existing double-tap zoom handler.
+        const original = start.doubleTapState;
+        const remaining = original.idleDeadline === undefined ? undefined : original.idleDeadline - performance.now();
+        if (!original.hidden || (remaining !== undefined && remaining <= 0)) restore();
+        else {
+          hide();
+          if (remaining !== undefined) {
+            idleDeadline = original.idleDeadline;
+            idleTimer = window.setTimeout(restore, remaining);
+          }
+        }
+        return;
+      }
+      // The page may gain focus before pointer-up. Keep the original tap
+      // intent, and remember it only to reconcile a subsequent double tap.
+      if (start.reveal) restore(); else hide();
+      pendingTap = { target, x: event.clientX, y: event.clientY, time: event.timeStamp, hidden: start.reveal, idleDeadline: start.idleDeadline };
     };
     const key = (event: KeyboardEvent) => {
       clearTap();

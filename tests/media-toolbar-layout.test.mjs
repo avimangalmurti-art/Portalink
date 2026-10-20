@@ -18,14 +18,13 @@ const layoutModule = load('mediaToolbarLayout.ts');
 const { displayedPageWidth, mediaToolbarLayout, mobileFocusedMediaToolbarLayout } = layoutModule;
 const emptyCounts = ['', '', '', ''];
 
-test('mobile focused controls fill the viewer with five equal touch targets', () => {
+test('mobile focused controls keep four touch targets in a compact row', () => {
   for (const hostWidth of [320, 390, 430, 639]) {
     const { width, unit, slots } = mobileFocusedMediaToolbarLayout(hostWidth);
-    assert.equal(width, hostWidth - 16);
-    assert.deepEqual(Array.from(slots), [1, 1, 1, 1, 1]);
-    assert.equal(16 * unit, 24); // Icon size.
-    assert.equal(32 * unit, 48); // Touch-target height.
-    const buttonWidth = (width - 12 * unit - 4 * 4 * unit) / 5;
+    assert.equal(width, Math.min(212, hostWidth - 16));
+    assert.deepEqual(Array.from(slots), [1, 1, 1, 1]);
+    assert.equal(16 * unit, 20); // Icon size; focused CSS preserves 44px targets.
+    const buttonWidth = (width - 8 - 3 * 4) / 4;
     assert.ok(buttonWidth >= 44);
   }
   assert.equal(mobileFocusedMediaToolbarLayout(0).width, 0);

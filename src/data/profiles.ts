@@ -342,7 +342,7 @@ export const aviProfile: Profile = {
   location: 'San Francisco, USA',
   initials: 'AM',
   avatar: PROFILE_AVATAR,
-  navHeading: 'PORTFOLIO',
+  navHeading: 'CATALOGUE',
   stats: [
   { label: 'Projects', value: '48' },
   { label: 'Followers', value: '0' },
@@ -392,7 +392,7 @@ const studioLumaProfile: Profile = {
   location: 'Rotterdam, NL',
   initials: 'SL',
   avatar: PROFILE_AVATAR,
-  navHeading: 'PORTFOLIO',
+  navHeading: 'CATALOGUE',
   stats: [
   { label: 'Projects', value: '21' },
   { label: 'Followers', value: '0' },
@@ -448,7 +448,7 @@ const formPracticeProfile: Profile = {
   location: 'Copenhagen, DK',
   initials: 'FP',
   avatar: PROFILE_AVATAR,
-  navHeading: 'PORTFOLIO',
+  navHeading: 'CATALOGUE',
   stats: [
   { label: 'Projects', value: '33' },
   { label: 'Followers', value: '0' },
@@ -501,7 +501,7 @@ const tideAndFormProfile: Profile = {
   location: 'Cork, IE',
   initials: 'TF',
   avatar: PROFILE_AVATAR,
-  navHeading: 'PORTFOLIO',
+  navHeading: 'CATALOGUE',
   stats: [
   { label: 'Projects', value: '57' },
   { label: 'Followers', value: '0' },
@@ -561,7 +561,7 @@ const wideMarginProfile: Profile = {
   location: 'Glasgow, UK',
   initials: 'WM',
   avatar: PROFILE_AVATAR,
-  navHeading: 'PORTFOLIO',
+  navHeading: 'CATALOGUE',
   stats: [
   { label: 'Projects', value: '39' },
   { label: 'Followers', value: '0' },
@@ -611,7 +611,7 @@ const orbitHouseProfile: Profile = {
   location: 'Lisbon, PT',
   initials: 'OH',
   avatar: PROFILE_AVATAR,
-  navHeading: 'PORTFOLIO',
+  navHeading: 'CATALOGUE',
   stats: [
   { label: 'Projects', value: '27' },
   { label: 'Followers', value: '0' },

@@ -1,3 +1,4 @@
+import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import { useState } from 'react';
 import { isPublicSharePath } from '../../features/sharing/shareModel';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -18,7 +19,7 @@ export function useMobileProjectContext(project: Project, creatorId: string | un
   const engagement = useProjectEngagement(contextRequested ? project.id : null);
   const isShared = isPublicSharePath(location.pathname);
   const owner = !isShared && auth.viewerProfileId === creatorId;
-  const url = new URL(buildPath('sharedProject', { profileId: creatorId ?? '', categoryId: project.categoryId, projectId: project.id }), window.location.origin).href;
+  const url = new URL(buildPath('sharedProject', { profileId: creatorId ?? '', categoryId: project.categoryId, projectId: project.id }), PUBLIC_ORIGIN).href;
   const model = contextActions(isShared ? 'shared' : 'project', { signedIn: auth.isAuthenticated, owner }, { title: project.title, handlers: {
     reads: owner ? () => navigate(`/insights?project=${encodeURIComponent(project.id)}`) : undefined,
     startHere: owner && project.isPubliclyVisible !== false ? () => navigate(`/p/${creatorId}?startHere=${encodeURIComponent(project.id)}`) : undefined,

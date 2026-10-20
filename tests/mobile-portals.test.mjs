@@ -265,3 +265,14 @@ test('mobile project index owns the entire width including wider phones and rest
     assert.deepEqual(allocate(...preferences), before);
   }
 });
+
+test('portal view switch preserves stable selection and saved order without a management write',()=>{
+ const h=harness();let tree=h.render();
+ assert.equal(tree.props['data-portals-layout'],'list');
+ elements(tree).find(n=>n.props['aria-label']==='Show portals as cards').props.onClick();tree=h.render();
+ assert.equal(tree.props['data-portals-layout'],'grid');
+ const list=find(tree,MobileReorderList);assert.equal(list.props.layout,'grid');
+ assert.deepEqual(Array.from(list.props.items,item=>item.id),['typography','design']);
+ elements(tree).filter(n=>n.type==='button'&&n.props.className==='mobile-portal-row')[1].props.onClick();assert.deepEqual(h.chosen,['design']);
+ elements(tree).find(n=>n.props['aria-label']==='Show portals as list').props.onClick();assert.equal(h.render().props['data-portals-layout'],'list');
+});

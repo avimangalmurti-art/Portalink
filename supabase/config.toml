@@ -1,11 +1,18 @@
 project_id = "Portalink"
 
 [auth]
-site_url = "https://portalinknetworksinc.avimangalmurti566055.chatgpt.site"
+site_url = "https://portalinknetworks.com"
 additional_redirect_urls = [
+  "https://portalinknetworks.com",
+  "https://portalinknetworks.com/?auth=reset-password",
+  "https://portalinknetworks.com/?entry=oauth",
+  "https://portalinknetworks.com/?entry=oauth&onboarding_return=**",
+  # Compatibility for links already issued before the official-domain cutover.
   "https://9b4e158f-73d9-4eec-a1de-e7e241d79cd.vercel.app",
   "https://portalinknetworksinc.avimangalmurti566055.chatgpt.site",
   "https://portalinknetworksinc.avimangalmurti566055.chatgpt.site/?auth=reset-password",
+  "https://portalinknetworksinc.avimangalmurti566055.chatgpt.site/?entry=oauth",
+  "https://portalinknetworksinc.avimangalmurti566055.chatgpt.site/?entry=oauth&onboarding_return=**",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5173/?auth=reset-password",
   "http://localhost:5173",

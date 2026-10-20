@@ -9,3 +9,34 @@
 .reads-page-preview{display:block;width:min(100%,320px);margin:20px auto;background:white;border-radius:16px;overflow:hidden;max-height:420px}.reads-page-preview img{display:block;width:100%;height:auto;object-fit:contain}.reads-actors li{padding:14px;background:var(--surface-sunken);border-radius:14px;font-size:14px}.reads-actors time{display:block;margin-top:5px}.reads-weekly{margin:16px}.reads-weekly small{text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary)}.reads-weekly>div{display:flex;gap:12px;margin-top:18px}
 
 .reads-view > .reads-chart + h3 {margin-top:24px}
+
+/* This caption belongs to its card, not the opaque mobile screen-header material. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] .reads-chart > header {
+  background: transparent !important;
+  align-items: baseline;
+}
+[data-presentation='mobile'] .reads-chart > header h3 {
+  min-width: 0;
+  margin: 0;
+  line-height: 1.4;
+}
+[data-presentation='mobile'] .reads-chart > header > span {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.reads-weekly-character { display: none; }
+[data-presentation='mobile'] .reads-weekly-metrics { list-style: disc; padding-inline-start: 24px; margin: 8px 0; font-size: 22px; font-weight: 650; }
+[data-presentation='mobile'] .reads-weekly > div { align-items: flex-end; gap: 10px; }
+[data-presentation='mobile'] .reads-weekly > div > button { flex-shrink: 0; }
+[data-presentation='mobile'] .reads-weekly-character {
+  display: block;
+  flex: 0 1 96px;
+  width: 96px;
+  min-width: 0;
+  height: 112px;
+  margin-inline-start: auto;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+}

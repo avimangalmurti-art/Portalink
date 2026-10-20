@@ -15,3 +15,26 @@
 .location-search-status button, .location-attribution { text-decoration: underline; }
 .location-search > p { font-size: 13px; }
 .portalink-world-search .location-search { padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface-raised); }
+
+/* The world is a dark destination regardless of the surrounding appearance. */
+#root .codex-shell .portalink-world {
+  color-scheme: dark; background: #000; color: #f5f5f7;
+  --portalink-bg-primary:#000; --surface-canvas:#000; --surface-raised:#171719; --surface-sunken:#111113;
+  --surface-selected:#2a2a2d; --text-primary:#f5f5f7; --text-secondary:#b9b9c0; --text-tertiary:#909098;
+  --hairline:#38383c; --hairline-strong:#505055; --geo-city-dot:#d8431f; --geo-city-dot-border:#250a04;
+}
+.portalink-world-header { display:flex; align-items:center; background:#000; padding:12px 0; }
+#root .codex-shell .portalink-world-header .global-control-header { background:#000 !important; color:#f5f5f7; border:0; }
+.portalink-world-header .portalink-world-search { flex:1; min-width:0; margin-inline:auto; padding-bottom:0; }
+#root .codex-shell .portalink-world-search .location-search { background:#171719 !important; border-color:#38383c; color:#f5f5f7; }
+#root .codex-shell .portalink-world-search .location-search input { background:#111113 !important; color:#f5f5f7 !important; -webkit-text-fill-color:#f5f5f7; border-color:#505055 !important; }
+#root .codex-shell .portalink-world-search .location-search input::placeholder { color:#909098 !important; -webkit-text-fill-color:#909098; }
+.portalink-world-header .location-search-results { position:absolute; inset-inline:0; top:100%; z-index:30; }
+
+/* A single header search field; its accessible label stays available to readers. */
+#root .codex-shell .portalink-world-header .portalink-world-search .location-search {padding:0;border:0;border-radius:12px;background:transparent!important;}
+#root .codex-shell .portalink-world-header .portalink-world-search .location-search input {min-height:44px;border-radius:12px;}
+#root .codex-shell .portalink-world-header .portalink-world-search .location-search input:focus {border-color:var(--accent-primary)!important;outline:2px solid var(--accent-primary);outline-offset:0;}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .portalink-world-search:focus-within {position:relative;inset:auto;height:auto;width:100%;max-width:520px;margin:0 auto;padding:0 16px;background:transparent;display:block;}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .location-search {display:block;flex:none;}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .location-search-results {position:absolute;inset-inline:0;top:100%;max-height:min(50dvh,360px);overflow-y:auto;}
