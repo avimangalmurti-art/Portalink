@@ -4,20 +4,30 @@ import test from 'node:test';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
-test('public mobile signup starts at profile and Back dismisses to content; ordinary signup retains appearance', () => {
+test('both presentations open one inline account form instead of required appearance/profile steps', () => {
  const source=readFileSync(new URL('../src/features/auth/AuthDialog.tsx',import.meta.url),'utf8');
  const block=source.slice(source.indexOf('export function AuthDialog'),source.indexOf('function useFormActivity'));
- for(const initialSignupStep of ['profile',undefined]){
+ for(const presentation of ['mobile','web']){
   let closed=0;
   const exports={};
   vm.runInNewContext(ts.transpileModule(block,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,{
-   exports,React,useAuth:()=>({pendingView:'signUp',closeAuth:()=>closed++}),usePresentation:()=> 'mobile',
-   useState:initial=>[initial,()=>{}],useRef:()=>({current:null}),useEffect:()=>{},
-   AccountWelcomeSurface:'surface',mobileSignupTitles:{profile:'Create your profile',appearance:'Choose appearance'}
+   exports,React,useAuth:()=>({pendingView:'signUp',closeAuth:()=>closed++,requestAuth:()=>{}}),usePresentation:()=>presentation,
+   useState:initial=>[initial,()=>{}],useRef:()=>({current:null}),useEffect:()=>{},PortalinkSplashLoader:'welcome',EntryChoices:'choices',SignUpForm:'signup',
   });
-  const tree=exports.AuthDialog({initialSignupStep});
-  assert.equal(tree.props.title,initialSignupStep==='profile'?'Create your profile':'Choose appearance');
-  assert.equal(tree.props.onStepBack,undefined);
-  tree.props.onDismiss();assert.equal(closed,1);
+  const fragment=exports.AuthDialog({});
+  const welcome=React.Children.toArray(fragment.props.children)[0];
+  assert.equal(welcome.type,'welcome');
+  const content=welcome.props.landing.content;
+  const form=React.Children.toArray(content.props.children.props.children).find(node=>node.type==='signup');
+  assert.equal(form.props.compactEntry,true); assert.equal(form.props.step,'account');
+  welcome.props.landing.onContinue();assert.equal(closed,1);
  }
+});
+
+test('restoring unfinished signup values does not skip appearance; verification still resumes', () => {
+ const source=readFileSync(new URL('../src/features/auth/AuthDialog.tsx',import.meta.url),'utf8');
+ const restore=source.slice(source.indexOf('void readRegistrationDraft'),source.indexOf('}, [restoreAttempt]'));
+ assert.doesNotMatch(restore,/onStepChange\('account'\)/);
+ assert.match(restore,/setName\(saved.registration.name\)/);
+ assert.match(restore,/saved.requiresEmailVerification\) setRestoredResult/);
 });

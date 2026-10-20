@@ -28,7 +28,7 @@ export const profileSharing = {
     const normalized = normalizePublicHandle(handle);
     if (!validHandle(normalized)) throw new Error('Use 3–30 lowercase letters, numbers or dots. This address must not be reserved.');
     const data = await call('claim_profile_handle', { p_profile_id: profileId, p_handle: normalized });
-    if (data === undefined) throw new Error('Short addresses are not enabled yet. Your existing portfolio link still works.');
+    if (data === undefined) throw new Error('Short addresses are not enabled yet. Your existing catalogue link still works.');
     return { handle: normalized, confirmed: true, available: true };
   },
   async markHandleShared(profileId: string, handle: string): Promise<void> {
