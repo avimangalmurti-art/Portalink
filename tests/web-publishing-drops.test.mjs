@@ -10,7 +10,7 @@ const compiled = ts.transpileModule(readFileSync(new URL('../src/components/publ
 }).outputText;
 const nodes = tree => !React.isValidElement(tree) ? [] : [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)];
 const assets = Array.from({ length: 3 }, (_, index) => ({ id: `asset-${index}`, fileName: `image-${index}.png`, displayTitle: `Image ${index}`, family: 'image', typeLabel: 'Image', sizeBytes: 100 }));
-function harness({ presentation = 'web', items = assets, upload, disabled = false, isFull = false } = {}) {
+function harness({ presentation = 'web', items = assets, upload, disabled = false, isFull = false, expanded = false, mobileFileManager = false, liveReorder = false } = {}) {
   const selections = [], reorders = [], exports = {};
   vm.runInNewContext(compiled, { exports, require(name) {
     if (name === 'react') return { ...React, useState: initial => [initial, () => {}], useRef: value => ({ current: value }), useEffect() {}, useLayoutEffect() {} };
@@ -21,10 +21,9 @@ function harness({ presentation = 'web', items = assets, upload, disabled = fals
     if (name.endsWith('/imageMetadata')) return { imageDimensionsLabel: () => '', imageResolutionNotice: () => null };
     return new Proxy({}, { get: (_, key) => key });
   } });
-  const media = { items, isFull, select: files => selections.push(files), reorder: (from, to) => reorders.push([from, to]) };
-  const tree = exports.MediaPicker({ media, upload: upload ? { itemProgress: {}, ...upload } : undefined, disabled, compact: presentation === 'mobile' });
-  const rowComponents = nodes(tree).filter(node => node.type?.name === 'AssetRow');
-  return { tree, selections, reorders, rows: rowComponents.map(node => node.type(node.props)) };
+  const media = { items, isFull, select: files => selections.push(files), reorder: (from, to) => {reorders.push([from, to]);if(liveReorder){const next=[...media.items],moved=next.splice(from,1)[0];next.splice(to,0,moved);media.items=next;}} };
+  const render=()=>{const tree=exports.MediaPicker({ media, upload: upload ? { itemProgress: {}, ...upload } : undefined, disabled, compact: presentation === 'mobile', expanded, mobileFileManager });return {tree,rows:nodes(tree).filter(node=>node.type?.name==='AssetRow').map(node=>node.type(node.props))};};
+  return { ...render(), render, media, selections, reorders };
 }
 function dragEvent({ files = [], text = '', types = files.length ? ['Files'] : [], data = {} } = {}) {
   const values = new Map(Object.entries({ 'text/plain': text, ...data }));
@@ -100,4 +99,30 @@ test('MOBILE keeps its compact picker and existing native file-selection path', 
   assert.equal(h.selections[0], files);
   assert.equal(target.value, '');
   assert.ok(nodes(h.tree).some(node => node.props.children === 'Choose photos, videos or documents from your device.'));
+});
+
+test('MOBILE file manager exposes every row and touch reorder preserves each file and its cover draft',()=>{
+ const items=Array.from({length:15},(_,index)=>({...assets[0],id:`file-${index}`,displayTitle:`Artwork ${index+1}`,isCover:index===14,metadata:{coverFrame:{x:.2,y:.8,zoom:2}}}));
+ const h=harness({presentation:'mobile',items,expanded:true,mobileFileManager:true,liveReorder:true});
+ assert.equal(h.rows.length,15);assert.equal(h.tree.props['data-mobile-file-manager'],true);
+ const earlier=row=>nodes(row).find(node=>node.props['aria-label']?.endsWith(' earlier'));
+ const later=row=>nodes(row).find(node=>node.props['aria-label']?.endsWith(' later'));
+ assert.equal(earlier(h.rows[0]).props.disabled,true);assert.equal(later(h.rows[14]).props.disabled,true);
+ assert.ok(!earlier(h.rows[14]).props.className?.includes('sr-only'));
+ earlier(h.rows[14]).props.onClick();
+ const next=h.render();assert.deepEqual(h.reorders,[[14,13]]);assert.equal(next.rows.length,15);
+ assert.equal(h.media.items[13],items[14]);assert.equal(h.media.items[13].isCover,true);assert.equal(h.media.items[13].metadata.coverFrame,items[14].metadata.coverFrame);
+ assert.equal(nodes(next.rows[13]).find(node=>node.props['data-file-order']).props['data-file-order'],14);
+ assert.deepEqual(h.selections,[],'Reorder never opens or changes native file selection');
+});
+
+test('file-manager controls respect all transport locks and remain an explicit MOBILE opt-in',()=>{
+ for(const options of [{disabled:true},{upload:{phase:'uploading'}},{upload:{phase:'cancelling'}},{upload:{phase:'uploaded'}}]){
+  const h=harness({presentation:'mobile',expanded:true,mobileFileManager:true,...options});
+  for(const row of h.rows)for(const node of nodes(row).filter(node=>node.type==='button'))assert.equal(node.props.disabled,true);
+ }
+ for(const options of [{presentation:'web',mobileFileManager:true},{presentation:'mobile',mobileFileManager:false}]){
+  const h=harness({...options,expanded:true});assert.equal(h.tree.props['data-mobile-file-manager'],undefined);
+  for(const row of h.rows)assert.equal(nodes(row).some(node=>node.props.className==='mobile-file-reorder-controls'),false);
+ }
 });

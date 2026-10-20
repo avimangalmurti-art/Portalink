@@ -1,3 +1,4 @@
+import { motionSeconds, motionCurve } from '../presentation/motion/motion';
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { XIcon } from 'lucide-react';
@@ -112,7 +113,7 @@ export function AppDetailPage({
   }} exit={{
     opacity: 0
   }} transition={{
-    duration: shouldReduceMotion ? 0 : 0.18
+    duration: shouldReduceMotion ? 0 : motionSeconds('base')
   }} onMouseDown={(event) => {
     if (event.target === event.currentTarget) {
       onBack();
@@ -132,12 +133,12 @@ export function AppDetailPage({
       opacity: 0,
       scale: 0.99
     }} transition={{
-      duration: shouldReduceMotion ? 0 : 0.18,
-      ease: [0.23, 1, 0.32, 1]
+      duration: shouldReduceMotion ? 0 : motionSeconds('base'),
+      ease: motionCurve()
     }}>
         {/* Compact top bar: close, what this is, who made it, existing actions. */}
         <header className="global-control-header side-panel-content-inset shrink-0">
-          <button ref={closeButtonRef} type="button" onClick={onBack} aria-label="Close" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button ref={closeButtonRef} type="button" onClick={onBack} aria-label="Close" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
           </button>
           <div className="flex min-w-0 flex-1 items-baseline gap-2.5">
@@ -145,7 +146,7 @@ export function AppDetailPage({
             {app.creatorName && <span aria-hidden="true" className="hidden shrink-0 text-[13px] text-[var(--text-tertiary)] sm:inline">·</span>}
             {/* The creator name takes the accent on hover, so it reads as a way
                through to their profile. */}
-            {app.creatorName && (openCreator ? <button type="button" onClick={openCreator} data-creator-link="" className="hidden shrink-0 items-center gap-1.5 rounded-[7px] text-[13px] text-[var(--text-secondary)] transition-colors duration-150 hover:text-[var(--accent-text)] focus-visible:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:flex">
+            {app.creatorName && (openCreator ? <button type="button" onClick={openCreator} data-creator-link="" className="hidden shrink-0 items-center gap-1.5 rounded-[7px] text-[13px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:text-[var(--accent-text)] focus-visible:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:flex">
                 <CreatorAvatar name={app.creatorName} avatar={app.creatorAvatar} className="h-5 w-5 text-[10px]" />
                 {app.creatorName}
               </button> : <span className="hidden shrink-0 items-center gap-1.5 text-[13px] text-[var(--text-secondary)] sm:flex"><CreatorAvatar name={app.creatorName} avatar={app.creatorAvatar} className="h-5 w-5 text-[10px]" />{app.creatorName}</span>)}
@@ -179,10 +180,10 @@ export function AppDetailPage({
           <aside data-resizable-panel="" style={{ ['--content-details-width' as string]: `${detailsPanelWidth.width}px` }} aria-label="Content details" className="scrollbar-slim relative min-h-0 shrink-0 overflow-y-auto border-t border-[var(--hairline)] px-4 py-5 sm:px-5 lg:w-[var(--content-details-width)] lg:border-l lg:border-t-0">
             {/* Creator identity leads, visually distinct from the title. */}
             {app.creatorName && <div className="mb-5">
-                {openCreator ? <button type="button" onClick={openCreator} aria-label={`Open ${app.creatorName}'s profile`} data-creator-link="" className="group/creator flex w-full items-center gap-2.5 rounded-[10px] px-1.5 py-1.5 text-left transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                {openCreator ? <button type="button" onClick={openCreator} aria-label={`Open ${app.creatorName}'s profile`} data-creator-link="" className="group/creator flex w-full items-center gap-2.5 rounded-[10px] px-1.5 py-1.5 text-left transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                     <CreatorAvatar name={app.creatorName} avatar={app.creatorAvatar} className="h-9 w-9 text-[13px]" />
                     <span className="min-w-0">
-                      <span className="block truncate text-[14px] font-semibold leading-[1.3] text-[var(--text-primary)] transition-colors duration-150 group-hover/creator:text-[var(--accent-text)]">{app.creatorName}</span>
+                      <span className="block truncate text-[14px] font-semibold leading-[1.3] text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] group-hover/creator:text-[var(--accent-text)]">{app.creatorName}</span>
                       {app.creatorKind && <span className="block truncate text-[12px] text-[var(--text-tertiary)]">{app.creatorKind}</span>}
                     </span>
                   </button> : <div className="flex items-center gap-2.5 px-1.5 py-1.5">

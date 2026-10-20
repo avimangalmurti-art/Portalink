@@ -1,3 +1,4 @@
+import { motionSeconds } from '../../presentation/motion/motion';
 import React, { useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangleIcon, Loader2Icon, XIcon } from 'lucide-react';
@@ -32,7 +33,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
   useModalFocus(isOpen, sheetRef, close);
 
   return <ModalPortal><InteractionSafePresence isPresent={isOpen}>
-    {isOpen && <motion.div className="modal-scrim fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: shouldReduceMotion ? 0 : 0.18 }} onMouseDown={(event) => {
+    {isOpen && <motion.div className="modal-scrim fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: shouldReduceMotion ? 0 : motionSeconds('base') }} onMouseDown={(event) => {
       if (event.target === event.currentTarget) close();
     }}>
       <section ref={sheetRef} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby="delete-account-title" aria-describedby="delete-account-description" aria-busy={deletion.isDeleting} className="max-h-[calc(100dvh-2rem)] w-full max-w-[460px] overflow-y-auto rounded-[18px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text-primary)] shadow-[0_24px_60px_rgba(0,0,0,0.32)] focus:outline-none sm:p-6">

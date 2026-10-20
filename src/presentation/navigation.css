@@ -51,7 +51,7 @@
   background: var(--navigation-item-surface, var(--navigation-item-rest-surface, transparent)) !important;
   color: var(--navigation-item-foreground, var(--navigation-foreground)) !important;
   box-shadow: var(--navigation-item-shadow, none) !important;
-  transition: var(--navigation-control-transition, background-color 160ms ease, color 160ms ease);
+  transition: var(--navigation-control-transition, background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter));
 }
 
 #root .codex-shell[data-presentation] :is(
@@ -136,7 +136,7 @@
   border-radius: var(--shape-compact);
 }
 #root .codex-shell[data-presentation] .mobile-project-page-counter {
-  --navigation-control-transition: transform 160ms ease, background-color 160ms ease, color 160ms ease;
+  --navigation-control-transition: transform var(--m-base) var(--m-enter), background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
 }
 #root .codex-shell[data-presentation] :is(.nav-button, [data-structural-toggle], .mobile-project-back, .mobile-project-popup-trigger, .mobile-project-engagement-toggle) {
   transform: none !important;
