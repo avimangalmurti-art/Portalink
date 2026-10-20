@@ -51,3 +51,14 @@ test('measurement follows every emitted static import and reports each entry sep
   assert.equal(visitor.jsBytes, visitor.js.reduce((sum, chunk) => sum + chunk.bytes, 0));
   assert.ok(visitor.cssBytes > 0);
 });
+
+test('the lazy public welcome loads the same button styles as the main welcome', () => {
+  const loader = Object.values(manifest).find(chunk => chunk.name === 'PortalinkSplashLoader');
+  assert.ok(loader, 'welcome remains a separately loaded public feature');
+  const styles = (loader.css ?? []).map(path => read('dist/client/' + path)).join('\n');
+  assert.match(styles, /mobile-share-create/);
+  assert.match(styles, /mobile-share-secondary/);
+  assert.match(styles, /border-radius:999px/);
+  assert.match(styles, /flex-direction:column/);
+  assert.doesNotMatch(styles, /mobile-navigation-dock|profile-editor-page/);
+});

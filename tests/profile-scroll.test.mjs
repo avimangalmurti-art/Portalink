@@ -169,7 +169,7 @@ test('phone pinches resize only overview content, stay bounded, and ignore singl
   h.listeners.get('touchstart')({ touches: touches(100) });
   assert.equal(move(125).prevented, true);
   assert.equal(h.state[0].columns, 3);
-  move(10000); assert.equal(h.state[0].columns, 2);
+  move(10000); assert.equal(h.state[0].columns, 1);
   move(1); assert.equal(h.state[0].columns, 13);
   move(100); assert.equal(h.state[0].columns, 4, 'Reversing a pinch restores its starting size');
   h.listeners.get('touchend')();

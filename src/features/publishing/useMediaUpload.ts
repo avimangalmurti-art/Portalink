@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
-import { attachmentsFromPersistedMedia } from '../media/projectAttachments';
+import { attachmentsFromPersistedMedia } from '../media/persistedMediaAttachments';
 import { UploadServiceError } from '../../types/publishing';
 import type { Id } from '../../types/domain';
 import type { PersistedAttachment, PersistedMedia, PreparedMedia, UploadCapability, UploadFailure, UploadId, UploadItemState, UploadProgress } from '../../types/publishing';
@@ -57,8 +57,20 @@ export function useMediaUpload(capability: UploadCapability | null) {
   const [phase, setPhase] = useState<UploadPhase>('idle');
   const [uploadId, setUploadId] = useState<UploadId | null>(null);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
-  const [persisted, setPersisted] = useState<PersistedMedia[]>([]);
-  const [attachments, setAttachments] = useState<PersistedAttachment[]>([]);
+  const [persisted, setPersistedState] = useState<PersistedMedia[]>([]);
+  const [attachments, setAttachmentsState] = useState<PersistedAttachment[]>([]);
+  const checkpoint = useRef<{persisted: PersistedMedia[]; attachments: PersistedAttachment[]}>({persisted: [], attachments: []});
+  const setPersisted = useCallback((value: PersistedMedia[]) => {
+    checkpoint.current = {...checkpoint.current, persisted: value};
+    setPersistedState(value);
+  }, []);
+  const setAttachments = useCallback((value: PersistedAttachment[]) => {
+    checkpoint.current = {...checkpoint.current, attachments: value};
+    setAttachmentsState(value);
+  }, []);
+  // Upload completion can precede React's next render. Publication checkpoints
+  // must use the confirmed result, rather than the previous render's arrays.
+  const getCheckpoint = useCallback(() => checkpoint.current, []);
   const [failure, setFailure] = useState<UploadFailure | null>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [cleanupError, setCleanupError] = useState<string | null>(null);
@@ -78,7 +90,7 @@ export function useMediaUpload(capability: UploadCapability | null) {
     setCleanupError(null);
     attemptedMediaRef.current = [];
     isRunningRef.current = false;
-  }, []);
+  }, [setAttachments, setPersisted]);
 
   /**
    * Deletes stored objects through the service. Used for orphan cleanup: files
@@ -112,7 +124,7 @@ export function useMediaUpload(capability: UploadCapability | null) {
     setPersisted([]);
     setAttachments([]);
     return true;
-  }, [mediaService, persisted]);
+  }, [mediaService, persisted, setAttachments, setPersisted]);
 
   /**
    * Starts — or retries — the upload of the given prepared media.
@@ -209,7 +221,7 @@ export function useMediaUpload(capability: UploadCapability | null) {
     } finally {
       isRunningRef.current = false;
     }
-  }, [isAvailable, mediaService, attachments, phase, cleanupPersisted]);
+  }, [isAvailable, mediaService, attachments, phase, cleanupPersisted, setAttachments, setPersisted]);
 
   /** Retries the SAME intended upload. Nothing the creator chose is reset. */
   const retry = useCallback(async (input: {
@@ -257,7 +269,7 @@ export function useMediaUpload(capability: UploadCapability | null) {
         cleanupRequired: false
       });
     }
-  }, [uploadId, phase, mediaService, cleanupPersisted]);
+  }, [uploadId, phase, mediaService, cleanupPersisted, setPersisted]);
   const dismissFailure = useCallback(() => setFailure(null), []);
   const dismissCleanupError = useCallback(() => setCleanupError(null), []);
   const state = useMemo<MediaUploadState>(() => ({
@@ -279,9 +291,10 @@ export function useMediaUpload(capability: UploadCapability | null) {
     setPersisted(saved.persisted); setAttachments(saved.attachments);
     setPhase(saved.attachments.length ? 'uploaded' : 'idle');
     attemptedMediaRef.current = media;
-  }, []);
+  }, [setAttachments, setPersisted]);
   return {
     ...state,
+    getCheckpoint,
     restore,
     upload,
     retry,
