@@ -90,7 +90,31 @@ function ScreenLayer({ layer, active, mobile, navigation, mainContentRef, onScro
     if (!mobile || !active || !layer.restored) return;
     // Restore DOM offsets before paint, not through an entrance animation or a refetch.
     finishPullDismiss();
-    for (const [node, top, left] of [...saved.current.inside, ...saved.current.outside]) { node.scrollTop = top; node.scrollLeft = left; }
+    let frame = 0, attempts = 0, completeFrames = 0, stopped = false;
+    const inputTypes = ['pointerdown', 'touchstart', 'wheel', 'keydown'] as const;
+    const stop = () => {
+      stopped = true;
+      cancelAnimationFrame(frame);
+      for (const type of inputTypes) window.removeEventListener(type, stop, true);
+    };
+    const restore = () => {
+      if (stopped) return;
+      if (!host.current?.isConnected) { stop(); return; }
+      let complete = true;
+      for (const [node, top, left] of [...saved.current.inside, ...saved.current.outside]) {
+        if (!node.isConnected) continue;
+        node.scrollTop = top; node.scrollLeft = left;
+        if (Math.abs(node.scrollTop - top) >= 2 || Math.abs(node.scrollLeft - left) >= 2) complete = false;
+      }
+      completeFrames = complete ? completeFrames + 1 : 0;
+      // A revealed grid needs its ResizeObserver measurement before the document
+      // can hold the saved offset. Stop once it fits, or after a bounded wait.
+      if (++attempts < 30 && completeFrames < 2) frame = requestAnimationFrame(restore);
+      else stop();
+    };
+    for (const type of inputTypes) window.addEventListener(type, stop, { capture: true, passive: true });
+    restore();
+    return stop;
   }, [active, layer.restored, mobile]);
   const scope = <MobileBackScope active={active} enabled={false}>{layer.snapshot.content}</MobileBackScope>;
   const context = mobile || layer.retained ? layer.snapshot.routeContext : navigation;

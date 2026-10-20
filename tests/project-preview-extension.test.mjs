@@ -32,6 +32,7 @@ function cardHarness(presentation = 'mobile') {
     if (name === 'lucide-react') return { MoreHorizontalIcon: 'horizontal-dots' };
     if (name.endsWith('/MobileContextActions')) return { useMobileActions: () => ({ open() {} }) };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: 'interface-icon' };
+    if (name.endsWith('/warmDocumentRenderer')) return { warmProjectDocumentRenderer() {} };
     if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useContentPreview')) return { useContentPreview: () => ({ expanded, events: {}, ref: {}, open: (event, action) => action(), toggleDetails: () => details++ }) };

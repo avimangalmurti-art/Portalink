@@ -79,7 +79,10 @@ function getFeedCacheEntry(discovery: object, scope: object, cacheKey: string): 
   return entry;
 }
 
-export function useFeed(locationId?: Id): FeedState {
+export function useFeed(locationId?: Id, { preserveSnapshotAcrossRevision = false }: {
+  /** MOBILE retained screens keep their complete placement while canonical reads refresh. */
+  preserveSnapshotAcrossRevision?: boolean;
+} = {}): FeedState {
   const {
     discovery
   } = useServices();
@@ -88,8 +91,16 @@ export function useFeed(locationId?: Id): FeedState {
   } = useProfileData();
   const accountId = useAuth().user?.id ?? 'guest';
   const cacheKey = `${accountId}:${revision}:${locationId ?? 'home'}`;
-  const identity = useMemo(() => ({ discovery, scope, cacheKey }), [discovery, scope, cacheKey]);
-  const initialSnapshot = getFeedCacheEntry(discovery, scope, cacheKey).snapshot;
+  const placement = useMemo(() => ({ discovery, scope, accountId, locationId }), [discovery, scope, accountId, locationId]);
+  const identity = useMemo(() => ({ discovery, scope, cacheKey, preserveSnapshotAcrossRevision }), [discovery, scope, cacheKey, preserveSnapshotAcrossRevision]);
+  const completedPlacement = useRef<{ placement: typeof placement; snapshot: FeedSnapshot } | null>(null);
+  const cachedInitialSnapshot = getFeedCacheEntry(discovery, scope, cacheKey).snapshot;
+  // A revision is refresh intent, not a different account or placement. Keep
+  // only this mounted screen's last confirmed feed; never carry it into a new
+  // visibility scope, service, account, city, or the default WEB behavior.
+  if (!preserveSnapshotAcrossRevision || completedPlacement.current?.placement !== placement) completedPlacement.current = null;
+  if (preserveSnapshotAcrossRevision && cachedInitialSnapshot) completedPlacement.current = { placement, snapshot: cachedInitialSnapshot };
+  const initialSnapshot = cachedInitialSnapshot ?? completedPlacement.current?.snapshot;
   const [status, setStatus] = useState<AsyncStatus>(initialSnapshot ? 'success' : 'idle');
   const [featured, setFeatured] = useState<ProjectView | null>(initialSnapshot?.featured ?? null);
   const [projects, setProjects] = useState<ProjectView[]>(initialSnapshot?.projects ?? []);
@@ -126,7 +137,10 @@ export function useFeed(locationId?: Id): FeedState {
     setIsLoadingMore(false);
     setLoadMoreError(null);
     const entry = getFeedCacheEntry(discovery, scope, cacheKey);
-    const cachedSnapshot = entry.snapshot;
+    const retainedSnapshot = preserveSnapshotAcrossRevision && completedPlacement.current?.placement === placement
+      ? completedPlacement.current.snapshot : undefined;
+    const cachedSnapshot = entry.snapshot ?? retainedSnapshot;
+    const revisionRefresh = !entry.snapshot && Boolean(retainedSnapshot);
     if (cachedSnapshot) {
       setFeatured(cachedSnapshot.featured);
       setProjects(cachedSnapshot.projects);
@@ -148,7 +162,7 @@ export function useFeed(locationId?: Id): FeedState {
     setRefreshError(null);
     setHomeModeError(null);
     setIsSavingHomeMode(false);
-    if (cachedSnapshot && !requestedRefresh && !entry.request) {
+    if (cachedSnapshot && !requestedRefresh && !revisionRefresh && !entry.request) {
       setIsRefreshing(false);
       return cleanup;
     }
@@ -166,8 +180,8 @@ export function useFeed(locationId?: Id): FeedState {
             nextCursor: null,
           }))
         : discovery.getHomeDiscovery().then(async (first) => {
-            // An explicit refresh covers every page already loaded so it does
-            // not truncate the feed or retain removed work on later pages.
+            // A refresh covers every page already loaded so it does not
+            // truncate the feed or retain removed work on later pages.
             let home = first;
             let projects = first.projects;
             const targetCount = cachedSnapshot?.projects.length ?? 0;
@@ -199,6 +213,7 @@ export function useFeed(locationId?: Id): FeedState {
       if (!isCurrent) {
         return;
       }
+      if (preserveSnapshotAcrossRevision) completedPlacement.current = { placement, snapshot };
       setFeatured(snapshot.featured);
       setProjects(snapshot.projects);
       setCreators(snapshot.creators);
@@ -232,12 +247,22 @@ export function useFeed(locationId?: Id): FeedState {
       setStatus('error');
     });
     return cleanup;
-  }, [discovery, scope, cacheKey, identity, attempt, locationId]);
+  }, [discovery, scope, cacheKey, identity, attempt, locationId, placement, preserveSnapshotAcrossRevision]);
   const loadMore = useCallback(() => {
     if (currentIdentity.current !== identity) return;
     const entry = getFeedCacheEntry(discovery, scope, cacheKey);
     const snapshot = entry.snapshot;
-    if (locationId || isRefreshing || loadMoreBusy.current || !snapshot?.nextCursor) return;
+    if (locationId || isRefreshing || loadMoreBusy.current) return;
+    if (!snapshot && preserveSnapshotAcrossRevision && completedPlacement.current?.placement === placement && completedPlacement.current.snapshot.nextCursor) {
+      // A failed revision refresh still presents the retained feed's control.
+      // Revalidate that placement before following any cursor from its old ranking.
+      loadMoreBusy.current = true;
+      setIsRefreshing(true);
+      setRefreshError(null);
+      setAttempt(count => count + 1);
+      return;
+    }
+    if (!snapshot?.nextCursor) return;
     const requestId = ++loadMoreRequest.current;
     loadMoreBusy.current = true;
     setIsLoadingMore(true);
@@ -249,6 +274,7 @@ export function useFeed(locationId?: Id): FeedState {
         nextCursor: home.nextCursor ?? null,
       };
       entry.snapshot = merged;
+      if (preserveSnapshotAcrossRevision) completedPlacement.current = { placement, snapshot: merged };
       setProjects(merged.projects);
       setNextCursor(merged.nextCursor);
     }).catch((caught) => {
@@ -261,7 +287,7 @@ export function useFeed(locationId?: Id): FeedState {
         setIsLoadingMore(false);
       }
     });
-  }, [discovery, scope, cacheKey, identity, locationId, isRefreshing]);
+  }, [discovery, scope, cacheKey, identity, locationId, isRefreshing, placement, preserveSnapshotAcrossRevision]);
   const retry = useCallback(() => {
     setIsRefreshing(true);
     setRefreshError(null);
@@ -288,6 +314,7 @@ export function useFeed(locationId?: Id): FeedState {
       };
       const entry = getFeedCacheEntry(discovery, scope, cacheKey);
       entry.snapshot = snapshot;
+      if (preserveSnapshotAcrossRevision) completedPlacement.current = { placement, snapshot };
       setFeatured(snapshot.featured);
       setProjects(snapshot.projects);
       setCreators(snapshot.creators);
@@ -299,7 +326,7 @@ export function useFeed(locationId?: Id): FeedState {
       setHomeModeState(previousMode);
       setHomeModeError(caught instanceof Error ? caught.message : 'Your Home preference could not be saved.');
     }).finally(() => { if (currentIdentity.current === identity) setIsSavingHomeMode(false); });
-  }, [discovery, scope, homeMode, cacheKey, identity]);
+  }, [discovery, scope, homeMode, cacheKey, identity, placement, preserveSnapshotAcrossRevision]);
   // A departing account or placement must not paint its previous cards before
   // the new identity's effect runs.
   const currentState = stateIdentity.current === identity;

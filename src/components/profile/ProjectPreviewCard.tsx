@@ -13,6 +13,7 @@ import { ProjectCover } from '../media/ProjectCover';
 import { ProjectHoverDetails } from './ProjectHoverDetails';
 import type { ImagePriority } from '../ui/ResponsiveImage';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { warmProjectDocumentRenderer } from '../media/warmDocumentRenderer';
 
 const ProjectPreviewExtension = lazy(() => import('./ProjectPreviewExtension').then(module => ({ default: module.ProjectPreviewExtension })));
 
@@ -61,7 +62,10 @@ export function ProjectPreviewCard({ contextHandlers, onEditDescription, project
   const openProps = {
     'data-preview-open': '', 'data-project-continuity-surface': '', 'data-project-continuity-id': project.id,
     style: projectContinuityStyle(project.id), onPointerEnter: onWarmCreator, onFocus: onWarmCreator,
-    onClick: (event: React.MouseEvent<HTMLElement>) => preview.open(event, href ? () => undefined : onOpen),
+    onClick: (event: React.MouseEvent<HTMLElement>) => preview.open(event, () => {
+      if (isMobile) warmProjectDocumentRenderer(project);
+      if (!href) onOpen();
+    }),
     'aria-label': label, 'aria-expanded': isMobile ? undefined : preview.expanded,
     className: 'project-preview-artwork absolute inset-0 block h-full w-full overflow-hidden bg-[var(--surface-sunken)] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
   };

@@ -105,7 +105,7 @@ export function HomeFeed({
   const canOwnScroll = !isMobile || screenActive;
   const navigate = useNavigate();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
-  const feed = useFeed(locationId);
+  const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile });
   const { viewerProfileId, isAuthenticated, user } = useAuth();
   const management = useProjectManagement(isAuthenticated ? viewerProfileId : null);
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
