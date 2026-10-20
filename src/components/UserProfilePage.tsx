@@ -11,7 +11,9 @@ import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
 import { journeyAllowed } from '../features/journey/journey';
 import { readLivePortfolio, livePortfolioDismissed } from '../features/publishing/firstProject';
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
+import { lazyWithMobileRecovery } from './ui/lazyWithMobileRecovery';
+import { DeferredSurfaceOwnerContext } from './ui/DeferredSurfaceOwner';
 import { PortfolioLiveCard } from '../features/publishing/PortfolioLiveCard';
 import { MobileContextButton, useMobileScreenActions, useMobileContextPress } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
@@ -52,10 +54,10 @@ import { useProfileConnections } from '../features/follows/useProfileConnections
 import { ProfileCollectionGrid } from './profile/ProfileCollectionGrid';
 import { ProfileBioSheet } from '../features/profile/ProfileBioSheet';
 import './profile/profile-header.css';
-const JourneyView = lazy(() => import('../features/journey/JourneyView').then(m => ({ default: m.JourneyView })));
-const ThenNowDialog = lazy(() => import('../features/journey/ThenNowDialog').then(m => ({ default: m.ThenNowDialog })));
-const StartHereDialog = lazy(() => import('../features/employer/StartHereDialog').then(m => ({default:m.StartHereDialog})));
-const ProfileShareDialog = lazy(() => import('../features/sharing/ProfileShareDialog').then(m => ({ default: m.ProfileShareDialog })));
+const JourneyView = lazyWithMobileRecovery(() => import('../features/journey/JourneyView').then(m => ({ default: m.JourneyView })));
+const ThenNowDialog = lazyWithMobileRecovery(() => import('../features/journey/ThenNowDialog').then(m => ({ default: m.ThenNowDialog })));
+const StartHereDialog = lazyWithMobileRecovery(() => import('../features/employer/StartHereDialog').then(m => ({default:m.StartHereDialog})));
+const ProfileShareDialog = lazyWithMobileRecovery(() => import('../features/sharing/ProfileShareDialog').then(m => ({ default: m.ProfileShareDialog })));
 
 /**
  * A creator's profile overview.
@@ -712,11 +714,11 @@ export function UserProfilePage({
   </div>;
   // Mobile keeps one body scroller when the profile identity is hidden;
   // the display-contents wrapper preserves the desktop document flow.
-  if (mobileShareOpen && !profile.isPrivate) return <Suspense fallback={<PortfolioShareLoading profile={profile} counts={{followers, following}} onClose={closeShare}/>}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>;
+  if (mobileShareOpen && !profile.isPrivate) return <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closeShare }}><Suspense fallback={<PortfolioShareLoading profile={profile} counts={{followers, following}} onClose={closeShare}/>}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense></DeferredSurfaceOwnerContext.Provider>;
   return <div ref={profilePageRef} data-profile-reordering={isMobile && isReorderingProjects ? "" : undefined} data-profile-journey={isJourney ? '' : undefined} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
       {canDismissProfile && <ScreenBack action={dismissProfile}><span /></ScreenBack>}
-      {startHereSelection && <Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense>}
-      {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>}
+      {startHereSelection && <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closeStartHere }}><Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense></DeferredSurfaceOwnerContext.Provider>}
+      {shareOpen && <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closeShare }}><Suspense fallback={null}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense></DeferredSurfaceOwnerContext.Provider>}
       {!isMobile && searchReturn && !isSharedView && <ScreenBack visibleOnMobile action={() => navigate(searchReturn)}><button type="button" data-search-back="" onClick={() => navigate(searchReturn)} aria-label="Back to search" className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
       <div {...profilePress} data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       {showConnectionBack && !canDismissProfile && <ScreenBack visibleOnMobile action={backToConnections}><button type="button" data-connections-back="" onClick={backToConnections} aria-label={`Back to ${connectionList}`} className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
@@ -886,7 +888,7 @@ export function UserProfilePage({
           </div>}
         </> : nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid shared={isSharedView} profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : projectWall)}
       </main>
-      {showsOwnerTools && pairOpen && <Suspense fallback={null}><ThenNowDialog key={pairSelection ?? requestedPair} profile={profile} selectedId={pairSelection || requestedPair || undefined} onClose={closePair} /></Suspense>}
+      {showsOwnerTools && pairOpen && <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closePair }}><Suspense fallback={null}><ThenNowDialog key={pairSelection ?? requestedPair} profile={profile} selectedId={pairSelection || requestedPair || undefined} onClose={closePair} /></Suspense></DeferredSurfaceOwnerContext.Provider>}
       {showsOwnerTools && !isSharedView && projectManagement.editor.mode !== 'description' ? <ProjectEditorDialog management={projectManagement} /> : null}
       {showsOwnerTools && !isSharedView && projectManagement.deletion?.projectId && <DeleteProjectDialog management={projectManagement} projectTitle={profile.projects.find(project => project.id === projectManagement.deletion.projectId)?.title ?? 'Project'} onDeleted={projectManagement.deletion.cancel} />}
     </div>;

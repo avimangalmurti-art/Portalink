@@ -112,7 +112,7 @@ test('closing creation restores the mobile trigger without stealing another dest
       focus(options) { calls.push(['focus', options.preventScroll]); }
     }
     const opener = new Element(), body = {}, doc = { body, activeElement: opener, querySelector: () => after === 'another-modal' ? {} : null };
-    const context = vm.createContext({ firstProjectPublisher:false, setProjectSetupAccountId() {}, setProjectSetupMetadata() {}, setPublishResumeDraft() {},setFirstProjectPublisher() {}, setJourneyMadeIn() {}, HTMLElement: Element, document: doc, mobilePublishOpener: { current: null },
+    const context = vm.createContext({ firstProjectPublisher:false, setProjectSetupAccountId() {}, setMobileRecoveryDraft() {}, setMobileRecoveryError() {}, setProjectSetupMetadata() {}, setPublishResumeDraft() {},setFirstProjectPublisher() {}, setJourneyMadeIn() {}, HTMLElement: Element, document: doc, mobilePublishOpener: { current: null },
       requestGlobalPublish: () => { calls.push('create'); doc.activeElement = body; },
       setIsPublishOpen: value => calls.push(['open', value]), setPublishTargetCategoryId: value => calls.push(['target', value]),
       requestAnimationFrame: frame => frames.push(frame),

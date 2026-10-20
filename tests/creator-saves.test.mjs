@@ -196,6 +196,8 @@ function timelineActionsHarness(presentation, viewerRole = 'visitor', followStat
     if (name.endsWith('/MobileBackNavigation')) return { ScreenBack: 'ScreenBack', useMobileScreenActive: () => true };
     if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
     if (name === 'react') return react;
+    if (name.endsWith('/lazyWithMobileRecovery')) return { lazyWithMobileRecovery: loader => react.lazy(loader) };
+    if (name.endsWith('/DeferredSurfaceOwner')) return { DeferredSurfaceOwnerContext: React.createContext({}) };
     if (name === 'react-router-dom') return { useLocation: () => ({ state: null }), useNavigate: () => () => {}, useSearchParams: () => [params, update => { params = update(params); }] };
     if (name === 'lucide-react') return icons;
     if (name.endsWith('.css')) return {};

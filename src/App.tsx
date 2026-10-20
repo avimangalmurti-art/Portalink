@@ -64,27 +64,28 @@ import { dismissTopModal } from './hooks/useModalFocus';
 import { useMobileAuthoringHistory } from './features/publishing/useMobileAuthoringHistory';
 import type { HomeStartupProps } from './app/homeStartup';
 import { loadMessagesPage, loadStudioPage, loadSearchPage, loadSettingsPage, loadProfilePage, loadCategoryPage, loadProfileEditorPage, warmScreenForPath, warmCommonScreens } from './app/screenModules';
+import { lazyWithMobileRecovery } from './components/ui/lazyWithMobileRecovery';
 
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
-const MessagesPage = React.lazy(loadMessagesPage);
-const StudioPage = React.lazy(loadStudioPage);
-const SearchBrowsePage = React.lazy(loadSearchPage);
-const ControlCenterPage = React.lazy(loadSettingsPage);
-const AppDetailPage = React.lazy(() => import('./components/AppDetailPage').then(module => ({ default: module.AppDetailPage })));
-const IconPickerPage = React.lazy(() => import('./components/profile/IconPickerPage').then(module => ({ default: module.IconPickerPage })));
-const PortalsPage = React.lazy(() => import('./features/profile/PortalsPage').then(module => ({ default: module.PortalsPage })));
-const ProfileEditorPage = React.lazy(loadProfileEditorPage);
+const MessagesPage = lazyWithMobileRecovery(loadMessagesPage);
+const StudioPage = lazyWithMobileRecovery(loadStudioPage);
+const SearchBrowsePage = lazyWithMobileRecovery(loadSearchPage);
+const ControlCenterPage = lazyWithMobileRecovery(loadSettingsPage);
+const AppDetailPage = lazyWithMobileRecovery(() => import('./components/AppDetailPage').then(module => ({ default: module.AppDetailPage })));
+const IconPickerPage = lazyWithMobileRecovery(() => import('./components/profile/IconPickerPage').then(module => ({ default: module.IconPickerPage })));
+const PortalsPage = lazyWithMobileRecovery(() => import('./features/profile/PortalsPage').then(module => ({ default: module.PortalsPage })));
+const ProfileEditorPage = lazyWithMobileRecovery(loadProfileEditorPage);
 const AuthDialog = React.lazy(() => import('./features/auth/AuthDialog').then(module => ({ default: module.AuthDialog })));
 const FirstLoginWelcome = React.lazy(() => import('./components/auth/FirstLoginWelcome').then(module => ({ default: module.FirstLoginWelcome })));
 const ProfileOnboardingDialog = React.lazy(() => import('./features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
 // Keep the title input available in the opening interaction for mobile keyboard focus.
 import { ProjectSetupScreen } from './features/publishing/ProjectSetupScreen';
-const PublishProjectDialog = React.lazy(() => import('./features/publishing/PublishProjectDialog').then(module => ({ default: module.PublishProjectDialog })));
+const PublishProjectDialog = lazyWithMobileRecovery(() => import('./features/publishing/PublishProjectDialog').then(module => ({ default: module.PublishProjectDialog })));
 // Profile editing, sorting and the full media viewer are not Home startup work.
 // These retain their existing state/props inside the screen's Suspense boundary.
-const UserProfilePage = React.lazy(loadProfilePage);
-const ProfileCategoryPage = React.lazy(loadCategoryPage);
+const UserProfilePage = lazyWithMobileRecovery(loadProfilePage);
+const ProfileCategoryPage = lazyWithMobileRecovery(loadCategoryPage);
 const MAIN_SIDEBAR_COLLAPSED_KEY = 'portalink.mainSidebarCollapsed';
 
 function readMainSidebarCollapsed(): boolean {

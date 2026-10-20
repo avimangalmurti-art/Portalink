@@ -3,6 +3,7 @@ import { useModalFocus } from '../../hooks/useModalFocus';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { ModalPortal } from './ModalPortal';
 import { usePresentation } from '../../presentation/usePresentation';
+import { DeferredSurfaceOwnerContext } from './DeferredSurfaceOwner';
 
 type DeferredSurfaceProps = {
   active: boolean;
@@ -11,7 +12,7 @@ type DeferredSurfaceProps = {
   resetKey?: string;
 };
 
-function DeferredSurfaceStatus({ failed = false, onClose }: { failed?: boolean; onClose: () => void }) {
+export function DeferredSurfaceStatus({ failed = false, onClose }: { failed?: boolean; onClose: () => void }) {
   const isMobile = usePresentation() === 'mobile';
   const dialogRef = useRef<HTMLDivElement>(null);
   const viewportRef = useDialogViewport();
@@ -43,7 +44,7 @@ export class DeferredSurfaceBoundary extends React.Component<DeferredSurfaceProp
 
   render() {
     if (this.state.failed) return this.props.active ? <DeferredSurfaceStatus failed onClose={this.props.onClose} /> : null;
-    return this.props.children;
+    return <DeferredSurfaceOwnerContext.Provider value={{ active: this.props.active, onClose: this.props.onClose }}>{this.props.children}</DeferredSurfaceOwnerContext.Provider>;
   }
 }
 

@@ -176,6 +176,7 @@ test('collection tiles navigate to real portals/profiles and keep labels outside
 function profileHarness(search = '', options = {}) {
   let params = new URLSearchParams(search);
   const navigation = [];
+  const surfaceOwner = React.createContext({});
   let cursor = 0;
   const slots = [];
   const pendingEffects = [];
@@ -201,6 +202,8 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
+    if (name.endsWith('/lazyWithMobileRecovery')) return { lazyWithMobileRecovery: loader => react.lazy(loader) };
+    if (name.endsWith('/DeferredSurfaceOwner')) return { DeferredSurfaceOwnerContext: surfaceOwner };
     if (name === 'react-router-dom') return { useLocation: () => ({ state: null }), useNavigate: () => (target, options) => navigation.push({ target, options }), useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
@@ -230,7 +233,7 @@ function profileHarness(search = '', options = {}) {
     return placeholder;
   }, { URL, URLSearchParams, requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: options.window ? Object.assign(options.window, { location: { origin: 'https://portalink.test' } }) : { location: { origin: 'https://portalink.test' }, scrollTo() {}, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
   const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [], showJourney: options.showJourney };
-  return { navigation, projectOrder, density, action: id => [...(mobileActions?.primary ?? []), ...(mobileActions?.groups.flat() ?? [])].find(action => action.id === id), flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
+  return { navigation, projectOrder, density, surfaceOwner, action: id => [...(mobileActions?.primary ?? []), ...(mobileActions?.groups.flat() ?? [])].find(action => action.id === id), flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
     return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props, ...updates });
   } };
@@ -737,6 +740,53 @@ test('mobile owner header keeps Bio and links while Edit and Share work through 
   h.action('share').run();
   assert.equal(new URLSearchParams(h.search()).get('share'), 'portfolio');
   assert.equal(nodes(h.render()).some(node => node.type === 'PlatformGrid'), false, 'Sharing owns its own mobile screen');
+});
+
+async function failedOptionalModuleClose(owner) {
+  const status = () => null;
+  const recovery = compile('../src/components/ui/moduleLoadRecovery.ts', () => assert.fail('The transport helper has no imports'));
+  const { lazyWithMobileRecovery } = compile('../src/components/ui/lazyWithMobileRecovery.tsx', name => {
+    if (name === 'react') return { ...React, useContext: () => owner };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ phase: 'authenticated', user: { id: 'account' }, loginSession: {}, pendingView: null, session: null }) };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => 'mobile' };
+    if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
+    if (name === './DeferredDialog') return { DeferredSurfaceStatus: status };
+    if (name === './DeferredSurfaceOwner') return { DeferredSurfaceOwnerContext: {} };
+    if (name === './moduleLoadRecovery') return recovery;
+    assert.fail(`Unexpected recovery import ${name}`);
+  }, { window: { location: { search: '', hash: '' } } });
+  const Component = lazyWithMobileRecovery(() => Promise.reject(new TypeError('Importing a module script failed.')));
+  const element = Component({});
+  const boundary = new element.type(element.props);
+  const lazy = boundary.render().type;
+  let suspended;
+  try { lazy._init(lazy._payload); } catch (pending) { suspended = pending; }
+  assert.equal(typeof suspended?.then, 'function');
+  await suspended.catch(() => {});
+  let failure;
+  try { lazy._init(lazy._payload); } catch (error) { failure = error; }
+  boundary.state = { ...boundary.state, ...element.type.getDerivedStateFromError(failure) };
+  const fallback = boundary.render();
+  assert.equal(fallback.type, status);
+  fallback.props.onClose();
+}
+
+test('failed optional profile modules close their own share, Start Here and Then/Now surfaces instead of the profile route', async () => {
+  for (const presentation of ['mobile', 'web']) for (const kind of ['share', 'startHere', 'journeyPair']) {
+    let routeBacks = 0;
+    const query = kind === 'share' ? (presentation === 'mobile' ? 'share=portfolio' : '') : `${kind}=a`;
+    const h = profileHarness(query, { presentation, projects: reorderProjects, props: { onBack: () => { routeBacks++; } } });
+    h.render();
+    if (kind === 'share' && presentation === 'web') h.action('share').run();
+    const owner = nodes(h.render()).find(node => node.type === h.surfaceOwner.Provider);
+    assert.ok(owner, `${presentation} ${kind} owns its module-loading fallback`);
+    assert.equal(owner.props.value.active, true);
+    assert.equal(owner.props.value.onClose, owner.props.children.props.children.props.onClose);
+    await failedOptionalModuleClose(owner.props.value);
+    assert.equal(routeBacks, 0);
+    assert.equal(new URLSearchParams(h.search()).has(kind), false);
+    assert.equal(nodes(h.render()).some(node => node.type === h.surfaceOwner.Provider), false, `${presentation} ${kind} is dismissed`);
+  }
 });
 
 test('mobile Bio is available to owners, visitors and guests, with no links and on shared profiles', () => {

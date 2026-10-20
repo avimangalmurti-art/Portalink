@@ -121,6 +121,7 @@ test('a deferred dialog stays unloaded until first use and remains mounted throu
     useEffect(effect, deps) { const i = cursor++; if (!slots[i] || deps.some((value, index) => value !== slots[i][index])) { slots[i] = deps; effects.push(effect); } },
   };
   const { DeferredDialog } = execute(read('src/components/ui/DeferredDialog.tsx'), { react,
+    './DeferredSurfaceOwner': { DeferredSurfaceOwnerContext: React.createContext({}) },
     '../../hooks/useModalFocus': {}, '../../hooks/useDialogViewport': {}, './ModalPortal': {},
     '../../presentation/usePresentation': { usePresentation: () => 'web' },
   });
@@ -145,6 +146,7 @@ for (const presentation of ['mobile', 'web']) test(`a rejected ${presentation} d
   let closes = 0, reloads = 0;
   const focus = [];
   const exports = execute(read('src/components/ui/DeferredDialog.tsx'), {
+    './DeferredSurfaceOwner': { DeferredSurfaceOwnerContext: React.createContext({}) },
     react: { ...React, useRef: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus: (...args) => focus.push(args) },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
@@ -154,7 +156,7 @@ for (const presentation of ['mobile', 'web']) test(`a rejected ${presentation} d
   const child = React.createElement('form', { draft: 'saved registration remains untouched' });
   const onClose = () => closes++;
   const boundary = new exports.DeferredSurfaceBoundary({ active: true, children: child, onClose, resetKey: 'first-route' });
-  assert.equal(boundary.render(), child);
+  assert.equal(boundary.render().props.children, child);
   boundary.state = { ...boundary.state, ...exports.DeferredSurfaceBoundary.getDerivedStateFromError(new Error('Chunk failed')) };
   const error = boundary.render();
   assert.equal(error.props.failed, true);
@@ -185,12 +187,13 @@ for (const presentation of ['mobile', 'web']) test(`a rejected ${presentation} d
   assert.equal(exports.DeferredSurfaceBoundary.getDerivedStateFromProps(boundary.props, boundary.state), null);
   boundary.props = { ...boundary.props, resetKey: 'another-route' };
   boundary.state = { ...boundary.state, ...exports.DeferredSurfaceBoundary.getDerivedStateFromProps(boundary.props, boundary.state) };
-  assert.equal(boundary.render(), child, 'Navigating to another screen clears only the local error boundary.');
+  assert.equal(boundary.render().props.children, child, 'Navigating to another screen clears only the local error boundary.');
 });
 
 test('opening feedback is cancellable without reloading or mounting feature children', () => {
   let cancelled = 0;
   const { DeferredSurface } = execute(read('src/components/ui/DeferredDialog.tsx'), {
+    './DeferredSurfaceOwner': { DeferredSurfaceOwnerContext: React.createContext({}) },
     react: { ...React, useRef: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus() {} },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },

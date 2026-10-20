@@ -6,6 +6,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 
 test('a delayed portal chunk stays inside its cancellable surface instead of replacing the profile', () => {
   const { DeferredSurface } = sourceModule('src/components/ui/DeferredDialog.tsx', {
+    './DeferredSurfaceOwner': { DeferredSurfaceOwnerContext: React.createContext({}) },
     react: React,
     '../../hooks/useModalFocus': { useModalFocus() {} },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
