@@ -1,3 +1,4 @@
+import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
@@ -11,7 +12,7 @@ import { shareContextLink } from './SharedContextActions';
 export function MobileProfileContext({ profileId, name, onUnsave, children }: { profileId: string; name: string; onUnsave?: () => void; children: React.ReactElement }) {
   const auth = useAuth(), navigate = useNavigate(), location = useLocation();
   const shared = location.pathname.startsWith('/share/');
-  const url = new URL(buildPath('sharedProfile', { profileId }), window.location.origin).href;
+  const url = new URL(buildPath('sharedProfile', { profileId }), PUBLIC_ORIGIN).href;
   const model = contextActions(shared ? 'shared' : 'profile', { signedIn: auth.isAuthenticated, owner: auth.viewerProfileId === profileId }, { title: name, handlers: {
     share: () => shareContextLink(url, name), copy: () => copyPublicLink(url), saveCreator: onUnsave,
     signIn: () => auth.requestAuthenticatedDestination({ kind: 'route', path: location.pathname + location.search, label: 'return to this shared view' }, 'signIn'),

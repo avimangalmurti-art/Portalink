@@ -128,3 +128,21 @@ scoped claim/progress/complete/fail/retry calls. It skips if PGlite is absent; C
 must provide the runtime for this check to be meaningful. Worker tests render
 small synthetic PDFs and inject lost responses/lease changes. Neither suite is a
 live Supabase Storage integration test or evidence of hosted worker deployment.
+
+## Optional Portfolio PDF web process (pending activation)
+
+`python -m portalink_pdf_worker.main --export-http` runs an additional HTTP export
+process using the existing PyMuPDF/Pillow dependencies. Keep the normal queue
+process running separately; its default behavior is unchanged. `POST /export`
+requires `PORTFOLIO_PDF_WORKER_SECRET`. Configure the same server-only secret in
+the Sites worker, whose `PORTFOLIO_PDF_WORKER_URL` points to this process's HTTPS
+`/export` ingress. The web process also requires the existing `SUPABASE_URL` to
+restrict cover downloads. `PORT` defaults to 8080 and `PDF_EXPORT_BIND` to
+127.0.0.1; container ingress can require a 0.0.0.0 bind. Use the host's TLS ingress,
+not a directly exposed HTTP listener. Never use a `VITE_*` variable for secrets.
+
+No queue claims, Supabase writes or service-role credentials are used in this
+mode. It limits payloads/concurrency, cover size/time and rendering time, and
+does not log content, auth or signed URLs. See
+[`docs/references-and-exports.md`](../../docs/references-and-exports.md) for the
+review/activation checklist. Nothing has been deployed or configured by this task.
