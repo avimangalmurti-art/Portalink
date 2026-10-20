@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {flushSync} from 'react-dom';
-import {motionMs} from './motion';
+import {motionMs,type MotionScale} from './motion';
 
 let finishExitClone:(()=>void)|undefined;
 
@@ -33,7 +33,7 @@ function retainExitClone(root:HTMLElement,duration:number){
 }
 
 /** Callbacks release the real sheet immediately; ordinary editor closes keep their focus until exit. */
-export function useSheetMotion(onClose:()=>void){
+export function useSheetMotion(onClose:()=>void,scale:MotionScale='slow'){
  const [closing,setClosing]=useState(false),pending=useRef(false),timer=useRef<ReturnType<typeof setTimeout>>(),latest=useRef(onClose);latest.current=onClose;
  const settle=useRef<(()=>void)>(),releaseInterrupt=useRef<(()=>void)>();
  useEffect(()=>{
@@ -44,13 +44,18 @@ export function useSheetMotion(onClose:()=>void){
   const release=()=>{if(released)return;released=true;document.removeEventListener('pointerdown',interrupt,true);document.removeEventListener('keydown',interrupt,true);releaseInterrupt.current=undefined;};
   releaseInterrupt.current=release;
   document.addEventListener('pointerdown',interrupt,true);document.addEventListener('keydown',interrupt,true);
-  return()=>{settle.current=undefined;if(timer.current!==undefined)clearTimeout(timer.current);release();};
+  return()=>{settle.current=undefined;if(timer.current!==undefined)clearTimeout(timer.current);timer.current=undefined;release();};
  },[]);
- const close=useCallback((after?:()=>void,root?:HTMLElement|null)=>{if(pending.current)return;pending.current=true;const duration=motionMs('slow');if(after){
+ const close=useCallback((after?:()=>void,root?:HTMLElement|null)=>{if(pending.current)return;pending.current=true;const duration=motionMs(scale);if(after){
   // Keep native clipboard/share inside this tap; retain only an inert exit bitmap.
   releaseInterrupt.current?.();
   if(root&&duration)retainExitClone(root,duration);
   after();return;
- }let completed=false;const done=()=>{if(completed)return;completed=true;clearTimeout(timer.current);timer.current=undefined;settle.current=undefined;releaseInterrupt.current?.();latest.current();};if(!duration){done();return;}setClosing(true);settle.current=done;timer.current=setTimeout(done,duration);},[]);
- return {closing,close};
+ }let completed=false;const done=()=>{if(completed||settle.current!==done)return;completed=true;clearTimeout(timer.current);timer.current=undefined;settle.current=undefined;releaseInterrupt.current?.();latest.current();};settle.current=done;if(!duration){done();return;}setClosing(true);timer.current=setTimeout(done,duration);},[scale]);
+ const finish=useCallback(()=>{
+  if(settle.current){flushSync(settle.current);return;}
+  if(pending.current)return;
+  pending.current=true;releaseInterrupt.current?.();flushSync(()=>latest.current());
+ },[]);
+ return {closing,close,finish};
 }

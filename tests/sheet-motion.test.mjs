@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { sourceModule } from './helpers/source-module.mjs';
 import { motionFixture } from './helpers/motion-fixture.mjs';
 
-function harness({ reduced = false, onClose = () => undefined } = {}) {
+function harness({ reduced = false, onClose = () => undefined, scale } = {}) {
   const slots = [], effects = [], timers = new Map(), appended = [], listeners = new Map();
   const body = { append(element) { appended.push(element); element.host = body; } };
   const document = {
@@ -58,7 +58,7 @@ function harness({ reduced = false, onClose = () => undefined } = {}) {
   });
   const render = () => {
     cursor = 0; dirty = false;
-    value = runSheetMotion(onClose);
+    value = runSheetMotion(onClose, scale);
     effects.splice(0).forEach(effect => effect());
     return value;
   };
@@ -287,4 +287,36 @@ test('the initiating Escape keeps ordinary settle, and the next Tab releases foc
   assert.equal(focus.opener.focusOptions.preventScroll, true);
   assert.equal(h.listeners.size, 0); assert.equal(h.timers.size, 0);
   h.advance(260); assert.equal(closed, 1);
+});
+
+test('an explicitly base-timed sheet closes after180ms while ordinary sheets retain the260ms default', () => {
+  for (const [scale, duration] of [['base', 180], [undefined, 260]]) {
+    let closed = 0; const h = harness({ scale, onClose: () => closed++ });
+    h.value.close(); assert.equal(h.value.closing, true); h.advance(duration - 1); assert.equal(closed, 0);
+    h.advance(1); assert.equal(closed, 1); assert.equal(h.timers.size, 0); assert.equal(h.listeners.size, 0); h.unmount();
+  }
+});
+
+test('explicit finish releases either an idle or a settling sheet exactly once without waiting or replaying its timer', () => {
+  for (const pending of [false, true]) {
+    let closed = 0; const h = harness({ scale: 'base', onClose: () => closed++ });
+    if (pending) h.value.close();
+    const stale = [...h.timers.values()][0]?.callback;
+    h.value.finish(); assert.equal(closed, 1); assert.equal(h.flushes, 1); assert.equal(h.timers.size, 0); assert.equal(h.listeners.size, 0);
+    h.value.finish(); h.value.close(); stale?.(); h.advance(260); assert.equal(closed, 1); h.unmount();
+  }
+});
+
+test('finish after a synchronous action never invokes the ordinary onClose callback or repeats the action', () => {
+  let closed = 0, actions = 0; const h = harness({ scale: 'base', onClose: () => closed++ });
+  h.value.close(() => actions++); h.value.finish(); h.value.close(() => actions++);
+  assert.equal(actions, 1); assert.equal(closed, 0); assert.equal(h.timers.size, 0); assert.equal(h.listeners.size, 0); h.unmount();
+});
+
+test('a queued ordinary completion from an unmounted sheet cannot close a reopened sheet', () => {
+  let closed = 0; const h = harness({ scale: 'base', onClose: () => closed++ });
+  h.value.close(); const stale = [...h.timers.values()][0].callback; h.unmount(); h.remount();
+  stale(); assert.equal(closed, 0); assert.equal(h.value.closing, false);
+  h.value.close(); stale(); assert.equal(closed, 0); assert.equal(h.timers.size, 1);
+  h.advance(180); assert.equal(closed, 1); assert.equal(h.listeners.size, 0); h.unmount();
 });
