@@ -536,7 +536,7 @@ test('retained project cards discard body popup state while inactive and ordinar
     if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
     if (name.endsWith('/useContentPreview')) return { useContentPreview: () => ({ expanded: false, ref: null, events: {}, open: (_event, action) => action() }) };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1, getProjectCoverPreview: () => null };
-    if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}) };
+    if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}), getProjectContinuityArtwork: () => undefined, beginProjectContinuity() {} };
     if (name.endsWith('/warmDocumentRenderer')) return { warmProjectDocumentRenderer() {} };
     if (name === 'react-router-dom') return { Link: 'Link' };
     if (name === 'lucide-react') return { MoreHorizontalIcon: 'MoreHorizontalIcon' };

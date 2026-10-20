@@ -5,6 +5,7 @@ import { visitorPreviewPath } from '../features/profile/visitorPreview';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
 import { DeferredSurface } from './ui/DeferredDialog';
 import { ScreenBack, useMobileScreenActive } from '../presentation/mobile/MobileBackNavigation';
+import { focusMobileProjectOrigin, noteMobileProfileProject } from '../utils/projectContinuity';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { useAuth } from '../contexts/AuthContext';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
@@ -224,6 +225,7 @@ function ProfileDescriptionEditor({
  * preserving the exact frame, click target, and wall geometry.
  */
 function ProfileProjectTile({
+  active = true,
   project,
   creator,
   isSharedView,
@@ -241,6 +243,7 @@ function ProfileProjectTile({
   onUseAsStartHere,
   onReads
 }: {
+  active?: boolean;
   project: Project;
   creator: Pick<Profile, 'id' | 'name' | 'avatar'>;
   isSharedView: boolean;
@@ -272,7 +275,7 @@ function ProfileProjectTile({
     action?.();
   };
 
-  return <ProjectPreviewCard onEditDescription={onEditDescription} contextHandlers={{ reads: onReads, startHere: onUseAsStartHere, thenNow: onUseInThenNow, edit: onEditProject, cover: onChangeCover, delete: onDeleteProject }} project={project} creator={creator} onOpen={onOpen} onOpenComments={onOpenComments}
+  return <ProjectPreviewCard active={active} onEditDescription={onEditDescription} contextHandlers={{ reads: onReads, startHere: onUseAsStartHere, thenNow: onUseInThenNow, edit: onEditProject, cover: onChangeCover, delete: onDeleteProject }} project={project} creator={creator} onOpen={onOpen} onOpenComments={onOpenComments}
       sharedCoverFallback={isSharedView}
       allowPdfFallback={!isSharedView}
       allowVideoFallback={!isSharedView}
@@ -597,6 +600,7 @@ export function UserProfilePage({
     ratio: getProjectAspectRatio(project),
     content: <div className="relative w-full">
           <ProfileProjectTile
+            active={!isMobile || (screenActive && !mobileProjectSelected)}
             project={project}
             creator={profile}
             isSharedView={isSharedView}
@@ -628,7 +632,7 @@ export function UserProfilePage({
             onRepositionPreview={project.cover && showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'cover') : undefined}
           />
         </div>
-  })), [orderedCardProjects, profile, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor, projectManagement.deletion, setSearchParams, readsNavigate]);
+  })), [orderedCardProjects, profile, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor, projectManagement.deletion, setSearchParams, readsNavigate, isMobile, screenActive, mobileProjectSelected]);
   useEffect(() => {
     if (!isSharedView && !showsOwnerTools) rememberAccount(auth.user?.id, { id: profile.id, name: profile.name, avatar: profile.avatar, kind: '', location: profile.location });
   }, [auth.user?.id, isSharedView, showsOwnerTools, profile.id, profile.name, profile.avatar, profile.location]);
@@ -687,10 +691,12 @@ export function UserProfilePage({
   const wallMemoryRef = useRef(mobileWallScrollMemory);
   wallMemoryRef.current = mobileWallScrollMemory;
   useEffect(() => {
+    if (isMobile && screenActive && mobileProjectSelected) noteMobileProfileProject(profile.id);
     if (!isMobileWall || !screenActive) return;
     const frame = requestAnimationFrame(() => {
       if (!profilePageRef.current || profilePageRef.current.closest('.screen-exit')) return;
       window.scrollTo({ top: wallMemoryRef.current?.read() ?? mobileWallScroll.current.top, behavior: 'auto' });
+      focusMobileProjectOrigin(profilePageRef.current, profile.id);
     });
     const remember = () => {
       if (profilePageRef.current?.closest('.screen-exit')) return;
@@ -699,7 +705,7 @@ export function UserProfilePage({
     };
     window.addEventListener('scroll', remember, { passive: true });
     return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', remember); };
-  }, [isMobileWall, profile.id, screenActive]);
+  }, [isMobileWall, profile.id, screenActive, isMobile, mobileProjectSelected]);
 
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;
@@ -870,22 +876,22 @@ export function UserProfilePage({
       {!mobileContent && activeView === 'projects' && <EmployerOverview profile={profile} onOpen={project => onOpenProject(project.id,project.categoryId)} onMessage={!isMobile && !isSharedView && !showsOwnerTools && auth.isAuthenticated ? onMessage : undefined} />}
       {!isMobile && canSeeJourney && !mobileContent && !isJourney && <JourneyToggle view="portfolio" disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} />}
       <main id="profile-content" data-profile-empty-work={imageryCells.length === 0 && !showsOwnerTools && !isSharedView ? '' : undefined} data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
-        {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView toolbarHost={isMobile?timelineToolbarHost:null} profile={profile} owner={showsOwnerTools} onOpen={project => onOpenProject(project.id, project.categoryId)} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, isMobile ? undefined : 'journey') : undefined} onEditDescription={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'description') : undefined} onDelete={showsOwnerTools ? project => projectManagement.deletion.request(project.id) : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} /></Suspense> : isMobileWall ? <>
-          <div className="mobile-profile-wall scrollbar-overlay" aria-hidden={mobilePortalOverlay ? true : undefined} onScroll={event => {
+        {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView toolbarHost={isMobile?timelineToolbarHost:null} profile={profile} owner={showsOwnerTools} onOpen={project => onOpenProject(project.id, project.categoryId)} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, isMobile ? undefined : 'journey') : undefined} onEditDescription={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'description') : undefined} onDelete={showsOwnerTools ? project => projectManagement.deletion.request(project.id) : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} /></Suspense> : isMobileWall || nestedMobileContent ? <>
+          {isMobile && <div className="mobile-profile-wall scrollbar-overlay" hidden={!isMobileWall} style={!isMobileWall ? { display: 'none' } : undefined} aria-hidden={!isMobileWall || mobilePortalOverlay ? true : undefined} onScroll={event => {
             mobileWallScroll.current.top = event.currentTarget.scrollTop;
             mobileWallScrollMemory?.save(event.currentTarget.scrollTop);
           }} ref={element => {
             if (element) {
-              element.inert = Boolean(mobilePortalOverlay);
-
+              element.inert = !isMobileWall || Boolean(mobilePortalOverlay);
             }
           }}>
             {projectWall}
-          </div>
+          </div>}
           {mobilePortalOverlay && <div ref={portalOverlayRef} className="mobile-profile-portal-overlay">
             <button type="button" className="mobile-profile-portal-dismiss" aria-label="Close portals" onClick={() => setActiveView('projects')} />
             <DeferredSurface active resetKey={profile.id} onClose={() => setActiveView('projects')}>{mobilePortalOverlay}</DeferredSurface>
           </div>}
+          {!isMobileWall && nestedMobileContent}
         </> : nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid shared={isSharedView} profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : projectWall)}
       </main>
       {showsOwnerTools && pairOpen && <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closePair }}><Suspense fallback={null}><ThenNowDialog key={pairSelection ?? requestedPair} profile={profile} selectedId={pairSelection || requestedPair || undefined} onClose={closePair} /></Suspense></DeferredSurfaceOwnerContext.Provider>}

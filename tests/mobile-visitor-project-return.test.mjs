@@ -12,6 +12,7 @@ function harness({ enabled = true, index = 4, initialProject = null } = {}) {
     location: { key: initialProject ? 'direct' : 'catalogue', pathname: initialProject ? '/creator/c/art/work' : '/creator', search: '?view=projects', hash: '#work', state: null } };
   const window = {
     scrollX: 0, scrollY: 0, innerWidth: 420, innerHeight: 912, history: { state: { idx: index } },
+    getComputedStyle: element => ({ display: 'block', visibility: 'visible', opacity: '1', ...element.computed }),
     scrollTo(value) { writes.push(value); this.scrollX = value.left ?? this.scrollX; this.scrollY = Math.min(maximum, value.top ?? this.scrollY); },
     addEventListener(type, listener) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(listener); },
     removeEventListener(type, listener) { listeners.get(type)?.delete(listener); if (!listeners.get(type)?.size) listeners.delete(type); },
@@ -226,11 +227,13 @@ test('WEB leaves its existing navigation, document position and focus untouched'
 });
 
 test('missing or unpainted opener restores the recorded position and focuses the catalogue heading without scrolling it', () => {
-  for (const mode of ['detached', 'zero-size', 'hidden', 'outside-root']) {
+  for (const mode of ['detached', 'zero-size', 'hidden', 'css-hidden', 'transparent', 'outside-root']) {
     const h = harness(); h.scroll(720); h.open(); h.commit('work', 5);
     if (mode === 'detached') h.opener.isConnected = false;
     if (mode === 'zero-size') { h.opener.width = 0; h.opener.height = 0; }
     if (mode === 'hidden') h.opener.hidden = true;
+    if (mode === 'css-hidden') h.opener.computed = { visibility: 'hidden' };
+    if (mode === 'transparent') h.opener.computed = { opacity: '0' };
     if (mode === 'outside-root') h.opener.parent = null;
     h.commit(null, 4); h.settle();
     assert.equal(h.window.scrollY, 720, mode); assert.equal(h.document.activeElement, h.heading, mode);

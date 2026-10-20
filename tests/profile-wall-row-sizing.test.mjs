@@ -34,7 +34,7 @@ function wallHarness(presentation, reorderMode, { width = 390, columns = 3, sele
     vm.runInNewContext(compiled.get(file), { exports, require(name) {
       if(name.endsWith('/motion/motion')) return motionFixture;
       imports.push(name);
-      if (name === 'react') return { ...React, useMemo: fn => fn(), lazy: () => function LazyReorder(props) { return load('ReorderableImageWall').ReorderableImageWall(props); } };
+      if (name === 'react') return { ...React, useMemo: fn => fn(), useRef: value => ({ current: value }), lazy: () => function LazyReorder(props) { return load('ReorderableImageWall').ReorderableImageWall(props); } };
       if (name === '@dnd-kit/core') return { DndContext: 'DndContext', PointerSensor: 'Pointer', TouchSensor: 'Touch', MouseSensor: 'Mouse', KeyboardSensor: 'Keyboard', useSensor: (sensor, options) => ({ sensor, options }), useSensors: (...sensors) => sensors };
       if (name === '@dnd-kit/sortable') return { SortableContext: 'SortableContext', useSortable: () => ({ listeners: { onTouchStart: () => starts++, onMouseDown: () => starts++ } }) };
       if (name === '@dnd-kit/utilities') return { CSS: { Transform: { toString() {} } } };

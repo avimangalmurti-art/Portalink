@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useElementSize } from '../../hooks/useElementSize';
 import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
@@ -92,8 +92,14 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   /** Hides layout chrome on public shares while retaining local card zoom. */
   allowLayoutControls?: boolean;
 }) {
-  const { ref, width } = useElementSize<HTMLDivElement>();
+  const { ref, width: measuredWidth } = useElementSize<HTMLDivElement>();
   const isMobile = usePresentation() === 'mobile';
+  // Retained phone catalogues must keep their cards while display:none reports
+  // zero. Their existing scroll/focus restoration and return snapshot use them.
+  const retainedWidth = useRef(0);
+  if (!isMobile) retainedWidth.current = 0;
+  else if (measuredWidth > 0) retainedWidth.current = measuredWidth;
+  const width = measuredWidth || (isMobile ? retainedWidth.current : 0);
   // Measurement and pinch selection survive loading/entering/exiting reorder.
   const view = useContentZoom<HTMLDivElement>(columns, !reorderMode?.enabled, columns, onColumnsChange, fitColumns ? value => fitColumns(value,width) : undefined);
   const effectiveColumns = view.columns;

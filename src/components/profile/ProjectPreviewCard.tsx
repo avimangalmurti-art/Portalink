@@ -8,7 +8,7 @@ import { usePresentation } from '../../presentation/usePresentation';
 import type { FeedCreator, Project } from '../../types/domain';
 import { useContentPreview } from '../../hooks/useContentPreview';
 import { getProjectAspectRatio, getProjectCoverPreview } from '../../utils/projectPresentation';
-import { projectContinuityStyle } from '../../utils/projectContinuity';
+import { beginProjectContinuity, getProjectContinuityArtwork, projectContinuityStyle } from '../../utils/projectContinuity';
 import { ProjectCover } from '../media/ProjectCover';
 import { ProjectHoverDetails } from './ProjectHoverDetails';
 import type { ImagePriority } from '../ui/ResponsiveImage';
@@ -64,9 +64,16 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
   useEffect(() => { if (!preview.expanded) onCollapse?.(); }, [preview.expanded, onCollapse]);
   const openProps = {
     'data-preview-open': '', 'data-project-continuity-surface': '', 'data-project-continuity-id': project.id,
+    'data-project-continuity-owner': isMobile ? creator.id : undefined,
+    'data-project-continuity-artwork': isMobile && !cover ? getProjectContinuityArtwork(project, sharedCoverFallback) : undefined,
     style: projectContinuityStyle(project.id), onPointerEnter: onWarmCreator, onFocus: onWarmCreator,
     onClick: (event: React.MouseEvent<HTMLElement>) => preview.open(event, () => {
-      if (isMobile) warmProjectDocumentRenderer(project);
+      if (isMobile) {
+        if (!href || (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey)) {
+          beginProjectContinuity(project.id, 'open', event.currentTarget);
+        }
+        warmProjectDocumentRenderer(project);
+      }
       if (!href) onOpen();
     }),
     'aria-label': label, 'aria-expanded': isMobile ? undefined : preview.expanded,

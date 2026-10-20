@@ -21,10 +21,18 @@ const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: 
 const linkHelpers = compile('../src/features/profile/profileLinks.ts', () => ({profileLinkIconNames:['globe','instagram','soundcloud']}));
 const placeholder = new Proxy({}, { get: (_, key) => key });
 const contextActions = compile('../src/presentation/mobile/contextActions.ts', () => placeholder);
-function nodes(tree) {
-  if (!tree || typeof tree !== 'object' || tree.props?.style?.display === 'none') return [];
-  return [tree, ...(['ProfileIdentityAndLinks','ProfileStats'].includes(tree.type?.name) ? nodes(tree.type(tree.props)) : []), ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
+function nodes(tree, includeHidden = false) {
+  if (!tree || typeof tree !== 'object' || (!includeHidden && (tree.props?.hidden || tree.props?.style?.display === 'none'))) return [];
+  return [tree, ...(['ProfileIdentityAndLinks','ProfileStats'].includes(tree.type?.name) ? nodes(tree.type(tree.props), includeHidden) : []), ...React.Children.toArray(tree.props?.children).flatMap(child => nodes(child, includeHidden))];
 }
+
+const profileContent = tree => nodes(tree).find(node => node.props?.id === 'profile-content');
+// Raw child slots retain false/null entries and original element identity. Using
+// Children.toArray here would collapse those slots and rewrite element keys.
+const workspaceViewer = tree => {
+  const content = profileContent(tree)?.props.children;
+  return content?.type === React.Fragment ? content.props.children[2] : content;
+};
 
 function serviceHarness(owner = 'owner', failure = null, mutual = false) {
   const calls = [];
@@ -196,7 +204,8 @@ function profileHarness(search = '', options = {}) {
       }
     }, useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; }, useMemo: (fn) => fn() };
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
-    if (name.endsWith('/MobileBackNavigation')) return { ScreenBack: 'ScreenBack', useMobileScreenActive: () => true };
+    if (name.endsWith('/MobileBackNavigation')) return { ScreenBack: 'ScreenBack', useMobileScreenActive: () => options.screenActive ?? true };
+    if (name.endsWith('/projectContinuity')) return { focusMobileProjectOrigin: root => options.onProjectOriginFocus?.(root) };
     if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
     if (name.endsWith('/copyPublicLink')) return { copyPublicLink: async value => options.onCopy?.(value) };
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
@@ -441,7 +450,7 @@ test('the account Portals destination uses the same overlay while WEB keeps its 
   assert.deepEqual(selected, ['projects']);
   const web = profileHarness('', { presentation: 'web', projects: reorderProjects, props }).render();
   assert.equal(wall(web), undefined);
-  assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.children, mobileContent);
+  assert.equal(workspaceViewer(web), mobileContent);
 });
 
 test('mobile wall restores and records document scroll through a project and on remount', () => {
@@ -479,7 +488,7 @@ test('mobile project lists retain profile identity and tools, and count controls
       props: { mobileContent, onMobileViewChange: view => selectedViews.push(view), onEditProfile() {} } });
     let tree = h.render();
     assert.equal(tree.props['data-profile-nested'], '');
-    assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children, mobileContent);
+    assert.equal(workspaceViewer(tree), mobileContent);
     assert.equal(wall(tree), undefined);
     const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
     assert.equal(identity.props.profile.id, 'owner');
@@ -511,7 +520,7 @@ test('selected mobile projects hide the profile header and restore it on return 
         const children = React.Children.toArray(tree.props.children).filter(node => node.type !== 'ScreenBack');
         assert.equal(children[0].props.className, mobileProjectSelected ? 'hidden' : 'profile-header-region contents');
         assert.equal(children[1].props.id, 'profile-content');
-        assert.equal(children[1].props.children, child);
+        assert.equal(workspaceViewer(tree), child);
         assert.equal(children[1].props['data-mobile-project-selected'], mobileProjectSelected ? '' : undefined);
       }
       const overview = h.render();
@@ -531,7 +540,7 @@ test('opening mobile project navigation restores the same profile identity witho
       const visible = presentation === 'mobile' && mobileProjectIndexOpen;
       assert.equal(header.props.className, visible ? 'profile-header-region contents' : 'hidden');
       assert.equal(header.props['data-mobile-project-header-preview'], visible ? '' : undefined);
-      assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children, child);
+      assert.equal(workspaceViewer(tree), child);
     }
   }
 });
@@ -611,11 +620,62 @@ test('workspace keeps one child position and only MOBILE displays the profile fr
   assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props['data-mobile-project-selected'], undefined);
   assert.equal(React.Children.toArray(web.props.children)[0].props.className, 'hidden');
   for (const tree of [web, mobile]) {
-    const main = nodes(tree).find(node => node.props?.id === 'profile-content');
-    assert.equal(main.props.children, child);
+    assert.equal(workspaceViewer(tree), child);
     assert.equal(React.Children.toArray(tree.props.children).findIndex(node => node.props.id === 'profile-content'), 1);
   }
   assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.className, 'contents');
+});
+
+test('retained workspace keeps the same viewer React slot across MOBILE/WEB and project-index changes', () => {
+  const child = React.createElement('section', { key: 'reader-memory', 'aria-label': 'Retained project viewer' });
+  const options = { presentation: 'mobile', projects: reorderProjects };
+  const h = profileHarness('', options);
+  let parentType;
+  for (const [presentation, mobileProjectIndexOpen] of [['mobile', false], ['mobile', true], ['web', true], ['web', false], ['mobile', false]]) {
+    options.presentation = presentation;
+    const tree = h.render({ mobileContent: child, mobileProjectSelected: true, mobileProjectIndexOpen });
+    const content = profileContent(tree), composition = content.props.children;
+    assert.equal(composition.type, React.Fragment, 'The transparent parent is stable across presentation changes.');
+    parentType ??= composition.type;
+    assert.equal(composition.type, parentType);
+    assert.equal(composition.props.children.length, 3);
+    const viewer = composition.props.children[2];
+    assert.equal(viewer, child, 'The real viewer stays in raw slot2 rather than being relocated by hidden-wall changes.');
+    assert.equal(viewer.type, child.type); assert.equal(viewer.key, child.key);
+    const visibleChildren = nodes(content).filter(node => node !== content && node.type !== React.Fragment);
+    assert.equal(visibleChildren.length, 1); assert.equal(visibleChildren[0].props, child.props, 'Only the supplied viewer emits visible content.');
+    const retainedWall = nodes(content, true).find(node => node.props?.className === 'mobile-profile-wall scrollbar-overlay');
+    if (presentation === 'mobile') {
+      assert.ok(retainedWall); assert.equal(retainedWall.props.hidden, true); assert.equal(retainedWall.props.style.display, 'none');
+      const element = {}; retainedWall.ref(element); assert.equal(element.inert, true);
+      assert.equal(nodes(retainedWall, true).filter(node => node.type === 'JustifiedImageWall').length, 1, 'Artwork stays mounted in one hidden wall.');
+    } else {
+      assert.equal(retainedWall, undefined, 'The stable Fragment adds no extra WEB DOM.');
+      assert.equal(composition.props.children[0], false);
+    }
+    assert.equal(wall(tree), undefined, 'The visible-wall helper must exclude retained hidden artwork.');
+  }
+});
+
+test('retained MOBILE profile cards release their popup owner while the project or another screen is active', () => {
+  const options = { presentation: 'mobile', screenActive: true, projects: reorderProjects };
+  const h = profileHarness('', options);
+  const assertCards = (tree, active) => {
+    const retainedWall = nodes(tree, true).find(node => node.type === 'JustifiedImageWall');
+    assert.ok(retainedWall);
+    const tiles = retainedWall.props.items.flatMap(item => nodes(item.content, true)).filter(node => node.type?.name === 'ProfileProjectTile');
+    assert.equal(tiles.length, reorderProjects.length);
+    for (const tile of tiles) {
+      assert.equal(tile.props.active, active);
+      const preview = tile.type(tile.props);
+      assert.equal(preview.type, 'ProjectPreviewCard'); assert.equal(preview.props.active, active, 'The retained tile forwards active ownership to its popup-capable card.');
+    }
+  };
+  assertCards(h.render(), true);
+  assertCards(h.render({ mobileContent: React.createElement('project'), mobileProjectSelected: true }), false);
+  options.screenActive = false; assertCards(h.render(), false);
+  options.screenActive = true; assertCards(h.render(), true);
+  options.presentation = 'web'; options.screenActive = false; assertCards(h.render(), true);
 });
 
 test('mobile profile keeps links and visitor controls visible without duplicate owner actions', () => {

@@ -39,7 +39,7 @@ test('authored durations use shared transition tokens and the separate loading c
  const files=cssFiles('src'),definitions=[];
  for(const file of files){const css=readFileSync(file,'utf8').replace(/\/\*[\s\S]*?\*\//g,'');
   const values=[...css.matchAll(/(?<![\w-])(?:\d*\.\d+|\d+)(?:ms|s)\b/g)].map(m=>m[0]);
-  if(file.endsWith('/motion/motion.css'))assert.deepEqual(values,['120ms','180ms','260ms','1400ms']);else assert.deepEqual(values,[],file);
+  if(file.endsWith('/motion/motion.css'))assert.deepEqual(values,['120ms','180ms','260ms','1000ms','1400ms']);else assert.deepEqual(values,[],file);
   definitions.push(...[...css.matchAll(/--m-(fast|base|slow)\s*:/g)].map(m=>m[1]));
  }
  assert.deepEqual(definitions.sort(),['base','fast','slow']);
@@ -49,7 +49,7 @@ test('authored durations use shared transition tokens and the separate loading c
 function runtime(reduce=false){
  let updates=0,native=0,finish,cleared=0;const root={dataset:{}},window={matchMedia:()=>({matches:reduce})};
  const document={documentElement:root,querySelector:()=>null,startViewTransition(update){native++;void update();return {finished:new Promise(resolve=>{finish=resolve;}),skipTransition(){}};}};
- const imports={'react-dom':{flushSync:fn=>fn()},'../../utils/projectContinuity':{beginProjectContinuity(){},isProjectContinuityActive:()=>false,markProjectContinuityDestination(){},finishProjectContinuity(){cleared++;}}};
+ const imports={'react-dom':{flushSync:fn=>fn()},'../../utils/projectContinuity':{beginProjectContinuity(){},isMobileProjectContinuity:()=>false,isProjectContinuityActive:()=>false,markProjectContinuityDestination(){},finishProjectContinuity(){cleared++;}}};
  const api=sourceModule('src/presentation/motion/motion.ts',imports,{document,window,getComputedStyle:()=>({getPropertyValue:name=>({'--m-fast':'120ms','--m-base':'180ms','--m-slow':'260ms','--m-enter':'cubic-bezier(.2,.8,.2,1)','--m-exit':'cubic-bezier(.4,0,1,1)'}[name]||'')})});
  return {api,root,document,window,get updates(){return updates},get native(){return native},get cleared(){return cleared},update:()=>{updates++},finish:async()=>{finish?.();await Promise.resolve();}};
 }
@@ -166,7 +166,7 @@ test('unsupported native API paints the reader reservation before expensive rout
  const frames=[],attached=[];let updates=0;
  class ElementStub{dataset={};style={};setAttribute(){}append(){}remove(){attached.splice(attached.indexOf(this),1);}}
  const document={documentElement:{dataset:{}},createElement:()=>new ElementStub(),querySelector:selector=>selector==='.codex-shell'?{append:node=>attached.push(node)}:null};
- const api=sourceModule('src/presentation/motion/motion.ts',{'react-dom':{flushSync:fn=>fn()},'../../utils/projectContinuity':{isProjectContinuityActive:()=>true,markProjectContinuityDestination(){},finishProjectContinuity(){}}},
+ const api=sourceModule('src/presentation/motion/motion.ts',{'react-dom':{flushSync:fn=>fn()},'../../utils/projectContinuity':{isMobileProjectContinuity:()=>false,isProjectContinuityActive:()=>true,markProjectContinuityDestination(){},finishProjectContinuity(){}}},
  {document,window:{matchMedia:()=>({matches:false})},requestAnimationFrame:fn=>frames.push(fn),getComputedStyle:()=>({getPropertyValue:()=> '180ms'})});
  api.motionUpdate(()=>updates++,'push');assert.equal(attached[0].dataset.readerFrame,'');assert.equal(updates,0);
  frames.shift()();assert.equal(updates,0);frames.shift()();await Promise.resolve();assert.equal(updates,1);assert.equal(attached.length,0);
@@ -466,7 +466,7 @@ function navigationRuntime({native=false,continuity=false}={}){
  };
  const window={matchMedia:()=>({matches:reduce}),setTimeout:(fn,duration)=>{timers.set(++timerId,{fn,duration});return timerId;},clearTimeout:id=>timers.delete(id)};
  const api=sourceModule('src/presentation/motion/motion.ts',{'react-dom':{flushSync:fn=>fn()},'../../utils/projectContinuity':{
-  beginProjectContinuity(){},isProjectContinuityActive:()=>continuity,markProjectContinuityDestination(){destinations++;},finishProjectContinuity(){clears++;},
+  beginProjectContinuity(){},isMobileProjectContinuity:()=>false,isProjectContinuityActive:()=>continuity,markProjectContinuityDestination(){destinations++;},finishProjectContinuity(){clears++;},
  }},{document,window,Event:class{constructor(type){this.type=type;}},requestAnimationFrame:fn=>{frames.set(++frameId,fn);return frameId;},cancelAnimationFrame:id=>frames.delete(id),
   getComputedStyle:()=>({getPropertyValue:name=>({'--m-fast':'120ms','--m-base':'180ms','--m-slow':'260ms','--m-enter':'linear','--m-exit':'linear'}[name]||'')})});
  const runFrame=()=>{const [id,fn]=frames.entries().next().value;frames.delete(id);fn();};

@@ -5057,6 +5057,23 @@ html[data-project-continuity]::view-transition-new(root) {
     m-fade-in var(--m-base) var(--m-enter) both;
 }
 
+/* On phones only the matching artwork travels; the workspace stays in place. */
+html[data-project-continuity][data-project-continuity-mobile]::view-transition-group(portalink-project),
+html[data-project-continuity][data-project-continuity-mobile]::view-transition-image-pair(portalink-project) {
+  border-radius: var(--motion-project-radius, 3px);
+  box-shadow: none;
+}
+
+html[data-project-continuity][data-project-continuity-mobile]::view-transition-old(portalink-project),
+html[data-project-continuity][data-project-continuity-mobile]::view-transition-old(root) {
+  animation: m-fade-out var(--m-fast) var(--m-exit) both;
+}
+
+html[data-project-continuity][data-project-continuity-mobile]::view-transition-new(portalink-project),
+html[data-project-continuity][data-project-continuity-mobile]::view-transition-new(root) {
+  animation: m-fade-in var(--m-fast) var(--m-enter) both;
+}
+
 @keyframes mobile-project-panel-enter {
   from { opacity: 0; transform: translateX(-12px); }
   to { opacity: 1; transform: translateX(0); }
@@ -5361,6 +5378,15 @@ html[data-project-continuity]::view-transition-new(root) {
   border: 2px solid color-mix(in srgb, var(--text-secondary) 26%, transparent);
   border-top-color: var(--text-secondary);
   animation: premium-media-spin var(--m-slow) linear infinite;
+}
+
+/* Loading loops have their own mobile pace; content readiness stays immediate. */
+[data-presentation='mobile'] .premium-media-placeholder::after {
+  animation-duration: var(--m-loading-cycle);
+}
+
+[data-presentation='mobile'] .premium-media-loading-mark {
+  animation-duration: var(--m-loading-spin);
 }
 
 @keyframes premium-media-mode-enter {

@@ -38,7 +38,7 @@ const profileSource = scrollSource('src/components/UserProfilePage.tsx', 'UserPr
 
 function fixture(kind, { mobile = true, active = true, loading = false, maxScroll = Infinity } = {}) {
   const state = { mobile, active };
-  const frames = new Map(), listeners = new Set(), slots = [], writes = [], saves = [], readiness = [];
+  const frames = new Map(), listeners = new Set(), slots = [], writes = [], saves = [], readiness = [], projectNotes = [], focusAttempts = [];
   let frameId = 0, cursor = 0, pending = [], documentTop = 900, containedTop = 0, target = 640;
   const scheduleEffect = (effect, deps) => {
     const index = cursor++;
@@ -66,8 +66,10 @@ function fixture(kind, { mobile = true, active = true, loading = false, maxScrol
     coldResume: { restoring: false, handled: false },
     writeFeedScroll: (key, value) => saves.push([key, value]),
     autoScrollRef: { current: containedScroll }, document: { scrollingElement: documentScroll },
-    isJourney: false, activeView: 'projects', mobilePortalOverlay: null, nestedMobileContent: null,
+    isJourney: false, activeView: 'projects', mobilePortalOverlay: null, nestedMobileContent: null, mobileProjectSelected: false,
     profile: { id: 'creator' }, profilePageRef: { current: { closest: () => !state.active } },
+    noteMobileProfileProject: owner => projectNotes.push(owner),
+    focusMobileProjectOrigin: (root, owner) => focusAttempts.push({ root, owner, scrollTop: documentTop }),
     mobileWallScroll: { current: { top: 0 } },
     wallMemoryRef: { current: { read: () => target, save: value => saves.push(['profile', value]) } },
     requestAnimationFrame(callback) { frames.set(++frameId, callback); return frameId; },
@@ -88,7 +90,7 @@ function fixture(kind, { mobile = true, active = true, loading = false, maxScrol
     return handler;
   };
   return {
-    state, context, writes, saves, readiness, frames, listeners, render,
+    state, context, writes, saves, readiness, frames, listeners, projectNotes, focusAttempts, render,
     paint() { const batch = [...frames.values()]; frames.clear(); batch.forEach(callback => callback()); },
     scroll(top) { documentTop = top; for (const callback of [...listeners]) callback(); },
     setTarget(top) { target = top; },
@@ -186,5 +188,26 @@ test('WEB profiles and mobile nested project views never run the wall document e
   web.render(); web.paint(); assert.equal(web.listeners.size, 0); assert.deepEqual(web.writes, []);
   const reader = fixture('profile'); reader.context.nestedMobileContent = {};
   reader.render(); reader.paint(); assert.equal(reader.listeners.size, 0); assert.deepEqual(reader.writes, []);
+  assert.deepEqual(web.projectNotes, []); assert.deepEqual(web.focusAttempts, []); assert.deepEqual(reader.projectNotes, []); assert.deepEqual(reader.focusAttempts, []);
   web.dispose(); reader.dispose();
+});
+
+test('a committed active MOBILE reader confirms its owner before the wall guard and return focus follows scroll restoration', () => {
+  const h = fixture('profile'); h.context.nestedMobileContent = {}; h.context.mobileProjectSelected = true;
+  h.render(); h.paint();
+  assert.deepEqual(h.projectNotes, ['creator']); assert.deepEqual(h.focusAttempts, []); assert.deepEqual(h.writes, []); assert.equal(h.listeners.size, 0);
+  h.render({ active: false });
+  h.context.nestedMobileContent = null; h.context.mobileProjectSelected = false; h.render(); h.paint();
+  assert.deepEqual(h.projectNotes, ['creator']); assert.deepEqual(h.focusAttempts, []); assert.deepEqual(h.writes, [], 'An inactive returning catalogue cannot take document ownership early.');
+  h.setTarget(720); h.render({ active: true }); assert.equal(h.focusAttempts.length, 0); h.paint();
+  assert.deepEqual(h.writes, [['document', 720]]); assert.equal(h.focusAttempts.length, 1);
+  assert.equal(h.focusAttempts[0].root, h.context.profilePageRef.current); assert.equal(h.focusAttempts[0].owner, 'creator'); assert.equal(h.focusAttempts[0].scrollTop, 720, 'Existing return positioning runs before focus is requested.');
+  h.dispose();
+});
+
+test('WEB and inactive MOBILE readers cannot confirm a return-focus origin', () => {
+  for (const options of [{ mobile: false, active: true }, { mobile: true, active: false }]) {
+    const h = fixture('profile', options); h.context.nestedMobileContent = {}; h.context.mobileProjectSelected = true;
+    h.render(); h.paint(); assert.deepEqual(h.projectNotes, []); assert.deepEqual(h.focusAttempts, []); assert.deepEqual(h.writes, []); h.dispose();
+  }
 });

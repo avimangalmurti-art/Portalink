@@ -16,6 +16,8 @@ function historyIndex(): number | null {
 }
 function visible(element: HTMLElement | null): element is HTMLElement {
   if (!element?.isConnected || element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || style.opacity === '0') return false;
   const rect = element.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight
     && rect.right > 0 && rect.left < window.innerWidth;

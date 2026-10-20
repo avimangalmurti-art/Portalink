@@ -3300,7 +3300,7 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   border-top-color: var(--text-secondary);
   border-radius: 50%;
   pointer-events: none;
-  animation: premium-media-spin var(--m-slow) linear infinite;
+  animation: premium-media-spin var(--m-loading-spin) linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

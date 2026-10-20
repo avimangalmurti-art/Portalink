@@ -1,5 +1,5 @@
 import { flushSync } from 'react-dom';
-import {beginProjectContinuity,isProjectContinuityActive,markProjectContinuityDestination,finishProjectContinuity} from '../../utils/projectContinuity';
+import {beginProjectContinuity,isProjectContinuityActive,isMobileProjectContinuity,markProjectContinuityDestination,finishProjectContinuity} from '../../utils/projectContinuity';
 export type MotionScale = 'fast' | 'base' | 'slow';
 export type NavigationMotion = 'dock' | 'push' | 'back' | 'tabs';
 let generation=0;
@@ -40,17 +40,42 @@ export function motionUpdate(update:()=>void|Promise<void>, mode:NavigationMotio
   flushSync(()=>{void update();});if(!root.dataset.mobilePullDismiss)finishProjectContinuity();return;
  }
  if(mode==='back'){const project=document.querySelector<HTMLElement>('[data-project-stage][data-project-continuity-id]');if(project?.dataset.projectContinuityId)beginProjectContinuity(project.dataset.projectContinuityId,'return');}
- const pending=mode==='push'&&isProjectContinuityActive()?pendingReader():undefined;
+ const mobileProject=isMobileProjectContinuity();
+ if(mobileProject&&!isProjectContinuityActive()){
+  delete root.dataset.motionNavigation;root.dataset.motionUpdating='true';
+  const done=()=>{if(revision!==generation)return;delete root.dataset.motionUpdating;finishProjectContinuity();document.dispatchEvent?.(new Event('portalink-motion-finished'));};
+  let result:void|Promise<void>=undefined;
+  try{flushSync(()=>{result=update();});}catch(error){done();throw error;}
+  const operation=result as Promise<void>|undefined;
+  if(operation&&typeof operation.then==='function')void operation.then(done,done);else done();return;
+ }
+ const pending=mode==='push'&&isProjectContinuityActive()&&!mobileProject?pendingReader():undefined;
  root.dataset.motionNavigation=mode;root.dataset.motionUpdating='true';
- let called=false,finished=false,released=false,completion:void|Promise<void>=undefined;
- const markDestination=()=>{if(revision===generation)markProjectContinuityDestination();};
+ let called=false,finished=false,released=false,continuitySkipped=false,completion:void|Promise<void>=undefined;
+ const skipContinuity=()=>{continuitySkipped=true;active?.skipTransition?.();};
+ const markDestination=()=>{
+  if(revision!==generation||markProjectContinuityDestination()!==false)return;
+  if(!mobileProject||root.dataset.projectContinuity!=='return'){skipContinuity();return;}
+  // The retained catalogue owns restoration. Allow its next layout frames,
+  // without scrolling, decoding media or keeping a hidden tab waiting on RAF.
+  return new Promise<void>(resolve=>{
+   let remaining=2,frame=0,settled=false;
+   const done=()=>{if(settled)return;settled=true;window.clearTimeout(timer);cancelAnimationFrame(frame);resolve();};
+   const check=()=>{
+    if(revision!==generation||markProjectContinuityDestination()!==false){done();return;}
+    if(--remaining>0)frame=requestAnimationFrame(check);else{skipContinuity();done();}
+   };
+   const timer=window.setTimeout(()=>{if(revision===generation)skipContinuity();done();},motionMs('fast'));
+   frame=requestAnimationFrame(check);
+  });
+ };
  const commit=()=>{
   if(called)return completion;called=true;if(pendingNavigation===commit)pendingNavigation=undefined;pending?.remove();
   let result:void|Promise<void>=undefined;updating=true;
   try{flushSync(()=>{result=update();});}catch(error){completion=Promise.reject(error);return completion;}finally{updating=false;}
   const operation=result as Promise<void>|undefined;
   if(operation&&typeof operation.then==='function')completion=new Promise<void>((resolve,reject)=>{const timer=window.setTimeout(resolve,motionMs('slow'));void operation.then(()=>{window.clearTimeout(timer);resolve();},error=>{window.clearTimeout(timer);reject(error);});}).then(markDestination);
-  else markDestination();return completion;
+  else completion=markDestination();return completion;
  };
  pendingNavigation=commit;
  const release=()=>{if(released||revision!==generation)return;released=true;delete root.dataset.motionUpdating;delete root.dataset.motionNavigation;active=undefined;finishProjectContinuity();document.dispatchEvent?.(new Event('portalink-motion-finished'));};
@@ -58,14 +83,16 @@ export function motionUpdate(update:()=>void|Promise<void>, mode:NavigationMotio
  if(typeof document.startViewTransition==='function'){
   try{
    let recovering=false;const transition=document.startViewTransition(commit);if(revision===generation)active=transition;else transition.skipTransition();
+   if(continuitySkipped)transition.skipTransition();
    void transition.ready?.catch(()=>{recovering=true;void transition.updateCallbackDone.then(()=>{
-    if(finished||revision!==generation)return;transition.skipTransition();release();
-    const entrance=!reducedMotion()?bodySurface()?.animate?.([{opacity:0},{opacity:1}],{duration:motionMs('base'),easing:motionEase()}):undefined;
+    if(finished||revision!==generation)return;transition.skipTransition();if(continuitySkipped){finish();return;}release();
+    const entrance=!mobileProject&&!reducedMotion()?bodySurface()?.animate?.([{opacity:0},{opacity:1}],{duration:motionMs('base'),easing:motionEase()}):undefined;
     if(entrance){navigationAnimations.push(entrance);void entrance.finished.then(finish,finish);}else finish();
    },finish);});
    void transition.finished.then(()=>{if(!recovering)finish();},()=>{if(!recovering)finish();});return;
   }catch{if(called){void Promise.resolve(completion).catch(()=>undefined);finish();return;}}
  }
+ if(mobileProject){void Promise.resolve(commit()).then(finish,finish);return;}
  const fallback=()=>{
  if(revision!==generation)return;
  const outgoing=bodySurface(),bounds=outgoing?.getBoundingClientRect(),old=outgoing?.cloneNode(true) as HTMLElement|undefined;
