@@ -14,7 +14,9 @@ const FollowContentInfoPopup = () => null;
 const MobileVideoSequence = () => null;
 const MobileVideoFrame = () => null;
 function nodes(node) {
-  return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
+  if (!React.isValidElement(node)) return [];
+  const children = typeof node.props.children === 'function' ? node.props.children(node.props.onClose) : node.props.children;
+  return [node, ...React.Children.toArray(children).flatMap(nodes)];
 }
 const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
@@ -287,6 +289,7 @@ test('mobile keeps selected media while opening its floating project list and se
   tree = h.render();
   assert.ok(nodes(tree).some(node => node.type === CommentThreadView));
   assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Project comments');
+  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.mobileMotion, true);
   button(tree, 'Close project popup').props.onClick();
   tree = h.render();
   assert.equal(nodes(tree).some(node => node.type === MediaCommentsPopover), false);
@@ -304,7 +307,17 @@ test('mobile engagement failures keep the recovery popup accessible', () => {
   button(h.render(), 'Review engagement error').props.onClick();
   const tree = h.render();
   assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Engagement update');
+  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.mobileMotion, false);
   assert.ok(nodes(tree).some(node => node.type === EngagementFeedback));
+});
+
+test('mobile verification retains its immediate sheet dismissal instead of opting into comments motion', () => {
+  const h = harness({ readOnlyShare: true });
+  button(h.render(), 'Show AI verification services').props.onClick();
+  const tree = h.render(), sheet = nodes(tree).find(node => node.type === MediaCommentsPopover);
+  assert.equal(sheet.props.label, 'AI verification'); assert.equal(sheet.props.mobileMotion, false);
+  button(tree, 'Close project popup').props.onClick();
+  assert.equal(nodes(h.render()).some(node => node.type === MediaCommentsPopover), false);
 });
 
 test('the mobile action opens project information without changing WEB rail preferences', () => {

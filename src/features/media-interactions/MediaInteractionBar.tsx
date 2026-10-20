@@ -204,13 +204,13 @@ export function MediaInteractionBar({
       className="min-h-11 max-w-full rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] px-3 text-[12px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
     >Activity unavailable Â· Retry</button> : null}
 
-    {commentsOpen ? <MediaCommentsPopover id={commentsId} label={`Comments for ${presentedTarget.label}`} anchorRef={engagementRef} triggerRef={commentsTriggerRef} onClose={closeComments}>
+    {commentsOpen ? <MediaCommentsPopover id={commentsId} label={`Comments for ${presentedTarget.label}`} anchorRef={engagementRef} triggerRef={commentsTriggerRef} onClose={closeComments} mobileMotion>{dismiss => <>
       <header data-comments-header="" className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">
         <div className="min-w-0">
           <h3 className="truncate text-[12px] font-semibold text-white">Comments</h3>
           <p className="truncate text-[10px] text-white/55">{presentedTarget.label}{isMobile && pageCount ? ` of ${pageCount}` : ''}</p>
         </div>
-        {isMobile ? <button type="button" data-comments-close="" onClick={closeComments} aria-label="Close comments"><InterfaceIcon icon={XIcon} size="lg" weight="medium" /></button> : null}
+        {isMobile ? <button type="button" data-comments-close="" onClick={dismiss} aria-label="Close comments"><InterfaceIcon icon={XIcon} size="lg" weight="medium" /></button> : null}
         {!isMobile && activity.isLoading ? <Loader2Icon className="h-3.5 w-3.5 animate-spin text-white/55 motion-reduce:animate-none" aria-label="Loading comments" /> : null}
       </header>
       {isMobile || activity.record.comments.length > 0 || !isOwner ? <div data-comments-list="" className="scrollbar-overlay max-h-48 overflow-y-auto overscroll-contain px-3.5 py-2.5">
@@ -260,7 +260,7 @@ export function MediaInteractionBar({
           {!activity.isResolvingEngagement ? <button type="button" onClick={activity.dismissFailure} className="ml-1.5 font-semibold text-white/65 underline focus:outline-none">Dismiss</button> : null}
         </p> : null}
       </form>
-    </MediaCommentsPopover> : null}
+    </>}</MediaCommentsPopover> : null}
     {deleteCommentId && <ConfirmationDialog title="Delete this comment?" description="This page comment will be permanently removed." confirmLabel="Delete comment" variant="destructive" pending={deletingComment} pendingLabel="Deleting…" error={activity.failure} onCancel={()=>setDeleteCommentId(null)} onConfirm={async()=>{setDeletingComment(true);try{const removed=await activity.deleteComment(deleteCommentId);if(removed)setDeleteCommentId(null);return removed;}finally{setDeletingComment(false);}}}/>}
   </div>;
 }
