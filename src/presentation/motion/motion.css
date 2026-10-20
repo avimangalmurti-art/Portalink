@@ -57,6 +57,16 @@ html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-t
 
 [data-motion-content-ready] { animation:m-fade-in var(--m-base) var(--m-enter); }
 
+/* One owner for mobile media paint; ready artwork and retained canvases stay immediate. */
+[data-presentation='mobile'] :is(.premium-media-mode-enter,.premium-media-ready,[data-motion-content-ready]),
+[data-motion-image-mobile] { animation:none; }
+[data-motion-image-mobile],
+[data-presentation='mobile'] canvas[data-media-page-surface] { transition:none; }
+[data-motion-image-mobile][data-motion-image-reveal],
+[data-mobile-media-reveal],
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] :is([data-motion-image-mobile][data-motion-image-reveal],[data-mobile-media-reveal]) { animation:m-fade-in var(--m-fast) var(--m-enter) both; }
+.app-viewport--reduce-motion :is([data-motion-image-mobile],[data-mobile-media-reveal]) { animation:none!important;transition:none!important; }
+
 [data-motion-sheet] > header { touch-action:none; }
 ::view-transition { pointer-events:none; }
 ::view-transition-old(*) { animation-duration:var(--m-base);animation-timing-function:var(--m-exit); }

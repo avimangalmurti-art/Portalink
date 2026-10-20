@@ -60,6 +60,7 @@ type PdfImagePageProps = {
   onSettled: (pageNumber: number) => void;
   onRecoverDocument?: () => void;
   recoveryKey?: string;
+  presentedPages: Set<number>;
 };
 
 function PdfImagePage({
@@ -78,7 +79,8 @@ function PdfImagePage({
   onToggleFocus,
   onSettled,
   onRecoverDocument,
-  recoveryKey
+  recoveryKey,
+  presentedPages
 }: PdfImagePageProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -92,6 +94,7 @@ function PdfImagePage({
   const [status, setStatus] = useState<'waiting' | 'loading' | 'ready' | 'failed'>('waiting');
   const [baseCanvasSize, setBaseCanvasSize] = useState<{ width: number; height: number } | null>(null);
   const [paintedPageNumber, setPaintedPageNumber] = useState<number | null>(null);
+  const [revealPaint, setRevealPaint] = useState(false);
   const [nearViewport, setNearViewport] = useState(false);
   const enabled = requestedEnabled && (!retainCanvasWhileLoading || isFocused || nearViewport);
   const recoveryIdentity = useRef({ document, pageNumber });
@@ -272,6 +275,9 @@ function PdfImagePage({
           setBaseCanvasSize(nextCanvasSize);
         }
         settled = true;
+        const firstPresentation = retainCanvasWhileLoading && !presentedPages.has(pageNumber);
+        if (retainCanvasWhileLoading) presentedPages.add(pageNumber);
+        setRevealPaint(firstPresentation);
         setPaintedPageNumber(pageNumber);
         // Release decoded PDF artwork before background heading extraction.
         if (retainCanvasWhileLoading && !isFocused) page.cleanup();
@@ -302,7 +308,7 @@ function PdfImagePage({
         renderCanvas.width = 0; renderCanvas.height = 0;
       });
     };
-  }, [attachmentId, enabled, isFocused, readingMode, layoutRevision, page, pageNumber, retainCanvasWhileLoading]);
+  }, [attachmentId, enabled, isFocused, readingMode, layoutRevision, page, pageNumber, presentedPages, retainCanvasWhileLoading]);
 
   return <div
     ref={hostRef}
@@ -369,9 +375,10 @@ function PdfImagePage({
     </span> : null}
     <canvas
       data-media-page-surface=""
+      data-mobile-media-reveal={retainCanvasWhileLoading && status === 'ready' && revealPaint ? '' : undefined}
       ref={canvasRef}
       aria-hidden="true"
-      className={`block ${isFocused ? 'premium-focused-media m-auto max-w-none' : 'max-w-full'} bg-white transition-opacity duration-[var(--m-base)] ${status === 'ready' || (retainCanvasWhileLoading && paintedPageNumber !== null) ? 'premium-media-ready opacity-100' : 'opacity-0'}`}
+      className={`block ${isFocused ? 'premium-focused-media m-auto max-w-none' : 'max-w-full'} bg-white ${retainCanvasWhileLoading ? (status === 'ready' || paintedPageNumber !== null ? 'opacity-100' : 'opacity-0') : `transition-opacity duration-[var(--m-base)] ${status === 'ready' ? 'premium-media-ready opacity-100' : 'opacity-0'}`}`}
       style={baseCanvasSize ? {
         width: `${baseCanvasSize.width * (isFocused ? zoom : 1)}px`,
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
@@ -397,6 +404,9 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
   const settledPagesRef = useRef(new Set<number>());
+  // Reader-local presentation history contains page numbers only. Keep it when
+  // a transport recovers or a page leaves the viewport, not across documents.
+  const presentedPagesRef = useRef(new Set<number>());
   const [document, setDocument] = useState<PdfDocument | null>(null);
   const [readAttempt, setReadAttempt] = useState(0);
   const recoveryInFlight = useRef(false);
@@ -486,6 +496,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       activeLoadingTask.current = null;
       hasDocument.current = false;
       settledPagesRef.current.clear();
+      presentedPagesRef.current.clear();
       setDocument(null);
       setPageCount(0);
       setRenderThrough(0);
@@ -633,6 +644,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           onSettled={handlePageSettled}
           onRecoverDocument={isMobile ? recoverDocument : undefined}
           recoveryKey={`${memoryKey}:${source}:${pageNumber}`}
+          presentedPages={presentedPagesRef.current}
         />
       </li>)}
     </ol>}

@@ -120,6 +120,18 @@ export function DocumentAttachment({
   const liveDocumentMemoryKey = `${memoryScope}:document:${projectId}:${attachment.id}:live`;
   const renderedPages = (attachment.metadata?.renderedPages ?? [])
     .filter((page): page is typeof page & { sourceUrl: string } => Boolean(page.sourceUrl));
+  // The overview remounts when entering/leaving focus. Keep only each current
+  // page's last successfully presented source in this reader's lifetime.
+  const renderedPresentation = useRef<{ attachmentId: string; source: string | null | undefined; pages: Map<number, string> } | null>(null);
+  if (renderedPresentation.current?.attachmentId !== attachment.id || renderedPresentation.current?.source !== attachment.sourceUrl) {
+    renderedPresentation.current = { attachmentId: attachment.id, source: attachment.sourceUrl, pages: new Map() };
+  }
+  const presentedRenderedPages = renderedPresentation.current.pages;
+  useEffect(() => {
+    for (const pageNumber of presentedRenderedPages.keys()) {
+      if (pageNumber > renderedPages.length) presentedRenderedPages.delete(pageNumber);
+    }
+  }, [presentedRenderedPages, renderedPages.length]);
   const knownPageCount = Math.max(
     renderedPages.length,
     attachment.metadata?.pageCount ?? 0
@@ -304,7 +316,7 @@ export function DocumentAttachment({
             if (pendingRenderedPages.current.has(page.sourceUrl)) return;
             updateViewerMemory(`${memoryKey}:page:${index}`, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft });
           } : undefined} className={`${focusedPageIndex === index ? 'h-full min-h-0 items-start justify-start overflow-auto overscroll-contain' : 'touch-manipulation justify-center'} group/media relative flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
-            {isMobile && focusedPageIndex === null && columnCount > 1 ? <DocumentGridPreview source={page.sourceUrl} width={page.width} height={page.height} label={`${attachment.displayName}, page ${page.withinDocumentIndex}`} onReady={()=>markRumPdf(viewTokenRef.current)}/> : <RecoverableDocumentImage
+            {isMobile && focusedPageIndex === null && columnCount > 1 ? <DocumentGridPreview source={page.sourceUrl} width={page.width} height={page.height} label={`${attachment.displayName}, page ${page.withinDocumentIndex}`} pageNumber={index + 1} presentedPages={presentedRenderedPages} onReady={()=>markRumPdf(viewTokenRef.current)}/> : <RecoverableDocumentImage
               data-media-page-surface=""
               source={page.sourceUrl}
               onReadStateChange={markRenderedPagePending}

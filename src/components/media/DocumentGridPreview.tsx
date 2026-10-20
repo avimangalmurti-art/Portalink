@@ -2,16 +2,20 @@ import React, {useEffect, useRef, useState} from 'react';
 import {queuePageRender} from './pageRenderQueue';
 import {useMobileMediaRecovery} from './useMobileMediaRecovery';
 /** Dense mobile grids keep display-sized canvases, not every original decoded image. */
-export function DocumentGridPreview({source, width, height, label, onReady}: {source:string; width:number; height:number; label:string; onReady:()=>void}) {
+export function DocumentGridPreview({source, width, height, label, onReady, presentedPages, pageNumber}: {source:string; width:number; height:number; label:string; onReady:()=>void; presentedPages?:Map<number,string>; pageNumber?:number}) {
  const host = useRef<HTMLDivElement>(null), canvas = useRef<HTMLCanvasElement>(null), ready = useRef(onReady);
  const paintedSource = useRef<string | null>(null), currentSource = useRef(source);
+ const hasPresented = useRef(false);
  currentSource.current = source;
  ready.current = onReady;
  const [near, setNear] = useState(false), [revision, setRevision] = useState(0), [painted, setPainted] = useState(false), [failed,setFailed] = useState(false), [loading, setLoading] = useState(false);
+ const [revealPaint, setRevealPaint] = useState(false);
  const ratio = width > 0 && height > 0 ? width / height : 8.5 / 11;
  useMobileMediaRecovery({hostRef:host, identity:source, enabled:near, failed, loading, onRetry:() => {setFailed(false); setRevision(value => value + 1);}});
  useEffect(() => {
   paintedSource.current = null;
+  hasPresented.current = false;
+  setRevealPaint(false);
   setPainted(false); setFailed(false);
   if (canvas.current) {canvas.current.width = 0; canvas.current.height = 0;}
  }, [source]);
@@ -70,6 +74,10 @@ export function DocumentGridPreview({source, width, height, label, onReady}: {so
     target.width=outputWidth; target.height=outputHeight; context.drawImage(staging,0,0);
    } finally {staging.width=0; staging.height=0;}
    paintedSource.current=source;
+   const previouslyPresented = presentedPages && pageNumber !== undefined ? presentedPages.get(pageNumber) === source : hasPresented.current;
+   setRevealPaint(!previouslyPresented);
+   if (presentedPages && pageNumber !== undefined) presentedPages.set(pageNumber, source);
+   hasPresented.current=true;
    element.closest('[data-project-page-number]')?.setAttribute('data-project-page-ready','true');
    setPainted(true); ready.current();
   })().finally(()=>{clearTimeout(timeout);release();})};});
@@ -77,9 +85,9 @@ export function DocumentGridPreview({source, width, height, label, onReady}: {so
    if(!disposed && currentSource.current === source) {if(controller.signal.aborted)setFailed(true); setLoading(false);}
   });
   return () => {disposed=true;controller.abort(); job.cancel();};
- }, [near,source,ratio,revision]);
+ }, [near,source,ratio,revision,presentedPages,pageNumber]);
  return <div ref={host} data-document-grid-preview="" className="relative w-full bg-white" style={{aspectRatio:ratio}}>
-  <canvas ref={canvas} data-media-page-surface="" role="img" aria-label={label} className={`block h-full w-full transition-opacity duration-[var(--m-base)] ${painted?'opacity-100':'opacity-0'}`}/>
+  <canvas ref={canvas} data-media-page-surface="" data-mobile-media-reveal={painted && revealPaint ? '' : undefined} role="img" aria-label={label} className={`block h-full w-full ${painted?'opacity-100':'opacity-0'}`}/>
   {!painted && !failed && <span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true"><span className="premium-media-loading-mark"/></span>}
   {failed && <span className="sr-only">Page image unavailable</span>}
  </div>;

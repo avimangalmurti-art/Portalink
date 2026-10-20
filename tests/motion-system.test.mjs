@@ -153,7 +153,7 @@ test('images reserve their existing geometry, reveal after load and release remo
   class ImageStub extends ElementStub{dataset={};naturalWidth=800;complete=false;width=80;height=80;listeners=new Map();addEventListener(name,fn){this.listeners.set(name,fn);}removeEventListener(name){this.listeners.delete(name);}}
   const image=new ImageStub(),root=new ElementStub();root.querySelectorAll=()=>[image];const document={documentElement:root};
   const {ImageMotion}=sourceModule('src/presentation/motion/ImageMotion.tsx',{
-   react:{useLayoutEffect:fn=>{cleanup=fn();}},'./motion':{reducedMotion:()=>reduce},
+   react:{useLayoutEffect:fn=>{cleanup=fn();}},'../usePresentation':{usePresentation:()=> 'web'},'./motion':{reducedMotion:()=>reduce},
   },{document,Element:ElementStub,HTMLImageElement:ImageStub,MutationObserver:class{constructor(fn){observer=fn;}observe(){}disconnect(){}},requestAnimationFrame:fn=>{frames.push(fn);return frames.length;},cancelAnimationFrame(){}});
   ImageMotion();assert.equal(image.dataset.motionImage,'');assert.equal(image.dataset.motionImageReady,undefined);
   image.listeners.get('load')();if(!reduce)assert.equal(image.dataset.motionImageReady,undefined);frames.forEach(fn=>fn());
@@ -215,7 +215,7 @@ test('loading completion does not add a second shell fade during native navigati
  class ElementStub{dataset={};querySelectorAll(){return [];}querySelector(){return null;}matches(){return false;}setAttribute(key,value){attrs.set(key,value);}}
  class ImageStub extends ElementStub{}
  const root=new ElementStub();root.dataset.motionUpdating='true';const skeleton=new ElementStub();skeleton.matches=()=>true;
- const {ImageMotion}=sourceModule('src/presentation/motion/ImageMotion.tsx',{react:{useLayoutEffect:fn=>{cleanup=fn();}},'./motion':{reducedMotion:()=>false}},
+ const {ImageMotion}=sourceModule('src/presentation/motion/ImageMotion.tsx',{react:{useLayoutEffect:fn=>{cleanup=fn();}},'../usePresentation':{usePresentation:()=> 'web'},'./motion':{reducedMotion:()=>false}},
  {document:{documentElement:root},Element:ElementStub,HTMLImageElement:ImageStub,MutationObserver:class{constructor(fn){observe=fn;}observe(){}disconnect(){}},requestAnimationFrame(){},cancelAnimationFrame(){}});
  ImageMotion();observe([{type:'childList',target:root,removedNodes:[skeleton],addedNodes:[]}]);assert.equal(attrs.size,0);
  delete root.dataset.motionUpdating;observe([{type:'childList',target:root,removedNodes:[skeleton],addedNodes:[]}]);assert.equal(attrs.get('data-motion-content-ready'),'');cleanup();
@@ -241,11 +241,179 @@ test('loaded image paint waits for snapshot travel and failed images retain thei
  class ElementStub{dataset={};querySelectorAll(){return [];}matches(){return false;}querySelector(){return null;}}
  class ImageStub extends ElementStub{naturalWidth=800;complete=true;handlers=new Map();addEventListener(name,fn){this.handlers.set(name,fn);}removeEventListener(name){this.handlers.delete(name);}}
  const image=new ImageStub(),root=new ElementStub();root.dataset.motionUpdating='true';root.querySelectorAll=()=>[image];
- const {ImageMotion}=sourceModule('src/presentation/motion/ImageMotion.tsx',{react:{useLayoutEffect:fn=>{cleanup=fn();}},'./motion':{reducedMotion:()=>false}},
+ const {ImageMotion}=sourceModule('src/presentation/motion/ImageMotion.tsx',{react:{useLayoutEffect:fn=>{cleanup=fn();}},'../usePresentation':{usePresentation:()=> 'web'},'./motion':{reducedMotion:()=>false}},
  {document:{documentElement:root,addEventListener(name,fn){assert.equal(name,'portalink-motion-finished');done=fn;},removeEventListener(){}},Element:ElementStub,HTMLImageElement:ImageStub,MutationObserver:class{observe(){}disconnect(){}},requestAnimationFrame:fn=>{frames.push(fn);return 1;},cancelAnimationFrame(){}});
  ImageMotion();assert.equal(image.dataset.motionImageReady,undefined);assert.equal(frames.length,0);
  delete root.dataset.motionUpdating;done();frames.forEach(fn=>fn());assert.equal(image.dataset.motionImageReady,'');
  delete image.dataset.motionImageReady;image.naturalWidth=0;image.handlers.get('error')();assert.equal(image.dataset.motionImageReady,'');cleanup();assert.equal(image.handlers.size,0);
+});
+
+function mobileImageMotion({cached=false,reduce=false,navigating=false}={}){
+ let observe,cleanup,disconnected=false;const frames=[],events=new Map();
+ class ElementStub{
+  dataset={};attributes=new Map();children=[];
+  querySelectorAll(){return this.children;}
+  querySelector(){return null;}
+  matches(){return false;}
+  setAttribute(name,value){this.attributes.set(name,value);}
+ }
+ class ImageStub extends ElementStub{
+  naturalWidth=0;complete=false;width=80;height=120;currentSrc='/art-one.jpg';src='/art-one.jpg';listeners=new Map();writes=[];
+  constructor(){super();this.dataset=new Proxy({}, {set:(target,name,value)=>{this.writes.push(name);target[name]=value;return true;}});}
+  addEventListener(name,fn){this.listeners.set(name,fn);}
+  removeEventListener(name,fn){if(this.listeners.get(name)===fn)this.listeners.delete(name);}
+ }
+ const image=new ImageStub(),root=new ElementStub();root.children=[image];
+ if(cached){image.complete=true;image.naturalWidth=800;}
+ if(navigating)root.dataset.motionUpdating='true';
+ const {ImageMotion}=sourceModule('src/presentation/motion/ImageMotion.tsx',{
+  react:{useLayoutEffect:fn=>{cleanup=fn();}},'../usePresentation':{usePresentation:()=> 'mobile'},'./motion':{reducedMotion:()=>reduce},
+ },{document:{documentElement:root,addEventListener:(name,fn)=>events.set(name,fn),removeEventListener:(name,fn)=>{if(events.get(name)===fn)events.delete(name);}},Element:ElementStub,HTMLImageElement:ImageStub,
+  MutationObserver:class{constructor(fn){observe=fn;}observe(){}disconnect(){disconnected=true;}},requestAnimationFrame:fn=>{frames.push(fn);return frames.length;},cancelAnimationFrame(){},
+ });
+ ImageMotion();
+ const mutate=(target,attributeName)=>observe([{type:'attributes',target,attributeName,removedNodes:[],addedNodes:[]}]);
+ const load=(target=image)=>{target.complete=true;target.naturalWidth=800;target.listeners.get('load')?.();};
+ return {image,root,frames,events,ElementStub,ImageStub,load,mutate,
+  remove(target=image){root.children=root.children.filter(node=>node!==target);observe([{type:'childList',target:root,removedNodes:[target],addedNodes:[]}]);},
+  append(target){root.children.push(target);observe([{type:'childList',target:root,removedNodes:[],addedNodes:[target]}]);},
+  removeSkeleton(){const skeleton=new ElementStub();skeleton.matches=()=>true;observe([{type:'childList',target:root,removedNodes:[skeleton],addedNodes:[]}]);},
+  dispose(){cleanup();},get disconnected(){return disconnected;},
+ };
+}
+
+test('MOBILE complete cached artwork is visible immediately even during navigation',()=>{
+ const h=mobileImageMotion({cached:true,navigating:true});
+ assert.equal(h.image.dataset.motionImageMobile,'');
+ assert.equal(h.image.dataset.motionImageReady,'');
+ assert.equal(h.image.dataset.motionImageReveal,undefined);
+ assert.equal(h.frames.length,0);
+ assert.deepEqual([h.image.width,h.image.height],[80,120]);
+ h.events.get('portalink-motion-finished')();
+ assert.equal(h.image.dataset.motionImageReveal,undefined,'Navigation completion must not replay already cached paint');
+ h.dispose();
+});
+
+test('MOBILE newly loaded artwork reveals once without waiting for animation frames or navigation',()=>{
+ const h=mobileImageMotion({navigating:true});
+ assert.equal(h.image.dataset.motionImageReady,undefined);
+ h.load();
+ assert.equal(h.image.dataset.motionImageReady,'');
+ assert.equal(h.image.dataset.motionImageReveal,'');
+ assert.equal(h.frames.length,0);
+ const writes=h.image.writes.length;
+ h.load();h.events.get('portalink-motion-finished')();
+ assert.equal(h.image.writes.length,writes,'Duplicate load and transition completion cannot restart the reveal');
+ assert.deepEqual([h.image.width,h.image.height],[80,120]);h.dispose();
+});
+
+test('MOBILE resolution candidate upgrades preserve ready artwork without another reveal',()=>{
+ const h=mobileImageMotion({cached:true});
+ h.image.complete=false;h.mutate(h.image,'srcset');
+ assert.equal(h.image.dataset.motionImageReady,'');
+ const writes=h.image.writes.length;
+ h.image.currentSrc='/art-one-high-resolution.jpg';
+ h.load();
+ assert.equal(h.image.writes.length,writes);
+ assert.equal(h.image.dataset.motionImageReveal,undefined);
+ h.remove();const upgraded=new h.ImageStub();upgraded.currentSrc='/art-one-high-resolution.jpg';h.append(upgraded);h.load(upgraded);
+ assert.equal(upgraded.dataset.motionImageReveal,undefined,'The successfully displayed resolution candidate is recognized on reuse');h.dispose();
+});
+
+test('MOBILE changing artwork distinguishes a cached replacement from a delayed replacement',()=>{
+ const h=mobileImageMotion({cached:true,navigating:true});
+ h.image.currentSrc='/art-two.jpg';
+ h.mutate(h.image,'src');
+ assert.equal(h.image.dataset.motionImageReady,'');
+ assert.equal(h.image.dataset.motionImageReveal,undefined);
+ h.image.currentSrc='/art-three.jpg';h.image.complete=false;h.image.naturalWidth=0;h.mutate(h.image,'src');
+ assert.equal(h.image.dataset.motionImageReady,undefined);
+ h.load();
+ assert.equal(h.image.dataset.motionImageReady,'');
+ assert.equal(h.image.dataset.motionImageReveal,'');
+ h.image.currentSrc='/art-four.jpg';h.image.complete=true;h.mutate(h.image,'src');
+ assert.equal(h.image.dataset.motionImageReady,'');
+ assert.equal(h.image.dataset.motionImageReveal,undefined,'A later cached source must not inherit the previous reveal');
+ assert.equal(h.frames.length,0);h.dispose();
+});
+
+test('MOBILE a stale load from replaced artwork cannot mark its incomplete successor ready',()=>{
+ const h=mobileImageMotion({cached:true,navigating:true});
+ h.image.src='/new-artwork.jpg';h.image.complete=false;
+ h.mutate(h.image,'src');
+ assert.equal(h.image.naturalWidth,800,'The browser can still report dimensions from the old image');
+ assert.equal(h.image.dataset.motionImageReady,undefined);
+ h.image.listeners.get('load')();
+ assert.equal(h.image.dataset.motionImageReady,undefined);
+ assert.equal(h.image.dataset.motionImageReveal,undefined);
+ assert.equal(h.frames.length,0);
+ h.image.currentSrc='/new-artwork.jpg';h.load();
+ assert.equal(h.image.complete,true);
+ assert.equal(h.image.dataset.motionImageReady,'');
+ assert.equal(h.image.dataset.motionImageReveal,'');h.dispose();
+});
+
+test('MOBILE errors expose existing fallbacks and retry loads receive one fresh reveal',()=>{
+ const h=mobileImageMotion();
+ h.image.naturalWidth=0;h.image.listeners.get('error')();
+ assert.equal(h.image.dataset.motionImageReady,'');
+ assert.equal(h.image.dataset.motionImageReveal,undefined);
+ h.image.complete=false;h.mutate(h.image,'src');
+ assert.equal(h.image.dataset.motionImageReady,undefined);
+ h.load();assert.equal(h.image.dataset.motionImageReveal,'');
+ const writes=h.image.writes.length;h.load();assert.equal(h.image.writes.length,writes);h.dispose();
+});
+
+test('MOBILE reduced motion makes both cached and new artwork immediately ready without reveal',()=>{
+ for(const cached of [false,true]){
+  const h=mobileImageMotion({cached,reduce:true,navigating:true});
+  if(!cached)h.load();
+  assert.equal(h.image.dataset.motionImageReady,'');assert.equal(h.image.dataset.motionImageReveal,undefined);
+  assert.equal(h.frames.length,0);h.dispose();
+ }
+});
+
+test('MOBILE removal releases listeners and reveal state, while a new retry element owns its load',()=>{
+ const h=mobileImageMotion();h.load();h.remove();
+ assert.equal(h.image.listeners.size,0);
+ assert.equal(h.image.dataset.motionImageMobile,undefined);
+ assert.equal(h.image.dataset.motionImageReady,undefined);
+ assert.equal(h.image.dataset.motionImageReveal,undefined);
+ const retry=new h.ImageStub();retry.currentSrc='/new-retry-art.jpg';h.append(retry);h.load(retry);
+ assert.equal(retry.dataset.motionImageReady,'');assert.equal(retry.dataset.motionImageReveal,'');
+ h.dispose();assert.equal(retry.listeners.size,0);assert.equal(h.events.size,0);assert.equal(h.disconnected,true);
+ assert.equal(retry.dataset.motionImageReveal,undefined);assert.equal(h.frames.length,0);
+});
+
+test('MOBILE previously presented artwork remounts without replay but still waits for real pixel readiness',()=>{
+ const h=mobileImageMotion();h.load();
+ assert.equal(h.image.dataset.motionImageReveal,'');h.remove();
+ const sameArtwork=new h.ImageStub();sameArtwork.currentSrc=h.image.currentSrc;
+ h.append(sameArtwork);
+ assert.equal(sameArtwork.dataset.motionImageReady,undefined,'A known resource URL does not establish image readiness');
+ assert.equal(sameArtwork.naturalWidth,0);
+ assert.equal(sameArtwork.dataset.motionImageReveal,undefined);
+ h.load(sameArtwork);
+ assert.equal(sameArtwork.dataset.motionImageReady,'');
+ assert.equal(sameArtwork.dataset.motionImageReveal,undefined,'A real async cached load must not replay already presented artwork');
+ const unseen=new h.ImageStub();unseen.currentSrc='/not-shown-before.jpg';h.append(unseen);h.load(unseen);
+ assert.equal(unseen.dataset.motionImageReveal,'');h.dispose();
+});
+
+test('MOBILE a cached source replacement remains recognized when its next element loads asynchronously',()=>{
+ const h=mobileImageMotion({cached:true});h.image.currentSrc='/cached-replacement.jpg';h.mutate(h.image,'src');
+ assert.equal(h.image.dataset.motionImageReady,'');assert.equal(h.image.dataset.motionImageReveal,undefined);
+ h.remove();const replacement=new h.ImageStub();replacement.currentSrc='/cached-replacement.jpg';h.append(replacement);
+ assert.equal(replacement.dataset.motionImageReady,undefined);h.load(replacement);
+ assert.equal(replacement.dataset.motionImageReady,'');assert.equal(replacement.dataset.motionImageReveal,undefined);h.dispose();
+});
+
+test('MOBILE skeleton completion never starts a second ancestor fade',()=>{
+ for(const navigating of [false,true]){
+  const h=mobileImageMotion({navigating});h.removeSkeleton();
+  assert.equal(h.root.attributes.has('data-motion-content-ready'),false);
+  assert.equal(h.frames.length,0);h.dispose();
+ }
 });
 
 test('an aborted native snapshot releases the screen and consumes its ready rejection',async()=>{

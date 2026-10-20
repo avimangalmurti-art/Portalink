@@ -11,7 +11,7 @@ const code = ts.transpileModule(`${source}\nexport { PdfImagePage };`, { compile
   module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true,
 } }).outputText;
 
-function harness(retainCanvasWhileLoading = true, focused = true, throwRender = false) {
+function harness(retainCanvasWhileLoading = true, focused = true, throwRender = false, presentedPages = new Set()) {
   const slots = [], effects = [], tasks = [];
   const queuePageRender = sourceModule('src/components/media/pageRenderQueue.ts').createPageRenderQueue();
   let cursor = 0, dirty = false, tree, props, intersection;
@@ -54,6 +54,7 @@ function harness(retainCanvasWhileLoading = true, focused = true, throwRender = 
   });
   props = { projectId: 'project', attachmentId: 'pdf', label: 'Work', pageNumber: 1, enabled: true,
     isFocused: focused, zoom: 1, retainCanvasWhileLoading, showMediaInteractions: false, onSettled() {},
+    presentedPages,
     document: { getPage: async pageNumber => ({ pageNumber, cleanup() {},
       getTextContent: async () => ({ items: [] }),
       getViewport: ({ scale }) => ({ width: 600 * scale, height: (pageNumber === 1 ? 900 : 800) * scale }),
@@ -120,6 +121,56 @@ test('WEB retains direct canvas rendering', async () => {
   const h = harness(false); await h.flush();
   assert.equal(h.tasks[0].target, h.canvas);
   h.tasks[0].finish(); await h.flush(); assert.equal(h.canvas.painted, 1); h.unmount();
+});
+
+function canvasElement(tree) {
+  if (!React.isValidElement(tree)) return null;
+  if (tree.type === 'canvas') return tree;
+  return React.Children.toArray(tree.props.children).map(canvasElement).find(Boolean) ?? null;
+}
+
+test('MOBILE reveals a newly painted PDF page once, while retry and revisiting keep paint immediate', async () => {
+  const presentedPages = new Set();
+  const h = harness(true, true, false, presentedPages); await h.flush();
+  assert.equal(canvasElement(h.tree).props['data-mobile-media-reveal'], undefined);
+  h.tasks[0].finish(); await h.flush();
+  assert.equal(canvasElement(h.tree).props['data-mobile-media-reveal'], '');
+  assert.doesNotMatch(canvasElement(h.tree).props.className, /premium-media-ready|transition-opacity/);
+  assert.deepEqual([...presentedPages], [1]);
+  const renderCount = h.tasks.length;
+  await h.setProps({ zoom: 2.5 });
+  assert.equal(h.tasks.length, renderCount, 'Zoom must not repaint or restart a page reveal');
+  assert.equal(canvasElement(h.tree).props.style.width, '975px');
+  await h.retry();
+  assert.equal(h.canvas.painted, 1);
+  h.tasks.at(-1).finish(); await h.flush();
+  assert.equal(canvasElement(h.tree).props['data-mobile-media-reveal'], undefined);
+  await h.move(2); h.tasks.at(-1).finish(); await h.flush();
+  assert.equal(canvasElement(h.tree).props['data-mobile-media-reveal'], '');
+  await h.move(1); h.tasks.at(-1).finish(); await h.flush();
+  assert.equal(canvasElement(h.tree).props['data-mobile-media-reveal'], undefined);
+  h.unmount();
+  const remounted = harness(true, true, false, presentedPages); await remounted.flush();
+  remounted.tasks[0].finish(); await remounted.flush();
+  assert.equal(canvasElement(remounted.tree).props['data-mobile-media-reveal'], undefined,
+    'Overview/focused remounts share presentation history within the same document');
+  remounted.unmount();
+});
+
+test('MOBILE off-screen canvas recycling does not replay the page reveal; WEB keeps its existing classes', async () => {
+  const mobile = harness(true, false); await mobile.flush(); await mobile.intersect(true);
+  mobile.tasks[0].finish(); await mobile.flush();
+  assert.equal(canvasElement(mobile.tree).props['data-mobile-media-reveal'], '');
+  await mobile.intersect(false); assert.equal(mobile.canvas.width, 0);
+  await mobile.intersect(true); mobile.tasks.at(-1).finish(); await mobile.flush();
+  assert.equal(canvasElement(mobile.tree).props['data-mobile-media-reveal'], undefined);
+  mobile.unmount();
+  const web = harness(false); await web.flush();
+  assert.equal(canvasElement(web.tree).props.className, 'block premium-focused-media m-auto max-w-none bg-white transition-opacity duration-[var(--m-base)] opacity-0');
+  web.tasks[0].finish(); await web.flush();
+  assert.equal(canvasElement(web.tree).props.className, 'block premium-focused-media m-auto max-w-none bg-white transition-opacity duration-[var(--m-base)] premium-media-ready opacity-100');
+  assert.equal(canvasElement(web.tree).props['data-mobile-media-reveal'], undefined);
+  web.unmount();
 });
 
 test('mobile failed-page recovery retries in place while preserving paint, zoom and saved pan', async () => {

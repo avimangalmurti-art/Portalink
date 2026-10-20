@@ -57,6 +57,12 @@ function ImagePage({
       setAttempt(current => current + 1);
     }
   }, [isMobile, recoveryIdentity]);
+  useLayoutEffect(() => {
+    if (!isMobile || !shouldRender || status !== 'loading') return;
+    const image = hostRef.current?.querySelector<HTMLImageElement>('img[data-media-page-surface]');
+    // A ready browser-cache hit needs no placeholder frame or synthetic load event.
+    if (image?.complete && image.naturalWidth > 0) setStatus('ready');
+  }, [attempt, isMobile, recoveryIdentity, shouldRender, status]);
   const retry = () => {
     setStatus('loading');
     setAttempt(current => current + 1);

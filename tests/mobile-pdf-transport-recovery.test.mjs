@@ -94,15 +94,30 @@ test('mobile cached page failure requires and receives a fresh transport while p
   assert.equal(old.getPage(3), firstFailure, 'The same transport cannot recover its cached rejected page promise');
   await assert.rejects(old.getPage(3), /Interrupted range/); assert.equal(old.pageRequests, 1);
   const page = f.pages()[0], rootKey = f.tree.key, pageParentKey = nodes(f.tree).find(node => node.type === 'li').key;
+  const presentedPages = page.props.presentedPages;
+  presentedPages.add(3);
   page.props.onRecoverDocument(); await f.flush();
   assert.equal(f.tasks.length, 2); assert.equal(f.pages()[0].props.document, old);
   const fresh = f.resolve(1, 'reconnected'); await f.flush();
   assert.equal(f.pages()[0].props.document, fresh);
+  assert.equal(f.pages()[0].props.presentedPages, presentedPages);
+  assert.equal(presentedPages.has(3), true, 'A reconnected transport must not replay already presented pages');
   assert.equal((await fresh.getPage(3)).pageNumber, 3);
   assert.equal(f.tree.key, rootKey); assert.equal(nodes(f.tree).find(node => node.type === 'li').key, pageParentKey);
   assert.equal(f.pages()[0].type, page.type); assert.equal(f.pages()[0].props.pageNumber, 3);
   assert.equal(f.pages()[0].props.zoom, 2.25); assert.equal(f.pages()[0].props.focusMemoryKey, 'workspace:pdf:page:3');
   assert.deepEqual([f.host.scrollTop, f.host.scrollLeft], [321, 89]); assert.deepEqual(f.memoryWrites, []);
+  f.dispose();
+});
+
+test('a different document clears reader-local presentation history without retaining source URLs', async () => {
+  const f = fixture(); await f.flush(); f.resolve(0); await f.flush();
+  const presentedPages = f.pages()[0].props.presentedPages;
+  presentedPages.add(3);
+  await f.render({ source: 'different.pdf', attachmentId: 'next-pdf', memoryKey: 'workspace:next-pdf' });
+  f.resolve(1); await f.flush();
+  assert.equal(f.pages()[0].props.presentedPages, presentedPages);
+  assert.equal(presentedPages.size, 0, 'Only the current document owns this bounded page-number history');
   f.dispose();
 });
 

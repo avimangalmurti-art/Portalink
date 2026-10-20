@@ -106,7 +106,7 @@ function documentHarness(mobile = true, rendered = true) {
     '../../features/projects/pageLayout': { normalizePagesPerRow: value => value, MAX_PAGES_PER_ROW: 7 },
     './GenericFileCard': { GenericFileCard: 'file-card' }, './PdfImageDocument': { PdfImageDocument: 'live-pdf' },
   }, { window: { location: { search: '' } } }, tree => { for (const node of nodes(tree)) if (node.ref) node.ref.current = host; });
-  return { ...h, get tree() { return h.tree; }, get recovery() { return h.recovery; }, writes, focusedHost };
+  return { ...h, get tree() { return h.tree; }, get recovery() { return h.recovery; }, writes, focusedHost, attachment };
 }
 
 test('MOBILE focused rendered PDF ignores transient scroll clamping until the image is ready; WEB preserves normal writes', async () => {
@@ -148,7 +148,7 @@ test('initial PDF read failure recovers through the MOBILE parent without replay
   }
 });
 
-function gridHarness({ fail = false, hold = false, failRead = false, failDecode = false } = {}) {
+function gridHarness({ fail = false, hold = false, failRead = false, failDecode = false, source = 'page.png', presentedPages, pageNumber } = {}) {
   let intersection, resized, failDraw = fail, holding = hold, calls = 0, finished = 0, readFailure = failRead, decodeFailure = failDecode;
   const timers = new Map(), reads = [], bitmaps = [], stages = [];
   let nextTimer = 0;
@@ -159,7 +159,7 @@ function gridHarness({ fail = false, hold = false, failRead = false, failDecode 
   const target = new Canvas();
   class PreviewURL extends URL { static createObjectURL() { return 'blob:preview'; } static revokeObjectURL() {} }
   const host = { clientWidth: 160, closest: () => ({ setAttribute() {} }) };
-  const h = componentHarness('DocumentGridPreview.tsx', 'DocumentGridPreview', { source: 'page.png', width: 600, height: 900, label: 'Report, page 1', onReady: () => { finished++; } }, {
+  const h = componentHarness('DocumentGridPreview.tsx', 'DocumentGridPreview', { source, width: 600, height: 900, label: 'Report, page 1', onReady: () => { finished++; }, presentedPages, pageNumber }, {
     './pageRenderQueue': { queuePageRender: sourceModule('src/components/media/pageRenderQueue.ts').createPageRenderQueue() },
   }, {
     window: { devicePixelRatio: 1 }, URL: PreviewURL, document: { createElement: () => { const stage = new Canvas(); stages.push(stage); return stage; } },
@@ -208,6 +208,65 @@ test('same-source canvas retry retains painted artwork and size through failure 
   assert.deepEqual([h.target.width, h.target.height], size);
   h.hold(false); h.reads.at(-1).resolve(); await h.flush();
   assert.notEqual(h.target.pixels, pixels); assert.equal(h.recovery.loading, false); h.dispose();
+});
+
+test('rendered-page canvas reveals its first successful source once, preserving immediate resize, retry and off-screen return', async () => {
+  const h = gridHarness(); await h.flush();
+  const canvas = () => nodes(h.tree).find(node => node.type === 'canvas');
+  await h.intersect(true);
+  assert.equal(canvas().props['data-mobile-media-reveal'], '');
+  assert.doesNotMatch(canvas().props.className, /transition-opacity/);
+  await h.resize();
+  assert.equal(canvas().props['data-mobile-media-reveal'], undefined);
+  h.fail(true); await h.resize();
+  assert.equal(h.recovery.failed, true);
+  h.fail(false); h.recovery.onRetry(); await h.flush();
+  assert.equal(canvas().props['data-mobile-media-reveal'], undefined);
+  await h.intersect(false); assert.equal(h.target.width, 0);
+  await h.intersect(true);
+  assert.equal(canvas().props['data-mobile-media-reveal'], undefined);
+  await h.render({ source: 'new-page.png' });
+  assert.equal(canvas().props['data-mobile-media-reveal'], '');
+  h.dispose();
+});
+
+test('rendered PDF overview returns from focused mode without replaying already presented page reveals', async () => {
+  const reader = documentHarness(); await reader.flush(); await reader.render({ columns: 2 });
+  const exitFocus = () => nodes(reader.tree).find(node => node.props.onExit).props.onExit();
+  exitFocus(); await reader.flush();
+  assert.ok(nodes(reader.tree).some(node => String(node.key).endsWith('document-grid')));
+  const firstPreview = nodes(reader.tree).find(node => node.props.pageNumber === 1 && node.props.presentedPages);
+  const history = firstPreview.props.presentedPages;
+  const first = gridHarness(firstPreview.props); await first.flush(); await first.intersect(true);
+  const firstCanvas = () => nodes(first.tree).find(node => node.type === 'canvas');
+  assert.equal(firstCanvas().props['data-mobile-media-reveal'], '');
+  assert.equal(history.get(1), 'page-1.png');
+  first.dispose();
+  const page = nodes(reader.tree).find(node => node.type === 'li');
+  page.props.onKeyDown({ key: 'Enter', preventDefault() {} }); await reader.flush();
+  assert.ok(nodes(reader.tree).some(node => String(node.key).endsWith('document-focused')));
+  exitFocus(); await reader.flush();
+  const returnedPreview = nodes(reader.tree).find(node => node.props.pageNumber === 1 && node.props.presentedPages);
+  assert.equal(returnedPreview.props.presentedPages, history);
+  const returned = gridHarness(returnedPreview.props); await returned.flush(); await returned.intersect(true);
+  const returnedCanvas = () => nodes(returned.tree).find(node => node.type === 'canvas');
+  assert.equal(returnedCanvas().props['data-mobile-media-reveal'], undefined,
+    'Newly mounted overview canvases use the reader history only after their actual paint completes');
+  await returned.render({ source: 'replacement-page-1.png' });
+  assert.equal(returnedCanvas().props['data-mobile-media-reveal'], '');
+  assert.equal(history.get(1), 'replacement-page-1.png');
+  assert.equal(history.size, 1, 'A page keeps one last presented source rather than accumulating past URLs');
+  returned.dispose();
+  history.set(3, 'removed-page.png');
+  await reader.render({ attachment: { ...reader.attachment, metadata: { ...reader.attachment.metadata,
+    renderedPages: reader.attachment.metadata.renderedPages.slice(0, 1) } } });
+  assert.equal(history.size, 1, 'Removed document pages release their presentation history');
+  await reader.render({ attachment: { ...reader.attachment, sourceUrl: 'another-document.pdf' } });
+  nodes(reader.tree).find(node => node.props.onExit)?.props.onExit(); await reader.flush();
+  const nextPreview = nodes(reader.tree).find(node => node.props.pageNumber === 1 && node.props.presentedPages);
+  assert.notEqual(nextPreview.props.presentedPages, history);
+  assert.equal(nextPreview.props.presentedPages.size, 0);
+  reader.dispose();
 });
 
 test('stale rendered-page fetches cannot paint a replacement source or paint after cleanup', async () => {
