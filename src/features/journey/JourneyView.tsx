@@ -23,6 +23,7 @@ export function JourneyCover({ project, sizes = '92px' }: { project: Project; si
     allowPdfFallback={false} allowVideoFallback={false} fallbackAttachments={project.attachments} />;
 }
 type JourneyViewProps = {
+  active?: boolean;
   toolbarHost?: HTMLElement | null; profile: Profile; owner: boolean; onOpen: (project: Project) => void;
   onEdit?: (project: Project) => void; onEditDescription?: (project: Project) => void; onDelete?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
 };
@@ -30,7 +31,7 @@ export function JourneyView(props: JourneyViewProps) {
   // Sorting, popup and citation state belong to one viewed profile/access mode.
   return <JourneyContent key={`${props.profile.id}:${props.owner}`} {...props} />;
 }
-function JourneyContent({ toolbarHost, profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: JourneyViewProps) {
+function JourneyContent({ active = true, toolbarHost, profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: JourneyViewProps) {
   const isMobile = usePresentation() === 'mobile';
   const { reads } = useServices();
   const [popular, setPopular] = useState<{profileId:string; counts:Record<string,number>} | null>(null);
@@ -46,6 +47,7 @@ function JourneyContent({ toolbarHost, profile, owner, onOpen, onEdit, onEditDes
   const showingPairsOnly = isMobile && pairsOnly;
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
   const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
+  useEffect(() => { if (!active) { setDetailsProject(null); setPortalPopupId(null); } }, [active]);
   const events=useJourneyCitations(profile,owner);
   const groups = useMemo(() => journeyTimeline(profile.projects,events,owner,order,popularCounts), [profile.projects, events, owner, order, popularCounts]);
   const popularityRanks = useMemo(() => {
@@ -73,7 +75,7 @@ function JourneyContent({ toolbarHost, profile, owner, onOpen, onEdit, onEditDes
     const portal = profile.categories.find(category => category.id === project.categoryId);
     return portal ? <button type="button" className="journey-portal" aria-haspopup="dialog" aria-expanded={activePortalPopupId === portal.id} onClick={() => setPortalPopupId(portal.id)}>{portal.label}</button> : null;
   };
-  const portalPopup = activePortalPopupId && <DeferredDialog active onClose={() => setPortalPopupId(null)}>
+  const portalPopup = active && activePortalPopupId && <DeferredDialog active onClose={() => setPortalPopupId(null)}>
     <PortalProjectPopup profile={portalProfile} categoryId={activePortalPopupId} backLabel="Back to Timeline" onClose={() => setPortalPopupId(null)} onSelect={(categoryId, projectId) => {
       const project = portalProjects.find(candidate => candidate.id === projectId && candidate.categoryId === categoryId);
       if (categoryId !== activePortalPopupId || !project) return;
@@ -92,7 +94,7 @@ function JourneyContent({ toolbarHost, profile, owner, onOpen, onEdit, onEditDes
       </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Manage pairs</button>}
     </section>;
   });
-  const popup = isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
+  const popup = active && isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
   const toolbar = <header className="journey-toolbar">
     <div className="journey-order" role="group" aria-label="Timeline order">
       <button type="button" aria-pressed={!showingPairsOnly && order === 'newest'} onClick={() => { setPairsOnly(false); setOrder('newest'); }}>{isMobile?'Latest':'Newest first'}</button>

@@ -1,5 +1,4 @@
 import { LoadingSkeleton } from '../components/ui/StateViews';
-import { beginProjectContinuity } from '../utils/projectContinuity';
 import { RouteError, routeErrorKind } from '../components/ui/RouteError';
 import { SharedPortalPopup } from './mobile/SharedPortalPopup';
 import { VisitorPreviewBar } from '../features/profile/VisitorPreviewBar';
@@ -22,6 +21,8 @@ import { resolveAccentTokens } from '../utils/accentTokens';
 import { resolveMacTokens } from '../utils/macTokens';
 import { resolveNavButtonTokens } from '../data/navButtonTokens';
 import { VisitorProfileGrid } from './VisitorProfileGrid';
+import { useMobileProjectReturn } from './useMobileProjectReturn';
+import type { Profile } from '../types/domain';
 import { PublicActionSheet } from './mobile/PublicActionSheet';
 import { canResumeRegistration, readSharedReturnPath } from '../features/auth/registration';
 import { interactionIntent } from '../features/auth/interactionIntent';
@@ -46,13 +47,6 @@ export function VisitorApp() {
   const location = useLocation(), navigate = useNavigate(), auth = useAuth();
   const presentation = usePresentation();
   const pageScroll = useRef(new Map<string, number>());
-  useEffect(() => {
-    if (presentation !== 'mobile') return;
-    window.scrollTo({ top: pageScroll.current.get(location.pathname) ?? 0, behavior: 'auto' });
-    const remember = () => pageScroll.current.set(location.pathname, window.scrollY);
-    window.addEventListener('scroll', remember, { passive: true });
-    return () => window.removeEventListener('scroll', remember);
-  }, [presentation, location.pathname]);
   const appearance = useDeviceAppearance(presentation, 'public');
   const [visitorOverride, setVisitorOverride] = useState<{id:string | null;mode:'auto' | 'light' | 'dark'} | null>(null);
   const highContrast = appearance.highContrast, reduceTranslucency = appearance.reduceTranslucency;
@@ -87,8 +81,30 @@ export function VisitorApp() {
   const accentColor = publicStyle?.accentColor ?? appearance.accentColor;
   const systemGray = publicStyle?.systemGray ?? appearance.systemGray;
   const project = profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
+  const catalogueRoute = !settings && (route.kind === 'sharedProfile' || route.kind === 'sharedCategory');
+  const catalogueReady = catalogueRoute && !handlePending && !handleError && !invalidShared && query.status === 'ready' && Boolean(profile);
+  // Canonical handle replacement can briefly be unresolved; keep this trusted
+  // session identity hidden until resolution confirms (or changes) the creator.
+  const returnProfileId = profileId ?? (handlePending || handleError ? lastSharedRoute.current?.profileId : null);
+  const catalogueScope = `${returnProfileId ?? ''}:${auth.user?.id ?? ''}`;
+  // Keep only this creator/account's MOBILE catalogue mounted while reading.
+  // Timeline selection and sort belong to that composition, not a second URL model.
+  const catalogue = useMemo(() => ({ scope: catalogueScope, presentation, profile: null as Profile | null }), [catalogueScope, presentation]);
+  if (presentation === 'mobile' && catalogueReady) catalogue.profile = profile;
+  if (catalogueRoute && (query.status === 'error' || query.status === 'not-found')) catalogue.profile = null;
+  const projectReturn = useMobileProjectReturn({ enabled: presentation === 'mobile', scope: catalogueScope,
+    location, projectId: settings ? null : projectId, catalogueReady,
+    otherScreen: settings || route.kind === 'sharedCollaboration', navigate });
+  useEffect(() => {
+    if (presentation !== 'mobile' || projectId || catalogueRoute) return;
+    window.scrollTo({ top: pageScroll.current.get(location.pathname) ?? 0, behavior: 'auto' });
+    const remember = () => pageScroll.current.set(location.pathname, window.scrollY);
+    window.addEventListener('scroll', remember, { passive: true });
+    return () => window.removeEventListener('scroll', remember);
+  }, [presentation, location.pathname, projectId, catalogueRoute]);
   const back = () => {
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
+    if (profileId && !invalidShared && projectReturn.close(portfolioPath(profileId, handleFromPath(location.pathname)) + previewSuffix)) return;
     if (!profileId || !profile || invalidShared || handleError) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else window.location.assign('/'); return; }
     if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + (projectId && presentation !== 'mobile' && categoryId ? `/c/${encodeURIComponent(categoryId)}` : '') + previewSuffix);
   };
@@ -161,7 +177,10 @@ export function VisitorApp() {
   const style = useMemo(() => ({ '--accent-color': accentColor, ...resolveAccentTokens(accentColor, theme),
     ...resolveNavButtonTokens(theme, accentColor, highContrast, reduceTranslucency, systemGray), ...resolveMacTokens(accentColor, theme),
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
-  const openProject = (category: string, id: string) => { if (profileId) { beginProjectContinuity(id); navigate(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix); } };
+  const openProject = (category: string, id: string) => { if (profileId) {
+    if (presentation === 'mobile') setPortalPopup(null);
+    projectReturn.open(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix, id);
+  } };
   const pending = <LoadingSkeleton kind={projectId ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…"/>;
   const profileOnboarding = <ProfileOnboardingDialog key={auth.user?.id} isOpen theme={theme} systemGray={systemGray}
     onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}
@@ -182,8 +201,15 @@ export function VisitorApp() {
         {visitorPreview && profileId && <VisitorPreviewBar onDone={() => window.location.assign(visitorPreviewReturn(profileId))} />}
         <div id="app-viewport">
           <div className="app-screen-layer h-full min-h-0">
-            <main tabIndex={-1} aria-label={settings ? 'Settings' : profile ? `${profile.name} shared catalogue` : 'Shared catalogue'} className={`min-h-0 h-full w-full ${projectId && !settings ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+            <main tabIndex={-1} aria-label={settings ? 'Settings' : presentation === 'mobile' && projectId ? project ? `${project.title} files` : 'Shared project' : profile ? `${profile.name} shared catalogue` : 'Shared catalogue'} className={`min-h-0 h-full w-full ${projectId && !settings ? 'overflow-hidden' : 'overflow-y-auto'}`}>
               <div data-screen-scroll={projectId && !settings ? 'nested' : 'page'} className={`feed-starfield min-h-full ${projectId && !settings ? 'h-full' : ''}`}>
+                {presentation === 'mobile' && catalogue.profile && <DeferredSurfaceBoundary active={catalogueReady} onClose={back} resetKey={catalogueScope}>
+                  <Suspense fallback={catalogueReady ? pending : null}>
+                    <VisitorProfileGrid key={`catalogue:${catalogueScope}`} profile={catalogue.profile} categoryId={null}
+                      active={catalogueReady} onCaptureOpener={projectReturn.captureOpener} onOpen={openProject} onBack={back} onMessage={openMessages}
+                      onCollaboration={() => { if (catalogue.profile) navigate(buildPath('sharedCollaboration', { profileId: catalogue.profile.id })); }} />
+                  </Suspense>
+                </DeferredSurfaceBoundary>}
                 <DeferredSurfaceBoundary active onClose={back} resetKey={location.pathname}>
                   <Suspense fallback={pending}>
                     {settings ? <ControlCenterPage theme={theme} appearanceMode={appearance.mode} onAppearanceModeChange={choosePublicMode}
@@ -196,11 +222,11 @@ export function VisitorApp() {
                       : invalidShared ? <RouteError kind="not-found" onBack={back} onHome={() => window.location.assign('/')} />
                       : query.status === 'loading' || query.status === 'idle' ? pending : !profile ? <RouteError kind={query.status === 'error' ? routeErrorKind(query.error) : 'not-found'} onBack={back} onHome={() => window.location.assign('/')} />
                       : projectId ? project ? <VisitorProjectPage key={project.id} profile={profile} project={project} onBack={back}
-                        onBackToProfile={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} onSelect={id => openProject(project.categoryId, id)} /> : <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
+                        onBackToProfile={presentation === 'mobile' ? back : () => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} onSelect={id => openProject(project.categoryId, id)} /> : <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={presentation === 'mobile' ? back : () => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
                       : route.kind === 'sharedCollaboration' ? <CollaborationPage profile={profile} onBack={back} />
                       : presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId) ? <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
-                      : <VisitorProfileGrid key={`${profile.id}/${categoryId ?? ''}`} profile={profile} categoryId={presentation === 'mobile' ? null : categoryId} onOpen={openProject} onBack={back} onMessage={openMessages}
-                        onCollaboration={() => presentation === 'mobile' ? navigate(buildPath('sharedCollaboration', { profileId: profile.id })) : openMessages()} />}
+                      : presentation === 'mobile' ? null : <VisitorProfileGrid key={`${profile.id}/${categoryId ?? ''}`} profile={profile} categoryId={categoryId} onOpen={openProject} onBack={back} onMessage={openMessages}
+                        onCollaboration={openMessages} />}
                   </Suspense>
                 </DeferredSurfaceBoundary>
               </div>

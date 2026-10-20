@@ -167,6 +167,7 @@ function hooks() {
       }
     },
   };
+  react.useLayoutEffect = react.useEffect;
   function render(fn) {
     let tree;
     for (let pass = 0; pass < 12; pass++) {
@@ -189,9 +190,18 @@ function appHarness({ firstVisit = false } = {}) {
       requestAuthenticatedDestination: intent => { requests.push(intent); pendingIntent = intent; },
       closeAuth: () => { state.auth = { ...state.auth, pendingView: null }; },
     } };
-  const window = { scrollY: 0, scrollTo() {}, addEventListener() {}, removeEventListener() {}, history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
-  const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } }, querySelector: () => null };
+  const window = { scrollX: 0, scrollY: 0, innerWidth: 420, innerHeight: 912, scrollTo() {}, addEventListener() {}, removeEventListener() {}, history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
+  const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } }, querySelector: () => null, addEventListener() {}, removeEventListener() {} };
+  class ElementStub { matches() { return false; } }
+  const browser = { window, document, Element: ElementStub, HTMLElement: ElementStub,
+    requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {} };
+  const projectReturn = load('visitor/useMobileProjectReturn.ts', name => {
+    if (name === 'react') return h.react;
+    if (name.endsWith('/projectContinuity')) return { beginProjectContinuity() {} };
+    throw new Error(name);
+  }, browser);
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
+    if (name === './useMobileProjectReturn') return projectReturn;
     if (name === '../app/screenModules') return { loadVisitorProjectPage: () => Promise.resolve({ default: 'VisitorProjectPage' }) };
     if(name.endsWith('/StateViews'))return {LoadingSkeleton:'loading'};
     if(name.endsWith('/projectContinuity'))return {beginProjectContinuity(){}};
@@ -220,7 +230,7 @@ function appHarness({ firstVisit = false } = {}) {
     const component = name.split('/').at(-1);
     if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedContextActions', 'SharedSignInBar', 'VisitorProfileGrid', 'SharedPortalPopup'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
     throw new Error(name);
-  }, { window, document, requestAnimationFrame: fn => { fn(); return 1; } });
+  }, browser);
   return { state, assigned, replaced, navigations, queryCalls, requests, window,
     render: () => h.render(VisitorApp), pending: intent => { pendingIntent = intent; },
     signedIn(overrides = {}) { state.auth = { ...state.auth, phase: 'authenticated', isAuthenticated: true, viewerProfileId: 'viewer', user: { id: 'account', profileId: 'viewer' }, session: { user: { id: 'account', profileId: 'viewer', isEmailVerified: true } }, ...overrides }; },
@@ -423,7 +433,8 @@ test('shared links start on Portfolio and keep Journey one tap away', () => {
 });
 
 function visitorProfileHarness({ presentation = 'web', showJourney = false } = {}) {
-  const h = hooks(), followed = [], state = { own: true, signedIn: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio' };
+  const h = hooks(), followed = [], state = { own: true, signedIn: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio', active: true };
+  const profileDom = { inert: false };
   const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London', showJourney };
   const { VisitorProfileGrid } = load('visitor/VisitorProfileGrid.tsx', name => {
     if (name.endsWith('/useMobileHeaderMaterial')) return { useMobileHeaderMaterial() {} };
@@ -444,8 +455,12 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
     if (name === '../utils/projectPresentation') return { getProjectAspectRatio: () => 1 };
     return named(name.split('/').at(-1));
   });
-  const render = () => h.render(() => VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() { state.categoryId = null; } }));
-  return { render, state, followed, bioProfile };
+  const render = () => h.render(() => {
+    const tree = VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, active: state.active, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() { state.categoryId = null; } });
+    tree.ref.current = profileDom; // React attaches the host before layout effects run.
+    return tree;
+  });
+  return { render, state, followed, bioProfile, profileDom };
 }
 
 test('public profile is always expanded without an action button and preserves Bio and portal views', () => {
@@ -489,6 +504,79 @@ test('shared mobile Journey switch stays in every profile header and exits porta
     one(render(),'JourneyToggle').props.onChange('journey');
     assert.ok(one(render(),'lazy:../features/journey/JourneyView'));
   }
+});
+
+test('a retained inactive catalogue hides from interaction and propagates inactivity to card and Timeline popup owners', () => {
+  const h = visitorProfileHarness({ presentation: 'mobile', showJourney: true });
+  const cards = tree => one(tree, 'JustifiedImageWall').props.items.map(item => item.content);
+  assert.ok(cards(h.render()).every(card => card.props.active));
+  assert.equal(h.profileDom.inert, false);
+  one(h.render(), 'PlatformGrid').props.onOpenBio();
+  assert.ok(one(h.render(), 'lazy:../features/profile/ProfileBioSheet'));
+  h.state.active = false;
+  let tree = h.render();
+  assert.equal(tree.props.hidden, true); assert.equal(h.profileDom.inert, true); assert.equal(tree.props['aria-hidden'], true);
+  assert.equal(Object.hasOwn(tree.props, 'inert'), false, 'React 18 must not receive an unsupported boolean JSX inert attribute.');
+  assert.equal(tree.props.style.display, 'none'); assert.equal(tree.props.onClickCapture, undefined);
+  assert.ok(cards(tree).every(card => card.props.active === false));
+  h.state.view = 'journey'; tree = h.render();
+  assert.equal(one(tree, 'lazy:../features/journey/JourneyView').props.active, false);
+  h.state.active = true; tree = h.render();
+  assert.equal(h.profileDom.inert, false, 'The same retained host is interactive again before paint.');
+  assert.equal(one(tree, 'lazy:../features/journey/JourneyView').props.active, true);
+  assert.equal(one(tree, 'lazy:../features/profile/ProfileBioSheet'), undefined, 'Reactivation cannot resurrect the earlier Biography popup.');
+  assert.equal(one(tree, 'JourneyToggle').props.view, 'journey', 'Reader return retains the selected catalogue composition.');
+});
+
+test('retained project cards discard body popup state while inactive and ordinary cards remain active by default', () => {
+  const h = hooks(), state = { active: undefined }, project = profile.projects[0];
+  const { ProjectPreviewCard } = load('components/profile/ProjectPreviewCard.tsx', name => {
+    if (name === 'react') return h.react;
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => 'mobile' };
+    if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
+    if (name.endsWith('/useContentPreview')) return { useContentPreview: () => ({ expanded: false, ref: null, events: {}, open: (_event, action) => action() }) };
+    if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1, getProjectCoverPreview: () => null };
+    if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}) };
+    if (name.endsWith('/warmDocumentRenderer')) return { warmProjectDocumentRenderer() {} };
+    if (name === 'react-router-dom') return { Link: 'Link' };
+    if (name === 'lucide-react') return { MoreHorizontalIcon: 'MoreHorizontalIcon' };
+    return named(name.split('/').at(-1));
+  });
+  const render = () => h.render(() => ProjectPreviewCard({ project, creator: profile, onOpen() {}, active: state.active }));
+  button(render(), 'Show details for A project').props.onClick({ stopPropagation() {} });
+  assert.ok(one(render(), 'MobileProjectPopup'), 'Existing callers that omit active still open details.');
+  state.active = false; assert.equal(one(render(), 'MobileProjectPopup'), undefined);
+  state.active = true; assert.equal(one(render(), 'MobileProjectPopup'), undefined, 'Returning cannot resurrect an old body popup.');
+});
+
+test('retained Timeline clears body popup state while preserving the selected sort', () => {
+  const h = hooks(), state = { active: undefined }, project = profile.projects[0];
+  const { JourneyView } = load('features/journey/JourneyView.tsx', name => {
+    if (name === 'react') return h.react;
+    if (name === 'react-dom') return { createPortal: children => children };
+    if (name.endsWith('.css')) return {};
+    if (name.endsWith('/useServices')) return { useServices: () => ({}) };
+    if (name.endsWith('/ServicesContext')) return { useServices: () => ({}) };
+    if (name.endsWith('/useJourneyCitations')) return { useJourneyCitations: () => [] };
+    if (name.endsWith('/journeyCitations')) return { journeyTimeline: () => [{ year: '2026', projectCount: 1, entries: [{ kind: 'project', project }] }] };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => 'mobile' };
+    if (name === './journey') return { journeyProjects: projects => projects, projectMonth: () => null };
+    if (name === './calendar') return { calendarDay: () => null };
+    if (name === './useTimelinePairs') return { useTimelinePairs: () => ({ pairs: [], error: null, loading: false }) };
+    if (name === 'lucide-react') return { MoreHorizontalIcon: 'MoreHorizontalIcon' };
+    return named(name.split('/').at(-1));
+  });
+  const render = () => h.render(() => { const wrapper = JourneyView({ profile, owner: false, active: state.active, onOpen() {} }); return wrapper.type(wrapper.props); });
+  button(render(), 'Oldest').props.onClick();
+  button(render(), 'Show details for A project').props.onClick(); assert.ok(one(render(), 'MobileProjectPopup'));
+  state.active = false; assert.equal(one(render(), 'MobileProjectPopup'), undefined);
+  state.active = true; assert.equal(one(render(), 'MobileProjectPopup'), undefined);
+  assert.equal(button(render(), 'Oldest').props['aria-pressed'], true);
+  const portalButton = nodes(render()).find(node => node.props?.className === 'journey-portal');
+  portalButton.props.onClick(); assert.ok(one(render(), 'DeferredDialog'));
+  state.active = false; assert.equal(one(render(), 'DeferredDialog'), undefined);
+  state.active = true; assert.equal(one(render(), 'DeferredDialog'), undefined);
+  assert.equal(button(render(), 'Oldest').props['aria-pressed'], true);
 });
 
 test('public MOBILE Timeline portals its real toolbar into the profile header and always remains read-only',()=>{
@@ -604,6 +692,43 @@ test('MOBILE sidebar portal opens its project popup without navigating to the pr
   h.state.presentation='web';
   one(h.render(),'SharedProfileSidebar').props.onOpenCategory('portal');
   assert.ok(h.navigations.length>0);
+});
+
+test('public MOBILE project opens retain the catalogue composition and Close uses the trusted reader history entry', () => {
+  const h = appHarness(); h.state.location.key = 'catalogue';
+  const grid = one(h.render(), 'VisitorProfileGrid'); assert.equal(grid.props.active, true);
+  grid.props.onOpen('portal', 'work');
+  assert.deepEqual(json(h.navigations.at(-1)), [`/share/${profileId}/c/portal/work`, { replace: false }]);
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  h.state.location = { ...h.state.location, key: 'reader', pathname: `/share/${profileId}/c/portal/work` };
+  h.window.history.state.idx = 2;
+  let tree = h.render();
+  assert.equal(one(tree, 'VisitorProfileGrid').props.active, false, 'The same catalogue stays mounted but inactive beneath the reader.');
+  const reader = nodes(tree).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
+  const catalogueBoundary = nodes(tree).find(node => node.type === 'DeferredSurfaceBoundary' && one(node, 'VisitorProfileGrid'));
+  const readerBoundary = nodes(tree).find(node => node.type === 'DeferredSurfaceBoundary' && nodes(node).includes(reader));
+  assert.ok(catalogueBoundary); assert.ok(readerBoundary); assert.notEqual(catalogueBoundary, readerBoundary);
+  assert.equal(catalogueBoundary.props.active, false);
+  assert.equal(nodes(readerBoundary).includes(one(tree, 'VisitorProfileGrid')), false, 'A failed reader chunk cannot replace its retained catalogue boundary.');
+  reader.props.onBack(); reader.props.onBack();
+  assert.deepEqual(json(h.navigations), [[`/share/${profileId}/c/portal/work`, { replace: false }], [-1, null]]);
+  h.state.route = { kind: 'sharedProfile', profileId };
+  h.state.location = { ...h.state.location, key: 'catalogue', pathname: `/share/${profileId}` };
+  h.window.history.state.idx = 1; tree = h.render();
+  assert.equal(one(tree, 'VisitorProfileGrid').props.active, true);
+});
+
+test('direct mobile reader Close replaces the catalogue, while WEB retains its category PUSH destination', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = appHarness(); h.state.presentation = presentation;
+    h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+    h.state.location = { ...h.state.location, key: 'direct-reader', pathname: `/share/${profileId}/c/portal/work` };
+    const tree = h.render();
+    const reader = nodes(tree).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
+    reader.props.onBack();
+    assert.deepEqual(json(h.navigations.at(-1)), presentation === 'mobile' ? [`/share/${profileId}`, { replace: true }] : [`/share/${profileId}/c/portal`, null]);
+    assert.equal(one(tree, 'VisitorProfileGrid'), undefined, 'A direct reader cannot fabricate a prior retained catalogue.');
+  }
 });
 
 test('MOBILE stale portal links and a different creator never leave navigation blocked by an invisible popup', () => {

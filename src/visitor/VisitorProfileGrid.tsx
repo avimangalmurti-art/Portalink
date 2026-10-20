@@ -2,7 +2,7 @@ import { LoadingSkeleton } from '../components/ui/StateViews';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
-import React, { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Profile } from '../types/domain';
 import { ProfileAvatar } from '../components/profile/ProfileAvatar';
 import { PlatformGrid } from '../components/profile/PlatformGrid';
@@ -23,10 +23,12 @@ const ProfileBioSheet = lazy(() => import('../features/profile/ProfileBioSheet')
 const ProfileCollectionGrid = lazy(() => import('../components/profile/ProfileCollectionGrid').then(module => ({ default: module.ProfileCollectionGrid })));
 
 /** Read-only composition of the same identity, artwork, density and preview UI. */
-export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboration, onMessage, onBack }: {
+export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboration, onMessage, onBack, active = true, onCaptureOpener }: {
   profile: Profile; categoryId: string | null; onOpen: (categoryId: string, projectId: string) => void; onCollaboration: () => void; onMessage: () => void; onBack?: () => void;
+  active?: boolean; onCaptureOpener?: React.MouseEventHandler<HTMLDivElement>;
 }) {
   const [bioOpen, setBioOpen] = useState(false);
+  useEffect(() => { if (!active) setBioOpen(false); }, [active]);
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
   const journey = useJourneySelection(profile.id, auth.viewerProfileId, false);
@@ -34,6 +36,8 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const portalsView = !categoryId && search.get('view') === 'portals';
   const isJourney = profile.showJourney === true && journey.view === 'journey' && !categoryId && !portalsView;
   const profilePageRef = useRef<HTMLDivElement>(null);
+  // React 18 does not forward the boolean inert attribute; use the DOM property.
+  useLayoutEffect(() => { if (profilePageRef.current) profilePageRef.current.inert = !active; }, [active]);
   const [timelineToolbarHost, setTimelineToolbarHost] = useState<HTMLDivElement | null>(null);
   useMobileHeaderMaterial(!isMobile && isJourney, profile.id, profilePageRef, true);
   const category = profile.categories.find(item => item.id === categoryId);
@@ -41,17 +45,19 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const projects = useMemo(() => categoryId ? profile.projects.filter(project => project.categoryId === categoryId) : profile.projects, [profile.projects, categoryId]);
   const links = resolveProfileLinks(profile.links, profile.socialLinks);
   const items = projects.map(project => ({ key: project.id, ratio: getProjectAspectRatio(project), content:
-    <ProjectPreviewCard project={project} creator={profile} onOpen={() => onOpen(project.categoryId, project.id)}
+    <ProjectPreviewCard active={active} project={project} creator={profile} onOpen={() => onOpen(project.categoryId, project.id)}
       creatorHref={buildPath('sharedProfile', { profileId: profile.id })} showCreator={false} showEngagementMetrics={false}
       priority="viewport" allowPdfFallback={false} allowVideoFallback={true} sharedCoverFallback /> }));
-  return <div ref={profilePageRef} data-profile-journey={isJourney ? '' : undefined} data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
+  return <div ref={profilePageRef} hidden={!active} aria-hidden={!active || undefined}
+    style={!active ? { display: 'none' } : undefined} onClickCapture={isMobile && active ? onCaptureOpener : undefined}
+    data-profile-journey={isJourney ? '' : undefined} data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
     <div data-profile-header="" className="profile-header-region contents">
       <header className="profile-compact-header" data-expanded>
         <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
           <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
             <ProfileAvatar name={profile.name} avatar={profile.avatar} size="profile" priority="viewport" />
             <div className="profile-identity-copy flex min-w-0 flex-col justify-center">
-              <h1 className="cdx-panel-title min-w-0 truncate font-semibold" title={profile.name}>{profile.name}</h1>
+              <h1 tabIndex={isMobile ? -1 : undefined} className="cdx-panel-title min-w-0 truncate font-semibold" title={profile.name}>{profile.name}</h1>
               {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]">{profile.location}</p>}
               {isMobile && profile.showJourney === true && <div className="profile-identity-view"><JourneyToggle view={!categoryId && !portalsView ? journey.view : 'portfolio'} onChange={view => {
                 journey.select(view);
@@ -72,12 +78,12 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       {!isMobile && isJourney && <JourneyToggle view="journey" onChange={journey.select} />}
       {isMobile && isJourney && <div className="timeline-header-controls" ref={setTimelineToolbarHost} />}
     </div>
-    {bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
+    {active && bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
     {!isMobile && profile.showJourney === true && !categoryId && !portalsView && !isJourney && <JourneyToggle view="portfolio" onChange={journey.select} />}
     <div id="profile-content" className="min-w-0 w-full px-[var(--content-gutter)] pb-4">
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
-      {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView toolbarHost={isMobile ? timelineToolbarHost : null} profile={profile} owner={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
+      {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView active={active} toolbarHost={isMobile ? timelineToolbarHost : null} profile={profile} owner={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
         : projects.length ? <JustifiedImageWall label={`${profile.name} — profile imagery`} columns={density.columns} onColumnsChange={density.setColumns} allowLayoutControls={false} items={items} />
         : <p className="px-3 py-10 text-[var(--text-secondary)]">No published projects here yet.</p>}
     </div>
