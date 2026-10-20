@@ -28,7 +28,7 @@ test('publish validation accepts long prose and still enforces the title rules',
   const validate = find(file, (n) => ts.isVariableDeclaration(n) && n.name.getText(file) === 'validate');
   const callback = validate.initializer.arguments[0].getText(file);
   const validators = execute(read('../src/features/publishing/validation.ts'));
-  for (const summary of ['Brief description', longDescription]) {
+  for (const summary of ['', '   ', 'Brief description', longDescription]) {
     let errors;
     const { run } = execute(`exports.run = ${callback}`, {
       firstProject:false, metadata: { title: 'My project', summary }, validateTitle: validators.validateTitle,
@@ -51,7 +51,7 @@ test('both create and edit description fields have no maximum length', () => {
     const field = find(file, (n) => ts.isJsxSelfClosingElement(n) && n.attributes.properties.some((p) =>
       ts.isJsxAttribute(p) && p.name.getText(file) === 'id' && p.initializer?.text === id));
     assert.ok(!field.attributes.properties.some((p) => p.name?.getText(file) === 'maxLength'));
-    assert.ok(field.attributes.properties.some((p) => p.name?.getText(file) === 'required'), 'Description labels must agree with the existing save/publish requirement');
+    assert.equal(field.attributes.properties.some((p) => p.name?.getText(file) === 'required'), false, 'Descriptions are optional when creating and editing');
   }
 });
 
@@ -66,15 +66,16 @@ test('draft, atomic publish, and edit preserve descriptions; missing citation RP
     eq: () => chain, select: () => chain,
     single: async () => ({ data: { label: 'Design' }, error: null }),
   };
-  let useFallback = false;
+  let useFallback = false, rpcError = null;
   const { service } = execute(`exports.service = {${methods}}`, {
-    PublishServiceError: class extends Error { constructor(code, message) { super(message); this.code = code; } }, ProjectMutationError: Error, draftFromRow: (row) => row,
+    PublishServiceError: class extends Error { constructor(code, message) { super(message); this.code = code; } }, ProjectMutationError: class extends Error { constructor(code,message){super(message);this.code=code;} }, draftFromRow: (row) => row,
     withProjectLocation: (relevance) => relevance,
     removeStoredMedia: async () => undefined,
     requireSupabase: () => ({
       from: () => chain,
       rpc: async (name, data) => {
         calls.push([name, data]);
+        if(rpcError)return {error:{message:rpcError}};
         return useFallback && data.p_topic_keys
           ? { error: { code: 'PGRST202', message: 'function not found' } }
           : { data: name === 'publish_project_citation_fields' ? 'new-project' : {}, error: null };
@@ -93,6 +94,36 @@ test('draft, atomic publish, and edit preserve descriptions; missing citation RP
   await service.updateProject(input);
   assert.equal(calls.length, 4);
   for (const [kind, data] of calls) assert.equal(kind === 'draft' ? data.summary : data.p_summary, longDescription.trim());
+  await service.publishProject({...input,metadata:{title:'Without description',summary:'   '}});
+  assert.equal(calls.at(-1)[1].p_summary,'');
+  const titleOnly={...input,metadata:{title:'Title only',summary:'   '},attachments:[{id:'keep',order:0,isCover:true,coverFrame:{x:.2,y:.8,zoom:2}}],addedAttachments:[{id:'added',storagePath:'owner/project/added.png'}],expectedRevision:'original-revision'};
+  await service.updateProject(titleOnly);
+  const [name,payload]=calls.at(-1);assert.equal(name,'update_project_citation_fields');assert.equal(payload.p_summary,'');
+  assert.equal(payload.p_kept,titleOnly.attachments);assert.equal(payload.p_added,titleOnly.addedAttachments);assert.equal(payload.p_expected_revision,'original-revision');assert.equal(payload.p_profile_id,'owner');
+  const before=calls.length;
+  for(const title of ['', '   '])await assert.rejects(service.updateProject({...titleOnly,metadata:{title,summary:''}}),error=>error.code==='invalid_metadata');
+  assert.equal(calls.length,before,'A missing title is rejected before transport');
+  for(const [message,code] of [['not owner','permission_denied'],['revision conflict','conflict'],['invalid media','invalid_media']]){
+    rpcError=message;await assert.rejects(service.updateProject(titleOnly),error=>error.code===code);
+  }
+});
+
+test('prototype edits accept an empty description with reordered cover and added files while retaining metadata and media guards',async()=>{
+ const file=parse('../src/services/mocks/index.ts');
+ const declaration=find(file,node=>ts.isVariableDeclaration(node)&&node.name.getText(file)==='mockProjectService');
+ const method=declaration.initializer.properties.find(node=>node.name?.getText(file)==='updateProject').getText(file);
+ const original={id:'project',title:'Existing title',summary:'Existing description',attachments:[{id:'first',displayName:'First',order:0,isCover:true,sourceUrl:'blob:first',storagePath:null,kind:'image'},{id:'second',displayName:'Second',order:1,isCover:false,sourceUrl:'blob:second',storagePath:null,kind:'image'}]};
+ const profile={id:'owner',projects:[original]},writes=[];
+ const {service}=execute(`exports.service={${method}}`,{resolve:async()=>{},findProfileById:id=>id==='owner'?profile:null,PROTOTYPE_PUBLISH_FAILURE_TITLE:'synthetic failure',ProjectMutationError:class extends Error{constructor(code,message){super(message);this.code=code;}},updatePrototypeProject:(id,project)=>writes.push([id,project])});
+ const frame={x:.2,y:.8,zoom:2},input={profileId:'owner',projectId:'project',metadata:{title:'Title only',summary:'   '},attachments:[{id:'second',displayName:'Second renamed',order:0,isCover:true,coverFrame:frame},{id:'first',displayName:'First',order:1,isCover:false}],addedAttachments:[{id:'added',displayName:'Added',kind:'image',sourceUrl:'blob:added',storagePath:null,isCover:false}]};
+ const result=await service.updateProject(input);
+ assert.equal(result.project.summary,'');assert.deepEqual(Array.from(result.project.attachments,item=>item.id),['second','first','added']);
+ assert.equal(result.project.attachments[0].metadata.coverFrame,frame);assert.equal(result.project.attachments[0].displayName,'Second renamed');
+ assert.equal(original.summary,'Existing description');assert.equal(original.attachments[0].isCover,true);assert.equal(writes.length,1);
+ for(const metadata of [{title:'',summary:''},{title:'   ',summary:'Description'}])await assert.rejects(service.updateProject({...input,metadata}),error=>error.code==='invalid_metadata');
+ await assert.rejects(service.updateProject({...input,attachments:[{id:'foreign',order:0}]}),error=>error.code==='invalid_media');
+ await assert.rejects(service.updateProject({...input,attachments:[],addedAttachments:[]}),error=>error.code==='invalid_media');
+ assert.equal(writes.length,1,'Invalid edits never change the canonical record');
 });
 
 test('hover descriptions preserve paragraphs and scroll rather than truncate', () => {

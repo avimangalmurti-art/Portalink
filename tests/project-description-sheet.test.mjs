@@ -265,3 +265,10 @@ test('project engagement is a footer sibling, outside the scrolling description'
  assert.equal(siblings.filter(n=>n.props.className==='project-description-details project-description-footer').length,1);
  assert.equal(siblings.filter(n=>n.props.className==='project-description-body scrollbar-overlay').length,1);
 });
+
+test('centered owner menu is opt-in and stays scoped to the overlay', () => {
+ const ordinary = harness(false).render();
+ assert.equal(nodes(ordinary).find(n => 'data-project-description-overlay' in n.props).props['data-centered-owner-menu'], undefined);
+ const home = harness(false, {centeredOwnerMenu:true}).render();
+ assert.equal(nodes(home).find(n => 'data-project-description-overlay' in n.props).props['data-centered-owner-menu'], true);
+});
