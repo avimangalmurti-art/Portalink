@@ -1,0 +1,37 @@
+[
+  {
+    "id": "appearance",
+    "url": "http://127.0.0.1:5202/settings?section=appearance",
+    "title": "Appearance"
+  },
+  {
+    "id": "account",
+    "url": "http://127.0.0.1:5202/settings?section=account",
+    "title": "Account"
+  },
+  {
+    "id": "invite",
+    "url": "http://127.0.0.1:5202/settings?section=invite",
+    "title": "Invite a friend"
+  },
+  {
+    "id": "privacy",
+    "url": "http://127.0.0.1:5202/settings?section=privacy",
+    "title": "Privacy"
+  },
+  {
+    "id": "notifications",
+    "url": "http://127.0.0.1:5202/settings?section=notifications",
+    "title": "Notifications"
+  },
+  {
+    "id": "language",
+    "url": "http://127.0.0.1:5202/settings?section=language",
+    "title": "Language"
+  },
+  {
+    "id": "about",
+    "url": "http://127.0.0.1:5202/settings?section=about",
+    "title": "About"
+  }
+]

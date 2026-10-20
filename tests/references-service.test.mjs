@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {sourceModule} from './helpers/source-module.mjs';
+const citation=sourceModule('src/features/citations/model.ts'),model=sourceModule('src/features/references/model.ts',{'../citations/model':citation});
+function service(client,fetcher){return sourceModule('src/features/references/service.ts',{'../../services/supabase/client':{requireSupabase:()=>client},'../citations/service':{resolveCitationItem:async()=>null},'../citations/model':citation,'../citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.example'},'./model':model},{fetch:fetcher,Response});}
+test('resolution sends one authenticated worker request, drops cookies and permits explicit text fallback when unavailable',async()=>{
+ const client={auth:{getSession:async()=>({data:{session:{user:{id:'owner'},access_token:'synthetic-token'}}})}};let calls=0;const source=service(client,async(url,options)=>{calls++;assert.equal(url,'/api/references/resolve');assert.equal(options.credentials,'omit');assert.equal(options.headers.authorization,'Bearer synthetic-token');return new Response('',{status:503});});const value=await source.resolveReference(' A citation ');assert.equal(calls,1);assert.equal(value.kind,'text');assert.equal(value.resolved.verified,false);assert.equal(value.raw_input,'A citation');
+ const anonymous=service({auth:{getSession:async()=>({data:{session:null}})}},()=>assert.fail('No worker request without session'));await assert.rejects(anonymous.resolveReference('Reference'),/Sign in/);
+});
+test('external list paginates beyond the default API limit and safely normalizes editable metadata',async()=>{
+ const ranges=[];const first=Array.from({length:500},(_,i)=>({id:String(i),kind:'text',raw_input:'Raw',resolved:{title:{bad:'object'},authors:[{},'Writer'],verified:true}}));const client={from(table){assert.equal(table,'external_references');const query={select(){return query;},eq(){return query;},order(){return query;},async range(start,end){ranges.push([start,end]);return{data:start===0?first:[{id:'last',kind:'text',raw_input:'Last',resolved:{title:'Last',verified:false}}]};}};return query;}};const rows=await service(client).externalReferences({projectId:'project'});assert.equal(rows.length,501);assert.deepEqual(ranges,[[0,499],[500,999]]);assert.equal(rows[0].resolved.title,'Raw');assert.deepEqual(Array.from(rows[0].resolved.authors),['Writer']);
+});

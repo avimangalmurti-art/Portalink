@@ -21,10 +21,10 @@ const rows = [
   { kind: 'activity', id: 'activity:n1', title: 'Message', secondary: 'Hello', href: '/messages?conversation=1', notification: { id: 'n1', isUnread: true } },
 ];
 
-function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, hideBack = false } = {}) {
+function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, presentation = headerHost ? 'mobile' : 'web', hideBack = false, citations = [], extraRows = [] } = {}) {
   let params = new URLSearchParams(initialSearch), cursor = 0, dirty = true, effects = [], tree;
   const slots = [], history = [], calls = [], frames = [];
-  const currentRows = [...rows];
+  const currentRows = [...rows, ...extraRows];
   const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
   const react = { ...React,
     useState(initial) { const index = cursor++; slots[index] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[index].value, next => { const value = typeof next === 'function' ? next(slots[index].value) : next; if (!Object.is(value, slots[index].value)) { slots[index].value = value; dirty = true; } }]; },
@@ -38,8 +38,13 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     async markRead(row) { calls.push(['mark-read', row.id]); row.notification.isUnread = false; dirty = true; return true; },
   };
   const deps = {
-    '../sharing/InternalContentShare': {useInternalContentShare:()=>()=>{throw Error('Unexpected share in bookmarks selection fixture');}},
-    '../citations/service': {listCitations:async()=>[],resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
+    '../citations/publicOrigin': { PUBLIC_ORIGIN: 'https://portalinknetworks.com' },
+    '../../presentation/usePresentation': {usePresentation:()=>presentation},
+    './StudioEmptyState': {StudioEmptyState:'studio-empty'},
+    '../references/useReferences':{useReferences:()=>({externalReferences:async()=>[]})},
+    '../references/ExportSheet':{ExportSheet:'export-sheet'},
+    '../sharing/InternalContentShare': {useInternalContentShare:()=>target=>calls.push(['share',target])},
+    '../citations/service': {listCitations:async()=>citations,resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
     '../citations/CiteSheet': {CiteSheet:'cite-sheet'},
     '../../components/text/textFormatting': {plainFormattedText:s=>s},
     '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
@@ -95,39 +100,60 @@ test('retained bookmark list exposes Open and Unsave without inventory categorie
  assert.equal(entries[0].props.primaryAction.id,'open');
  assert.equal(page.nodes.some(node=>node.props.className==='studio-category'),false);
 });
+test('Published rows suppress the zero-reference pill and retain project Export in their actions',async()=>{
+ const page=pageHarness({initialSearch:'collection=published'});page.nodes;
+ for(let i=0;i<20;i++)await Promise.resolve();
+ assert.equal(page.nodes.some(node=>node.type==='button'&&String(node.props.children).includes('0 references')),false);
+ const row=page.nodes.find(node=>node.type==='studio-row');assert.ok(row);
+ row.props.onMenu();const sheet=page.nodes.find(node=>node.type==='sheet');assert.ok(sheet.props.actions.some(action=>action.id==='export'));
+});
+test('made-on calendar dates retain their day/year while other Studio date formatting stays unchanged',()=>{
+ assert.equal(view.studioMadeOnDate('2024-06-15'),new Date(2024,5,15,12).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}));
+ assert.equal(view.studioMadeOnDate('not-a-date'),undefined);
+ assert.equal(view.studioDate('2026-06-15T12:00:00Z'),new Date('2026-06-15T12:00:00Z').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}));
+});
 test('share links use public canonical destinations and retain exact saved-page target', () => {
   assert.equal(view.studioSharePath(rows[0]), '/share/me/c/c1/p1');
   assert.equal(view.studioSharePath(rows[2]), null);
-  assert.equal(view.studioSharePath({ kind: 'saved-page', target: { attachmentId: 'a2' }, presentation: { pageNumber: 7, view: { project, creator: { id: 'me' } } } }), '/share/me/c/c1/p1?media=a2&page=7');
+  assert.equal(view.studioSharePath({ kind: 'saved-page', target: { attachmentId: 'a2' }, presentation: { pageNumber: 7, view: { project, creator: { id: 'me' } } } }), '/share/me/c/c1/p1?media=a2&page=7&view=page');
   assert.equal(view.studioDate('not-a-date'), undefined);
 });
 
 
-test('mobile selection and Back render in the header host and retain selection behavior', () => {
+test('mobile search owns Select and selection-only Back without a duplicate header, while WEB keeps its portal', () => {
  const host = {};
  const page = pageHarness({ initialSearch: 'category=bookmarks', headerHost: host });
- const portal = page.nodes.find(node => node.type === 'header-portal');
- assert.equal(portal.props.host, host);
- assert.ok(nodes(portal).some(node => node.props['aria-label'] === 'Back from Bookmarks'));
- assert.ok(nodes(portal).some(node => node.props['aria-label'] === 'Select items'));
- assert.equal(page.nodes.filter(node => node.props.className === 'studio-bookmarks-navigation').length, 1);
+ assert.equal(page.nodes.some(node=>node.type==='header-portal'||node.type==='h1'||node.props['aria-label']==='Back from Bookmarks'||node.props['aria-label']==='Bookmarks options'),false);
+ const toolbar=page.nodes.find(node=>node.props.className==='studio-inline-toolbar');
+ assert.ok(nodes(toolbar).some(node=>node.type==='input'&&node.props['aria-label']==='Search Studio'));
+ assert.ok(nodes(toolbar).some(node=>node.props['aria-label']==='Select items'));
+ assert.equal(page.button('Back from selection'),undefined);
  page.button('Select items').props.onClick();
  assert.ok(page.button('Exit selection'));
- page.button('Back from Bookmarks').props.onClick();
+ page.nodes.find(node=>node.type==='studio-row').props.onSelect();
+ assert.equal(page.nodes.find(node=>node.type==='studio-row').props.selected,true);
+ page.button('Back from selection').props.onClick();
  assert.ok(page.button('Select items'));
+ assert.equal(page.button('Back from selection'),undefined);
+ assert.equal(page.nodes.find(node=>node.type==='studio-row').props.selected,false);
  assert.deepEqual(page.calls, []);
- page.button('Back from Bookmarks').props.onClick();
+ page.nodes.find(node=>node.type==='back').props.action();
  assert.deepEqual(page.calls, [['back']]);
+ const web=pageHarness({initialSearch:'category=bookmarks',headerHost:host,presentation:'web'});
+ const portal=web.nodes.find(node=>node.type==='header-portal');
+ assert.equal(portal.props.host,host);
+ assert.ok(nodes(portal).some(node=>node.props['aria-label']==='Back from Bookmarks'));
+ assert.equal(web.nodes.filter(node=>node.type==='h1').length,1);
 });
 
 test('collection selection wins over a stale legacy category and drives actual rows', () => {
- for (const category of ['published', 'activity', 'all']) {
+ for (const category of ['published', 'activity']) {
   const selected = view.readStudioLocation(new URLSearchParams('collection='+category+'&category=bookmarks'));
   assert.equal(selected.category, category);
   const page = pageHarness({ initialSearch: 'collection='+category+'&category=bookmarks' });
   const entries = page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id);
   assert.equal(page.nodes.find(node => node.props.className === 'studio-title').props.children, category[0].toUpperCase()+category.slice(1));
-  assert.deepEqual(entries, category === 'published' ? ['published:p1'] : category === 'activity' ? ['activity:n1'] : ['published:p1','saved-project:p1','activity:n1']);
+  assert.deepEqual(entries, category === 'published' ? ['published:p1'] : ['activity:n1']);
  }
  assert.equal(view.readStudioLocation(new URLSearchParams('category=published')).category, 'published');
  assert.equal(view.readStudioLocation(new URLSearchParams('collection=published'), true).category, 'bookmarks');
@@ -147,11 +173,35 @@ test('switching collections updates heading, rows and selection together', () =>
  assert.deepEqual(page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id), ['activity:n1']);
 });
 
-test('mobile Studio retains Back, Select and Done together in the header', () => {
+test('mobile delegated Back exits selection and Done returns to the stable local toolbar', () => {
  const page = pageHarness({ initialSearch:'collection=published', headerHost:{}, hideBack:true });
- assert.equal(page.nodes.some(node => node.props.className === 'studio-bookmarks-back'), true);
+ assert.equal(page.nodes.some(node => node.props.className === 'studio-bookmarks-back'), false);
  page.button('Select items').props.onClick();
  assert.ok(page.button('Exit selection'));
+ page.nodes.find(node=>node.type==='back').props.action();
+ assert.ok(page.button('Select items'));
+ assert.deepEqual(page.calls,[]);
+ page.button('Select items').props.onClick();
  page.button('Exit selection').props.onClick();
  assert.ok(page.button('Select items'));
+ assert.equal(page.button('Back from selection'),undefined);
+});
+
+test('Published references live within row metadata, hide zero, and keep the reference link', async()=>{
+ for(const count of [0,2]){const page=pageHarness({initialSearch:'collection=published',citations:Array.from({length:count},()=>({citing_project_id:'p1'}))});page.nodes;for(let i=0;i<10;i++)await Promise.resolve();const row=page.nodes.find(n=>n.type==='studio-row');assert.equal(row.props.referenceCount,count);assert.equal(page.nodes.some(n=>n.type==='li'&&nodes(n).some(c=>c.props.children===`${count} references`)),false);row.props.onOpenReferences();assert.equal(page.history.at(-1).path,'/p/me/c/c1/p1#references');}
+});
+
+test('row copying and batch sharing emit official public links from a preview host', async () => {
+ for (const headerHost of [undefined, {}]) {
+  const page = pageHarness({ initialSearch: 'collection=published', headerHost, extraRows: [{ ...rows[0], id:'published:p2', project:{...project,id:'p2'} }] });
+  page.nodes.find(node => node.type === 'studio-row' && node.props.id === 'published:p1').props.onMenu();
+  page.nodes.find(node => node.type === 'sheet').props.actions.find(action => action.id === 'copy-link').onAction();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(page.calls.find(call => call[0] === 'copy'), ['copy', 'https://portalinknetworks.com/share/me/c/c1/p1']);
+  page.button('Select items').props.onClick();
+  page.nodes.filter(node => node.type === 'studio-row' && node.props.id !== 'activity:n1').forEach(node => node.props.onSelect());
+  const toolbar = page.nodes.find(node => node.props['aria-label'] === 'Selected item actions');
+  nodes(toolbar).find(node => node.type === 'button' && nodes(node).some(child => child.type === 'span' && child.props.children?.[0] === 'Share (')).props.onClick();
+  assert.equal(page.calls.find(call => call[0] === 'share')[1].url, 'https://portalinknetworks.com/share/me/c/c1/p1\nhttps://portalinknetworks.com/share/me/c/c1/p2');
+ }
 });

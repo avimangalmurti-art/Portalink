@@ -11,14 +11,22 @@ export type PdfPageProxy = Awaited<ReturnType<PdfDocument['getPage']>>;
 
 let pdfJsPromise: Promise<PdfJs> | null = null;
 
-export async function loadPdfJs(): Promise<PdfJs> {
+export async function loadPdfJs(recoverFailedImport = false): Promise<PdfJs> {
   if (!pdfJsPromise) {
     pdfJsPromise = import('pdfjs-dist').then((pdfjs) => {
       pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
       return pdfjs;
     });
   }
-  return pdfJsPromise;
+  const pending = pdfJsPromise;
+  if (!recoverFailedImport) return pending;
+  try {
+    return await pending;
+  } catch (error) {
+    // MOBILE can retry a disconnected engine download on the next real return.
+    if (pdfJsPromise === pending) pdfJsPromise = null;
+    throw error;
+  }
 }
 
 export function pdfSourceOptions(source: string, previewOnly = false) {

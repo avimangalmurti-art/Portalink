@@ -9,7 +9,7 @@ export function EmployerOverview({profile, onOpen, onMessage}: {profile: Profile
   const start = startHereProject(profile);
   const month = start && projectMonth(start);
   if (!onMessage && !start) return null;
-  return <section className="employer-overview" aria-label="Portfolio introduction">
+  return <section className="employer-overview" aria-label="Catalogue introduction">
     {onMessage && <div className="employer-actions"><button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary" onClick={onMessage}>Message</button></div>}
     {start && <button type="button" className="employer-start" onClick={() => onOpen(start)} aria-label={`Start here: ${start.title}`}>
       <span className="employer-start-cover"><ProjectCover source={start.cover} thumbnail={start.coverThumbnail} kind={start.coverKind} alt={start.coverAlt || start.title} sizes="92px" priority="viewport" allowPdfFallback={false} allowVideoFallback={false} fallbackAttachments={start.attachments} /></span>
