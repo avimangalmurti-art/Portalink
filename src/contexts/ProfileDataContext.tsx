@@ -26,15 +26,17 @@ import type { Id, Profile } from '../types/domain';
  * do not change.
  */
 export type ProfileQueryStatus = 'idle' | 'loading' | 'ready' | 'not-found' | 'error';
+export type ProfileReadMode = 'full' | 'overview';
+const profileCacheKey = (id: Id, mode: ProfileReadMode) => mode === 'full' ? id : `overview:${id}`;
 type ProfileDataContextValue = {
   /** Resolves a record through `ProfileService`, caching the result by id. */
-  fetchProfile: (profileId: Id) => Promise<Profile>;
+  fetchProfile: (profileId: Id, mode?: ProfileReadMode) => Promise<Profile>;
   /**
    * The already-fetched record for an id, or null. A PEEK, never a fetch: it
    * answers "has the service confirmed this yet?" for logic that cannot await,
    * and returns null rather than substituting anything when it has not.
    */
-  peekProfile: (profileId: Id) => Profile | null;
+  peekProfile: (profileId: Id, mode?: ProfileReadMode) => Profile | null;
   /** Called by the profile, category, and publishing features after a write. */
   invalidateProfiles: () => void;
   /** Replace a profile with a confirmed service result without a loading flash. */
@@ -84,40 +86,42 @@ export function ProfileDataProvider({
     scope.generation += 1;
     scope.inFlight.clear();
     scope.cache.set(profile.id, profile);
+    scope.cache.set(profileCacheKey(profile.id, 'overview'), profile);
     setRevision(current => current + 1);
   }, [scope]);
-  const fetchProfile = useCallback(async (profileId: Id): Promise<Profile> => {
+  const fetchProfile = useCallback(async (profileId: Id, mode: ProfileReadMode = 'full'): Promise<Profile> => {
     if (currentScope.current !== scope) throw new Error('Your account changed. Please try again.');
-    const cached = scope.cache.get(profileId);
+    const key = profileCacheKey(profileId, mode);
+    const cached = scope.cache.get(key) ?? (mode === 'overview' ? scope.cache.get(profileId) : undefined);
     if (cached) {
       return cached;
     }
-    const pending = scope.inFlight.get(profileId);
+    const pending = scope.inFlight.get(key);
     if (pending) {
       return pending;
     }
 
     const generation = scope.generation;
-    const request = profileService.getProfile(profileId).then((profile) => {
+    const request = (mode === 'overview' && profileService.getProfileOverview ? profileService.getProfileOverview(profileId) : profileService.getProfile(profileId)).then((profile) => {
       if (currentScope.current !== scope) throw new Error('Your account changed. Please try again.');
       // A write may have invalidated this read while it was travelling. Join the
       // current read/cache rather than returning the obsolete answer to a caller
       // whose effect has not rerun yet.
-      if (scope.generation !== generation) return fetchProfile(profileId);
+      if (scope.generation !== generation) return fetchProfile(profileId, mode);
       // Keyed by both the requested id and the record's own id, so a service
       // that resolves an alias still answers a peek under either.
-      scope.cache.set(profileId, profile);
-      scope.cache.set(profile.id, profile);
+      scope.cache.set(key, profile);
+      scope.cache.set(profileCacheKey(profile.id, mode), profile);
       return profile;
     }, (error: unknown) => {
       if (currentScope.current !== scope) throw new Error('Your account changed. Please try again.');
-      if (scope.generation !== generation) return fetchProfile(profileId);
+      if (scope.generation !== generation) return fetchProfile(profileId, mode);
       throw error;
     });
-    scope.inFlight.set(profileId, request);
+    scope.inFlight.set(key, request);
     const clearRequest = () => {
-      if (scope.inFlight.get(profileId) === request) {
-        scope.inFlight.delete(profileId);
+      if (scope.inFlight.get(key) === request) {
+        scope.inFlight.delete(key);
       }
     };
     // Supplying both handlers keeps this housekeeping branch fulfilled even
@@ -125,7 +129,7 @@ export function ProfileDataProvider({
     void request.then(clearRequest, clearRequest);
     return request;
   }, [profileService, scope]);
-  const peekProfile = useCallback((profileId: Id) => currentScope.current === scope ? scope.cache.get(profileId) ?? null : null, [scope]);
+  const peekProfile = useCallback((profileId: Id, mode: ProfileReadMode = 'full') => currentScope.current === scope ? scope.cache.get(profileCacheKey(profileId, mode)) ?? (mode === 'overview' ? scope.cache.get(profileId) : undefined) ?? null : null, [scope]);
   const value = useMemo<ProfileDataContextValue>(() => ({
     fetchProfile,
     peekProfile,
@@ -173,13 +177,16 @@ export type ProfileQuery = {
  * the newest is allowed to settle, so an answer for a creator already navigated
  * away from can never be written into the current one.
  */
-export function useProfileQuery(profileId: Id | null): ProfileQuery {
+export function useProfileQuery(profileId: Id | null, mode: ProfileReadMode = 'full'): ProfileQuery {
   const {
-    fetchProfile,
-    peekProfile,
+    fetchProfile: fetchCachedProfile,
+    peekProfile: peekCachedProfile,
     revision,
-    scope,
+    scope: accountScope,
   } = useProfileData();
+  const scope = useMemo(() => ({ accountScope, mode }), [accountScope, mode]);
+  const fetchProfile = useCallback((id: Id) => fetchCachedProfile(id, mode), [fetchCachedProfile, mode]);
+  const peekProfile = useCallback((id: Id) => peekCachedProfile(id, mode), [peekCachedProfile, mode]);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<{
     profileId: Id | null;

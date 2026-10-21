@@ -61,14 +61,20 @@ def run(*, once: bool = False) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Process queued Portalink PDFs")
     parser.add_argument("--once", action="store_true", help="Claim at most one job and exit")
+    parser.add_argument("--export-http", action="store_true", help="Serve authenticated public catalogue exports instead of processing the queue")
     args = parser.parse_args()
     logging.basicConfig(
         level=os.getenv("LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    signal.signal(signal.SIGINT, _request_stop)
-    signal.signal(signal.SIGTERM, _request_stop)
+    if not args.export_http:
+        signal.signal(signal.SIGINT, _request_stop)
+        signal.signal(signal.SIGTERM, _request_stop)
     try:
+        if args.export_http:
+            from .portfolio_export import serve_exports
+            serve_exports()
+            return
         raise SystemExit(run(once=args.once))
     except ValueError as error:
         LOGGER.error("Configuration error: %s", error)

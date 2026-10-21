@@ -243,10 +243,11 @@ test('loading, signed-out and missing-profile entries cannot render the editor f
 test('the editor is mounted in the routed screen, with one shared Back/Save callback and no sidebar', () => {
   const ProfileEditorPage = () => null;
   const close = () => {};
+  const profileEditorOrigin = { opener: {}, main: {} };
   const screen = evaluate(initializer('screenContent'), {
     isProfileEditorRoute: true, routeStateView: null,
     auth: { isAuthenticated: true, viewerProfileId: 'owned-profile' },
-    ProfileEditorPage, closeProfileEditor: close, LoadingState: () => null,
+    ProfileEditorPage, profileEditorOrigin, closeProfileEditor: close, LoadingSkeleton: () => null, openingProjectId:null, isMobileStudioOpen:false,
     DeferredSurfaceBoundary: 'DeferredSurfaceBoundary', screenTransitionKey: 'profile-editor-owned-profile',
   });
   assert.equal(screen.props.children.type, 'DeferredSurfaceBoundary');
@@ -255,11 +256,20 @@ test('the editor is mounted in the routed screen, with one shared Back/Save call
   assert.equal(page.props.profileId, 'owned-profile');
   assert.equal(page.props.onClose, close);
   assert.equal(page.props.onSaved, close);
+  assert.equal(page.props.returnFocusTarget, profileEditorOrigin);
   assert.equal(page.props.isOpen, undefined);
   assert.equal(screen.props['data-screen-scroll'], 'nested');
-  const sidebar = findNode(node => ts.isJsxExpression(node) && node.expression?.getText(parsed).startsWith('!isProfileEditorRoute && (isSharedRoute')).expression.getText(parsed);
+  const sidebar = findNode(node => ts.isJsxExpression(node) && node.expression?.getText(parsed).startsWith('!isProfileEditorRoute &&') && node.expression?.getText(parsed).includes('<Sidebar')).expression.getText(parsed);
   assert.equal(evaluate(sidebar, { isProfileEditorRoute: true }), false);
-  assert.match(app, /snapshot=\{\{[^}]*content: screenContent/);
+  const RouteError = () => null;
+  assert.equal(evaluate(sidebar, { isProfileEditorRoute: false, routeStateView: {type: RouteError}, RouteError, auth: {isAuthenticated: false} }), false, 'Signed-out error screens have no dock');
+  const snapshot=findNode(node=>ts.isJsxAttribute(node)&&node.name.getText(parsed)==='snapshot').initializer.expression.getText(parsed);
+  const values={screenMainClassName:'main',screenAriaLabel:'editor',isSharedRoute:false,projectNavigation:{resolution:{state:'ready'}},routeItemId:null,screenContent:screen};
+  assert.equal(evaluate(snapshot,values).content,screen,'The routed editor remains the active screen content');
+  const LoadingSkeleton=()=>null;
+  const pending=evaluate(snapshot,{...values,projectNavigation:{resolution:{state:'loading',projectId:'work'}},LoadingSkeleton});
+  assert.equal(pending.content.type,LoadingSkeleton);assert.equal(pending.content.props.projectId,'work');
+  assert.equal(evaluate(snapshot,{...values,isSharedRoute:true,projectNavigation:{resolution:{state:'loading'}}}).content,screen,'Visitor routes keep their existing read boundary');
   assert.doesNotMatch(app, /isProfileEditorOpen|setIsProfileEditorOpen|<ProfileEditorDialog\b/);
 });
 

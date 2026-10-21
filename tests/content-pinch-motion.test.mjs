@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -18,7 +19,7 @@ function harness(reduced = false) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/contentPinchMotion.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
-  }).outputText, { exports, getComputedStyle: el => ({ overflowY: el.overflow }), window: { matchMedia: () => ({ matches: reduced }) },
+  }).outputText, { exports, require:name=>{assert.equal(name,'../../presentation/motion/motion');return motionFixture;}, getComputedStyle: el => ({ overflowY: el.overflow }), window: { matchMedia: () => ({ matches: reduced }) },
     requestAnimationFrame(fn) { frames.set(++id, fn); return id; }, cancelAnimationFrame(i) { frames.delete(i); } });
   return { pages, scroll, frames, animations, get reads() { return reads; }, begin: () => exports.beginContentPinch(surface, { x: 101, y: 110 }),
     flush() { const work = [...frames.values()]; frames.clear(); work.forEach(fn => fn()); } };

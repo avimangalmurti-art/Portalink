@@ -23,10 +23,12 @@ export type ImageRepositionerProps = {
   onCancel?: () => void;
   onEditingChange?: (editing: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
+  instructions?: string;
+  saveLabel?: string;
 };
 
 /** Local, transactional crop editor. Only Save exports or invokes the caller. */
-export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = 'rectangle', initialPosition, initialCrop, startEditing = false, disabled = false, outputWidth, mimeType, exportCircle = false, onSave, onCancel, onEditingChange, onSavingChange }: ImageRepositionerProps) {
+export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = 'rectangle', initialPosition, initialCrop, startEditing = false, disabled = false, outputWidth, mimeType, exportCircle = false, onSave, onCancel, onEditingChange, onSavingChange, instructions = 'Drag to reposition. Scroll or use the slider to zoom. Arrow keys make small adjustments.', saveLabel = 'Save' }: ImageRepositionerProps) {
   const ratio = shape === 'rectangle' && Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [position, setPosition] = useState<ImagePosition>(CENTER_IMAGE_POSITION);
@@ -187,7 +189,7 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
       </div>
     </div>
     {editing ? <>
-      <p id={instructionsId} className="text-[13px] leading-relaxed text-[var(--text-secondary)]">Drag to reposition. Scroll or use the slider to zoom. Arrow keys make small adjustments.</p>
+      <p id={instructionsId} className="text-[13px] leading-relaxed text-[var(--text-secondary)]">{instructions}</p>
       {typeof source !== 'string' && source.type === 'image/gif' ? <p className="text-[13px] text-[var(--text-secondary)]">Saving this crop creates a still image.</p> : null}
       <div className="flex items-center gap-3">
         <label htmlFor={sliderId} className="text-[14px] font-medium">Zoom</label>
@@ -200,7 +202,7 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
     </> : null}
     {error ? <p role="alert" className="text-[13px] leading-relaxed text-[var(--status-danger)]">{error} {!image ? <button type="button" className="font-semibold underline" onClick={() => setLoadAttempt((n) => n + 1)}>Try again</button> : null}</p> : null}
     <div className="flex flex-wrap justify-end gap-2">
-      {editing ? <><Button variant="ghost" size="sm" disabled={saving || disabled} onClick={cancel}>Cancel</Button><Button variant="primary" size="sm" disabled={!canEdit} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</Button></> : <Button variant="secondary" size="sm" disabled={!image || disabled} onClick={() => changeEditing(true)}><InterfaceIcon icon={MoveIcon} />Reposition</Button>}
+      {editing ? <><Button variant="ghost" size="sm" disabled={saving || disabled} onClick={cancel}>Cancel</Button><Button variant="primary" size="sm" disabled={!canEdit} onClick={() => void save()}>{saving ? 'Saving…' : saveLabel}</Button></> : <Button variant="secondary" size="sm" disabled={!image || disabled} onClick={() => changeEditing(true)}><InterfaceIcon icon={MoveIcon} />Reposition</Button>}
     </div>
   </div>;
 }
