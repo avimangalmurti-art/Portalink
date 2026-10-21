@@ -1,0 +1,84 @@
+/* Rectangular phone components share the Explore/Profile project-card corners.
+   Keep this separate from the shared shape tokens: avatars, sheet silhouettes
+   and floating navigation use those tokens for their own geometry. */
+[data-presentation='mobile'] {
+  --mobile-component-radius: 3px;
+  --ui-control-radius: var(--mobile-component-radius);
+  --ui-menu-radius: var(--mobile-component-radius);
+}
+
+/* Feature CSS can arrive after the presentation CSS. Layered important radius
+   rules beat its legacy unlayered important rules without changing layout,
+   touch targets, colours or the order in which feature styles load. */
+@layer portalink-mobile-shapes {
+  /* Avatar buttons and functional switch/radio controls keep their identity.
+     The floating navigation and reader control groups keep their silhouettes. */
+  [data-presentation='mobile'] :is(
+    button, a[href], [role='button'], [role='tab'], [role='menuitem'], [role='option']
+  ):not(:is(
+    [role='switch'], [role='radio'], .appearance-switch,
+    .profile-identity-avatar, .mobile-profile-avatar-preview,
+    .shape-squircle, .shape-squircle-compact,
+    :has(> .squircle),
+    [data-mobile-navigation-layer] *, .mobile-floating-navigation *,
+    .mobile-bottom-navigation *, .mobile-project-density *,
+    [data-document-reader-header] *, .studio-selection-toolbar *
+  )) {
+    border-radius: var(--mobile-component-radius) !important;
+  }
+
+  /* Fields with a painted wrapper retain their square inner input. Native
+     range/checkbox/radio/switch geometry is deliberately outside this list. */
+  [data-presentation='mobile'] :is(
+    .text-control-shell, .studio-search, .explore-categories-search,
+    .location-search, .project-citation-fields input, .project-citation-fields select,
+    .cite-sheet input, .cite-format select, .cite-preview,
+    input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'],
+      [type='file'], [type='hidden']), textarea, select,
+    [contenteditable='true'], [contenteditable='plaintext-only']
+  ):not(:is(.text-control-shell input, .studio-search input,
+    .explore-categories-search input, .location-search input,
+    [data-message-composer], [data-mobile-navigation-layer] *)) {
+    border-radius: var(--mobile-component-radius) !important;
+  }
+
+  /* Content panels and nested previews, rather than page or sheet frames. */
+  [data-presentation='mobile'] :is(
+    .studio-continue-card, .studio-continue-cover, .studio-reads-card,
+    .studio-material-strip button > span, .studio-drafts-list li > label,
+    .studio-row-fallback, .studio-bookmark-tabs, .mobile-insights-project-art,
+    :is(.studio-list, .studio-attention-list) [data-studio-row-surface] > button > .overflow-hidden:not(:has(.squircle)),
+    .inset-row-group, .mobile-context-group, .mobile-portal-item,
+    .portfolio-live-card, .portfolio-share-preview, .portfolio-share-cover,
+    .first-project-empty-tile, .first-project-home, .creator-insights-callout, .reads-weekly,
+    .explore-category-card, .cite-source-summary, .citation-row img,
+    [data-inline-screen-actions], .mobile-context-slot,
+    [role='menu'], [data-message-bubble], [data-message-introduction='invitation'],
+    [data-message-bubble] video, [data-message-bubble] a,
+    [data-message-composer] li, [data-message-composer] > label
+  ) {
+    border-radius: var(--mobile-component-radius) !important;
+  }
+
+  [data-presentation='mobile'] .inset-row-group > :first-child {
+    border-start-start-radius: var(--mobile-component-radius) !important;
+    border-start-end-radius: var(--mobile-component-radius) !important;
+  }
+  [data-presentation='mobile'] .inset-row-group > :last-child {
+    border-end-start-radius: var(--mobile-component-radius) !important;
+    border-end-end-radius: var(--mobile-component-radius) !important;
+  }
+
+  /* These visible backgrounds are pseudo-elements, not the hit-target box. */
+  [data-presentation='mobile'] .journey-order button::before,
+  [data-presentation='mobile'] .explore-category-art::before,
+  [data-presentation='mobile'] .explore-category-art::after,
+  [data-presentation='mobile'] [data-message-composer]::before {
+    border-radius: var(--mobile-component-radius) !important;
+  }
+
+  /* Artwork and descriptions clip to the same corners as their preview frame. */
+  [data-presentation='mobile'] :is(.project-preview-card, .explore-feed-card) {
+    --project-thumbnail-radius: var(--mobile-component-radius) !important;
+  }
+}

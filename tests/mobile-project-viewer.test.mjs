@@ -14,17 +14,19 @@ const FollowContentInfoPopup = () => null;
 const MobileVideoSequence = () => null;
 const MobileVideoFrame = () => null;
 function nodes(node) {
-  return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
+  if (!React.isValidElement(node)) return [];
+  const children = typeof node.props.children === 'function' ? node.props.children(node.props.onClose) : node.props.children;
+  return [node, ...React.Children.toArray(children).flatMap(nodes)];
 }
 const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
 
-function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video' } = {}) {
+function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video', search = '', hash = '' } = {}) {
   engagement = { isPending: () => false, isEngaged: () => false, canEngage: true, isResolving: false, ...engagement };
   const slots = []; let cursor = 0, panel = null;
   const serviceIds = [], gates = [];
   const viewerMemory = new Map(), memoryWrites = [];
-  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [];
+  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [], sharedTargets = [], copies = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
   const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
   const react = { ...React, useEffect() {}, useLayoutEffect() {}, useCallback: fn => fn,
@@ -38,7 +40,11 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/ProjectMediaViewer.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, URL, URLSearchParams, window: { location: {pathname:'/p/creator/c/portal/project',origin:'https://portalink.test',href:'https://portalink.test/p/creator/c/portal/project',search:''} }, require(name) {
+  }).outputText, { exports, URL, URLSearchParams, window: { location: {pathname:readOnlyShare?'/share/creator/c/portal/project':'/p/creator/c/portal/project',origin:'https://portalink.test',href:'https://portalink.test/p/creator/c/portal/project'+search+hash,search,hash} }, require(name) {
+    if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
+    if (name.endsWith('/InternalContentShare')) return { useInternalContentShare: () => target => sharedTargets.push(target) };
+    if (name.endsWith('/copyPublicLink')) return { copyPublicLink: async value => copies.push(value) };
+    if (name.endsWith('/ExportSheet')) return {ExportSheet:'export-sheet'};
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
@@ -46,7 +52,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isAuthenticated: signedIn, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}), isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
-    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions() {} };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions(model, priority, onOpen) { screenActions.push({model,priority,onOpen}); } };
     if (name.endsWith('/MediaInteractionBar')) return { MediaInteractionBar: 'media-interaction-bar' };
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
     if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
@@ -78,7 +84,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { gates, attachments, optionCalls, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
+  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
     cursor = 0;
     return exports.ProjectMediaViewer({ projectId: 'project', projectTitle: 'Work', attachments, pageCount: null,
       responseRailWidth: { width: panel === 'response' ? 320 : 52 }, singlePanel: null, readOnlyShare,
@@ -89,6 +95,21 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     });
   } };
 }
+
+test('project sharing and copying use the official public destination with the current page state', async () => {
+  for (const mobile of [true, false]) for (const readOnlyShare of [true, false]) {
+    const h = harness({ mobile, readOnlyShare, search: '?media=first&page=2&view=page&via=friend', hash: '#references' });
+    h.render();
+    const model = h.screenActions.at(-1).model;
+    const actions = [...model.primary, ...model.groups.flat()];
+    actions.find(action => action.id === 'share').run();
+    await actions.find(action => action.id === 'copy').run();
+    const expected = 'https://portalinknetworks.com/share/creator/c/portal/project?media=first&page=2&view=page&via=friend#references';
+    assert.equal(h.sharedTargets[0].url, expected);
+    assert.deepEqual(h.copies, [expected]);
+    assert.equal(h.sharedTargets[0].title, 'Work');
+  }
+});
 
 test('project overview attaches mobile swipe Back to the work stage and uses navigation rather than media Close', () => {
   const h = harness();
@@ -268,6 +289,7 @@ test('mobile keeps selected media while opening its floating project list and se
   tree = h.render();
   assert.ok(nodes(tree).some(node => node.type === CommentThreadView));
   assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Project comments');
+  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.mobileMotion, true);
   button(tree, 'Close project popup').props.onClick();
   tree = h.render();
   assert.equal(nodes(tree).some(node => node.type === MediaCommentsPopover), false);
@@ -285,7 +307,17 @@ test('mobile engagement failures keep the recovery popup accessible', () => {
   button(h.render(), 'Review engagement error').props.onClick();
   const tree = h.render();
   assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Engagement update');
+  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.mobileMotion, false);
   assert.ok(nodes(tree).some(node => node.type === EngagementFeedback));
+});
+
+test('mobile verification retains its immediate sheet dismissal instead of opting into comments motion', () => {
+  const h = harness({ readOnlyShare: true });
+  button(h.render(), 'Show AI verification services').props.onClick();
+  const tree = h.render(), sheet = nodes(tree).find(node => node.type === MediaCommentsPopover);
+  assert.equal(sheet.props.label, 'AI verification'); assert.equal(sheet.props.mobileMotion, false);
+  button(tree, 'Close project popup').props.onClick();
+  assert.equal(nodes(h.render()).some(node => node.type === MediaCommentsPopover), false);
 });
 
 test('the mobile action opens project information without changing WEB rail preferences', () => {
@@ -566,6 +598,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
       effects[i] = deps;
     } };
   const { ProfileCategoryPage } = compile('../src/components/profile/ProfileCategoryPage.tsx', name => {
+    if (name.endsWith('/ExportSheet')) return {ExportSheet:'export-sheet'};
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
@@ -702,14 +735,35 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(button(projectList, 'Collapse document list'), undefined, 'The clean mobile header uses outside dismissal instead of a duplicate collapse control');
   assert.equal(portalReturns, 1);
   currentRoute = { kind: 'category', profileId: 'owner', categoryId: 'portal' };
+  const beforeOpeningPortal = selections.length;
   tree = render({ ...props, activeProjectId: null });
-  assert.deepEqual(selections.at(-1), ['work', true]);
+  assert.equal(selections.length, beforeOpeningPortal, 'Opening a MOBILE portal must wait for a project choice');
+  assert.ok(nodes(tree).find(node => node.type === IndexPortal));
+  assert.equal(nodes(tree).find(node => node.type === Viewer), undefined);
+  assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), ['work', 'second']);
+  for (const viewerRole of ['owner', 'visitor', 'guest']) {
+    for (const sharedReadOnly of [false, true]) {
+      tree = render({ ...props, activeProjectId: null, viewerRole, sharedReadOnly,
+        profile: { ...props.profile, projects: props.profile.projects.slice(0, 1) } });
+      assert.ok(nodes(tree).find(node => node.type === IndexPortal), 'Even one-project portals open the chooser');
+      assert.equal(nodes(tree).find(node => node.type === Viewer), undefined);
+      assert.equal(selections.length, beforeOpeningPortal);
+    }
+  }
+  tree = render({ ...props, activeProjectId: null });
+  nodes(tree).find(node => node.type === Index).props.onSelect('second');
+  assert.deepEqual(selections.at(-1), ['second', undefined], 'Only the chosen row opens a project');
+  tree = render(props);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.projectId, 'second');
+  tree = render({ ...props, activeProjectId: null });
   button(toolbar(tree), 'Back to portals').props.onClick();
   assert.equal(portalReturns, 2);
   assert.equal(back, 1);
+  props.activeProjectId = 'work';
+  currentRoute = { kind: 'project', profileId: 'owner', categoryId: 'portal', projectId: 'work' };
   tree = render(props);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.projectId, 'work');
-  assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.isIndexOpen, true);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.isIndexOpen, false, 'An explicit project link does not force the index open');
   const selectionCount = selections.length;
   for (const route of [
     { kind: 'profile', profileId: 'owner' },
@@ -761,6 +815,12 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.deepEqual(Array.from(webIndex.projects, project => project.id), ['work', 'second']);
   assert.equal(webIndex.mobileReorderFromMenu, false);
   assert.equal(webIndex.mobileReorderDisabled, false);
+  currentRoute = { kind: 'category', profileId: 'owner', categoryId: 'portal' };
+  tree = render({ ...props, activeProjectId: null, isIndexCollapsed: false });
+  assert.deepEqual(selections.at(-1), ['work', true], 'WEB retains its saved-order first-project selection');
+  assert.equal(selections.length, selectionCount + 1);
+  currentRoute = { kind: 'project', profileId: 'owner', categoryId: 'portal', projectId: 'work' };
+  tree = render({ ...props, isIndexCollapsed: false });
   // A WEB query must never become an invisible MOBILE filter after resizing.
   for (const query of ['needle', 'no-matching-project']) {
     const search = nodes(tree).find(node => node.props.type === 'search');
@@ -885,4 +945,21 @@ test('information dismissal never opens options; intentional three-dot handoff c
  assert.equal(h.optionCalls.length,1);
  assert.equal(h.optionCalls[0].title,'Work');
  assert.equal(nodes(tree).find(node=>node.type===AttachmentRenderer).props.attachment.id,'second');
+});
+
+test('owner and visitor readers retain bottom portal, information and creator controls', () => {
+ const h=harness({mediaKind:'image'});
+ const props={isOwner:true,creator:{id:'creator-id',name:'Creator',avatar:''}};
+ let tree=h.render(props);
+ const controls=nodes(tree).find(n=>n.props.className==='mobile-content-action-bar'); assert.ok(controls); assert.equal(nodes(controls).filter(n=>n.type==='button').length,3);
+ const screen=h.screenActions.at(-1); assert.equal(screen.onOpen,undefined);
+ const actions=[...screen.model.primary,...screen.model.groups.flat()];
+ for(const id of ['list','projectInfo','viewProfile'])assert.ok(actions.some(a=>a.id===id));
+ actions.find(a=>a.id==='list').run();assert.ok(withProp(h.render(props),'data-project-index-panel'));
+ const info=harness({mediaKind:'image'});info.render(props);info.screenActions.at(-1).model.groups.flat().find(a=>a.id==='projectInfo').run();
+ assert.ok(nodes(info.render(props)).some(n=>n.type===FollowContentInfoPopup));
+ actions.find(a=>a.id==='viewProfile').run();assert.equal(h.navigationCalls.at(-1),'profile:creator-id');
+ const visitor=harness({mediaKind:'image',readOnlyShare:true});const publicTree=visitor.render(props);
+ assert.ok(nodes(publicTree).some(n=>n.props.className==='mobile-content-action-bar'));
+ assert.equal(typeof visitor.screenActions.at(-1).onOpen,'function');
 });

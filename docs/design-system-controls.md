@@ -10,7 +10,7 @@ Equivalent controls use the same geometry and state behavior across Portalink. T
 | Standard action | 36px | 44px |
 | Large action | 40px | 48px |
 
-Ordinary actions share `--shape-compact` (10px). Icon-only controls are square, retain accessible names, and use the same size scale. Labels determine text-button width. Keep related actions at the same size. Larger established sign-in, onboarding and publishing actions retain their workflow-specific dimensions.
+Ordinary actions share `--ui-control-radius` (12px). Icon-only controls are square, retain accessible names, and use the same size scale. Labels determine text-button width. Keep related actions at the same size. Larger established sign-in, onboarding and publishing actions retain their workflow-specific dimensions.
 
 Use `primary`, `secondary`, `ghost` or `danger` for the action's purpose. Primary and destructive actions retain semantic colors; secondary and ghost actions use the chosen System Gray and resolved Light/Dark appearance. A ghost action has no resting fill.
 
@@ -44,3 +44,18 @@ The September 2026 sweep covers the shared primitives, navigation states, Messag
 ## Verification
 
 Focused tests cover native button/ref/form behavior, loading and disabled guards, accessible state, selection contrast across appearance/gray/accent combinations, navigation precedence and the affected feature flows. Browser checks are still needed for CSS cascade, responsive visibility and surrounding layout. Use the existing MOBILE presentation boundary rather than new device detection; verify iPhone Air 420×912, nearby 390/430px widths and WEB1280 where relevant. Synthetic previews do not establish physical-phone behavior or live persistence.
+
+
+## Floating surfaces — local premium consistency pass (2026-10-15)
+
+Prepared for review only; unpublished. `src/presentation/surfaces.css`, loaded by the stable presentation root, supplies an explicit `data-ui-surface="popup|sheet"` opt-in. Confirmation dialogs, desktop portal creation, portal project choosers, project information and mobile action sheets share24px corners, a20px/600 heading with1.35 leading, a restrained existing theme shadow/border, and a consistent18px backdrop blur/saturation/tint. Attached sheets retain their flat lower edge; full-screen mobile portal creation and writing editors keep their established frames. Existing role/focus/gesture/viewport lifecycles and callbacks are unchanged.
+
+Popup insets are24px WEB and20px MOBILE; body copy15px WEB/16px MOBILE at1.6 leading. Project content typefaces remain supplied by the creator. Compact menus use16px corners; ordinary controls use12px corners and500-weight labels. Shared semantic colors, selected/expanded/hover/disabled/loading/focus states and size scale remain intact. Confirmation actions retain48px minimum height and can wrap long labels. Confirmation text is left aligned. Short project-information cards fit their content; long descriptions keep the prior70dvh/640px scroll ceiling and safe viewport clearance, with footer actions outside the text scroll region.
+
+Reduce Translucency/High Contrast use fully opaque surfaces with panel blur disabled; the existing modal backdrop separation stays on. A surface custom property resolves the mobile project's stronger material selector without removing accessibility-mode opacity. Reduced-motion behavior remains the existing shared contract. The scoped rules deliberately exclude frozen agreement source/copy, artwork, navigation geometry, reader layout and full-screen authoring; this is a first pass over shared primitives and selected floating families, not a claim every legacy custom popup has migrated.
+
+Local component gallery/evidence is ignored under logs/premium-ui-qa. It imports actual components/styles and resolved appearance/control tokens, with harmless callbacks and connect-src none; no backend connection or real user write. Browser checks at1280x900,420x912,390x620 and430x932 cover light/dark, long content, native scroll(203px observed), footer/close reachability, no horizontal overflow, keyboard focus wrap/Escape, local form/action callbacks, sheet expansion and solid accessibility materials. Mobile portal creation remains420x912 and unmarked as a popup; WEB form is440x680, centered with24px corners. No browser console errors in final gallery. Not real device or full authenticated-app acceptance. Initial QA-only syntax/theme/token omissions were corrected; no production provider/env setting was changed. Browser gallery uses unminified CSS; the real minified build separately retains the new standard backdrop custom-property rule.
+
+Prior local authentication/SQL work remains separately unpublished/unapplied. No publishing, Git push, SQL, backend/worker/D1 data, provider settings, dependency or new asset change is authorized by this design pass. See agent-handoff.md for final check results and review images.
+
+Final validation:121 focused tests pass, typecheck and configured main/visitor client+worker build pass; lint0errors/113existing warnings, focused TSX lint0errors/1existing warning. Frozen agreement/SQL/operations hashes and whitespace pass. No publication or backend action.

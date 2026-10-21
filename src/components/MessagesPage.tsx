@@ -1,10 +1,11 @@
+import { messageReactionOption } from './messages/messageReactionIcons';
 import { useUnderHeaderScroll } from '../presentation/mobile/useUnderHeaderScroll';
 import { MessageBody } from './messages/MessageBody';
 import { ConfirmationDialog } from './ui/ConfirmationDialog';
 import { MobileContextButton, useMobileScreenActions, useMobileHold } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
 import { useMenuFocus } from '../hooks/useMenuFocus';
-import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
+import { ScreenBack, useMobileScreenActive } from '../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../presentation/usePresentation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -12,6 +13,8 @@ import { ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIco
 import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { useMessaging } from '../features/messages/useMessaging';
+import { useMobileMessageContinuity } from '../features/messages/useMobileMessageContinuity';
+import { reducedMotion } from '../presentation/motion/motion';
 import type { Id } from '../types/domain';
 import type { DirectMessage, MessageAttachment } from '../types/messages';
 import { NewChatPanel } from './messages/NewChatPanel';
@@ -74,8 +77,9 @@ export function MessagesPage({
   });
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
+  const screenActive = useMobileScreenActive();
   const messaging = useMessaging({
-    initialRecipientId, initialConversationId,
+    initialRecipientId, initialConversationId, mobileContinuity: isMobile,
     // Mobile thread selection is a step within Messages. Returning to the list
     // must not leave duplicate list/thread entries in the browser's Back trail.
     onConversationChange: (id, replace) => onConversationChange?.(id, isMobile ? true : replace),
@@ -103,6 +107,9 @@ export function MessagesPage({
   const draftStorageKey = `portalink-message-drafts:${auth.viewerProfileId ?? 'account'}`;
   const [drafts, setDrafts] = useState<Record<string, string>>(() => readDrafts(draftStorageKey));
   const messageScrollerRef = useRef<HTMLDivElement>(null);
+  const conversationListRef = useRef<HTMLDivElement>(null);
+  const threadPanelRef = useRef<HTMLElement>(null);
+  const listPanelRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previousThreadRef = useRef<{ conversationId: string | null; lastId: string | null }>({ conversationId: null, lastId: null });
   const searchRequestRef = useRef(0);
@@ -112,6 +119,9 @@ export function MessagesPage({
   const isMessageRequest = messaging.activeConversation?.status === 'request';
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const entryIdentity = JSON.stringify([isMobile, screenActive, auth.user?.id, auth.viewerProfileId, activeId]);
+  const threadEntry = useRef({ identity: entryIdentity, version: 0 });
+  if (threadEntry.current.identity !== entryIdentity) { threadEntry.current.identity = entryIdentity; threadEntry.current.version += 1; }
   const attachments = activeId ? attachmentsByConversation[activeId] ?? [] : [];
   const setAttachments = (update: File[] | ((current: File[]) => File[])) => {
     if (!activeId) return;
@@ -121,6 +131,14 @@ export function MessagesPage({
   markReadRef.current = messaging.markVisibleMessagesRead;
   const searchConversations = messaging.searchConversations;
   const draft = activeId ? drafts[activeId] ?? '' : '';
+  const mobileThreadError = isMobile ? messaging.threadLoadError ?? (messaging.threadUnavailable ? 'This conversation is not available.' : null) : null;
+  const continuity = useMobileMessageContinuity({
+    enabled: isMobile, active: screenActive, accountId: auth.user?.id ?? auth.viewerProfileId ?? null,
+    conversationId: activeId, messages: messaging.messages, isLoadingThread: messaging.isLoadingThread,
+    viewerProfileId: auth.viewerProfileId, scroller: messageScrollerRef, list: conversationListRef,
+    threadPanel: threadPanelRef, listPanel: listPanelRef, isAtBottomRef, preserveScrollRef,
+    markRead: messaging.markVisibleMessagesRead, setHasNewBelow,
+  });
 
   useEffect(() => {
     try { sessionStorage.setItem(draftStorageKey, JSON.stringify(drafts)); } catch { /* A draft can remain in memory when storage is unavailable. */ }
@@ -140,24 +158,29 @@ export function MessagesPage({
     setReportReason('');
     setReportSent(false);
     setAttachmentError(null);
-    setHasNewBelow(false);
-    isAtBottomRef.current = true;
-    preserveScrollRef.current = false;
-    if (activeId) {
-      if (isMobile && isMessageRequest) textareaRef.current?.focus({ preventScroll: true });
-      else document.getElementById('messages-thread-panel')?.focus();
+    if (!isMobile) {
+      setHasNewBelow(false);
+      isAtBottomRef.current = true;
+      preserveScrollRef.current = false;
+      if (activeId) document.getElementById('messages-thread-panel')?.focus();
     }
   }, [activeId, isMobile, isMessageRequest]);
 
   useEffect(() => {
-    const markVisible = () => { if (isAtBottomRef.current) markReadRef.current(); };
-    document.addEventListener('visibilitychange', markVisible);
-    return () => document.removeEventListener('visibilitychange', markVisible);
-  }, []);
+    if (!isMobile || !screenActive || !activeId || !isMessageRequest || document.querySelector('[aria-modal="true"]')) return;
+    const focused = document.activeElement;
+    if (focused === document.body || listPanelRef.current?.contains(focused) || threadPanelRef.current?.contains(focused)) textareaRef.current?.focus({ preventScroll: true });
+  }, [activeId, isMobile, isMessageRequest, screenActive]);
 
   useEffect(() => {
-    if (!isMessageRequest && isAtBottomRef.current) markReadRef.current();
-  }, [activeId, isMessageRequest]);
+    const markVisible = () => { if ((!isMobile || screenActive) && isAtBottomRef.current) markReadRef.current(); };
+    document.addEventListener('visibilitychange', markVisible);
+    return () => document.removeEventListener('visibilitychange', markVisible);
+  }, [isMobile, screenActive]);
+
+  useEffect(() => {
+    if (!isMobile && !isMessageRequest && isAtBottomRef.current) markReadRef.current();
+  }, [activeId, isMessageRequest, isMobile]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -167,6 +190,7 @@ export function MessagesPage({
   }, [draft]);
 
   useEffect(() => {
+    if (isMobile) return;
     const scroller = messageScrollerRef.current;
     const last = messaging.messages[messaging.messages.length - 1] ?? null;
     const previous = previousThreadRef.current;
@@ -186,7 +210,7 @@ export function MessagesPage({
     } else {
       setHasNewBelow(true);
     }
-  }, [activeId, auth.viewerProfileId, messaging.messages]);
+  }, [activeId, auth.viewerProfileId, messaging.messages, isMobile]);
 
   useEffect(() => {
     const term = query.trim();
@@ -244,7 +268,7 @@ export function MessagesPage({
 
   function submitMessage(event: React.FormEvent) {
     event.preventDefault();
-    if (messaging.isSending || !activeId || (!draft.trim() && attachments.length === 0)) return;
+    if (messaging.isSending || (isMobile && messaging.threadUnavailable) || !activeId || (!draft.trim() && attachments.length === 0)) return;
     const body = draft;
     const files = isMessageRequest ? [] : attachments;
     setDrafts((current) => ({ ...current, [activeId]: '' }));
@@ -257,6 +281,13 @@ export function MessagesPage({
     const conversationId = activeId;
     const scroller = messageScrollerRef.current;
     if (!scroller) return;
+    if (isMobile) {
+      const version = threadEntry.current.version;
+      preserveScrollRef.current = true;
+      await messaging.loadOlderMessages();
+      if (threadEntry.current.version === version) preserveScrollRef.current = false;
+      return;
+    }
     const previousHeight = scroller.scrollHeight;
     const previousTop = scroller.scrollTop;
     preserveScrollRef.current = true;
@@ -271,7 +302,7 @@ export function MessagesPage({
   function scrollToLatest() {
     const scroller = messageScrollerRef.current;
     if (!scroller) return;
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: isMobile && reducedMotion() ? 'auto' : 'smooth' });
     setHasNewBelow(false);
   }
 
@@ -339,7 +370,7 @@ export function MessagesPage({
               <RecipientIdentity conversation={messaging.activeConversation} />
           </Link> : <RecipientIdentity conversation={messaging.activeConversation} />}</>}
           <span className="ml-auto min-w-0 max-w-[35%] truncate text-[12px] text-[var(--text-tertiary)]" role="status">{messaging.isParticipantTyping ? 'Typing…' : messaging.isRealtimeConnected ? '' : 'Reconnecting…'}</span>
-          <button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" ref={conversationTriggerRef} onKeyDown={conversationMenuFocus.onTriggerKeyDown} aria-haspopup="menu" type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
+          {isMobile ? <div data-inline-screen-actions=""><MobileContextButton /></div> : <button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" ref={conversationTriggerRef} onKeyDown={conversationMenuFocus.onTriggerKeyDown} aria-haspopup="menu" type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
           {isConversationMenuOpen ? <div ref={conversationMenuRef} tabIndex={-1} aria-label="Conversation options" className="absolute right-[var(--side-panel-content-inset)] top-[calc(100%+var(--side-panel-row-gap))] z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
               <ConversationMenuButton icon={messaging.activeConversation.isMuted ? Volume2Icon : VolumeXIcon} label={messaging.activeConversation.isMuted ? 'Unmute conversation' : 'Mute conversation'} onClick={() => { setIsConversationMenuOpen(false); void messaging.setMuted(!messaging.activeConversation?.isMuted); }} />
               <ConversationMenuButton danger icon={Trash2Icon} label="Delete chat" onClick={() => { setIsConversationMenuOpen(false); setConfirmation('delete-chat'); }} />
@@ -352,7 +383,7 @@ export function MessagesPage({
       {isPrivacyOpen ? <MessageControlsDialog permission={messaging.preferences.permission} isSaving={messaging.isSavingPreferences} error={messaging.error} onChange={messaging.updatePermission} onClose={() => setIsPrivacyOpen(false)} /> : null}
 
       <div data-messages-body="" className="flex min-h-0 flex-1">
-        <aside data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
+        <aside ref={listPanelRef} tabIndex={isMobile ? -1 : undefined} data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
           {isNewChatOpen ? <NewChatPanel
               showHeader={!isMobile}
               onClose={() => { setIsNewChatOpen(false); messaging.dismissError(); }}
@@ -375,17 +406,17 @@ export function MessagesPage({
                 </div>
               </div>
 
-              <div data-mobile-scroll-end="" className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto">
+              <div ref={conversationListRef} data-mobile-scroll-end="" className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto">
                 {isSearching ? <div className="side-panel-content-inset pt-3 text-[12px] text-[var(--text-secondary)]" role="status">Searching…</div> : null}
                 {searchError ? <div className="side-panel-content-inset mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}<button type="button" className="ml-2 min-h-11 underline" onClick={() => setSearchAttempt(value => value + 1)}>Try again</button></div> : null}
-                {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState label="Loading conversations" /></div> : null}
+                {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState kind="messages" label="Loading conversations" /></div> : null}
                 {messaging.status === 'error' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><ErrorState title="Messages could not be loaded" description={messaging.error ?? undefined} onRetry={() => void messaging.retry()} /></div> : null}
                 {messaging.status === 'success' && visibleConversations.length === 0 && !isSearching && !searchError ? <div className="side-panel-content-inset py-5"><EmptyState title={query.trim() ? 'No matching conversations' : conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : 'No conversations yet'} description={query.trim() ? 'Try another name or message.' : conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : 'Start a conversation with another creator.'} action={(query.trim() || conversationFilter !== 'all') ? { label: query.trim() ? 'Clear search' : 'Clear filter', onClick: () => { if (query.trim()) setQuery(''); else setConversationFilter('all'); } } : conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
                 <ul className="side-panel-content-inset side-panel-navigation-list pb-2 inset-row-group inset-row-group-icons">
                   {visibleConversations.map((conversation) => <li key={conversation.id}>
                       <div data-selected={activeId === conversation.id ? 'true' : undefined} className="message-contact-row flex w-full items-center gap-3 p-2">
                         <ProfileAvatar name={conversation.participant.name} avatar={conversation.participant.avatar} />
-                        <button type="button" onClick={() => void messaging.openConversation(conversation)} aria-current={activeId === conversation.id ? 'true' : undefined} className="flex min-w-0 flex-1 self-stretch items-center text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+                        <button type="button" onClick={(event) => { if (isMobile) continuity.rememberOpen(event.currentTarget); void messaging.openConversation(conversation); }} aria-current={activeId === conversation.id ? 'true' : undefined} className="flex min-w-0 flex-1 self-stretch items-center text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                         <span className="min-w-0 flex-1">
                           <span className="flex items-baseline justify-between gap-2">
                             <span className={`truncate text-[14px] ${conversation.isUnread ? 'font-bold' : 'font-semibold'}`}>{conversation.participant.name}</span>
@@ -410,24 +441,24 @@ export function MessagesPage({
           <ResizablePanelHandle desktopOnly side="right" value={conversationListWidth.width} min={280} max={440} onResize={conversationListWidth.updateWidth} onResizeEnd={conversationListWidth.commitWidth} onReset={conversationListWidth.resetWidth} label="Resize conversation list. Double-click to restore its default width." />
         </aside>
 
-        <main id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 flex-col bg-[var(--surface-canvas)] lg:flex`}>
+        <main ref={threadPanelRef} id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 flex-col bg-[var(--surface-canvas)] lg:flex`}>
           {messaging.activeConversation ? <>
               <div data-message-scroll="" ref={messageScrollerRef} onScroll={(event) => {
                 const node = event.currentTarget;
                 const atBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
                 isAtBottomRef.current = atBottom;
-                if (atBottom) { setHasNewBelow(false); markReadRef.current(); }
+                if (atBottom) { setHasNewBelow(false); if (!isMobile || screenActive) markReadRef.current(); }
               }} className="relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-5 sm:px-6">
-                {messaging.isLoadingThread ? <LoadingState label="Loading conversation" /> : null}
+                {messaging.isLoadingThread ? <LoadingState kind="conversation" label="Loading conversation" /> : null}
                 {!messaging.isLoadingThread && messaging.hasOlderMessages ? <div className="mb-5 flex justify-center">
                     <button type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}
-                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]">{isMobile && isMessageRequest ? <p className="text-[14px] leading-6 text-[var(--text-secondary)]">Send one text-only invitation to chat. You can send more messages and attachments after they accept.</p> : <EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} />}</div> : null}
+                {!messaging.isLoadingThread && !mobileThreadError && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]">{isMobile && isMessageRequest ? <p className="text-[14px] leading-6 text-[var(--text-secondary)]">Send one text-only invitation to chat. You can send more messages and attachments after they accept.</p> : <EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} />}</div> : null}
                 <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest && !messaging.activeConversation.participant.isDeleted} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={messaging.retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
                 {hasNewBelow ? <button type="button" onClick={scrollToLatest} className="sticky bottom-2 mx-auto mt-3 flex items-center gap-2 rounded-full bg-[var(--surface-raised)] px-3 py-2 text-[12px] font-semibold text-[var(--accent-text)] shadow-lg ring-1 ring-[var(--hairline)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowDownIcon} />New messages</button> : null}
               </div>
 
-              {messaging.error ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--hairline)] px-4 py-2 text-[12px] text-[var(--status-danger)]" role="alert"><span>{messaging.error}</span><button type="button" onClick={messaging.dismissError} className="font-semibold underline">Dismiss</button></div> : null}
+              {messaging.error || mobileThreadError ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--hairline)] px-4 py-2 text-[12px] text-[var(--status-danger)]" role="alert"><span>{mobileThreadError ?? messaging.error}</span>{mobileThreadError ? <button type="button" disabled={messaging.isRefreshingThread} onClick={(event) => { if (document.activeElement === event.currentTarget) threadPanelRef.current?.focus({ preventScroll: true }); void messaging.retryThread(); }} className="min-h-11 shrink-0 font-semibold underline disabled:opacity-50">{messaging.isRefreshingThread ? 'Retrying…' : 'Retry'}</button> : null}{!(isMobile && messaging.threadUnavailable) && <button type="button" onClick={messaging.dismissError} className="font-semibold underline">Dismiss</button>}</div> : null}
               {attachmentError ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--hairline)] px-4 py-2 text-[12px] text-[var(--status-danger)]" role="alert"><span>{attachmentError}</span><button type="button" onClick={() => setAttachmentError(null)} className="font-semibold underline">Dismiss</button></div> : null}
               {messaging.activeConversation.participant.isDeleted ? <p role="status" className="shrink-0 p-4 text-center text-[13px] text-[var(--text-secondary)]">This account was deleted. Your messages and attachments remain here.</p> : messaging.activeConversation.status === 'request' && !messaging.activeConversation.requestedByViewer ? <div className="shrink-0 border-t border-[var(--hairline)] bg-[var(--surface-canvas)] p-4">
                   <div className="mx-auto flex max-w-[760px] flex-wrap items-center justify-between gap-4">
@@ -461,7 +492,7 @@ export function MessagesPage({
                       event.currentTarget.form?.requestSubmit();
                     }
                   }} rows={1} maxLength={4000} placeholder={isMessageRequest ? "Send an invitation" : isMobile ? "Message..." : "Message"} aria-label={`Message ${messaging.activeConversation.participant.name}`} className="max-h-32 min-h-[38px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-2 text-[16px] leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
-                  <button type="submit" disabled={messaging.isSending || (!draft.trim() && (isMessageRequest || attachments.length === 0))} aria-busy={messaging.isSending} aria-label={isMessageRequest ? "Send invitation" : "Send message"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+                  <button type="submit" disabled={messaging.isSending || (isMobile && messaging.threadUnavailable) || (!draft.trim() && (isMessageRequest || attachments.length === 0))} aria-busy={messaging.isSending} aria-label={isMessageRequest ? "Send invitation" : "Send message"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
                     <InterfaceIcon icon={SendIcon} weight="medium" />
                     {isMessageRequest && isMobile ? <span>{messaging.isSending ? "Sending…" : "Send"}</span> : null}
                   </button>
@@ -506,8 +537,12 @@ function RecipientIdentity({ conversation }: { conversation: NonNullable<ReturnT
 
 function MessageHold({ enabled, onHold, children }: { enabled: boolean; onHold: (trigger: HTMLButtonElement | null) => void; children: React.ReactNode }) {
   const rowRef = useRef<HTMLLIElement>(null);
-  const hold = useMobileHold(enabled ? () => { onHold(rowRef.current?.querySelector<HTMLButtonElement>('[aria-label="Message options"]') ?? null); } : null);
-  return React.cloneElement(children as React.ReactElement, { ...hold, ref: rowRef });
+  const hold = useMobileHold(enabled ? () => {
+    const selection = typeof window !== 'undefined' ? window.getSelection?.() : null;
+    if (selection && (rowRef.current?.contains(selection.anchorNode) || rowRef.current?.contains(selection.focusNode))) selection.removeAllRanges();
+    onHold(rowRef.current?.querySelector<HTMLButtonElement>('[aria-label="Message options"]') ?? null);
+  } : null);
+  return React.cloneElement(children as React.ReactElement, { ...hold, ref: rowRef, 'data-message-hold': enabled ? '' : undefined });
 }
 
 function MessageList({ messages, viewerProfileId, canInteract, participantReadAt, pendingMessageId, onRetry, onEdit, onDelete, onReact }: {
@@ -557,7 +592,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
         const hasReceipt = isMine && (message.id === latestOutgoingId || message.deliveryState === 'sending' || message.deliveryState === 'failed');
         return <React.Fragment key={message.id}>
             {showDay ? <li data-message-date="" className="py-3 text-center text-[11px] font-medium text-[var(--text-tertiary)]">{day}</li> : null}
-            <MessageHold enabled={isMobile && canInteract && !message.isRemoved && !message.id.startsWith('local-') && pendingMessageId !== message.id && !editingId && !deleteId} onHold={trigger => { actionTriggerRef.current = trigger; setActionsId(message.id); }}><li data-message-row="" data-message-grouped={grouped || undefined} data-has-reactions={hasReactions || undefined} data-has-receipt={hasReceipt || undefined} data-message-failed={message.deliveryState === 'failed' || undefined} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+            <MessageHold enabled={isMobile && canInteract && !message.isRemoved && !message.id.startsWith('local-') && pendingMessageId !== message.id && !editingId && !deleteId} onHold={trigger => { actionTriggerRef.current = trigger; setActionsId(message.id); }}><li data-message-id={message.id} data-message-row="" data-message-grouped={grouped || undefined} data-has-reactions={hasReactions || undefined} data-has-receipt={hasReceipt || undefined} data-message-failed={message.deliveryState === 'failed' || undefined} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
               <div data-message-bubble={isMine ? 'outgoing' : 'incoming'} className={`group/message max-w-[78%] rounded-[18px] px-3.5 py-2.5 ${isMine ? 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)] ring-1 ring-[var(--hairline)]'} ${message.deliveryState === 'failed' ? 'ring-2 ring-[var(--status-danger)]' : ''}`}>
                 {message.isRemoved ? <p className="text-[12px] text-[var(--text-tertiary)]">Deleted User</p> : null}
                 {editingId === message.id ? <form onSubmit={(event) => { event.preventDefault(); void onEdit(message.id, editBody).then((saved) => { if (saved) setEditingId(null); }); }}>
@@ -568,9 +603,9 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                         event.preventDefault();
                         if (editBody.trim()) event.currentTarget.form?.requestSubmit();
                       }
-                    } : undefined} maxLength={4000} className={`min-h-20 w-full resize-y rounded-[9px] bg-[var(--surface-canvas)] p-2 text-[var(--text-primary)] ${isMobile ? 'text-[16px]' : 'text-[15px]'}`} />
+                    } : undefined} maxLength={4000} className={`min-h-20 w-full resize-y rounded-[9px] bg-[var(--surface-canvas)] p-2 text-[var(--text-primary)] ${isMobile ? 'text-[16px] border border-[var(--hairline)] rounded-[16px] !p-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]' : 'text-[15px]'}`} />
                     {!isMobile ? <p className="mt-1 text-[11px] opacity-75">Esc to cancel · Ctrl/Cmd+Enter to save</p> : null}
-                    <div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setEditingId(null)} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : 'text-[12px]'} font-semibold underline`}>Cancel</button><button type="submit" disabled={!editBody.trim() || pendingMessageId === message.id} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : 'text-[12px]'} font-semibold underline disabled:opacity-50`}>Save</button></div>
+                    <div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setEditingId(null)} className={`${isMobile ? 'min-h-[44px] min-w-[80px] px-4 text-[14px] rounded-[12px] bg-[var(--surface-sunken)] !no-underline' : 'text-[12px]'} font-semibold underline`}>Cancel</button><button type="submit" disabled={!editBody.trim() || pendingMessageId === message.id} className={`${isMobile ? 'min-h-[44px] min-w-[80px] px-4 text-[14px] rounded-[12px] bg-[var(--surface-sunken)] !no-underline' : 'text-[12px]'} font-semibold underline disabled:opacity-50`}>Save</button></div>
                   </form> : <p className="whitespace-pre-wrap break-words text-[16px] leading-6"><MessageBody body={message.body} /></p>}
                 {message.attachments?.length ? <ul className="mt-2 grid gap-2">
                     {message.attachments.map((attachment) => <li key={attachment.id}><MessageAttachmentView attachment={attachment} /></li>)}
@@ -583,7 +618,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                   {message.id === latestOutgoingId && message.deliveryState !== 'failed' ? <span className="opacity-75">{participantReadAt && participantReadAt >= message.createdAt ? 'Seen' : 'Sent'}</span> : null}
                 </span>
                 {!message.id.startsWith('local-') && !message.isRemoved && canInteract ? <div data-message-reactions="" className="mt-2 flex flex-wrap items-center gap-1">
-                    {(canInteract ? message.reactions ?? [] : []).map((reaction) => <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, reaction.emoji)} className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${isMobile ? 'min-h-[44px] min-w-[44px]' : ''} ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`}>{reaction.emoji} {reaction.count}</button>)}
+                    {(canInteract ? message.reactions ?? [] : []).map((reaction) => <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, reaction.emoji)} className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${isMobile ? 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px]' : ''} ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`} aria-label={`${messageReactionOption(reaction.emoji).label}: ${reaction.count}${reaction.isMine ? '. Selected' : ''}`}>{isMobile ? <InterfaceIcon icon={messageReactionOption(reaction.emoji).icon} size="sm" /> : reaction.emoji} {reaction.count}</button>)}
                     {isMobile ? <button type="button" aria-label="Message options" aria-haspopup="dialog" aria-expanded={actionsId === message.id} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} onClick={(event) => { actionTriggerRef.current = event.currentTarget; setActionsId(message.id); }} className="sr-only focus:not-sr-only focus:absolute focus:right-0 focus:bottom-0 focus:h-11 focus:w-11 focus:rounded-full focus:bg-[var(--surface-raised)] focus:text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-current"><InterfaceIcon icon={MoreHorizontalIcon} /></button> : <>
                       {(canInteract ? ['❤', '👏', '✨'] as const : []).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, emoji)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70">{emoji}</button>)}
                       {isMine ? <><button type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setEditingId(message.id); setEditBody(message.body); }} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} aria-label="Edit message" title="Edit message" className="shape-compact ml-auto flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={PencilIcon} size="xs" /></button><button type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setDeleteId(message.id); }} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} aria-label="Unsend message" title="Unsend message" className="shape-compact flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={Trash2Icon} size="xs" /></button></> : null}
