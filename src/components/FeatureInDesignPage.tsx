@@ -31,7 +31,7 @@ export function FeatureInDesignPage({
         <ScreenBack><button
           type="button"
           onClick={onBack}
-          className="ps-btn ps-btn-secondary side-panel-primary-control side-panel-control-row justify-center px-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          className="ps-btn ps-btn-secondary side-panel-primary-control side-panel-control-row justify-center px-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         >
           <InterfaceIcon icon={ArrowLeftIcon} size="sm" weight="medium" mirroredInRtl />
           Back

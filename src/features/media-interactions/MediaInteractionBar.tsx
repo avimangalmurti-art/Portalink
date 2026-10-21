@@ -1,3 +1,4 @@
+import { ownPageCitation } from '../references/ownCitation';
 import { useCiteTarget } from '../citations/useCiteTarget';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { readSharedReturnPath } from '../auth/registration';
@@ -100,10 +101,16 @@ export function MediaInteractionBar({
     auth.requestAuthenticatedDestination({ kind: 'route', path, label: 'engage with this page' }, 'signUp');
     return true;
   };
+  const [citationStatus,setCitationStatus]=useState('');
+  const copyIdentity=useRef<string|null>(null);
+  copyIdentity.current=`${auth.user?.id??''}:${target.projectId}:${target.attachmentId}:${target.pageIndex}`;
+  useEffect(()=>()=>{copyIdentity.current=null;},[]);
+  useEffect(()=>setCitationStatus(''),[target.attachmentId,target.pageIndex,auth.viewerProfileId]);
   const citation = useCiteTarget(target.attachmentId,target.pageIndex,isVisible || contextOnly);
   const current = currentPage?.projectId === target.projectId && currentPage.attachmentId === target.attachmentId && currentPage.pageIndex === target.pageIndex;
   useMobileScreenActions(current ? contextActions(currentPage?.shared ? 'shared' : 'project', { signedIn: auth.isAuthenticated, owner: isOwner }, { handlers: {
-    cite: !isOwner ? () => citation.open() : undefined,
+    copyCitation: isOwner&&auth.viewerProfileId?async()=>{const identity=copyIdentity.current;try{const text=await ownPageCitation(auth.viewerProfileId!,target.projectId,target.attachmentId,target.pageIndex);if(copyIdentity.current!==identity)return;await navigator.clipboard.writeText(text);setCitationStatus('Citation copied.');}catch(caught){if(copyIdentity.current===identity)setCitationStatus(caught instanceof Error?caught.message:'Citation could not be copied.');}}:undefined,
+    cite: () => citation.open(),
     share: () => activity.share(),
     savePage: sharedGuest || (!activity.isResolvingEngagement && activity.pendingKind !== 'save') ? () => savePage() : undefined,
     comment: () => { if (!requireAccount()) setCommentsOpen(true); },
@@ -132,8 +139,8 @@ export function MediaInteractionBar({
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
-      gridTemplateColumns: `repeat(${isOwner ? 3 : 4}, minmax(44px, 1fr))`,
-        minWidth: isOwner ? 132 : 176
+      gridTemplateColumns: `repeat(${isMobileFocused ? 4 : isOwner ? 3 : 4}, minmax(44px, 1fr))`,
+        minWidth: isMobileFocused ? 196 : isOwner ? 132 : 176
     } as React.CSSProperties}>
       {ACTIONS.map(({ kind, label, icon: Icon }, index) => {
         const engaged = activity.record.engaged[kind];
@@ -174,7 +181,7 @@ export function MediaInteractionBar({
         <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="currentColor" />
         {counts[ACTIONS.length] ? <span className="media-item-action-count font-semibold tabular-nums">{counts[ACTIONS.length]}</span> : null}
       </button>
-      {!isOwner && <button type="button" aria-label="Cite this page" title="Cite" onClick={()=>void citation.open()} className="media-item-action"><InterfaceIcon icon={QuoteIcon} size="sm" weight="regular" keepColor /></button>}
+      <button type="button" aria-label="Cite this page" title="Cite" onClick={()=>void citation.open()} className="media-item-action"><InterfaceIcon icon={QuoteIcon} size="sm" weight="regular" keepColor /></button>
       <button
         type="button"
         aria-pressed={activity.shareState === 'shared'}
@@ -186,6 +193,7 @@ export function MediaInteractionBar({
       </button>
     </div>
 
+    {citationStatus&&<span role="status">{citationStatus}</span>}
     {counter ? <span data-media-page-count="" aria-label={`Page ${target.pageIndex + 1} of ${pageCount}`} className="premium-viewer-page-counter premium-viewer-page-counter--inline pointer-events-none shrink-0 rounded-full px-2 py-1 text-center text-[12px] font-medium tabular-nums text-white" style={{ width: counterWidth }}>{counter}</span> : null}
     </div>
 
@@ -196,13 +204,13 @@ export function MediaInteractionBar({
       className="min-h-11 max-w-full rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] px-3 text-[12px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
     >Activity unavailable Â· Retry</button> : null}
 
-    {commentsOpen ? <MediaCommentsPopover id={commentsId} label={`Comments for ${presentedTarget.label}`} anchorRef={engagementRef} triggerRef={commentsTriggerRef} onClose={closeComments}>
+    {commentsOpen ? <MediaCommentsPopover id={commentsId} label={`Comments for ${presentedTarget.label}`} anchorRef={engagementRef} triggerRef={commentsTriggerRef} onClose={closeComments} mobileMotion>{dismiss => <>
       <header data-comments-header="" className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">
         <div className="min-w-0">
           <h3 className="truncate text-[12px] font-semibold text-white">Comments</h3>
           <p className="truncate text-[10px] text-white/55">{presentedTarget.label}{isMobile && pageCount ? ` of ${pageCount}` : ''}</p>
         </div>
-        {isMobile ? <button type="button" data-comments-close="" onClick={closeComments} aria-label="Close comments"><InterfaceIcon icon={XIcon} size="lg" weight="medium" /></button> : null}
+        {isMobile ? <button type="button" data-comments-close="" onClick={dismiss} aria-label="Close comments"><InterfaceIcon icon={XIcon} size="lg" weight="medium" /></button> : null}
         {!isMobile && activity.isLoading ? <Loader2Icon className="h-3.5 w-3.5 animate-spin text-white/55 motion-reduce:animate-none" aria-label="Loading comments" /> : null}
       </header>
       {isMobile || activity.record.comments.length > 0 || !isOwner ? <div data-comments-list="" className="scrollbar-overlay max-h-48 overflow-y-auto overscroll-contain px-3.5 py-2.5">
@@ -252,7 +260,7 @@ export function MediaInteractionBar({
           {!activity.isResolvingEngagement ? <button type="button" onClick={activity.dismissFailure} className="ml-1.5 font-semibold text-white/65 underline focus:outline-none">Dismiss</button> : null}
         </p> : null}
       </form>
-    </MediaCommentsPopover> : null}
+    </>}</MediaCommentsPopover> : null}
     {deleteCommentId && <ConfirmationDialog title="Delete this comment?" description="This page comment will be permanently removed." confirmLabel="Delete comment" variant="destructive" pending={deletingComment} pendingLabel="Deleting…" error={activity.failure} onCancel={()=>setDeleteCommentId(null)} onConfirm={async()=>{setDeletingComment(true);try{const removed=await activity.deleteComment(deleteCommentId);if(removed)setDeleteCommentId(null);return removed;}finally{setDeletingComment(false);}}}/>}
   </div>;
 }
