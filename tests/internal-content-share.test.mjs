@@ -10,7 +10,7 @@ function compile(file,mocks,extra='') {
  const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(new URL(file,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}}).outputText+extra,{exports,require:n=>mocks[n]??{},URL,Error});return exports;
 }
 function harness(conversation={id:'thread',status:'active'},send=async()=>({id:'message'}),{presentation='web',inline=false,keyboard=false}={}) {
- let cursor=0,keyboardOpen=keyboard;const slots=[],calls=[],keyboardCalls=[];
+ let cursor=0,keyboardOpen=keyboard;const slots=[],calls=[],keyboardCalls=[],scrollBoundaryCalls=[];
  const react={...React,useEffect(){},useLayoutEffect(){},useRef:v=>slots[cursor++]??={current:v},useState:v=>{const i=cursor++;if(!(i in slots))slots[i]=v;return[slots[i],next=>{slots[i]=next;}];}};
  const {dialog}=compile('../src/features/sharing/InternalContentShare.tsx',{react,
  '../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'viewer',isAuthenticated:true})},
@@ -18,13 +18,13 @@ function harness(conversation={id:'thread',status:'active'},send=async()=>({id:'
  '../../components/messages/NewChatPanel':{NewChatPanel:'recipients'},'../../components/ui/ModalPortal':{ModalPortal:'portal'},
  '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},'../../hooks/useModalFocus':{useModalFocus(){}},
  '../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close:after=>after?after():onClose(),finish:onClose})},'../../presentation/motion/motion':{reducedMotion:()=>false},
- '../../presentation/usePresentation':{usePresentation:()=>presentation},'./useRecipientKeyboard':{useRecipientKeyboard:enabled=>{keyboardCalls.push(enabled);return enabled&&keyboardOpen;}},
+ '../../presentation/usePresentation':{usePresentation:()=>presentation},'./useRecipientKeyboard':{useRecipientKeyboard:enabled=>{keyboardCalls.push(enabled);return enabled&&keyboardOpen;}},'./useRecipientScrollBoundary':{useRecipientScrollBoundary:enabled=>scrollBoundaryCalls.push(enabled)},
  'lucide-react':{ArrowLeftIcon:'back-icon'},
  },'\nexports.dialog=InternalContentShareDialog;');
  const render=()=>{cursor=0;return dialog({target:{title:'Project',url:'https://portalink.test/p/creator/c/portal/work',onSent:()=>calls.push(['confirmed'])},onClose:()=>calls.push(['close']),inline});};
  const button=label=>nodes(render()).find(n=>n.type==='button'&&n.props.children===label);
- const select=()=>nodes(render()).find(n=>n.type==='recipients').props.onSelectCreator('recipient');
- return {render,button,select,calls,keyboardCalls,setKeyboard:open=>{keyboardOpen=open;}};
+ const select=(id='recipient')=>nodes(render()).find(n=>n.type==='recipients').props.onSelectCreator(id);
+ return {render,button,select,calls,keyboardCalls,scrollBoundaryCalls,setKeyboard:open=>{keyboardOpen=open;}};
 }
 test('internal sharing requires recipient selection and explicit Send, and confirms only successful sends',async()=>{
  let complete;const h=harness(undefined,()=>new Promise(resolve=>{complete=resolve;}));
@@ -88,6 +88,51 @@ test('mobile recipient typing removes footer actions, preserves selection and re
  assert.equal(h.keyboardCalls.at(-1),false,'Successful sending disables recipient keyboard detection');
 });
 
+test('MOBILE keeps the selected directory and changes Sending to confirmed Sent without reopening another send',async()=>{
+ let complete;const h=harness(undefined,()=>new Promise(resolve=>{complete=resolve;}),{presentation:'mobile'});
+ h.select();
+ const originalDirectory=nodes(h.render()).find(n=>n.type==='recipients'),staleSend=h.button('Send');
+ staleSend.props.onClick();
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.button('Sending…').props.disabled,true);
+ assert.equal(h.button('Sent'),undefined,'An unresolved message must not claim delivery');
+ assert.equal(nodes(h.render()).find(n=>n.type==='recipients').props.startingCreatorId,'recipient');
+ complete({id:'message'});await new Promise(resolve=>setImmediate(resolve));
+ const tree=nodes(h.render()),retainedDirectory=tree.find(n=>n.type==='recipients'),sent=h.button('Sent');
+ assert.equal(tree.find(n=>n.type==='h1').props.children,'Send content');
+ assert.equal(retainedDirectory.key,originalDirectory.key);
+ assert.equal(retainedDirectory.props.selectedCreatorId,'recipient');
+ assert.equal(retainedDirectory.props.startingCreatorId,null,'Confirmed recipients must stop showing Sending');
+ assert.equal(retainedDirectory.props.disabled,true);
+ assert.equal(sent.props.disabled,true);
+ assert.equal(sent.props['data-send-state'],'sent');
+ assert.equal(sent.props['data-semantic-action'],'send');
+ assert.ok(tree.some(n=>n.props.role==='status'&&n.props.children==='Sent in Portalink.'));
+ assert.ok(h.button('Done'));assert.equal(h.button('Cancel'),undefined);
+ staleSend.props.onClick();originalDirectory.props.onSelectCreator('different-recipient');sent.props.onClick();
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.calls.filter(c=>c[0]==='send').length,1,'Stale or repeated actions cannot send a second message');
+ assert.equal(h.calls.filter(c=>c[0]==='confirmed').length,1);
+ assert.equal(nodes(h.render()).find(n=>n.type==='recipients').props.selectedCreatorId,'recipient');
+ h.button('Done').props.onClick();assert.equal(h.calls.at(-1)[0],'close');
+});
+
+test('MOBILE send failures keep the selected directory actionable until an explicit retry succeeds',async()=>{
+ let attempts=0,complete;const h=harness(undefined,()=>++attempts===1?Promise.reject(new Error('Connection interrupted')):new Promise(resolve=>{complete=resolve;}),{presentation:'mobile'});
+ h.select();const originalDirectory=nodes(h.render()).find(n=>n.type==='recipients');
+ h.button('Send').props.onClick();await new Promise(resolve=>setImmediate(resolve));
+ let tree=nodes(h.render()),directory=tree.find(n=>n.type==='recipients');
+ assert.equal(tree.find(n=>n.props.role==='alert').props.children,'Connection interrupted');
+ assert.equal(h.button('Send').props.disabled,false);assert.equal(h.button('Sent'),undefined);assert.equal(h.button('Done'),undefined);
+ assert.equal(directory.key,originalDirectory.key);assert.equal(directory.props.selectedCreatorId,'recipient');assert.equal(directory.props.disabled,false);
+ assert.equal(h.calls.some(c=>c[0]==='confirmed'),false);
+ h.button('Send').props.onClick();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.button('Sending…').props.disabled,true);assert.equal(nodes(h.render()).some(n=>n.props.role==='alert'),false);
+ assert.equal(h.calls.filter(c=>c[0]==='send').length,2);
+ complete({id:'retried-message'});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.button('Sent').props.disabled,true);assert.equal(h.calls.filter(c=>c[0]==='confirmed').length,1);
+});
+
 test('mobile Back remains available while typing and a sending error remains visible without the hidden actions',async()=>{
  const h=harness(undefined,async()=>{throw new Error('Synthetic send failure');},{presentation:'mobile'});
  h.select();h.button('Send').props.onClick();
@@ -110,6 +155,17 @@ test('WEB and inline sharing keep their actions without enabling the mobile moda
   assert.equal(h.keyboardCalls.at(-1),false);
   h.select();assert.equal(h.button('Send').props.disabled,false);
   assert.deepEqual(h.calls,[]);
+ }
+});
+
+test('WEB and inline successful sends retain their existing separate confirmation view',async()=>{
+ for(const options of [{presentation:'web'},{presentation:'mobile',inline:true},{presentation:'web',inline:true}]){
+  const h=harness(undefined,undefined,options);h.select();h.button('Send').props.onClick();await new Promise(resolve=>setImmediate(resolve));
+  const tree=nodes(h.render());
+  assert.equal(tree.find(n=>n.type==='h1').props.children,'Sent');
+  assert.equal(tree.some(n=>n.type==='recipients'),false);
+  assert.ok(tree.some(n=>n.props.className==='internal-share-feedback'&&n.props.children==='Sent in Portalink.'));
+  assert.ok(h.button('Done'));assert.equal(h.button('Sent'),undefined);
  }
 });
 
@@ -142,5 +198,12 @@ test('provider presentation and account changes close the active share without d
   if(lock){assert.equal(next.props.mobileSendLock,lock);assert.equal(lock.current,true,'The request still owns its lock after its modal was dismissed.');}
   auth.viewerProfileId='new-viewer';render();assert.equal(dialog(),undefined,'Changing account must dismiss the old recipient session.');
   render().props.value({title:'New account project',url:'https://portalink.test/new-account'});assert.equal(dialog().props.mobileSendLock,next.props.mobileSendLock);
+ }
+});
+
+
+test('recipient scroll ownership is enabled only for the non-inline MOBILE Send screen',()=>{
+ for(const options of [{presentation:'mobile',inline:false,expected:true},{presentation:'web',expected:false},{presentation:'mobile',inline:true,expected:false},{presentation:'web',inline:true,expected:false}]){
+  const h=harness(undefined,undefined,options);h.render();assert.equal(h.scrollBoundaryCalls.at(-1),options.expected);
  }
 });

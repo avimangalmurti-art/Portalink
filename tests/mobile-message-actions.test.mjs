@@ -224,6 +224,7 @@ function sheetHarness(isMine = true) {
     onClose: () => calls.push('close'), onReact: emoji => calls.push(['react', emoji]), onEdit: () => calls.push('edit'), onRequestUnsend: () => calls.push('confirm-unsend') };
   const sheetApi = compile('../src/components/messages/MobileActionSheet.tsx', {
     react: state.react,
+    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus(open, _ref, close, preventScroll) { assert.equal(open, true); assert.equal(preventScroll, true); escape = close; } },
   });

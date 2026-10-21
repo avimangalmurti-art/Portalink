@@ -12,6 +12,7 @@ type NewChatPanelProps = {
   appearance?: 'default' | 'account-search';
   showHeader?: boolean;
   selectedCreatorId?: string | null;
+  disabled?: boolean;
   onClose: () => void;
   onSelectCreator: (creatorId: string) => void;
   startingCreatorId?: string | null;
@@ -24,6 +25,7 @@ export function NewChatPanel({
   appearance = 'default',
   showHeader = true,
   selectedCreatorId,
+  disabled = false,
   onClose,
   onSelectCreator,
   startingCreatorId = null,
@@ -50,7 +52,7 @@ export function NewChatPanel({
     return [...byLetter.entries()];
   }, [auth.viewerProfileId, directory.people]);
 
-  return <div className="flex min-h-0 flex-1 flex-col" data-recipient-appearance={appearance} aria-busy={directory.status === 'loading' || Boolean(startingCreatorId)}>
+  return <div className="flex min-h-0 flex-1 flex-col" data-recipient-appearance={appearance} data-recipient-disabled={disabled || undefined} aria-busy={directory.status === 'loading' || Boolean(startingCreatorId)}>
       <div className="side-panel-control-stack side-panel-content-inset shrink-0">
       {showHeader ? <div className="side-panel-primary-control side-panel-control-row">
         <ScreenBack><button type="button" onClick={onClose} aria-label="Back to messages" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -62,7 +64,7 @@ export function NewChatPanel({
         <label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
           <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
           <span className="sr-only">Search by name or username</span>
-          <input ref={inputRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); onDismissError?.(); }} placeholder="Name or username" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+          <input ref={inputRef} type="search" disabled={disabled} value={query} onChange={(event) => { setQuery(event.target.value); onDismissError?.(); }} placeholder="Name or username" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
         </label>
       </div>
 
@@ -82,13 +84,13 @@ export function NewChatPanel({
             <h3 id={`new-chat-group-${letter === '#' ? 'other' : letter}`} className="side-panel-content-inset pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
             <ul className="side-panel-content-inset side-panel-navigation-list">
               {people.map((person) => <li key={person.id} style={selectedCreatorId === person.id ? {background:'var(--surface-selected)',borderRadius:12} : undefined}>
-                  <PersonRow selected={selectedCreatorId === person.id} selectionMode={selectedCreatorId !== undefined} person={person} isStarting={startingCreatorId === person.id} isDisabled={Boolean(startingCreatorId) || !person.id} onSelect={() => { if (person.id) onSelectCreator(person.id); }} />
+                  <PersonRow selected={selectedCreatorId === person.id} selectionMode={selectedCreatorId !== undefined} person={person} isStarting={startingCreatorId === person.id} isDisabled={disabled || Boolean(startingCreatorId) || !person.id} onSelect={() => { if (person.id) onSelectCreator(person.id); }} />
                 </li>)}
             </ul>
           </section>)}
 
         {directory.hasMore ? <div className="side-panel-content-inset pt-4">
-            <button type="button" disabled={directory.status === 'loading'} onClick={() => void directory.loadMore()} className="side-panel-primary-control w-full justify-center px-3 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
+            <button type="button" disabled={disabled || directory.status === 'loading'} onClick={() => void directory.loadMore()} className="side-panel-primary-control w-full justify-center px-3 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
               {directory.status === 'loading' ? 'Loading…' : 'Show more creators'}
             </button>
           </div> : null}

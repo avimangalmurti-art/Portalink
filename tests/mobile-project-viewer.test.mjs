@@ -13,6 +13,11 @@ const MobileProjectPageCounter = () => null;
 const FollowContentInfoPopup = () => null;
 const MobileVideoSequence = () => null;
 const MobileVideoFrame = () => null;
+const ownerActionsExports = {};
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/MobileProjectPopup.tsx', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
+}).outputText, { exports: ownerActionsExports, require: name => name === 'react' ? React : {} });
+const ProjectPopupOwnerActions = ownerActionsExports.ProjectPopupOwnerActions;
 function nodes(node) {
   if (!React.isValidElement(node)) return [];
   const children = typeof node.props.children === 'function' ? node.props.children(node.props.onClose) : node.props.children;
@@ -61,6 +66,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name.endsWith('/EngagementBar')) return { EngagementBar, EngagementFeedback };
     if (name.endsWith('/CommentThreadView')) return { CommentThreadView };
     if (name.endsWith('/FollowContentInfoPopup')) return { FollowContentInfoPopup };
+    if (name.endsWith('/MobileProjectPopup')) return { ProjectPopupOwnerActions };
     if (name.endsWith('/MediaCommentsPopover')) return { MediaCommentsPopover };
     if (name.endsWith('/useNavigationOutsideTap')) return { useNavigationOutsideTap: (open, layer, onClose) => {
       outsideCalls.push({ open, layer, onClose });
@@ -931,19 +937,20 @@ test('mobile reader restores density independently for each project and document
   assert.equal(counter(render()).props.density.value, 3);
 });
 
-test('information dismissal never opens options; intentional three-dot handoff closes information and preserves the page', () => {
+test('project information opens directly and dismissal preserves the selected attachment without an options handoff', () => {
  const h=harness();
  button(h.render(),'second, Video').props.onClick();
  button(h.render(),'Show project description').props.onClick();
  nodes(h.render()).find(node=>node.type===FollowContentInfoPopup).props.onClose();
  assert.equal(h.optionCalls.length,0);
  assert.equal(nodes(h.render()).some(node=>node.type===FollowContentInfoPopup),false);
- button(h.render(),'Show project description').props.onClick();
- nodes(h.render()).find(node=>node.type===FollowContentInfoPopup).props.onOptions();
+ h.screenActions.at(-1).onOpen();
+ const info=nodes(h.render()).find(node=>node.type===FollowContentInfoPopup);
+ assert.ok(info);assert.equal(info.props.onOptions,undefined,'The information card cannot open the retired generic options screen');
+ info.props.onClose();
  const tree=h.render();
  assert.equal(nodes(tree).some(node=>node.type===FollowContentInfoPopup),false);
- assert.equal(h.optionCalls.length,1);
- assert.equal(h.optionCalls[0].title,'Work');
+ assert.equal(h.optionCalls.length,0);
  assert.equal(nodes(tree).find(node=>node.type===AttachmentRenderer).props.attachment.id,'second');
 });
 
@@ -952,7 +959,7 @@ test('owner and visitor readers retain bottom portal, information and creator co
  const props={isOwner:true,creator:{id:'creator-id',name:'Creator',avatar:''}};
  let tree=h.render(props);
  const controls=nodes(tree).find(n=>n.props.className==='mobile-content-action-bar'); assert.ok(controls); assert.equal(nodes(controls).filter(n=>n.type==='button').length,3);
- const screen=h.screenActions.at(-1); assert.equal(screen.onOpen,undefined);
+ const screen=h.screenActions.at(-1); assert.equal(typeof screen.onOpen,'function');
  const actions=[...screen.model.primary,...screen.model.groups.flat()];
  for(const id of ['list','projectInfo','viewProfile'])assert.ok(actions.some(a=>a.id===id));
  actions.find(a=>a.id==='list').run();assert.ok(withProp(h.render(props),'data-project-index-panel'));
@@ -962,4 +969,30 @@ test('owner and visitor readers retain bottom portal, information and creator co
  const visitor=harness({mediaKind:'image',readOnlyShare:true});const publicTree=visitor.render(props);
  assert.ok(nodes(publicTree).some(n=>n.props.className==='mobile-content-action-bar'));
  assert.equal(typeof visitor.screenActions.at(-1).onOpen,'function');
+});
+
+test('owner information offers only Edit project and Delete project through the existing editor and confirmation',()=>{
+ for(const command of ['edit','delete']){
+  const calls=[],h=harness({mediaKind:'image'}),props={isOwner:true,creator:{id:'creator-id',name:'Creator',avatar:''},
+   descriptionEditor:{open:id=>calls.push(['edit',id])},onDeleteProject:()=>calls.push(['delete'])};
+  h.render(props);h.screenActions.at(-1).onOpen();
+  const info=nodes(h.render(props)).find(node=>node.type===FollowContentInfoPopup);
+  assert.ok(info);assert.equal(info.props.onOptions,undefined);
+  assert.equal(info.props.optionsContent.type,ProjectPopupOwnerActions);
+  const controls=info.props.optionsContent.props;
+  assert.equal(controls.onOptions,undefined);
+  const buttons=nodes(ProjectPopupOwnerActions(controls)).filter(node=>node.type==='button');
+  assert.deepEqual(buttons.map(node=>node.props.children),['Edit project','Delete project']);
+  assert.equal(buttons[0].props['data-destructive'],undefined);assert.equal(buttons[1].props['data-destructive'],true);
+  const label=command==='edit'?'Edit project':'Delete project';
+  buttons.find(node=>node.props.children===label).props.onClick();
+  assert.deepEqual(calls,command==='edit'?[['edit','project']]:[['delete']]);
+  assert.equal(nodes(h.render(props)).some(node=>node.type===FollowContentInfoPopup),false);
+  assert.equal(h.optionCalls.length,0);
+ }
+ const visitor=harness({readOnlyShare:true,mediaKind:'image'});
+ visitor.render({isOwner:false,descriptionEditor:{open(){assert.fail('Visitor cannot edit');}},onDeleteProject(){assert.fail('Visitor cannot delete');}});
+ visitor.screenActions.at(-1).onOpen();
+ const popup=nodes(visitor.render()).find(node=>node.type===FollowContentInfoPopup);
+ assert.equal(popup.props.onOptions,undefined);assert.equal(popup.props.optionsContent,undefined);
 });

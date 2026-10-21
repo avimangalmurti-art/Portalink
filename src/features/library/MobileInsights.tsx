@@ -37,19 +37,24 @@ export function MobileInsights({ saves }: { saves: SavesState }) {
   const [showAll, setShowAll] = useState(false);
   const rows = state.data ?? [];
   const activeMetric = metrics.find(item => item.key === metric) ?? metrics[0];
-  const total = rows.reduce((sum, row) => sum + row[metric], 0);
+  const totals = rows.reduce((sum, row) => ({ opened: sum.opened + row.opened, finished: sum.finished + row.finished, saved: sum.saved + row.saved }), { opened: 0, finished: 0, saved: 0 });
+  const headlines: Record<Metric, string> = {
+    opened: `${totals.opened.toLocaleString()} project opens · ${periodLabel}`,
+    finished: `${totals.finished.toLocaleString()} completed reads · ${periodLabel}`,
+    saved: `${totals.saved.toLocaleString()} current page saves`,
+  };
   const ranked = [...rows].sort((a, b) => b[metric] - a[metric] || a.title.localeCompare(b.title));
   const chartRows = ranked.slice(0, 8);
   const maximum = Math.max(1, ...chartRows.map(row => row[metric]));
   const refRows = sources.map(([key, label]) => ({ key, label, count: rows.reduce((sum, row) => sum + (row.refs[key] ?? 0), 0) })).filter(row => Number.isFinite(row.count) && row.count > 0).sort((a, b) => b.count - a.count);
   const openProject = (id: string) => navigate(`/insights?project=${encodeURIComponent(id)}&period=${period}`);
   const refresh = () => { state.retry(); covers.retry(); saves.retry(); };
-  return <div className="mobile-insights-content">
+  return <div className="mobile-insights-content" data-insights-metric={metric}>
     <div className="mobile-insights-period"><select aria-label="Insights period" value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select><button type="button" onClick={refresh} disabled={state.loading || state.refreshing || saves.loading || saves.refreshing}>Refresh</button></div>
     {state.loading ? <LoadingState kind="insights" label="Loading insights" /> : state.error ? <ErrorState title="Unable to load reads" description={state.error} onRetry={state.retry} /> : <>
-      <h2 className="mobile-insights-headline">{total.toLocaleString()} {metric === 'opened' ? 'project opens' : metric === 'finished' ? 'completed reads' : 'current page saves'}{metric !== 'saved' && ` · ${periodLabel}`}</h2>
+      <h2 className="mobile-insights-headline">{metrics.map(item => <span key={item.key} aria-hidden={metric !== item.key || undefined}>{headlines[item.key]}</span>)}</h2>
       <div className="mobile-insights-metrics" role="group" aria-label="Insight metric">
-        {metrics.map(item => <button type="button" key={item.key} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" /><span>{rows.reduce((sum, row) => sum + row[item.key], 0).toLocaleString()} {item.label.toLowerCase()}</span></button>)}
+        {metrics.map(item => <button type="button" key={item.key} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" /><span>{totals[item.key].toLocaleString()} {item.label.toLowerCase()}</span></button>)}
       </div>
       <div className="mobile-insights-chart-caption"><strong>By project</strong><span>{metric === 'saved' ? 'Current totals' : periodLabel}</span></div>
       {chartRows.length ? <div className="mobile-insights-chart" role="group" aria-label={`${activeMetric.label} by project`}>

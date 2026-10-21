@@ -22,7 +22,7 @@ type PageProgress = {
 };
 
 /** Private Studio presentation over the same account collections as Saved/Inbox. */
-export function useStudioData(category: StudioCategory = 'bookmarks', tab: StudioBookmarkTab = 'projects') {
+export function useStudioData(category: StudioCategory = 'bookmarks', tab: StudioBookmarkTab = 'projects', { mobileActivity = false }: { mobileActivity?: boolean } = {}) {
   const auth = useAuth();
   const account = auth.user?.id ?? null;
   const services = useServices();
@@ -36,7 +36,7 @@ export function useStudioData(category: StudioCategory = 'bookmarks', tab: Studi
   const creators = useAccountQuery(creatorsQuery);
   const pages = useAccountQuery(pagesQuery);
   const savedProjects = useActivityCollection('save', auth.isAuthenticated);
-  const activity = useNotifications();
+  const activity = useNotifications({ mobileContinuity: mobileActivity });
 
   const scope = useMemo(() => ({ account, services, removed: new Set<string>(), pending: new Set<string>(), error: null as string | null }), [account, services]);
   const scopeRef = useRef(scope);
@@ -74,7 +74,8 @@ export function useStudioData(category: StudioCategory = 'bookmarks', tab: Studi
   const status = error ? 'error' as const : checks.some(check => check.loading) ? 'loading' as const : 'ready' as const;
   const times = checks.flatMap(check => check.at === null ? [] : [check.at]);
   // Never imply that a failed or not-yet-completed request refreshed this screen.
-  const updatedAt = status === 'ready' && times.length ? Math.min(...times) : null;
+  const activityRefreshing = mobileActivity && category === 'activity' && activity.isRefreshing;
+  const updatedAt = status === 'ready' && !activityRefreshing && times.length ? Math.min(...times) : null;
 
   async function loadMore() {
     const base = pages.data;
@@ -127,13 +128,14 @@ export function useStudioData(category: StudioCategory = 'bookmarks', tab: Studi
 
   function refresh() {
     if (!isCurrent() || scope.pending.size) return;
+    if (mobileActivity && category === 'activity') return activity.refresh();
     scope.removed.clear(); scope.error = null; pageFlight.current = null; setPageProgress(null);
     published.retry(); creators.retry(); pages.retry(); savedProjects.retry(); activity.retry();
   }
 
   const showsPages = category === 'bookmarks' && tab === 'pages';
   return {
-    rows, sections, status, error, refresh, updatedAt,
+    rows, sections, status, error, refresh, updatedAt, activityRefreshing,
     hasMore: showsPages && Boolean(pageBatch?.nextCursor), loadMore,
     loadingMore: showsPages && Boolean(currentPages?.loading), loadMoreError: showsPages ? currentPages?.error ?? null : null,
     pendingIds: new Set([...scope.pending, ...[...activity.pendingIds].map(id => `activity:${id}`)]),

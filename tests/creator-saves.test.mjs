@@ -160,6 +160,45 @@ test('a creator-save failure from the context sheet propagates to its visible no
   await assert.rejects(model.handlers.saveCreator(), /Offline/);
 });
 
+test('opting out of creator-save screen actions preserves direct confirmed saving, duplicate guards and guest authentication', async () => {
+  for (const registerScreenActions of [undefined, false]) {
+    const slots = [], calls = [], requests = []; let cursor = 0, model, complete;
+    const auth = { user: { id: 'account' }, isAuthenticated: true, viewerProfileId: 'viewer', requestAuth: kind => requests.push(kind) };
+    const react = { ...React,
+      useState(initial) { const i = cursor++; slots[i] ??= { value: initial }; return [slots[i].value, next => { slots[i].value = typeof next === 'function' ? next(slots[i].value) : next; }]; },
+      useRef(initial) { return slots[cursor++] ??= { current: initial }; }, useEffect() {}, useCallback: callback => callback,
+    };
+    const { CreatorSaveButton } = load('../src/features/library/CreatorSaveButton.tsx', {
+      react, 'lucide-react': icons,
+      '../../contexts/AuthContext': { useAuth: () => auth },
+      '../../contexts/ServicesContext': { useServices: () => ({ creatorSaves: { setCreatorSave(...args) { calls.push(args); return new Promise(resolve => { complete = resolve; }); } } }) },
+      '../../components/ui/InterfaceIcon': { InterfaceIcon: 'InterfaceIcon' },
+      '../../presentation/mobile/MobileContextActions': { useMobileScreenActions(value) { model = value; } },
+      '../../presentation/mobile/contextActions': { contextActions: (_kind, _viewer, target) => target },
+      './useAccountQuery': { useAccountQuery: () => ({ data: false, loading: false }) },
+    });
+    const render = () => {
+      cursor = 0; model = undefined;
+      const control = CreatorSaveButton({ profileId: 'creator', name: 'Creator', registerScreenActions });
+      return control.type(control.props);
+    };
+    const button = tree => profileNodes(tree).find(node => node.type === 'button');
+    let tree = render();
+    if (registerScreenActions === false) assert.equal(model, null);
+    else assert.ok(model.handlers.saveCreator, 'Existing callers keep their context action by default');
+    assert.equal(button(tree).props['aria-label'], 'Save Creator'); assert.equal(button(tree).props['aria-pressed'], false);
+    button(tree).props.onClick(); button(tree).props.onClick();
+    assert.deepEqual(calls, [['creator', true]], 'Two direct presses cannot create duplicate writes');
+    tree = render(); assert.equal(button(tree).props.disabled, true); assert.equal(button(tree).props['aria-pressed'], false);
+    complete(true); for (let i = 0; i < 5; i++) await Promise.resolve(); tree = render();
+    assert.equal(button(tree).props.disabled, false); assert.equal(button(tree).props['aria-label'], 'Unsave Creator'); assert.equal(button(tree).props['aria-pressed'], true);
+    if (registerScreenActions === false) assert.equal(model, null);
+    else assert.equal(model.labels.saveCreator, 'Unsave creator');
+    auth.isAuthenticated = false; auth.user = null; tree = render(); button(tree).props.onClick();
+    assert.deepEqual(requests, ['signIn']); assert.equal(calls.length, 1, 'The opt-out cannot bypass authentication');
+  }
+});
+
 const profileNodes = tree => !React.isValidElement(tree) ? [] : [tree,
   ...(tree.type?.name === 'ProfileIdentityAndLinks' ? profileNodes(tree.type(tree.props)) : []),
   ...React.Children.toArray(tree.props.children).flatMap(profileNodes)];
@@ -250,24 +289,30 @@ for (const presentation of ['mobile', 'web']) {
       const initial = h.nodes().find(node => node.props['data-profile-follow'] !== undefined);
       assert.ok(initial); assert.equal(initial.props.onClick, h.follow.onToggle);
       const label = initial.props['aria-label'], selected = initial.props['aria-pressed'];
-      assert.equal(h.model.target.handlers.follow, h.follow.onToggle);
+      if (presentation === 'mobile') { assert.equal(h.model, null); assert.equal(h.pressModel, null); }
+      else assert.equal(h.model.target.handlers.follow, h.follow.onToggle);
       assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/);
-      assert.ok(h.bookmarkModel.target.handlers.saveCreator);
+      if (presentation === 'mobile') assert.equal(h.bookmarkModel, null);
+      else assert.ok(h.bookmarkModel.target.handlers.saveCreator);
       h.select('journey');
       assert.ok(h.nodes().some(node => node.type === 'JourneyView'));
       assert.equal(h.nodes().some(node => node.props['data-profile-follow'] !== undefined), false);
       assert.equal(h.nodes().some(node => node.props.id === 'profile-navigation-tools'), false);
-      assert.equal(h.model.target.handlers.follow, undefined);
-      assert.equal([...h.model.primary, ...h.model.groups.flat()].some(action => ['follow', 'saveCreator'].includes(action.id)), false);
-      assert.deepEqual([...h.model.primary, ...h.model.groups.flat()].map(action => action.id), ['share', 'copy'], 'Public Timeline keeps its allowed Share and Copy actions.');
+      if (presentation === 'mobile') assert.equal(h.model, null);
+      else {
+        assert.equal(h.model.target.handlers.follow, undefined);
+        assert.equal([...h.model.primary, ...h.model.groups.flat()].some(action => ['follow', 'saveCreator'].includes(action.id)), false);
+        assert.deepEqual([...h.model.primary, ...h.model.groups.flat()].map(action => action.id), ['share', 'copy'], 'WEB public Timeline keeps its allowed Share and Copy actions.');
+      }
       assert.equal(h.pressModel, h.model);
       assert.equal(h.bookmarkHtml, ''); assert.equal(h.bookmarkModel, undefined, 'An absent CreatorSaveButton cannot register a save action.');
       if (presentation === 'web') assert.equal(h.button('Profile options'), undefined);
       h.select('portfolio'); h.openTools();
       const restored = h.nodes().find(node => node.props['data-profile-follow'] !== undefined);
       assert.equal(restored.props['aria-label'], label); assert.equal(restored.props['aria-pressed'], selected); assert.equal(restored.props.onClick, h.follow.onToggle);
-      assert.equal(h.model.target.handlers.follow, h.follow.onToggle);
-      assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/); assert.ok(h.bookmarkModel.target.handlers.saveCreator);
+      if (presentation === 'mobile') { assert.equal(h.model, null); assert.equal(h.bookmarkModel, null); }
+      else { assert.equal(h.model.target.handlers.follow, h.follow.onToggle); assert.ok(h.bookmarkModel.target.handlers.saveCreator); }
+      assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/);
       assert.deepEqual(h.mutations, [], 'Switching views changes no confirmed follow or bookmark state.');
     }
   });
@@ -278,7 +323,8 @@ for (const presentation of ['mobile', 'web']) {
     assert.match(h.bookmarkHtml, /data-profile-bookmark/);
     h.select('journey');
     assert.equal(h.button('Sign in to follow'), undefined); assert.equal(h.bookmarkHtml, ''); assert.equal(h.bookmarkModel, undefined);
-    assert.equal(h.model.target.handlers.follow, undefined);
+    if (presentation === 'mobile') assert.equal(h.model, null);
+    else assert.equal(h.model.target.handlers.follow, undefined);
     assert.deepEqual(h.requests, []);
     h.select('portfolio'); h.openTools(); h.button('Sign in to follow').props.onClick();
     assert.deepEqual(h.requests, ['follow-sign-in']);
@@ -294,10 +340,11 @@ for (const presentation of ['mobile', 'web']) {
       assert.equal(h.bookmarkModel, undefined); assert.equal(h.bookmarkHtml, '');
       assert.equal(h.nodes().some(node => node.type === 'mobile-actions'), false);
       assert.equal(h.button('Profile options'), undefined);
-      if (presentation === 'mobile') assert.ok(h.nodes().some(node => node.props['data-inline-screen-actions'] !== undefined), 'The inline ownership marker keeps the shell from supplying a floating substitute.');
+      if (presentation === 'mobile') assert.equal(h.nodes().some(node => node.props['data-inline-screen-actions'] !== undefined), false, 'No empty options wrapper remains on another creator profile');
       h.select('portfolio'); h.openTools();
       assert.match(h.bookmarkHtml, /data-profile-bookmark/);
-      if (viewerRole === 'visitor') assert.equal(h.model.target.handlers.follow, h.follow.onToggle);
+      if (viewerRole === 'visitor' && presentation === 'web') assert.equal(h.model.target.handlers.follow, h.follow.onToggle);
+      else if (viewerRole === 'visitor') assert.equal(h.model, null);
       else assert.ok(h.button('Sign in to follow'));
       assert.deepEqual(h.mutations, []); assert.deepEqual(h.requests, []);
     }
@@ -307,20 +354,25 @@ for (const presentation of ['mobile', 'web']) {
     for (const followState of [{ isResolving: true }, { isPending: true }, { resolveError: 'Follow unavailable' }]) {
       const h = timelineActionsHarness(presentation, 'visitor', followState, { isPrivate: true });
       h.render(); h.openTools();
-      assert.ok(h.model, 'Portfolio keeps the main registration even when Follow cannot currently be offered.');
-      assert.equal(h.model.target.handlers.follow, undefined);
-      assert.equal(h.pressModel, h.model);
       assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/);
-      const model = h.screenActions(), available = [...model.primary, ...model.groups.flat()];
-      assert.deepEqual(available.map(action => action.id), ['saveCreator']);
-      assert.equal(available[0].label, 'Unsave creator');
-      assert.equal(available[0].run, h.bookmarkModel.target.handlers.saveCreator, 'The existing independent bookmark registration remains reachable.');
-      if (presentation === 'mobile') assert.ok(h.nodes().some(node => node.type === 'mobile-actions'));
-      else assert.ok(h.button('Profile options'));
+      if (presentation === 'mobile') {
+        assert.equal(h.model, null); assert.equal(h.pressModel, null); assert.equal(h.bookmarkModel, null);
+        assert.equal(h.nodes().some(node => node.type === 'mobile-actions'), false);
+        assert.equal(h.button('Profile options'), undefined);
+      } else {
+        assert.ok(h.model, 'WEB Portfolio keeps the main registration even when Follow cannot currently be offered.');
+        assert.equal(h.model.target.handlers.follow, undefined); assert.equal(h.pressModel, h.model);
+        const model = h.screenActions(), available = [...model.primary, ...model.groups.flat()];
+        assert.deepEqual(available.map(action => action.id), ['saveCreator']);
+        assert.equal(available[0].label, 'Unsave creator');
+        assert.equal(available[0].run, h.bookmarkModel.target.handlers.saveCreator, 'The existing independent WEB bookmark registration remains reachable.');
+        assert.ok(h.button('Profile options'));
+      }
       h.select('journey');
       assert.equal(h.model, null); assert.equal(h.pressModel, null); assert.equal(h.bookmarkModel, undefined);
       h.select('portfolio'); h.openTools();
-      assert.equal(h.screenActions().primary[0].id, 'saveCreator');
+      if (presentation === 'mobile') { assert.equal(h.model, null); assert.equal(h.bookmarkModel, null); assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/); }
+      else assert.equal(h.screenActions().primary[0].id, 'saveCreator');
       assert.deepEqual(h.mutations, []); assert.deepEqual(h.requests, []);
     }
   });

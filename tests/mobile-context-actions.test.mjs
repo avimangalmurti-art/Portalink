@@ -105,6 +105,7 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,mod
  }};
  const {MobileActionSheet}=compile('../src/components/messages/MobileActionSheet.tsx',{
   react,
+  '../../presentation/usePresentation':{usePresentation:()=> 'mobile'},
   '../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close(after,scope){motions.push({immediate:typeof after==='function',scope});if(after)after();else onClose();}})},
   '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:viewport})},
   '../../hooks/useModalFocus':{useModalFocus:(open,_ref,onClose,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=onClose;}},
@@ -357,7 +358,7 @@ test('provider re-resolves capabilities and restores context focus before handin
  const same=(a,b)=>a&&b&&a.length===b.length&&a.every((v,i)=>v===b[i]);
  const react={...React,useRef(value){return slots[cursor++]??={current:value};},useState(value){const i=cursor++;slots[i]??={value:typeof value==='function'?value():value};return[slots[i].value,next=>{slots[i].value=typeof next==='function'?next(slots[i].value):next;}];},useCallback:fn=>fn,useEffect(fn,deps){const i=cursor++;if(!same(slots[i]?.deps,deps)){slots[i]={deps};effects.push(fn);}}};
  const button={getClientRects:()=>[{}],focus:()=>calls.push('focus')};
- const {MobileContextProvider}=compile('../src/presentation/mobile/MobileContextActions.tsx',{
+ const {MobileContextProvider,MobileContextButton}=compile('../src/presentation/mobile/MobileContextActions.tsx',{
   react,'react-dom':{flushSync:fn=>fn()},'react-router-dom':{useLocation:()=>location},
   '../../contexts/AuthContext':{useAuth:()=>({user:{id:account}})},'../usePresentation':{usePresentation:()=> 'mobile'},
   './contextFocus':{focusMobileContextButton:()=>{button.focus();return button;}},'./contextActions':{mergeContextActions},'../../components/messages/MobileActionSheet':{MobileActionSheet:'sheet'},
@@ -374,19 +375,30 @@ test('provider re-resolves capabilities and restores context focus before handin
  nodes(tree).find(n=>n.type==='sheet').props.onClose();
  assert.equal(nodes(render()).some(n=>n.type==='sheet'),false,'Ordinary Actions dismissal releases provider state before returning');
  assert.equal(calls.at(-1),'focus','The contextual opener regains focus without an animation wait');
- let object=contextActions('project',{signedIn:true},{handlers:{saveProject:()=>{}},labels:{saveProject:'Save project'}});
+ let object=contextActions('profile',{signedIn:true},{handlers:{saveCreator:()=>calls.push('save-creator')},labels:{saveCreator:'Save creator'}});
  const source=()=>object; tree=render();tree.props.value.open(source);tree=render();
- object=contextActions('project',{signedIn:true},{handlers:{saveProject:()=>{}},labels:{saveProject:'Unsave project'}});
- tree.props.value.refresh(source);tree=render();assert.equal(nodes(tree).find(n=>n.type==='sheet').props.model.primary[0].label,'Unsave project');
+ object=contextActions('profile',{signedIn:true},{handlers:{saveCreator:()=>calls.push('save-creator')},labels:{saveCreator:'Unsave creator'}});
+ tree.props.value.refresh(source);tree=render();assert.equal(nodes(tree).find(n=>n.type==='sheet').props.model.primary[0].label,'Unsave creator');
  tree=render();tree.props.value.open();account='another';tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),false);
  location={pathname:'/studio',search:''};tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),false);
- tree.props.value.register('project',{route:'/studio',priority:20,model:object,onOpen:()=>calls.push('project-popup')});
+ const retired=contextActions('project',{signedIn:true,owner:true},{handlers:{edit:()=>calls.push('obsolete-edit'),delete:()=>calls.push('obsolete-delete')}});
+ tree.props.value.register('fallback',{route:'/studio',priority:0,model:object});
+ tree.props.value.register('project',{route:'/studio',priority:20,model:retired,onOpen:()=>calls.push('project-popup')});
  tree=render();tree.props.value.open();tree=render();
  assert.equal(calls.at(-1),'project-popup');assert.equal(nodes(tree).some(n=>n.type==='sheet'),false);
- tree.props.value.open(object);tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),true,'Explicit project options remain available');
+ const beforeBlocked=calls.length;
+ tree.props.value.open(retired);tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),false,'Explicit obsolete project options cannot reopen the retired screen');
+ assert.equal(calls.length,beforeBlocked,'A blocked obsolete request must not steal focus');
+ tree.props.value.open(()=>retired);tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),false,'An explicit project source is blocked too');
+ tree.props.value.open(source);tree=render();const stale=nodes(tree).find(n=>n.type==='sheet');assert.ok(stale);
+ object=retired;tree.props.value.refresh(source);tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),false,'A live source that changes to a project model cannot revive the retired screen or fall through to another registration');
+ stale.props.onAction(stale.props.model.primary[0]);assert.equal(calls.includes('save-creator'),false,'A stale button must re-resolve capabilities and do nothing');
  tree.props.value.open();tree=render();
  assert.equal(calls.at(-1),'project-popup');
  assert.equal(nodes(tree).some(n=>n.type==='sheet'),false,'Opening information clears the prior options sheet instead of hiding it underneath');
+ tree.props.value.register('project',{route:'/studio',priority:20,model:retired});tree=render();
+ assert.equal(nodes(tree).some(n=>n.type===MobileContextButton&&n.props.floating),false,'A retired project model without a direct details opener must not leave an empty floating trigger');
+ tree.props.value.open();tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),false,'An implicit obsolete project registration cannot expose its own or a lower-priority fallback sheet');
 
 });
 
@@ -407,30 +419,49 @@ test('held object refresh updates Save labels and leaves WEB scroll listeners un
  cleanup();assert.equal(listeners.size,0);mobile=false;press=render();assert.equal(Object.keys(press).length,0);assert.equal(listeners.size,0);
 });
 
-test('project holds resolve engagement only on demand, use shared capabilities and refresh the same object source', async () => {
- let requested=false, latest, onOpen, shared=false;
- const sent=[],copied=[];
- const record={isSaved:true}; let resolved=false;
- const {useMobileProjectContext}=compile('../src/presentation/mobile/useMobileProjectContext.ts',{
-  '../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},
-  '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>target=>sent.push(target)},
-  '../../utils/copyPublicLink':{copyPublicLink:async url=>copied.push(url)},
-  react:{useState:()=>[requested,next=>{requested=next;}]},
-  '../../features/sharing/shareModel':{isPublicSharePath:path=>path.startsWith('/share/')},
-  'react-router-dom':{useNavigate:()=>()=>{},useLocation:()=>({pathname:shared?'/share/creator':'/p/creator',search:''})},
-  '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:true,viewerProfileId:'other'})},
-  '../../features/engagement/useProjectEngagement':{useProjectEngagement:id=>{assert.equal(id,requested?'work':null);return{record:resolved?record:null,isEngaged:()=>resolved,isPending:()=>false,toggle(){}};}},
-  './MobileContextActions':{useMobileContextPress:(model,_screen,open)=>{latest=model;onOpen=open;return{};}},
-  './contextActions':{contextActions},'../../app/routes':{buildPath:()=>'/share/creator/c/portal/work'},
- },{URL,window:{location:{origin:'https://portalink.test'}}});
- const render=()=>useMobileProjectContext({id:'work',categoryId:'portal',title:'Work'},'creator');
- render();assert.ok(!ids(latest).includes('saveProject'));onOpen();render();assert.ok(!ids(latest).includes('saveProject'));
- resolved=true;render();assert.equal(latest.primary.find(a=>a.id==='saveProject').label,'Unsave project');
- shared=true;render();assert.deepEqual(Array.from(ids(latest)),['share','copy']);
- const actions=[...latest.primary,...latest.groups.flat()];
- actions.find(action=>action.id==='share').run();await actions.find(action=>action.id==='copy').run();
- assert.equal(sent[0].url,'https://portalinknetworks.com/share/creator/c/portal/work');
- assert.deepEqual(copied,['https://portalinknetworks.com/share/creator/c/portal/work']);
+function contextPressHarness() {
+ const slots=[],timers=new Map(),listeners=new Map(),calls=[];let cursor=0,effects=[],timerId=0,mobile=true;
+ const same=(a,b)=>a&&b&&a.length===b.length&&a.every((v,i)=>Object.is(v,b[i]));
+ const actions={open:source=>calls.push(['open',source]),refresh:source=>calls.push(['refresh',source])};
+ const effect=(fn,deps)=>{const i=cursor++,prior=slots[i];if(!same(prior?.deps,deps)){slots[i]={deps};effects.push(()=>{prior?.cleanup?.();slots[i].cleanup=fn();});}};
+ const react={...React,useContext:()=>actions,useRef:value=>slots[cursor++]??={current:value},useEffect:effect,useLayoutEffect:effect};
+ const {useMobileContextPress}=compile('../src/presentation/mobile/MobileContextActions.tsx',{
+  react,'../usePresentation':{usePresentation:()=>mobile?'mobile':'web'},
+ },{window:{addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:(name,fn)=>{if(listeners.get(name)===fn)listeners.delete(name);}},Element:class{},
+  setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id)});
+ return {timers,listeners,calls,setMobile:value=>{mobile=value;},
+  render(model,useScreen=false,onOpen=()=>calls.push(['details'])){cursor=0;effects=[];const press=useMobileContextPress(model,useScreen,onOpen);for(const fn of effects)fn();return press;},
+  expire(){const pending=[...timers.values()];timers.clear();pending.forEach(fn=>fn());},
+  dispose(){for(const slot of slots)slot?.cleanup?.();},
+ };
+}
+
+test('retired project holds are rejected before timers, scroll listeners or click consumption exist',()=>{
+ for(const useScreen of [false,true])for(const owner of [false,true]){
+  const h=contextPressHarness(),model=contextActions('project',{signedIn:true,owner},{handlers:{edit(){},share(){},delete(){}}});
+  const press=h.render(model,useScreen);assert.deepEqual(Object.keys(press),[]);
+  assert.equal(h.timers.size,0);assert.equal(h.listeners.size,0);h.expire();
+  assert.equal(h.calls.some(call=>call[0]==='open'||call[0]==='details'),false);
+  h.dispose();
+ }
+});
+
+test('profile and current-page shared holds remain usable, while switching to a retired project cannot swallow a card tap',()=>{
+ const h=contextPressHarness(),pointer={isPrimary:true,button:0,pointerId:1,clientX:100,clientY:100,target:{}};
+ const profile=contextActions('profile',{signedIn:true},{handlers:{share(){}}});
+ let press=h.render(profile);press.onPointerDownCapture(pointer);assert.equal(h.timers.size,1);h.expire();
+ assert.equal(h.calls.filter(call=>call[0]==='open').length,1);
+ const source=h.calls.find(call=>call[0]==='open')[1];assert.equal(source().kind,'profile');
+ press=h.render(contextActions('project',{signedIn:true,owner:true},{handlers:{edit(){},delete(){}}}));
+ assert.deepEqual(Object.keys(press),[]);assert.equal(h.listeners.size,0);assert.equal(h.timers.size,0);
+ assert.equal(press.onClickCapture,undefined,'The ordinary project tap keeps native activation instead of consuming a former hold');
+ const shared=contextActions('shared',{signedIn:false},{handlers:{savePage(){},cite(){},comment(){}}});
+ press=h.render(shared);press.onPointerDownCapture(pointer);h.expire();
+ assert.equal(h.calls.filter(call=>call[0]==='open').length,2);
+ assert.equal(h.calls.filter(call=>call[0]==='open').at(-1)[1]().kind,'shared');
+ const click={detail:1,preventDefault(){this.prevented=true;},stopPropagation(){this.stopped=true;}};
+ press.onClickCapture(click);assert.equal(click.prevented,true,'An allowed hold still consumes only its own follow-up click');
+ h.dispose();h.setMobile(false);press=h.render(profile);assert.deepEqual(Object.keys(press),[]);assert.equal(h.listeners.size,0);
 });
 
 test('shared project and collaboration actions emit official links while retaining public state', async () => {
@@ -522,6 +553,40 @@ test('retained profile actions do not render a second ellipsis over the active s
   assert.equal(actions.MobileContextButton({ floating: true }), null);
   active = true;
   assert.notEqual(actions.MobileContextButton({}), null);
+});
+
+test('App suppresses fallback actions only for ordinary mobile other-creator profiles and keeps shared, owner, reader and WEB branches', () => {
+  const source = ts.createSourceFile('App.tsx', read('../src/App.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let fallback;
+  function visit(node) {
+    if (ts.isConditionalExpression(node) && node.whenTrue.kind === ts.SyntaxKind.NullKeyword
+      && ts.isJsxSelfClosingElement(node.whenFalse) && node.whenFalse.tagName.getText(source) === 'MobileScreenActions') fallback = node;
+    ts.forEachChild(node, visit);
+  }
+  visit(source); assert.ok(fallback, 'The application retains its explicit fallback selection');
+  const shared = fallback.parent;
+  assert.ok(ts.isConditionalExpression(shared) && shared.whenFalse === fallback);
+  assert.ok(ts.isJsxSelfClosingElement(shared.whenTrue));
+  assert.equal(shared.whenTrue.tagName.getText(source), 'SharedContextActions', 'Public shared actions take precedence over the ordinary screen gate');
+  const base = { isSharedRoute: false, presentation: 'mobile', route: { kind: 'profile' }, isOwnerMode: false,
+    isSearchOpen: false, isMessagesOpen: false, isMobileStudioOpen: false, activeProjectId: null };
+  const branch = changes => {
+    const context = { ...base, ...changes };
+    if (vm.runInNewContext(shared.condition.getText(source), context)) return 'shared';
+    return vm.runInNewContext(fallback.condition.getText(source), context) ? null : 'ordinary';
+  };
+  assert.equal(branch({}), null);
+  for (const changes of [
+    { isOwnerMode: true }, { presentation: 'web' },
+    { route: { kind: 'category' } }, { route: { kind: 'category' }, activeProjectId: 'project' },
+    { route: { kind: 'studio' }, isMobileStudioOpen: true },
+    { route: { kind: 'search' }, isSearchOpen: true }, { route: { kind: 'messages' }, isMessagesOpen: true },
+    { route: { kind: 'portalink', locationId: 'city' } }, { route: { kind: 'home' }, activeProjectId: 'project' },
+  ]) assert.equal(branch(changes), 'ordinary', JSON.stringify(changes));
+  for (const changes of [{ route: { kind: 'home' } }, { route: { kind: 'portalink', locationId: null } }]) assert.equal(branch(changes), null);
+  for (const changes of [{}, { isOwnerMode: true }, { presentation: 'web' }, { route: { kind: 'sharedProfile' } }, { route: { kind: 'category' }, activeProjectId: 'project' }]) {
+    assert.equal(branch({ ...changes, isSharedRoute: true }), 'shared', JSON.stringify(changes));
+  }
 });
 
 test('individual page Cite remains available for owners as well as visitors',()=>{

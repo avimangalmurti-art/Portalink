@@ -1,6 +1,5 @@
 import { motionSeconds } from '../../presentation/motion/motion';
 import { MobileProjectPopup } from '../media/MobileProjectPopup';
-import { useMobileProjectContext } from '../../presentation/mobile/useMobileProjectContext';
 import { useMenuFocus } from '../../hooks/useMenuFocus';
 import React, { lazy, Suspense, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -240,7 +239,6 @@ function MobileProjectLabel({ project, isActive, sharedReadOnly = false }: { pro
 
 /** The shared row body: a tinted fill and weight mark the current document. */
 function ProjectLink({
-  profileId,
   project,
   typefaceStack,
   isActive,
@@ -257,8 +255,7 @@ function ProjectLink({
 
 }: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;sharedReadOnly?: boolean;onSelect: () => void;}) {
   const isMobile = usePresentation() === 'mobile';
-  const press = useMobileProjectContext(project, profileId);
-  return <div {...press} className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-[var(--m-fast)] ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
+  return <div className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-[var(--m-fast)] ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
       <button data-preview-open="" type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
         {isMobile ? <MobileProjectLabel project={project} isActive={isActive} sharedReadOnly={sharedReadOnly} /> : <span data-font-preview="" style={{
         fontFamily: typefaceStack
@@ -268,7 +265,6 @@ function ProjectLink({
 }
 function ProjectRow({
   profileId,
-  contextDisabled,
   project,
   typefaceStack,
   typefaceId,
@@ -285,7 +281,6 @@ function ProjectRow({
   onTogglePinned,
   onSelect,
   onEdit,
-  onChangeCover,
   onTypefaceChange,
   onDelete,
 
@@ -304,7 +299,6 @@ function ProjectRow({
 }: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;dragDisabled?: boolean;onReorderStart?: () => void;onReorderEnd?: () => void;reorderActivator?: MobileReorderActivator;reorderActions?: MobileReorderActions;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onChangeCover?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
   const isMobile = usePresentation() === 'mobile';
   const dragControls = useDragControls();
-  const press = useMobileProjectContext(project, profileId, { edit: onEdit, cover: onChangeCover, delete: onDelete, visibility: contextDisabled ? undefined : onToggleHidden }, Boolean(reorderActivator));
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [exportOpen,setExportOpen]=useState(false),[citationStatus,setCitationStatus]=useState('');
   const [popupOpen, setPopupOpen] = useState(false);
@@ -332,7 +326,7 @@ function ProjectRow({
     };
   }, [isMenuOpen, positionMenu]);
 
-  const body = <div ref={rowRef} {...press} className="relative">
+  const body = <div ref={rowRef} className="relative">
       <div className={`side-panel-row project-index-row ps-list-item group/row relative overflow-hidden rounded-[8px] transition-colors duration-[var(--m-fast)] ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
         {isDraggable && <span aria-hidden="true" data-project-drag-handle="" onPointerDown={(event) => { if (!dragDisabled) dragControls.start(event); }} className="ml-1 flex h-full w-3 shrink-0 touch-none cursor-grab items-center justify-center text-[var(--text-tertiary)] active:cursor-grabbing">
             <GripVerticalIcon className="h-3 w-3" />

@@ -1,5 +1,8 @@
 .explore-categories {display:flex;flex-direction:column;height:100%;min-height:0;color:var(--text-primary);background:var(--surface-canvas);}
 .explore-categories>header {flex:none;padding:12px var(--mobile-navigation-inset-start,16px);background:var(--surface-canvas);border-bottom:1px solid var(--hairline);}
+/* Match mobile Home/Profile dividers while retaining the header's spacing. */
+[data-presentation='mobile'] .explore-categories>header {position:relative;border-bottom-color:transparent;}
+[data-presentation='mobile'] .explore-categories>header::after {content:'';position:absolute;inset-inline:16px;bottom:0;height:1px;background:var(--hairline);pointer-events:none;}
 .explore-categories-heading {display:flex;align-items:center;gap:12px;margin-bottom:12px;}
 .explore-categories-heading button {display:grid;place-items:center;min-width:44px;min-height:44px;border-radius:12px;background:var(--surface-sunken);}
 .explore-categories-heading h1 {font-size:22px;font-weight:650;}

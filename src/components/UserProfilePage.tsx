@@ -16,7 +16,7 @@ import { Suspense } from 'react';
 import { lazyWithMobileRecovery } from './ui/lazyWithMobileRecovery';
 import { DeferredSurfaceOwnerContext } from './ui/DeferredSurfaceOwner';
 import { PortfolioLiveCard } from '../features/publishing/PortfolioLiveCard';
-import { MobileContextButton, useMobileScreenActions, useMobileContextPress } from '../presentation/mobile/MobileContextActions';
+import { useMobileScreenActions, useMobileContextPress } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
 import { useServices } from '../contexts/ServicesContext';
 import { portfolioPath } from '../features/sharing/shareModel';
@@ -575,8 +575,8 @@ export function UserProfilePage({
     follow: showsFollow && follow && !follow.isResolving && !follow.isPending && !follow.resolveError ? follow.onToggle : undefined,
     message: isMobile && !showsOwnerTools ? undefined : onMessage,
   }, labels: { thenNow: 'Choose a Then/Now pair', share: showsOwnerTools ? 'Share link' : 'Share', follow: follow?.isFollowing ? 'Unfollow' : follow?.isRequested ? 'Cancel request' : 'Follow' } });
-  // Portfolio can also receive CreatorSaveButton's separately registered actions.
-  const canOpenProfileActions = !isJourney || showsOwnerTools || profileActions.primary.length > 0 || profileActions.groups.some(group => group.length > 0);
+  // Mobile visitors use the visible follow, bookmark and contact controls.
+  const canOpenProfileActions = (!isMobile || showsOwnerTools) && (!isJourney || showsOwnerTools || profileActions.primary.length > 0 || profileActions.groups.some(group => group.length > 0));
   useMobileScreenActions(!isSharedView && !mobileProjectSelected && canOpenProfileActions ? profileActions : null);
   const profilePress = useMobileContextPress(!isSharedView && canOpenProfileActions ? profileActions : null, true);
   const finishReordering = async () => {
@@ -736,7 +736,7 @@ export function UserProfilePage({
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
-        </div> : isMobile ? (!showsOwnerTools && <div data-inline-screen-actions="" className="profile-header-options">{canOpenProfileActions && <MobileContextButton />}</div>) : (!isJourney || showsOwnerTools) && <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
+        </div> : !isMobile && (!isJourney || showsOwnerTools) && <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {showsFollow && isMobile && !isMobileToolsOpen && follow?.mutationError && <p role="alert" className="px-2 py-2 text-sm text-[var(--status-danger)]">{follow.mutationError}{follow.onRetry && <button type="button" onClick={follow.onRetry} className="ml-2 underline">Try again</button>}</p>}
@@ -818,7 +818,7 @@ export function UserProfilePage({
             {showsSignInToFollow && onSignInRequest && <button type="button" onClick={onSignInRequest} className="side-panel-primary-control flex items-center border border-[var(--hairline-strong)] px-3.5 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 Sign in to follow
               </button>}
-            {!isJourney && !showsOwnerTools && !isSharedView && <CreatorSaveButton profileId={profile.id} name={profile.name} />}
+            {!isJourney && !showsOwnerTools && !isSharedView && <CreatorSaveButton profileId={profile.id} name={profile.name} registerScreenActions={!isMobile} />}
             {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} aria-label="Edit profile" title={isMobile ? 'Edit profile' : undefined} className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" opticalOffset={{ y: -0.25 }} />
                 <span className="sr-only">Edit profile</span>

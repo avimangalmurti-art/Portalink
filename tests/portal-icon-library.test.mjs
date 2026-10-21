@@ -288,6 +288,7 @@ function dialogHarness() {
     '../ui/InterfaceIcon': { InterfaceIcon: () => null }, '../ui/ModalPortal': { ModalPortal: ({ children }) => children },
     '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
     '../../hooks/useModalFocus': { useModalFocus() {} },
+    '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
   });
   const props = { itemName: 'portal', onCancel: () => calls.push('cancel'), onCreate: (...args) => calls.push(args) };
   return { props, calls, render() { cursor = 0; return NewCategoryDialog(props); }, library: tree => all(tree).find(node => node.type === Library) };

@@ -172,6 +172,7 @@ test('Studio action sheet uses shared modal focus, explicit close and invokes on
   };
   const { MobileActionSheet } = compile('../src/components/messages/MobileActionSheet.tsx', {
     react,
+    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus(open, _ref, _close, preventScroll) { assert.equal(open, true); assert.equal(preventScroll, true); } },
   });

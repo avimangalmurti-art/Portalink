@@ -6,8 +6,8 @@
 }
 .profile-editor-header h1 { flex: 1; min-width: 0; font-size: 18px; font-weight: 600; outline: none; }
 /* This stationary toolbar stays opaque; only the form beneath it scrolls. */
-.profile-editor-page[data-presentation='mobile'] .profile-editor-header {
-  background: var(--surface-canvas, var(--mac-window-bg)) !important;
+#root .codex-shell[data-presentation='mobile'] .profile-editor-page[data-presentation='mobile'] > .profile-editor-header {
+  background: var(--mac-window-bg) !important;
   position: relative;
   z-index: 1;
   isolation: isolate;
@@ -16,9 +16,9 @@
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
-.profile-editor-page[data-presentation='mobile'] .profile-editor-header::before,
-.profile-editor-page[data-presentation='mobile'] .profile-editor-header::after {
-  content: none;
+#root .codex-shell[data-presentation='mobile'] .profile-editor-page[data-presentation='mobile'] > .profile-editor-header::before,
+#root .codex-shell[data-presentation='mobile'] .profile-editor-page[data-presentation='mobile'] > .profile-editor-header::after {
+  content: none !important;
 }
 /* An outer screen-edge fade must not wash out the stationary toolbar. */
 #root .codex-shell[data-presentation='mobile'] :is(.scroll-edge-fade, .feed-edge-fade):has(.profile-editor-page[data-presentation='mobile']) {

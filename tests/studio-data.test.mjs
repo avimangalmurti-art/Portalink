@@ -192,24 +192,26 @@ test('a pending notification acknowledgement cannot start a foreground refresh t
   assert.equal(hook.value.status, 'success'); hook.dispose();
 });
 
-function studioHarness({ category = 'bookmarks', tab = 'projects', more = async () => ({ items: [], nextCursor: null }), remove = async () => {}, unsave = async () => ({}) } = {}) {
+function studioHarness({ category = 'bookmarks', tab = 'projects', mobileActivity, activityOverrides = {}, more = async () => ({ items: [], nextCursor: null }), remove = async () => {}, unsave = async () => ({}) } = {}) {
   const auth = { user: { id: 'one' }, viewerProfileId: creator.id, isAuthenticated: true };
   const queries = [{ data: creator, loading: false, fetchedAt: 100, retry() {} },
     { data: [{ id: creator.id, profile: creator }], loading: false, fetchedAt: 150, retry() {} },
     { data: { items: [pageEntry], nextCursor: 'cursor-one' }, loading: false, fetchedAt: 200, retry() {} }];
   let queryIndex = 0;
-  const refreshed = [];
+  const refreshed = [], queryRetries = [], notificationOptions = [];
+  queries.forEach((query, index) => { query.retry = () => queryRetries.push(index); });
+  const activity = { status: 'success', notifications: [notification], updatedAt: 175, pendingIds: new Set(), markRead: async () => true, retry() { queryRetries.push('activity-retry'); }, refresh: async () => true, isRefreshing: false, ...activityOverrides };
   const services = { profiles: {}, projects: {}, creatorSaves: { setCreatorSave: async () => true }, engagement: { setEngagement: unsave } };
-  const hook = hookHarness(new URL('../src/features/studio/useStudioData.ts', import.meta.url), 'useStudioData', services, auth, [category, tab], { revision: 0 }, {
+  const hook = hookHarness(new URL('../src/features/studio/useStudioData.ts', import.meta.url), 'useStudioData', services, auth, [category, tab, { mobileActivity }], { revision: 0 }, {
     '../../contexts/EngagementContext': { useEngagementStore: () => ({ refresh: id => refreshed.push(id) }) },
-    '../engagement/useActivityCollection': { useActivityCollection: () => ({ phase: 'ready', items: [{ project: oldProject, creator }], updatedAt: 125, retry() {} }) },
+    '../engagement/useActivityCollection': { useActivityCollection: () => ({ phase: 'ready', items: [{ project: oldProject, creator }], updatedAt: 125, retry() { queryRetries.push('saved-projects'); } }) },
     '../library/useAccountQuery': { useAccountQuery: () => queries[queryIndex++ % 3] },
     '../library/collectionQueries': { loadSavedCreators() {}, loadSavedPageBatch: (_projects, cursor) => more(cursor) },
     '../library/savedPages': { savedPageKey, removeSavedPage: remove },
-    '../messages/useNotifications': { useNotifications: () => ({ status: 'success', notifications: [notification], updatedAt: 175, pendingIds: new Set(), markRead: async () => true, retry() {} }) },
+    '../messages/useNotifications': { useNotifications: options => { notificationOptions.push(options); return activity; } },
     './studioModel': model,
   });
-  return { hook, auth, queries, refreshed };
+  return { hook, auth, queries, refreshed, queryRetries, notificationOptions, activity };
 }
 
 test('Studio data defaults to bookmarked projects and reports only the selected collection state', async () => {
@@ -229,6 +231,41 @@ test('Studio data defaults to bookmarked projects and reports only the selected 
   assert.equal(hook.value.error, 'Pages could not load');
   assert.equal(hook.value.updatedAt, null);
   hook.dispose();
+});
+
+test('MOBILE Studio retains one continuity opt-in across collections and Activity refreshes only notifications', async () => {
+  const flight = deferred(); let refreshes = 0;
+  const { hook, notificationOptions, queryRetries, activity } = studioHarness({ category: 'activity', mobileActivity: true, activityOverrides: { refresh: () => { refreshes++; return flight.promise; } } });
+  await hook.flush();
+  assert.equal(notificationOptions.at(-1).mobileContinuity, true);
+  const result = hook.value.refresh(); assert.equal(refreshes, 1); assert.deepEqual(queryRetries, []);
+  activity.isRefreshing = true; hook.rerender(); await hook.flush(); assert.equal(hook.value.activityRefreshing, true);
+  assert.equal(hook.value.rows[0].notification.id, 'note');
+  flight.resolve(false); assert.equal(await result, false);
+  hook.options(['bookmarks', 'projects', { mobileActivity: true }]); await hook.flush();
+  assert.equal(notificationOptions.at(-1).mobileContinuity, true, 'Changing collection cannot reset the notifications hook mode');
+  assert.equal(hook.value.activityRefreshing, false, 'Activity refresh state must not disable another collection');
+  hook.dispose();
+});
+
+test('WEB Studio and non-Activity refresh retain the existing five-source refresh path', async () => {
+  for (const [category, mobileActivity] of [['activity', false], ['bookmarks', true], ['published', true]]) {
+    let activityRefreshes = 0;
+    const { hook, queryRetries, notificationOptions } = studioHarness({ category, mobileActivity, activityOverrides: { refresh: async () => { activityRefreshes++; return true; } } });
+    await hook.flush(); hook.value.refresh(); await hook.flush();
+    assert.equal(activityRefreshes, 0, `${category}/${mobileActivity}`);
+    assert.deepEqual(queryRetries, [0, 1, 2, 'saved-projects', 'activity-retry']);
+    assert.equal(notificationOptions.at(-1).mobileContinuity, mobileActivity);
+    hook.dispose();
+  }
+});
+
+test('MOBILE Activity reports confirmed refresh results and rejects stale account callbacks', async () => {
+  let refreshes = 0;
+  const { hook, auth } = studioHarness({ category: 'activity', mobileActivity: true, activityOverrides: { refresh: async () => { refreshes++; return true; } } });
+  await hook.flush(); assert.equal(await hook.value.refresh(), true); assert.equal(refreshes, 1);
+  const oldRefresh = hook.value.refresh; auth.user = { id: 'another-account' }; hook.rerender(); await hook.flush();
+  assert.equal(await oldRefresh(), undefined); assert.equal(refreshes, 1); hook.dispose();
 });
 
 test('Studio saved-page pagination retains prior rows, deduplicates targets, and preserves a failed cursor for retry', async () => {

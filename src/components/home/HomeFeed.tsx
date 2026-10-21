@@ -5,6 +5,7 @@ import { buildPath } from '../../app/routes';
 import { Globe2Icon, HomeIcon, CircleUserRoundIcon, LayoutGridIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useHomePullRefresh } from './useHomePullRefresh';
+import { useHomeRefreshMotion } from './useHomeRefreshMotion';
 import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
@@ -253,7 +254,9 @@ export function HomeFeed({
 
   const {isRefreshing,status:feedStatus}=feed;
   const refreshHome=useCallback(()=>{if(isRefreshing||feedStatus==='loading')return;setHasReloaded(true);retryFeed();},[isRefreshing,feedStatus,retryFeed]);
-  const pullLabel=useHomePullRefresh(autoScrollRef,showMobileSearch && !categoriesOpen && !(firstProjectAction && projects.length===0),feed.isRefreshing||feed.status==='loading',refreshHome);
+  const pullEnabled = showMobileSearch && screenActive && !categoriesOpen && !(firstProjectAction && projects.length === 0);
+  const refreshMotion = useHomeRefreshMotion({ enabled: pullEnabled, refreshing: feed.isRefreshing, scope: recoveryIdentity });
+  const pullLabel=useHomePullRefresh(autoScrollRef,pullEnabled,feed.isRefreshing||feed.status==='loading',refreshHome,refreshMotion.onPull);
   if(isMobile && categoriesOpen)return <ExploreCategories onBack={()=>setCategoriesOpen(false)}/>;
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
@@ -262,19 +265,18 @@ export function HomeFeed({
         onScroll={rememberScroll}
         className="feed-edge-fade scrollbar-hidden relative z-10 min-h-0 flex-1 overflow-y-auto px-2 pb-7"
       >
-        <div data-feed-scroll-content="" className="relative pt-3">
+        <div ref={showMobileSearch ? refreshMotion.contentRef : undefined} data-feed-scroll-content="" className="relative pt-3">
           {showMobileSearch && <header className="mobile-home-search-header"><div className="mobile-screen-action-row">
               {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
               <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
               {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>}
               <button type="button" aria-label="Explore categories" className="mobile-home-header-button" onClick={()=>setCategoriesOpen(true)}><InterfaceIcon icon={LayoutGridIcon} weight="medium" /></button>
             </div>
-            {(pullLabel || feed.isRefreshing) && <p data-home-pull-feedback="" role="status" className="flex items-center justify-center py-2 text-[13px] text-[var(--text-secondary)]">
+            <span ref={refreshMotion.indicatorRef} data-home-pull-feedback="" data-active={pullEnabled && Boolean(pullLabel || feed.isRefreshing) ? 'true' : undefined} aria-hidden="true" className="home-pull-indicator">
               <span className="premium-media-loading-mark" aria-hidden="true" />
-              <span className="sr-only">{feed.isRefreshing ? 'Refreshing Home content.' : pullLabel}</span>
-            </p>}
-            <p role="status" className={hasReloaded && (feed.isRefreshing || feed.refreshError) ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
-              {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
+            </span>
+            <p role="status" className={hasReloaded && !feed.isRefreshing && feed.refreshError ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
+              {feed.isRefreshing ? 'Refreshing Home content.' : pullLabel || (hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : '')}
             </p>
             {layoutReady && <DensitySeparator columns={density.columns} onChange={density.setColumns} onPreview={density.previewColumns} label="Home content per row" />}
           </header>}

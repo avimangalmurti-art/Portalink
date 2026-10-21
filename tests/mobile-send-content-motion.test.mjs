@@ -16,7 +16,9 @@ function fixture({ presentation = 'mobile', inline = false, reduce = false, appR
   const remove = (map, name, callback) => { map.get(name)?.delete(callback); if (map.get(name)?.size === 0) map.delete(name); };
   const emit = (map, name, event = {}) => { for (const callback of [...(map.get(name) ?? [])]) if (map.get(name)?.has(callback)) callback(event); render(); };
   class Element {
-    constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.children = []; this.props = {}; this.parentElement = null; this.isConnected = true; this.inert = false; this.tabIndex = -1; this.style = { setProperty(name, value) { this[name] = value; }, getPropertyValue(name) { return this[name] ?? ''; } }; }
+    constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.children = []; this.props = {}; this.parentElement = null; this.isConnected = true; this.inert = false; this.tabIndex = -1; this.listeners = new Map(); this.style = { setProperty(name, value) { this[name] = value; }, getPropertyValue(name) { return this[name] ?? ''; } }; }
+    addEventListener(name, callback) { add(this.listeners, name, callback); }
+    removeEventListener(name, callback) { remove(this.listeners, name, callback); }
     matches(selector) {
       if (selector === ':disabled') return Boolean(this.props.disabled);
       if (selector.startsWith('input:')) return this.tagName === 'INPUT';
@@ -42,7 +44,7 @@ function fixture({ presentation = 'mobile', inline = false, reduce = false, appR
     addEventListener: (name, callback) => add(listeners, name, callback), removeEventListener: (name, callback) => remove(listeners, name, callback) };
   const window = { visualViewport: viewport, innerWidth: 420, innerHeight: 912, matchMedia: () => ({ matches: reduce }),
     addEventListener: (name, callback) => add(windowListeners, name, callback), removeEventListener: (name, callback) => remove(windowListeners, name, callback) };
-  const globals = { document, window, HTMLElement: Element,
+  const globals = { document, window, HTMLElement: Element, Element, Error,
     getComputedStyle: () => ({ opacity: '0.43', visibility: 'visible', transform: 'none', getPropertyValue: name => ({ '--m-fast': '120ms', '--m-base': '180ms', '--m-slow': '260ms' }[name] ?? '') }),
     setTimeout(callback, duration) { const id = ++sequence; timers.set(id, { callback, duration, due: now + duration }); return id; }, clearTimeout: id => timers.delete(id) };
   const effect = (queue, callback, dependencies) => { const index = cursor++, prior = slots[index]; if (!equal(prior?.dependencies, dependencies)) { slots[index] = { dependencies }; queue.push(() => { prior?.cleanup?.(); if (mounted) slots[index].cleanup = callback(); }); } };
@@ -57,8 +59,9 @@ function fixture({ presentation = 'mobile', inline = false, reduce = false, appR
   const modal = sourceModule('src/hooks/useModalFocus.ts', { react }, globals);
   const dialogViewport = sourceModule('src/hooks/useDialogViewport.ts', { react }, globals);
   const keyboard = sourceModule('src/features/sharing/useRecipientKeyboard.ts', { react }, globals);
+  const scrollBoundary = sourceModule('src/features/sharing/useRecipientScrollBoundary.ts', { react }, globals);
   const auth = { isAuthenticated: true, user: { id: 'account' }, viewerProfileId: 'viewer', phase: 'authenticated' };
-  const NewChatPanel = () => React.createElement('input', { type: 'search', 'aria-label': 'Find recipient' });
+  const NewChatPanel = ({ disabled }) => React.createElement('input', { type: 'search', 'aria-label': 'Find recipient', disabled });
   const ModalPortal = ({ children }) => children;
   const { InternalContentShareDialog } = sourceModule('src/features/sharing/InternalContentShare.tsx', {
     react, '../../contexts/AuthContext': { useAuth: () => auth }, '../../contexts/ServicesContext': { useServices: () => ({ messaging: {
@@ -66,7 +69,7 @@ function fixture({ presentation = 'mobile', inline = false, reduce = false, appR
       sendMessage(...args) { calls.push(['send', ...args]); return new Promise((resolve, reject) => messages.push({ args, resolve, reject })); },
     } }) }, '../../components/messages/NewChatPanel': { NewChatPanel }, '../../components/ui/ModalPortal': { ModalPortal },
     '../../hooks/useDialogViewport': dialogViewport, '../../hooks/useModalFocus': modal, '../../presentation/usePresentation': { usePresentation: () => presentation },
-    './useRecipientKeyboard': keyboard, '../../presentation/motion/useSheetMotion': sheet, '../../presentation/motion/motion': motion,
+    './useRecipientKeyboard': keyboard, './useRecipientScrollBoundary': scrollBoundary, '../../presentation/motion/useSheetMotion': sheet, '../../presentation/motion/motion': motion,
     'lucide-react': { ArrowLeftIcon: 'back-icon' }, './internalContentShare.css': {},
   }, globals);
   const mobileSendLock = { current: false };
@@ -151,27 +154,67 @@ test('WEB and inline callers keep immediate Close without MOBILE motion or keybo
   }
 });
 
-test('MOBILE explicit Send rejects a duplicate tap and shows Sent only after messaging confirms success', async () => {
+test('MOBILE explicit Send rejects duplicate taps and retains its recipient directory after confirmed Sent', async () => {
   const h = fixture(); assert.equal(h.button('Send').props.disabled, true); h.select(); assert.deepEqual(h.calls, []);
   const send = h.button('Send'), staleSelection = nodes(h.tree).find(node => node.props.appearance === 'account-search');
   send.props.onClick(); send.props.onClick(); staleSelection.props.onSelectCreator('different-recipient');
   assert.equal(h.conversations.length, 1); assert.deepEqual(h.conversations[0].args, ['recipient']);
-  await h.flush(); assert.equal(h.button('Cancel').props.disabled, true); assert.equal(h.calls.some(call => call[0] === 'confirmed'), false);
+  await h.flush(); assert.equal(h.button('Cancel').props.disabled, true); assert.equal(h.button('Sending…').props.disabled, true); assert.equal(h.button('Sent'), undefined); assert.equal(h.calls.some(call => call[0] === 'confirmed'), false);
   h.conversations[0].resolve({ id: 'conversation', status: 'active' }); await h.flush();
   assert.equal(h.messages.length, 1); assert.deepEqual(h.messages[0].args, ['conversation', 'Project\nhttps://portalink.test/p/creator/c/portal/work']);
   assert.equal(nodes(h.tree).some(node => node.props.role === 'status' && text(node) === 'Sent in Portalink.'), false);
   h.messages[0].resolve({ id: 'confirmed-message' }); await h.flush();
   assert.equal(h.calls.filter(call => call[0] === 'confirmed').length, 1); assert.ok(h.button('Done')); assert.equal(h.button('Send'), undefined);
-  assert.equal(nodes(h.tree).some(node => node.props.role === 'status' && text(node) === 'Sent in Portalink.'), true); h.unmount();
+  const retained = nodes(h.tree).find(node => node.props.appearance === 'account-search');
+  assert.equal(retained.type, staleSelection.type); assert.equal(retained.key, staleSelection.key); assert.equal(retained.props.selectedCreatorId, 'recipient'); assert.equal(retained.props.disabled, true); assert.equal(retained.props.startingCreatorId, null);
+  assert.equal(text(nodes(h.tree).find(node => node.type === 'h1')), 'Send content');
+  assert.equal(h.button('Sent').props.disabled, true); assert.equal(h.button('Sent').props['data-send-state'], 'sent'); assert.equal(h.button('Sent').props['data-semantic-action'], 'send');
+  assert.equal(nodes(h.tree).some(node => node.props.role === 'status' && text(node) === 'Sent in Portalink.'), true);
+  send.props.onClick(); staleSelection.props.onSelectCreator('different-recipient'); h.button('Sent').props.onClick(); await h.flush();
+  assert.equal(h.conversations.length, 1); assert.equal(h.messages.length, 1); assert.equal(h.calls.filter(call => call[0] === 'confirmed').length, 1);
+  assert.equal(nodes(h.tree).find(node => node.props.appearance === 'account-search').props.selectedCreatorId, 'recipient'); h.unmount();
 });
 
-test('MOBILE success focuses the retained panel before confirmation removes the focused Send action', async () => {
+test('MOBILE success focuses the retained panel before confirmation disables the focused Send action', async () => {
   const h = fixture(); h.select(); const panel = h.dom('.internal-share-page'), originalFocus = panel.focus.bind(panel);
   const sendElement = panel.querySelectorAll('button').find(element => text(element.props.children) === 'Send'); sendElement.focus({ preventScroll: true });
   let focusedBeforeSent = false;
   panel.focus = options => { focusedBeforeSent = nodes(h.tree).some(node => node.type === 'button' && ['Send', 'Sending…'].includes(text(node))); originalFocus(options); };
   h.button('Send').props.onClick(); h.conversations[0].resolve({ id: 'conversation', status: 'active' }); await h.flush(); h.messages[0].resolve({ id: 'message' }); await h.flush();
-  assert.equal(focusedBeforeSent, true); assert.equal(h.document.activeElement, panel); assert.equal(panel.focusOptions.preventScroll, true); assert.ok(h.button('Done')); h.unmount();
+  assert.equal(focusedBeforeSent, true); assert.equal(h.document.activeElement, panel); assert.equal(panel.focusOptions.preventScroll, true); assert.ok(h.button('Done')); assert.equal(h.button('Sent').props.disabled, true); h.unmount();
+});
+
+test('MOBILE send failure preserves recipient choice and retries only after another explicit Send', async () => {
+  const h = fixture(); h.select(); const directory = nodes(h.tree).find(node => node.props.appearance === 'account-search');
+  h.button('Send').props.onClick(); h.conversations[0].resolve({ id: 'conversation', status: 'active' }); await h.flush();
+  h.messages[0].reject(new Error('Connection interrupted')); await h.flush();
+  const failed = nodes(h.tree).find(node => node.props.appearance === 'account-search');
+  assert.equal(failed.key, directory.key); assert.equal(failed.props.selectedCreatorId, 'recipient'); assert.equal(failed.props.disabled, false); assert.equal(failed.props.startingCreatorId, null);
+  assert.equal(text(nodes(h.tree).find(node => node.props.role === 'alert')), 'Connection interrupted'); assert.equal(h.button('Send').props.disabled, false); assert.equal(h.button('Sent'), undefined); assert.equal(h.button('Done'), undefined); assert.equal(h.calls.some(call => call[0] === 'confirmed'), false);
+  await h.flush(); assert.equal(h.conversations.length, 1, 'Failure must not create an automatic second send');
+  h.button('Send').props.onClick(); assert.equal(h.conversations.length, 2); await h.flush(); assert.equal(h.button('Sending…').props.disabled, true); assert.equal(nodes(h.tree).some(node => node.props.role === 'alert'), false);
+  h.conversations[1].resolve({ id: 'conversation', status: 'active' }); await h.flush(); assert.deepEqual(h.messages[1].args, h.messages[0].args);
+  h.messages[1].resolve({ id: 'retried-message' }); await h.flush(); assert.equal(h.button('Sent').props.disabled, true); assert.equal(h.calls.filter(call => call[0] === 'confirmed').length, 1); h.unmount();
+});
+
+test('confirmed MOBILE Sent waits for Done or Back and restores its opener with reduced motion respected', async () => {
+  for (const options of [{}, { reduce: true }, { appReduce: true }]) for (const action of ['Done', 'Back']) {
+    const h = fixture(options); h.select(); h.button('Send').props.onClick(); h.conversations[0].resolve({ id: 'conversation', status: 'active' }); await h.flush(); h.messages[0].resolve({ id: 'message' }); await h.flush();
+    assert.equal(h.button('Sent').props.disabled, true); assert.equal(h.timers.size, 0, 'Success must not introduce an automatic dismissal timer'); h.advance(3000); assert.equal(h.mounted, true);
+    if (action === 'Back') h.pop(); else h.button('Done').props.onClick();
+    assert.equal(h.mounted, false); assert.equal(h.document.activeElement, h.opener); assert.equal(h.opener.focusOptions.preventScroll, true); assert.equal(h.calls.filter(call => call[0] === 'close').length, 1);
+    if (action === 'Done' && !options.reduce && !options.appReduce) { assert.ok(h.clone()); h.advance(180); } else assert.equal(h.clone(), undefined);
+    assert.equal(h.timers.size, 0); assert.equal(h.listeners.size, 0); assert.equal(h.windowListeners.size, 0); assert.equal(h.viewportListeners.size, 0);
+  }
+});
+
+test('WEB and inline confirmed sends preserve their existing separate Sent view and immediate Done', async () => {
+  for (const options of [{ presentation: 'web' }, { presentation: 'mobile', inline: true }, { presentation: 'web', inline: true }]) {
+    const h = fixture(options); h.select(); h.button('Send').props.onClick(); h.conversations[0].resolve({ id: 'conversation', status: 'active' }); await h.flush(); h.messages[0].resolve({ id: 'message' }); await h.flush();
+    assert.equal(text(nodes(h.tree).find(node => node.type === 'h1')), 'Sent'); assert.equal(nodes(h.tree).some(node => node.props.appearance === 'account-search'), false); assert.equal(h.button('Sent'), undefined);
+    assert.equal(text(nodes(h.tree).find(node => node.props.className === 'internal-share-feedback')), 'Sent in Portalink.');
+    h.button('Done').props.onClick(); assert.equal(h.mounted, false); assert.equal(h.clone(), undefined); assert.equal(h.timers.size, 0);
+  }
 });
 
 test('MOBILE motion CSS keeps 120ms entry and 180ms pure exit fades with app and OS motion suppression', () => {
@@ -232,5 +275,18 @@ test('unmounted MOBILE sends cannot continue a conversation or update state afte
     if (fails) request.reject(new Error('Late operation failure')); else request.resolve(phase === 'message' ? { id: 'message' } : { id: 'conversation', status: 'active' }); await h.flush();
     assert.equal(h.writesAfterUnmount, 0); assert.equal(h.calls.some(call => /confirmed/.test(call[0])), false); if (phase === 'conversation') assert.equal(h.messages.length, 0);
     assert.equal(h.listeners.size, 0); assert.equal(h.windowListeners.size, 0); assert.equal(h.viewportListeners.size, 0); assert.equal(h.timers.size, 0);
+  }
+});
+
+
+test('only the MOBILE modal owns recipient scroll containment, and Close immediately releases it', () => {
+  const h = fixture(), screen = h.dom('.internal-share-screen');
+  assert.ok(screen.listeners.has('wheel')); assert.ok(screen.listeners.has('touchmove'));
+  h.button('Cancel').props.onClick();
+  assert.equal(screen.listeners.size, 0, 'The real screen releases input even while its decorative clone fades');
+  assert.equal(h.document.activeElement, h.opener); h.advance(180);
+  for (const options of [{ presentation: 'web' }, { presentation: 'mobile', inline: true }, { presentation: 'web', inline: true }]) {
+    const ordinary = fixture(options);
+    assert.equal(ordinary.dom('.internal-share-screen')?.listeners.size ?? 0, 0); ordinary.unmount();
   }
 });

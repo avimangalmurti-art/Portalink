@@ -22,6 +22,8 @@
 .portalink-confirmation-actions button[data-variant='destructive']:hover { background: var(--status-danger-hover) !important; }
 .portalink-confirmation-actions button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 .portalink-confirmation-actions button:disabled { opacity: .6; cursor: default; }
+#root .codex-shell .portalink-confirmation-actions button[data-confirmation-success] { background: var(--surface-sunken) !important; color: var(--status-success) !important; opacity: 1; }
+.portalink-confirmation-success { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 @media (prefers-reduced-motion: reduce) { .portalink-confirmation, .portalink-confirmation * { animation: none !important; transition: none !important; } }
 
 .portalink-destructive-warning { width:112px; height:112px; margin:0 auto 16px; border-radius:20px; overflow:hidden; pointer-events:none; }

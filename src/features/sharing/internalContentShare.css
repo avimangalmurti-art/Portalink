@@ -20,6 +20,8 @@
 .internal-share-actions button {flex:1;min-height:44px;border:1px solid var(--hairline);border-radius:14px;padding:10px 16px;background:var(--surface-sunken);color:var(--text-primary);font-size:16px;font-weight:600;}
 .internal-share-actions button:last-child:not(:first-child) {background:var(--accent);color:var(--accent-foreground,#fff);}
 .internal-share-actions button:disabled,.internal-share-back:disabled {opacity:.5;}
+#root .codex-shell .internal-share-screen[data-presentation=mobile] .internal-share-actions button[data-send-state=sent] {background:var(--status-success,#30d158)!important;border-color:var(--status-success,#30d158)!important;color:#000!important;opacity:1;}
+.internal-share-screen[data-presentation=mobile] [data-recipient-disabled] :is(button,input):disabled {cursor:default;opacity:1!important;}
 .internal-share-page button:focus-visible {outline:2px solid var(--focus-ring);outline-offset:2px;}
 .internal-share-feedback {padding:20px;flex:1;}
 .project-inline-share .internal-share-header {padding-inline:0;}
@@ -36,6 +38,17 @@
 .internal-share-screen[data-presentation=mobile] [data-recipient-appearance=account-search] h3 {padding-top:8px;}
 .internal-share-screen[data-presentation=mobile] [data-recipient-appearance=account-search] [data-mobile-scroll-end] {padding-bottom:8px;}
 .internal-share-screen[data-presentation=mobile] .internal-share-footer {padding-inline:16px;}
+
+/* Keep an opaque task canvas behind the keyboard; only the inner page follows
+   the visible viewport. Recipient gestures must never scroll the reader. */
+#root .codex-shell .internal-share-screen[data-presentation=mobile] {inset:0;height:max(100%,100lvh);overscroll-behavior:none;}
+#root .codex-shell .internal-share-screen[data-presentation=mobile] .internal-share-page {position:absolute;inset-inline:0;top:var(--dialog-viewport-top,0px);height:var(--dialog-viewport-height,100dvh);max-height:none;overflow:hidden;overscroll-behavior:none;}
+.internal-share-screen[data-presentation=mobile] [data-recipient-appearance=account-search] [data-mobile-scroll-end] {overscroll-behavior-y:contain;}
+/* As in Inbox, inset focus ink stays even where the directory clips its edge. */
+#root .codex-shell .internal-share-screen[data-presentation=mobile] [data-recipient-appearance=account-search] .text-control-shell:focus-within {border:1px solid var(--focus-ring)!important;box-shadow:inset 0 0 0 1px var(--focus-ring)!important;outline:none!important;}
+/* Decorative exit clones release the document as soon as the real screen closes. */
+html:has(.internal-share-screen[data-presentation=mobile][data-mobile-share-motion]:not([data-motion-closing])),
+body:has(.internal-share-screen[data-presentation=mobile][data-mobile-share-motion]:not([data-motion-closing])) {overflow:hidden;overscroll-behavior:none;}
 
 /* Fade one whole mobile frame; keep the established recipient geometry. */
 .internal-share-screen[data-presentation=mobile][data-mobile-share-motion] {animation:m-fade-in var(--m-fast) var(--m-enter) both;}

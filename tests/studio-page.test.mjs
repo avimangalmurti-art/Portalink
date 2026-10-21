@@ -30,7 +30,9 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     useState(initial) { const index = cursor++; slots[index] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[index].value, next => { const value = typeof next === 'function' ? next(slots[index].value) : next; if (!Object.is(value, slots[index].value)) { slots[index].value = value; dirty = true; } }]; },
     useRef(initial) { const index = cursor++; slots[index] ??= { current: initial }; return slots[index]; },
     useMemo(factory, deps) { const index = cursor++; if (!same(slots[index]?.deps, deps)) slots[index] = { value: factory(), deps }; return slots[index].value; },
+    useCallback(callback, deps) { return react.useMemo(() => callback, deps); },
     useEffect(effect, deps) { const index = cursor++; if (!same(slots[index]?.deps, deps)) { const previous = slots[index]; slots[index] = { deps }; effects.push(() => { previous?.cleanup?.(); slots[index].cleanup = effect(); }); } },
+    useLayoutEffect(effect, deps) { return react.useEffect(effect, deps); },
   };
   const management = { editor: { result: null, open: id => calls.push(['edit', id]) } };
   const data = { status: 'ready', error: null, refresh() {}, updatedAt: 10, hasMore: false, loadingMore: false, loadMoreError: null, pendingIds: new Set(), mutationError: null,
@@ -60,11 +62,11 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     '../../utils/copyPublicLink': { copyPublicLink: async value => calls.push(['copy', value]) },
     '../../components/ui/InterfaceIcon': { InterfaceIcon: 'icon' },
     '../../components/ui/StateViews': { EmptyState: 'empty', ErrorState: 'error', LoadingState: 'loading' },
-    '../../presentation/mobile/MobileBackNavigation': { ScreenBack: 'back' },
+    '../../presentation/mobile/MobileBackNavigation': { ScreenBack: 'back', useMobileScreenActive: () => true },
     '../../utils/appearancePreferences': { readStudioView: () => preference, writeStudioView: value => calls.push(['preference', value]) },
     '../projects/ProjectEditorDialog': { ProjectEditorDialog: 'editor' },
     '../projects/useProjectManagement': { useProjectManagement: () => management },
-    './StudioRow': { StudioRow: 'studio-row' }, './StudioActionSheet': { StudioActionSheet: 'sheet' }, './studioModel': model, './studioView': view,
+    './StudioRow': { StudioRow: 'studio-row' }, './StudioActionSheet': { StudioActionSheet: 'sheet' }, './activityScrollAnchor': { useActivityScrollAnchor() {} }, './studioModel': model, './studioView': view,
     './useStudioData': { useStudioData: (category, tab) => { const sections = model.studioSections(currentRows, category, tab); return { ...data, sections, rows: sections.flatMap(section => section.rows) }; } },
   };
   const { StudioPage } = load('../src/features/studio/StudioBookmarksList.tsx', name => { assert.ok(name in deps, name); return deps[name]; }, { requestAnimationFrame: callback => frames.push(callback), window: { location: { origin: 'https://portalink.test' } }, navigator: {}, document: { querySelector: () => null, activeElement: null }, HTMLElement: class {} });

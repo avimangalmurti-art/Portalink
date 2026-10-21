@@ -2,8 +2,8 @@ import { createPortal } from 'react-dom';
 import { useServices } from '../../contexts/ServicesContext';
 import { useJourneyCitations } from '../citations/useJourneyCitations';
 import { journeyTimeline, type TimelineOrder } from '../citations/journeyCitations';
-import React, { useEffect, useMemo, useState } from 'react';
-import { MoreHorizontalIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { EyeIcon, MoreHorizontalIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { MobileProjectPopup } from '../../components/media/MobileProjectPopup';
 import { usePresentation } from '../../presentation/usePresentation';
@@ -14,6 +14,7 @@ import { calendarDay } from './calendar';
 import { DeferredDialog } from '../../components/ui/DeferredDialog';
 import './journey.css';
 import { useTimelinePairs } from './useTimelinePairs';
+import { useTimelineSection } from './useTimelineSection';
 
 const PortalProjectPopup = React.lazy(() => import('../../components/profile/PortalProjectPopup').then(module => ({ default: module.PortalProjectPopup })));
 
@@ -24,6 +25,7 @@ export function JourneyCover({ project, sizes = '92px' }: { project: Project; si
 }
 type JourneyViewProps = {
   active?: boolean;
+  showPopular?: boolean;
   toolbarHost?: HTMLElement | null; profile: Profile; owner: boolean; onOpen: (project: Project) => void;
   onEdit?: (project: Project) => void; onEditDescription?: (project: Project) => void; onDelete?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
 };
@@ -31,7 +33,7 @@ export function JourneyView(props: JourneyViewProps) {
   // Sorting, popup and citation state belong to one viewed profile/access mode.
   return <JourneyContent key={`${props.profile.id}:${props.owner}`} {...props} />;
 }
-function JourneyContent({ active = true, toolbarHost, profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: JourneyViewProps) {
+function JourneyContent({ active = true, showPopular = true, toolbarHost, profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: JourneyViewProps) {
   const isMobile = usePresentation() === 'mobile';
   const { reads } = useServices();
   const [popular, setPopular] = useState<{profileId:string; counts:Record<string,number>} | null>(null);
@@ -83,9 +85,17 @@ function JourneyContent({ active = true, toolbarHost, profile, owner, onOpen, on
       onOpen(project);
     }} />
   </DeferredDialog>;
-  const pairContent = pairs.map(record => {
+  const rootRef = useRef<HTMLElement>(null), toolbarRef = useRef<HTMLElement>(null), pairRef = useRef<HTMLElement>(null);
+  const section = useTimelineSection({
+    enabled: isMobile && active && !showingPairsOnly && pairs.length > 0,
+    paused: Boolean(detailsProject || activePortalPopupId),
+    rootRef, toolbarRef, pairRef, toolbarHost,
+    contentKey: `${order}:${pairs.map(pair => `${pair.id}:${pair.then}:${pair.now}`).join(',')}`,
+  });
+  const showingPairs = showingPairsOnly || section.atPairs;
+  const pairContent = pairs.map((record, pairIndex) => {
     const pair = [record.then, record.now].map(id => profile.projects.find(project => project.id === id)!);
-    return <section key={record.id} className="journey-pair" aria-label="Then / Now">
+    return <section key={record.id} ref={pairIndex === 0 ? pairRef : undefined} className="journey-pair" aria-label="Then / Now">
       <h2>Then / Now</h2><div className="journey-pair-grid">{pair.map((project, index) => <div key={project.id}>
         <button type="button" onClick={() => onOpen(project)} aria-label={`Open ${index ? 'Now' : 'Then'}: ${project.title}`}>
           <span className="journey-pair-cover"><JourneyCover project={project} sizes="(max-width: 639px) 42vw, 240px" /></span>
@@ -95,15 +105,15 @@ function JourneyContent({ active = true, toolbarHost, profile, owner, onOpen, on
     </section>;
   });
   const popup = active && isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
-  const toolbar = <header className="journey-toolbar">
+  const toolbar = <header ref={toolbarRef} className="journey-toolbar">
     <div className="journey-order" role="group" aria-label="Timeline order">
-      <button type="button" aria-pressed={!showingPairsOnly && order === 'newest'} onClick={() => { setPairsOnly(false); setOrder('newest'); }}>{isMobile?'Latest':'Newest first'}</button>
-      {isMobile&&<button type="button" aria-pressed={!showingPairsOnly && order === 'popular'} disabled={!popularCounts} title={popularError?'Project opens could not be loaded. Reopen Timeline to retry.':!owner?'Project-open ranking is unavailable for this profile.':!popularCounts?'Loading project opens…':'Most project opens · all time'} onClick={() => { setPairsOnly(false); setOrder('popular'); }}>Popular</button>}
-      <button type="button" aria-pressed={!showingPairsOnly && order === 'oldest'} onClick={() => { setPairsOnly(false); setOrder('oldest'); }}>{isMobile?'Oldest':'Oldest first'}</button>
-      {isMobile && <button type="button" aria-pressed={showingPairsOnly} onClick={() => setPairsOnly(true)}>Then/Now</button>}
+      <button type="button" aria-pressed={!showingPairs && order === 'newest'} onClick={() => { section.reset(); setPairsOnly(false); setOrder('newest'); }}>{isMobile?'Latest':'Newest first'}</button>
+      {isMobile&&showPopular&&<button type="button" aria-pressed={!showingPairs && order === 'popular'} disabled={!popularCounts} title={popularError?'Project opens could not be loaded. Reopen Timeline to retry.':!owner?'Project-open ranking is unavailable for this profile.':!popularCounts?'Loading project opens…':'Most project opens · all time'} onClick={() => { section.reset(); setPairsOnly(false); setOrder('popular'); }}>Popular</button>}
+      <button type="button" aria-pressed={!showingPairs && order === 'oldest'} onClick={() => { section.reset(); setPairsOnly(false); setOrder('oldest'); }}>{isMobile?'Oldest':'Oldest first'}</button>
+      {isMobile && <button type="button" aria-pressed={showingPairs} onClick={() => setPairsOnly(true)}>Then/Now</button>}
     </div>
   </header>;
-  return <section className="journey-view" data-timeline-order={order} aria-label={`${profile.name} Timeline`}>
+  return <section ref={rootRef} className="journey-view" data-timeline-order={order} aria-label={`${profile.name} Timeline`}>
     {isMobile&&toolbarHost?createPortal(toolbar,toolbarHost):toolbar}
     {!showingPairsOnly && groups.map(group => <section className="journey-year" key={group.year ?? 'undated'} aria-label={String(group.year ?? 'Date not set')}>
       <h2>{order==='popular'?'Popular':group.year ?? 'Date not set'}<span className="journey-year-count">{group.projectCount} {group.projectCount === 1 ? 'project' : 'projects'}</span></h2>
@@ -119,7 +129,7 @@ function JourneyContent({ active = true, toolbarHost, profile, owner, onOpen, on
         return <li className="journey-entry" data-journey-date={day ?? undefined} data-has-options={Boolean(hasOptions) || undefined} key={`project:${project.id}`}>
           {date}
           <div className="journey-entry-copy">
-            {popularity ? <div className="journey-popular-heading"><button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button><span className="journey-popularity" aria-label={`Rank ${popularity.rank}, ${popularity.opens} project ${popularity.opens === 1 ? 'open' : 'opens'}`}>#{popularity.rank} · {popularity.opens} {popularity.opens === 1 ? 'open' : 'opens'}</span></div> : <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>}
+            {popularity ? <div className="journey-popular-heading"><button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button><span className="journey-popularity" aria-label={`${popularity.opens} project ${popularity.opens === 1 ? 'open' : 'opens'}`}><InterfaceIcon icon={EyeIcon} size="xs" />{popularity.opens}</span></div> : <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>}
             {portalButton(project)}
           </div>
           {hasOptions && <button type="button" className="journey-project-options" aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={isMobile ? detailsProject?.id === project.id : undefined} onClick={() => isMobile ? setDetailsProject(project) : onEdit?.(project)}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></button>}

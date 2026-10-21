@@ -3,6 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { sourceModule } from './helpers/source-module.mjs';
 const nodes = n => React.isValidElement(n) ? [n, ...React.Children.toArray(n.props.children).flatMap(nodes)] : [];
+const textOf = n => React.isValidElement(n) ? React.Children.toArray(n.props.children).map(textOf).join('') : n == null ? '' : String(n);
 test('Studio header exposes Bookmarks without New project or Insights', () => {
  const { StudioWorkbenchHeader } = sourceModule('src/features/studio/StudioWorkbenchView.tsx', {
  'react': React, '../../presentation/mobile/MobileContextActions': { MobileContextButton: 'actions' },
@@ -113,10 +114,11 @@ test('mobile Studio uses its tabs without a duplicate heading row and preserves 
  let params=new URLSearchParams(), mobile=true, registered;
  const effects=[],paramWrites=[],navigations=[],backs=[];
  let workbench={data:{profile:{projects:[{id:'real-work-fixture'}]},drafts:[]},retry(){}};
- const react={...React,useEffect:effect=>effects.push(effect),useMemo:fn=>fn(),useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
+ const react={...React,useEffect:effect=>effects.push(effect),useMemo:fn=>fn(),useRef:initial=>({current:initial}),useCallback:callback=>callback,useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
  const imports={
   react,'react-router-dom':{useLocation:()=>({state:{}}),useNavigate:()=>((path,options)=>navigations.push({path,options})),useSearchParams:()=>[params,(next,options)=>{params=new URLSearchParams(next);paramWrites.push({params,options});}]},
-  'lucide-react':{ChevronLeftIcon:'chevron'},
+  'lucide-react':new Proxy({ChevronLeftIcon:'chevron'},{get:(icons,name)=>icons[name]??name}),
+  '../../components/ui/InterfaceIcon':{InterfaceIcon:'interface-icon'},
   '../../presentation/usePresentation':{usePresentation:()=>mobile?'mobile':'web'},
   '../library/PersonalPages':{InsightsPage:'insights'},
   '../citations/StudioCitations':{StudioCitations:'citations'},
@@ -142,7 +144,16 @@ test('mobile Studio uses its tabs without a duplicate heading row and preserves 
  const props={onBack(){backs.push('back');},onOpenProject(){}};
  let tree=nodes(StudioPage(props));
  const pills=tree.filter(n=>n.props['data-studio-pill']);
- assert.equal(pills[0].props.children,'Insights');
+ assert.deepEqual(pills.map(n=>n.props['aria-label']),['Insights','Drafts','Bookmarks','References','Cited','Activity']);
+ assert.deepEqual(pills.map(textOf),['Insights','Drafts','Bookmarks','References','Cited','Activity']);
+ assert.equal(new Set(pills.map(n=>nodes(n).find(child=>child.type==='interface-icon')?.props.icon)).size,6,'Every collection has its own existing icon.');
+ for(const pill of pills) {
+  assert.equal(pill.type,'button');
+  assert.equal(pill.props.type,'button');
+  assert.ok(nodes(pill).some(n=>n.type==='interface-icon'),'Icon-only collections retain their representative glyph.');
+  assert.ok(nodes(pill).some(n=>n.type==='span'&&String(n.props['aria-hidden'])==='true'&&textOf(n)===pill.props['aria-label']),'The visual expanding label does not duplicate the button accessible name.');
+ }
+ const pillKeys=pills.map(n=>n.key);
  assert.equal(pills.some(n=>n.props['data-studio-pill']==='published'),false);
  assert.equal(pills.some(n=>n.props['data-studio-pill']==='all'),false);
  assert.equal(pills[0].props['aria-pressed'],true);
@@ -153,6 +164,7 @@ test('mobile Studio uses its tabs without a duplicate heading row and preserves 
  assert.equal(tree.some(n=>n.type==='h1'||n.props.className==='studio-mobile-shell-header'),false);
  pills.find(n=>n.props['data-studio-pill']==='drafts').props.onClick();
  tree=nodes(StudioPage(props));
+ assert.deepEqual(tree.filter(n=>n.props['data-studio-pill']).map(n=>n.key),pillKeys,'Changing collections preserves keyed buttons for focus and interruptible CSS transitions.');
  assert.equal(tree.find(n=>n.props['data-studio-pill']==='drafts').props['aria-pressed'],true);
  assert.equal(tree.find(n=>n.type==='drafts').props.hideBack,undefined);
  tree.find(n=>n.props['data-studio-pill']==='overview').props.onClick();
@@ -164,6 +176,7 @@ test('mobile Studio uses its tabs without a duplicate heading row and preserves 
  params=new URLSearchParams();mobile=false;
  tree=nodes(StudioPage(props));
  assert.equal(tree.filter(n=>n.props['data-studio-pill'])[0].props.children,'Drafts');
+ assert.equal(tree.filter(n=>n.props['data-studio-pill']).some(n=>nodes(n).some(child=>child.type==='interface-icon')),false,'WEB keeps its original text-only controls.');
  assert.equal(tree.some(n=>n.props['data-studio-pill']==='overview'),false);
  assert.equal(tree.some(n=>n.props['data-studio-pill']==='all'),false);
  assert.ok(tree.some(n=>n.type==='overview'),'WEB retains its workbench overview');

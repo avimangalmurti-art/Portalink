@@ -557,6 +557,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
   onReact: (id: Id, emoji: string) => Promise<boolean>;
 }) {
   const isMobile = usePresentation() === 'mobile';
+  const MessageText = isMobile ? 'div' : 'p';
   const [editingId, setEditingId] = useState<Id | null>(null);
   const [editBody, setEditBody] = useState('');
   const [deleteId, setDeleteId] = useState<Id | null>(null);
@@ -606,7 +607,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                     } : undefined} maxLength={4000} className={`min-h-20 w-full resize-y rounded-[9px] bg-[var(--surface-canvas)] p-2 text-[var(--text-primary)] ${isMobile ? 'text-[16px] border border-[var(--hairline)] rounded-[16px] !p-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]' : 'text-[15px]'}`} />
                     {!isMobile ? <p className="mt-1 text-[11px] opacity-75">Esc to cancel · Ctrl/Cmd+Enter to save</p> : null}
                     <div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setEditingId(null)} className={`${isMobile ? 'min-h-[44px] min-w-[80px] px-4 text-[14px] rounded-[12px] bg-[var(--surface-sunken)] !no-underline' : 'text-[12px]'} font-semibold underline`}>Cancel</button><button type="submit" disabled={!editBody.trim() || pendingMessageId === message.id} className={`${isMobile ? 'min-h-[44px] min-w-[80px] px-4 text-[14px] rounded-[12px] bg-[var(--surface-sunken)] !no-underline' : 'text-[12px]'} font-semibold underline disabled:opacity-50`}>Save</button></div>
-                  </form> : <p className="whitespace-pre-wrap break-words text-[16px] leading-6"><MessageBody body={message.body} /></p>}
+                  </form> : <MessageText className="whitespace-pre-wrap break-words text-[16px] leading-6"><MessageBody body={message.body} previewLinks={isMobile} /></MessageText>}
                 {message.attachments?.length ? <ul className="mt-2 grid gap-2">
                     {message.attachments.map((attachment) => <li key={attachment.id}><MessageAttachmentView attachment={attachment} /></li>)}
                   </ul> : null}

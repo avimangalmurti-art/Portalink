@@ -18,7 +18,7 @@ test('only the selected Studio tab centres horizontally without moving the page'
  for(const width of [375,420,430])for(const selected of [false,true]) {
   const rail={clientWidth:width,scrollLeft:17,scrollTop:39};
   const pill={parentElement:rail,clientWidth:80,offsetLeft:400,scrollIntoView(){assert.fail('Tab changes must not scroll the surrounding page.');}};
-  const ref=vm.runInNewContext(callback,{mobile:true,collection:selected?'bookmarks':'drafts',pill:'bookmarks'});
+  const ref=vm.runInNewContext(callback,{mobile:true,collection:selected?'bookmarks':'drafts',pill:'bookmarks',selected});
   ref(pill);
   assert.equal(rail.scrollLeft,selected?400-(width-80)/2:17);
   assert.equal(rail.scrollTop,39);

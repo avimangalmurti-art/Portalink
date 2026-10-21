@@ -2575,8 +2575,10 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   backdrop-filter:blur(18px) saturate(115%);
 }
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals {height:100%;min-height:0;background:transparent;}
-#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .global-control-header {flex:none;background:transparent!important;border-bottom:1px solid var(--hairline);}
-#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portals-scroll {flex:1;min-height:0;overflow-y:auto;padding:0 0 8px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .global-control-header {flex:none;background:transparent!important;}
+/* Keep scrolling row dividers clear of the footer's single hairline. The
+   matching bottom padding keeps the final row fully visible at scroll end. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portals-scroll {flex:1;min-height:0;overflow-y:auto;padding:0 0 8px;scroll-padding-bottom:8px;clip-path:inset(0 0 8px);}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer {flex:none;border-top:1px solid var(--hairline);padding:8px 16px max(8px,env(safe-area-inset-bottom));font-size:14px;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer>div {display:flex;flex-direction:column;gap:8px;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer :is(button,a) {display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:44px;padding:8px;border-radius:12px;color:var(--text-secondary);}
@@ -2625,3 +2627,10 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child {width:clamp(72px,20vw,104px);height:clamp(72px,20vw,104px);min-width:0;min-height:0;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child > svg {width:100%;height:100%;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-label {width:100%;min-width:0;text-align:center;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;line-height:1.4;}
+
+/* The public portal popup owns one surface; its grouped rows add no grey layers. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .portal-project-popup-layer > .shared-portal-popup [data-project-index-list] [data-mobile-project-layout='list'] :is(.inset-row-group, .project-index-row:not(.active)) {background:transparent;}
+@media (hover:hover) and (pointer:fine) {
+  #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .portal-project-popup-layer > .shared-portal-popup [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row:not(.active):hover {background:var(--control-hover-surface);}
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .portal-project-popup-layer > .shared-portal-popup [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row:not(.active):has(> button:active) {background:var(--surface-pressed);}

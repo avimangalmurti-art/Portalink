@@ -64,7 +64,7 @@
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <style>
       html,
       body,
@@ -189,6 +189,11 @@
         }
         #portalink-preboot { background-color: #fdffff; --portalink-splash-background: #fdffff; --portalink-media-ratio: 0.7111111111; }
         #portalink-preboot { height: var(--mobile-launch-height); min-height: var(--mobile-launch-height); }
+        /* Recovery actions follow the visible screen, not the taller launch artwork. */
+        #portalink-preboot-status {
+          position: fixed;
+          max-height: calc(100dvh - max(16px, env(safe-area-inset-top, 0px)) - max(16px, env(safe-area-inset-bottom, 0px)));
+        }
         #portalink-preboot .portalink-preboot-media {
           width: 100vw;
           height: var(--mobile-launch-height);

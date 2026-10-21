@@ -262,6 +262,34 @@ test('choosing a place waits for Enter when confirmation is separate', async t =
  h.search('Paris');h.key('Enter');assert.equal(confirmed.length,1,'Changing the query clears the selected place');
 });
 
+test('immediate city search opens the exact pointer or keyboard choice once and dismisses the keyboard', async t => {
+ const ontario={...london,id:'city-6058560',regionName:'Ontario',countryName:'Canada'};
+ for(const method of ['pointer','keyboard']){
+  const h=harness({blurOnSelect:true});t.after(()=>h.dispose());
+  h.search('London');h.advance(180);h.requests[0].resolve([london,ontario]);await h.flush();
+  if(method==='pointer')h.options()[1].props.onClick();
+  else{h.key('ArrowDown');assert.equal(h.key('Enter',true).defaultPrevented,false);assert.equal(h.selected.length,0);h.key('Enter');}
+  h.render();
+  assert.deepEqual(h.selected,[ontario],`${method} must immediately select the chosen duplicate, without a second confirmation`);
+  assert.equal(h.focused,0,'Direct navigation must not refocus the keyboard before dismissing it');
+  assert.equal(h.blurred,1);
+  assert.equal(h.input().props['aria-expanded'],false);assert.equal(h.options().length,0);
+  assert.equal(h.key('Enter').defaultPrevented,false,'A closed immediate search has no selected-place confirmation step');
+  assert.deepEqual(h.selected,[ontario]);
+ }
+});
+
+test('immediate city choice invalidates older results and cannot be replaced or reopened by a late query', async t => {
+ const h=harness({blurOnSelect:true});t.after(()=>h.dispose());
+ h.search('Old London');h.advance(180);
+ h.search('Paris');h.advance(180);h.requests[1].resolve([paris]);await h.flush();
+ h.options()[0].props.onClick();h.update({value:'Paris, Île-de-France, FR'});
+ h.requests[0].resolve([london]);await h.flush();
+ assert.deepEqual(h.selected,[paris]);assert.equal(h.blurred,1);assert.equal(h.focused,0);
+ assert.equal(h.input().props.value,'Paris, Île-de-France, FR');
+ assert.equal(h.input().props['aria-expanded'],false);assert.equal(h.options().length,0);
+});
+
 test('mobile city tap retains input focus, closes suggestions after focus events and confirms the exact chosen duplicate on Enter',async t=>{
  const confirmed=[],ontario={...london,id:'city-6058560',regionName:'Ontario',countryName:'Canada'};
  const h=harness({keepFocusOnSelect:true,blurOnSelect:true,onConfirm:place=>confirmed.push(place)});t.after(()=>h.dispose());

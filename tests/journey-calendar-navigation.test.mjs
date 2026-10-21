@@ -15,6 +15,8 @@ const sparse = [entry('old', '1990-01-01'), entry('leap', '2024-02-29'), entry('
 /** Execute the actual component with committed refs, effects, state and scroll events. */
 function componentHarness(file, name, initial, overrides = {}) {
   const slots = [], frames = new Map(), listeners = new Map(), scrolls = [], targets = new Map(), properties = new Map();
+  const sectionCalls = [];
+  let sectionResets = 0;
   let cursor = 0, dirty = true, tree, props = initial, effects = [], lastRefs = [], frameId = 0, wrapperKey;
   const equal = (left, right) => left && right && left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
   const react = { ...React,
@@ -47,6 +49,10 @@ function componentHarness(file, name, initial, overrides = {}) {
     './useTimelinePairs': { useTimelinePairs: (profile, owner) => {
       const pair = journey.visiblePair(profile, owner);
       return { pairs: pair ? [{ id: 'legacy', then: pair[0].id, now: pair[1].id }] : [], error: '', loading: false };
+    } },
+    './useTimelineSection': { useTimelineSection: options => {
+      sectionCalls.push(options);
+      return { atPairs: Boolean(options.enabled && props.autoAtPairs), reset() { sectionResets++; props = { ...props, autoAtPairs: false }; } };
     } },
     './journey-calendar.css': {}, './journey.css': {}, ...overrides,
   };
@@ -87,6 +93,7 @@ function componentHarness(file, name, initial, overrides = {}) {
   }
   return {
     get tree() { return render(); }, get nodes() { return nodes(render()); }, get wrapperKey() { render(); return wrapperKey; }, scrolls, properties,
+    get sectionOptions() { render(); return sectionCalls.at(-1); }, get sectionResets() { return sectionResets; },
     target(day) { render(); return targets.get(day); },
     selected() { return this.nodes.find(node => node.type === 'input')?.props.value; },
     button(label) { return this.nodes.find(node => node.type === 'button' && node.props['aria-label'] === label); },
@@ -496,12 +503,45 @@ test('mobile Timeline has four view buttons and no creation actions for owner or
  assert.equal(h.button('Add work'),undefined);assert.equal(h.button('Choose a Then/Now pair'),undefined);
  h.update({owner:false});assert.equal(h.button('Add work'),undefined);h.dispose();
 });
-test('Popular shows authorized open counts and tied ranks only while selected',async()=>{
+
+test('shared mobile Timeline omits Popular while preserving the three native controls and existing row actions', () => {
+ const early=project('early','2020-01-01'), recent=project('recent','2026-01-01'), opened=[];
+ const h=viewHarness({profile:{...profile,showJourney:true,thenNow:{then:early.id,now:recent.id},projects:[early,recent]},owner:false,showPopular:false,presentation:'mobile',onOpen:work=>opened.push(work.id)});
+ const controls=()=>nodes(h.nodes.find(node=>node.props.className==='journey-toolbar')).filter(node=>node.type==='button');
+ assert.deepEqual(controls().map(text),['Latest','Oldest','Then/Now']);
+ assert.ok(controls().every(node=>node.props.type==='button'&&node.props.disabled!==true&&node.props.tabIndex===undefined),'All remaining controls retain ordinary keyboard tab access.');
+ assert.equal(sortButton(h,'Latest').props['aria-pressed'],true);
+ assert.deepEqual(timelineRows(h).map(node=>node.key),['project:recent','project:early']);
+ const key=h.wrapperKey;
+ sortButton(h,'Oldest').props.onClick(); h.frames();
+ assert.equal(h.wrapperKey,key); assert.equal(timelineOrder(h),'oldest');
+ assert.equal(sortButton(h,'Oldest').props['aria-pressed'],true);
+ assert.deepEqual(timelineRows(h).map(node=>node.key),['project:early','project:recent']);
+ h.nodes.find(node=>node.props.className==='journey-title'&&text(node)==='early').props.onClick();
+ assert.deepEqual(opened,['early']);
+ h.button('Show details for early').props.onClick();
+ assert.ok(h.nodes.find(node=>node.type==='project-popup'));
+ h.nodes.find(node=>node.type==='project-popup').props.onClose();
+ sortButton(h,'Then/Now').props.onClick(); h.frames();
+ assert.equal(sortButton(h,'Then/Now').props['aria-pressed'],true);
+ assert.equal(timelineRows(h).length,0); assert.equal(h.nodes.filter(node=>node.props.className==='journey-pair').length,1);
+ sortButton(h,'Latest').props.onClick(); h.frames();
+ assert.equal(sortButton(h,'Latest').props['aria-pressed'],true); assert.equal(timelineRows(h).length,2);
+ h.update({autoAtPairs:true});
+ assert.equal(sortButton(h,'Then/Now').props['aria-pressed'],true); assert.equal(timelineRows(h).length,2);
+ h.update({autoAtPairs:false}); assert.equal(sortButton(h,'Latest').props['aria-pressed'],true);
+ assert.deepEqual(h.scrolls,[],'Removing the unavailable action does not add any scroll writes.');
+ h.update({presentation:'web'});
+ assert.deepEqual(controls().map(text),['Newest first','Oldest first']);
+ assert.equal(h.sectionOptions.enabled,false); h.dispose();
+});
+
+test('Popular shows authorized open counts only while selected',async()=>{
  const reads={list:async()=>[{profileId:'creator',projectId:'older-hit',opened:50},{profileId:'creator',projectId:'recent-tie',opened:5},{profileId:'creator',projectId:'older-tie',opened:5},{profileId:'other',projectId:'zero',opened:999}]};
  const h=componentHarness('src/features/journey/JourneyView.tsx','JourneyView',{profile:{...profile,projects:[project('older-hit','2020-01-01'),project('recent-tie','2026-01-01'),project('older-tie','2025-01-01'),project('zero','2024-01-01')]},owner:true,presentation:'mobile',onOpen(){}},{'../../contexts/ServicesContext':{useServices:()=>({reads})}});
  assert.equal(h.nodes.some(n=>n.props.className==='journey-popularity'),false);await new Promise(setImmediate);h.update({});
  h.nodes.find(n=>n.type==='button'&&text(n)==='Popular').props.onClick();
- assert.deepEqual(h.nodes.filter(n=>n.props.className==='journey-popularity').map(n=>text(n).replace(/\s+/g,' ').replace('# ','#')),['#1 · 50 opens','#2 · 5 opens','#2 · 5 opens','#4 · 0 opens']);
+ assert.deepEqual(h.nodes.filter(n=>n.props.className==='journey-popularity').map(n=>text(n).trim()),['50','5','5','0']);
  h.nodes.find(n=>n.type==='button'&&text(n)==='Oldest').props.onClick();assert.equal(h.nodes.some(n=>n.props.className==='journey-popularity'),false);
  h.update({owner:false});assert.equal(h.nodes.some(n=>n.props.className==='journey-popularity'),false);h.dispose();
 });
@@ -522,4 +562,73 @@ test('Then/Now filters out ordinary Timeline entries and another view restores t
  sortButton(h,'Then/Now').props.onClick();h.frames();
  assert.match(text(h.tree),/No Then\/Now pairs yet/);
  h.dispose();
+});
+
+test('mobile automatic Then/Now indication preserves the continuous rows, selected order and reading position', () => {
+ const early=project('early','2020-01-01'), recent=project('recent','2026-01-01');
+ const h=viewHarness({profile:{...profile,showJourney:true,thenNow:{then:early.id,now:recent.id},projects:[early,recent]},owner:false,presentation:'mobile',onOpen(){}});
+ const key=h.wrapperKey, first=h.target('2026-01-01'); first.top=-74;
+ const rows=timelineRows(h).map(node=>node.key);
+ assert.equal(h.sectionOptions.enabled,true);
+ h.update({autoAtPairs:true});
+ assert.equal(sortButton(h,'Then/Now').props['aria-pressed'],true);
+ assert.equal(sortButton(h,'Latest').props['aria-pressed'],false);
+ assert.equal(timelineOrder(h),'newest');
+ assert.deepEqual(timelineRows(h).map(node=>node.key),rows,'Automatic indication must not activate the explicit pair-only filter.');
+ assert.equal(h.wrapperKey,key); assert.equal(h.target('2026-01-01'),first); assert.equal(first.top,-74);
+ assert.deepEqual(h.scrolls,[],'The indicator cannot scroll, reorder or open work.');
+ h.update({autoAtPairs:false});
+ assert.equal(sortButton(h,'Latest').props['aria-pressed'],true);
+ sortButton(h,'Oldest').props.onClick(); h.frames();
+ const oldRows=timelineRows(h).map(node=>node.key), resets=h.sectionResets;
+ h.update({autoAtPairs:true});
+ assert.equal(sortButton(h,'Then/Now').props['aria-pressed'],true); assert.equal(timelineOrder(h),'oldest');
+ assert.deepEqual(timelineRows(h).map(node=>node.key),oldRows);
+ h.update({autoAtPairs:false}); assert.equal(sortButton(h,'Oldest').props['aria-pressed'],true);
+ h.update({autoAtPairs:true}); sortButton(h,'Latest').props.onClick(); h.frames();
+ assert.equal(h.sectionResets,resets+1); assert.equal(sortButton(h,'Latest').props['aria-pressed'],true);
+ assert.deepEqual(h.scrolls,[]); h.dispose();
+});
+
+test('mobile automatic indication does not replace explicit Then/Now filtering and is paused behind local popups', () => {
+ const early=project('early','2020-01-01'), recent=project('recent','2026-01-01');
+ const h=viewHarness({profile:{...profile,showJourney:true,thenNow:{then:early.id,now:recent.id},projects:[early,recent]},owner:false,presentation:'mobile',onOpen(){}});
+ h.update({autoAtPairs:true}); sortButton(h,'Then/Now').props.onClick(); h.frames();
+ assert.equal(h.sectionOptions.enabled,false); assert.equal(sortButton(h,'Then/Now').props['aria-pressed'],true);
+ assert.equal(timelineRows(h).length,0,'Only an explicit Then/Now activation removes ordinary rows.');
+ sortButton(h,'Oldest').props.onClick(); h.frames(); assert.equal(timelineRows(h).length,2);
+ assert.equal(h.sectionOptions.enabled,true); assert.equal(sortButton(h,'Oldest').props['aria-pressed'],true);
+ h.update({autoAtPairs:true});
+ h.button('Show details for early').props.onClick(); assert.equal(h.sectionOptions.paused,true);
+ assert.equal(sortButton(h,'Then/Now').props['aria-pressed'],true,'Opening details preserves the current indication.');
+ h.nodes.find(node=>node.type==='project-popup').props.onClose(); assert.equal(h.sectionOptions.paused,false);
+ h.nodes.find(node=>node.props.className==='journey-portal').props.onClick(); assert.equal(h.sectionOptions.paused,true);
+ h.nodes.find(node=>node.type==='portal-project-popup').props.onClose(); assert.equal(h.sectionOptions.paused,false);
+ h.update({active:false}); assert.equal(h.sectionOptions.enabled,false);
+ h.update({active:true,profile:{...profile,projects:[early,recent]}}); assert.equal(h.sectionOptions.enabled,false,'No pair means no automatic tracking.');
+ assert.deepEqual(h.scrolls,[]); h.dispose();
+});
+
+test('WEB never enables automatic Then/Now tracking or changes its selected order from an injected mobile indication', () => {
+ const early=project('early','2020-01-01'), recent=project('recent','2026-01-01');
+ const h=viewHarness({profile:{...profile,showJourney:true,thenNow:{then:early.id,now:recent.id},projects:[early,recent]},owner:false,presentation:'web',autoAtPairs:true,onOpen(){}});
+ assert.equal(h.sectionOptions.enabled,false); assert.equal(sortButton(h,'Then/Now'),undefined);
+ assert.equal(sortButton(h,'Newest first').props['aria-pressed'],true); assert.equal(timelineRows(h).length,2);
+ sortButton(h,'Oldest first').props.onClick(); h.frames(); assert.equal(sortButton(h,'Oldest first').props['aria-pressed'],true);
+ assert.equal(h.sectionOptions.enabled,false); assert.equal(timelineRows(h).length,2); assert.deepEqual(h.scrolls,[]); h.dispose();
+});
+
+test('automatic Then/Now indication returns to Popular without refetching counts or replacing its ranked rows',async()=>{
+ let readsCount=0;
+ const early=project('early','2020-01-01'),recent=project('recent','2026-01-01');
+ const reads={list:async()=>{readsCount++;return [{profileId:'creator',projectId:early.id,opened:20},{profileId:'creator',projectId:recent.id,opened:3}];}};
+ const h=componentHarness('src/features/journey/JourneyView.tsx','JourneyView',{profile:{...profile,showJourney:true,thenNow:{then:early.id,now:recent.id},projects:[early,recent]},owner:true,presentation:'mobile',onOpen(){}},{'../../contexts/ServicesContext':{useServices:()=>({reads})}});
+ h.tree; await new Promise(setImmediate); h.update({}); sortButton(h,'Popular').props.onClick(); h.frames();
+ assert.equal(sortButton(h,'Popular').props['aria-pressed'],true);
+ const rows=timelineRows(h).map(node=>node.key),ranks=h.nodes.filter(node=>node.props.className==='journey-popularity').map(text);
+ h.update({autoAtPairs:true}); assert.equal(sortButton(h,'Then/Now').props['aria-pressed'],true); assert.equal(sortButton(h,'Popular').props['aria-pressed'],false);
+ assert.equal(timelineOrder(h),'popular'); assert.deepEqual(timelineRows(h).map(node=>node.key),rows);
+ assert.deepEqual(h.nodes.filter(node=>node.props.className==='journey-popularity').map(text),ranks);
+ h.update({autoAtPairs:false}); assert.equal(sortButton(h,'Popular').props['aria-pressed'],true);
+ assert.equal(readsCount,1); assert.deepEqual(h.scrolls,[]); h.dispose();
 });

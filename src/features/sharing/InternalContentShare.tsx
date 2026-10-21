@@ -10,6 +10,7 @@ import { reducedMotion } from '../../presentation/motion/motion';
 import { ArrowLeftIcon } from 'lucide-react';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useRecipientKeyboard } from './useRecipientKeyboard';
+import { useRecipientScrollBoundary } from './useRecipientScrollBoundary';
 import './internalContentShare.css';
 
 type Target = { title: string; url: string; onSent?: () => void };
@@ -37,12 +38,13 @@ export function InternalContentShareDialog({target,onClose,inline = false,mobile
  const {messaging} = useServices();
  const {close,finish}=useSheetMotion(onClose,'base');
  const viewport=useDialogViewport(), panel=useRef<HTMLElement>(null), sending=useRef(false);
+ useRecipientScrollBoundary(mobile,viewport);
  const ownSendLock=useRef(false),sendLock=mobileSendLock??ownSendLock;
  // An unfinished phone send retains its guard if the viewport changes while
  // it is pending. Ordinary WEB and inline interactions keep their lifecycle.
  const guardSend=mobile||mobileSendLock!==undefined;
  const scope=JSON.stringify([auth.viewerProfileId,auth.isAuthenticated,target.title,target.url]);
- const session=useRef({active:true,scope,operation:0});session.current.scope=scope;
+ const session=useRef({active:true,scope,operation:0,confirmed:false});session.current.scope=scope;
  const [recipient,setRecipient]=useState<string | null>(null),[busy,setBusy]=useState(false),[sent,setSent]=useState(false),[error,setError]=useState<string | null>(null);
  const keyboardOpen=useRecipientKeyboard(presentation==='mobile'&&!inline&&!sent,panel);
  const invalidate=()=>{session.current.active=false;session.current.operation++;};
@@ -58,7 +60,7 @@ export function InternalContentShareDialog({target,onClose,inline = false,mobile
  useEffect(()=>{
   if(!mobile)return;
   const state=session.current;
-  state.active=true;sending.current=false;
+  state.active=true;state.confirmed=false;sending.current=false;
   setRecipient(null);setBusy(false);setSent(false);setError(null);
   return()=>{state.active=false;state.operation++;};
  },[mobile,scope]);
@@ -76,7 +78,7 @@ export function InternalContentShareDialog({target,onClose,inline = false,mobile
  useModalFocus(!inline&&!mobile,panel,()=>{if(!sending.current)onClose();},true);
  const send=async()=>{
   if(!recipient || sending.current || sent)return;
-  if(mobile&&!session.current.active)return;
+  if(mobile&&(!session.current.active||session.current.confirmed||session.current.scope!==scope))return;
   if(guardSend&&sendLock.current){setError('Your previous send is still finishing. Please wait before sending again.');return;}
   const operation=++session.current.operation;
   const current=()=>!mobile||(session.current.active&&session.current.operation===operation&&session.current.scope===scope);
@@ -88,18 +90,18 @@ export function InternalContentShareDialog({target,onClose,inline = false,mobile
    if(conversation.status==='request' && (!conversation.requestedByViewer || conversation.hasSentRequest)) throw new Error('This conversation must be accepted before you can send more messages.');
    await messaging.sendMessage(conversation.id, `${target.title}\n${target.url}`);
    if(!current())return;
-   if(mobile)panel.current?.focus({preventScroll:true});
+   if(mobile){session.current.confirmed=true;panel.current?.focus({preventScroll:true});}
    setSent(true);target.onSent?.();
   } catch(caught) {if(current())setError(caught instanceof Error?caught.message:'Content could not be sent. Try again.');}
   finally {if(guardSend)sendLock.current=false;if(current()){sending.current=false;setBusy(false);}}
  };
- const content = <> <header className="internal-share-header"><button type="button" aria-label="Back" disabled={busy} onClick={dismiss} className="internal-share-back"><ArrowLeftIcon aria-hidden="true" size={24}/></button><div><h1 id="internal-share-title">{sent?'Sent':'Send content'}</h1>
+ const content = <> <header className="internal-share-header"><button type="button" aria-label="Back" disabled={busy} onClick={dismiss} className="internal-share-back"><ArrowLeftIcon aria-hidden="true" size={24}/></button><div><h1 id="internal-share-title">{sent&&!mobile?'Sent':'Send content'}</h1>
  <p className="internal-share-source">{target.title}</p></div></header>
- {sent?<p className="internal-share-feedback" role="status">Sent in Portalink.</p>:<div className="internal-share-directory"><NewChatPanel key={mobile?scope:undefined} appearance="account-search" selectedCreatorId={recipient} showHeader={false} onClose={dismiss} startingCreatorId={busy?recipient:null} onSelectCreator={id=>{if(!busy&&(!mobile||(!sending.current&&session.current.active))){setRecipient(id);setError(null);}}} /></div>}
+ {sent&&!mobile?<p className="internal-share-feedback" role="status">Sent in Portalink.</p>:<div className="internal-share-directory"><NewChatPanel key={mobile?scope:undefined} appearance="account-search" selectedCreatorId={recipient} showHeader={false} onClose={dismiss} disabled={mobile&&sent} startingCreatorId={busy?recipient:null} onSelectCreator={id=>{if(!busy&&(!mobile||(!sending.current&&session.current.active&&!session.current.confirmed&&session.current.scope===scope))){setRecipient(id);setError(null);}}} /></div>}
  {(!keyboardOpen||error)&&<footer className="internal-share-footer">
- {!keyboardOpen && recipient && !sent && <p role="status">Recipient selected</p>}
+ {!keyboardOpen && recipient && (!sent||mobile) && <p role="status">{mobile&&sent?'Sent in Portalink.':'Recipient selected'}</p>}
  {error && <p role="alert">{error}</p>}
- {!keyboardOpen&&<div className="internal-share-actions"><button type="button" disabled={busy} onClick={dismiss}>{sent?'Done':'Cancel'}</button>{!sent && <button type="button" disabled={!recipient || busy} onClick={()=>void send()}>{busy?'Sending…':'Send'}</button>}</div>}</footer>}</>;
+ {!keyboardOpen&&<div className="internal-share-actions"><button type="button" disabled={busy} onClick={dismiss}>{sent?'Done':'Cancel'}</button>{(!sent||mobile) && <button type="button" disabled={!recipient || busy || sent} data-send-state={mobile&&sent?'sent':undefined} data-semantic-action={mobile&&sent?'send':undefined} onClick={()=>void send()}>{sent?'Sent':busy?'Sending…':'Send'}</button>}</div>}</footer>}</>;
  if (inline) return <div className="project-inline-share">{content}</div>;
  return <ModalPortal><div ref={viewport} className="internal-share-screen" data-presentation={presentation} data-mobile-share-motion={mobile||undefined} data-motion-scrim={mobile?'':undefined} data-share-reduce-motion={mobile&&reducedMotion()||undefined} data-recipient-keyboard={keyboardOpen?'open':'closed'}><section ref={panel} role="dialog" data-material="content" aria-modal="true" aria-labelledby="internal-share-title" tabIndex={-1} className="internal-share-page">
  {content}

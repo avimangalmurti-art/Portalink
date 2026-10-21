@@ -192,7 +192,7 @@ function profileHarness(search = '', options = {}) {
   const density = { columns: options.columns ?? 5, setColumns(value) { density.columns = value; }, saveError: null };
   const projectOrder = { order: projects.map(project => project.id), reset() {}, dismissError() {}, isSaving: false, commit: async () => true, ...options.projectOrder };
   let outside;
-  let mobileActions;
+  let mobileActions, mobilePressModel;
   const journey = { view: options.journeyView ?? 'portfolio', select(view) { journey.view = view; } };
   const react = { ...React,
     useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }]; },
@@ -231,7 +231,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useProfileVisibility')) return { useProfileVisibility: () => ({ isPrivate: false }) };
     if (name.endsWith('/useFollowRequests')) return { useFollowRequests: () => ({ count: 0, requests: [] }) };
     if (name.endsWith('/useProfileConnections')) return { useProfileConnections: () => ({ items: [{ profileId: 'person', name: 'Person Name', avatar: '' }], counts: {}, loading: false, error: null, nextOffset: null }) };
-    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'MobileContextButton', useMobileScreenActions(model) { mobileActions = model; }, useMobileContextPress: () => ({}) };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'MobileContextButton', useMobileScreenActions(model) { mobileActions = model; }, useMobileContextPress: model => { mobilePressModel = model; return {}; } };
     if (name.endsWith('/contextActions')) return contextActions;
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: options.editorProjectId ?? null } }) };
     if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
@@ -242,7 +242,7 @@ function profileHarness(search = '', options = {}) {
     return placeholder;
   }, { URL, URLSearchParams, requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: options.window ? Object.assign(options.window, { location: { origin: 'https://portalink.test' } }) : { location: { origin: 'https://portalink.test' }, scrollTo() {}, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
   const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [], showJourney: options.showJourney };
-  return { navigation, projectOrder, density, surfaceOwner, action: id => [...(mobileActions?.primary ?? []), ...(mobileActions?.groups.flat() ?? [])].find(action => action.id === id), flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
+  return { navigation, projectOrder, density, surfaceOwner, isMobile: options.presentation === 'mobile', isOwner: (options.viewerRole ?? 'owner') === 'owner' && !options.isSharedView, get mobileActions() { return mobileActions; }, get mobilePressModel() { return mobilePressModel; }, action: id => [...(mobileActions?.primary ?? []), ...(mobileActions?.groups.flat() ?? [])].find(action => action.id === id), flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
     return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props, ...updates });
   } };
@@ -684,12 +684,46 @@ test('mobile profile keeps links and visitor controls visible without duplicate 
     const h = profileHarness('', {presentation:'mobile',viewerRole,links});
     const tree = openProfileOptions(h);
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
-    assert.equal(nodes(tree).some(node => node.type === 'MobileContextButton'), viewerRole !== 'owner');
+    assert.equal(nodes(tree).some(node => node.type === 'MobileContextButton'), false);
     assert.deepEqual(Array.from(grid.props.links.filter(link => link.action), link => link.action), viewerRole === 'owner' ? ['bio','collaboration'] : ['bio','collaboration','message']);
     assert.deepEqual(JSON.parse(JSON.stringify(grid.props.links.filter(link => !link.action))), links);
     assert.equal(nodes(tree).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);
     assert.equal(nodes(tree).some(node => node.props?.['data-profile-visitor-actions'] !== undefined), viewerRole !== 'owner');
   }
+});
+
+test('mobile other-creator profiles omit options and hold actions while preserving direct follow, bookmark, Bio and contact controls', () => {
+  for (const viewerRole of ['visitor', 'guest']) {
+    const calls = [];
+    const follow = { isFollowing: false, isRequested: false, isResolving: false, isPending: false, resolveError: null, mutationError: null, onToggle: () => calls.push('follow') };
+    const h = profileHarness('', { presentation: 'mobile', viewerRole, props: {
+      follow, onBack: () => calls.push('back'), onSignInRequest: () => calls.push('sign-in'), onCollaboration: () => calls.push('collaboration'), onMessage: () => calls.push('message'),
+    } });
+    let tree = h.render();
+    assert.equal(h.mobileActions, null); assert.equal(h.mobilePressModel, null);
+    assert.equal(nodes(tree).some(node => node.type === 'MobileContextButton' || node.props?.['aria-label'] === 'Profile options'), false);
+    const followControl = nodes(tree).find(node => viewerRole === 'visitor' ? node.props?.['data-profile-follow'] !== undefined : node.props?.children === 'Sign in to follow');
+    assert.ok(followControl); followControl.props.onClick();
+    const bookmark = nodes(tree).find(node => node.type === 'CreatorSaveButton');
+    assert.ok(bookmark); assert.equal(bookmark.props.profileId, 'owner');
+    assert.equal(bookmark.props.registerScreenActions, false, 'Direct bookmark access cannot register a replacement mobile sheet');
+    const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
+    grid.props.onCollaboration(); grid.props.onMessage(); grid.props.onOpenBio();
+    tree = h.render();
+    const bio = nodes(tree).find(node => node.type === 'ProfileBioSheet');
+    assert.ok(bio); assert.equal(bio.props.canEdit, false); bio.props.onClose();
+    assert.equal(nodes(h.render()).some(node => node.type === 'ProfileBioSheet'), false);
+    const back = nodes(tree).find(node => node.props?.['aria-label'] === 'Back to previous screen');
+    assert.ok(back); assert.ok(nodes(tree).some(node => node.type === 'ScreenBack' && node.props.action === back.props.onClick)); back.props.onClick();
+    assert.deepEqual(calls, [viewerRole === 'visitor' ? 'follow' : 'sign-in', 'collaboration', 'message', 'back']);
+  }
+  const web = profileHarness('', { presentation: 'web', viewerRole: 'visitor' });
+  const button = nodes(web.render()).find(node => node.props?.['aria-label'] === 'Profile options');
+  assert.ok(button); assert.equal(button.props['aria-expanded'], false); button.props.onClick();
+  const webTree = web.render();
+  assert.equal(nodes(webTree).find(node => node.props?.['aria-label'] === 'Profile options').props['aria-expanded'], true);
+  assert.ok(web.mobileActions); assert.equal(web.mobilePressModel, web.mobileActions);
+  assert.notEqual(nodes(webTree).find(node => node.type === 'CreatorSaveButton').props.registerScreenActions, false);
 });
 
 test('WEB retains disclosure while MOBILE shared links are immediately available with correct privacy context', () => {
@@ -710,7 +744,11 @@ function openProfileOptions(h) {
   const tree = h.render();
   const toggle = nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options');
   if (toggle) toggle.props.onClick();
-  else assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton') || h.action('viewAsVisitor'), 'MOBILE owner delegates to the standard floating Actions button');
+  else {
+    assert.equal(h.isMobile, true, 'WEB retains its existing Profile options disclosure');
+    if (h.isOwner) assert.ok(h.action('viewAsVisitor'), 'MOBILE owner delegates to the standard floating Actions button');
+    else assert.equal(h.mobileActions, null, 'MOBILE other-creator profiles use their direct controls without a context sheet');
+  }
   return h.render();
 }
 

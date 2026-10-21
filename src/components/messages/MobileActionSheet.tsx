@@ -5,10 +5,12 @@ import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { ModalPortal } from '../ui/ModalPortal';
+import { usePresentation } from '../../presentation/usePresentation';
 import type { ContextActions, ContextAction } from '../../presentation/mobile/contextActions';
 
 /** Shared message/context sheet: one viewport, focus, scrim and swipe lifecycle. */
 export function MobileActionSheet({ model, onClose, onAction, beforeActions, children, layout = 'actions' }: { model: ContextActions; onClose: () => void; onAction: (action: ContextAction) => void; beforeActions?: React.ReactNode; children?: React.ReactNode; layout?: 'actions' | 'files' }) {
+  const mobile = usePresentation() === 'mobile';
   const motion=useSheetMotion(onClose);
   const [dragY,setDragY]=useState(0);
   const [dragging,setDragging]=useState(false);
@@ -67,7 +69,7 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
           setInteracted(true);
           setExpanded(value=>!value);
         }}><span className="mobile-context-handle" aria-hidden="true" /></button>
-        <div className="mobile-context-heading">{model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" data-ui-control={layout === 'files' ? 'button' : 'icon'} data-control-size="md" data-control-variant="secondary" onClick={dismiss} aria-label={layout === 'files' ? 'Done reordering files' : 'Close actions'}>{layout === 'files' ? 'Done' : <InterfaceIcon icon={XIcon}/>}</button></div>
+        <div className="mobile-context-heading">{!mobile && model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" data-ui-control={layout === 'files' ? 'button' : 'icon'} data-control-size="md" data-control-variant="secondary" onClick={dismiss} aria-label={layout === 'files' ? 'Done reordering files' : 'Close actions'}>{layout === 'files' ? 'Done' : <InterfaceIcon icon={XIcon}/>}</button></div>
       </header>
       <div className="mobile-context-body">
         {beforeActions}

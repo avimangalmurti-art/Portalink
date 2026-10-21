@@ -116,29 +116,39 @@ export function MediaInteractionBar({
     comment: () => { if (!requireAccount()) setCommentsOpen(true); },
   }, labels: { savePage: activity.record.engaged.save ? 'Unsave this page' : 'Save this page' } }) : null, 15);
   const [saveChoice,setSaveChoice]=useState<false|true|{scope:string;revision:number}>(false),[saveRetry,setSaveRetry]=useState(false);
+  const [saveSuccess,setSaveSuccess]=useState<{scope:string;revision:number}|null>(null);
   const saveScope=JSON.stringify([isMobile,presentedTarget.projectId,presentedTarget.attachmentId,presentedTarget.pageIndex,auth.user?.id]);
-  const saveSession=useRef({scope:saveScope,revision:0,active:true});
-  if(saveSession.current.scope!==saveScope){saveSession.current.scope=saveScope;saveSession.current.revision+=1;}
+  const saveSession=useRef({scope:saveScope,revision:0,active:true,confirmed:false});
+  if(saveSession.current.scope!==saveScope){saveSession.current.scope=saveScope;saveSession.current.revision+=1;saveSession.current.confirmed=false;}
   const saveRevision=saveSession.current.revision;
   const showingSave=isMobile?typeof saveChoice==='object'&&saveChoice.scope===saveScope&&saveChoice.revision===saveRevision:saveChoice===true;
+  const saved=isMobile&&showingSave&&saveSuccess?.scope===saveScope&&saveSuccess.revision===saveRevision;
   useEffect(()=>{const session=saveSession.current;session.active=true;return()=>{session.active=false;session.revision+=1;};},[]);
-  useEffect(()=>{setSaveChoice(false);if(isMobile)setSaveRetry(false);},[isMobile,presentedTarget.projectId,presentedTarget.attachmentId,presentedTarget.pageIndex,auth.user?.id]);
-  const closeSave=()=>{if(isMobile)saveSession.current.revision+=1;setSaveChoice(false);};
+  useEffect(()=>{setSaveChoice(false);setSaveSuccess(null);if(isMobile)setSaveRetry(false);},[isMobile,presentedTarget.projectId,presentedTarget.attachmentId,presentedTarget.pageIndex,auth.user?.id]);
+  const closeSave=useCallback(()=>{if(isMobile){saveSession.current.revision+=1;saveSession.current.confirmed=false;}setSaveChoice(false);setSaveSuccess(null);},[isMobile]);
+  useEffect(()=>{
+    if(!saved)return;
+    const session=saveSession.current,revision=saveRevision;
+    const timer=setTimeout(()=>{
+      if(session.active&&session.scope===saveScope&&session.revision===revision&&session.confirmed)closeSave();
+    },800);
+    return()=>clearTimeout(timer);
+  },[saved,saveScope,saveRevision,closeSave]);
   const savePage=()=>{
     if(requireAccount())return;
     if(auth.isAuthenticated && !activity.record.engaged.save){
-      if(isMobile){saveSession.current.revision+=1;setSaveRetry(false);activity.dismissFailure();}
+      if(isMobile){saveSession.current.revision+=1;saveSession.current.confirmed=false;setSaveSuccess(null);setSaveRetry(false);activity.dismissFailure();}
       setSaveChoice(isMobile?{scope:saveScope,revision:saveSession.current.revision}:true);
     }else activity.toggle('save');
   };
   const confirmSave=async()=>{
     if(!isMobile){activity.toggle('save');setSaveChoice(false);return true;}
     const session=saveSession.current,revision=saveRevision;
+    if(!session.active||session.scope!==saveScope||session.revision!==revision||session.confirmed)return false;
+    const confirmed=await activity.saveWithCreator();
     if(!session.active||session.scope!==saveScope||session.revision!==revision)return false;
-    const saved=await activity.saveWithCreator();
-    if(!session.active||session.scope!==saveScope||session.revision!==revision)return false;
-    if(saved===true)closeSave();else setSaveRetry(true);
-    return saved===true;
+    if(confirmed===true){session.confirmed=true;setSaveSuccess({scope:saveScope,revision});}else setSaveRetry(true);
+    return confirmed===true;
   };
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return <div
@@ -156,7 +166,7 @@ export function MediaInteractionBar({
   >
     {citation.surface}
     {citation.citedIn}
-    {showingSave && <ConfirmationDialog key={isMobile?`${saveScope}:${saveRevision}`:undefined} title="Save this page?" description="This page will be saved privately in your Bookmarks." confirmLabel={isMobile&&saveRetry?'Retry':'Save'} pendingLabel="Saving…" pending={activity.pendingKind==='save'} error={activity.failure} onCancel={closeSave} onConfirm={confirmSave}/>}
+    {showingSave && <ConfirmationDialog key={isMobile?`${saveScope}:${saveRevision}`:undefined} title={saved?'Page saved':'Save this page?'} description={saved?'This page has been saved privately in your Bookmarks.':'This page will be saved privately in your Bookmarks.'} confirmLabel={isMobile&&saveRetry?'Retry':'Save'} successLabel={saved?'Saved':undefined} cancelLabel={saved?'Done':undefined} pendingLabel="Saving…" pending={activity.pendingKind==='save'} error={activity.failure} onCancel={closeSave} onConfirm={confirmSave}/>}
     <div hidden={contextOnly} data-media-controls-row="" className="flex max-w-full items-center gap-2">
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,

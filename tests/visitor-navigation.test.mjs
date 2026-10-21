@@ -563,6 +563,7 @@ test('retained Timeline clears body popup state while preserving the selected so
     if (name === './journey') return { journeyProjects: projects => projects, projectMonth: () => null };
     if (name === './calendar') return { calendarDay: () => null };
     if (name === './useTimelinePairs') return { useTimelinePairs: () => ({ pairs: [], error: null, loading: false }) };
+    if (name === './useTimelineSection') return { useTimelineSection: () => ({ atPairs: false, reset() {} }) };
     if (name === 'lucide-react') return { MoreHorizontalIcon: 'MoreHorizontalIcon' };
     return named(name.split('/').at(-1));
   });
@@ -589,7 +590,7 @@ test('public MOBILE Timeline portals its real toolbar into the profile header an
  for(const [signedIn,own] of [[false,false],[true,false],[true,true]]){
   Object.assign(h.state,{signedIn,own});tree=h.render();
   const timeline=one(tree,'lazy:../features/journey/JourneyView');
-  assert.equal(timeline.props.toolbarHost,attached);assert.equal(timeline.props.owner,false);
+  assert.equal(timeline.props.toolbarHost,attached);assert.equal(timeline.props.owner,false);assert.equal(timeline.props.showPopular,false);
   assert.equal(timeline.props.profile,h.bioProfile);
  }
  host.ref(null);assert.equal(one(h.render(),'lazy:../features/journey/JourneyView').props.toolbarHost,null);
@@ -605,7 +606,7 @@ test('public catalogue, portal views and denied Timeline never mount a mobile to
  assert.equal(host(denied.render()),undefined);assert.equal(one(denied.render(),'lazy:../features/journey/JourneyView'),undefined);
  const web=visitorProfileHarness({presentation:'web',showJourney:true});web.state.view='journey';
  const tree=web.render(),timeline=one(tree,'lazy:../features/journey/JourneyView');
- assert.equal(host(tree),undefined);assert.equal(timeline.props.toolbarHost??null,null);assert.equal(timeline.props.owner,false);
+ assert.equal(host(tree),undefined);assert.equal(timeline.props.toolbarHost??null,null);assert.equal(timeline.props.owner,false);assert.equal(timeline.props.showPopular,false);
 });
 
 test('shared Journey permission and WEB switch placement are unchanged', () => {

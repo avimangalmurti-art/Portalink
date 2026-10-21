@@ -46,6 +46,7 @@ type PdfPageProps = {
   onRenderFailure?: () => void;
   label: string;
   pageNumber?: number;
+  strictPageNumber?: boolean;
   onPageCountChange?: (pageCount: number) => void;
   className?: string;
   fit?: 'contain' | 'cover';
@@ -62,6 +63,7 @@ export function PdfPage({
   source, onRenderFailure,
   label,
   pageNumber = 1,
+  strictPageNumber = false,
   onPageCountChange,
   className = '',
   fit = 'contain',
@@ -103,13 +105,17 @@ export function PdfPage({
     setStatus('loading');
 
     void (async () => {
-      const pdfjs = await loadPdfJs();
+      const pdfjs = await loadPdfJs(strictPageNumber);
       if (cancelled) {
         return;
       }
       loadingTask = pdfjs.getDocument(pdfSourceOptions(source, true));
       const document = await loadingTask.promise;
       onPageCountChange?.(document.numPages);
+      // Explicit message pages must never silently display a different page.
+      if (strictPageNumber && (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > document.numPages)) {
+        throw new Error('Requested page is unavailable');
+      }
       const nextPage = await document.getPage(Math.min(pageNumber, document.numPages));
       if (!cancelled) {
         setPage(nextPage);
@@ -124,7 +130,7 @@ export function PdfPage({
       cancelled = true;
       void loadingTask?.destroy();
     };
-  }, [onPageCountChange, pageNumber, shouldRender, source]);
+  }, [onPageCountChange, pageNumber, shouldRender, source, strictPageNumber]);
 
   useEffect(() => {
     if (!shouldRender) {

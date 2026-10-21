@@ -1,5 +1,4 @@
 import { MobileProjectPopup } from '../media/MobileProjectPopup';
-import { useMobileProjectContext } from '../../presentation/mobile/useMobileProjectContext';
 import type { ContextTarget } from '../../presentation/mobile/contextActions';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -56,7 +55,6 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
   const [popupOpen, setPopupOpen] = useState(false);
   useEffect(() => { if (!active) setPopupOpen(false); }, [active]);
   const isMobile = usePresentation() === 'mobile';
-  const press = useMobileProjectContext(project, creator.id, contextHandlers, disabled);
   // On phones artwork opens the work on its first tap. Details have a separate
   // control at every mobile grid density.
   const preview = useContentPreview(disabled, isMobile ? 0 : 80, isMobile);
@@ -82,11 +80,7 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
   const artwork = <span className="project-preview-image absolute inset-0 block">
     {cover ?? <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} allowPdfFallback={allowPdfFallback} allowVideoFallback={allowVideoFallback} fallbackAttachments={sharedCoverFallback ? project.attachments : undefined} />}
   </span>;
-  return <article ref={preview.ref} {...preview.events} {...press}
-    onPointerDownCapture={event => { preview.events.onPointerDownCapture(event); press.onPointerDownCapture?.(event); }}
-    onPointerMoveCapture={event => { preview.events.onPointerMoveCapture(event); press.onPointerMoveCapture?.(event); }}
-    onPointerUpCapture={() => { preview.events.onPointerUpCapture(); press.onPointerUpCapture?.(); }}
-    onPointerCancel={() => { preview.events.onPointerCancel(); press.onPointerCancel?.(); }} data-project-preview="" data-mobile-project-card={isMobile ? '' : undefined} data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
+  return <article ref={preview.ref} {...preview.events} data-project-preview="" data-mobile-project-card={isMobile ? '' : undefined} data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
     <div data-packing-base="" className="project-card-frame individual-content-outline relative w-full" style={{ aspectRatio: aspectRatio ?? getProjectAspectRatio(project), height: 'var(--project-cover-height, auto)' }}>
       {href ? <Link to={href} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}
       <ProjectHoverDetails summary={project.summary} href={href} onOpen={(event) => { if(isMobile) { event.preventDefault(); event.stopPropagation(); setPopupOpen(true); } else preview.open(event, href ? () => undefined : onOpen); }} className="project-preview-description" />

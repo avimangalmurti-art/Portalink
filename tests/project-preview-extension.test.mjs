@@ -37,7 +37,7 @@ function cardHarness(presentation = 'mobile') {
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useContentPreview')) return { useContentPreview: () => ({ expanded, events: {}, ref: {}, open: (event, action) => action(), toggleDetails: () => details++ }) };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 0.75, getProjectCoverPreview: () => undefined };
-    if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}) };
+    if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}), getProjectContinuityArtwork: () => project.cover, beginProjectContinuity() {} };
     if (name.endsWith('/ProjectCover')) return { ProjectCover: 'cover' };
     if (name === './ProjectHoverDetails') return { ProjectHoverDetails: 'details' };
     if (name === './ProjectPreviewExtension') return { ProjectPreviewExtension: 'loaded-extension' };

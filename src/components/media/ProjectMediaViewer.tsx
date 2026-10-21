@@ -1,6 +1,7 @@
 import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import { ExportSheet } from '../../features/references/ExportSheet';
 import { FollowContentInfoPopup } from './FollowContentInfoPopup';
+import { ProjectPopupOwnerActions } from './MobileProjectPopup';
 import { CitationReferences } from '../../features/citations/CitationReferences';
 import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
 import { CreatorAvatar } from '../profile/CreatorAvatar';
@@ -9,7 +10,7 @@ import { useProjectReach } from '../../features/reads/useProjectReach';
 import { useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
-import { useMobileActions, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import { copyPublicLink } from '../../utils/copyPublicLink';
 import { MobilePageContext } from '../../features/media-interactions/MobilePageContext';
@@ -310,7 +311,6 @@ export function ProjectMediaViewer({
   copyScope.current=`${projectId}:${journeyAuth.user?.id??''}:${pageAttachment?.id??''}:${currentPage??''}`;
   useEffect(()=>()=>{copyScope.current=null;},[]);
   useEffect(()=>{setExportOpen(false);setOwnCopyStatus('');},[projectId,journeyAuth.user?.id]);
-  const mobileActions = useMobileActions();
   const ownerReader = isOwner && !readOnlyShare;
   const creatorProfileId = creator?.id;
   const projectActionModel = contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
@@ -327,7 +327,7 @@ export function ProjectMediaViewer({
     export: creator?.id ? ()=>setExportOpen(true) : undefined,
     share: shareProject, copy: () => copyPublicLink(publicUrl),
   }, labels: { list: 'Open portal', projectInfo: 'Project information', saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
-  useMobileScreenActions(projectActionModel, 20, ownerReader ? undefined : () => setMobilePopup('description'));
+  useMobileScreenActions(projectActionModel, 20, () => setMobilePopup('description'));
   const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
   const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
     setPreviewPdf({ scope: previewScope, document });
@@ -527,7 +527,7 @@ export function ProjectMediaViewer({
               <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
             </div>
             <div>
-              {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
+              {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="project-description-text mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
             </div>
             {sharedProjectMetadata}
           </div>;
@@ -768,12 +768,12 @@ export function ProjectMediaViewer({
                 {/* Only what the creator wrote, in the face the work is set in. A
                project with no description says so rather than being padded with
                fields to fill the space. */}
-                {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
+                {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="project-description-text whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
               </section>}
           </div>}
         {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
-      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <FollowContentInfoPopup key={projectId} projectId={projectId} title={projectTitle} description={projectSummary} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} engagement={engagement} onRequireAccount={requireSharedAccount} onComments={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} onOptions={() => { closeMobilePopup(); mobileActions?.open(projectActionModel); }} onClose={closeMobilePopup} />}
+      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <FollowContentInfoPopup key={projectId} projectId={projectId} title={projectTitle} description={projectSummary} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} engagement={engagement} onRequireAccount={requireSharedAccount} onComments={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} optionsContent={ownerReader && (descriptionEditor || onDeleteProject) ? <ProjectPopupOwnerActions onEditTitle={descriptionEditor ? () => descriptionEditor.open(projectId) : undefined} onDelete={onDeleteProject} onClose={closeMobilePopup} /> : undefined} onClose={closeMobilePopup} />}
       {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup} mobileMotion={mobilePopup === 'comments'}>{dismiss => <>
         <header data-comments-header="" className="flex items-center justify-between gap-3">
           <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
@@ -783,7 +783,7 @@ export function ProjectMediaViewer({
           {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>
             : mobilePopup === 'verification' ? sharedVerification
             : readOnlyShare ? sharedProjectInformation
-            : <FormattedText style={{ fontFamily: contentTypefaceStack }} className="text-[16px] leading-relaxed text-[var(--text-primary)]" text={projectSummary || 'This project has no description.'} />}
+            : <FormattedText style={{ fontFamily: contentTypefaceStack }} className="project-description-text text-[16px] leading-relaxed text-[var(--text-primary)]" text={projectSummary || 'This project has no description.'} />}
         </div>
       </>}</MediaCommentsPopover>}
     </div></MobilePageContext.Provider>;

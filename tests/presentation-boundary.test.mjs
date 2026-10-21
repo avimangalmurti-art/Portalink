@@ -94,6 +94,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
     if (name === './mobile/useMobileHeaderMaterial') return { useMobileHeaderMaterial() {} };
     if (name === './mobile/useMobileViewportFrame') return { useMobileViewportFrame() {} };
     if (name === './useAppZoomBoundary') return { useAppZoomBoundary() {} };
+    if (name === './mobile/useMobileSelectionBoundary') return { useMobileSelectionBoundary() {} };
     if (name === './mobile/useProjectScrollActivity') return { useProjectScrollActivity: (enabled, path) => readingScopes.push([enabled, path]) };
     if (name.endsWith('.css')) return {};
     throw new Error(`Unexpected presentation dependency: ${name}`);
@@ -133,13 +134,15 @@ function presentationBoundary(mode) {
 test('presentation scope accepts an explicitly scoped descendant without accepting siblings or lookalike attributes', () => {
   for (const mode of ['web', 'mobile']) {
     const boundary = presentationBoundary(mode);
-    const compoundShellBoundary = new RegExp(`^#root \\.(?:codex|app)-shell(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
+    const compoundShellBoundary = new RegExp(`^#root \\.(codex|app)-shell(?:\\.\\1-shell)?(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
     assert.ok(boundary.test(`#root .codex-shell [data-presentation='${mode}'] .mobile-project-description-sheet`));
+    assert.ok(compoundShellBoundary.test(`#root .codex-shell.codex-shell[data-presentation='${mode}'] .studio-citation-pills`));
     assert.ok(boundary.test(`#root .codex-shell[data-presentation='${mode}'] .surface`));
     assert.ok(boundary.test(`#root [data-presentation='${mode}'] [data-loading-layout]`));
     for (const selector of [
       '#root .codex-shell .mobile-project-description-sheet',
       `#root .codex-shell.unscoped[data-presentation='${mode}'] .surface`,
+      `#root .codex-shell.app-shell[data-presentation='${mode}'] .surface`,
       `#root .codex-shell + [data-presentation='${mode}'] .surface`,
       `#root .codex-shell :not([data-presentation='${mode}']) .surface`,
       `#root .codex-shell [data-presentation='${mode}-other'] .surface`,
@@ -180,7 +183,7 @@ test('every platform CSS selector is scoped, including nested rules and selector
         // with or without zero specificity for component-level overrides.
         // A compound host selector (:has(), data attributes, etc.) retains scope.
         const boundary = presentationBoundary(mode);
-        const compoundShellBoundary = new RegExp(`^#root \\.(?:codex|app)-shell(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
+        const compoundShellBoundary = new RegExp(`^#root \\.(codex|app)-shell(?:\\.\\1-shell)?(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
         // AccountWelcomeSurface emits this alternate DOM scope only when
         // usePresentation() is mobile; account-entry-focus exercises that gate.
         const mobileOnboardingBoundary = /^#root \.codex-shell (?:\.auth-signin-experience)?\[data-mobile-onboarding(?:='(?:light|dark)')?\](?=[\s:.#\[]|$)/;

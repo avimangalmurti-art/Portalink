@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import { isPublicSharePath } from '../../features/sharing/shareModel';
+import { parseSharedContentLink } from '../../features/messages/sharedContentPreview';
+import { SharedContentMessagePreview } from './SharedContentMessagePreview';
 
 /** Content sent in Portalink opens in the app; arbitrary URLs stay plain text. */
 export function messageContentParts(body: string, origin: string) {
@@ -18,6 +20,12 @@ export function messageContentParts(body: string, origin: string) {
   return {text,to:null};
  });
 }
-export function MessageBody({body}: {body:string}) {
- return <>{messageContentParts(body,window.location.origin).map((part,index)=>part.to?<Link key={index} to={part.to} className="underline underline-offset-2">{part.text}</Link>:<React.Fragment key={index}>{part.text}</React.Fragment>)}</>;
+export function MessageBody({body, previewLinks = false}: {body:string; previewLinks?:boolean}) {
+ const parts = useMemo(() => messageContentParts(body, window.location.origin).map(part => ({ ...part,
+  target: previewLinks && part.to ? parseSharedContentLink(new URL(part.to, PUBLIC_ORIGIN).href, PUBLIC_ORIGIN) : null,
+ })), [body, previewLinks]);
+ return <>{parts.map((part,index)=> {
+  const { target } = part;
+  return target ? <SharedContentMessagePreview key={`${index}:${part.to}`} target={target} /> : part.to ? <Link key={index} to={part.to} className="underline underline-offset-2">{part.text}</Link> : <React.Fragment key={index}>{part.text}</React.Fragment>;
+ })}</>;
 }

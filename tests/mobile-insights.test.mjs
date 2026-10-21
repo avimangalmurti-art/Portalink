@@ -7,6 +7,9 @@ import ts from 'typescript';
 
 const nodes = tree => !React.isValidElement(tree) ? [] : [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)];
 const text = tree => typeof tree === 'string' || typeof tree === 'number' ? String(tree) : React.isValidElement(tree) ? React.Children.toArray(tree.props.children).map(text).join('') : '';
+const accessibleText = tree => typeof tree === 'string' || typeof tree === 'number' ? String(tree) : React.isValidElement(tree) && tree.props['aria-hidden'] !== true && tree.props['aria-hidden'] !== 'true' ? React.Children.toArray(tree.props.children).map(accessibleText).join('') : '';
+const metricButtons = tree => nodes(tree).filter(node => node.type === 'button' && 'aria-pressed' in node.props);
+const headline = tree => nodes(tree).find(node => node.props.className === 'mobile-insights-headline');
 function load(rows, { error, loading = false } = {}) {
   const states = ['7d', 'opened', false]; let cursor = 0, queryCursor = 0, refreshes = 0; const periods = [];
   const navigations = [];
@@ -37,7 +40,7 @@ const rows = [
 test('mobile insights ranks actual reads, switches metrics, expands projects and retains drill-down', () => {
   const fixture = load(rows);
   let tree = fixture.render();
-  assert.match(text(tree), /12 project opens · 7 days/);
+  assert.equal(accessibleText(headline(tree)), '12 project opens · 7 days');
   const top = nodes(tree).find(node => node.props['aria-label'] === 'Top projects');
   assert.deepEqual(nodes(top).filter(node => node.type === 'strong').map(text), ['B', 'A', 'D']);
   nodes(top).find(node => node.type === 'li').props.children.props.onClick();
@@ -45,12 +48,12 @@ test('mobile insights ranks actual reads, switches metrics, expands projects and
   nodes(top).find(node => node.props['aria-expanded'] === false).props.onClick();
   tree = fixture.render();
   assert.equal(nodes(nodes(tree).find(node => node.props['aria-label'] === 'Top projects')).filter(node => node.type === 'li').length, 4);
-  const metricButtons = nodes(tree).filter(node => node.type === 'button' && 'aria-pressed' in node.props);
-  metricButtons[1].props.onClick();
-  assert.match(text(fixture.render()), /8 completed reads · 7 days/);
-  metricButtons[2].props.onClick();
+  const buttons = metricButtons(tree);
+  buttons[1].props.onClick();
+  assert.equal(accessibleText(headline(fixture.render())), '8 completed reads · 7 days');
+  buttons[2].props.onClick();
   tree = fixture.render();
-  assert.match(text(tree), /5 current page saves/);
+  assert.equal(accessibleText(headline(tree)), '5 current page saves');
   assert.match(text(tree), /not saves made during this period/);
   assert.match(text(tree), /Reader and saver identities remain private/);
   assert.match(text(tree), /Location insights are not available/);
@@ -59,11 +62,89 @@ test('mobile insights ranks actual reads, switches metrics, expands projects and
 });
 test('loading and failures do not fabricate zero read metrics; genuine empty data is explained', () => {
   for (const state of [{ loading: true }, { error: 'Unavailable' }]) {
-    const tree = load(undefined, state).render();
-    assert.equal(nodes(tree).some(node => node.props.className === 'mobile-insights-headline'), false);
+    const fixture = load(undefined, state);
+    const tree = fixture.render();
+    assert.equal(headline(tree), undefined);
+    assert.equal(metricButtons(tree).length, 0);
+    assert.equal(nodes(tree).some(node => node.props.className === 'mobile-insights-chart' || node.props.className === 'mobile-insights-bar'), false);
     assert.equal(nodes(tree).some(node => node.type === (state.loading ? 'loading' : 'error')), true);
+    if (state.error) {
+      const failure = nodes(tree).find(node => node.type === 'error');
+      assert.equal(failure.props.description, state.error);
+      failure.props.onRetry();
+      assert.equal(fixture.refreshes(), 1);
+    }
   }
-  assert.match(text(load([]).render()), /No project reads yet/);
+  const empty = load([]).render();
+  assert.match(text(empty), /No project reads yet/);
+  assert.equal(nodes(empty).some(node => node.props.className === 'mobile-insights-bar'), false);
+  assert.equal(accessibleText(headline(empty)), '0 project opens · 7 days');
+});
+
+test('only the selected heading is accessible while all genuine headings can size the summary', () => {
+  const largeRows = [
+    { ...rows[0], opened: 9_876_543_210, finished: 1_234_567_890, saved: 98_765_432_109 },
+    { ...rows[1], opened: 123_456_789, finished: 12_345_678, saved: 987_654_321 },
+  ];
+  const fixture = load(largeRows);
+  const totals = Object.fromEntries(['opened', 'finished', 'saved'].map(key => [key, largeRows.reduce((sum, row) => sum + row[key], 0).toLocaleString()]));
+  const metricKeys = ['opened', 'finished', 'saved'];
+  for (const [period, label] of [['today', 'Today'], ['7d', '7 days'], ['30d', '30 days'], ['12m', '12 months'], ['all', 'All time']]) {
+    let tree = fixture.render();
+    nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.onChange({ target: { value: period } });
+    const candidates = [`${totals.opened} project opens · ${label}`, `${totals.finished} completed reads · ${label}`, `${totals.saved} current page saves`];
+    for (const [index, key] of metricKeys.entries()) {
+      tree = fixture.render();
+      metricButtons(tree)[index].props.onClick();
+      tree = fixture.render();
+      const heading = headline(tree);
+      const spans = React.Children.toArray(heading.props.children).filter(React.isValidElement);
+      assert.equal(heading.type, 'h2');
+      assert.equal(spans.length, 3);
+      assert.deepEqual(spans.map(text), candidates);
+      assert.equal(spans.filter(node => node.props['aria-hidden'] !== true && node.props['aria-hidden'] !== 'true').length, 1);
+      assert.equal(accessibleText(heading), candidates[index]);
+      assert.equal(tree.props['data-insights-metric'], key);
+      assert.deepEqual(metricButtons(tree).map(node => node.props['aria-pressed']), metricKeys.map(item => item === key));
+    }
+  }
+});
+
+test('metric styling metadata does not change chart values, ranking, zero bars or period drill-down', () => {
+  const fixture = load(rows);
+  const definitions = [
+    { key: 'opened', label: 'Opens', unit: 'opens' },
+    { key: 'finished', label: 'Completed', unit: 'completed reads' },
+    { key: 'saved', label: 'Page saves', unit: 'page saves' },
+  ];
+  for (const period of ['today', '7d', '30d', '12m', 'all']) {
+    let tree = fixture.render();
+    nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.onChange({ target: { value: period } });
+    for (const [index, definition] of definitions.entries()) {
+      tree = fixture.render();
+      metricButtons(tree)[index].props.onClick();
+      tree = fixture.render();
+      const chart = nodes(tree).find(node => node.props['aria-label'] === `${definition.label} by project`);
+      const buttons = React.Children.toArray(chart.props.children);
+      const ranked = rows.slice().sort((a, b) => b[definition.key] - a[definition.key] || a.title.localeCompare(b.title));
+      const maximum = Math.max(1, ...ranked.map(row => row[definition.key]));
+      assert.equal(tree.props['data-insights-metric'], definition.key);
+      assert.equal(buttons.length, ranked.length);
+      for (const [rowIndex, row] of ranked.entries()) {
+        const button = buttons[rowIndex];
+        const bar = nodes(button).find(node => node.props.className === 'mobile-insights-bar');
+        const count = nodes(button).find(node => node.props.className === 'mobile-insights-bar-count');
+        const label = nodes(button).find(node => node.props.className === 'mobile-insights-bar-label');
+        assert.equal(bar.props.style.height, `${row[definition.key] / maximum * 100}%`);
+        assert.equal(text(count), String(row[definition.key]));
+        assert.equal(text(label), String(rowIndex + 1));
+        assert.equal(label.props.title, row.title);
+        assert.equal(button.props['aria-label'], `${row.title}: ${row[definition.key]} ${definition.unit}. Open project insights`);
+        button.props.onClick();
+        assert.equal(fixture.navigations.at(-1), `/insights?project=${row.projectId}&period=${period}`);
+      }
+    }
+  }
 });
 
 test('periods drive queries, project covers load, and only recorded sources appear as data', () => {

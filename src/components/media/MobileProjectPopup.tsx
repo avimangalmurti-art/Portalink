@@ -1,8 +1,6 @@
 import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import { ProjectPopupEngagement } from './ProjectPopupEngagement';
-import { useMobileActions } from '../../presentation/mobile/MobileContextActions';
-
-import { contextActions, type ContextTarget } from '../../presentation/mobile/contextActions';
+import type { ContextTarget } from '../../presentation/mobile/contextActions';
 
 import React, { useEffect, useState } from 'react';
 
@@ -43,8 +41,6 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 }) {
 
 
- const mobileActions = useMobileActions();
-
  const services = useServices(), auth = useAuth(), navigate = useNavigate(), location = useLocation();
 
  const [loadedCreator, setLoadedCreator] = useState<VideoCreator>();
@@ -74,14 +70,11 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
  const url = new URL(buildPath('sharedProject', {profileId: creator?.id ?? creatorId ?? '',categoryId:project.categoryId,projectId:project.id}),PUBLIC_ORIGIN).href;
 
  const owner = !shared && auth.viewerProfileId === (creator?.id ?? creatorId);
- const actionModel = contextHandlers ? contextActions(shared ? 'shared' : 'project', {signedIn:auth.isAuthenticated,owner}, {title:project.title,handlers:contextHandlers}) : undefined;
- const hasContextActions = Boolean(actionModel?.primary?.length || actionModel?.groups?.some(group => group.length));
- const options = onOptions ?? (mobileActions && hasContextActions ? () => mobileActions.open(actionModel as NonNullable<typeof actionModel>) : undefined);
  const editTitle = contextHandlers?.edit ?? onOptions;
  const editDescription = onEditDescription ?? contextHandlers?.edit ?? onOptions;
- const hasOwnerActions = owner && Boolean(options || editTitle || editDescription || contextHandlers?.delete);
+ const hasOwnerActions = owner && Boolean(onOptions || editTitle || editDescription || contextHandlers?.delete);
 
- return <FollowContentInfoPopup projectId={project.id} title={project.title} description={project.summary} optionsContent={hasOwnerActions ? <ProjectPopupOwnerActions onOptions={options} onEditTitle={editTitle} onEditDescription={editDescription} onDelete={contextHandlers?.delete} onClose={onClose} /> : undefined} onOptions={options} onComments={() => { onClose(); onOpenComments?.(); }} engagement={engagement} onRequireAccount={requireAccount} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} engagementContent={<>
+ return <FollowContentInfoPopup projectId={project.id} title={project.title} description={project.summary} optionsContent={hasOwnerActions ? <ProjectPopupOwnerActions onOptions={onOptions} onEditTitle={editTitle} onEditDescription={editDescription} onDelete={contextHandlers?.delete} onClose={onClose} /> : undefined} onComments={() => { onClose(); onOpenComments?.(); }} engagement={engagement} onRequireAccount={requireAccount} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} engagementContent={<>
 
   <ProjectPopupEngagement projectId={project.id} projectTitle={project.title} url={url} engagement={engagement} onRequireAccount={requireAccount} onOpenComments={onOpenComments ? () => { onClose(); onOpenComments(); } : undefined} />
 
@@ -98,7 +91,8 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
 
 export function ProjectPopupOwnerActions({ onOptions, onEditTitle, onEditDescription, onDelete, onClose }: { onOptions?: () => unknown; onEditTitle?: () => unknown; onEditDescription?: () => unknown; onDelete?: () => unknown; onClose: () => void }) {
+ const editProject = onEditTitle ?? onOptions ?? onEditDescription;
  return <div className="project-popup-owner-actions">
-  {([['Project options', onOptions], ['Edit title', onEditTitle], ['Edit description', onEditDescription], ['Delete project', onDelete]] as const).map(([label, run]) => run && <button key={label} type="button" className="project-popup-owner-button" data-destructive={label === 'Delete project' || undefined} onClick={() => { onClose(); void run(); }}>{label}</button>)}
+  {([['Edit project', editProject], ['Delete project', onDelete]] as const).map(([label, run]) => run && <button key={label} type="button" className="project-popup-owner-button" data-destructive={label === 'Delete project' || undefined} onClick={() => { onClose(); void run(); }}>{label}</button>)}
  </div>;
 }

@@ -10,6 +10,7 @@ import { useViewportPresentation } from './useViewportPresentation';
 import { useMobileBrowserSurface } from './mobile/useMobileBrowserSurface';
 import { useMobileViewportFrame } from './mobile/useMobileViewportFrame';
 import { useAppZoomBoundary } from './useAppZoomBoundary';
+import { useMobileSelectionBoundary } from './mobile/useMobileSelectionBoundary';
 import { useProjectScrollActivity } from './mobile/useProjectScrollActivity';
 import { MobileContextProvider } from './mobile/MobileContextActions';
 import './web/web.css';
@@ -17,6 +18,7 @@ import './navigation.css';
 import './controls.css';
 import './surfaces.css';
 import './mobile/shapes.css';
+import './mobile/selection.css';
 
 /** One presentation choice also covers the shell's appearance state. */
 export function AppPresentationProvider({ children }: { children: React.ReactNode }) {
@@ -33,5 +35,6 @@ export function AppPresentation({ children, actionSheet, showFloatingActions = t
   useProjectScrollActivity(presentation === 'mobile', pathname, frameRef);
   useMobileHeaderMaterial(presentation === 'mobile', pathname, frameRef);
   useAppZoomBoundary();
+  useMobileSelectionBoundary(presentation);
   return <div {...props} ref={frameRef} data-presentation={presentation}><InternalContentShareProvider><MobileContextProvider sheet={actionSheet} showFloatingButton={showFloatingActions}>{children}</MobileContextProvider></InternalContentShareProvider></div>;
 }

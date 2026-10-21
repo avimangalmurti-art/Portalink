@@ -1,4 +1,5 @@
 import { useModalFocus } from '../../hooks/useModalFocus';
+import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { usePresentation } from '../../presentation/usePresentation';
 import React, { useEffect, useRef, useState } from 'react';
 import { SearchIcon, XIcon } from 'lucide-react';
@@ -20,8 +21,8 @@ const DEFAULT_ICON = 'shapes';
  * Naming a new Portalink category and choosing its mark, before anything is
  * created.
  *
- * A centred dialog rather than a popover: the choice has two parts now — a name
- * and an icon — and the icon set needs room to be scanned. Nothing is written
+ * A centred desktop dialog and a full-screen mobile editor: the choice has two
+ * parts — a name and an icon — and the icon set needs room to be scanned. Nothing is written
  * until Done, so an abandoned attempt leaves no half-made category behind.
  *
  * Note on colour: the reference for this screen carries a colour row, but the
@@ -38,6 +39,7 @@ export function NewCategoryDialog({
   error = null
 }: NewCategoryDialogProps) {
   const presentation = usePresentation();
+  const viewportRef = useDialogViewport(presentation === 'mobile');
   const focusTitleOnOpen = useRef(presentation === 'web');
   const [label, setLabel] = useState('');
   const [iconName, setIconName] = useState(DEFAULT_ICON);
@@ -81,7 +83,7 @@ export function NewCategoryDialog({
     }
     onCreate(trimmed, iconName);
   }
-  return <ModalPortal><div data-mobile-icon-create={presentation==='mobile'?'portal':undefined} role="presentation" onMouseDown={(event) => {
+  return <ModalPortal><div ref={viewportRef} data-presentation={presentation} data-mobile-icon-create={presentation==='mobile'?'portal':undefined} role="presentation" onMouseDown={(event) => {
     // A press on the backdrop leaves; a press inside must not.
     if (event.target === event.currentTarget) {
       onCancel();

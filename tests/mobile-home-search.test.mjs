@@ -14,7 +14,7 @@ function nodes(node) {
 
 function harness(presentation = 'mobile', props = {}, signedIn = true) {
   const slots = []; let cursor = 0;
-  let layoutEffects = []; let actions=null; let refreshGesture=null; let readiness=null;
+  let layoutEffects = []; let actions=null; let refreshGesture=null; let readiness=null; let refreshMotion=null;
   const feedArguments = [];
   let reloads = 0;
   let worldVisits = 0;
@@ -41,6 +41,7 @@ function harness(presentation = 'mobile', props = {}, signedIn = true) {
     if (name === 'react-router-dom') return { useNavigate: () => () => {}, useLocation: () => ({ pathname: props.locationId ? `/portalink/${props.locationId}` : '/', search: '', hash: '' }) };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileScreenActions(model) { actions=model; } };
     if (name.endsWith('/useHomePullRefresh')) return {useHomePullRefresh:(_ref,enabled,_busy,refresh)=>{refreshGesture=enabled?refresh:null;return '';}};
+    if (name.endsWith('/useHomeRefreshMotion')) return {useHomeRefreshMotion:options=>{refreshMotion=options;return {contentRef:{current:null},indicatorRef:{current:null},onPull(){}};}};
     if (name.endsWith('/useHomeStartupReadiness')) return {useHomeStartupReadiness:options=>{readiness=options;}};
     if (name.endsWith('/useMobileFeedRecovery')) return { useMobileFeedRecovery: () => () => {} };
     if (name.endsWith('/useMobileFeedResume')) return { useMobileFeedResume: () => ({ restoring: false, handled: false }) };
@@ -61,7 +62,7 @@ function harness(presentation = 'mobile', props = {}, signedIn = true) {
     cursor = 0; layoutEffects = [];
     return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onExploreWorld() { worldVisits++; }, onSearchUsers() { userSearchVisits++; }, onOpenProject() {}, onOpenCreator() { throw new Error("Account search must not open the viewer profile"); }, ...props });
   };
-  return { feedArguments, feed, density, ownerProfile, get readiness(){return readiness;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
+  return { feedArguments, feed, density, ownerProfile, get readiness(){return readiness;}, get refreshMotion(){return refreshMotion;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
     restoreScroll(){const tree=render();nodes(tree).find(node=>typeof node.props.onScroll==='function').ref.current={scrollTop:0};layoutEffects.slice(0,3).forEach(effect=>effect());},
     measureLocation(width) {
       const scroller = nodes(render()).find(node => typeof node.props.onScroll === 'function');
@@ -99,14 +100,48 @@ test('Explore retains all four discovery buttons without an Actions trigger or s
 test('the shell suppresses Home action fallback while preserving other screens and WEB',()=>{
  const source=ts.createSourceFile('App.tsx',readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);let gate;
  function visit(node){if(ts.isConditionalExpression(node)&&node.whenTrue.kind===ts.SyntaxKind.NullKeyword&&ts.isJsxSelfClosingElement(node.whenFalse)&&node.whenFalse.tagName.getText(source)==='MobileScreenActions')gate=node.condition;ts.forEachChild(node,visit);}visit(source);assert.ok(gate);
- const home={presentation:'mobile',route:{kind:'home'},isSearchOpen:false,isMessagesOpen:false,isMobileStudioOpen:false,activeProjectId:null};
+ const home={presentation:'mobile',route:{kind:'home'},isOwnerMode:true,isSearchOpen:false,isMessagesOpen:false,isMobileStudioOpen:false,activeProjectId:null};
  const suppressed=changes=>vm.runInNewContext(gate.getText(source),{...home,...changes});
  assert.equal(suppressed({}),true);
  for(const overlay of [{isSearchOpen:true},{isMessagesOpen:true},{isMobileStudioOpen:true},{activeProjectId:'project'},{route:{kind:'profile'}},{route:{kind:'settings'}},{presentation:'web'}])assert.equal(suppressed(overlay),false);
+ assert.equal(suppressed({route:{kind:'profile'},isOwnerMode:false}),true,'Another creator profile must not receive shell fallback actions');
 });
 test('city retains responsive measurement/local pinch and never receives the Home fit',()=>{const h=harness('mobile',{locationId:'city'});const grid=()=>nodes(h.render()).find(n=>n.type==='JustifiedImageWall');for(const [width,expected] of [[240,2],[390,2],[430,2],[458,3],[600,3]]){h.measureLocation(width);assert.equal(grid().props.columns,expected);assert.equal(grid().props.fitColumns,undefined);}grid().props.onColumnsChange(13);h.measureLocation(390);assert.equal(grid().props.columns,13);assert.equal(h.density.columns,5);const web=nodes(harness('web',{locationId:'city'}).render()).find(n=>n.type==='BentoFeedGrid');assert.equal(web.props.columns,undefined);});
 test('empty Explore feed retains its four top buttons without an Actions sheet',()=>{const h=harness();h.feed.isEmpty=true;h.feed.projects=[];const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.equal(nodes(tree).filter(n=>n.props.className==='mobile-home-header-button').length,4);assert.equal(h.actions,null);});
-test('refresh gesture retains cards, announces state/errors and rejects a busy request',()=>{const h=harness();h.render();h.pull();assert.equal(h.reloads,1);h.feed.isRefreshing=true;let tree=h.render();assert.ok(nodes(tree).some(n=>n.props.className==='premium-media-loading-mark' && n.props['aria-hidden']==='true'));h.pull();assert.equal(h.reloads,1);assert.deepEqual(Array.from(nodes(tree).find(n=>n.type==='JustifiedImageWall').props.items,i=>i.key),['first','second']);assert.equal(nodes(tree).find(n=>n.props.role==='status' && !('data-home-pull-feedback' in n.props)).props.children,'Refreshing Home content.');h.feed.isRefreshing=false;h.feed.refreshError='Could not refresh Home. Please try again.';tree=h.render();assert.equal(nodes(tree).find(n=>n.props.role==='status' && !('data-home-pull-feedback' in n.props)).props.children,h.feed.refreshError);for(const other of [harness('web'),harness('mobile',{locationId:'city'})]){other.render();other.pull();assert.equal(other.reloads,0);}});
+test('refresh gesture retains cards and its fixed spinner while announcing only real refresh state',()=>{
+  const h=harness();let tree=h.render();
+  const indicator=nodes(tree).find(n=>'data-home-pull-feedback' in n.props);
+  assert.ok(indicator);assert.equal(indicator.type,'span');assert.equal(indicator.props['aria-hidden'],'true');
+  assert.equal(indicator.props.role,undefined);assert.equal(indicator.props['data-active'],undefined);
+  h.pull();assert.equal(h.reloads,1,'A qualifying pull requests content immediately');
+  h.feed.isRefreshing=true;tree=h.render();
+  const refreshingIndicator=nodes(tree).find(n=>'data-home-pull-feedback' in n.props);
+  assert.equal(refreshingIndicator.type,indicator.type);assert.equal(refreshingIndicator.key,indicator.key);assert.equal(refreshingIndicator.props.className,indicator.props.className);
+  assert.equal(refreshingIndicator.props['data-active'],'true');
+  assert.ok(nodes(tree).some(n=>n.props.className==='premium-media-loading-mark' && n.props['aria-hidden']==='true'));
+  h.pull();assert.equal(h.reloads,1);
+  assert.deepEqual(Array.from(nodes(tree).find(n=>n.type==='JustifiedImageWall').props.items,i=>i.key),['first','second']);
+  const status=nodes(tree).find(n=>n.props.role==='status');
+  assert.equal(status.props.children,'Refreshing Home content.');assert.equal(status.props.className,'sr-only','Refresh feedback cannot add a visible text row');
+  assert.equal(h.refreshMotion.enabled,true);assert.equal(h.refreshMotion.refreshing,true);
+  h.feed.isRefreshing=false;tree=h.render();
+  const complete=nodes(tree).find(n=>n.props.role==='status');
+  assert.equal(complete.props.children,'Home content refreshed.');assert.equal(complete.props.className,'sr-only');
+  assert.equal(h.refreshMotion.refreshing,false,'Completion reaches motion immediately, without waiting for a spring');
+  for(const other of [harness('web'),harness('mobile',{locationId:'city'})]){
+    other.render();other.pull();assert.equal(other.reloads,0);assert.equal(other.refreshMotion.enabled,false);
+  }
+});
+
+test('a failed Home refresh exposes its real error immediately, preserves cards and permits a fresh explicit retry',()=>{
+  const h=harness();h.render();h.pull();h.feed.isRefreshing=true;h.render();
+  h.feed.isRefreshing=false;h.feed.refreshError='Could not refresh Home. Please try again.';
+  const tree=h.render(),status=nodes(tree).find(n=>n.props.role==='status');
+  assert.equal(status.props.children,h.feed.refreshError);assert.notEqual(status.props.className,'sr-only');
+  assert.equal(h.refreshMotion.refreshing,false,'A failure releases the held spinner independently of return animation');
+  assert.deepEqual(Array.from(nodes(tree).find(n=>n.type==='JustifiedImageWall').props.items,i=>i.key),['first','second']);
+  h.pull();assert.equal(h.reloads,2,'A failed request leaves the existing pull retry available');
+});
 
 test('guests can choose every Profile density while keeping changes local',()=>{for(const mode of ['mobile','web']){const h=harness(mode,{},false);const grid=()=>nodes(h.render()).find(n=>n.type===(mode==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));for(const count of [1,2,3,5,13]){grid().props.onColumnsChange(count);assert.equal(grid().props.columns,count);assert.equal(grid().props.fitColumns,undefined);}}});
 test('header categories entry opens a separate page without refreshing and restores Explore on Back',()=>{

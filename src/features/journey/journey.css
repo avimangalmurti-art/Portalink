@@ -40,6 +40,7 @@
 }
 #root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-toolbar { margin: 0; width: 100%; }
 #root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .timeline-header-controls .journey-order { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 #root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button {
   min-width: 0; min-height: 44px; padding: 8px 4px; border-radius: 12px;
   background: var(--surface-sunken) !important; color: var(--text-primary) !important;
