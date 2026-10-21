@@ -27,7 +27,7 @@ test('portal selection changes the canonical route without marking a new mobile 
 });
 
 test('popup retains drill-down size without anchoring below the header and cleans observers', () => {
-  let effect, resized, height = 510, headerHeight = 180, headerBottom = 180, disconnected = false;
+  let effect, resized, mounted, height = 510, headerHeight = 180, headerBottom = 180, disconnected = false, mountDisconnected = false;
   const values = new Map(), positions = new Map(), observed = [];
   const events = () => {
     const listeners = new Map();
@@ -42,7 +42,8 @@ test('popup retains drill-down size without anchoring below the header and clean
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/presentation/mobile/useMobilePortalPopupSize.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, window, require: () => ({ useLayoutEffect: fn => { effect = fn; } }),
-    ResizeObserver: class { constructor(fn) { resized = fn; } observe(target) { observed.push(target); } disconnect() { disconnected = true; } } });
+    ResizeObserver: class { constructor(fn) { resized = fn; } observe(target) { observed.push(target); } disconnect() { disconnected = true; } },
+    MutationObserver: class { constructor(fn) { mounted = fn; } observe() {} disconnect() { mountDisconnected = true; } } });
   exports.useMobilePortalPopupSize(profile, overlay, true);
   const cleanup = effect();
   assert.equal(values.get('--mobile-portal-popup-height'), '510px');
@@ -65,11 +66,24 @@ test('popup retains drill-down size without anchoring below the header and clean
   assert.equal(values.get('--mobile-portal-popup-height'), '320px');
   cleanup();
   assert.equal(disconnected, true);
+  assert.equal(mountDisconnected, true);
   assert.equal(window.listeners.size, 0);
   assert.equal(window.visualViewport.listeners.size, 0);
+  let loaded = false;
+  const delayedOverlay = { current: { querySelector: () => loaded ? chooser : null } };
+  exports.useMobilePortalPopupSize(profile, delayedOverlay, true);
+  const closeDelayed = effect();
+  assert.equal(values.get('--mobile-portal-popup-height'), '320px', 'A pending chooser retains the last visible size');
+  loaded = true; height = 460; mounted();
+  assert.equal(values.get('--mobile-portal-popup-height'), '460px', 'The first lazy chooser is measured after it mounts');
+  assert.equal(observed.at(-1), chooser);
+  loaded = false; mounted();
+  assert.equal(values.get('--mobile-portal-popup-height'), '460px', 'Removing the chooser preserves drill-down size');
+  closeDelayed();
+  assert.equal(window.listeners.size, 0);
   exports.useMobilePortalPopupSize(profile, overlay, false);
   effect();
-  assert.equal(values.get('--mobile-portal-popup-height'), '320px');
+  assert.equal(values.get('--mobile-portal-popup-height'), '460px');
   const otherProfile = { current: { style: { setProperty() { assert.fail('No chooser in the new profile'); } } } };
   exports.useMobilePortalPopupSize(otherProfile, { current: null }, true);
   assert.equal(effect(), undefined);

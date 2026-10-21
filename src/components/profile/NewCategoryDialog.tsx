@@ -81,37 +81,37 @@ export function NewCategoryDialog({
     }
     onCreate(trimmed, iconName);
   }
-  return <ModalPortal><div role="presentation" onMouseDown={(event) => {
+  return <ModalPortal><div data-mobile-icon-create={presentation==='mobile'?'portal':undefined} role="presentation" onMouseDown={(event) => {
     // A press on the backdrop leaves; a press inside must not.
     if (event.target === event.currentTarget) {
       onCancel();
     }
   }} className="new-portal-screen modal-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <form ref={dialogRef} tabIndex={-1} onSubmit={submit} onKeyDown={(event) => {
+      <form data-ui-surface={presentation === 'web' ? 'popup' : undefined} data-icon-create-panel="" ref={dialogRef} tabIndex={-1} onSubmit={submit} onKeyDown={(event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         onEscape();
       }
     }} role="dialog" aria-modal="true" aria-labelledby="new-category-heading" className="new-portal-screen-form flex max-h-[min(680px,90vh)] w-full max-w-[440px] flex-col overflow-hidden rounded-[16px] bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
-        <div className="relative flex shrink-0 items-center justify-center px-4 pb-2 pt-4">
+        <div data-icon-create-header="" className="relative flex shrink-0 items-center justify-center px-4 pb-2 pt-4">
           <button type="button" disabled={isSaving} onClick={onCancel} aria-label="Close" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="absolute left-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
           </button>
           <h2 id="new-category-heading" className="text-medium font-semibold text-[var(--text-primary)]">New {itemName}</h2>
         </div>
 
-        <div ref={contentRef} data-portal-icon-scroll="" className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
+        <div data-icon-create-body="" ref={presentation === 'web' ? contentRef : undefined} className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
           <div className="new-portal-pinned-controls contents">
           {/* The choice, shown as the thing being made: the selected mark at the
              size it will be recognised at. */}
-          <div className="flex justify-center pt-4">
-            <span aria-hidden="true" className="shape-squircle flex h-[88px] w-[88px] items-center justify-center bg-[var(--accent-primary)] text-[var(--accent-foreground)]">
+          <div data-icon-create-preview-row="" className="flex justify-center pt-4">
+            <span data-icon-create-preview="" aria-hidden="true" className="shape-squircle flex h-[88px] w-[88px] items-center justify-center bg-[var(--accent-primary)] text-[var(--accent-foreground)]">
               <PreviewIcon className="h-10 w-10" />
             </span>
           </div>
 
           <label htmlFor="new-category-title" className="sr-only">{isIconSearch ? 'Search icons' : `${itemName === 'portal' ? 'Portal' : 'Category'} title`}</label>
-          <div className="mt-5 flex items-center gap-2">
+          <div data-icon-create-field="" className="mt-5 flex items-center gap-2">
             <input ref={fieldRef} disabled={isSaving} id="new-category-title" type={isIconSearch ? 'search' : 'text'}
               value={isIconSearch ? iconQuery : label} onChange={event => isIconSearch ? setIconQuery(event.target.value) : setLabel(event.target.value)}
               onKeyDown={event => { if (isIconSearch && event.key === 'Enter') event.preventDefault(); }}
@@ -127,10 +127,12 @@ export function NewCategoryDialog({
           {error && <p role="alert" className="mt-2 text-[13px] text-[var(--text-primary)]">{error}</p>}
 
           </div>
+          <div ref={presentation === 'mobile' ? contentRef : undefined} data-portal-icon-scroll="" className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents overflow-y-auto"}>
           <PortalIconLibrary selected={iconName} onSelect={name => { setIconName(name); if (isIconSearch) returnToTitle(); }} searchQuery={isIconSearch ? iconQuery : ''} disabled={isSaving} compact label={`${itemName === 'portal' ? 'Portal' : 'Category'} icon`} />
+          </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3 border-t border-[var(--hairline)] px-6 py-4">
+        <div data-icon-create-footer="" className="flex shrink-0 items-center gap-3 border-t border-[var(--hairline)] px-6 py-4">
           <button type="button" disabled={isSaving} onClick={onCancel} data-ui-control="button" data-control-size="md" data-control-variant="secondary" className="flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             Cancel
           </button>

@@ -2,6 +2,8 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { CreatorAvatar } from './CreatorAvatar';
 import { ModalPortal } from '../ui/ModalPortal';
 import { ResponsiveImage, type ImagePriority } from '../ui/ResponsiveImage';
+import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { usePresentation } from '../../presentation/usePresentation';
 
 /** Compact identities share a preview with the larger profile-page avatar. */
 export function ProfileAvatar({ name, avatar, size = 'compact', priority = false }: { name: string; avatar?: string | null; size?: 'compact' | 'profile'; priority?: ImagePriority }) {
@@ -17,10 +19,11 @@ export function ProfileAvatar({ name, avatar, size = 'compact', priority = false
 }
 
 function ProfileAvatarPreview({ name, avatar, onClose }: { name: string; avatar?: string | null; onClose: () => void }) {
+  const presentation = usePresentation();
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [avatar]);
   const titleId = useId();
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useDialogViewport<HTMLDivElement>(presentation === 'mobile');
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
@@ -42,11 +45,11 @@ function ProfileAvatarPreview({ name, avatar, onClose }: { name: string; avatar?
       document.removeEventListener('keydown', onKeyDown, true);
       if (trigger?.isConnected) trigger.focus();
     };
-  }, []);
+  }, [dialogRef]);
 
-  return <ModalPortal><div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-description="Press Escape or click to close." data-avatar-preview-scrim="" className="modal-scrim fixed inset-0 z-[90] flex cursor-pointer items-center justify-center overflow-y-auto p-6 outline-none" onClick={onClose}>
+  return <ModalPortal>{presentation === 'mobile' && <div data-avatar-preview-backdrop="" data-presentation="mobile" aria-hidden="true" className="modal-scrim" />}<div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-description="Press Escape or click to close." data-avatar-preview-scrim="" data-presentation={presentation} className="modal-scrim fixed inset-0 z-[90] flex cursor-pointer items-center justify-center overflow-y-auto p-6 outline-none" onClick={onClose}>
       <figure data-avatar-preview="" className="m-0 flex max-w-full flex-col items-center" style={{ maxHeight: 'calc(100dvh - 48px)' }}>
-        <div className="squircle relative overflow-hidden bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]" style={{ width: 'clamp(260px, 64vw, 420px)', height: 'clamp(260px, 64vw, 420px)' }}>
+        <div data-avatar-preview-image="" className="squircle relative overflow-hidden bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]" style={{ width: 'clamp(260px, 64vw, 420px)', height: 'clamp(260px, 64vw, 420px)' }}>
           {avatar && !imageFailed ? <ResponsiveImage src={avatar} alt={`${name} profile image`} onError={() => setImageFailed(true)} priority width={840} height={840} sizes="(min-width: 800px) 420px, 64vw" className="block h-full w-full object-cover" /> : <CreatorAvatar name={name} shape="squircle" className="h-full w-full text-[160px]" />}
         </div>
         <figcaption id={titleId} className="mt-4 break-words px-2 pb-1 text-center font-sans text-large font-medium leading-tight tracking-[-0.02em] text-[var(--text-primary)]" style={{ maxWidth: 'min(84vw, 520px)' }}>{name}</figcaption>

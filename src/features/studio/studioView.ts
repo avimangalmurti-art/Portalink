@@ -1,7 +1,7 @@
 import { buildPath } from '../../app/routes';
 import type { StudioBookmarkTab, StudioCategory, StudioRow } from './studioModel';
 
-export const STUDIO_CATEGORIES: readonly StudioCategory[] = ['drafts', 'published', 'bookmarks', 'activity', 'all'];
+export const STUDIO_CATEGORIES: readonly StudioCategory[] = ['drafts', 'published', 'bookmarks', 'activity'];
 export const STUDIO_BOOKMARK_TABS: readonly StudioBookmarkTab[] = ['projects', 'pages', 'creators'];
 
 export function readStudioLocation(params: URLSearchParams, savedRoute = false) {
@@ -25,7 +25,7 @@ export function studioSharePath(row: StudioRow): string | null {
   if (row.kind === 'saved-page' && row.presentation) {
     const { view, pageNumber } = row.presentation;
     const path = buildPath('sharedProject', { profileId: view.creator.id, categoryId: view.project.categoryId, projectId: view.project.id });
-    return `${path}?${new URLSearchParams({ media: row.target.attachmentId, page: String(pageNumber) })}`;
+    return `${path}?${new URLSearchParams({ media: row.target.attachmentId, page: String(pageNumber), view: 'page' })}`;
   }
   return null;
 }
@@ -38,7 +38,12 @@ export function studioBulkTargets(rows: StudioRow[]) {
   };
 }
 
+export function studioMadeOnDate(value?:string):string|undefined{
+ if(!value||!/^\d{4}-\d{2}-\d{2}$/.test(value))return undefined;
+ const date=new Date(value+'T12:00:00');
+ return Number.isFinite(date.getTime())?date.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):undefined;
+}
 export function studioDate(value?: string): string | undefined {
   if (!value || Number.isNaN(Date.parse(value))) return undefined;
-  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', ...(/^\d{4}-\d{2}-\d{2}$/.test(value) ? { timeZone: 'UTC' } : {}) });
 }

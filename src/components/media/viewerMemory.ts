@@ -1,4 +1,4 @@
-type ViewerMemory = {
+export type ViewerMemory = {
   activeAttachmentId?: string | null;
   focusedPageId?: string | null;
   focusedPageNumber?: number | null;
@@ -13,6 +13,19 @@ type ViewerMemory = {
 const STORAGE_PREFIX = 'portalink.viewer.';
 const memory = new Map<string, ViewerMemory>();
 const persistFrames = new Map<string, number>();
+const observers = new Set<(key: string, state: ViewerMemory) => void>();
+
+/** MOBILE opts into a small device checkpoint; ordinary viewer storage is unchanged. */
+export function observeViewerMemory(observer: (key: string, state: ViewerMemory) => void): () => void {
+  observers.add(observer);
+  return () => { observers.delete(observer); };
+}
+
+/** Called only with validated launch hints before the reader mounts. */
+export function primeViewerMemory(key: string, state: ViewerMemory): void {
+  memory.set(key, { ...state });
+  try { window.sessionStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(state)); } catch { /* Memory remains usable. */ }
+}
 
 export function readViewerMemory(key: string): ViewerMemory {
   const cached = memory.get(key);
@@ -34,6 +47,9 @@ export function readViewerMemory(key: string): ViewerMemory {
 export function updateViewerMemory(key: string, patch: Partial<ViewerMemory>): void {
   const next = { ...readViewerMemory(key), ...patch };
   memory.set(key, next);
+  for (const observer of observers) {
+    try { observer(key, next); } catch { /* Optional position checkpoints cannot interrupt a reader. */ }
+  }
   if (patch.pagesPerRow !== undefined) {
     try { window.localStorage?.setItem(`${STORAGE_PREFIX}${key}.density`, String(patch.pagesPerRow)); } catch { /* The session copy still works if persistent storage is unavailable. */ }
   }
