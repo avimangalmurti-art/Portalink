@@ -14,7 +14,7 @@ export const validContactEmail = (value: string) => value.length <= 254 && /^[^\
 export function contactHref(profile: Profile): string | null {
   const email = profile.contactEmail?.trim() ?? '';
   return !profile.isPrivate && profile.contactEmailPublic === true && validContactEmail(email)
-    ? `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Your portfolio — ${profile.name}`)}` : null;
+    ? `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Your catalogue — ${profile.name}`)}` : null;
 }
 export function publicProjects(profile: Profile): Project[] {
   return profile.isPrivate ? [] : profile.projects.filter(project => !project.sessionOnly && project.isPubliclyVisible !== false);

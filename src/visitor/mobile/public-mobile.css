@@ -435,20 +435,20 @@
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-art img { width: min(100%, 360px); max-height: 62dvh; object-fit: contain; mix-blend-mode: screen; filter: invert(1) hue-rotate(180deg); }
 #root .codex-shell [data-mobile-onboarding='light'] .mobile-onboarding-art img { mix-blend-mode: multiply; filter: none; }
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control] {
-  transition: opacity 160ms ease, visibility 0s;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) * {
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: visibility 0s 160ms;
+  transition: visibility var(--m-fast) var(--m-base);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -551,7 +551,7 @@
   width: auto !important;
   max-width: none;
   overflow: hidden;
-  animation: mobile-project-panel-enter 180ms ease-out;
+  animation: mobile-project-panel-enter var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] {
@@ -990,8 +990,8 @@
   color: var(--text-primary);
   box-shadow: 0 -8px 36px rgb(0 0 0 / 18%);
   outline: none;
-  transition: height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: project-description-arrive 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: height var(--m-slow) var(--m-enter);
+  animation: project-description-arrive var(--m-slow) var(--m-enter);
 }
 #root .codex-shell [data-presentation='mobile'] .mobile-project-description-sheet {
   border: 1px solid var(--border-default) !important;
@@ -1281,15 +1281,14 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-engagement-bar {
-  width: var(--mobile-control-group-width) !important;
   gap: var(--mobile-control-gap);
   padding: var(--mobile-control-inset);
   border-radius: 999px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-action {
-  height: var(--mobile-control-target);
-  min-width: var(--mobile-control-target);
+  height: 44px;
+  min-width: 44px;
   border-radius: 999px;
   flex-direction: column;
   gap: 2px;
@@ -1510,7 +1509,7 @@
   z-index: 3;
 }
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-has-extension='false'][data-expanded='true'] :is(.project-card-frame, .project-preview-artwork, .project-preview-description) {
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 4px 4px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-mobile-project-card] {
@@ -1649,7 +1648,12 @@
   pointer-events: auto;
   border: 0;
   cursor: pointer;
-  transition: transform 160ms ease;
+  transition: var(--navigation-control-transition);
+}
+
+/* Keep counter placement instant when shared navigation styles load later. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter[data-mobile-project-page-count] {
+  --navigation-control-transition: background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
@@ -1990,19 +1994,27 @@
 }
 #root .codex-shell[data-presentation='mobile'] [data-project-stage] { background-color: var(--codex-workspace-bg); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
-  padding-bottom: var(--mobile-dock-bottom);
+  --focused-safe-bottom: max(8px, var(--safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--focused-safe-bottom);
 }
 #root .codex-shell[data-presentation='mobile'].shared-portalink-shell [data-mobile-focused-view] {
-  padding-bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px);
+  padding-bottom: calc(var(--focused-safe-bottom) + var(--shared-sign-in-height, 0px) + 16px);
 }
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)),
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body,
+/* An open modal owns its indicator instead of the background document. */
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)),
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)) body {
+  scrollbar-width: none;
+}
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *))::-webkit-scrollbar,
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)) body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Keep local zoom/index indicators separate from the document's edge scrollbar. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view],
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] * {
   scrollbar-width: none;
 }
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *))::-webkit-scrollbar,
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body::-webkit-scrollbar,
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view]::-webkit-scrollbar,
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] *::-webkit-scrollbar {
   display: none;
@@ -2273,8 +2285,6 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener { background: var(--accent-primary); color: var(--accent-foreground); border-color: var(--accent-primary); }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle { padding: 2px; }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button { min-height: 28px; padding-block: 3px; font-size: 12px; }
-[data-presentation='mobile'].shared-portal-popup-layer { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
-[data-presentation='mobile'] .shared-portal-popup { display: flex; flex-direction: column; width: 100%; max-height: min(70dvh, 640px); min-height: 160px; border-radius: 24px; background: var(--navigation-surface, var(--surface-raised)); color: var(--text-primary); border: 1px solid var(--hairline-strong); overflow: hidden; box-shadow: var(--navigation-shadow); }
 
 /* Keep the shared identity header identical to the in-platform mobile header. */
 /* Name, location and the text tabs share the avatar's 76px footprint.
@@ -2378,18 +2388,6 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 }
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) .mobile-shared-drawer-panel [data-sidebar-toggle] [data-interface-icon-frame] {
   --interface-icon-size: 22px;
-}
-/* Public portal lists keep one viewport-based size regardless of entry point. */
-#root .codex-shell[data-presentation='mobile'] .shared-portal-popup-layer {
-  box-sizing:border-box;
-}
-#root .codex-shell[data-presentation='mobile'] .shared-portal-popup {
-  width:min(100%, 420px);
-  max-width:420px;
-  height:min(70dvh, 640px);
-  max-height:100%;
-  min-height:0;
-  flex:none;
 }
 /* Reader navigation controls share the bottom toolbar position. */
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) :is(.mobile-shared-drawer-opener, .mobile-shared-drawer-panel [data-sidebar-toggle]) {
@@ -2532,3 +2530,98 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-shared-project-reader] :is([data-project-work-column], [data-media-frame], [data-media-frame-body], [data-document-attachment], ol.scrollbar-overlay) {
   scrollbar-gutter: auto;
 }
+
+/* Shared portfolio uses the same centered portal chooser frame as Profile. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  width: min(calc(100% - 32px), 420px);
+  max-width: min(calc(100% - 32px), 420px);
+  height: min(70dvh, 640px);
+  max-height: calc(100% - 32px);
+  border: 1px solid var(--hairline);
+  border-radius: 24px !important;
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  backdrop-filter: blur(22px) saturate(125%);
+  box-shadow: var(--shadow-pop) !important;
+  will-change: opacity;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel > .shared-profile-sidebar {
+  background: transparent !important;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:is(.reduce-translucency, .high-contrast) .mobile-shared-drawer-panel[role='dialog'] {
+  background: var(--surface-raised) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] { background: var(--surface-raised) !important; }
+}
+
+/* Match Profile's raised portal library, retaining visitor-only navigation. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {
+  top:max(24px,env(safe-area-inset-top,0px));
+  transform:translateX(-50%);
+  height:min(82dvh,780px);
+  max-height:calc(100% - max(24px,env(safe-area-inset-top,0px)) - 24px);
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-scrim {
+  background:var(--scrim,#0005)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(115%);
+  backdrop-filter:blur(18px) saturate(115%);
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals {height:100%;min-height:0;background:transparent;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .global-control-header {flex:none;background:transparent!important;border-bottom:1px solid var(--hairline);}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portals-scroll {flex:1;min-height:0;overflow-y:auto;padding:0 0 8px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer {flex:none;border-top:1px solid var(--hairline);padding:8px 16px max(8px,env(safe-area-inset-bottom));font-size:14px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer>div {display:flex;flex-direction:column;gap:8px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer :is(button,a) {display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:44px;padding:8px;border-radius:12px;color:var(--text-secondary);}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer button {flex:1;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:is(.reduce-translucency,.high-contrast) .mobile-shared-drawer-scrim {-webkit-backdrop-filter:none;backdrop-filter:none;}
+@media(prefers-reduced-transparency:reduce) {
+ #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-scrim {-webkit-backdrop-filter:none;backdrop-filter:none;}
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portals-list {margin:0;padding:0;list-style:none;background:transparent;border-radius:0;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals[data-portals-layout='grid'] .mobile-portals-list {padding:12px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {-webkit-backdrop-filter:blur(22px) saturate(125%)!important;backdrop-filter:blur(22px) saturate(125%)!important;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:is(.reduce-translucency,.high-contrast) .mobile-shared-drawer-panel[role='dialog'] {-webkit-backdrop-filter:none!important;backdrop-filter:none!important;}
+@media(prefers-reduced-transparency:reduce) {#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {-webkit-backdrop-filter:none!important;backdrop-filter:none!important;}}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel > .shared-mobile-portals {height:100%!important;max-height:100%;overflow:hidden;}
+
+/* Public Portals uses the platform's touch rows and two-column card geometry. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals {
+  display:flex;flex-direction:column;color:var(--text-primary);
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portal-action {
+  display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;min-height:44px;padding:0;border:0;border-radius:var(--shape-compact);background:transparent;color:var(--text-primary);
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portals-scroll {overscroll-behavior:contain;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portal-item {display:flex;align-items:center;min-width:0;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portal-item+li {position:relative;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portal-item+li::before {content:'';position:absolute;inset-inline:56px 16px;top:0;height:1px;background:var(--hairline);pointer-events:none;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portal-row {
+  display:flex;align-items:center;gap:16px;flex:1;min-width:0;width:100%;min-height:60px;padding:14px 16px;border:0;border-radius:var(--shape-compact);background:transparent;color:var(--text-primary);text-align:start;touch-action:manipulation;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portal-row> :first-child,
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portal-row> :last-child {flex-shrink:0;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portal-label {flex:1;min-width:0;overflow-wrap:anywhere;font-size:16px;line-height:1.4;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portal-row:is(:hover,:active,[aria-current='page']) {background:var(--surface-hover);}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals :is(.mobile-portal-row,.mobile-portal-action):focus-visible {outline:2px solid var(--focus-ring);outline-offset:-3px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals[data-portals-layout='grid'] .mobile-portals-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals[data-portals-layout='grid'] .mobile-portal-item {align-items:flex-start;border:1px solid var(--hairline);border-radius:16px;background:color-mix(in srgb,var(--surface-raised) 70%,transparent);}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals[data-portals-layout='grid'] .mobile-portal-item::before {content:none;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals[data-portals-layout='grid'] .mobile-portal-row {flex-direction:column;align-items:flex-start;justify-content:center;gap:12px;min-height:150px;padding:20px 10px 16px 16px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals[data-portals-layout='grid'] .mobile-portal-label {flex:none;font-size:14px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals[data-portals-layout='grid'] .mobile-portal-row> :last-child {display:none;}
+
+/* Card artwork owns the space; labels wrap only between complete words. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item {position:relative;padding-inline-end:0;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-options {position:absolute;top:4px;inset-inline-end:4px;z-index:2;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row {display:grid;grid-template-rows:minmax(96px,1fr) auto;justify-items:center;align-items:center;gap:12px;width:100%;min-height:212px;padding:36px 10px 16px;text-align:center;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child {width:clamp(72px,20vw,104px);height:clamp(72px,20vw,104px);min-width:0;min-height:0;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child > svg {width:100%;height:100%;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-label {width:100%;min-width:0;text-align:center;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;line-height:1.4;}

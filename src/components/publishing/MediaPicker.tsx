@@ -1,6 +1,6 @@
 import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, BoxIcon, CheckIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, ArrowDownIcon, ArrowUpIcon, BoxIcon, CheckIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon, XIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { formatFileSize } from '../../features/publishing/mediaRules';
@@ -60,15 +60,19 @@ type MediaPickerProps = {
   compact?: boolean;
   /** The guided file step exposes its list without another disclosure. */
   expanded?: boolean;
+  /** Opt in to touch reorder controls inside the mobile file-management sheet. */
+  mobileFileManager?: boolean;
 };
 export function MediaPicker({
   media,
   upload,
   disabled = false,
   compact = false,
-  expanded = false
+  expanded = false,
+  mobileFileManager = false
 }: MediaPickerProps) {
   const isWeb = usePresentation() === 'web';
+  const fileManager = mobileFileManager && !isWeb;
   const addRef = useRef<HTMLInputElement>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceTargetRef = useRef<string | null>(null);
@@ -98,7 +102,7 @@ export function MediaPicker({
     replaceRef.current?.click();
   };
   const collapsed = compact && !expanded && items.length > 0 && !showsFiles;
-  return <section aria-labelledby="publish-files-label" data-compact-files={compact || undefined}
+  return <section aria-labelledby="publish-files-label" data-compact-files={compact || undefined} data-mobile-file-manager={fileManager || undefined}
     data-web-file-picker={isWeb ? '' : undefined} data-file-drag-over={isWeb && isDragOver && !isLocked && !media.isFull ? '' : undefined}
     onDragOverCapture={isWeb ? (event) => {
       if (!hasFileDrop(event.dataTransfer)) return;
@@ -126,7 +130,7 @@ export function MediaPicker({
         <button id="publish-add-files" type="button" aria-expanded={showsFiles} onClick={() => setShowsFiles((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{showsFiles ? 'Done' : disabled ? 'View files' : 'Edit files'}</button>
       </div> : null}
       {!collapsed && <>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3" data-file-manager-header={fileManager || undefined}>
         <h3 id="publish-files-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Project files</h3>
         <div className="flex items-center gap-1">
           {items.length > 0 && <Button variant="secondary" size="sm" disabled={isLocked || media.isFull} onClick={() => addRef.current?.click()}><InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />Add</Button>}
@@ -155,7 +159,7 @@ export function MediaPicker({
       if (!disabled) {
         media.select(event.dataTransfer.files);
       }
-    }} className={`project-media-dropzone flex flex-col items-center justify-center gap-2 rounded-[12px] border px-4 py-3 text-center transition-colors duration-150 motion-reduce:transition-none ${isDragOver ? 'border-[var(--accent-color)] bg-[var(--surface-sunken)]' : 'border-[var(--hairline-strong)] bg-[var(--surface-inset)]'}`}>
+    }} className={`project-media-dropzone flex flex-col items-center justify-center gap-2 rounded-[12px] border px-4 py-3 text-center transition-colors duration-[var(--m-fast)] motion-reduce:transition-none ${isDragOver ? 'border-[var(--accent-color)] bg-[var(--surface-sunken)]' : 'border-[var(--hairline-strong)] bg-[var(--surface-inset)]'}`}>
           <Button id="publish-add-files" variant="secondary" size="sm" disabled={disabled} onClick={() => addRef.current?.click()}>
             <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
             Choose files
@@ -163,7 +167,7 @@ export function MediaPicker({
           <p className="text-[13px] text-[var(--text-secondary)]">{compact ? 'Choose photos, videos or documents from your device.' : 'or drop files here'}</p>
         </div> : <div className="project-media-selection">
           <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
-          {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} webDragEnabled={isWeb} transport={upload ? {
+          {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} webDragEnabled={isWeb} mobileFileManager={fileManager} transport={upload ? {
         phase: upload.phase,
         // Per-file progress only when the service attributes bytes to files.
         item: upload.itemProgress[item.id] ?? null
@@ -207,7 +211,7 @@ export function MediaPicker({
           {/* The value is the service's, and the text alongside it carries the
            same information for anyone not seeing the bar. */}
           <div role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined} aria-valuetext={percent === null ? 'Progress not reported yet' : `${percent}%`} className="h-1 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
-            <div className="h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-200 ease-out motion-reduce:transition-none" style={{
+            <div className="h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none" style={{
           width: `${percent ?? 0}%`
         }} />
           </div>
@@ -286,6 +290,7 @@ function AssetRow({
   total,
   disabled,
   webDragEnabled,
+  mobileFileManager,
   transport,
   onReorder,
   onSetCover,
@@ -309,7 +314,7 @@ function AssetRow({
 
 
 
-}: {asset: PreparedMedia;index: number;total: number;disabled: boolean;webDragEnabled: boolean;transport: {phase: MediaUpload['phase'];item: {fraction: number;state: UploadItemState;} | null;} | null;onReorder: (fromIndex: number, toIndex: number) => void;onSetCover: () => void;onReplace: () => void;onRename: (title: string) => void;onRemove: () => void;}) {
+}: {asset: PreparedMedia;index: number;total: number;disabled: boolean;webDragEnabled: boolean;mobileFileManager: boolean;transport: {phase: MediaUpload['phase'];item: {fraction: number;state: UploadItemState;} | null;} | null;onReorder: (fromIndex: number, toIndex: number) => void;onSetCover: () => void;onReplace: () => void;onRename: (title: string) => void;onRemove: () => void;}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const rowRef = useRef<HTMLLIElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -362,7 +367,7 @@ function AssetRow({
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [isMenuOpen]);
-  return <li ref={rowRef} draggable={!disabled} onDragStart={(event) => {
+  return <li ref={rowRef} data-media-file-row={mobileFileManager || undefined} draggable={!disabled} onDragStart={(event) => {
     if (webDragEnabled) {
       if (disabled) { event.preventDefault(); return; }
       event.dataTransfer.setData(WEB_MEDIA_REORDER_TYPE, String(index));
@@ -380,11 +385,11 @@ function AssetRow({
     }
   }} className="relative flex items-center gap-2.5 rounded-[10px] border border-transparent bg-[var(--surface-inset)] p-2">
       {/* Reorder: drag, or arrow keys for anyone not using a pointer. */}
-      <span aria-hidden="true" className={`shrink-0 text-[var(--text-tertiary)] ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}`}>
-        <GripVerticalIcon className="h-4 w-4" />
+      <span aria-hidden="true" data-file-order={mobileFileManager ? index + 1 : undefined} className={`shrink-0 text-[var(--text-tertiary)] ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}`}>
+        {mobileFileManager ? index + 1 : <GripVerticalIcon className="h-4 w-4" />}
       </span>
-      <button type="button" disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Up</button>
-      <button type="button" disabled={disabled || index === total - 1} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Down</button>
+      {!mobileFileManager && <><button type="button" disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Up</button>
+      <button type="button" disabled={disabled || index === total - 1} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Down</button></>}
 
       {asset.previewUrl && asset.family === 'image' ? <ResponsiveImage src={asset.previewUrl} alt={`Local preview of ${asset.fileName}`} width={40} height={40} sizes="40px" className="h-10 w-10 shrink-0 rounded-[7px] object-cover" /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[7px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
           <Icon className="h-4 w-4" />
@@ -402,17 +407,17 @@ function AssetRow({
              moving, not about server-side conversion afterwards. */}
           {transportState ? ` · ${transportState}` : ''}
         </p>
-        {resolutionNotice && <p role="status" className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">{resolutionNotice}</p>}
+        {resolutionNotice && !mobileFileManager && <p role="status" className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">{resolutionNotice}</p>}
         {/* A per-file bar only when the service attributes bytes to this file. */}
         {transport?.item?.state === 'uploading' && <span role="progressbar" aria-label={`Upload progress for ${asset.displayTitle}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(transport.item.fraction * 100)} className="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
-            <span className="block h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-200 ease-out motion-reduce:transition-none" style={{
+            <span className="block h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none" style={{
           width: `${Math.round(transport.item.fraction * 100)}%`
         }} />
           </span>}
       </div>
 
       <div className="shrink-0">
-        <button ref={triggerRef} type="button" disabled={disabled} onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${asset.displayTitle}`} className="flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
+        <button ref={triggerRef} type="button" disabled={disabled} onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${asset.displayTitle}`} className="flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
           <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
         </button>
         {isMenuOpen && <ModalPortal><div ref={menuRef} tabIndex={-1} role="menu" aria-label={`Options for ${asset.displayTitle}`} style={menuPosition ?? { visibility: 'hidden' }} className="fixed z-[100] w-[184px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] py-1 shadow-[0_12px_28px_rgba(15,23,42,0.2)] outline-none">
@@ -438,6 +443,16 @@ function AssetRow({
         }} />
           </div></ModalPortal>}
       </div>
+      {mobileFileManager && <div className="mobile-file-row-actions">
+        {resolutionNotice && <details className="mobile-file-quality">
+          <summary>Check resolution</summary>
+          <p>{resolutionNotice}</p>
+        </details>}
+        <div className="mobile-file-reorder-controls">
+          <button type="button" disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`}><ArrowUpIcon size={18} aria-hidden="true" /></button>
+          <button type="button" disabled={disabled || index === total - 1} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`}><ArrowDownIcon size={18} aria-hidden="true" /></button>
+        </div>
+      </div>}
     </li>;
 }
 function MenuAction({
@@ -447,7 +462,7 @@ function MenuAction({
 
 
 }: {label: string;onSelect: () => void;}) {
-  return <button type="button" role="menuitem" onClick={onSelect} className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
+  return <button type="button" role="menuitem" onClick={onSelect} className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
       {label}
     </button>;
 }
