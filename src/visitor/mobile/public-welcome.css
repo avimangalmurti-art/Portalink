@@ -6,12 +6,12 @@ html:has([data-public-welcome]) { overflow: hidden !important; }
   background: transparent !important; border: 0 !important; border-radius: 0 !important;
   box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; outline: none;
 }
-[data-public-welcome] .portalink-splash { pointer-events: auto; background: #f8fdfc; }
+[data-public-welcome] .portalink-splash { pointer-events: auto; background: #fdffff; }
 [data-public-welcome] .portalink-splash-media { width: 100vw; height: 100dvh; max-height: 100dvh; }
 #root .codex-shell [data-public-welcome] .public-welcome-skip {
   position: absolute; z-index: 1001; right: 16px; bottom: max(16px, env(safe-area-inset-bottom));
   min-height: 44px; padding: 10px 16px; border-radius: 10px; pointer-events: auto;
-  background: #f8fdfc !important; color: #1c1c1e !important; border: 1px solid #1c1c1e40;
+  background: #fdffff !important; color: #1c1c1e !important; border: 1px solid #1c1c1e40;
 }
 .public-welcome-sheet {
   pointer-events: auto; width: min(100%, 480px); height: min(60%, 580px); display: flex; flex-direction: column;

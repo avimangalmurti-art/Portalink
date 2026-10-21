@@ -1,12 +1,22 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
 const layers: HTMLElement[] = [];
+const dismissals = new WeakMap<HTMLElement, () => void>();
 const focusableSelector = 'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
+/** System Back uses the same topmost dismissal policy as Escape and Close. */
+export function dismissTopModal(): Promise<unknown> | false {
+  const dialog = [...layers].reverse().find(element => element.isConnected && element.getClientRects().length > 0 &&
+    !element.closest('[hidden], [inert], [aria-hidden="true"]') && getComputedStyle(element).visibility !== 'hidden');
+  const dismiss = dialog && dismissals.get(dialog);
+  return dismiss ? Promise.resolve(dismiss()) : false;
+}
 
 /** Shared keyboard lifecycle; dismissal policy still belongs to each editor. */
 export function containModalFocus(dialog: HTMLElement, onEscape: () => void, preventScroll = false): () => void {
   const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   layers.push(dialog);
+  dismissals.set(dialog, onEscape);
   const isTop = () => layers[layers.length - 1] === dialog;
   const available = (element: HTMLElement) => !element.matches(':disabled') &&
     !element.closest('[hidden], [inert], [aria-hidden="true"]') && element.getClientRects().length > 0 &&
@@ -56,6 +66,7 @@ export function containModalFocus(dialog: HTMLElement, onEscape: () => void, pre
     const wasTop = isTop();
     const index = layers.indexOf(dialog);
     if (index >= 0) layers.splice(index, 1);
+    if (dismissals.get(dialog) === onEscape) dismissals.delete(dialog);
     document.removeEventListener('keydown', onKey, true);
     document.removeEventListener('focusin', onFocus);
     if (wasTop && opener?.isConnected) opener.focus({ preventScroll });

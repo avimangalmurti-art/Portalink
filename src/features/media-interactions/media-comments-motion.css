@@ -1,0 +1,18 @@
+/* One fade for the whole mobile comments surface; no geometry or text scaling. */
+[data-presentation='mobile'][data-mobile-comments-motion] > [data-mobile-media-comments] {
+  animation: m-fade-in var(--m-fast) var(--m-enter) both;
+}
+[data-presentation='mobile'][data-mobile-comments-motion][data-closing] {
+  pointer-events: none;
+}
+[data-presentation='mobile'][data-mobile-comments-motion][data-closing] > [data-mobile-media-comments] {
+  animation: m-fade-out var(--m-base) var(--m-exit) both;
+}
+[data-presentation='mobile'][data-mobile-comments-motion][data-reduce-motion] > [data-mobile-media-comments] {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-presentation='mobile'][data-mobile-comments-motion] > [data-mobile-media-comments] {
+    animation: none !important;
+  }
+}
