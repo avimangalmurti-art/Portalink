@@ -560,6 +560,22 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     if (auth.pendingView) auth.closeAuth();
   }, [auth]);
   const closeProfileEditor = useCallback(() => nav.closeProfileEditor(auth.viewerProfileId), [nav, auth.viewerProfileId]);
+  const profileEditorFocus = useRef<{ path: string; accountId: string | undefined; opener: HTMLElement | null; main: HTMLElement | null } | null>(null);
+  useEffect(() => {
+    if (presentation !== 'mobile') return;
+    // Retained navigation makes the origin inert, so remember focus beforehand.
+    const remember = () => {
+      if (isProfileEditorRoute) return;
+      const element = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const opener = element !== document.body ? element : null;
+      profileEditorFocus.current = { path: `${pathname}${search}${screenLocation.hash}`, accountId: auth.user?.id, opener, main: opener?.closest('main') ?? mainContentRef.current };
+    };
+    document.addEventListener('portalink-before-navigation', remember);
+    return () => document.removeEventListener('portalink-before-navigation', remember);
+  }, [presentation, isProfileEditorRoute, pathname, search, screenLocation.hash, auth.user?.id]);
+  const profileEditorOrigin = presentation === 'mobile' && profileEditorFocus.current?.accountId === auth.user?.id &&
+    profileEditorFocus.current?.path === (navigationState as { profileEditorReturn?: string } | null)?.profileEditorReturn
+    ? profileEditorFocus.current ?? undefined : undefined;
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isFirstProjectPublish, setIsFirstProjectPublish] = useState(false);
   const [journeyMadeIn, setJourneyMadeIn] = useState<string | null>(null);
@@ -1375,7 +1391,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           setIconPickerCategoryId(null);
         } else nav.back();
       }}><React.Suspense fallback={<LoadingSkeleton kind={openingProjectId ? 'reader' : isMobileStudioOpen ? 'studio' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening" />}>
-      {routeStateView ? <div className={routeStateView.type === RouteError ? "min-h-full" : "px-[var(--content-gutter)] py-10"}>{routeStateView}</div> : isProfileEditorRoute && auth.isAuthenticated && auth.viewerProfileId ? <ProfileEditorPage key={auth.viewerProfileId} profileId={auth.viewerProfileId} onClose={closeProfileEditor} onSaved={closeProfileEditor} /> : isControlCenterOpen ? <ControlCenterPage onOpenProfile={openOwnProfile} appearanceSaving={creatorAppearance.saving} appearanceError={creatorAppearance.saveError ?? creatorAppearance.loadError} onRetryAppearance={() => { if (creatorAppearance.loadError) creatorAppearance.retryLoad(); else void creatorAppearance.flush().catch(() => undefined); }} theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={nav.closeSettings} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
+      {routeStateView ? <div className={routeStateView.type === RouteError ? "min-h-full" : "px-[var(--content-gutter)] py-10"}>{routeStateView}</div> : isProfileEditorRoute && auth.isAuthenticated && auth.viewerProfileId ? <ProfileEditorPage key={auth.viewerProfileId} profileId={auth.viewerProfileId} returnFocusTarget={profileEditorOrigin} onClose={closeProfileEditor} onSaved={closeProfileEditor} /> : isControlCenterOpen ? <ControlCenterPage onOpenProfile={openOwnProfile} appearanceSaving={creatorAppearance.saving} appearanceError={creatorAppearance.saveError ?? creatorAppearance.loadError} onRetryAppearance={() => { if (creatorAppearance.loadError) creatorAppearance.retryLoad(); else void creatorAppearance.flush().catch(() => undefined); }} theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={nav.closeSettings} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
         // The picker remains an ordinary screen. Only this outer snapshot moves.
         void chooseCategoryIcon(iconPickerCategoryId, iconName);
       }} onBack={() => {

@@ -243,10 +243,11 @@ test('loading, signed-out and missing-profile entries cannot render the editor f
 test('the editor is mounted in the routed screen, with one shared Back/Save callback and no sidebar', () => {
   const ProfileEditorPage = () => null;
   const close = () => {};
+  const profileEditorOrigin = { opener: {}, main: {} };
   const screen = evaluate(initializer('screenContent'), {
     isProfileEditorRoute: true, routeStateView: null,
     auth: { isAuthenticated: true, viewerProfileId: 'owned-profile' },
-    ProfileEditorPage, closeProfileEditor: close, LoadingSkeleton: () => null, openingProjectId:null, isMobileStudioOpen:false,
+    ProfileEditorPage, profileEditorOrigin, closeProfileEditor: close, LoadingSkeleton: () => null, openingProjectId:null, isMobileStudioOpen:false,
     DeferredSurfaceBoundary: 'DeferredSurfaceBoundary', screenTransitionKey: 'profile-editor-owned-profile',
   });
   assert.equal(screen.props.children.type, 'DeferredSurfaceBoundary');
@@ -255,6 +256,7 @@ test('the editor is mounted in the routed screen, with one shared Back/Save call
   assert.equal(page.props.profileId, 'owned-profile');
   assert.equal(page.props.onClose, close);
   assert.equal(page.props.onSaved, close);
+  assert.equal(page.props.returnFocusTarget, profileEditorOrigin);
   assert.equal(page.props.isOpen, undefined);
   assert.equal(screen.props['data-screen-scroll'], 'nested');
   const sidebar = findNode(node => ts.isJsxExpression(node) && node.expression?.getText(parsed).startsWith('!isProfileEditorRoute &&') && node.expression?.getText(parsed).includes('<Sidebar')).expression.getText(parsed);
