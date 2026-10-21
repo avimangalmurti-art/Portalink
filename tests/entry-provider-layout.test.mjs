@@ -29,3 +29,15 @@ test('the bootstrap presentation override works before an app context exists and
   assert.ok(nodes(providers).filter(node=>node.type==='button').every(node=>node.props.disabled));
  }
 });
+
+test('verification can omit provider choices and their availability messages while retaining the form, links and legal entry',()=>{
+ const calls=[],content=React.createElement('section',{'aria-label':'Email confirmation'},'Check your email');
+ const all=nodes(render({google:true,apple:false},'mobile',{hideProviders:true,children:content,onSignIn:()=>calls.push('signIn'),onGuest:()=>calls.push('guest')}));
+ assert.equal(all.some(node=>node.props.className==='entry-providers'),false);
+ assert.equal(all.some(node=>node.props.className==='entry-availability'),false);
+ assert.equal(all.find(node=>node.type==='section'&&node.props['aria-label']==='Email confirmation')?.props.children,'Check your email');
+ const links=nodes(all.find(node=>node.props.className==='entry-links')).filter(node=>node.type==='button');
+ assert.equal(links.length,2);assert.ok(links.every(node=>!node.props.disabled));links.forEach(node=>node.props.onClick());
+ assert.deepEqual(calls,['signIn','guest']);assert.ok(all.some(node=>node.type==='legal'));
+ for(const presentation of ['mobile','web'])assert.ok(nodes(render({google:false,apple:false},presentation)).some(node=>node.props.className==='entry-providers'),'Ordinary account entry keeps its provider options by default');
+});

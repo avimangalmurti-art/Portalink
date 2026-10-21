@@ -5377,8 +5377,31 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   border-radius: 999px;
   border: 2px solid color-mix(in srgb, var(--text-secondary) 26%, transparent);
   border-top-color: var(--text-secondary);
-  animation: premium-media-spin var(--m-slow) linear infinite;
+  color: var(--text-secondary);
+  animation: premium-media-spin var(--m-loading-spin) linear infinite;
 }
+
+/* All pending glyphs share one alpha mask; their existing host owns placement,
+   dimensions and accessible status. Retain the ring if masking is unavailable. */
+:root { --loading-indicator-mask: url('./assets/loading-spokes.svg'); }
+@supports ((mask-image: none) or (-webkit-mask-image: none)) {
+  .premium-media-loading-mark,
+  svg.lucide-loader-circle {
+    border: 0;
+    border-radius: 0;
+    background: currentColor;
+    -webkit-mask: var(--loading-indicator-mask) center / contain no-repeat;
+    mask: var(--loading-indicator-mask) center / contain no-repeat;
+    forced-color-adjust: none;
+    animation: premium-media-spin var(--m-loading-spin) steps(8) infinite;
+  }
+  svg.lucide-loader-circle > * { visibility: hidden; }
+  /* The glyph owns rotation, even inside an InterfaceIcon effect wrapper. */
+  [data-interface-icon-frame]:has(> svg.lucide-loader-circle),
+  [data-interface-icon-frame][data-icon-effect='rotate'][data-icon-effect-active]:has(> svg.lucide-loader-circle) { animation: none; }
+}
+.app-viewport--reduce-motion .premium-media-loading-mark,
+.app-viewport--reduce-motion svg.lucide-loader-circle { animation: none !important; }
 
 /* Loading loops have their own mobile pace; content readiness stays immediate. */
 [data-presentation='mobile'] .premium-media-placeholder::after {

@@ -121,11 +121,11 @@ test('direct Home pulls resist travel, remain bounded and interrupt the return a
   h.assertPaintOnly(); h.dispose();
 });
 
-test('only an armed user release plus real pending refresh holds the feed, while background refresh stays stationary', () => {
+test('every real pending refresh reserves the top indicator band, while gesture intent alone cannot hold it', () => {
   const h = fixture(); h.complete();
   h.update({ refreshing: true });
-  assert.equal(h.activeControls.find(control => control.value === h.values[0]).target, 0, 'Reopening/background refresh must not create a pull gesture');
-  h.complete(); assert.equal(h.offset, 0); assert.equal(h.opacity, 1);
+  assert.equal(h.activeControls.find(control => control.value === h.values[0]).target, 32, 'A pending background refresh must also clear the top indicator from the tabs');
+  h.complete(); assert.equal(h.offset, 32); assert.equal(h.opacity, 1); assert.equal(h.indicator.style.opacity, '1');
   h.update({ refreshing: false }); h.complete();
   h.value.onPull(100); h.value.onPull(null, true);
   assert.equal(h.activeControls.find(control => control.value === h.values[0]).target, 0, 'Gesture intent alone must not invent a pending request');
@@ -140,13 +140,33 @@ test('only an armed user release plus real pending refresh holds the feed, while
   h.complete(); assert.equal(h.offset, 0); assert.equal(h.opacity, 0); h.assertPaintOnly(); h.dispose();
 });
 
-test('OS and in-app Reduce Motion keep pull and refresh stationary without springs or faded delay', () => {
+test('the stationary indicator reveals only after the moving tabs clear it and responds to both paint values', () => {
+  const h = fixture(); h.complete();
+  h.update({ refreshing: true });
+  const movement = h.activeControls.find(control => control.value === h.values[0]);
+  const fade = h.activeControls.find(control => control.value === h.values[1]);
+  const renders = h.renders;
+  fade.advance(1); assert.equal(h.indicator.style.opacity, '0', 'A pending request must not paint the indicator over resting tabs');
+  movement.advance(24); assert.equal(h.indicator.style.opacity, '0');
+  movement.advance(28); assert.equal(h.indicator.style.opacity, '0.5');
+  movement.advance(32); assert.equal(h.indicator.style.opacity, '1');
+  fade.advance(.4); assert.equal(h.indicator.style.opacity, '0.4', 'The existing fade still owns completion opacity');
+  movement.advance(20); assert.equal(h.indicator.style.opacity, '0', 'Returning tabs hide the indicator before they overlap');
+  movement.advance(80); assert.equal(h.indicator.style.opacity, '0.4', 'A longer pull never amplifies the fade above its own opacity');
+  assert.equal(h.renders, renders, 'Reveal follows MotionValue paint without rerendering Home');
+  h.update({ refreshing: false }); h.complete();
+  assert.equal(h.indicator.style.opacity, '0'); assert.equal(h.content.style.transform, '');
+  h.assertPaintOnly(); h.dispose();
+});
+
+test('OS and in-app Reduce Motion reserve a static pending band without springs or faded delay', () => {
   for (const reduced of [{ reduced: true }, { appReduced: true }]) {
     const h = fixture(reduced); assert.equal(h.controls.length, 0);
-    h.value.onPull(100); assert.equal(h.offset, 0); assert.equal(h.opacity, 1); assert.equal(h.content.style.transform, '');
+    h.value.onPull(100); assert.equal(h.offset, 0); assert.equal(h.opacity, 1); assert.equal(h.indicator.style.opacity, '0'); assert.equal(h.content.style.transform, '');
     h.value.onPull(null); assert.equal(h.opacity, 0);
-    h.update({ refreshing: true }); assert.equal(h.offset, 0); assert.equal(h.opacity, 1); assert.equal(h.controls.length, 0);
-    h.update({ refreshing: false }); assert.equal(h.opacity, 0); assert.equal(h.controls.length, 0);
+    h.update({ refreshing: true }); assert.equal(h.offset, 32); assert.equal(h.opacity, 1); assert.equal(h.indicator.style.opacity, '1'); assert.equal(h.controls.length, 0);
+    assert.equal(h.content.style.transform, 'translate3d(0, 32px, 0)');
+    h.update({ refreshing: false }); assert.equal(h.offset, 0); assert.equal(h.opacity, 0); assert.equal(h.indicator.style.opacity, '0'); assert.equal(h.controls.length, 0);
     h.assertPaintOnly(); h.dispose();
   }
 });
@@ -160,8 +180,8 @@ test('a native OS preference event interrupts a live spring and restores optiona
   h.reduce({ os: true }); h.preference.emit('change', { matches: true });
   assert.equal(h.renders, renders, 'An actual matchMedia change must work without a hook rerender');
   assert.equal(h.indicator.getAttribute('data-refresh-reduced'), 'true', 'The indicator explicitly stops its CSS rotation');
-  assert.equal(h.offset, 0); assert.equal(h.opacity, 1); assert.ok(prior.every(control => control.stopped));
-  for (const control of prior) control.complete(); assert.equal(h.offset, 0);
+  assert.equal(h.offset, 32); assert.equal(h.opacity, 1); assert.equal(h.indicator.style.opacity, '1'); assert.ok(prior.every(control => control.stopped));
+  for (const control of prior) control.complete(); assert.equal(h.offset, 32);
   h.reduce({ os: false }); h.preference.emit('change', { matches: false });
   assert.equal(h.renders, renders); assert.equal(h.indicator.getAttribute('data-refresh-reduced'), 'false');
   assert.equal(h.activeControls.length, 2); assert.ok(h.activeControls.every(control => !prior.includes(control)));
@@ -179,9 +199,9 @@ test('changing in-app Reduce Motion stops live motion through ancestor classes w
   assert.ok(h.observers.at(-1).targets.some(item => item.target === h.ancestor));
   h.reduce({ app: true }); h.notifyPreference();
   assert.equal(h.indicator.getAttribute('data-refresh-reduced'), 'true');
-  assert.equal(h.offset, 0); assert.equal(h.opacity, 1); assert.equal(h.controls.length, count);
+  assert.equal(h.offset, 32); assert.equal(h.opacity, 1); assert.equal(h.indicator.style.opacity, '1'); assert.equal(h.controls.length, count);
   assert.ok(prior.every(control => control.stopped));
-  for (const control of prior) control.lateCompletion(); assert.equal(h.offset, 0);
+  for (const control of prior) control.lateCompletion(); assert.equal(h.offset, 32);
   h.notifyPreference(); assert.equal(h.controls.length, count, 'An unrelated class mutation cannot restart settled reduced-motion state');
   h.reduce({ app: false }); h.notifyPreference();
   assert.equal(h.indicator.getAttribute('data-refresh-reduced'), 'false'); assert.equal(h.activeControls.length, 2);
@@ -213,7 +233,8 @@ test('inactive Home and replacement account scopes cancel held motion and reject
   stale(100); assert.equal(h.styleWrites.length, before, 'An old account callback is inert before replacement layout effects');
   h.commit(); assert.deepEqual(h.values.map(value => value.listeners.size), [1, 1]);
   stale(100); assert.equal(h.offset, 0);
-  h.complete(); assert.equal(h.offset, 0, 'A replacement account must not inherit the prior account pull even if a background read remains pending');
+  assert.equal(h.activeControls.find(control => control.value === h.values[0]).from, 0, 'A replacement scope starts a new band from rest instead of inheriting the old pull');
+  h.complete(); assert.equal(h.offset, 32, 'The replacement scope may reserve its own band only because its real refresh remains pending');
   h.update({ enabled: false });
   assert.equal(h.offset, 0); assert.equal(h.opacity, 0); assert.equal(h.activeControls.length, 0);
   assert.deepEqual(h.values.map(value => value.listeners.size), [0, 0]); assert.equal(h.content.listeners.size, 0); assert.equal(h.window.listeners.size, 0); assert.equal(h.preference.listeners.size, 0);

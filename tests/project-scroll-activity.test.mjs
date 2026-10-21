@@ -13,6 +13,7 @@ class Target {
       : selector === '[data-mobile-project-view]' ? this.mobile
       : selector.startsWith('audio,') ? this.interactive
       : selector === 'video' ? this.video
+      : selector === '[data-mobile-project-page-count]' ? false
       : selector === '[role="button"], [data-focused-page-scroll]' ? false : this.outgoing || this.control;
     return matches ? this : null;
   }
@@ -25,11 +26,16 @@ function harness() {
   let effect, cleanup, deps, observer, focused = false, modal = false;
   let now = 0, timerId = 0;
   const timers = new Map(), controlQueries = [];
-  const listeners = new Map(), controls = [new Target({ control: true }), new Target({ control: true, inert: true })];
+  const listeners = new Map(), listenerOptions = new Map(), controls = [new Target({ control: true }), new Target({ control: true, inert: true })];
   const videos = [Object.assign(new Target(), { controls: true, currentTime: 32, paused: false })];
   const frame = new Target();
   frame.contains = target => target instanceof Target && target.mobile;
-  frame.querySelector = selector => selector.includes('aria-modal') ? modal : focused;
+  frame.querySelector = selector => {
+    if (selector.includes('aria-modal')) return modal;
+    if (!selector.includes(':focus-visible')) return false;
+    if (focused instanceof Target && focused.kind === 'back') return selector.includes('.mobile-project-back:focus-visible') ? focused : null;
+    return focused;
+  };
   frame.querySelectorAll = selector => { controlQueries.push(selector); return selector.endsWith(' video') ? videos : controls; };
   const navigation = { current: { closest: () => frame } };
   const exports = {};
@@ -37,22 +43,23 @@ function harness() {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, Element: Target, performance: { now: () => now },
     window: {
-      addEventListener(type, fn) { listeners.set(type, fn); },
+      addEventListener(type, fn, options) { listeners.set(type, fn); listenerOptions.set(type, options); },
       removeEventListener(type, fn) { assert.equal(listeners.get(type), fn); listeners.delete(type); },
       setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, due: now + delay }); return id; },
       clearTimeout(id) { timers.delete(id); },
     },
     document: {
-      addEventListener(type, fn) { listeners.set(type, fn); },
+      addEventListener(type, fn, options) { listeners.set(type, fn); listenerOptions.set(type, options); },
       removeEventListener(type, fn) { assert.equal(listeners.get(type), fn); listeners.delete(type); },
     },
     MutationObserver: class { constructor(fn) { observer = fn; } observe() {} disconnect() { observer = undefined; } },
     require: () => ({ useEffect(fn, next) { if (!deps || next.some((v, i) => v !== deps[i])) { effect = fn; deps = next; } } }),
   });
   return {
-    controls, videos, frame, listeners, controlQueries,
+    controls, videos, frame, listeners, listenerOptions, controlQueries,
     get timers() { return timers.size; },
     get hidden() { return frame.attributes.has('data-project-reading'); },
+    get scrolling() { return frame.attributes.has('data-project-scrolling'); },
     render(enabled = true, path = '/project/a') {
       exports.useProjectScrollActivity(enabled, path, navigation);
       if (effect) { cleanup?.(); cleanup = effect(); effect = undefined; }
@@ -77,20 +84,168 @@ function harness() {
   };
 }
 const hide = h => { h.emit('wheel'); h.emit('scroll'); assert.equal(h.hidden, true); };
-
-test('Back remains visible and interactive while scroll and artwork taps hide other reader controls', () => {
-  const h = harness(), back = new Target({ control: true });
+const readerControls = (h, { inertBack = false, inertHeader = false } = {}) => {
+  const back = new Target({ control: true, inert: inertBack });
+  const header = new Target({ control: true, inert: inertHeader });
+  back.kind = 'back';
   back.matches = selector => selector === '.mobile-project-back:not(.mobile-project-portal-preview)';
-  h.controls.push(back); h.render(); hide(h);
-  assert.equal(back.inert, false);
+  header.matches = selector => selector === '[data-document-reader-header]';
+  h.controls.push(back, header);
+  return { back, header };
+};
+const pageCounter = () => {
+  const counter = new Target({ control: true }), closest = counter.closest.bind(counter);
+  counter.closest = selector => selector === '[data-mobile-project-page-count]' ? counter : closest(selector);
+  counter.matches = selector => selector === ':focus-visible' && Boolean(counter.keyboardFocus);
+  return counter;
+};
+
+test('scrolling disables Back and keeps the counter header usable until the momentum settles', () => {
+  const h = harness(), { back, header } = readerControls(h);
+  h.render();
+  h.emit('scroll');
+  assert.equal(h.scrolling, false, 'Restored or programmatic positions must retain resting controls');
+  hide(h);
+  assert.equal(h.scrolling, true);
+  assert.equal(back.inert, true, 'A hidden Back cannot intercept a tap on the relocated counter');
   assert.equal(back.attributes.has('data-project-reading-control'), false);
-  assert.ok(h.controls.filter(control => control !== back).every(control => control.inert));
-  h.tick(700);
+  assert.equal(header.inert, false, 'The visible counter must not inherit inert from its header');
+  assert.ok(h.controls.filter(control => control !== back && control !== header).every(control => control.inert));
+  h.tick(600); h.emit('scroll'); h.tick(699);
+  assert.equal(back.inert, true); assert.equal(header.inert, false); assert.equal(h.scrolling, true);
+  h.tick(1);
+  assert.equal(h.scrolling, false); assert.equal(h.hidden, false); assert.equal(back.inert, false); assert.equal(header.inert, false);
   h.emit('pointerdown'); h.emit('pointerup'); h.tick(340);
   assert.equal(h.hidden, true);
+  assert.equal(h.scrolling, false, 'An artwork tap retains its distinct chrome state');
   assert.equal(back.inert, false);
+  assert.equal(header.inert, true, 'An explicit tap still hides the complete header');
   assert.equal(back.attributes.has('data-project-reading-control'), false);
   h.unmount();
+  assert.equal(back.inert, false); assert.equal(header.inert, false); assert.equal(h.scrolling, false);
+});
+
+test('starting a scroll from tap-hidden chrome enables only the counter header and restores on idle', () => {
+  const h = harness(), { back, header } = readerControls(h), artwork = new Target();
+  h.render(); h.emit('pointerdown', artwork); h.emit('pointerup', artwork);
+  assert.equal(header.inert, true); assert.equal(back.inert, false); assert.equal(h.timers, 0);
+  h.emit('pointerdown', artwork); h.emit('pointermove', artwork, { clientY: 225 }); h.emit('pointercancel', artwork);
+  h.emit('scroll', artwork);
+  assert.equal(h.scrolling, true); assert.equal(back.inert, true); assert.equal(header.inert, false);
+  assert.equal(h.controls[0].inert, true, 'The counter exception cannot reveal unrelated chrome');
+  h.tick(700);
+  assert.equal(h.scrolling, false); assert.equal(h.hidden, false); assert.equal(back.inert, false); assert.equal(header.inert, false);
+  h.unmount();
+});
+
+test('reader controls mounted during a scroll follow its state without overriding an existing inert value', () => {
+  const h = harness(); h.render(); hide(h);
+  const { back, header } = readerControls(h);
+  const disabled = readerControls(h, { inertBack: true, inertHeader: true });
+  h.refreshDom();
+  assert.equal(back.inert, true); assert.equal(header.inert, false);
+  assert.equal(disabled.back.inert, true); assert.equal(disabled.header.inert, true);
+  h.tick(700);
+  assert.equal(back.inert, false); assert.equal(header.inert, false);
+  assert.equal(disabled.back.inert, true); assert.equal(disabled.header.inert, true);
+  hide(h); h.unmount();
+  assert.equal(h.hidden, false); assert.equal(h.scrolling, false); assert.equal(h.timers, 0);
+  assert.equal(back.inert, false); assert.equal(header.inert, false);
+  assert.equal(disabled.back.inert, true); assert.equal(disabled.header.inert, true);
+});
+
+test('pointer focus keeps the scrolling counter in place through activation while keyboard focus restores chrome', () => {
+  const h = harness(), { back, header } = readerControls(h), counter = pageCounter();
+  h.render(); hide(h); h.tick(650);
+  const down = h.emit('pointerdown', counter); h.emit('focusin', counter); const up = h.emit('pointerup', counter);
+  assert.equal(down.prevented || down.stopped || up.prevented || up.stopped, false, 'Counter activation keeps its normal events');
+  assert.equal(h.scrolling, true, 'Pointer focus cannot move the counter away between down and click');
+  assert.equal(back.inert, true); assert.equal(header.inert, false);
+  assert.equal(h.timers, 1, 'Release starts a fresh quiet-reading interval');
+  h.tick(699); assert.equal(h.scrolling, true);
+  h.tick(1); assert.equal(h.scrolling, false); assert.equal(back.inert, false);
+  hide(h); counter.keyboardFocus = true; h.emit('focusin', counter);
+  assert.equal(h.scrolling, false); assert.equal(h.hidden, false); assert.equal(back.inert, false);
+  assert.equal(h.timers, 0);
+  h.emit('pointerdown'); h.emit('pointerup'); assert.equal(h.hidden, true);
+  counter.keyboardFocus = false; h.emit('focusin', counter);
+  assert.equal(h.hidden, false, 'Pointer focus during ordinary tap-hidden chrome still reveals the counter');
+  hide(h); h.emit('focusin', new Target({ control: true }));
+  assert.equal(h.hidden, false, 'The pointer-focus exception belongs only to the counter');
+  h.unmount();
+});
+
+test('counter click restores controls before the page-preview callback without consuming activation', () => {
+  const h = harness(), { back, header } = readerControls(h), counter = pageCounter();
+  h.render(); hide(h); h.tick(650);
+  h.emit('pointerdown', counter); h.emit('focusin', counter);
+  assert.equal(h.scrolling, true); assert.equal(h.timers, 0, 'Pointer focus cannot return the counter before click resolves its target');
+  h.emit('pointerup', counter);
+  assert.equal(h.scrolling, true); assert.equal(h.timers, 1);
+  assert.equal(h.listenerOptions.get('click'), true, 'The restoration must run in capture before React opens and focuses previews');
+  const click = h.emit('click', counter);
+  let opened = 0;
+  const openPreviews = event => {
+    assert.equal(event.target, counter, 'The resolved click retains the counter as its target');
+    assert.equal(h.hidden, false); assert.equal(h.scrolling, false);
+    assert.equal(back.inert, false); assert.equal(header.inert, false);
+    assert.equal(h.timers, 0, 'Preview focus cannot race an old idle deadline');
+    opened++;
+  };
+  assert.equal(click.prevented || click.stopped, false);
+  openPreviews(click);
+  assert.equal(opened, 1); h.tick(1000); assert.equal(h.hidden, false);
+  for (const target of [new Target(), new Target({ control: true }), Object.assign(pageCounter(), { mobile: false })]) {
+    hide(h); h.emit('click', target);
+    assert.equal(h.scrolling, true, 'Only an in-frame counter activation restores scrolling chrome');
+    h.tick(700);
+  }
+  h.emit('pointerdown'); h.emit('pointerup'); assert.equal(h.hidden, true);
+  h.emit('click', counter); assert.equal(h.hidden, true, 'A click alone cannot change ordinary tap-hidden chrome');
+  h.unmount();
+});
+
+test('a late counter press holds its position past idle until its own release or cancellation', () => {
+  for (const release of ['pointerup', 'pointercancel']) {
+    const h = harness(), { back, header } = readerControls(h), counter = pageCounter();
+    h.render(); hide(h); h.tick(690);
+    h.emit('pointerdown', counter, { pointerId: 7 }); h.emit('focusin', counter);
+    assert.equal(h.timers, 0, 'A held press suspends the nearly expired idle deadline');
+    h.tick(1400);
+    assert.equal(h.scrolling, true); assert.equal(back.inert, true); assert.equal(header.inert, false);
+    h.emit('pointerup', counter, { pointerId: 9 });
+    h.tick(1000);
+    assert.equal(h.timers, 0); assert.equal(h.scrolling, true, 'An unrelated pointer cannot release the counter');
+    const event = h.emit(release, counter, { pointerId: 7 });
+    assert.equal(event.prevented || event.stopped, false);
+    assert.equal(h.timers, 1);
+    h.tick(699); assert.equal(h.scrolling, true);
+    h.tick(1); assert.equal(h.scrolling, false); assert.equal(back.inert, false); assert.equal(header.inert, false);
+    h.unmount();
+  }
+});
+
+test('restoring or leaving the reader clears a held counter press and late release cannot restart idle', () => {
+  for (const restore of [h => h.emit('keydown', undefined, { key: 'Escape' }),
+    h => { h.modal(true); h.refreshDom(); }, h => h.render(true, '/project/another'), h => h.unmount()]) {
+    const h = harness(), { back } = readerControls(h), counter = pageCounter();
+    h.render(); hide(h); h.tick(690); h.emit('pointerdown', counter); h.tick(1000);
+    assert.equal(h.scrolling, true); assert.equal(h.timers, 0);
+    restore(h);
+    assert.equal(h.scrolling, false); assert.equal(back.inert, false);
+    h.emit('pointerup', counter); h.tick(1000);
+    assert.equal(h.scrolling, false); assert.equal(h.timers, 0);
+    h.unmount();
+  }
+});
+
+test('a keyboard-focused Back stays visible and usable when content starts scrolling', () => {
+  const h = harness(), { back, header } = readerControls(h);
+  h.render(); h.focus(back); h.emit('wheel'); h.emit('scroll');
+  assert.equal(h.hidden, false); assert.equal(h.scrolling, false);
+  assert.equal(back.inert, false); assert.equal(header.inert, false);
+  h.focus(false); hide(h); assert.equal(back.inert, true);
+  h.unmount(); assert.equal(back.inert, false);
 });
 
 test('decorative PDF canvases inside a visible labelled page still start content scrolling', () => {
@@ -150,12 +305,16 @@ test('a page double tap restores its original chrome state and reaches both page
 });
 
 test('double-tap rollback preserves the original scroll-idle deadline without delaying either tap', () => {
-  const h = harness(), artwork = new Target(); h.render(); hide(h); h.tick(100);
+  const h = harness(), { back, header } = readerControls(h), artwork = new Target(); h.render(); hide(h); h.tick(100);
   h.emit('pointerdown', artwork); h.emit('pointerup', artwork);
   assert.equal(h.hidden, false); assert.equal(h.timers, 0, 'A single reveal cancels the scroll timer immediately');
+  assert.equal(h.scrolling, false); assert.equal(back.inert, false); assert.equal(header.inert, false);
   h.tick(180); h.emit('pointerdown', artwork); h.emit('pointerup', artwork); assert.equal(h.hidden, true);
+  assert.equal(h.scrolling, true, 'Double-tap rollback retains the scrolling layout, not the tap-hidden layout');
+  assert.equal(back.inert, true); assert.equal(header.inert, false);
   h.tick(419); assert.equal(h.hidden, true);
   h.tick(1); assert.equal(h.hidden, false, 'The original700ms deadline remains, rather than restarting after double tap');
+  assert.equal(h.scrolling, false); assert.equal(back.inert, false); assert.equal(header.inert, false);
   assert.equal(h.timers, 0); h.unmount();
 });
 
@@ -269,13 +428,20 @@ test('media keeps its playback and controls are restored; controls mounted while
 });
 
 test('navigation, desktop switch, keyboard and modal opening safely restore controls', () => {
-  const h = harness(); h.render(); h.focus(true); h.emit('wheel'); h.emit('scroll'); assert.equal(h.hidden, false);
-  h.focus(false); hide(h); h.emit('keydown', undefined, { key: 'Tab' }); assert.equal(h.hidden, false);
-  hide(h); h.emit('focusin'); assert.equal(h.hidden, false, 'Focus reveals chrome without waiting for the reading pause');
-  hide(h); h.modal(true); h.refreshDom(); assert.equal(h.hidden, false); h.modal(false);
-  hide(h); h.render(true, '/project/b'); assert.equal(h.hidden, false); h.emit('scroll'); assert.equal(h.hidden, false);
-  hide(h); h.render(false, '/profile'); assert.equal(h.hidden, false); assert.equal(h.listeners.size, 0);
-  h.render(); hide(h); h.unmount(); assert.equal(h.listeners.size, 0); assert.equal(h.hidden, false);
+  const h = harness(), { back, header } = readerControls(h);
+  const restored = () => {
+    assert.equal(h.hidden, false); assert.equal(h.scrolling, false);
+    assert.equal(back.inert, false); assert.equal(header.inert, false);
+    assert.equal(h.controls[1].inert, true, 'Pre-existing inert controls retain their own state');
+    assert.equal(h.timers, 0);
+  };
+  h.render(); h.focus(true); h.emit('wheel'); h.emit('scroll'); restored();
+  h.focus(false); hide(h); h.emit('keydown', undefined, { key: 'Tab' }); restored();
+  hide(h); h.emit('focusin'); restored();
+  hide(h); h.modal(true); h.refreshDom(); restored(); h.modal(false);
+  hide(h); h.render(true, '/project/b'); restored(); h.emit('scroll'); restored();
+  hide(h); h.render(false, '/profile'); restored(); assert.equal(h.listeners.size, 0);
+  h.render(); hide(h); h.unmount(); assert.equal(h.listeners.size, 0); restored();
   assert.equal(h.timers, 0);
 });
 

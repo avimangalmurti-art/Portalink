@@ -17,11 +17,12 @@ function harness({blocked=false}={}){
  const render=()=>{cursor=0;const gate=api.FirstLoginWelcome({accountId:'account-a',children:React.createElement('span',null,'Profile setup')});return typeof gate.type==='function'?gate.type(gate.props):gate;};
  return{api,state,storage,written,render,all:()=>nodes(render())};
 }
-test('six inclusive icon screens support next, back, direct selection and finish before mounting setup',()=>{
- const h=harness();assert.equal(h.api.WELCOME_STEPS.length,6);assert.equal(h.all().some(n=>n.type==='img'),false);assert.equal(h.all().some(n=>n.props.children==='Profile setup'),false);
+test('six inclusive mascot screens support next, back, direct selection and finish before mounting setup',()=>{
+ const h=harness();assert.equal(h.api.WELCOME_STEPS.length,6);assert.equal(h.all().filter(n=>n.type==='img').length,1);assert.equal(h.all().some(n=>n.props.children==='Profile setup'),false);
  const button=label=>h.all().find(n=>n.type==='button'&&(n.props['aria-label']===label||n.props.children===label));
  for(let step=0;step<6;step++){
   assert.equal(h.all().find(n=>n.type==='h1').props.children,h.api.WELCOME_STEPS[step].title);
+  const illustration=h.all().find(n=>n.type==='img');assert.equal(illustration.props.src,h.api.WELCOME_STEPS[step].artwork);assert.equal(illustration.props.alt,'');
   const next=h.all().find(n=>n.props.className==='first-welcome-next');next.props.onClick();
  }
  assert.ok(h.all().some(n=>n.props.children==='Profile setup'));assert.equal(h.written.length,1);assert.ok(h.state.hasSeenFirstLoginWelcome('account-a'));assert.equal(h.state.hasSeenFirstLoginWelcome('account-b'),false);

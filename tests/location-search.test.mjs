@@ -51,10 +51,13 @@ function harness(overrides = {}) {
     focus(options) { focused++; focusOptions.push(options); nodes(tree).find(node => node.type === 'input').props.onFocus(); },
     blur() { blurred++; tree.props.onBlur({ currentTarget: { contains: () => false }, relatedTarget: null }); },
   };
+  const listElement = { scrollTop: 0, clientHeight: 160, querySelector() { return null; } };
   function renderPass() {
     cursor = 0; dirty = false; effects = [];
     tree = LocationSearch(props);
     nodes(tree).find(node => node.type === 'input').ref.current = inputElement;
+    const listbox = nodes(tree).find(node => node.props.role === 'listbox');
+    if (listbox) listbox.ref.current = listElement;
   }
   function render() {
     for (const effect of deferredEffects.splice(0)) effect();
@@ -67,7 +70,7 @@ function harness(overrides = {}) {
   }
   const input = () => nodes(render()).find(node => node.type === 'input');
   const h = {
-    render, input, requests, changes, selected, focusOptions,
+    render, input, requests, changes, selected, focusOptions, listElement,
     options: () => nodes(render()).filter(node => node.props.role === 'option'),
     status: () => textOf(nodes(render()).find(node => node.props.role === 'status')),
     focus() { input().props.onFocus(); render(); },
@@ -345,4 +348,107 @@ test('globe city menu limits matches to five cities and updates recommendations 
  h.search('Lo');h.advance(180);assert.equal(h.options().length,0,'Old recommendations clear while the new query loads');
  h.requests[2].resolve([{...london,id:'region',kind:'region'},...Array.from({length:7},(_,i)=>({...london,id:'city-'+i,name:'London '+i}))]);await h.flush();
  assert.equal(h.options().length,5);h.key('ArrowUp');h.key('Enter');assert.equal(h.selected[0].id,'city-0');
+});
+
+const optionPointerEvent = (overrides = {}) => ({
+  pointerType: 'touch', pointerId: 41, isPrimary: true, button: 0, clientX: 60, clientY: 120,
+  defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, ...overrides,
+});
+
+test('a completed touch or pen tap fills the controlled city label without a synthetic click and selects the exact duplicate once', async t => {
+  const ontario = { ...london, id: 'city-6058560', regionName: 'Ontario', countryName: 'Canada' };
+  for (const pointerType of ['touch', 'pen']) {
+    const h = harness({ blurOnSelect: true, onSelect(place) {
+      h.selected.push(place);
+      h.update({ value: `${place.name}, ${place.regionName}, ${place.countryName}` });
+    } }); t.after(() => h.dispose());
+    h.search('London'); h.advance(180); h.requests[0].resolve([london, ontario]); await h.flush();
+    const chosen = h.options()[1];
+    chosen.props.onPointerDown(optionPointerEvent({ pointerType }));
+    assert.equal(h.selected.length, 0, 'Touch-down alone must leave the list available for panning');
+    chosen.props.onPointerUp(optionPointerEvent({ pointerType, clientX: 63, clientY: 123 })); h.render();
+    assert.deepEqual(h.selected, [ontario], 'Pointer-up must commit without waiting for an emulated mouse click');
+    assert.equal(h.input().props.value, 'London, Ontario, Canada');
+    assert.equal(h.input().props['aria-expanded'], false);
+    assert.equal(h.options().length, 0);
+    assert.equal(h.blurred, 1);
+    chosen.props.onClick({ detail: 1 }); h.render();
+    assert.deepEqual(h.selected, [ontario], 'A later compatibility click must not repeat navigation or selection');
+    assert.equal(h.blurred, 1);
+  }
+});
+
+test('pans, cancellations, changed scroll and invalid pointers cannot turn into a city selection', async t => {
+  for (const gesture of ['moved', 'moved-back', 'up-moved', 'cancelled', 'scrolled', 'mismatched-id', 'nonprimary', 'secondary-button', 'different-option']) {
+    const h = harness({ blurOnSelect: true }); t.after(() => h.dispose());
+    h.search('cities'); h.advance(180); h.requests[0].resolve([london, paris]); await h.flush();
+    const chosen = h.options()[0];
+    chosen.props.onPointerDown(optionPointerEvent(gesture === 'nonprimary' ? { isPrimary: false } : gesture === 'secondary-button' ? { button: 2 } : {}));
+    if (gesture === 'moved' || gesture === 'moved-back') {
+      const move = optionPointerEvent({ clientY: 145 }); chosen.props.onPointerMove(move);
+      assert.equal(move.defaultPrevented, false, 'A pan must retain native scrolling');
+      if (gesture === 'moved-back') chosen.props.onPointerMove(optionPointerEvent());
+    }
+    if (gesture === 'cancelled') chosen.props.onPointerCancel(optionPointerEvent());
+    if (gesture === 'scrolled') h.listElement.scrollTop = 30;
+    const released = gesture === 'different-option' ? h.options()[1] : chosen;
+    released.props.onPointerUp(optionPointerEvent(gesture === 'mismatched-id' ? { pointerId: 42 } : gesture === 'up-moved' ? { clientX: 80 } : {}));
+    released.props.onClick({ detail: 1 }); h.render();
+    assert.equal(h.selected.length, 0, `${gesture} must not select a city, even if the browser follows it with click`);
+    assert.equal(h.input().props.value, 'cities');
+    assert.equal(h.blurred, 0);
+    assert.equal(h.input().props['aria-expanded'], true);
+  }
+});
+
+test('a query change during touch invalidates the old option and late responses cannot reopen a completed tap', async t => {
+  const h = harness({ blurOnSelect: true }); t.after(() => h.dispose());
+  h.search('Old London'); h.advance(180);
+  h.search('London'); h.advance(180); h.requests[1].resolve([london]); await h.flush();
+  const stale = h.options()[0];
+  stale.props.onPointerDown(optionPointerEvent());
+  h.search('Paris'); h.advance(180); h.requests[2].resolve([paris]); await h.flush();
+  stale.props.onPointerUp(optionPointerEvent()); stale.props.onClick({ detail: 1 }); h.render();
+  assert.deepEqual(h.selected, []);
+  assert.equal(h.input().props.value, 'Paris');
+  assert.match(textOf(h.options()[0]), /^Paris/);
+  const chosen = h.options()[0];
+  chosen.props.onPointerDown(optionPointerEvent()); chosen.props.onPointerUp(optionPointerEvent()); h.update({ value: 'Paris, Île-de-France, France' });
+  h.requests[0].resolve([london]); await h.flush();
+  assert.deepEqual(h.selected, [paris]);
+  assert.equal(h.input().props.value, 'Paris, Île-de-France, France');
+  assert.equal(h.input().props['aria-expanded'], false);
+  assert.equal(h.options().length, 0);
+});
+
+test('touch hover does not move the active option while mouse hover, mouse click and keyboard selection remain available', async t => {
+  const h = harness(); t.after(() => h.dispose());
+  h.search('cities'); h.advance(180); h.requests[0].resolve([london, paris]); await h.flush();
+  h.options()[1].props.onPointerEnter(optionPointerEvent()); h.render();
+  assert.equal(h.options()[0].props['aria-selected'], true, 'Entering with a finger must not activate and auto-scroll a different row');
+  h.options()[1].props.onPointerEnter(optionPointerEvent({ pointerType: 'mouse' })); h.render();
+  assert.equal(h.options()[1].props['aria-selected'], true);
+  const mouse = h.options()[1];
+  mouse.props.onPointerDown(optionPointerEvent({ pointerType: 'mouse' }));
+  mouse.props.onPointerUp(optionPointerEvent({ pointerType: 'mouse' }));
+  assert.equal(h.selected.length, 0, 'Mouse selection still waits for its ordinary click');
+  mouse.props.onClick({ detail: 1 }); h.render();
+  assert.deepEqual(h.selected, [paris]);
+  h.search('London'); h.advance(180); h.requests[1].resolve([london]); await h.flush(); h.key('Enter');
+  assert.deepEqual(h.selected, [paris, london]);
+});
+
+test('touch selection respects profile validation and its separate confirmation contract', async t => {
+  const confirmed = [];
+  const h = harness({ keepFocusOnSelect: true, blurOnSelect: true, canSelect: place => place.id !== paris.id, onConfirm: place => confirmed.push(place) }); t.after(() => h.dispose());
+  h.search('cities'); h.advance(180); h.requests[0].resolve([london, paris]); await h.flush();
+  let chosen = h.options()[1];
+  chosen.props.onPointerDown(optionPointerEvent()); chosen.props.onPointerUp(optionPointerEvent()); h.render();
+  assert.deepEqual(h.selected, []); assert.deepEqual(confirmed, []); assert.equal(h.blurred, 0);
+  chosen = h.options()[0];
+  chosen.props.onPointerDown(optionPointerEvent()); chosen.props.onPointerUp(optionPointerEvent()); h.render();
+  assert.deepEqual(h.selected, [london]); assert.deepEqual(confirmed, []);
+  assert.equal(h.focused, 1); assert.equal(h.blurred, 0);
+  h.key('Enter');
+  assert.deepEqual(confirmed, [london]); assert.equal(h.blurred, 1);
 });

@@ -97,8 +97,14 @@ export function InsightsPage({ onBack, studio = false }: { onBack: () => void; s
   const { creatorSaves } = useServices();
   const query = useCallback(() => creatorSaves.getSaveInsights(), [creatorSaves]);
   const state = useAccountQuery(query, { key: 'insights:audience', scope: creatorSaves });
+  const backFromProject = () => {
+    // A read notification already has its Activity entry in history. Clearing
+    // the query with PUSH instead creates a Reads/Insights return loop.
+    if (isMobile && typeof window !== 'undefined' && window.history?.state?.idx > 0) onBack();
+    else setParams({}, isMobile ? { replace: true } : undefined);
+  };
   return <section aria-label="Private creator insights" className={isMobile ? 'mobile-insights-page' : undefined}>
-    {(!isMobile || !studio || projectId) && <PersonalHeader insights studio={studio} title={projectId ? "Reads" : isMobile ? "Your insights" : "Insights"} onBack={projectId ? () => setParams({}) : onBack} />}
+    {(!isMobile || !studio || projectId) && <PersonalHeader insights studio={studio} title={projectId ? "Reads" : isMobile ? "Your insights" : "Insights"} onBack={projectId ? backFromProject : onBack} />}
     <div className={isMobile ? 'mobile-insights-scroll' : undefined}>{projectId ? <Suspense fallback={<LoadingState label="Loading Reads" />}><ReadsProject key={projectId} projectId={projectId}/></Suspense> : <>
     {isMobile ? <Suspense fallback={<LoadingState kind="insights" label="Loading insights" />}><MobileInsights saves={state} /></Suspense> : <div className="px-[var(--content-gutter)] py-6">
       <div className="flex items-center justify-between gap-4"><p className="text-[13px] text-[var(--text-secondary)]">Only you can see these insights.</p><button type="button" onClick={state.retry} disabled={state.loading || state.refreshing} className="shape-compact px-3 py-2 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Refresh</button></div>

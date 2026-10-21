@@ -1,4 +1,4 @@
-:root { --m-fast:120ms; --m-base:180ms; --m-slow:260ms; --m-loading-spin:1000ms; --m-loading-cycle:1400ms; --m-enter:cubic-bezier(.2,.8,.2,1); --m-exit:cubic-bezier(.4,0,1,1); }
+:root { --m-fast:120ms; --m-base:180ms; --m-slow:260ms; --m-loading-spin:600ms; --m-loading-cycle:1400ms; --m-enter:cubic-bezier(.2,.8,.2,1); --m-exit:cubic-bezier(.4,0,1,1); }
 /* These change paint/compositing only; geometry belongs to the existing screens. */
 :where(button,a[href],[role='button'],input[type='checkbox']) { transition-duration:var(--m-fast); transition-timing-function:var(--m-enter); }
 html[data-motion-navigation]::view-transition-group(root) { animation-duration:var(--m-slow); }

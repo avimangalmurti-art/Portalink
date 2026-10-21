@@ -6,9 +6,9 @@ import './oneScreenEntry.css';
 import { EntryAgreements, EntryLegal } from './EntryAgreements';
 import { usePresentation, type Presentation } from '../../presentation/usePresentation';
 
-export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, children, returnPath, onDisagree, presentation }: {
+export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, children, returnPath, onDisagree, presentation, hideProviders = false }: {
   ready?: boolean; onEmail?: () => void; onSignIn: () => void; onGuest: () => void;
-  children?: React.ReactNode; returnPath?: string; onDisagree?: () => void; presentation?: Presentation;
+  children?: React.ReactNode; returnPath?: string; onDisagree?: () => void; presentation?: Presentation; hideProviders?: boolean;
 }) {
   const contextualPresentation = usePresentation();
   // The opening scene precedes the app host and already knows its presentation.
@@ -41,7 +41,7 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, childre
   const emailButton = onEmail && <button className="entry-email" type="button" disabled={!ready || busy} onClick={onEmail}>Continue with email</button>;
   return <EntryAgreements onDisagree={onDisagree ?? (() => undefined)}>{agreements => <div className="one-screen-entry">
     {mobile && emailButton}
-    <div className="entry-providers" aria-label="Sign-in options">
+    {!hideProviders && <div className="entry-providers" aria-label="Sign-in options">
       {(['google', 'apple'] as const).map(provider => {
         // Apple remains unavailable until its separately held setup is approved.
         const available = provider === 'google' && Boolean(providers?.google);
@@ -56,8 +56,8 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, childre
           </p>}
         </div>;
       })}
-    </div>
-    {error && <p role="alert">{error}</p>}
+    </div>}
+    {!hideProviders && error && <p role="alert">{error}</p>}
     {!mobile && emailButton}
     {children}
     <div className="entry-links">

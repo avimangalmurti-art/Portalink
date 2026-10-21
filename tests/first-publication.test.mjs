@@ -28,12 +28,13 @@ const plain = value => JSON.parse(JSON.stringify(value));
 function evaluate(source, context) { vm.runInContext(transpile(`result = (${source});`), context); return context.result; }
 function harness() {
   const calls = [];
+  const drafts = { readFirstProjectDraft: async () => null, listDeviceDrafts: async () => [], latestDeviceDraft: records => records[0] ?? null };
   let pendingIntent = null;
   const context = vm.createContext({
     mobileRecoveryDraft: null, mobileRecoveryError: '',
     setMobileRecoveryDraft: value => { context.mobileRecoveryDraft = value; },
     setMobileRecoveryError: value => { context.mobileRecoveryError = value; },
-    React, result: null, projectSetupMetadata:undefined, projectSetupAccountId:null, setOptionalSetupAccount() {}, setProjectSetupAccountId:value=>context.projectSetupAccountId=value, setProjectSetupMetadata:value=>context.projectSetupMetadata=value, presentation: 'web', journeyMadeIn: null, firstProjectPublisher: false, isFirstProjectPublish: false, setFirstProjectPublisher: value => { context.firstProjectPublisher=value; }, setJourneyMadeIn: value => { context.journeyMadeIn=value; }, setIsFirstProjectPublish: value => { context.isFirstProjectPublish=value; }, require(name) { assert.equal(name, './features/publishing/firstProjectDraft'); return { readFirstProjectDraft: async () => null }; }, setGlobalCreateError() {}, defaultCategoryRequest: {current:null}, auth: { phase: 'unauthenticated', isAuthenticated: false, viewerProfileId: null, user: null,
+    React, result: null, projectSetupMetadata:undefined, projectSetupAccountId:null, setOptionalSetupAccount() {}, setProjectSetupAccountId:value=>context.projectSetupAccountId=value, setProjectSetupMetadata:value=>context.projectSetupMetadata=value, presentation: 'web', journeyMadeIn: null, firstProjectPublisher: false, isFirstProjectPublish: false, setFirstProjectPublisher: value => { context.firstProjectPublisher=value; }, setJourneyMadeIn: value => { context.journeyMadeIn=value; }, setIsFirstProjectPublish: value => { context.isFirstProjectPublish=value; }, require(name) { assert.equal(name, './features/publishing/firstProjectDraft'); return drafts; }, setGlobalCreateError() {}, defaultCategoryRequest: {current:null}, createFirstProjectCategory:async(label,icon)=>{calls.push(['createPortal',label,icon]);return{id:'work',label};}, auth: { phase: 'unauthenticated', isAuthenticated: false, viewerProfileId: null, user: null,
       requestAuthenticatedDestination(intent) { pendingIntent = intent; calls.push(['auth', plain(intent)]); },
       consumePendingIntent() { const intent = pendingIntent; pendingIntent = null; return intent; },
     },
@@ -63,9 +64,10 @@ function harness() {
   const signInTransition = evaluate(effectSource('const justSignedIn'), context);
   const completeOnboarding = evaluate(expression('ProfileOnboardingDialog', 'onComplete'), context);
   const dismissOnboarding = evaluate(expression('ProfileOnboardingDialog', 'onDismiss'), context);
+  const completeSetup = evaluate(expression('ProjectSetupScreen', 'onContinue'), context);
   const homeAction = () => evaluate(expression('HomeFeed', 'emptyAction'), context);
   const browseAction = () => evaluate(expression('HomeFeed', 'emptySecondaryAction'), context);
-  return { context, calls, progress, signInTransition, resetAccount, resumeRegistration, completeOnboarding, dismissOnboarding, homeAction, browseAction,
+  return { context, calls, drafts, progress, signInTransition, resetAccount, resumeRegistration, completeOnboarding, dismissOnboarding, completeSetup, homeAction, browseAction,
     canShowPublisher: () => evaluate(initializer('canShowPublisher'), context),
     authenticate(profileId = 'owner') { Object.assign(context.auth, { phase: 'authenticated', isAuthenticated: true, viewerProfileId: profileId, user: { id: 'account' } }); },
     ownerProfile(categories = [{ id: 'work' }]) { context.isOwnerMode = true; context.viewedProfile = { id: 'owner', categories, projects: [] }; context.onboardingStatus = 'ready'; },
@@ -87,6 +89,9 @@ test('guest Home action resumes first publication after sign-in and completed pr
   assert.equal(h.context.deferredIntentRef.current, null);
   assert.equal(h.context.isPublishOpen, false, 'The owner portfolio must be resolved before opening its publisher.');
   h.ownerProfile(); await h.progress();
+  assert.equal(h.context.projectSetupAccountId,'account');
+  assert.equal(h.context.isPublishOpen,false,'The shared setup collects details before starting a publisher.');
+  h.completeSetup({categoryId:'work',categoryLabel:'Work',title:'My idea',summary:''});
   assert.equal(h.context.publishTargetCategoryId, 'work'); assert.equal(h.context.isPublishOpen, true);
   assert.equal(h.context.isGlobalCreatePending, false);
   assert.deepEqual(h.calls.at(-1), ['profile', 'owner']);
@@ -112,18 +117,49 @@ test('registration resumption retains the guest create intent through the first 
   assert.equal(h.context.deferredIntentRef.current.kind, 'create-project');
   assert.equal(h.context.isOnboardingOpen, true);
   h.authenticate(); h.completeOnboarding('owner'); h.ownerProfile(); await h.progress();
+  assert.equal(h.context.projectSetupAccountId,'account'); assert.equal(h.canShowPublisher(),false);
+  h.completeSetup({categoryId:'work',categoryLabel:'Work',title:'My idea',summary:''});
   assert.equal(h.canShowPublisher(), true); assert.equal(h.context.publishTargetCategoryId, 'work');
 });
 
-test('owner publication waits for a real category, defaults to the first, and preserves an active category', async () => {
+test('owner creation opens setup without a Portal and publishes only after explicit metadata and Portal handoff', async () => {
   const h = harness(); h.authenticate(); h.ownerProfile([]);
   assert.equal(h.homeAction().label, 'Publish a project'); h.homeAction().onClick(); await h.progress();
-  assert.equal(h.context.isGlobalCreatePending, true); assert.equal(h.context.isPublishOpen, false);
+  assert.equal(h.context.projectSetupAccountId,'account');
+  assert.equal(h.context.isGlobalCreatePending, false); assert.equal(h.context.isPublishOpen, false);
+  assert.equal(h.context.publishTargetCategoryId,null); assert.equal(h.calls.length,0,'Entry cannot silently create a Portal.');
   h.context.viewedProfile.categories = [{ id: 'first' }, { id: 'second' }]; await h.progress();
+  assert.equal(h.context.publishTargetCategoryId,null); assert.equal(h.context.isPublishOpen,false);
+  const setup={categoryId:'first',categoryLabel:'First',title:'A new idea',summary:'Its story'};
+  h.completeSetup(setup);
   assert.equal(h.context.publishTargetCategoryId, 'first'); assert.equal(h.context.isGlobalCreatePending, false);
+  assert.deepEqual(plain(h.context.projectSetupMetadata),setup); assert.equal(h.canShowPublisher(),true);
   const active = harness(); active.authenticate(); active.ownerProfile([{ id: 'first' }, { id: 'chosen' }]);
   active.context.activeCategory = { id: 'chosen' }; active.homeAction().onClick(); await active.progress();
-  assert.equal(active.context.publishTargetCategoryId, 'chosen');
+  assert.equal(active.context.projectSetupAccountId,'account'); assert.equal(active.context.publishTargetCategoryId,null);
+  assert.equal(evaluate(expression('ProjectSetupScreen','initialCategoryId'),active.context),'chosen');
+  active.completeSetup({categoryId:'chosen',categoryLabel:'Chosen',title:'Chosen idea',summary:''});
+  assert.equal(active.context.publishTargetCategoryId, 'chosen'); assert.equal(active.canShowPublisher(),true);
+});
+
+test('saved WEB draft retains its existing direct publisher and saved Portal selection',async()=>{
+  const h=harness();h.authenticate();h.ownerProfile([{id:'first'},{id:'saved'}]);
+  h.context.activeCategory={id:'first'};h.drafts.readFirstProjectDraft=async()=>({draft:{id:'saved-draft',categoryId:'saved'}});
+  h.homeAction().onClick();await h.progress();
+  assert.equal(h.context.projectSetupAccountId,null);assert.equal(h.canShowPublisher(),true);
+  assert.equal(h.context.publishTargetCategoryId,'saved');assert.equal(h.context.firstProjectPublisher,true);
+  assert.equal(h.context.publishResumeDraft,undefined);assert.equal(h.calls.length,0);
+});
+
+test('WEB Journey entry preserves its direct existing-Portal and explicit default-Portal paths',async()=>{
+  const h=harness();h.authenticate();h.ownerProfile([{id:'work'}]);h.context.journeyMadeIn='2024-01';
+  h.homeAction().onClick();await h.progress();
+  assert.equal(h.context.projectSetupAccountId,null);assert.equal(h.canShowPublisher(),true);
+  assert.equal(h.context.publishTargetCategoryId,'work');assert.equal(h.context.firstProjectPublisher,true);
+  const empty=harness();empty.authenticate();empty.ownerProfile([]);empty.context.journeyMadeIn='2024-01';
+  empty.homeAction().onClick();await empty.progress();
+  assert.equal(empty.context.projectSetupAccountId,null);assert.equal(empty.context.isPublishOpen,false);
+  assert.deepEqual(empty.calls,[['createPortal','Work','Grid2X2Icon']]);
 });
 
 test('a global create action from another profile returns to the account owner before selecting a category', async () => {
@@ -132,6 +168,8 @@ test('a global create action from another profile returns to the account owner b
   h.homeAction().onClick(); await h.progress();
   assert.deepEqual(h.calls, [['profile', 'owner']]); assert.equal(h.context.isPublishOpen, false);
   h.ownerProfile([{ id: 'owned-category' }]); await h.progress();
+  assert.equal(h.context.projectSetupAccountId,'account');assert.equal(h.context.publishTargetCategoryId,null);
+  h.completeSetup({categoryId:'owned-category',categoryLabel:'Owned',title:'Owned idea',summary:''});
   assert.equal(h.context.publishTargetCategoryId, 'owned-category');
 });
 
@@ -157,6 +195,7 @@ test('pending and open publishing never cross accounts, even before the reset ef
   h.resetAccount(); assert.equal(h.context.globalCreateAccountId, null);
 
   const open = harness(); open.authenticate(); open.resetAccount(); open.ownerProfile(); open.homeAction().onClick(); await open.progress();
+  open.completeSetup({categoryId:'work',categoryLabel:'Work',title:'Idea',summary:''});
   assert.equal(open.canShowPublisher(), true);
   open.context.auth.user = { id: 'next-account' };
   assert.equal(open.canShowPublisher(), false, 'A layout effect is not required to hide another account’s draft.');
@@ -168,6 +207,7 @@ test('pending and open publishing never cross accounts, even before the reset ef
 
 test('publisher visibility requires a category still owned by the current portfolio', async () => {
   const h = harness(); h.authenticate(); h.ownerProfile(); h.homeAction().onClick(); await h.progress();
+  h.completeSetup({categoryId:'work',categoryLabel:'Work',title:'Idea',summary:''});
   assert.equal(h.canShowPublisher(), true);
   h.context.viewedProfile.categories = [{ id: 'different' }]; assert.equal(h.canShowPublisher(), false);
   h.context.viewedProfile.categories = [{ id: 'work' }]; h.context.isOwnerMode = false; assert.equal(h.canShowPublisher(), false);
@@ -188,6 +228,7 @@ function homeHarness(presentation, feed, props) {
   const { HomeFeed } = compile('src/components/home/HomeFeed.tsx', name => {
     if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
     if(name.endsWith('/useHomePullRefresh'))return {useHomePullRefresh:()=>''};
+    if(name.endsWith('/useHomeRefreshMotion'))return {useHomeRefreshMotion:()=>({contentRef:{current:null},indicatorRef:{current:null},onPull(){}})};
     if(name.endsWith('/useHomeStartupReadiness'))return {useHomeStartupReadiness(options){readiness=options;}};
     if (name === 'react') return react;
     if (name.endsWith('/MobileContextActions')) return {useMobileScreenActions() {}, useMobileContextActions:()=>null};

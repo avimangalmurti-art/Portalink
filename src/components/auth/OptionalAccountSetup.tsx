@@ -1,24 +1,38 @@
 import React, { useRef, useState } from 'react';
+import { ArrowRightIcon, ChevronDownIcon, PaletteIcon, XIcon } from 'lucide-react';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { usePresentation } from '../../presentation/usePresentation';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MobileOnboardingAppearance } from './MobileOnboarding';
 import type { AccountAppearanceProps } from './AccountWelcomeSurface';
 import './oneScreenEntry.css';
+import './first-login-welcome.css';
+import './optional-account-setup.css';
 
 export function OptionalAccountSetup(props: AccountAppearanceProps & { onDone: () => void; onFirstProject: () => void }) {
   const dialog = useRef<HTMLElement>(null);
   const viewport = useDialogViewport();
   const [appearance, setAppearance] = useState(false);
+  const presentation = usePresentation();
   useModalFocus(true, dialog, props.onDone);
-  return <div ref={viewport} className="modal-scrim fixed inset-x-0 z-[90] flex items-center justify-center p-5" style={{ top:'var(--dialog-viewport-top, 0px)', height:'var(--dialog-viewport-height, 100dvh)' }}>
-    <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="optional-setup-title" tabIndex={-1}
-      className="optional-account-setup shape-squircle w-full max-w-[420px] max-h-full overflow-y-auto bg-[var(--surface-raised)] p-6 text-[var(--text-primary)] shadow-2xl outline-none">
-      <h1 id="optional-setup-title" className="text-2xl font-semibold">Make Portalink yours</h1>
-      <p className="mt-3 text-sm text-[var(--text-secondary)]">Your account is ready. These steps are optional and available later in Settings and Studio.</p>
-      <button type="button" className="mt-5 min-h-11 w-full rounded-xl border p-3" aria-expanded={appearance} onClick={() => setAppearance(value => !value)}>Choose appearance</button>
-      {appearance && <MobileOnboardingAppearance {...props} showPreview={false} />}
-      <button type="button" className="mt-3 min-h-11 w-full rounded-xl bg-[var(--accent-text)] p-3 text-[var(--surface-canvas)]" onClick={props.onFirstProject}>Add your first project</button>
-      <button type="button" className="mt-3 min-h-11 w-full p-3" onClick={props.onDone}>Skip for now</button>
+  return <div ref={viewport} className="first-login-welcome-backdrop optional-setup-backdrop modal-scrim" data-presentation={presentation}>
+    <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="optional-setup-title" aria-describedby="optional-setup-description" tabIndex={-1}
+      className="first-login-welcome optional-account-setup" data-appearance-open={appearance}>
+      <header><button type="button" onClick={props.onDone} aria-label="Skip account setup"><InterfaceIcon icon={XIcon}/></button><span>Portalink</span><span className="optional-setup-header-spacer" aria-hidden="true"/></header>
+      <div className="first-welcome-slide optional-setup-content">
+        <div className="first-welcome-art optional-setup-art" aria-hidden="true"><img src="/onboarding/makers.webp" alt="" width="1254" height="1254" draggable={false}/></div>
+        <h1 id="optional-setup-title">Make Portalink yours</h1>
+        <p id="optional-setup-description">Your catalogue starts with one idea.</p>
+        <button type="button" className="optional-setup-appearance-toggle" aria-expanded={appearance} aria-controls={appearance ? 'optional-setup-appearance' : undefined} onClick={() => setAppearance(value => !value)}>
+          <InterfaceIcon icon={PaletteIcon}/><span>{appearance ? 'Hide appearance' : 'Choose appearance'}</span><InterfaceIcon icon={ChevronDownIcon}/>
+        </button>
+        {appearance && <div id="optional-setup-appearance" className="optional-setup-appearance"><MobileOnboardingAppearance {...props} showPreview={false}/></div>}
+      </div>
+      <footer className="optional-setup-actions">
+        <button type="button" className="optional-setup-primary" onClick={props.onFirstProject}>Add your first idea<InterfaceIcon icon={ArrowRightIcon}/></button>
+        <button type="button" className="optional-setup-skip" onClick={props.onDone}>Skip for now</button>
+      </footer>
     </section>
   </div>;
 }

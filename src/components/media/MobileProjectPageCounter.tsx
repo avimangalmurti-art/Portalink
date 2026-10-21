@@ -137,7 +137,7 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
   useMobileScreenActions(showControl && position?.scope === scope ? contextActions('project', { signedIn: true }, { handlers: { pageIndex: () => setOpenScope(scope) } }) : null, 12);
   if (!position || position.scope !== scope) return null;
   const showDensity = Boolean(density && showControl && position.total > 1);
-  return <div ref={navigatorRef} data-mobile-page-navigator="" data-page-density-enabled={showDensity || undefined} data-document-reader-header={readingMode || showProgress || undefined} data-project-reading-control={readingMode || showProgress || undefined}>
+  return <div ref={navigatorRef} data-mobile-page-navigator="" data-page-density-enabled={showDensity || undefined} data-document-reader-header={readingMode || showProgress || undefined} data-reader-page-arrows={readingMode || undefined} data-project-reading-control={readingMode || showProgress || undefined}>
     {readingMode && <button type="button" aria-label="Previous page" disabled={position.current <= 1} onClick={() => onSelectPage?.(position.current-1)}>‹</button>}
     <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" className="mobile-project-page-counter"
     aria-label={`Page ${position.current} of ${position.total}. ${open ? 'Hide' : 'Show'} page previews`}

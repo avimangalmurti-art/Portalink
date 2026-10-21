@@ -33,6 +33,32 @@
 .entry-inline-form .entry-legal a { text-decoration:underline; }
 .entry-inline-form .entry-handle { font-size:13px; }
 .entry-inline-form > form { gap:12px; }
+
+/* Only the MOBILE signup confirmation opts in; other auth feedback retains
+   its current appearance and signup/session wording. */
+.one-screen-entry:has([data-auth-email-verification]) > :is(.entry-providers, [role='alert']) { display:none; }
+[data-auth-email-verification][role='status'] {
+  flex-direction:column;
+  align-items:center;
+  padding:16px;
+  border-color:var(--status-success, #1f8a3d);
+  background:color-mix(in srgb, var(--status-success, #1f8a3d) 14%, #fdffff);
+  color:color-mix(in srgb, var(--status-success, #1f8a3d) 60%, #071326);
+}
+[data-auth-email-verification] > [data-interface-icon-frame] {
+  margin-top:0;
+  color:inherit;
+}
+[data-auth-email-verification] > span { width:100%; }
+[data-auth-email-verification] [data-auth-success-title] {
+  text-align:center;
+  font-size:24px;
+  line-height:1.25;
+}
+[data-auth-email-verification] [data-auth-success-description] {
+  margin-top:10px;
+  color:inherit;
+}
 @media (min-width:640px) { .portalink-splash[data-share-landing] .mobile-share-landing-actions { max-width:400px; } }
 
 .optional-account-setup .mobile-onboarding-appearance { display:grid; gap:18px; padding-top:20px; }

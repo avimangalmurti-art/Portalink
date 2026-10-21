@@ -260,6 +260,9 @@ export function HomeFeed({
   if(isMobile && categoriesOpen)return <ExploreCategories onBack={()=>setCategoriesOpen(false)}/>;
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
+      {showMobileSearch && <span ref={refreshMotion.indicatorRef} data-home-pull-feedback="" data-active={pullEnabled && Boolean(pullLabel || feed.isRefreshing) ? 'true' : undefined} aria-hidden="true" className="home-pull-indicator">
+        <span className="premium-media-loading-mark" aria-hidden="true" />
+      </span>}
       <div
         ref={autoScrollRef}
         onScroll={rememberScroll}
@@ -272,9 +275,6 @@ export function HomeFeed({
               {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>}
               <button type="button" aria-label="Explore categories" className="mobile-home-header-button" onClick={()=>setCategoriesOpen(true)}><InterfaceIcon icon={LayoutGridIcon} weight="medium" /></button>
             </div>
-            <span ref={refreshMotion.indicatorRef} data-home-pull-feedback="" data-active={pullEnabled && Boolean(pullLabel || feed.isRefreshing) ? 'true' : undefined} aria-hidden="true" className="home-pull-indicator">
-              <span className="premium-media-loading-mark" aria-hidden="true" />
-            </span>
             <p role="status" className={hasReloaded && !feed.isRefreshing && feed.refreshError ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : pullLabel || (hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : '')}
             </p>

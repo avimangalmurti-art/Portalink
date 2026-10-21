@@ -28,9 +28,10 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
   useEffect(() => {
     const frame = navigation.current?.closest<HTMLElement>('[data-presentation="mobile"]');
     if (!enabled || !frame) return;
-    let hidden = false, scrollIntent = false;
+    let hidden = false, scrolling = false, scrollIntent = false;
     let idleTimer: number | undefined;
     let idleDeadline: number | undefined;
+    let counterPress: number | undefined;
     let pendingTap: { target: Element; x: number; y: number; time: number; hidden: boolean; idleDeadline: number | undefined } | null = null;
     let gesture: { id: number; x: number; y: number; time: number; moved: boolean; stage: boolean; tap: boolean;
       doubleTapState: { hidden: boolean; idleDeadline: number | undefined } | null; reveal: boolean; idleDeadline: number | undefined } | null = null;
@@ -51,11 +52,18 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     const clearIdle = () => { window.clearTimeout(idleTimer); idleTimer = undefined; idleDeadline = undefined; };
     const syncControls = () => {
       frame.querySelectorAll<HTMLElement>(controlsSelector).forEach(element => {
-        // Back must remain usable at every scroll position; the portal/index
-        // opener still follows the rest of the reader's temporary chrome.
-        if (element.matches('.mobile-project-back:not(.mobile-project-portal-preview)')) return;
-        if (!controls.has(element)) { controls.set(element, null); element.setAttribute('data-project-reading-control', ''); }
-        if (hidden && controls.get(element) === null) { controls.set(element, element.inert); element.inert = true; }
+        const back = element.matches('.mobile-project-back:not(.mobile-project-portal-preview)');
+        // The scrolling counter must not inherit an inert header. Its other
+        // controls still hide; an explicit artwork tap keeps the old behavior.
+        const keepCounter = scrolling && element.matches('[data-document-reader-header]');
+        if (!controls.has(element)) {
+          controls.set(element, null);
+          if (!back) element.setAttribute('data-project-reading-control', '');
+        }
+        const conceal = back ? scrolling : hidden && !keepCounter;
+        const previous = controls.get(element) ?? null;
+        if (conceal && previous === null) { controls.set(element, element.inert); element.inert = true; }
+        else if (!conceal && previous !== null) { element.inert = previous; controls.set(element, null); }
       });
       if (hidden) frame.querySelectorAll<HTMLVideoElement>('[data-mobile-project-view] [data-project-stage] video').forEach(video => {
         if (!videos.has(video)) { videos.set(video, video.controls); video.controls = false; }
@@ -63,8 +71,10 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     };
     const restore = () => {
       clearTap(); clearIdle();
-      hidden = false; scrollIntent = false;
+      hidden = false; scrolling = false; scrollIntent = false;
+      counterPress = undefined;
       frame.removeAttribute('data-project-reading');
+      frame.removeAttribute('data-project-scrolling');
       controls.forEach((previous, element) => {
         if (previous !== null) { element.inert = previous; controls.set(element, null); }
       });
@@ -75,20 +85,31 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
         video.controls = requested === null ? previous : requested === 'true';
       }); videos.clear();
     };
-    const hide = () => {
+    const waitForIdle = () => {
+      clearIdle();
+      idleDeadline = performance.now() + SCROLL_IDLE_DELAY;
+      idleTimer = window.setTimeout(restore, SCROLL_IDLE_DELAY);
+    };
+    const releaseCounter = () => {
+      if (counterPress === undefined) return;
+      counterPress = undefined;
+      if (scrolling) waitForIdle();
+    };
+    const hide = (duringScroll = false) => {
       hidden = true;
+      scrolling = duringScroll;
       syncControls();
       frame.setAttribute('data-project-reading', '');
+      if (scrolling) frame.setAttribute('data-project-scrolling', '');
+      else frame.removeAttribute('data-project-scrolling');
     };
     const scroll = (event: Event) => {
       const documentOverview = event.target === document && Boolean(frame.querySelector('[data-mobile-page-reader]:not(:has([data-mobile-focused-view]))'));
       if (!scrollIntent || (!documentOverview && !inStage(event.target)) || modalOpen() ||
-        frame.querySelector('[data-project-reading-control]:focus-visible, [data-project-reading-control] :focus-visible')) return;
+        frame.querySelector('.mobile-project-back:focus-visible, [data-project-reading-control]:focus-visible, [data-project-reading-control] :focus-visible')) return;
       clearTap();
-      hide();
-      clearIdle();
-      idleDeadline = performance.now() + SCROLL_IDLE_DELAY;
-      idleTimer = window.setTimeout(restore, SCROLL_IDLE_DELAY);
+      hide(true);
+      waitForIdle();
     };
     const wheel = (event: WheelEvent) => {
       clearTap();
@@ -100,6 +121,12 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       if (!event.isPrimary) { gesture = null; scrollIntent = false; return; }
       if (event.button !== 0 || !inFrame(event.target) || modalOpen()) { gesture = null; return; }
       scrollIntent = false;
+      if (scrolling && event.target.closest('[data-mobile-project-page-count]')) {
+        // Never move the newly reachable counter between press and release,
+        // even when the reading pause expires under a held finger.
+        counterPress = event.pointerId;
+        clearIdle();
+      }
       const stage = inStage(event.target);
       gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, moved: false, stage, reveal: hidden, idleDeadline,
         // Let media players, links, editing fields and 3D canvases own their taps.
@@ -119,9 +146,11 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     const cancel = () => {
       // Browsers cancel pointer events when native panning takes over.
       if (gesture?.stage) scrollIntent = true;
+      releaseCounter();
       gesture = null;
     };
     const up = (event: PointerEvent) => {
+      if (counterPress === event.pointerId) releaseCounter();
       const start = gesture; gesture = null;
       if (!start || !start.tap || start.id !== event.pointerId || start.moved || !inStage(event.target) || !event.target.isConnected ||
         event.timeStamp - start.time > 450 || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8 || modalOpen()) return;
@@ -134,7 +163,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
         const remaining = original.idleDeadline === undefined ? undefined : original.idleDeadline - performance.now();
         if (!original.hidden || (remaining !== undefined && remaining <= 0)) restore();
         else {
-          hide();
+          hide(remaining !== undefined);
           if (remaining !== undefined) {
             idleDeadline = original.idleDeadline;
             idleTimer = window.setTimeout(restore, remaining);
@@ -153,7 +182,17 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       restore();
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
     };
-    const focus = () => { if (hidden) restore(); };
+    const focus = (event: FocusEvent) => {
+      // Pointer focus precedes the counter's click. Keep it under the finger
+      // until activation; keyboard or preview focus still reveals the chrome.
+      if (scrolling && inFrame(event.target) && event.target.closest('[data-mobile-project-page-count]') && !event.target.matches(':focus-visible')) return;
+      if (hidden) restore();
+    };
+    const activateCounter = (event: MouseEvent) => {
+      // Click already owns its target, so it is safe to return the controls
+      // before React opens and focuses the newly requested page previews.
+      if (scrolling && inFrame(event.target) && event.target.closest('[data-mobile-project-page-count]')) restore();
+    };
     syncControls();
     const observer = new MutationObserver(() => { if (hidden && modalOpen()) restore(); syncControls(); });
     observer.observe(frame, { childList: true, subtree: true });
@@ -167,6 +206,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     document.addEventListener('pointercancel', cancel, true);
     document.addEventListener('keydown', key, true);
     document.addEventListener('focusin', focus, true);
+    document.addEventListener('click', activateCounter, true);
     return () => {
       observer.disconnect(); restore();
       controls.forEach((_, element) => element.removeAttribute('data-project-reading-control'));
@@ -178,6 +218,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       document.removeEventListener('pointercancel', cancel, true);
       document.removeEventListener('keydown', key, true);
       document.removeEventListener('focusin', focus, true);
+      document.removeEventListener('click', activateCounter, true);
     };
   }, [enabled, pathname, navigation]);
 }

@@ -3,6 +3,7 @@ import { OptionalAccountSetup } from './components/auth/OptionalAccountSetup';
 import { RouteError, routeErrorKind } from './components/ui/RouteError';
 import { useWeeklyReadSignal } from './features/reads/useWeeklyReadSignal';
 import { rememberLivePortfolio, shouldStartFirstProject } from './features/publishing/firstProject';
+import { clearSetupDraft, readSetupDraft } from './features/publishing/setupDraft';
 import { MobileScreenActions } from './presentation/mobile/MobileContextActions';
 import { SharedContextActions } from './presentation/mobile/SharedContextActions';
 import { contextActions } from './presentation/mobile/contextActions';
@@ -1070,7 +1071,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           const {listDeviceDrafts, latestDeviceDraft} = await import('./features/publishing/firstProjectDraft');
           if (accountId) recoverable = latestDeviceDraft(await listDeviceDrafts(accountId, viewedProfile.id, true), viewedProfile.categories.map(category=>category.id));
         } catch {
-          recoveryError = 'Saved upload drafts could not be checked. Your work has not been removed. Close and reopen New project to try again.';
+          recoveryError = 'Saved upload drafts could not be checked. Your work has not been removed. Close and reopen New idea to try again.';
         }
         if (!current) return;
         setMobileRecoveryDraft(recoverable);
@@ -1087,6 +1088,14 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       const saved = createAccountId
         ? await import('./features/publishing/firstProjectDraft').then(module => module.readFirstProjectDraft(createAccountId, viewedProfile.id)).catch(() => null) : null;
       if (!current) return;
+      if (!saved && journeyMadeIn === null) {
+        setMobileRecoveryDraft(null);
+        setMobileRecoveryError('');
+        setProjectSetupAccountId(createAccountId ?? null);
+        setProjectSetupMetadata(undefined);
+        setGlobalCreateAccountId(null);
+        return;
+      }
       const target = viewedProfile.categories.find(category => category.id === saved?.draft.categoryId) ?? activeCategory ?? viewedProfile.categories[0] ?? null;
       if (!target) {
         const requestKey = `${createAccountId}:${viewedProfile.id}`;
@@ -1503,12 +1512,26 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       }}/></DeferredDialog>}
       <DeferredDialog key={auth.user?.id ?? 'guest'} active={canShowPublisher} onClose={closePublisher}><PublishProjectDialog initialMetadata={projectSetupMetadata} resumeDraft={publishResumeDraft} firstProject={firstProjectPublisher ? { madeIn: journeyMadeIn ?? undefined, name: viewedProfile?.name ?? '', categories: viewedProfile?.categories.map(category => category.label) ?? [] } : undefined} isOpen={canShowPublisher} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={projectSetupMetadata?.categoryLabel ?? viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={closePublisher} onPublished={(result, title) => {
         const targetCategoryId = publishTargetCategoryId;
+        if (presentation === 'web' && result.projectId && result.mediaPersisted && !result.sessionOnly
+          && publishAccountId && publishAccountId === auth.user?.id && auth.viewerProfileId
+          && isOwnerMode && viewedProfile?.id === auth.viewerProfileId
+          && targetCategoryId && projectSetupMetadata?.categoryId === targetCategoryId) {
+          try {
+            const savedSetup = readSetupDraft(publishAccountId, auth.viewerProfileId);
+            if (savedSetup && savedSetup.portal === targetCategoryId
+              && savedSetup.title.trim() === projectSetupMetadata.title.trim()
+              && savedSetup.summary.trim() === projectSetupMetadata.summary.trim()) {
+              clearSetupDraft(publishAccountId, auth.viewerProfileId);
+            }
+          } catch { /* Retain the setup copy if storage cannot confirm cleanup. */ }
+        }
         const citeIntent = window.sessionStorage.getItem('portalink:cite-intent');
         if (citeIntent && result.mediaPersisted && !result.sessionOnly) {
           window.location.assign(`/cite/${encodeURIComponent(citeIntent)}?cite=1`);
           return;
         }
         setIsPublishOpen(false);
+        if (presentation === 'web') setProjectSetupMetadata(undefined);
         setPublishTargetCategoryId(null);
         setJourneyMadeIn(null);
         setPublishConfirmation({

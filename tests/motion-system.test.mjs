@@ -39,7 +39,7 @@ test('authored durations use shared transition tokens and the separate loading c
  const files=cssFiles('src'),definitions=[];
  for(const file of files){const css=readFileSync(file,'utf8').replace(/\/\*[\s\S]*?\*\//g,'');
   const values=[...css.matchAll(/(?<![\w-])(?:\d*\.\d+|\d+)(?:ms|s)\b/g)].map(m=>m[0]);
-  if(file.endsWith('/motion/motion.css'))assert.deepEqual(values,['120ms','180ms','260ms','1000ms','1400ms']);else assert.deepEqual(values,[],file);
+  if(file.endsWith('/motion/motion.css'))assert.deepEqual(values,['120ms','180ms','260ms','600ms','1400ms']);else assert.deepEqual(values,[],file);
   definitions.push(...[...css.matchAll(/--m-(fast|base|slow)\s*:/g)].map(m=>m[1]));
  }
  assert.deepEqual(definitions.sort(),['base','fast','slow']);

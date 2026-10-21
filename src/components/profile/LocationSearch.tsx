@@ -34,6 +34,8 @@ export function LocationSearch({ hideLabel, citiesOnly, resultLimit, recommended
   const selectedPlace = useRef<DirectoryPlace | null>(null);
   const requestVersion = useRef(0);
   const resultQuery = useRef<string | null>(null);
+  const optionPointer = useRef<{ id: number; placeId: string; version: number; x: number; y: number; scrollTop: number; moved: boolean } | null>(null);
+  const skipPointerClick = useRef(false);
   const matchingResults = resultQuery.current === value ? results : [];
   const searching = open && !disabled && (value.trim().length >= 1 || Boolean(recommendedCities?.length));
   useEffect(() => {
@@ -60,7 +62,7 @@ export function LocationSearch({ hideLabel, citiesOnly, resultLimit, recommended
     else if (item.offsetTop + item.offsetHeight > parent.scrollTop + parent.clientHeight) parent.scrollTop = item.offsetTop + item.offsetHeight - parent.clientHeight;
   }, [active, results]);
   const select = (place: DirectoryPlace, confirm = false) => {
-    if (canSelect && !canSelect(place)) return;
+    if (disabled || resultQuery.current !== value || (canSelect && !canSelect(place))) return;
     requestVersion.current++;
     resultQuery.current = null;
     setResults([]);
@@ -74,6 +76,8 @@ export function LocationSearch({ hideLabel, citiesOnly, resultLimit, recommended
     if (onConfirm && confirm) onConfirm(place);
     if (blurOnSelect && (!onConfirm || confirm)) input.current?.blur();
   };
+  const movedFromOption = (event: React.PointerEvent<HTMLLIElement>, start: NonNullable<typeof optionPointer.current>) =>
+    (event.clientX - start.x) ** 2 + (event.clientY - start.y) ** 2 > 100;
   return <div className="location-search" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <label className={hideLabel ? 'sr-only' : undefined} htmlFor={inputId}>{label}</label>
     <input ref={input} id={inputId} className="input-shell text-control-shell" role="combobox" value={value} disabled={disabled} maxLength={maxLength}
@@ -96,9 +100,41 @@ export function LocationSearch({ hideLabel, citiesOnly, resultLimit, recommended
     {searching && <div className={`location-search-results${above ? ' is-above' : ''}`}>
       <ul ref={list} id={`${inputId}-results`} role="listbox" aria-label="Matching locations">
         {matchingResults.map((place, index) => <li id={`${inputId}-result-${index}`} key={place.id} role="option" aria-selected={active === index}
-          aria-disabled={canSelect && !canSelect(place) ? true : undefined} onPointerDown={event => event.preventDefault()}
+          aria-disabled={canSelect && !canSelect(place) ? true : undefined} onPointerDown={event => {
+            event.preventDefault();
+            skipPointerClick.current = false;
+            optionPointer.current = null;
+            if ((event.pointerType === 'touch' || event.pointerType === 'pen') && event.isPrimary && event.button === 0) {
+              optionPointer.current = { id: event.pointerId, placeId: place.id, version: requestVersion.current, x: event.clientX, y: event.clientY, scrollTop: list.current?.scrollTop ?? 0, moved: false };
+            }
+          }}
+          onPointerMove={event => {
+            const start = optionPointer.current;
+            if (start?.id === event.pointerId && movedFromOption(event, start)) start.moved = true;
+          }}
+          onPointerCancel={event => {
+            if (optionPointer.current?.id !== event.pointerId) return;
+            optionPointer.current = null;
+            skipPointerClick.current = true;
+          }}
+          onPointerUp={event => {
+            if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+            const start = optionPointer.current;
+            optionPointer.current = null;
+            skipPointerClick.current = true;
+            // A completed tap commits without waiting for Safari's emulated
+            // click. Panning/cancelled/stale gestures retain native scrolling.
+            if (!start || start.id !== event.pointerId || start.placeId !== place.id || start.version !== requestVersion.current || start.moved || movedFromOption(event, start) || Math.abs((list.current?.scrollTop ?? 0) - start.scrollTop) > 1) return;
+            event.preventDefault();
+            select(place);
+          }}
           onMouseDown={keepFocusOnSelect ? event => event.preventDefault() : undefined}
-          onPointerEnter={() => setActive(index)} onClick={() => select(place)}>
+          onPointerEnter={event => { if (event.pointerType === 'mouse') setActive(index); }} onClick={event => {
+            const skip = skipPointerClick.current;
+            skipPointerClick.current = false;
+            if (skip && event?.detail !== 0) return;
+            select(place);
+          }}>
           <span>{place.name}<small>{[place.kind === 'city' ? place.regionName : place.kind === 'region' ? 'Region' : 'Country', place.countryName].filter(Boolean).join(' · ')}</small></span>
           {canSelect && !canSelect(place) && <small>Name exceeds the profile limit</small>}
         </li>)}

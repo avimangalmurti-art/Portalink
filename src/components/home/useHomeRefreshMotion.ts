@@ -22,9 +22,9 @@ export function useHomeRefreshMotion({ enabled, refreshing, scope }: { enabled: 
     const reduce = reducedMotion();
     indicatorRef.current?.setAttribute('data-refresh-reduced', String(reduce));
     if (!active || reduce) {
-      offset.jump(0); opacity.jump(active && current.refreshing ? 1 : 0); return;
+      offset.jump(active && current.refreshing ? 32 : 0); opacity.jump(active && current.refreshing ? 1 : 0); return;
     }
-    const control = animate(offset, current.refreshing && ownsBand.current ? 32 : 0, returnSpring);
+    const control = animate(offset, current.refreshing ? 32 : 0, returnSpring);
     movement.current = control;
     void control.then(() => {
       if (movement.current !== control || latest.current.scope !== mountedScope.current) return;
@@ -39,10 +39,12 @@ export function useHomeRefreshMotion({ enabled, refreshing, scope }: { enabled: 
     ownsBand.current = false; awaitingRefresh.current = false;
     const content = contentRef.current, indicator = indicatorRef.current;
     if (!enabled || !content) { mountedScope.current = null; stop(); offset.jump(0); opacity.jump(0); return; }
+    // Reveal only once the tabs have cleared the stationary top indicator.
+    const paintOpacity = (value: number) => { if (indicator) indicator.style.opacity = String(value * Math.min(1, Math.max(0, (offset.get() - 24) / 8))); };
     const paintOffset = (value: number) => {
       if (content) content.style.transform = enabled && Math.abs(value) > .01 ? `translate3d(0, ${value}px, 0)` : '';
+      paintOpacity(opacity.get());
     };
-    const paintOpacity = (value: number) => { if (indicator) indicator.style.opacity = String(value); };
     const unwatchOffset = offset.on('change', paintOffset), unwatchOpacity = opacity.on('change', paintOpacity);
     offset.jump(0); opacity.jump(0); paintOffset(0); paintOpacity(0);
     const interruptScroll = () => { ownsBand.current = false; awaitingRefresh.current = false; stop(); offset.jump(0); opacity.jump(0); };
@@ -84,7 +86,7 @@ export function useHomeRefreshMotion({ enabled, refreshing, scope }: { enabled: 
     // Increasing resistance keeps even a long drag within a small, bounded band.
     const reduce = reducedMotion();
     indicatorRef.current?.setAttribute('data-refresh-reduced', String(reduce));
-    offset.jump(reduce ? 0 : Math.min(80, 112 * (1 - Math.exp(-Math.max(0, distance) / 150))));
+    offset.jump(reduce ? (current.refreshing ? 32 : 0) : Math.min(80, 112 * (1 - Math.exp(-Math.max(0, distance) / 150))));
     opacity.jump(distance >= 12 || current.refreshing ? 1 : 0);
   }, [scope, offset, opacity, settle, stop]);
 

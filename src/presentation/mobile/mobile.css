@@ -3319,6 +3319,19 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   animation: premium-media-spin var(--m-loading-spin) linear infinite;
 }
 
+@supports ((mask-image: none) or (-webkit-mask-image: none)) {
+  #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::after {
+    border: 0;
+    border-radius: 0;
+    background: var(--text-secondary);
+    -webkit-mask: var(--loading-indicator-mask) center / contain no-repeat;
+    mask: var(--loading-indicator-mask) center / contain no-repeat;
+    forced-color-adjust: none;
+    animation: premium-media-spin var(--m-loading-spin) steps(8) infinite;
+  }
+}
+.app-viewport--reduce-motion [data-mobile-page-reader]::after { animation: none !important; }
+
 @media (prefers-reduced-motion: reduce) {
   #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]::after { animation: none; }
 }
@@ -5558,7 +5571,7 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
 }
 #root .codex-shell[data-presentation='mobile'] .studio-citation-pills .studio-pill-label {
   display: grid; grid-template-columns: 0fr; opacity: 0;
-  transition: grid-template-columns 180ms var(--m-enter), opacity 180ms var(--m-enter);
+  transition: grid-template-columns var(--m-base) var(--m-enter), opacity var(--m-base) var(--m-enter);
 }
 #root .codex-shell[data-presentation='mobile'] .studio-citation-pills .studio-pill-label > span {
   min-width: 0; overflow: hidden; white-space: nowrap; text-indent: 8px;
@@ -5600,8 +5613,9 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
 #root .codex-shell[data-presentation='mobile'] .journey-popular-heading .journey-title {flex:1 1 150px;min-width:0;}
 #root .codex-shell[data-presentation='mobile'] .journey-popularity {display:inline-flex;align-items:center;gap:6px;flex:none;font-size:13px;line-height:1.5;color:var(--text-secondary);font-variant-numeric:tabular-nums;white-space:nowrap;}
 
-/* Home's refresh spinner floats in the existing clearance without inserting a row. */
-#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header > .home-pull-indicator {position:absolute;inset-inline:0;bottom:4px;height:20px;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;}
+/* Stay above the tabs while Home's content elastically releases its refresh band. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] > .home-pull-indicator {position:absolute;z-index:11;inset-inline:0;top:calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 8px);height:24px;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;}
+#root .codex-shell[data-presentation='mobile'] .home-pull-indicator > .premium-media-loading-mark {width:22px;height:22px;}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator:not([data-active='true']) .premium-media-loading-mark {animation-play-state:paused;}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator:where(.reduce-motion *, .app-viewport--reduce-motion *) .premium-media-loading-mark {animation:none;}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator[data-refresh-reduced='true'] .premium-media-loading-mark {animation:none;}

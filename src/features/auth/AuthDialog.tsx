@@ -57,7 +57,7 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
     onForgotPassword: () => auth.requestAuth('forgotPassword'),
     onContinue: () => leaveEntry(auth.closeAuth),
     continueLabel: 'Continue as guest',
-    content: <EntryChoices onDisagree={() => setEntryStage('welcome')} onEmail={entryStage === 'welcome' ? () => setEntryStage('email') : undefined} ready={!busy} returnPath={props.registrationReturnPath} onSignIn={() => leaveEntry(() => auth.requestAuth('signIn'))} onGuest={() => leaveEntry(auth.closeAuth)}>
+    content: <EntryChoices hideProviders={mobileSignup && signupStep === 'verification'} onDisagree={() => setEntryStage('welcome')} onEmail={entryStage === 'welcome' ? () => setEntryStage('email') : undefined} ready={!busy} returnPath={props.registrationReturnPath} onSignIn={() => leaveEntry(() => auth.requestAuth('signIn'))} onGuest={() => leaveEntry(auth.closeAuth)}>
       {entryStage === 'email' && <div className="entry-inline-form"><h1>Create your account</h1>
         <SignUpForm {...props} {...formProps} compactEntry step="account" onStepChange={setSignupStep} onViewChange={view => leaveEntry(() => auth.requestAuth(view))} />
       </div>}
@@ -95,16 +95,17 @@ function FormError({
 }
 function FormSuccess({
   title,
-  description
+  description,
+  emailVerification = false
 
 
 
-}: {title: string;description: string;}) {
-  return <div role="status" className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[13px] leading-relaxed">
+}: {title: string;description: string;emailVerification?: boolean;}) {
+  return <div role="status" data-auth-email-verification={emailVerification || undefined} className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[13px] leading-relaxed">
       <InterfaceIcon icon={CheckCircle2Icon} weight="medium" className="mt-[2px] text-[var(--text-secondary)]" />
       <span className="min-w-0 flex-1">
-        <span className="block font-semibold">{title}</span>
-        <span className="mt-0.5 block text-[var(--text-secondary)]">{description}</span>
+        <span data-auth-success-title="" className="block font-semibold">{title}</span>
+        <span data-auth-success-description="" className="mt-0.5 block text-[var(--text-secondary)]">{description}</span>
       </span>
     </div>;
 }
@@ -190,7 +191,8 @@ function SignInForm(props: FormProps) {
 }
 function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSignupStep; onStepChange: (step: MobileSignupStep) => void; registrationReturnPath?: string; compactEntry?: boolean }) {
   const { firstFieldRef, onStepChange } = props;
-  const isMobile = usePresentation() === 'mobile' && !props.compactEntry;
+  const presentation = usePresentation();
+  const isMobile = presentation === 'mobile' && !props.compactEntry;
   const auth = useAuth();
   const signUp = useSignUp();
   const agreements = useEntryAgreements();
@@ -266,7 +268,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
   // Confirmation and an immediate session are distinct provider outcomes.
   if (result) {
     return <div className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
-        <FormSuccess title={result.requiresEmailVerification ? "Check your email" : "Finishing setup"} description={result.requiresEmailVerification ? `If you’re new to Portalink, check ${result.email} for a confirmation link to continue signup. Already have an account? Sign in instead. Your signup details are saved on this device.` : "Your account is ready. We’re finishing your profile."} />
+        <FormSuccess emailVerification={presentation === 'mobile' && result.requiresEmailVerification} title={result.requiresEmailVerification ? "Check your email" : "Finishing setup"} description={result.requiresEmailVerification ? `If you’re new to Portalink, check ${result.email} for a confirmation link to continue signup. Already have an account? Sign in instead. Your signup details are saved on this device.` : "Your account is ready. We’re finishing your profile."} />
         {result.requiresEmailVerification && <>
           <Button variant="secondary" size="lg" fullWidth onClick={() => props.onViewChange('signIn')}>Back to sign in</Button>
           <ViewLink label="Use a different email" onSelect={() => {

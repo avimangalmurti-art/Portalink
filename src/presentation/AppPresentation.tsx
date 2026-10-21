@@ -19,6 +19,7 @@ import './controls.css';
 import './surfaces.css';
 import './mobile/shapes.css';
 import './mobile/selection.css';
+import './mobile/reader-scroll-controls.css';
 
 /** One presentation choice also covers the shell's appearance state. */
 export function AppPresentationProvider({ children }: { children: React.ReactNode }) {
