@@ -28,3 +28,8 @@
 .cite-source-sheet .cite-copy-action {display:flex;align-items:center;justify-content:center;gap:8px;}
 /* The copied attribute is emitted only for MOBILE, including standalone citation links. */
 .cite-source-sheet .cite-copy-action[data-copy-state='copied'] {background:var(--status-success,#30d158);border-color:var(--status-success,#30d158);color:#000;}
+
+/* Reserve the reader's existing sheet space while a mobile citation resolves. */
+.citation-backdrop[data-presentation='mobile'] .cite-source-sheet[data-cite-pending] {min-height:min(75dvh,520px);grid-template-rows:auto 1fr;}
+.citation-backdrop[data-presentation='mobile'] .cite-opening-feedback {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--text-secondary);}
+.citation-backdrop[data-presentation='mobile'][data-cite-reduced-motion],.citation-backdrop[data-presentation='mobile'][data-cite-reduced-motion] [data-motion-sheet] {animation:none!important;transition:none!important;}
