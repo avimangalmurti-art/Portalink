@@ -5,7 +5,7 @@ import { ConfirmationDialog } from './ui/ConfirmationDialog';
 import { MobileContextButton, useMobileScreenActions, useMobileHold } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
 import { useMenuFocus } from '../hooks/useMenuFocus';
-import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
+import { ScreenBack, useMobileScreenActive } from '../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../presentation/usePresentation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -13,6 +13,8 @@ import { ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIco
 import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { useMessaging } from '../features/messages/useMessaging';
+import { useMobileMessageContinuity } from '../features/messages/useMobileMessageContinuity';
+import { reducedMotion } from '../presentation/motion/motion';
 import type { Id } from '../types/domain';
 import type { DirectMessage, MessageAttachment } from '../types/messages';
 import { NewChatPanel } from './messages/NewChatPanel';
@@ -75,8 +77,9 @@ export function MessagesPage({
   });
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
+  const screenActive = useMobileScreenActive();
   const messaging = useMessaging({
-    initialRecipientId, initialConversationId,
+    initialRecipientId, initialConversationId, mobileContinuity: isMobile,
     // Mobile thread selection is a step within Messages. Returning to the list
     // must not leave duplicate list/thread entries in the browser's Back trail.
     onConversationChange: (id, replace) => onConversationChange?.(id, isMobile ? true : replace),
@@ -104,6 +107,9 @@ export function MessagesPage({
   const draftStorageKey = `portalink-message-drafts:${auth.viewerProfileId ?? 'account'}`;
   const [drafts, setDrafts] = useState<Record<string, string>>(() => readDrafts(draftStorageKey));
   const messageScrollerRef = useRef<HTMLDivElement>(null);
+  const conversationListRef = useRef<HTMLDivElement>(null);
+  const threadPanelRef = useRef<HTMLElement>(null);
+  const listPanelRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previousThreadRef = useRef<{ conversationId: string | null; lastId: string | null }>({ conversationId: null, lastId: null });
   const searchRequestRef = useRef(0);
@@ -113,6 +119,9 @@ export function MessagesPage({
   const isMessageRequest = messaging.activeConversation?.status === 'request';
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const entryIdentity = JSON.stringify([isMobile, screenActive, auth.user?.id, auth.viewerProfileId, activeId]);
+  const threadEntry = useRef({ identity: entryIdentity, version: 0 });
+  if (threadEntry.current.identity !== entryIdentity) { threadEntry.current.identity = entryIdentity; threadEntry.current.version += 1; }
   const attachments = activeId ? attachmentsByConversation[activeId] ?? [] : [];
   const setAttachments = (update: File[] | ((current: File[]) => File[])) => {
     if (!activeId) return;
@@ -122,6 +131,14 @@ export function MessagesPage({
   markReadRef.current = messaging.markVisibleMessagesRead;
   const searchConversations = messaging.searchConversations;
   const draft = activeId ? drafts[activeId] ?? '' : '';
+  const mobileThreadError = isMobile ? messaging.threadLoadError ?? (messaging.threadUnavailable ? 'This conversation is not available.' : null) : null;
+  const continuity = useMobileMessageContinuity({
+    enabled: isMobile, active: screenActive, accountId: auth.user?.id ?? auth.viewerProfileId ?? null,
+    conversationId: activeId, messages: messaging.messages, isLoadingThread: messaging.isLoadingThread,
+    viewerProfileId: auth.viewerProfileId, scroller: messageScrollerRef, list: conversationListRef,
+    threadPanel: threadPanelRef, listPanel: listPanelRef, isAtBottomRef, preserveScrollRef,
+    markRead: messaging.markVisibleMessagesRead, setHasNewBelow,
+  });
 
   useEffect(() => {
     try { sessionStorage.setItem(draftStorageKey, JSON.stringify(drafts)); } catch { /* A draft can remain in memory when storage is unavailable. */ }
@@ -141,24 +158,29 @@ export function MessagesPage({
     setReportReason('');
     setReportSent(false);
     setAttachmentError(null);
-    setHasNewBelow(false);
-    isAtBottomRef.current = true;
-    preserveScrollRef.current = false;
-    if (activeId) {
-      if (isMobile && isMessageRequest) textareaRef.current?.focus({ preventScroll: true });
-      else document.getElementById('messages-thread-panel')?.focus();
+    if (!isMobile) {
+      setHasNewBelow(false);
+      isAtBottomRef.current = true;
+      preserveScrollRef.current = false;
+      if (activeId) document.getElementById('messages-thread-panel')?.focus();
     }
   }, [activeId, isMobile, isMessageRequest]);
 
   useEffect(() => {
-    const markVisible = () => { if (isAtBottomRef.current) markReadRef.current(); };
-    document.addEventListener('visibilitychange', markVisible);
-    return () => document.removeEventListener('visibilitychange', markVisible);
-  }, []);
+    if (!isMobile || !screenActive || !activeId || !isMessageRequest || document.querySelector('[aria-modal="true"]')) return;
+    const focused = document.activeElement;
+    if (focused === document.body || listPanelRef.current?.contains(focused) || threadPanelRef.current?.contains(focused)) textareaRef.current?.focus({ preventScroll: true });
+  }, [activeId, isMobile, isMessageRequest, screenActive]);
 
   useEffect(() => {
-    if (!isMessageRequest && isAtBottomRef.current) markReadRef.current();
-  }, [activeId, isMessageRequest]);
+    const markVisible = () => { if ((!isMobile || screenActive) && isAtBottomRef.current) markReadRef.current(); };
+    document.addEventListener('visibilitychange', markVisible);
+    return () => document.removeEventListener('visibilitychange', markVisible);
+  }, [isMobile, screenActive]);
+
+  useEffect(() => {
+    if (!isMobile && !isMessageRequest && isAtBottomRef.current) markReadRef.current();
+  }, [activeId, isMessageRequest, isMobile]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -168,6 +190,7 @@ export function MessagesPage({
   }, [draft]);
 
   useEffect(() => {
+    if (isMobile) return;
     const scroller = messageScrollerRef.current;
     const last = messaging.messages[messaging.messages.length - 1] ?? null;
     const previous = previousThreadRef.current;
@@ -187,7 +210,7 @@ export function MessagesPage({
     } else {
       setHasNewBelow(true);
     }
-  }, [activeId, auth.viewerProfileId, messaging.messages]);
+  }, [activeId, auth.viewerProfileId, messaging.messages, isMobile]);
 
   useEffect(() => {
     const term = query.trim();
@@ -245,7 +268,7 @@ export function MessagesPage({
 
   function submitMessage(event: React.FormEvent) {
     event.preventDefault();
-    if (messaging.isSending || !activeId || (!draft.trim() && attachments.length === 0)) return;
+    if (messaging.isSending || (isMobile && messaging.threadUnavailable) || !activeId || (!draft.trim() && attachments.length === 0)) return;
     const body = draft;
     const files = isMessageRequest ? [] : attachments;
     setDrafts((current) => ({ ...current, [activeId]: '' }));
@@ -258,6 +281,13 @@ export function MessagesPage({
     const conversationId = activeId;
     const scroller = messageScrollerRef.current;
     if (!scroller) return;
+    if (isMobile) {
+      const version = threadEntry.current.version;
+      preserveScrollRef.current = true;
+      await messaging.loadOlderMessages();
+      if (threadEntry.current.version === version) preserveScrollRef.current = false;
+      return;
+    }
     const previousHeight = scroller.scrollHeight;
     const previousTop = scroller.scrollTop;
     preserveScrollRef.current = true;
@@ -272,7 +302,7 @@ export function MessagesPage({
   function scrollToLatest() {
     const scroller = messageScrollerRef.current;
     if (!scroller) return;
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: isMobile && reducedMotion() ? 'auto' : 'smooth' });
     setHasNewBelow(false);
   }
 
@@ -353,7 +383,7 @@ export function MessagesPage({
       {isPrivacyOpen ? <MessageControlsDialog permission={messaging.preferences.permission} isSaving={messaging.isSavingPreferences} error={messaging.error} onChange={messaging.updatePermission} onClose={() => setIsPrivacyOpen(false)} /> : null}
 
       <div data-messages-body="" className="flex min-h-0 flex-1">
-        <aside data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
+        <aside ref={listPanelRef} tabIndex={isMobile ? -1 : undefined} data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
           {isNewChatOpen ? <NewChatPanel
               showHeader={!isMobile}
               onClose={() => { setIsNewChatOpen(false); messaging.dismissError(); }}
@@ -376,7 +406,7 @@ export function MessagesPage({
                 </div>
               </div>
 
-              <div data-mobile-scroll-end="" className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto">
+              <div ref={conversationListRef} data-mobile-scroll-end="" className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto">
                 {isSearching ? <div className="side-panel-content-inset pt-3 text-[12px] text-[var(--text-secondary)]" role="status">Searching…</div> : null}
                 {searchError ? <div className="side-panel-content-inset mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}<button type="button" className="ml-2 min-h-11 underline" onClick={() => setSearchAttempt(value => value + 1)}>Try again</button></div> : null}
                 {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState kind="messages" label="Loading conversations" /></div> : null}
@@ -386,7 +416,7 @@ export function MessagesPage({
                   {visibleConversations.map((conversation) => <li key={conversation.id}>
                       <div data-selected={activeId === conversation.id ? 'true' : undefined} className="message-contact-row flex w-full items-center gap-3 p-2">
                         <ProfileAvatar name={conversation.participant.name} avatar={conversation.participant.avatar} />
-                        <button type="button" onClick={() => void messaging.openConversation(conversation)} aria-current={activeId === conversation.id ? 'true' : undefined} className="flex min-w-0 flex-1 self-stretch items-center text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+                        <button type="button" onClick={(event) => { if (isMobile) continuity.rememberOpen(event.currentTarget); void messaging.openConversation(conversation); }} aria-current={activeId === conversation.id ? 'true' : undefined} className="flex min-w-0 flex-1 self-stretch items-center text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                         <span className="min-w-0 flex-1">
                           <span className="flex items-baseline justify-between gap-2">
                             <span className={`truncate text-[14px] ${conversation.isUnread ? 'font-bold' : 'font-semibold'}`}>{conversation.participant.name}</span>
@@ -411,24 +441,24 @@ export function MessagesPage({
           <ResizablePanelHandle desktopOnly side="right" value={conversationListWidth.width} min={280} max={440} onResize={conversationListWidth.updateWidth} onResizeEnd={conversationListWidth.commitWidth} onReset={conversationListWidth.resetWidth} label="Resize conversation list. Double-click to restore its default width." />
         </aside>
 
-        <main id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 flex-col bg-[var(--surface-canvas)] lg:flex`}>
+        <main ref={threadPanelRef} id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 flex-col bg-[var(--surface-canvas)] lg:flex`}>
           {messaging.activeConversation ? <>
               <div data-message-scroll="" ref={messageScrollerRef} onScroll={(event) => {
                 const node = event.currentTarget;
                 const atBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
                 isAtBottomRef.current = atBottom;
-                if (atBottom) { setHasNewBelow(false); markReadRef.current(); }
+                if (atBottom) { setHasNewBelow(false); if (!isMobile || screenActive) markReadRef.current(); }
               }} className="relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-5 sm:px-6">
                 {messaging.isLoadingThread ? <LoadingState kind="conversation" label="Loading conversation" /> : null}
                 {!messaging.isLoadingThread && messaging.hasOlderMessages ? <div className="mb-5 flex justify-center">
                     <button type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}
-                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]">{isMobile && isMessageRequest ? <p className="text-[14px] leading-6 text-[var(--text-secondary)]">Send one text-only invitation to chat. You can send more messages and attachments after they accept.</p> : <EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} />}</div> : null}
+                {!messaging.isLoadingThread && !mobileThreadError && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]">{isMobile && isMessageRequest ? <p className="text-[14px] leading-6 text-[var(--text-secondary)]">Send one text-only invitation to chat. You can send more messages and attachments after they accept.</p> : <EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} />}</div> : null}
                 <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest && !messaging.activeConversation.participant.isDeleted} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={messaging.retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
                 {hasNewBelow ? <button type="button" onClick={scrollToLatest} className="sticky bottom-2 mx-auto mt-3 flex items-center gap-2 rounded-full bg-[var(--surface-raised)] px-3 py-2 text-[12px] font-semibold text-[var(--accent-text)] shadow-lg ring-1 ring-[var(--hairline)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowDownIcon} />New messages</button> : null}
               </div>
 
-              {messaging.error ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--hairline)] px-4 py-2 text-[12px] text-[var(--status-danger)]" role="alert"><span>{messaging.error}</span><button type="button" onClick={messaging.dismissError} className="font-semibold underline">Dismiss</button></div> : null}
+              {messaging.error || mobileThreadError ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--hairline)] px-4 py-2 text-[12px] text-[var(--status-danger)]" role="alert"><span>{mobileThreadError ?? messaging.error}</span>{mobileThreadError ? <button type="button" disabled={messaging.isRefreshingThread} onClick={(event) => { if (document.activeElement === event.currentTarget) threadPanelRef.current?.focus({ preventScroll: true }); void messaging.retryThread(); }} className="min-h-11 shrink-0 font-semibold underline disabled:opacity-50">{messaging.isRefreshingThread ? 'Retrying…' : 'Retry'}</button> : null}{!(isMobile && messaging.threadUnavailable) && <button type="button" onClick={messaging.dismissError} className="font-semibold underline">Dismiss</button>}</div> : null}
               {attachmentError ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--hairline)] px-4 py-2 text-[12px] text-[var(--status-danger)]" role="alert"><span>{attachmentError}</span><button type="button" onClick={() => setAttachmentError(null)} className="font-semibold underline">Dismiss</button></div> : null}
               {messaging.activeConversation.participant.isDeleted ? <p role="status" className="shrink-0 p-4 text-center text-[13px] text-[var(--text-secondary)]">This account was deleted. Your messages and attachments remain here.</p> : messaging.activeConversation.status === 'request' && !messaging.activeConversation.requestedByViewer ? <div className="shrink-0 border-t border-[var(--hairline)] bg-[var(--surface-canvas)] p-4">
                   <div className="mx-auto flex max-w-[760px] flex-wrap items-center justify-between gap-4">
@@ -462,7 +492,7 @@ export function MessagesPage({
                       event.currentTarget.form?.requestSubmit();
                     }
                   }} rows={1} maxLength={4000} placeholder={isMessageRequest ? "Send an invitation" : isMobile ? "Message..." : "Message"} aria-label={`Message ${messaging.activeConversation.participant.name}`} className="max-h-32 min-h-[38px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-2 text-[16px] leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
-                  <button type="submit" disabled={messaging.isSending || (!draft.trim() && (isMessageRequest || attachments.length === 0))} aria-busy={messaging.isSending} aria-label={isMessageRequest ? "Send invitation" : "Send message"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+                  <button type="submit" disabled={messaging.isSending || (isMobile && messaging.threadUnavailable) || (!draft.trim() && (isMessageRequest || attachments.length === 0))} aria-busy={messaging.isSending} aria-label={isMessageRequest ? "Send invitation" : "Send message"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
                     <InterfaceIcon icon={SendIcon} weight="medium" />
                     {isMessageRequest && isMobile ? <span>{messaging.isSending ? "Sending…" : "Send"}</span> : null}
                   </button>
@@ -562,7 +592,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
         const hasReceipt = isMine && (message.id === latestOutgoingId || message.deliveryState === 'sending' || message.deliveryState === 'failed');
         return <React.Fragment key={message.id}>
             {showDay ? <li data-message-date="" className="py-3 text-center text-[11px] font-medium text-[var(--text-tertiary)]">{day}</li> : null}
-            <MessageHold enabled={isMobile && canInteract && !message.isRemoved && !message.id.startsWith('local-') && pendingMessageId !== message.id && !editingId && !deleteId} onHold={trigger => { actionTriggerRef.current = trigger; setActionsId(message.id); }}><li data-message-row="" data-message-grouped={grouped || undefined} data-has-reactions={hasReactions || undefined} data-has-receipt={hasReceipt || undefined} data-message-failed={message.deliveryState === 'failed' || undefined} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+            <MessageHold enabled={isMobile && canInteract && !message.isRemoved && !message.id.startsWith('local-') && pendingMessageId !== message.id && !editingId && !deleteId} onHold={trigger => { actionTriggerRef.current = trigger; setActionsId(message.id); }}><li data-message-id={message.id} data-message-row="" data-message-grouped={grouped || undefined} data-has-reactions={hasReactions || undefined} data-has-receipt={hasReceipt || undefined} data-message-failed={message.deliveryState === 'failed' || undefined} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
               <div data-message-bubble={isMine ? 'outgoing' : 'incoming'} className={`group/message max-w-[78%] rounded-[18px] px-3.5 py-2.5 ${isMine ? 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)] ring-1 ring-[var(--hairline)]'} ${message.deliveryState === 'failed' ? 'ring-2 ring-[var(--status-danger)]' : ''}`}>
                 {message.isRemoved ? <p className="text-[12px] text-[var(--text-tertiary)]">Deleted User</p> : null}
                 {editingId === message.id ? <form onSubmit={(event) => { event.preventDefault(); void onEdit(message.id, editBody).then((saved) => { if (saved) setEditingId(null); }); }}>

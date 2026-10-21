@@ -290,6 +290,7 @@ function conversationHarness(presentation = 'mobile') {
     '../presentation/usePresentation': { usePresentation: () => presentation },
     '../contexts/AuthContext': { useAuth: () => ({ viewerProfileId: 'me' }) },
     '../features/messages/useMessaging': { useMessaging: () => ({ messages: [], conversations: [], activeConversation: null, status: 'success', closeConversation() {} }) },
+    '../features/messages/useMobileMessageContinuity': { useMobileMessageContinuity: () => ({ rememberOpen() {} }) },
     './ui/ResizablePanelHandle': { ResizablePanelHandle: () => null, useResizablePanelWidth: () => ({ width: 400 }) },
     './ui/StateViews': { EmptyState },
     './messages/NewChatPanel': { NewChatPanel },
