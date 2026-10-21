@@ -26,6 +26,7 @@ function sharingFixture(presentation, screen = 'share') {
     '../../components/profile/CreatorAvatar': { CreatorAvatar: 'avatar' }, './PortfolioPreview': { PortfolioPreview: 'preview' },
     './shareModel': model, '../publishing/firstProject': {},
     './usePortfolioAddressValidation': { usePortfolioAddressValidation: () => ({status:'current',message:'Current'}) },
+    './useCatalogueQrNavigation': { useCatalogueQrNavigation: () => ({trigger:{current:null},heading:{current:null},open:update=>update(),back:update=>update()}) },
     './PortfolioNoteComposer': {PortfolioNoteComposer: 'note-composer'}, './PortfolioQrScreen': {PortfolioQrScreen: 'qr-screen'},
     './portfolioQr': {createPortfolioQrImage: url => {calls.push(['qr',url]);return {toBlob: done => done(new Blob(['qr'],{type:'image/png'}))};}},
     './PortfolioSharePreview': {PortfolioSharePreview: 'identity-preview', PortfolioPreviewBoundary: 'preview-boundary'}, './sharing.css': {}, 'lean-qr': {},
@@ -81,6 +82,7 @@ test('mobile portfolio sharing is an inline screen with Back; WEB keeps its moda
       '../../utils/copyPublicLink': {}, '../../components/profile/CreatorAvatar': { CreatorAvatar: 'avatar' }, './PortfolioPreview': { PortfolioPreview: 'preview' },
       './shareModel': { normalizePublicHandle: value => (value ?? '').trim().toLowerCase(), validHandle: () => true, handleSuggestions: () => ['creator'], portfolioPath: () => '/share/creator', audienceNote: () => '' },
       '../publishing/firstProject': {}, './usePortfolioAddressValidation': { usePortfolioAddressValidation: () => ({status:'current', message:'Current'}) }, './PortfolioNoteComposer': {PortfolioNoteComposer: 'note-composer'}, './PortfolioQrScreen': {PortfolioQrScreen: 'qr-screen'}, './portfolioQr': {}, './PortfolioSharePreview': {PortfolioSharePreview: 'identity-preview', PortfolioPreviewBoundary: 'preview-boundary'}, './sharing.css': {}, 'lean-qr': {},
+      './useCatalogueQrNavigation': { useCatalogueQrNavigation: () => ({trigger:{current:null},heading:{current:null},open:update=>update(),back:update=>update()}) },
       'lucide-react': { ArrowLeftIcon: 'back-icon', XIcon: 'close-icon', CopyIcon: 'copy-icon', SendIcon: 'send-icon', DownloadIcon: 'download-icon', PencilIcon: 'pencil', QrCodeIcon: 'qr', GlobeIcon: 'globe', CheckIcon: 'check', LinkIcon: 'link' },
     }, { React, window: { location: { origin: 'https://example.invalid', host: 'example.invalid' } }, navigator: { share() { throw new Error('Native share must not open on mobile'); } } });
     const tree = ProfileShareDialog({ profile: { id: 'creator', name: 'Creator', location: 'Existing city', avatar: 'existing-photo', projects: [{id:'a'},{id:'b'}], categories: [{id:'portal'}], showJourney: true }, counts: {followers:'9', following:null}, owner: true, onClose: () => closed++ });

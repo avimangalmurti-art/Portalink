@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { CopyIcon, DownloadIcon, QrCodeIcon, SendIcon, CheckIcon } from 'lucide-react';
 import type { Profile } from '../../types/domain';
 import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
 import { Button } from '../../components/ui/Button';
 import { createPortfolioQrImage } from './portfolioQr';
-export function PortfolioQrScreen({ profile, counts, url, heading, busy, copied = false, saving = false, onSave, onCopy, onSend }: { profile: Profile; counts?: { followers: string | null; following: string | null }; url: string; heading: string; busy: boolean; copied?: boolean; saving?: boolean; onSave: () => void; onCopy: () => void; onSend: () => void }) {
+export function PortfolioQrScreen({ profile, counts, url, heading, headingRef, busy, copied = false, saving = false, onSave, onCopy, onSend }: { profile: Profile; counts?: { followers: string | null; following: string | null }; url: string; heading: string; headingRef?: RefObject<HTMLHeadingElement>; busy: boolean; copied?: boolean; saving?: boolean; onSave: () => void; onCopy: () => void; onSend: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{url: string; error: string}>({url: '', error: ''});
@@ -20,7 +20,7 @@ export function PortfolioQrScreen({ profile, counts, url, heading, busy, copied 
   }, [url, attempt]);
   const state = result.url !== url ? 'loading' : result.error ? 'error' : 'ready';
   return <>
-    <div className="share-introduction"><h2 id={heading}>Your catalogue QR code</h2><p>Let others scan this code to view your public catalogue.</p></div>
+    <div className="share-introduction"><h2 ref={headingRef} tabIndex={headingRef ? -1 : undefined} id={heading}>Your catalogue QR code</h2><p>Let others scan this code to view your public catalogue.</p></div>
     <section className="share-qr-card" aria-label="Catalogue QR code and identity">
       <div className="share-qr-image" data-state={state} aria-busy={state === 'loading'}>
         <canvas ref={canvas} aria-label="QR code for your public catalogue" hidden={state !== 'ready'} />

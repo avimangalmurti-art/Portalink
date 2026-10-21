@@ -11,11 +11,13 @@ function compile(file,mocks,extra='') {
 }
 function harness(conversation={id:'thread',status:'active'},send=async()=>({id:'message'}),{presentation='web',inline=false,keyboard=false}={}) {
  let cursor=0,keyboardOpen=keyboard;const slots=[],calls=[],keyboardCalls=[];
- const react={...React,useRef:v=>slots[cursor++]??={current:v},useState:v=>{const i=cursor++;if(!(i in slots))slots[i]=v;return[slots[i],next=>{slots[i]=next;}];}};
+ const react={...React,useEffect(){},useLayoutEffect(){},useRef:v=>slots[cursor++]??={current:v},useState:v=>{const i=cursor++;if(!(i in slots))slots[i]=v;return[slots[i],next=>{slots[i]=next;}];}};
  const {dialog}=compile('../src/features/sharing/InternalContentShare.tsx',{react,
+ '../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'viewer',isAuthenticated:true})},
  '../../contexts/ServicesContext':{useServices:()=>({messaging:{getOrCreateConversation:async id=>{calls.push(['recipient',id]);return conversation;},sendMessage:async(...args)=>{calls.push(['send',...args]);return send();}}})},
  '../../components/messages/NewChatPanel':{NewChatPanel:'recipients'},'../../components/ui/ModalPortal':{ModalPortal:'portal'},
  '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},'../../hooks/useModalFocus':{useModalFocus(){}},
+ '../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close:after=>after?after():onClose(),finish:onClose})},'../../presentation/motion/motion':{reducedMotion:()=>false},
  '../../presentation/usePresentation':{usePresentation:()=>presentation},'./useRecipientKeyboard':{useRecipientKeyboard:enabled=>{keyboardCalls.push(enabled);return enabled&&keyboardOpen;}},
  'lucide-react':{ArrowLeftIcon:'back-icon'},
  },'\nexports.dialog=InternalContentShareDialog;');
@@ -108,5 +110,37 @@ test('WEB and inline sharing keep their actions without enabling the mobile moda
   assert.equal(h.keyboardCalls.at(-1),false);
   h.select();assert.equal(h.button('Send').props.disabled,false);
   assert.deepEqual(h.calls,[]);
+ }
+});
+
+test('MOBILE provider creates a fresh recipient session while retaining one send lock across reopenings',()=>{
+ for(const presentation of ['mobile','web']){
+  const slots=[];let cursor=0;
+  const react={...React,useEffect(){},useRef:value=>slots[cursor++]??={current:value},useState:initial=>{const index=cursor++;if(!(index in slots))slots[index]=initial;return[slots[index],value=>{slots[index]=value;}];}};
+  const api=compile('../src/features/sharing/InternalContentShare.tsx',{react,'../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'viewer',isAuthenticated:true})},'../../presentation/usePresentation':{usePresentation:()=>presentation}});
+  const render=()=>{cursor=0;return api.InternalContentShareProvider({children:'Existing app'});};
+  render().props.value({title:'First project',url:'https://portalink.test/first'});
+  const first=nodes(render()).find(node=>node.type===api.InternalContentShareDialog);first.props.onClose();
+  assert.equal(nodes(render()).some(node=>node.type===api.InternalContentShareDialog),false);
+  render().props.value({title:'Second project',url:'https://portalink.test/second'});
+  const next=nodes(render()).find(node=>node.type===api.InternalContentShareDialog);
+  if(presentation==='mobile'){assert.notEqual(first.key,next.key);assert.equal(first.props.mobileSendLock,next.props.mobileSendLock);assert.equal(next.props.mobileSendLock.current,false);}
+  else{assert.equal(first.key,next.key);assert.equal(first.props.mobileSendLock,next.props.mobileSendLock);assert.equal(next.props.mobileSendLock.current,false);}
+ }
+});
+
+test('provider presentation and account changes close the active share without discarding a pending MOBILE send lock',()=>{
+ for(const initial of ['mobile','web']){
+  const slots=[],auth={viewerProfileId:'viewer',isAuthenticated:true};let cursor=0,effects=[],dirty=true,presentation=initial,tree;
+  const react={...React,useRef:value=>slots[cursor++]??={current:value},useState:initial=>{const index=cursor++;if(!(index in slots))slots[index]={value:initial};return[slots[index].value,value=>{if(!Object.is(slots[index].value,value)){slots[index].value=value;dirty=true;}}];},useEffect(callback,deps){const index=cursor++,previous=slots[index];if(!previous||deps.some((value,item)=>!Object.is(value,previous.deps[item]))){slots[index]={deps};effects.push(()=>{previous?.cleanup?.();slots[index].cleanup=callback();});}}};
+  const api=compile('../src/features/sharing/InternalContentShare.tsx',{react,'../../contexts/AuthContext':{useAuth:()=>auth},'../../presentation/usePresentation':{usePresentation:()=>presentation}});
+  const render=()=>{dirty=true;for(let pass=0;dirty;pass++){assert.ok(pass<8);cursor=0;dirty=false;effects=[];tree=api.InternalContentShareProvider({children:'Existing app'});effects.splice(0).forEach(callback=>callback());}return tree;};
+  const dialog=()=>nodes(render()).find(node=>node.type===api.InternalContentShareDialog);
+  render().props.value({title:'First project',url:'https://portalink.test/first'});const first=dialog(),lock=first.props.mobileSendLock;if(lock)lock.current=true;
+  presentation=initial==='mobile'?'web':'mobile';render();assert.equal(dialog(),undefined,'Crossing the presentation boundary must dismiss the old recipient session.');
+  presentation='mobile';render();render().props.value({title:'Next project',url:'https://portalink.test/next'});const next=dialog();
+  if(lock){assert.equal(next.props.mobileSendLock,lock);assert.equal(lock.current,true,'The request still owns its lock after its modal was dismissed.');}
+  auth.viewerProfileId='new-viewer';render();assert.equal(dialog(),undefined,'Changing account must dismiss the old recipient session.');
+  render().props.value({title:'New account project',url:'https://portalink.test/new-account'});assert.equal(dialog().props.mobileSendLock,next.props.mobileSendLock);
  }
 });

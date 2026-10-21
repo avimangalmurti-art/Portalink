@@ -36,3 +36,9 @@
 .internal-share-screen[data-presentation=mobile] [data-recipient-appearance=account-search] h3 {padding-top:8px;}
 .internal-share-screen[data-presentation=mobile] [data-recipient-appearance=account-search] [data-mobile-scroll-end] {padding-bottom:8px;}
 .internal-share-screen[data-presentation=mobile] .internal-share-footer {padding-inline:16px;}
+
+/* Fade one whole mobile frame; keep the established recipient geometry. */
+.internal-share-screen[data-presentation=mobile][data-mobile-share-motion] {animation:m-fade-in var(--m-fast) var(--m-enter) both;}
+.internal-share-screen[data-presentation=mobile][data-mobile-share-motion][data-motion-closing] {animation:m-fade-out var(--m-base) var(--m-exit) both;}
+.internal-share-screen[data-presentation=mobile][data-share-reduce-motion] {animation:none!important;transition:none!important;}
+@media(prefers-reduced-motion:reduce){.internal-share-screen[data-presentation=mobile][data-mobile-share-motion]{animation:none!important;transition:none!important;}}
