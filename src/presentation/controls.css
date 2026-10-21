@@ -137,6 +137,15 @@
 /* Geometry only. The shared important layer survives lazy feature CSS and the
    phone's legacy 3px fallback. Existing grouped controls keep their children. */
 @layer portalink-interface-shapes {
+  /* Opening account-entry fields paint either an input or its shell. Keep the
+     transparent inner inputs and password-reveal controls under their own rules. */
+  [data-presentation][data-presentation] .one-screen-entry :is(
+    .entry-email, .entry-inline-form .text-control-shell,
+    .entry-inline-form input.text-control
+  ) {
+    border-radius: var(--ui-capsule-radius) !important;
+  }
+
   /* Named navigation/filter controls share capsule ends without changing the
      surrounding group structure or opting every tab and field into the role. */
   [data-presentation][data-presentation] :is(
