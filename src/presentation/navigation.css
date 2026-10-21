@@ -1,6 +1,48 @@
 /* One navigation material and state grammar. Geometry remains in the WEB and
    MOBILE frames; all colours come from the active Settings appearance record. */
 @layer portalink-interface-shapes {
+  /* These frames paint joined interface rows, rather than content cards. */
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ),
+  [data-presentation][data-presentation] [data-messages-page]
+    ul.inset-row-group:has(> li > .message-contact-row) {
+    border-radius: var(--ui-row-radius) !important;
+  }
+
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ) > button {
+    border-radius: 0 !important;
+  }
+
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ) > :first-child,
+  [data-presentation][data-presentation] [data-messages-page]
+    ul.inset-row-group:has(> li > .message-contact-row) > :first-child {
+    border-start-start-radius: var(--ui-row-radius) !important;
+    border-start-end-radius: var(--ui-row-radius) !important;
+  }
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ) > :last-child,
+  [data-presentation][data-presentation] [data-messages-page]
+    ul.inset-row-group:has(> li > .message-contact-row) > :last-child {
+    border-end-start-radius: var(--ui-row-radius) !important;
+    border-end-end-radius: var(--ui-row-radius) !important;
+  }
+
+  /* A one-action group, such as Settings, has standalone action geometry. */
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ):has(> button:only-child),
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ) > button:only-child {
+    border-radius: var(--ui-action-radius) !important;
+  }
+
   /* The outer contact/project row paints selection; its inner button is often
      transparent. Grid layouts are content cards and retain their own corners. */
   [data-presentation][data-presentation] :is(

@@ -137,6 +137,19 @@
 /* Geometry only. The shared important layer survives lazy feature CSS and the
    phone's legacy 3px fallback. Existing grouped controls keep their children. */
 @layer portalink-interface-shapes {
+  /* Named navigation/filter controls share capsule ends without changing the
+     surrounding group structure or opting every tab and field into the role. */
+  [data-presentation][data-presentation] :is(
+    .mobile-home-search-header .mobile-home-header-button,
+    [data-messages-page] [data-inbox-controls] .text-control-shell,
+    [data-messages-page] .side-panel-filter-grid > button[data-ui-control='button'],
+    .studio-citation-pills > button[data-studio-pill],
+    .mobile-insights-period > select[aria-label='Insights period'],
+    .mobile-insights-period > button
+  ) {
+    border-radius: var(--ui-capsule-radius) !important;
+  }
+
   [data-presentation][data-presentation] :is(
     [data-ui-control='button'], .ps-btn:not([data-ui-control='icon']),
     .entry-providers button, [data-account-signin] form button[type='submit'],
