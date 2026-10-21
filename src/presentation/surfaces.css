@@ -1,6 +1,7 @@
 /* Shared floating-surface finish. Opt-in leaves readers, full-screen editors,
    artwork, navigation and the reviewed agreement sheet under their own layout. */
 :root {
+  --ui-floating-radius: 32px;
   --ui-popup-radius: 24px;
   --ui-menu-radius: 16px;
   --ui-control-radius: 12px;
@@ -16,7 +17,7 @@
 #root .codex-shell [data-ui-surface][data-ui-surface] {
   --codex-radius-dialog: var(--ui-popup-radius);
   --codex-radius-panel: var(--ui-popup-radius);
-  border-radius: var(--ui-popup-radius) !important;
+  border-radius: var(--ui-floating-radius) !important;
   border-color: var(--codex-border-strong, var(--hairline-strong)) !important;
   box-shadow: var(--codex-shadow-dialog, var(--shadow-modal)) !important;
   color: var(--text-primary);
@@ -119,4 +120,31 @@
   .mobile-project-description-sheet[data-ui-surface='popup'][data-ui-surface] {
   height: auto !important;
   max-height: min(70dvh, 640px, calc(var(--dialog-viewport-height, 100dvh) - 32px)) !important;
+}
+
+/* Only floating interface frames opt in. Scope to presentation hosts rather
+   than #root so the same geometry reaches body-portalled menus. The legacy
+   popup token stays intact for cover stages, artwork and embedded previews. */
+@layer portalink-interface-shapes {
+  [data-presentation][data-presentation] :is(
+    [data-ui-surface], .portalink-confirmation, [role='menu'],
+    [data-typography-popover], .location-search-results,
+    .follow-info-owner-menu,
+    .mobile-project-gesture-hint, .public-actions-sheet,
+    .mobile-profile-portal-overlay > .mobile-portals-page,
+    .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]
+  ):not([data-writing-screen], [data-ui-surface='sheet']):not(:where([data-presentation='mobile'] .first-login-welcome)),
+  [data-presentation] #project-description-actions,
+  [data-presentation][role='menu'],
+  [data-typography-popover][data-presentation][data-presentation],
+  [data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {
+    border-radius: var(--ui-floating-radius) !important;
+  }
+
+  /* Attached sheets retain their flat bottom. Actual side drawers are outside
+     the floating selectors; full-screen editors do not opt into surface roles. */
+  [data-presentation][data-presentation] [data-ui-surface='sheet'],
+  [data-presentation='mobile'][data-presentation] :is(.cite-sheet, .mobile-context-sheet, .first-login-welcome) {
+    border-radius: var(--ui-floating-radius) var(--ui-floating-radius) 0 0 !important;
+  }
 }

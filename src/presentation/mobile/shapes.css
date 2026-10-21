@@ -1,6 +1,6 @@
-/* Rectangular phone components share the Explore/Profile project-card corners.
-   Keep this separate from the shared shape tokens: avatars, sheet silhouettes
-   and floating navigation use those tokens for their own geometry. */
+/* Preserve the established 3px content/field geometry. Explicit interface roles
+   in controls, navigation and surfaces share this important layer and override
+   only their own paint hosts; cards, artwork and previews retain these rules. */
 [data-presentation='mobile'] {
   --mobile-component-radius: 3px;
   --ui-control-radius: var(--mobile-component-radius);
@@ -10,7 +10,7 @@
 /* Feature CSS can arrive after the presentation CSS. Layered important radius
    rules beat its legacy unlayered important rules without changing layout,
    touch targets, colours or the order in which feature styles load. */
-@layer portalink-mobile-shapes {
+@layer portalink-interface-shapes {
   /* Avatar buttons and functional switch/radio controls keep their identity.
      The floating navigation and reader control groups keep their silhouettes. */
   [data-presentation='mobile'] :is(

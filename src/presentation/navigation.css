@@ -1,5 +1,36 @@
 /* One navigation material and state grammar. Geometry remains in the WEB and
    MOBILE frames; all colours come from the active Settings appearance record. */
+@layer portalink-interface-shapes {
+  /* The outer contact/project row paints selection; its inner button is often
+     transparent. Grid layouts are content cards and retain their own corners. */
+  [data-presentation][data-presentation] :is(
+    .message-contact-row,
+    .side-panel-navigation-list > li:has(> .message-contact-row),
+    :is(.sidebar-surface, .shared-profile-sidebar) :is(.sidebar-pill-row, [data-category-row]),
+    .account-menu-popover :is(.account-menu-row, .account-menu-identity),
+    [role='menu'] [role='menuitem'],
+    [data-typography-popover] button[aria-pressed], .location-search-results [role='option']
+  ),
+  [data-presentation][data-presentation][role='menu'] [role='menuitem'],
+  [data-presentation][data-presentation][data-typography-popover] button[aria-pressed],
+  [data-presentation='web'][data-presentation] [data-project-index-list] .project-index-row,
+  [data-presentation='mobile'][data-presentation] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row,
+  [data-presentation='mobile'][data-presentation] .mobile-portals-page:not([data-portals-layout='grid']) .mobile-portal-row {
+    border-radius: var(--ui-row-radius) !important;
+  }
+
+  /* The existing painted group gets the capsule; its insets, targets, internal
+     divisions and destinations stay under the feature's existing rules. */
+  [data-presentation][data-presentation] :is(
+    .mobile-navigation-dock, .mobile-dock-destination, .studio-selection-toolbar,
+    [data-mobile-engagement-content],
+    .mobile-project-page-counter, .mobile-project-density
+  ),
+  [data-presentation='mobile'][data-presentation] [data-project-response-rail][data-rail-expanded='false'] {
+    border-radius: var(--ui-capsule-radius) !important;
+  }
+}
+
 #root .codex-shell[data-presentation] {
   --sidebar-primary-control: 44px;
   --project-control-surface: var(--navigation-surface);

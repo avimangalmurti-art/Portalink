@@ -350,7 +350,7 @@ function ProjectRow({
       {isActive&&citationStatus&&<span role="status">{citationStatus}</span>}
       {isMobile && popupOpen && <MobileProjectPopup project={project} creatorId={profileId} contextHandlers={{ edit: onEdit, delete: onDelete }} onClose={() => setPopupOpen(false)} onOptions={() => setIsMenuOpen(true)} />}
       {createPortal(<AnimatePresence>
-        {isMenuOpen && <motion.div ref={menuRef} tabIndex={-1} style={position ?? { visibility: 'hidden' }} role="menu" initial={{
+        {isMenuOpen && <motion.div ref={menuRef} tabIndex={-1} data-presentation={isMobile ? 'mobile' : 'web'} style={position ?? { visibility: 'hidden' }} role="menu" initial={{
         opacity: 0,
         y: -4
       }} animate={{

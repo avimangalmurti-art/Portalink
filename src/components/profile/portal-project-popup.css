@@ -20,7 +20,7 @@
   height: min(70dvh, 640px);
   max-height: 100%;
   min-height: 0;
-  border-radius: 24px;
+  border-radius: var(--ui-floating-radius, 32px);
   background: var(--navigation-surface, var(--surface-raised));
   color: var(--text-primary);
   border: 1px solid var(--hairline-strong);

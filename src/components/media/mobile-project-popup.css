@@ -10,7 +10,7 @@
   width: min(100%, 420px) !important; height: min(70dvh, 640px) !important; max-height: 100% !important;
   min-height: 0; flex: none; padding-bottom: 0;
   border: 1px solid var(--hairline-strong) !important;
-  border-radius: 24px !important;
+  border-radius: var(--ui-floating-radius, 32px) !important;
   background: var(--ui-popup-surface, color-mix(in srgb, var(--surface-raised) 96%, transparent)) !important;
   backdrop-filter: blur(32px) saturate(110%);
   -webkit-backdrop-filter: blur(32px) saturate(110%);
@@ -28,7 +28,7 @@
   transform: translate(-50%, -50%) !important;
   width: min(calc(100% - 32px), 420px);
   height: min(70dvh, 640px) !important; min-height: 0;
-  max-height: calc(100% - 32px); border-radius: 24px;
+  max-height: calc(100% - 32px); border-radius: var(--ui-floating-radius, 32px);
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -40,7 +40,7 @@
 [data-presentation='mobile'] [data-centered-project] .project-description-details { border-top: 1px solid var(--hairline); padding-top: 20px; }
 #root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
  border: 1px solid var(--hairline-strong) !important;
- border-radius: 24px !important;
+ border-radius: var(--ui-floating-radius, 32px) !important;
  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent) !important;
  backdrop-filter: blur(22px) saturate(125%); -webkit-backdrop-filter: blur(22px) saturate(125%);
  box-shadow: var(--shadow-pop);
