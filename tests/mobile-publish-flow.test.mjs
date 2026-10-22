@@ -5,6 +5,10 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 
+const validation={};
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/features/publishing/validation.ts',import.meta.url),'utf8'),{
+  compilerOptions:{module:ts.ModuleKind.CommonJS},
+}).outputText,{exports:validation});
 const compiled = ts.transpileModule(readFileSync(new URL('../src/features/publishing/MobilePublishFlow.tsx', import.meta.url), 'utf8'), {
   compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
 }).outputText;
@@ -19,6 +23,7 @@ function harness(overrides = {}, props = {}, presentation = 'mobile') {
   const calls = [], focus = [], focusCalls = [], scrollCalls = [], slots = []; let cursor = 0, effects = [], editingStep = 'files';
   const flow = { step: 'metadata', state: 'editing', isSavingDraft: false, isDiscarding: false,
     draft: { id: 'draft-a' }, metadata: { title: 'Quiet Rooms', summary: 'A study of space.' }, location: 'London', fieldErrors: {},
+    inferredRelevance:{},ignoreInferredLocation:false,setIgnoreInferredLocation:value=>calls.push(['ignore-location',value]),
     media: { items: [{ id: 'image-a', isCover: true, metadata: { coverPageNumber: 2 } }], isComplete: true, state: 'ready' },
     upload: { phase: 'idle', dismissFailure: () => calls.push('dismiss-upload'), cancel: () => calls.push('cancel') },
     publish: { status: 'idle', reset: () => calls.push('reset-error'), run: async () => calls.push('publish') },
@@ -32,7 +37,7 @@ function harness(overrides = {}, props = {}, presentation = 'mobile') {
       const index=cursor++,previous=slots[index];
       if(!previous||!deps||deps.some((value,item)=>!Object.is(value,previous.deps?.[item]))) {slots[index]={deps};effects.push(fn);}
     } };
-    if (name === './validation') return { TITLE_MAX_LENGTH: 80 };
+    if (name === './validation') return validation;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     return new Proxy({}, { get: (_, key) => key });
   } });
@@ -254,5 +259,189 @@ test('WEB keeps its existing numbered rail, inline headings, explanatory copy an
   }
   assert.ok(h.focusCalls.every(call=>call.id==='mobile-publish-step-title'&&call.options?.preventScroll===true));
   assert.equal(h.focusCalls.length,3);
+ }
+});
+
+test('onboarding Files goes directly to Review on either platform using the same files and metadata',async()=>{
+ for(const presentation of ['mobile','web']){
+  const h=harness({}, {onboarding:true,detailsFirst:true,screenTitleId:'onboarding-title'},presentation),media=h.flow.media,draft=h.flow.draft;
+  let tree=h.render(),all=nodes(tree);
+  assert.equal(component(tree,'MobileCoverFiles').props.onboarding,true);
+  assert.equal(all.some(node=>node.type==='ol'||node.type==='h3'),false);
+  assert.ok(button(tree,'Review idea'));assert.deepEqual(h.calls,[]);
+  await h.submit(tree);tree=h.render();assert.deepEqual(h.calls,['save']);
+  assert.ok(button(tree,'Publish idea'));assert.equal(h.flow.media,media);assert.equal(h.flow.draft,draft);
+  assert.equal(component(tree,'FormattedText').props.text,'A study of space.');
+  assert.ok(h.focusCalls.every(call=>call.id==='onboarding-title'&&call.options?.preventScroll===true));
+  action(tree,'Edit idea details').props.onClick();tree=h.render();
+  assert.equal(component(tree,'ProfileField').props.value,'Quiet Rooms');
+  assert.equal(nodes(tree).find(node=>node.props.className==='project-form-details').props['aria-labelledby'],'onboarding-title');
+  assert.equal(h.flow.media,media);assert.equal(h.calls.includes('publish'),false);
+ }
+});
+
+test('onboarding Files suppresses duplicate pending Review saves and allows retry after a refused save',async()=>{
+ for(const presentation of ['mobile','web']){
+  const h=harness({}, {onboarding:true,detailsFirst:true},presentation);let finish;
+  h.flow.goToPreview=()=>{h.calls.push('save');return new Promise(resolve=>finish=resolve);};
+  let tree=h.render();await h.submit(tree);await h.submit(tree);assert.deepEqual(h.calls,['save']);
+  h.flow.saveDraftError='Save refused';finish();await tick();tree=h.render();
+  assert.ok(nodes(tree).some(node=>node.props.role==='alert'&&text(node).includes('Save refused')));
+  assert.ok(button(tree,'Review idea'));assert.equal(h.calls.includes('publish'),false);
+  await h.submit(tree);assert.deepEqual(h.calls,['save','save']);finish();await tick();
+ }
+});
+
+test('onboarding WEB Back retains file locks and details editing dismisses stale retry snapshots',()=>{
+ const h=harness({step:'preview',upload:{phase:'uploaded',dismissFailure:()=>h.calls.push('dismiss-upload')}},{onboarding:true,detailsFirst:true},'web');
+ let tree=h.render();const media=h.flow.media;
+ assert.equal(button(tree,'Back').props['aria-label'],'Back to files');assert.equal(button(tree,'Back').props.disabled,true);
+ assert.equal(action(tree,'Edit cover').props.disabled,true);assert.equal(action(tree,'Edit selected files').props.disabled,true);
+ action(tree,'Edit idea details').props.onClick();tree=h.render();
+ assert.deepEqual(h.calls,['dismiss-upload','reset-error','dismiss-save']);assert.equal(h.flow.media,media);
+ assert.equal(button(tree,'Back'),undefined);assert.equal(component(tree,'ProfileField').props.value,'Quiet Rooms');
+ h.flow.upload.phase='idle';h.flow.step='preview';tree=h.render();button(tree,'Back').props.onClick();
+ assert.equal(component(h.render(),'MobileCoverFiles').props.media,media);
+});
+
+test('onboarding WEB details retain inferred place controls without introducing mobile manual-location behavior',()=>{
+ const h=harness({inferredRelevance:{contentGeography:{label:'Oakland'}}},{onboarding:true,detailsFirst:true},'web');
+ const tree=h.render('details');
+ assert.equal(nodes(tree).some(node=>node.props.id==='publish-location'),false);
+ const relevance=nodes(tree).find(node=>node.type==='button'&&text(node)==='This project is not location-specific');
+ assert.ok(relevance);relevance.props.onClick();assert.deepEqual(h.calls,[['ignore-location',true]]);
+ assert.equal(h.flow.location,'London');assert.equal(h.flow.metadata.title,'Quiet Rooms');
+});
+
+test('explicit onboarding Review returns invalid titles to visible Details without losing files or publishing',async()=>{
+ for(const presentation of ['mobile','web'])for(const [stage,complete] of [['files',true],['details',false],['details',true]]){
+  const h=harness({metadata:{title:'  ',summary:'Retained note'},media:{items:complete?[{id:'kept-file',isCover:true}]:[],isComplete:complete,state:complete?'ready':'empty'}},{onboarding:true,detailsFirst:true},presentation);
+  const media=h.flow.media,draft=h.flow.draft;
+  h.flow.goToPreview=async()=>{
+   const invalid=validation.validateTitle(h.flow.metadata.title);h.calls.push('validate');
+   if(invalid){h.flow.fieldErrors={title:invalid};h.flow.invalidField='title';return;}
+   if(h.flow.media.isComplete){h.calls.push('save');h.flow.step='preview';}
+  };
+  await h.submit(h.render(stage));const tree=h.render(),title=nodes(tree).find(node=>node.props.id==='publish-title');
+  assert.ok(title,'The title error must have a visible Details field');assert.equal(title.props.value,'  ');
+  assert.equal(title.props.error,validation.validateTitle('  '));assert.equal(h.focus.at(-1),'publish-title');
+  assert.deepEqual(h.calls,['validate']);assert.equal(h.flow.step,'metadata');
+  assert.equal(h.flow.media,media);assert.equal(h.flow.draft,draft);assert.equal(h.flow.metadata.summary,'Retained note');
+ }
+});
+
+test('stale title errors never interrupt onboarding file selection when the current title is valid',async()=>{
+ for(const presentation of ['mobile','web']){
+  const h=harness({invalidField:'title',fieldErrors:{title:'Old title error'}},{onboarding:true,detailsFirst:true},presentation),media=h.flow.media;
+  h.flow.goToPreview=async()=>{
+   const invalid=validation.validateTitle(h.flow.metadata.title);
+   if(invalid){h.flow.fieldErrors={title:invalid};h.flow.invalidField='title';return;}
+   h.calls.push('save');h.flow.step='preview';
+  };
+  let tree=h.render('files');h.render();
+  assert.ok(component(tree,'MobileCoverFiles'));assert.equal(component(tree,'ProfileField'),undefined);
+  assert.equal(h.focus.includes('publish-title'),false);assert.deepEqual(h.calls,[]);
+  await h.submit(tree);tree=h.render();assert.ok(button(tree,'Publish idea'));
+  assert.deepEqual(h.calls,['save']);assert.equal(h.flow.media,media);assert.equal(h.flow.metadata.title,'Quiet Rooms');
+ }
+});
+
+test('valid onboarding Details without files still proceeds to file selection without saving or publishing',async()=>{
+ for(const presentation of ['mobile','web']){
+  const h=harness({media:{items:[],isComplete:false,state:'empty'}},{onboarding:true,detailsFirst:true},presentation);
+  const media=h.flow.media;const tree=h.render('details');assert.ok(button(tree,'Continue to upload'));
+  await h.submit(tree);assert.ok(component(h.render(),'MobileCoverFiles'));assert.equal(h.flow.media,media);
+  assert.deepEqual(h.calls,[]);assert.equal(h.flow.metadata.title,'Quiet Rooms');
+ }
+});
+
+test('onboarding Review shows full authored details and accessible mixed-file summaries on both platforms',()=>{
+ for(const presentation of ['mobile','web']){
+  const title='An unabridged idea title for a catalogue of thoughtful experiments';
+  const summary='A complete first paragraph.\n\nA second paragraph with **formatting** and the last detail.';
+  const items=Array.from({length:15},(_,index)=>({id:`review-${index}`,displayTitle:`Selected file ${index+1}`,family:index===1?'document':index===2?'audio':'image',previewUrl:`review-image-${index}`,isCover:index===0,metadata:{coverPageNumber:2}}));
+  const h=harness({step:'preview',metadata:{title:`  ${title}  `,summary:`  ${summary}  `},location:'  Kyoto  ',media:{items,isComplete:true,state:'ready'}},{onboarding:true,detailsFirst:true},presentation);
+  const tree=h.render(),sections=nodes(tree).filter(node=>node.type==='section');
+  assert.deepEqual(sections.map(node=>node.props['aria-label']),['Cover','Idea details','Selected files']);
+  assert.ok(nodes(tree).some(node=>node.type==='h3'&&text(node)==='Ready for your catalogue'));
+  assert.ok(text(tree).includes('Take one last look.'));
+  const details=sections[1],files=sections[2];
+  assert.equal(text(nodes(details).find(node=>node.type==='h4')),title);
+  assert.equal(component(details,'FormattedText').props.text,summary);
+  assert.ok(text(details).includes('Kyoto'));
+  assert.doesNotMatch(text(details),/Description \(optional\)|Not added/);
+  const cover=component(sections[0],'CoverFilmstrip');
+  assert.equal(cover.props.media,h.flow.media);assert.equal(cover.props.compact,true);assert.equal(cover.props.readOnly,true);assert.equal(cover.props.disabled,true);
+  assert.equal(text(nodes(files).find(node=>node.type==='h4')),'15 files');
+  const thumbnails=nodes(files).filter(node=>node.type==='span'&&node.props.children&&nodes(node).some(child=>child.type==='img'||child.type==='FileIcon'));
+  assert.equal(thumbnails.length,presentation==='mobile'?15:3);
+  assert.deepEqual(nodes(files).filter(node=>node.type==='img').map(node=>node.props.src),items.slice(0,presentation==='mobile'?15:3).filter(item=>item.family==='image').map(item=>item.previewUrl));
+  if(presentation==='mobile'){
+   assert.ok(nodes(files).some(node=>node.props.role==='group'&&node.props['aria-label']==='Selected project files'));
+   assert.deepEqual(nodes(files).filter(node=>node.props.role==='img').map(node=>node.props['aria-label']),items.map((item,index)=>`File ${index+1}: ${item.displayTitle}`));
+   assert.ok(!text(files).includes('+12'));
+  }else assert.ok(text(files).includes('+12'));
+  assert.equal(h.flow.media.items,items);assert.deepEqual(h.calls,[]);
+ }
+});
+
+test('all onboarding Review edit routes preserve the same draft, media, crop and authored details',()=>{
+ for(const presentation of ['mobile','web'])for(const label of ['Edit cover','Edit idea details','Edit selected files']){
+  const h=harness({step:'preview'},{onboarding:true,detailsFirst:true},presentation),media=h.flow.media,draft=h.flow.draft,cover=media.items[0],crop=cover.metadata;
+  action(h.render(),label).props.onClick();const tree=h.render();
+  assert.deepEqual(h.calls,['dismiss-upload','reset-error','dismiss-save']);
+  assert.equal(h.flow.step,'metadata');assert.equal(h.flow.media,media);assert.equal(h.flow.draft,draft);
+  assert.equal(media.items[0],cover);assert.equal(cover.metadata,crop);assert.equal(crop.coverPageNumber,2);
+  assert.equal(h.flow.metadata.title,'Quiet Rooms');assert.equal(h.flow.metadata.summary,'A study of space.');assert.equal(h.flow.location,'London');
+  if(label==='Edit idea details')assert.equal(nodes(tree).find(node=>node.props.id==='publish-title').props.value,'Quiet Rooms');
+  else assert.equal(component(tree,'MobileCoverFiles').props.media,media);
+ }
+});
+
+test('onboarding Review keeps busy and stored-file edit locks on either platform',async()=>{
+ for(const presentation of ['mobile','web']){
+  for(const [overrides,props] of [[{state:'publishing'},{}],[{isSavingDraft:true},{}],[{isDiscarding:true},{}],[{upload:{phase:'failed',isCleaningUp:true}},{}],[{media:{items:[{id:'kept',isCover:true}],isComplete:true,state:'selecting'}},{}],[{}, {closing:true}]]){
+   const h=harness({step:'preview',...overrides},{onboarding:true,detailsFirst:true,...props},presentation),tree=h.render();
+   for(const label of ['Edit cover','Edit idea details','Edit selected files'])assert.equal(action(tree,label).props.disabled,true);
+   assert.equal(button(tree,'Back').props.disabled,true);
+   assert.equal(button(tree,overrides.state==='publishing'?'Publishing…':overrides.isSavingDraft?'Saving details…':'Publish idea').props.disabled,true);
+   await h.submit(tree);assert.deepEqual(h.calls,[]);
+  }
+  const h=harness({step:'preview',upload:{phase:'uploaded',dismissFailure:()=>h.calls.push('dismiss-upload')}},{onboarding:true,detailsFirst:true},presentation),tree=h.render(),media=h.flow.media;
+  assert.equal(action(tree,'Edit cover').props.disabled,true);assert.equal(action(tree,'Edit selected files').props.disabled,true);assert.equal(button(tree,'Back').props.disabled,true);
+  assert.equal(action(tree,'Edit idea details').props.disabled,false);action(tree,'Edit idea details').props.onClick();
+  assert.ok(component(h.render(),'ProfileField'));assert.equal(h.flow.media,media);assert.equal(h.calls.includes('publish'),false);
+ }
+});
+
+test('committed onboarding Review stays truthful, locks editing and guards final-detail retries',async()=>{
+ for(const presentation of ['mobile','web']){
+  const h=harness({hasCommittedProject:true,step:'metadata'},{onboarding:true,detailsFirst:true},presentation),tree=h.render('details');
+  assert.ok(nodes(tree).some(node=>node.type==='h3'&&text(node)==='Your idea is published'));
+  assert.ok(text(tree).includes('Finish saving its details.'));assert.ok(!text(tree).includes('Ready for your catalogue'));
+  assert.equal(component(tree,'ProfileField'),undefined);
+  for(const label of ['Edit cover','Edit idea details','Edit selected files']){
+   const edit=action(tree,label);assert.equal(edit.props.disabled,true);edit.props.onClick();
+  }
+  assert.equal(button(tree,'Back').props.disabled,true);assert.deepEqual(h.calls,[]);
+  const finishButton=button(tree,'Finish saving details');assert.equal(finishButton.props.disabled,false);
+  let finish;h.flow.publish.run=()=>{h.calls.push('publish');return new Promise(resolve=>finish=resolve);};
+  await h.submit(tree);await h.submit(tree);assert.deepEqual(h.calls,['publish']);
+  finish();await tick();await h.submit(h.render());assert.deepEqual(h.calls,['publish','publish']);finish();await tick();
+  h.flow.canPublish=false;const blocked=h.render();assert.equal(button(blocked,'Finish saving details').props.disabled,true);
+  await h.submit(blocked);assert.deepEqual(h.calls,['publish','publish']);
+ }
+});
+
+test('onboarding Review handles missing cover and optional details while retaining failure and cleanup transport',()=>{
+ for(const presentation of ['mobile','web'])for(const transport of [{failure:{message:'Upload refused'}},{cleanupError:'Cleanup refused'}]){
+  const h=harness({step:'preview',metadata:{title:'Audio study',summary:'  '},location:' ',media:{items:[{id:'audio',displayTitle:'Recorded idea',family:'audio',metadata:{}}],isComplete:true,state:'ready'}},{onboarding:true,detailsFirst:true},presentation);
+  Object.assign(h.flow.upload,transport);const tree=h.render(),details=nodes(tree).find(node=>node.type==='section'&&node.props['aria-label']==='Idea details');
+  assert.ok(text(tree).includes('No cover selected'));assert.equal(component(tree,'CoverFilmstrip'),undefined);
+  assert.equal(component(details,'FormattedText'),undefined);assert.doesNotMatch(text(details),/Not added|Description|Location/);
+  assert.equal(text(nodes(nodes(tree).find(node=>node.type==='section'&&node.props['aria-label']==='Selected files')).find(node=>node.type==='h4')),'1 file');
+  const transportPicker=component(tree,'MediaPicker');assert.equal(transportPicker.props.media,h.flow.media);assert.equal(transportPicker.props.upload,h.flow.upload);assert.equal(transportPicker.props.compact,true);assert.equal(transportPicker.props.disabled,true);
+  assert.ok(action(tree,'Edit cover'));assert.ok(action(tree,'Edit idea details'));assert.ok(action(tree,'Edit selected files'));assert.ok(button(tree,'Publish idea'));
+  assert.deepEqual(h.calls,[]);
  }
 });

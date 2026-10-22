@@ -5,13 +5,15 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 const compiled=ts.transpileModule(readFileSync(new URL('../src/features/publishing/MobileCoverFiles.tsx',import.meta.url),'utf8'),{compilerOptions:{jsx:ts.JsxEmit.React,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText;
+const assetTypes={};vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/features/publishing/assetTypes.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:assetTypes});
 const nodes=t=>!React.isValidElement(t)?[]:[t,...React.Children.toArray(t.props.children).flatMap(nodes)];
 const text=t=>typeof t==='string'||typeof t==='number'?String(t):Array.isArray(t)?t.map(text).join(''):React.isValidElement(t)?text(t.props.children):'';
-function harness(disabled=false,phase='idle',{presentation='mobile',count=2}={}){
+function harness(disabled=false,phase='idle',{presentation='mobile',count=2,onboarding=false,items,isFull=false}={}){
  let open=false;const calls=[];const media={items:[{id:'a',isCover:true,family:'image',capability:'native',displayTitle:'Artwork A',previewUrl:'a.jpg'},{id:'b',isCover:false,family:'image',capability:'native',displayTitle:'Artwork B',previewUrl:'b.jpg'}],select:files=>calls.push(files),setCover:id=>calls.push(id)};
  if(count!==2)media.items=Array.from({length:count},(_,index)=>({id:`file-${index+1}`,isCover:index===0,family:'image',capability:'native',displayTitle:`Artwork ${index+1}`,previewUrl:`image-${index+1}.png`}));
- const exports={};vm.runInNewContext(compiled,{exports,require(name){if(name==='react')return{...React,useRef:()=>({current:{click:()=>calls.push('picker')}}),useState:()=>[open,v=>{open=v;}]};if(name.endsWith('/usePresentation'))return{usePresentation:()=>presentation};if(name==='./assetTypes')return{canBeCover:()=>true};return new Proxy({},{get:(_,key)=>key});}});
- const render=()=>exports.MobileCoverFiles({media,upload:{phase},disabled});return{render,calls,media};
+ if(items)media.items=items;media.isFull=isFull;
+ const exports={};vm.runInNewContext(compiled,{exports,require(name){if(name==='react')return{...React,useRef:()=>({current:{click:()=>calls.push('picker')}}),useState:()=>[open,v=>{open=v;}]};if(name.endsWith('/usePresentation'))return{usePresentation:()=>presentation};if(name==='./assetTypes')return assetTypes;return new Proxy({},{get:(_,key)=>key});}});
+ const render=()=>exports.MobileCoverFiles({media,upload:{phase},disabled,onboarding});return{render,calls,media};
 }
 test('default cover workspace keeps file management behind Reorder and passes the original draft through',()=>{
  const h=harness(),tree=h.render(),all=nodes(tree);
@@ -27,6 +29,59 @@ test('default cover workspace keeps file management behind Reorder and passes th
  assert.equal(nodes(sheet).find(n=>n.type==='MediaPicker').props.media,h.media);
  assert.equal(nodes(sheet).find(n=>n.type==='MediaPicker').props.mobileFileManager,true);
  sheet.props.onClose();assert.equal(nodes(h.render()).find(n=>n.type==='MobileActionSheet'),undefined);
+});
+
+test('onboarding empty chooser accepts a file batch on both platforms without changing the draft contract',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=harness(false,'idle',{presentation,count:0,onboarding:true}),all=nodes(h.render());
+  assert.equal(all.find(n=>n.props['aria-label']==='Selected files'),undefined);
+  const chooser=all.find(n=>n.type==='button'&&text(n)==='Choose files');assert.ok(chooser);chooser.props.onClick();
+  assert.deepEqual(h.calls,['picker']);
+  const files=[{name:'first.png'},{name:'notes.pdf'}],target={files,value:'selection'};
+  const input=all.find(n=>n.type==='input');assert.equal(input.props.multiple,true);assert.equal(input.props['aria-label'],'Add idea files');
+  input.props.onChange({target});assert.equal(h.calls.at(-1),files);assert.equal(target.value,'');
+ }
+});
+
+test('onboarding keeps every cover choice and reorders the original files on both platforms',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=harness(false,'idle',{presentation,count:15,onboarding:true}),all=nodes(h.render());
+  const choices=all.filter(n=>n.type==='button'&&n.props['aria-label']?.startsWith('Use Artwork'));
+  assert.equal(choices.length,15);choices[14].props.onClick();assert.equal(h.calls.at(-1),'file-15');
+  assert.equal(all.find(n=>n.type==='CoverFilmstrip').props.media,h.media);
+  all.find(n=>n.type==='button'&&text(n)==='Reorder').props.onClick();
+  const sheet=nodes(h.render()).find(n=>n.type==='MobileActionSheet'),picker=nodes(sheet).find(n=>n.type==='MediaPicker');
+  assert.equal(picker.props.media,h.media);assert.equal(picker.props.expanded,true);
+  assert.equal(picker.props.mobileFileManager,presentation==='mobile'?true:undefined);
+  sheet.props.onClose();assert.equal(nodes(h.render()).some(n=>n.type==='MobileActionSheet'),false);
+ }
+});
+
+test('onboarding preserves non-cover PDF files and actual cover eligibility without losing selection',()=>{
+ const items=[{id:'image',isCover:true,family:'image',capability:'native',displayTitle:'Image',previewUrl:'image.png'},
+  {id:'pdf',isCover:false,family:'document',capability:'native',displayTitle:'Notes.pdf',previewUrl:'notes.pdf'},
+  {id:'audio',isCover:false,family:'audio',capability:'native',displayTitle:'Audio.mp3',previewUrl:'audio.mp3'}];
+ for(const presentation of ['mobile','web']){
+  const h=harness(false,'idle',{presentation,onboarding:true,items}),all=nodes(h.render());
+  const pdf=all.find(n=>n.props['aria-label']==='Use Notes.pdf as cover');assert.equal(pdf.props.disabled,false);
+  assert.equal(all.find(n=>n.props['aria-label']==='Use Audio.mp3 as cover').props.disabled,true);
+  pdf.props.onClick();assert.deepEqual(h.calls,['pdf']);assert.equal(h.media.items,items);
+  assert.equal(all.find(n=>n.type==='CoverFilmstrip').props.media.items,items);
+ }
+});
+
+test('onboarding non-cover files can add a cover and stale picker completion respects lock and capacity',()=>{
+ for(const presentation of ['mobile','web']){
+  const items=[{id:'pdf',isCover:false,family:'document',capability:'native',displayTitle:'Notes.pdf',previewUrl:'notes.pdf'}];
+  const h=harness(false,'idle',{presentation,onboarding:true,items}),all=nodes(h.render());
+  all.find(n=>n.type==='button'&&text(n)==='Add a cover file').props.onClick();assert.deepEqual(h.calls,['picker']);
+  for(const state of [{disabled:true,phase:'idle',isFull:false},{disabled:false,phase:'uploaded',isFull:false},{disabled:false,phase:'idle',isFull:true}]){
+   const locked=harness(state.disabled,state.phase,{presentation,onboarding:true,count:0,isFull:state.isFull}),tree=nodes(locked.render());
+   assert.equal(tree.find(n=>n.type==='button'&&text(n)==='Choose files').props.disabled,true);
+   const target={files:[{name:'late.png'}],value:'selection'};tree.find(n=>n.type==='input').props.onChange({target});
+   assert.deepEqual(locked.calls,[]);assert.equal(target.value,'');
+  }
+ }
 });
 
 test('all fifteen MOBILE files remain selectable as cover while WEB keeps its existing summary',()=>{

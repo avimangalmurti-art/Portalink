@@ -83,6 +83,7 @@ const ProfileOnboardingDialog = React.lazy(() => import('./features/profile/Prof
 // Keep the title input available in the opening interaction for mobile keyboard focus.
 import { ProjectSetupScreen } from './features/publishing/ProjectSetupScreen';
 const PublishProjectDialog = lazyWithMobileRecovery(() => import('./features/publishing/PublishProjectDialog').then(module => ({ default: module.PublishProjectDialog })));
+const PostPublishIdeaDialog = lazyWithMobileRecovery(() => import('./features/publishing/PostPublishIdeaDialog').then(module => ({ default: module.PostPublishIdeaDialog })));
 // Profile editing, sorting and the full media viewer are not Home startup work.
 // These retain their existing state/props inside the screen's Suspense boundary.
 const UserProfilePage = lazyWithMobileRecovery(loadProfilePage);
@@ -584,6 +585,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const [publishResumeDraft, setPublishResumeDraft] = useState<import('./types/publishing').ProjectDraft | undefined>();
   const mobilePublishOpener = useRef<HTMLElement | null>(null);
   const [publishConfirmation, setPublishConfirmation] = useState<{ projectId: string; message: string } | null>(null);
+  const [postPublishIdea, setPostPublishIdea] = useState<{ accountId: string; profileId: string; categoryId: string; projectId: string } | null>(null);
   useEffect(() => {
     if (!publishConfirmation) return;
     const timer = window.setTimeout(() => setPublishConfirmation(null), 5000);
@@ -619,6 +621,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     setPublishResumeDraft(undefined);
     setPublishTargetCategoryId(null);
     setPublishConfirmation(null);
+    setPostPublishIdea(null);
     setGlobalCreateError(null);
     setFirstProjectPublisher(false);
     setJourneyMadeIn(null);
@@ -1036,6 +1039,31 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     requestAnimationFrame(() => {
       if (opener?.isConnected && document.activeElement === document.body && !document.querySelector('[aria-modal="true"]')) opener.focus({ preventScroll: true });
     });
+  }
+  function focusPublishedDestination() {
+    requestAnimationFrame(() => {
+      if (!document.querySelector('[aria-modal="true"]')) mainContentRef.current?.focus({ preventScroll: true });
+    });
+  }
+  function closePostPublishIdea() {
+    setPostPublishIdea(null);
+    focusPublishedDestination();
+  }
+  function openPostPublishedIdea(destination: 'idea' | 'catalogue') {
+    const completed = postPublishIdea;
+    setPostPublishIdea(null);
+    if (!completed || !auth.isAuthenticated || completed.accountId !== auth.user?.id || completed.profileId !== auth.viewerProfileId) {
+      focusPublishedDestination();
+      return;
+    }
+    const targetPath = destination === 'idea'
+      ? buildPath('project', { profileId: completed.profileId, categoryId: completed.categoryId, projectId: completed.projectId })
+      : buildPath('profile', { profileId: completed.profileId });
+    if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== targetPath) {
+      if (destination === 'idea') nav.project(completed.profileId, completed.categoryId, completed.projectId);
+      else nav.profile(completed.profileId);
+    }
+    focusPublishedDestination();
   }
   function requestGlobalPublish() {
     setGlobalCreateError(null);
@@ -1530,16 +1558,29 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           window.location.assign(`/cite/${encodeURIComponent(citeIntent)}?cite=1`);
           return;
         }
+        const completedIdea = projectSetupMetadata && !firstProjectPublisher && !publishResumeDraft
+          && result.projectId && result.mediaPersisted && !result.sessionOnly
+          && auth.isAuthenticated && publishAccountId && publishAccountId === auth.user?.id && auth.viewerProfileId
+          && isOwnerMode && viewedProfile?.id === auth.viewerProfileId
+          && targetCategoryId && projectSetupMetadata.categoryId === targetCategoryId
+          && viewedProfile.categories.some(category => category.id === targetCategoryId)
+          ? { accountId: publishAccountId, profileId: auth.viewerProfileId, categoryId: targetCategoryId, projectId: result.projectId }
+          : null;
         setIsPublishOpen(false);
         if (presentation === 'web') setProjectSetupMetadata(undefined);
         setPublishTargetCategoryId(null);
         setJourneyMadeIn(null);
-        setPublishConfirmation({
-          projectId: result.projectId,
-          message: result.mediaPersisted && !result.sessionOnly
-            ? `${title} published.${result.message ? ` ${result.message}` : ''}`
-            : `${title} added for this session only. Reloading will clear it.`,
-        });
+        if (completedIdea) {
+          setPostPublishIdea(completedIdea);
+          setPublishConfirmation(null);
+        } else {
+          setPublishConfirmation({
+            projectId: result.projectId,
+            message: result.mediaPersisted && !result.sessionOnly
+              ? `${title} published.${result.message ? ` ${result.message}` : ''}`
+              : `${title} added for this session only. Reloading will clear it.`,
+          });
+        }
         // Mobile finishes on the complete profile, where identity and the refreshed
         // catalogue stay together. WEB retains its existing project-reader return.
         if ((presentation === 'mobile' || firstProjectPublisher) && auth.viewerProfileId) {
@@ -1551,9 +1592,10 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         if (result.projectId && auth.viewerProfileId && targetCategoryId) {
           nav.project(auth.viewerProfileId, targetCategoryId, result.projectId);
         }
-        requestAnimationFrame(() => mainContentRef.current?.focus({ preventScroll: true }));
+        if (!completedIdea) requestAnimationFrame(() => mainContentRef.current?.focus({ preventScroll: true }));
       }} /></DeferredDialog>
       <PublishConfirmation message={publishConfirmation?.message ?? null} />
+      {postPublishIdea && auth.isAuthenticated && postPublishIdea.accountId === auth.user?.id && postPublishIdea.profileId === auth.viewerProfileId && <DeferredSurface active onClose={closePostPublishIdea}><PostPublishIdeaDialog onClose={closePostPublishIdea} onViewIdea={() => openPostPublishedIdea('idea')} onOpenCatalogue={() => openPostPublishedIdea('catalogue')} /></DeferredSurface>}
 
       {/* Onboarding opens only when a creator surface needs a profile. */}
       {isOnboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <DeferredSurface active onClose={() => { setIsOnboardingOpen(false); deferredIntentRef.current = null; }}><FirstLoginWelcome key={auth.user?.id} accountId={auth.user?.id ?? ''}><ProfileOnboardingDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {

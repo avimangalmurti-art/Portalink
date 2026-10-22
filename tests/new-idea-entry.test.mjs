@@ -4,24 +4,34 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import vm from 'node:vm';
+import React from 'react';
+import { sourceModule } from './helpers/source-module.mjs';
 
 // Run from the product root, using its installed TypeScript read-only. This file
 // also works unchanged in product/tests after the guarded patch is integrated.
 const requireProduct = createRequire(path.join(process.cwd(), 'package.json'));
 const ts = requireProduct('typescript');
+const {buildPath}=sourceModule('src/app/routes.ts',{'../components/navigation':sourceModule('src/components/navigation.ts')});
 const isolatedApp = new URL('../App.tsx', import.meta.url);
 const appPath = existsSync(isolatedApp) ? isolatedApp : new URL('../src/App.tsx', import.meta.url);
 const source = readFileSync(appPath, 'utf8');
 const ast = ts.createSourceFile('App.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-let entry, setupAttributes, publishedHandler;
+let entry, setupAttributes, publishedHandler, completionBoundary, accountReset;
+const completionFunctions=[];
 function visit(node) {
   if (ts.isCallExpression(node) && node.expression.getText(ast) === 'useEffect'
       && node.arguments[0]?.getText(ast).includes('if (!isGlobalCreatePending')) entry = node.arguments[0];
+  if(ts.isCallExpression(node)&&node.expression.getText(ast)==='useEffect'&&node.arguments[0]?.getText(ast).includes('publishingAccountRef.current === accountId'))accountReset=node.arguments[0];
+  if(ts.isFunctionDeclaration(node)&&['focusPublishedDestination','closePostPublishIdea','openPostPublishedIdea'].includes(node.name?.text))completionFunctions.push(node.getText(ast));
   if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
       && node.tagName.getText(ast) === 'ProjectSetupScreen') setupAttributes = node.attributes;
   if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
       && node.tagName.getText(ast) === 'PublishProjectDialog') {
     publishedHandler = node.attributes.properties.find(item => item.name?.getText(ast) === 'onPublished')?.initializer.expression;
+  }
+  if(ts.isJsxSelfClosingElement(node)&&node.tagName.getText(ast)==='PostPublishIdeaDialog'){
+    completionBoundary=node;
+    while(!ts.isJsxExpression(completionBoundary.parent))completionBoundary=completionBoundary.parent;
   }
   ts.forEachChild(node, visit);
 }
@@ -175,23 +185,32 @@ function publicationHarness(options = {}) {
   let saved = options.saved === undefined ? { portal:'work',title:'  Original idea ',summary:' Original story  ',name:'' } : options.saved;
   const context = {
     presentation:options.presentation ?? 'web',
-    publishTargetCategoryId:'work',publishAccountId:'account',projectSetupMetadata:initial,
-    auth:{user:{id:'account'},viewerProfileId:'profile'},isOwnerMode:true,
-    viewedProfile:{id:'profile',isPrivate:false},firstProjectPublisher:false,isFirstProjectPublish:false,
+    publishTargetCategoryId:'work',publishAccountId:'account',projectSetupMetadata:initial,publishResumeDraft:undefined,
+    auth:{user:{id:'account'},viewerProfileId:'profile',isAuthenticated:true},isOwnerMode:true,
+    viewedProfile:{id:'profile',isPrivate:false,categories:[{id:'work'}]},firstProjectPublisher:false,isFirstProjectPublish:false,
+    postPublishIdea:null,publishConfirmation:null,
     readSetupDraft(accountId,profileId) { calls.push(['read',accountId,profileId]);if(options.readError)throw Error('Storage unavailable');return saved; },
     clearSetupDraft(accountId,profileId) { calls.push(['clear',accountId,profileId]);if(options.clearError)throw Error('Write refused');saved=null; },
-    window:{sessionStorage:{getItem:()=>options.citeIntent??null},location:{assign:href=>calls.push(['redirect',href])}},
+    window:{sessionStorage:{getItem:()=>options.citeIntent??null},location:{pathname:'/initial',search:'',hash:'',assign:href=>calls.push(['redirect',href])}},buildPath,
     setIsPublishOpen:value=>calls.push(['open',value]),setProjectSetupMetadata:value=>calls.push(['metadata',value]),
-    setPublishTargetCategoryId:value=>calls.push(['target',value]),setJourneyMadeIn(){},setPublishConfirmation(){},
+    setPublishTargetCategoryId:value=>calls.push(['target',value]),setJourneyMadeIn(){},setPublishConfirmation:value=>{context.publishConfirmation=value;},
+    setPostPublishIdea:value=>{context.postPublishIdea=value;},
     nav:{profile:id=>calls.push(['profile',id]),project:(...args)=>calls.push(['project',...args])},
     requestAnimationFrame:callback=>callback(),mainContentRef:{current:null},
+    React,PostPublishIdeaDialog:'PostPublishIdeaDialog',DeferredSurface:'DeferredSurface',document:{querySelector:()=>null},
     rememberLivePortfolio(){assert.fail('Ordinary cleanup must not enable first-publication behavior.');},
   };
   Object.assign(context,options.context);
   const code = ts.transpileModule(`(${publishedHandler.getText(ast)})(result,'Edited final title');`,{
     compilerOptions:{target:ts.ScriptTarget.ES2022},
   }).outputText;
-  return {calls,get saved(){return saved;},run(result={projectId:'published',mediaPersisted:true,sessionOnly:false}){vm.runInNewContext(code,{...context,result});}};
+  const evaluate=expression=>vm.runInNewContext(ts.transpileModule(`${completionFunctions.join('\n')}\nresult=(${expression});`,{compilerOptions:{target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.React}}).outputText,{...context});
+  return {calls,context,get saved(){return saved;},run(result={projectId:'published',mediaPersisted:true,sessionOnly:false}){vm.runInNewContext(code,{...context,result});},
+    renderCompletion:()=>evaluate(completionBoundary.getText(ast)),
+    close:()=>evaluate('closePostPublishIdea()'),
+    open:destination=>evaluate(`openPostPublishedIdea(${JSON.stringify(destination)})`),
+    resetAccount:()=>evaluate(`(${accountReset.getText(ast)})()`),
+  };
 }
 
 test('durable WEB publication clears only its matching original setup, even after publisher title edits',()=>{
@@ -261,4 +280,79 @@ test('matching WEB cleanup occurs before a confirmed citation redirect',()=>{
   const h=publicationHarness({citeIntent:'citation'});h.run();
   assert.deepEqual(h.calls,[['read','account','profile'],['clear','account','profile'],['redirect','/cite/citation?cite=1']]);
   assert.equal(h.saved,null);
+});
+
+test('only confirmed ordinary New idea publications open a scoped completion card on both platforms',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=publicationHarness({presentation});h.run();
+  assert.deepEqual(JSON.parse(JSON.stringify(h.context.postPublishIdea)),{accountId:'account',profileId:'profile',categoryId:'work',projectId:'published'});
+  assert.equal(h.context.publishConfirmation,null,'The persistent card replaces only this completion toast.');
+  assert.equal(h.calls.some(call=>call[0]===(presentation==='mobile'?'profile':'project')),true,'The established destination remains beneath the card.');
+  assert.equal(h.renderCompletion().props.children.type,'PostPublishIdeaDialog');
+ }
+});
+
+test('completion eligibility rejects provisional, legacy and stale owner scope without hiding their truthful toast',()=>{
+ const ordinaryAuth={user:{id:'account'},viewerProfileId:'profile',isAuthenticated:true};
+ for(const presentation of ['mobile','web'])for(const context of [
+  {projectSetupMetadata:undefined},{firstProjectPublisher:true},{publishResumeDraft:{id:'saved'}},
+  {publishAccountId:'departed'},{auth:{...ordinaryAuth,isAuthenticated:false}},
+  {auth:{...ordinaryAuth,user:{id:'different'}}},{auth:{...ordinaryAuth,viewerProfileId:'other-profile'}},
+  {isOwnerMode:false},{viewedProfile:{id:'other-profile',categories:[{id:'work'}]}},
+  {viewedProfile:{id:'profile',categories:[]}},{projectSetupMetadata:{categoryId:'other',title:'Idea',summary:''}},
+ ]){
+  const h=publicationHarness({presentation,context:{...context,rememberLivePortfolio(){}}});h.run();
+  assert.equal(h.context.postPublishIdea,null);assert.match(h.context.publishConfirmation.message,/published\./);
+ }
+ for(const presentation of ['mobile','web'])for(const result of [
+  {projectId:'',mediaPersisted:true,sessionOnly:false},
+  {projectId:'published',mediaPersisted:false,sessionOnly:false},
+  {projectId:'published',mediaPersisted:true,sessionOnly:true},
+ ]){
+  const h=publicationHarness({presentation});h.run(result);assert.equal(h.context.postPublishIdea,null);
+  assert.match(h.context.publishConfirmation.message,result.mediaPersisted&&!result.sessionOnly?/published\./:/added for this session only/);
+ }
+});
+
+test('confirmed citation return precedes the new completion card and existing navigation',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=publicationHarness({presentation,citeIntent:'reference / one'});h.run();
+  assert.equal(h.context.postPublishIdea,null);assert.equal(h.context.publishConfirmation,null);
+  assert.deepEqual(h.calls.filter(call=>['redirect','profile','project','open'].includes(call[0])),[['redirect','/cite/reference%20%2F%20one?cite=1']]);
+ }
+});
+
+test('completion render and actions reject a changed account or profile before reset runs',()=>{
+ for(const presentation of ['mobile','web'])for(const change of [
+  {isAuthenticated:false},{user:{id:'next-account'}},{viewerProfileId:'next-profile'},
+ ]){
+  const h=publicationHarness({presentation});h.run();h.calls.length=0;Object.assign(h.context.auth,change);
+  assert.ok(!h.renderCompletion(),'A stale snapshot must be hidden immediately.');
+  h.open('idea');assert.equal(h.context.postPublishIdea,null);assert.deepEqual(h.calls,[]);
+ }
+});
+
+test('account reset clears a completion snapshot and its old toast while an unchanged account retains it',()=>{
+ const h=publicationHarness();h.run();const snapshot=h.context.postPublishIdea;
+ Object.assign(h.context,{publishingAccountRef:{current:'account'},defaultCategoryRequest:{current:null},deferredIntentRef:{current:{kind:'route'}},
+  setGlobalCreateAccountId(){},setProjectSetupAccountId(){},setMobileRecoveryDraft(){},setMobileRecoveryError(){},setPublishResumeDraft(){},setGlobalCreateError(){},setFirstProjectPublisher(){},setPublishAccountId(){},
+ });
+ h.resetAccount();assert.equal(h.context.postPublishIdea,snapshot);
+ h.context.auth.user={id:'next-account'};h.context.publishConfirmation={message:'Old result'};h.resetAccount();
+ assert.equal(h.context.postPublishIdea,null);assert.equal(h.context.publishConfirmation,null);assert.equal(h.context.publishingAccountRef.current,'next-account');
+ assert.equal(h.context.deferredIntentRef.current,null);
+});
+
+test('completion CTA callbacks use captured route IDs and dismissal only restores eligible destination focus',()=>{
+ for(const presentation of ['mobile','web'])for(const destination of ['idea','catalogue','close']){
+  const h=publicationHarness({presentation});h.run();h.calls.length=0;let focused=0;
+  h.context.mainContentRef.current={focus:options=>{assert.equal(options.preventScroll,true);focused++;}};
+  h.context.publishTargetCategoryId='later-portal';h.context.projectSetupMetadata={categoryId:'later-portal'};
+  const card=h.renderCompletion().props.children;
+  card.props[destination==='idea'?'onViewIdea':destination==='catalogue'?'onOpenCatalogue':'onClose']();
+  assert.equal(h.context.postPublishIdea,null);assert.equal(focused,1);
+  assert.deepEqual(h.calls,destination==='idea'?[['project','profile','work','published']]:destination==='catalogue'?[['profile','profile']]:[]);
+ }
+ const h=publicationHarness();h.run();let focused=0;h.context.mainContentRef.current={focus:()=>focused++};h.context.document.querySelector=()=>({});h.close();
+ assert.equal(focused,0,'Dismissing this card cannot steal focus from another modal.');
 });

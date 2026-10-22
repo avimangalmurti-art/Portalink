@@ -23,7 +23,9 @@ const routes = load('src/app/routes.ts', { '../components/navigation': navigatio
 const app = ts.createSourceFile('App.tsx', read('src/App.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 assert.equal(app.parseDiagnostics.length, 0, 'The production callback must come from valid App source');
 let publishedCallback;
+const completionFunctions=[];
 function visit(node) {
+  if(ts.isFunctionDeclaration(node)&&['focusPublishedDestination','closePostPublishIdea','openPostPublishedIdea'].includes(node.name?.text))completionFunctions.push(node.getText(app));
   if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(app) === 'PublishProjectDialog') {
     const attribute = node.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(app) === 'onPublished');
     if (attribute?.initializer && ts.isJsxExpression(attribute.initializer)) publishedCallback = attribute.initializer.expression?.getText(app);
@@ -35,7 +37,7 @@ assert.ok(publishedCallback, 'Exercise App’s actual publish-to-navigation hand
 
 function harness({ presentation = 'mobile', path = '/p/owner?view=portals#old-work',
   firstProjectPublisher = false, isFirstProjectPublish = false, resume = false,
-  profileId = 'owner', citeIntent = null, privateProfile = false } = {}) {
+  profileId = 'owner', citeIntent = null, privateProfile = false, fromSetup = false } = {}) {
   const navigationCalls = [], redirects = [], confirmations = [], remembered = [];
   const history = { state: { idx: 3 } };
   const locationFor = (address, state = null) => {
@@ -59,21 +61,26 @@ function harness({ presentation = 'mobile', path = '/p/owner?view=portals#old-wo
   const context = vm.createContext({
     presentation, firstProjectPublisher, isFirstProjectPublish,
     publishResumeDraft: resume ? { id: 'saved-draft' } : undefined,
-    publishTargetCategoryId: 'work', auth: { viewerProfileId: profileId },
-    viewedProfile: profileId ? { id: profileId, isPrivate: privateProfile } : null,
-    nav: routing.useRouteNavigator(), mainContentRef: { current: null },
-    window: { sessionStorage: { getItem: key => { assert.equal(key, 'portalink:cite-intent'); return citeIntent; } }, location: { assign: path => redirects.push(path) } },
+    projectSetupMetadata:fromSetup?{categoryId:'work',title:'New idea',summary:''}:undefined,publishAccountId:'account',isOwnerMode:true,
+    publishTargetCategoryId: 'work', auth: { viewerProfileId: profileId,user:{id:'account'},isAuthenticated:true },
+    viewedProfile: profileId ? { id: profileId, isPrivate: privateProfile,categories:[{id:'work'}] } : null,
+    postPublishIdea:null,readSetupDraft:()=>null,clearSetupDraft(){},setProjectSetupMetadata(){},
+    nav: routing.useRouteNavigator(), mainContentRef: { current: null },buildPath:routes.buildPath,
+    window: { sessionStorage: { getItem: key => { assert.equal(key, 'portalink:cite-intent'); return citeIntent; } }, location: { get pathname(){return location.pathname;},get search(){return location.search;},get hash(){return location.hash;},assign: path => redirects.push(path) } },document:{querySelector:()=>null},
     setIsPublishOpen: value => { states.isPublishOpen = value; },
     setPublishTargetCategoryId: value => { states.publishTargetCategoryId = value; },
     setJourneyMadeIn: value => { states.journeyMadeIn = value; },
-    setPublishConfirmation: value => confirmations.push(plain(value)),
+    setPublishConfirmation: value => confirmations.push(plain(value)),setPostPublishIdea:value=>{context.postPublishIdea=value;},
     rememberLivePortfolio: (...args) => remembered.push(args),
     requestAnimationFrame: callback => { callback(); return 1; },
   });
-  vm.runInContext(compile(`result = (${publishedCallback});`), context);
+  vm.runInContext(compile(`${completionFunctions.join('\n')}\nresult = (${publishedCallback});`), context);
   return { publish: (result = {}) => context.result({ projectId: 'new-project', mediaPersisted: true, sessionOnly: false, ...result }, 'New work'),
     navigationCalls, redirects, confirmations, remembered, states,
-    location: () => location, route: () => plain(routing.useAppRoute()) };
+    location: () => location, route: () => plain(routing.useAppRoute()),get completion(){return context.postPublishIdea;},
+    complete:destination=>vm.runInContext(compile(destination==='close'?'closePostPublishIdea();':`openPostPublishedIdea(${JSON.stringify(destination)});`),context),
+    setBrowserAddress:address=>{location=locationFor(address);},
+  };
 }
 
 for (const [name, options] of [
@@ -148,4 +155,26 @@ test('completion cannot forge a profile destination when the owner identity is a
     assert.deepEqual(h.redirects, []);
     assert.equal(h.states.isPublishOpen, false);
   }
+});
+
+test('ordinary New idea completion retains its existing destination beneath the card and its captured CTA routes',()=>{
+ for(const presentation of ['mobile','web'])for(const action of ['idea','catalogue','close']){
+  const h=harness({presentation,fromSetup:true});h.publish();
+  assert.equal(h.completion.projectId,'new-project');assert.deepEqual(h.confirmations,[null]);
+  assert.deepEqual(h.route(),presentation==='mobile'?{kind:'profile',profileId:'owner'}:{kind:'project',profileId:'owner',categoryId:'work',projectId:'new-project'});
+  const count=h.navigationCalls.length;h.complete(action);assert.equal(h.completion,null);
+  assert.deepEqual(h.route(),action==='idea'?{kind:'project',profileId:'owner',categoryId:'work',projectId:'new-project'}:action==='catalogue'?{kind:'profile',profileId:'owner'}:presentation==='mobile'?{kind:'profile',profileId:'owner'}:{kind:'project',profileId:'owner',categoryId:'work',projectId:'new-project'});
+  const alreadyAtDestination=(action==='idea'&&presentation==='web')||(action==='catalogue'&&presentation==='mobile');
+  assert.equal(h.navigationCalls.length,count+(action==='close'||alreadyAtDestination?0:1));
+ }
+});
+
+test('completion CTA deduplicates only the exact fresh destination and still leaves other paths, queries and hashes',()=>{
+ for(const presentation of ['mobile','web'])for(const action of ['idea','catalogue'])for(const suffix of ['', '?view=portals','#old-work','/other']){
+  const h=harness({presentation,fromSetup:true});h.publish();
+  const target=action==='idea'?routes.buildPath('project',{profileId:'owner',categoryId:'work',projectId:'new-project'}):routes.buildPath('profile',{profileId:'owner'});
+  h.setBrowserAddress(target+suffix);const count=h.navigationCalls.length;h.complete(action);
+  assert.equal(h.completion,null);assert.equal(h.navigationCalls.length,count+(suffix?1:0));
+  assert.equal(h.location().pathname,target);assert.equal(h.location().search,'');assert.equal(h.location().hash,'');
+ }
 });

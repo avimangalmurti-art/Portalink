@@ -43,9 +43,11 @@ export function PublishProjectDialog({
   onPublished
 }: PublishProjectDialogProps) {
   const isMobile = usePresentation() === 'mobile';
+  const onboarding = Boolean(initialMetadata);
+  const guided = isMobile || Boolean(firstProject) || onboarding;
   const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
   const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: isMobile, resume: isMobile ? resumeDraft : undefined, initialMetadata, awaitProfile: isMobile });
-  const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? 'Review project' : publishFlow.firstProjectStage === 'details' ? 'New project' : 'Files & cover';
+  const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? onboarding ? 'Review idea' : 'Review project' : publishFlow.firstProjectStage === 'details' ? onboarding ? 'Idea details' : 'New project' : 'Files & cover';
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
@@ -61,7 +63,7 @@ export function PublishProjectDialog({
   } = publishFlow;
   const isPublishing = state === 'publishing';
   const removingLocalCopy = isMobile && Boolean(resumeDraft) && Boolean(publishFlow.draftError) && !publishFlow.draft;
-  const isRecovering = isClosing || isPublishing || publishFlow.isSavingDraft || publishFlow.isDiscarding || publishFlow.upload.isBusy || publishFlow.upload.isCleaningUp || (isMobile && media.state === 'selecting');
+  const isRecovering = isClosing || isPublishing || publishFlow.isSavingDraft || publishFlow.isDiscarding || publishFlow.upload.isBusy || publishFlow.upload.isCleaningUp || ((isMobile || onboarding) && media.state === 'selecting');
   useEffect(() => {
     if (!isOpen) {
       setIsConfirmingDiscard(false);
@@ -78,12 +80,12 @@ export function PublishProjectDialog({
     }
   }, [publishFlow.upload.failure]);
   useEffect(() => {
-    if (!isMobile && isOpen && step === 'metadata' && publishFlow.draft) {
+    if (!isMobile && !onboarding && isOpen && step === 'metadata' && publishFlow.draft) {
       const frame = requestAnimationFrame(() => document.getElementById('publish-add-files')?.focus());
       return () => cancelAnimationFrame(frame);
     }
     return undefined;
-  }, [isMobile, isOpen, step, publishFlow.draft]);
+  }, [isMobile, onboarding, isOpen, step, publishFlow.draft]);
   useEffect(() => {
     // Only a confirmed project result completes the flow. A finished transfer,
     // cancelled upload, or failed publication must leave the form available.
@@ -100,22 +102,22 @@ export function PublishProjectDialog({
   // A failed validation pass moves focus to the first field that needs
   // attention, so the reason is read rather than merely displayed.
   useEffect(() => {
-    if (isMobile || !publishFlow.invalidField) {
+    if (isMobile || onboarding || !publishFlow.invalidField) {
       return;
     }
     const field = document.getElementById(`publish-${publishFlow.invalidField === 'summary' ? 'summary' : publishFlow.invalidField}`);
     if (field instanceof HTMLElement) {
       field.focus();
     }
-  }, [isMobile, publishFlow.invalidField]);
+  }, [isMobile, onboarding, publishFlow.invalidField]);
   // Reviewing with no files chosen sends focus to the picker, so the objection
   // is acted on rather than only read.
   useEffect(() => {
-    if (isMobile || !publishFlow.isMediaMissing) {
+    if (isMobile || onboarding || !publishFlow.isMediaMissing) {
       return;
     }
     document.getElementById('publish-add-files')?.focus();
-  }, [isMobile, publishFlow.isMediaMissing]);
+  }, [isMobile, onboarding, publishFlow.isMediaMissing]);
   if (!isOpen || step === 'done') {
     return null;
   }
@@ -182,7 +184,7 @@ export function PublishProjectDialog({
                 </div>}
 
   </>;
-  return <PublishFrame mobileFlow={isMobile} title={isMobile ? mobileTitle : firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title={removingLocalCopy ? 'Remove saved copy?' : publishFlow.hasDiscardedDraft ? 'Finish removing this draft?' : 'Discard this draft?'} description={removingLocalCopy ? 'This removes the saved files and details from this device. Published work and uploaded files remain in your account.' : publishFlow.hasDiscardedDraft ? 'The draft was removed from your account. Try again to clear its saved copy on this device.' : 'Your details and selected files will be lost.'} confirmLabel={removingLocalCopy ? 'Remove saved copy' : undefined} error={publishFlow.discardError} busy={publishFlow.isDiscarding} keepLabel={publishFlow.hasDiscardedDraft ? 'Close' : undefined} onKeep={() => {
+  return <PublishFrame mobileFlow={isMobile || onboarding} onboarding={onboarding} title={isMobile || onboarding ? mobileTitle : firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : "New project"} titleId="publish-dialog-title" description={onboarding || (isMobile && firstProject) ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title={removingLocalCopy ? 'Remove saved copy?' : publishFlow.hasDiscardedDraft ? 'Finish removing this draft?' : 'Discard this draft?'} description={removingLocalCopy ? 'This removes the saved files and details from this device. Published work and uploaded files remain in your account.' : publishFlow.hasDiscardedDraft ? 'The draft was removed from your account. Try again to clear its saved copy on this device.' : 'Your details and selected files will be lost.'} confirmLabel={removingLocalCopy ? 'Remove saved copy' : undefined} error={publishFlow.discardError} busy={publishFlow.isDiscarding} keepLabel={publishFlow.hasDiscardedDraft ? 'Close' : undefined} onKeep={() => {
     if (publishFlow.hasDiscardedDraft) { onClose(); return; }
     publishFlow.dismissDiscardError();
     setIsConfirmingDiscard(false);
@@ -198,7 +200,7 @@ export function PublishProjectDialog({
               {removingLocalCopy && <Button type="button" variant="secondary" size="lg" onClick={()=>setIsConfirmingDiscard(true)}>Remove saved copy</Button>}
             </div> : (!publishFlow.draft && !firstProject) || publishFlow.restoringDraft ? <div className="project-form-content scrollbar-slim">
               <LoadingState label="Starting a draft" />
-            </div> : isMobile || firstProject ? <MobilePublishFlow closing={isClosing} detailsFirst={Boolean(initialMetadata) || Boolean(isMobile && resumeDraft && metadata.title.trim())} flow={publishFlow} editingStep={isMobile || firstProject ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={isMobile || firstProject ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
+            </div> : guided ? <MobilePublishFlow onboarding={onboarding} closing={isClosing} detailsFirst={Boolean(initialMetadata) || Boolean(isMobile && resumeDraft && metadata.title.trim())} flow={publishFlow} editingStep={guided ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={guided ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
           event.preventDefault();
           if (publishFlow.canPublish && !publishFlow.isSavingDraft) {
             void publishFlow.publish.run();
