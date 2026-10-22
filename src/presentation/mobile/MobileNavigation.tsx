@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CircleUserRoundIcon, SlidersHorizontalIcon, MessageCircleIcon, WarehouseIcon } from 'lucide-react';
+import { CircleUserRoundIcon, SearchIcon, MessageCircleIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { useMobileDockScroll } from './useMobileDockScroll';
@@ -20,7 +20,7 @@ export function MobileNavigation({ onMessages, onProfile, profileHref, isProfile
   const dockRef = useRef<HTMLDivElement>(null);
   useMobileDockScroll(!actions?.opened, pathname, dockRef);
   const destinations: Item[] = [
-    { label: 'Explore', icon: SlidersHorizontalIcon, href: buildPath('home'), active: pathname === buildPath('home') },
+    { label: 'Explore', icon: SearchIcon, href: buildPath('home'), active: pathname === buildPath('home') },
     { label: 'Messages', icon: MessageCircleIcon, action: () => onMessages(true), active: pathname === buildPath('messages') },
     { label: 'Studio', icon: WarehouseIcon, href: buildPath('studio'), active: pathname === buildPath('studio') || pathname === buildPath('saved') },
     { label: 'Profile', icon: CircleUserRoundIcon, href: profileHref, action: onProfile, active: isProfileActive },
