@@ -1,18 +1,23 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 
 const overlayHost = () => document.fullscreenElement ?? document.querySelector('.app-shell') ?? document.body;
 
 /** Escape the project's clipped content column without resizing its artwork. */
 export function MobileProjectIndexPortal({ anchorRef, children }: { anchorRef: RefObject<HTMLDivElement>; children: React.ReactNode }) {
+  const active = useMobileScreenActive();
   const [host, setHost] = useState(overlayHost);
   const overlayRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (!active) return;
     const updateHost = () => setHost(overlayHost());
+    updateHost();
     document.addEventListener('fullscreenchange', updateHost);
     return () => document.removeEventListener('fullscreenchange', updateHost);
-  }, []);
+  }, [active]);
   useLayoutEffect(() => {
+    if (!active) return;
     // Retain the workspace's safe-area and dock clearance after portalling.
     const updateInsets = () => {
       if (!anchorRef.current || !overlayRef.current) return;
@@ -38,7 +43,10 @@ export function MobileProjectIndexPortal({ anchorRef, children }: { anchorRef: R
     const frame = requestAnimationFrame(initialize);
     window.addEventListener('resize', updateInsets);
     return () => { cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener('resize', updateInsets); };
-  }, [anchorRef, host]);
+  }, [active, anchorRef, host]);
+  // Retained screens stay mounted, but their root-level portals must not cover
+  // the active screen or keep its document scrolling locked.
+  if (!active) return null;
   return createPortal(<div data-presentation="mobile">
     <div ref={overlayRef} data-saved-change-scope="" data-mobile-project-view="" data-mobile-combined-rail="" className="mobile-project-index-overlay">{children}</div>
   </div>, host);

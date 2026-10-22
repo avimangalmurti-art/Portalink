@@ -159,7 +159,7 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
     top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)',
   }} onPointerDown={event => { if (event.target === event.currentTarget) dismiss(); }}>
     <section ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} aria-busy={busy} data-welcome-contrast={highContrast} data-welcome-solid={reduceTranslucency}
-      className={`${signIn ? '' : 'auth-signin-vanta '}account-welcome-card flex max-h-full w-full max-w-[560px] flex-col rounded-[14px] border p-5 text-[var(--text-primary)] outline-none sm:p-7`}
+      data-ui-shape={!isMobile && !signIn ? 'popup' : undefined} className={`${signIn ? '' : 'auth-signin-vanta '}account-welcome-card flex max-h-full w-full max-w-[560px] flex-col rounded-[14px] border p-5 text-[var(--text-primary)] outline-none sm:p-7`}
       style={resolveAccentTokens(accentColor, signIn ? 'light' : onboarding ? theme : 'dark')}>
       <button type="button" aria-label={isMobile ? 'Back' : 'Close'} disabled={busy} onClick={onboarding && onStepBack && !pendingLeave ? onStepBack : dismiss} className="account-welcome-close self-end rounded-lg p-1.5 text-[var(--text-secondary)] hover:text-white focus-visible:outline focus-visible:outline-2 disabled:opacity-40">{onboarding ? <ChevronLeftIcon size={26} aria-hidden="true" /> : isMobile ? <><ArrowLeftIcon size={20} aria-hidden="true" /><span>Back</span></> : <XIcon size={18} aria-hidden="true" />}</button>
       <div ref={contentRef} className="account-welcome-content scrollbar-slim min-h-0 overflow-y-auto overscroll-contain px-1 pb-1">

@@ -393,7 +393,7 @@ export function MessagesPage({
               onSelectCreator={(profileId) => { void messaging.startConversation(profileId); }}
             /> : <>
               <div data-inbox-controls="" className="side-panel-control-stack side-panel-content-inset shrink-0">
-                <div className={isMobile ? "mobile-screen-action-row" : undefined}><label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
+                <div className={isMobile ? "mobile-screen-action-row" : undefined}><label data-ui-shape="field" className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
                   <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
                   <span className="sr-only">Search conversations</span>
                   <input ref={searchInput} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
@@ -469,7 +469,7 @@ export function MessagesPage({
                 {!isMessageRequest && attachments.length > 0 ? <ul className="mx-auto mb-2 flex max-w-[760px] flex-wrap gap-2" aria-label="Selected attachments">
                     {attachments.map((file, index) => <li key={`${file.name}:${file.size}:${index}`} className="flex max-w-full items-center gap-2 rounded-full bg-[var(--surface-sunken)] px-3 py-1.5 text-[12px]"><InterfaceIcon icon={FileTextIcon} /><span className="max-w-48 truncate">{file.name}</span><button data-ui-shape="icon" data-control-size="sm" type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`} className="shape-compact flex items-center justify-center"><InterfaceIcon icon={XIcon} size="md" /></button></li>)}
                   </ul> : null}
-                <div data-message-composer="" data-invitation-composer={isMessageRequest || undefined} className="text-control-shell mx-auto flex max-w-[760px] items-end gap-2 rounded-[22px] p-1.5 pl-2">
+                <div data-ui-shape="composer" data-message-composer="" data-invitation-composer={isMessageRequest || undefined} className="text-control-shell mx-auto flex max-w-[760px] items-end gap-2 rounded-[22px] p-1.5 pl-2">
                   {!isMessageRequest ? <label className="shape-compact flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)]" title="Attach files">
                     <span className="sr-only">Attach files</span><InterfaceIcon icon={isMobile ? PlusIcon : PaperclipIcon} />
                     <input type="file" multiple className="sr-only" onChange={(event) => {
@@ -492,7 +492,7 @@ export function MessagesPage({
                       event.currentTarget.form?.requestSubmit();
                     }
                   }} rows={1} maxLength={4000} placeholder={isMessageRequest ? "Send an invitation" : isMobile ? "Message..." : "Message"} aria-label={`Message ${messaging.activeConversation.participant.name}`} className="max-h-32 min-h-[38px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-2 text-[16px] leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
-                  <button type="submit" disabled={messaging.isSending || (isMobile && messaging.threadUnavailable) || (!draft.trim() && (isMessageRequest || attachments.length === 0))} aria-busy={messaging.isSending} aria-label={isMessageRequest ? "Send invitation" : "Send message"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+                  <button data-ui-shape={isMessageRequest && isMobile ? 'action' : 'icon'} type="submit" disabled={messaging.isSending || (isMobile && messaging.threadUnavailable) || (!draft.trim() && (isMessageRequest || attachments.length === 0))} aria-busy={messaging.isSending} aria-label={isMessageRequest ? "Send invitation" : "Send message"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
                     <InterfaceIcon icon={SendIcon} weight="medium" />
                     {isMessageRequest && isMobile ? <span>{messaging.isSending ? "Sending…" : "Send"}</span> : null}
                   </button>
@@ -519,7 +519,7 @@ export function MessagesPage({
             <h2 id="report-conversation-title" className="text-[17px] font-semibold">Report conversation</h2>
             {reportSent ? <><p className="mt-3 text-[14px] text-[var(--text-secondary)]">Your report has been received. Blocking is separate, so you remain in control of whether this person can contact you.</p><button data-ui-shape="action" data-control-size="md" type="button" onClick={() => setIsReportOpen(false)} className="shape-compact mt-5 w-full bg-[var(--accent-primary)] px-4 py-2.5 text-[14px] font-semibold text-[var(--accent-foreground)]">Done</button></> : <>
                 <label className="mt-4 block text-[13px] font-semibold" htmlFor="conversation-report-reason">What happened?</label>
-                <textarea id="conversation-report-reason" required maxLength={500} value={reportReason} onChange={(event) => setReportReason(event.target.value)} placeholder="Describe the problem" className="text-control-shell mt-2 min-h-28 w-full resize-y rounded-[9px] p-3 text-[14px]" />
+                <textarea data-ui-shape="composer" id="conversation-report-reason" required maxLength={500} value={reportReason} onChange={(event) => setReportReason(event.target.value)} placeholder="Describe the problem" className="text-control-shell mt-2 min-h-28 w-full resize-y rounded-[9px] p-3 text-[14px]" />
                 <div className="mt-4 flex justify-end gap-2"><button data-ui-shape="action" data-control-size="md" type="button" onClick={() => setIsReportOpen(false)} className="shape-compact px-4 py-2 text-[13px] font-semibold hover:bg-[var(--surface-hover)]">Cancel</button><button data-ui-shape="action" data-control-size="md" type="submit" disabled={!reportReason.trim() || messaging.pendingAction === 'report'} className="shape-compact bg-[var(--accent-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--accent-foreground)] disabled:opacity-50">{messaging.pendingAction === 'report' ? 'Sending…' : 'Send report'}</button></div>
               </>}
           </form>
@@ -597,7 +597,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
               <div data-message-bubble={isMine ? 'outgoing' : 'incoming'} className={`group/message max-w-[78%] rounded-[18px] px-3.5 py-2.5 ${isMine ? 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)] ring-1 ring-[var(--hairline)]'} ${message.deliveryState === 'failed' ? 'ring-2 ring-[var(--status-danger)]' : ''}`}>
                 {message.isRemoved ? <p className="text-[12px] text-[var(--text-tertiary)]">Deleted User</p> : null}
                 {editingId === message.id ? <form onSubmit={(event) => { event.preventDefault(); void onEdit(message.id, editBody).then((saved) => { if (saved) setEditingId(null); }); }}>
-                    <textarea ref={editTextareaRef} autoFocus aria-label="Edit message" value={editBody} onChange={(event) => setEditBody(event.target.value)} onKeyDown={!isMobile ? (event) => {
+                    <textarea data-ui-shape="composer" ref={editTextareaRef} autoFocus aria-label="Edit message" value={editBody} onChange={(event) => setEditBody(event.target.value)} onKeyDown={!isMobile ? (event) => {
                       if (event.nativeEvent.isComposing || pendingMessageId === message.id) return;
                       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setEditingId(null); }
                       else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {

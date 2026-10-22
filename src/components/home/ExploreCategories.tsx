@@ -19,7 +19,7 @@ export function ExploreCategories({ onBack }: { onBack:()=>void }) {
   return <section className="explore-categories" data-explore-categories="" aria-label="Explore categories">
     <ScreenBack action={onBack}>{null}</ScreenBack>
     <header><div className="explore-categories-heading"><button type="button" onClick={onBack} aria-label="Back to Explore"><InterfaceIcon icon={ArrowLeftIcon}/></button><h1>Categories</h1></div>
-      <label className="explore-categories-search"><InterfaceIcon icon={SearchIcon}/><span className="sr-only">Search categories</span><input value={query} onChange={event=>{setQuery(event.target.value);setNotice('');}} placeholder="Search categories" type="search" /></label>
+      <label data-ui-shape="field" className="explore-categories-search"><InterfaceIcon icon={SearchIcon}/><span className="sr-only">Search categories</span><input value={query} onChange={event=>{setQuery(event.target.value);setNotice('');}} placeholder="Search categories" type="search" /></label>
       <p role="status" className="explore-categories-notice">{notice}</p>
     </header>
     <div className="explore-categories-scroll"><p className="explore-categories-intro">Browse ideas</p><div className="explore-categories-grid">{visible.map((item,index)=><button type="button" key={item.label} className="explore-category-card" data-card-size={index%3} onClick={()=>setNotice(`${item.label}: Not available yet.`)}><span>{item.label}</span><div className="explore-category-art" aria-hidden="true"><InterfaceIcon icon={item.icon}/></div></button>)}</div>{!visible.length&&<p className="explore-categories-empty">No matching categories.</p>}</div>

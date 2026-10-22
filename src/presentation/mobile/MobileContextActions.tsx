@@ -89,7 +89,7 @@ export function MobileContextButton({ floating = false }: { floating?: boolean }
   const actions = useMobileActions();
   const active = useMobileScreenActive();
   if (!active) return null;
-  return <div className={floating ? 'mobile-context-floating' : 'mobile-context-slot'}><button ref={actions?.button} type="button" className="mobile-context-button" data-keep-color="" aria-label="Actions for this screen" aria-haspopup="dialog" aria-expanded={actions?.opened ?? false} onClick={() => actions?.open()}><InterfaceIcon icon={EllipsisIcon} /></button></div>;
+  return <div className={floating ? 'mobile-context-floating' : 'mobile-context-slot'}><button data-ui-shape={floating ? "icon" : "capsule"} ref={actions?.button} type="button" className="mobile-context-button" data-keep-color="" aria-label="Actions for this screen" aria-haspopup="dialog" aria-expanded={actions?.opened ?? false} onClick={() => actions?.open()}><InterfaceIcon icon={EllipsisIcon} /></button></div>;
 }
 /** Held touch is supplementary to the visible context button; scrolling cancels it. */
 export function useMobileHold(onHold: (() => void) | null) {

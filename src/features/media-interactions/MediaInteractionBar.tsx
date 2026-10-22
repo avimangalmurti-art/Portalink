@@ -242,7 +242,7 @@ export function MediaInteractionBar({
           <h3 className="truncate text-[12px] font-semibold text-white">Comments</h3>
           <p className="truncate text-[10px] text-white/55">{presentedTarget.label}{isMobile && pageCount ? ` of ${pageCount}` : ''}</p>
         </div>
-        {isMobile ? <button type="button" data-comments-close="" onClick={dismiss} aria-label="Close comments"><InterfaceIcon icon={XIcon} size="lg" weight="medium" /></button> : null}
+        {isMobile ? <button type="button" data-comments-close="" data-ui-shape="icon" onClick={dismiss} aria-label="Close comments"><InterfaceIcon icon={XIcon} size="lg" weight="medium" /></button> : null}
         {!isMobile && activity.isLoading ? <Loader2Icon className="h-3.5 w-3.5 animate-spin text-white/55 motion-reduce:animate-none" aria-label="Loading comments" /> : null}
       </header>
       {isMobile || activity.record.comments.length > 0 || !isOwner ? <div data-comments-list="" className="scrollbar-overlay max-h-48 overflow-y-auto overscroll-contain px-3.5 py-2.5">
@@ -271,7 +271,7 @@ export function MediaInteractionBar({
         event.preventDefault();
         if (await activity.postComment(commentBody)) setCommentBody('');
       }}>
-        <div data-comments-input="" className={isMobile ? 'field-shell text-control-shell' : 'flex items-end gap-2 rounded-[10px] bg-white/8 p-2'}>
+        <div data-comments-input="" data-ui-shape="composer" className={isMobile ? 'field-shell text-control-shell' : 'flex items-end gap-2 rounded-[10px] bg-white/8 p-2'}>
           <textarea
             ref={composerRef}
             value={commentBody}
@@ -282,7 +282,7 @@ export function MediaInteractionBar({
             aria-label={`Comment on ${presentedTarget.label}`}
             className="min-h-8 min-w-0 flex-1 resize-none bg-transparent text-[11px] leading-relaxed text-white outline-none placeholder:text-white/35"
           />
-          <button type="submit" data-keep-color="" disabled={activity.isPostingComment || !commentBody.trim()} aria-label="Post comment" data-comment-send="" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-35">
+          <button type="submit" data-keep-color="" data-ui-shape="icon" disabled={activity.isPostingComment || !commentBody.trim()} aria-label="Post comment" data-comment-send="" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-35">
             {activity.isPostingComment ? <Loader2Icon className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <InterfaceIcon icon={SendIcon} size="sm" weight="medium" />}
           </button>
         </div>
