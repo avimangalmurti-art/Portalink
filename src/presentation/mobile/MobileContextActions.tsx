@@ -2,7 +2,7 @@ import { focusMobileContextButton } from './contextFocus';
 import React, { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { EllipsisIcon } from 'lucide-react';
+import { EllipsisIcon, XIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePresentation } from '../usePresentation';
 import { useMobileScreenActive } from './MobileBackNavigation';
@@ -33,22 +33,30 @@ export function MobileContextProvider({ children, showFloatingButton = true, she
   const currentScreen = () => mergeContextActions([...entries.current.values()].filter(item => item.route === route).sort((a, b) => b.priority - a.priority).map(item => item.model));
   const focusContext = () => { button.current = focusMobileContextButton(); };
   const open = (source?: ModelSource) => {
-    focusContext();
     if (!source) {
       const target = [...entries.current.values()].filter(item => item.route === route).sort((a, b) => b.priority - a.priority).find(item => item.onOpen);
       if (target?.onOpen) {
+        focusContext();
         // Information replaces an existing actions sheet; it must not leave
         // that sheet mounted underneath to reappear on dismissal.
         setOpened(null); setNotice('');
         target.onOpen(); return;
       }
     }
+    const requested = source ? typeof source === 'function' ? source() : source : currentScreen();
+    // Project management sheets were retired. Explicit and late model sources
+    // must not resurrect them; the reader's onOpen above shows information.
+    if (requested?.kind === 'project') { setOpened(null); setNotice(''); return; }
+    focusContext();
     setOpened({ identity, source }); setHint(false); setNotice('');
     try { localStorage.setItem(hintKey, '1'); } catch { /* Convenience only. */ }
   };
   useEffect(() => { setOpened(null); setNotice(''); }, [identity]);
   useEffect(() => () => { identityRef.current = ''; }, []);
-  const resolve = () => opened?.identity !== identity ? null : opened.source ? typeof opened.source === 'function' ? opened.source() : opened.source : currentScreen();
+  const resolve = () => {
+    const resolved = opened?.identity !== identity ? null : opened.source ? typeof opened.source === 'function' ? opened.source() : opened.source : currentScreen();
+    return resolved?.kind === 'project' ? null : resolved;
+  };
   const model = resolve();
   const close = () => {
     flushSync(() => setOpened(null));
@@ -65,7 +73,9 @@ export function MobileContextProvider({ children, showFloatingButton = true, she
     catch (error) { setNotice(error instanceof Error ? error.message : 'This action could not be completed.'); }
   };
   void revision;
-  return <MobileActions.Provider value={{ register, open, refresh, opened: Boolean(model), button, hint }}>{children}{mobile && currentScreen() && showFloatingButton && <MobileContextButton floating />}{mobile && model && <Sheet model={model} onClose={close} onAction={run} />}{mobile && notice && <div className="mobile-context-notice" role="alert">{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss action message">×</button></div>}</MobileActions.Provider>;
+  const screenModel = currentScreen();
+  const canOpenScreen = screenModel?.kind !== 'project' || [...entries.current.values()].some(item => item.route === route && item.onOpen);
+  return <MobileActions.Provider value={{ register, open, refresh, opened: Boolean(model), button, hint }}>{children}{mobile && screenModel && canOpenScreen && showFloatingButton && <MobileContextButton floating />}{mobile && model && <Sheet model={model} onClose={close} onAction={run} />}{mobile && notice && <div className="mobile-context-notice" role="alert">{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss action message"><InterfaceIcon icon={XIcon} size="lg" /></button></div>}</MobileActions.Provider>;
 }
 export function useMobileScreenActions(model: ContextActions | null, priority = 10, onOpen?: () => void) {
   const context = useContext(MobileActions), id = useId(), { pathname, search } = useLocation(), mobile = usePresentation() === 'mobile';
@@ -77,6 +87,8 @@ export function MobileScreenActions({ model, priority = 0 }: { model: ContextAct
 export function useMobileActions() { return useContext(MobileActions); }
 export function MobileContextButton({ floating = false }: { floating?: boolean }) {
   const actions = useMobileActions();
+  const active = useMobileScreenActive();
+  if (!active) return null;
   return <div className={floating ? 'mobile-context-floating' : 'mobile-context-slot'}><button ref={actions?.button} type="button" className="mobile-context-button" data-keep-color="" aria-label="Actions for this screen" aria-haspopup="dialog" aria-expanded={actions?.opened ?? false} onClick={() => actions?.open()}><InterfaceIcon icon={EllipsisIcon} /></button></div>;
 }
 /** Held touch is supplementary to the visible context button; scrolling cancels it. */
@@ -99,9 +111,10 @@ export function useMobileHold(onHold: (() => void) | null) {
   } : {};
 }
 export function useMobileContextPress(model: ContextActions | null, useScreen = false, onOpen?: () => void) {
-  const actions = useMobileActions(), latest = useRef(model); latest.current = model;
+  const pressModel = model?.kind === 'project' ? null : model;
+  const actions = useMobileActions(), latest = useRef(pressModel); latest.current = pressModel;
   const source = useRef(() => latest.current), refresh = actions?.refresh;
-  const signature = model ? shape({ route: '', priority: 0, model }) : '';
+  const signature = pressModel ? shape({ route: '', priority: 0, model: pressModel }) : '';
   useLayoutEffect(() => { refresh?.(source.current); }, [refresh, signature]);
-  return useMobileHold(model ? () => { onOpen?.(); actions?.open(useScreen ? undefined : source.current); } : null);
+  return useMobileHold(pressModel ? () => { onOpen?.(); actions?.open(useScreen ? undefined : source.current); } : null);
 }

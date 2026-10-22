@@ -8,7 +8,7 @@ type Props = { focusedScreen?: boolean; id: string; value: string; disabled?: bo
 /** Keep legacy/custom text intact; only an explicit choice replaces it. */
 export function ProfileLocationPicker({ id, value, disabled, error, onChange, focusedScreen = false }: Props) {
   return <div className={focusedScreen ? "onboarding-location-search" : undefined}><LocationSearch id={id} label="Location (optional)" value={value} disabled={disabled} error={error}
-    above={focusedScreen} blurOnSelect={focusedScreen} onConfirm={focusedScreen ? () => { /* Selection already updates profile state; Enter only finishes editing. */ } : undefined}
+    above={focusedScreen} blurOnSelect={focusedScreen}
     maxLength={LOCATION_MAX_LENGTH} onChange={onChange} canSelect={place => profilePlaceLabel(place) !== null}
     onSelect={place => { const label = profilePlaceLabel(place); if (label !== null) onChange(label); }} /></div>;
 }

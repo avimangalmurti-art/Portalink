@@ -1,0 +1,70 @@
+#root .codex-shell .optional-setup-backdrop .optional-account-setup {
+  --text-primary:var(--optional-setup-foreground);
+  --text-secondary:var(--optional-setup-foreground);
+  --hairline:var(--optional-setup-border);
+  --hairline-strong:var(--optional-setup-border);
+  --surface-hover:var(--optional-setup-hover-surface);
+  --surface-placeholder:var(--optional-setup-selected-surface);
+  --focus-ring:var(--optional-setup-focus-ring);
+  background:var(--optional-setup-surface,var(--surface-raised))!important;
+  color:var(--optional-setup-foreground,var(--text-primary));
+}
+.optional-setup-backdrop .optional-setup-header-spacer { width:44px; flex:none; }
+.optional-setup-backdrop .optional-setup-content { padding-bottom:16px; }
+.optional-setup-backdrop .optional-setup-appearance-toggle {
+  display:inline-flex;
+  flex:none;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  margin-top:20px;
+  padding:0 14px;
+  border:1px solid var(--hairline-strong,var(--hairline));
+  color:var(--text-secondary);
+  font-size:14px;
+  line-height:1.4;
+}
+.optional-setup-appearance-toggle [data-interface-icon-frame] { width:18px; height:18px; }
+.optional-setup-appearance-toggle [data-interface-icon] { width:18px; height:18px; }
+.optional-setup-appearance-toggle [data-interface-icon-frame]:last-child { transition:transform var(--m-fast) var(--m-enter); }
+.optional-setup-appearance-toggle[aria-expanded='true'] [data-interface-icon-frame]:last-child { transform:rotate(180deg); }
+.optional-setup-backdrop .optional-setup-actions { display:flex; flex-direction:column; gap:8px; padding-top:8px; }
+.optional-setup-backdrop .optional-setup-actions button {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  gap:10px;
+  padding:0 16px;
+  font-size:15px;
+  font-weight:550;
+  line-height:1.4;
+}
+.optional-setup-backdrop .optional-setup-primary { min-height:44px; background:var(--accent-primary); color:var(--accent-foreground); }
+.optional-setup-backdrop[data-presentation='web'] .optional-setup-primary { min-height:40px; }
+.optional-setup-backdrop .optional-setup-skip { min-height:44px; color:var(--text-secondary); }
+.optional-setup-backdrop .optional-setup-appearance { flex:none; width:100%; max-width:358px; text-align:left; }
+.optional-setup-backdrop .optional-setup-appearance .mobile-onboarding-appearance { padding-top:18px; }
+.optional-setup-backdrop .optional-setup-appearance fieldset { min-width:0; }
+.optional-setup-backdrop .optional-setup-appearance legend { margin-bottom:6px; font-size:13px; color:var(--text-secondary); }
+.optional-setup-backdrop .optional-setup-appearance .mobile-onboarding-switch { min-height:44px; font-size:14px; }
+.optional-setup-backdrop [data-appearance-open='true'] .optional-setup-art { display:none; }
+.optional-setup-backdrop [data-appearance-open='true'] .optional-setup-content { padding-top:16px; }
+.optional-setup-backdrop [data-appearance-open='true'] h1 { font-size:28px; }
+.optional-setup-backdrop [data-appearance-open='true'] .optional-setup-appearance-toggle { margin-top:16px; }
+.optional-setup-backdrop[data-presentation='mobile'] .optional-account-setup[data-appearance-open='false'] .optional-setup-content>p { margin-bottom:20px; }
+.optional-setup-backdrop[data-presentation='mobile'] .optional-account-setup[data-appearance-open='false'] .optional-setup-appearance-toggle { margin-top:auto; }
+#root .codex-shell .optional-setup-backdrop[data-presentation='mobile'] > .optional-account-setup { border-radius:28px 28px 0 0 !important; }
+@media (hover:hover) {
+  .optional-setup-backdrop .optional-account-setup :is(header>button,.optional-setup-appearance-toggle,.optional-setup-skip):hover { color:var(--optional-setup-hover-foreground); }
+  .optional-setup-backdrop .mobile-onboarding-swatches button[aria-checked='true']:hover { border-color:var(--optional-setup-hover-foreground); }
+  .optional-setup-backdrop .optional-setup-primary:hover { background:var(--accent-hover,var(--accent-primary)); }
+}
+@media (max-height:740px) {
+  .optional-setup-backdrop .optional-setup-content { padding-inline:24px; }
+  .optional-setup-backdrop .optional-setup-art { flex-basis:160px; min-height:160px; max-height:190px; }
+  .optional-setup-backdrop .optional-setup-art img { max-height:190px; }
+  .optional-setup-backdrop .optional-setup-content h1 { font-size:28px; }
+  .optional-setup-backdrop .optional-setup-appearance-toggle { margin-top:14px; }
+}
+@media (prefers-reduced-motion:reduce) { .optional-setup-appearance-toggle [data-interface-icon-frame]:last-child { transition:none; } }
