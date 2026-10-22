@@ -199,18 +199,18 @@ export function ProfileOnboardingDialog({
       isSubmittingRef.current = false;
     }
   }
-  return <AccountWelcomeSurface mobileOnboarding={isMobile} theme={theme} showAppearance={!isMobile} title={isMobile ? (isComplete ? 'Finishing setup' : 'Create your profile') : isComplete ? 'Account ready' : registration ? 'Finishing your account' : 'Finish your account'} accentColor={accentColor} onAccentColorChange={onAccentColorChange}
+  return <AccountWelcomeSurface profileSetup mobileOnboarding={isMobile} theme={theme} showAppearance={!isMobile} title={isComplete ? isMobile ? 'Finishing setup' : 'Profile ready' : registration ? 'Setting up your profile' : 'Create your profile'} accentColor={accentColor} onAccentColorChange={onAccentColorChange}
     highContrast={highContrast} onHighContrastChange={onHighContrastChange} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange}
     busy={isSubmitting} dirty={isDirty && !isComplete} onDismiss={onDismiss}>
           {(draftLoading || (registration && create.isLoading)) && <p role="status" className="py-4 text-center text-sm text-[var(--text-secondary)]">Finishing your account…</p>}
           {draftNotice && <div className="mb-4 text-sm text-[var(--text-secondary)]"><p role="status">{draftNotice}</p><button type="button" className="min-h-11 text-[var(--accent-text)]" disabled={draftLoading} onClick={() => { autoStarted.current = false; touched.current.avatar = false; setDraftLoading(true); setRestoreAttempt(value => value + 1); }}>Restore saved picture</button></div>}
-          {isComplete && create.createdProfile && isMobile ? <p role="status">Preparing your first project…</p> : isComplete && create.createdProfile ? <div className="mt-5 flex flex-col gap-4">
+          {isComplete && create.createdProfile && isMobile ? <p role="status">Finishing setup…</p> : isComplete && create.createdProfile ? <div className="profile-setup-result mt-5 flex flex-col gap-4">
               <div role="status" className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[13px] leading-relaxed">
                 <CheckCircle2Icon className="mt-[2px] h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{create.createdProfile.name}</span>
                   <span className="mt-0.5 block text-[var(--text-secondary)]">
-                    {avatar.storageNotice ? 'This profile is available for the rest of this prototype session. A reload starts over.' : 'Your profile is saved and ready. You can now publish your work.'}
+                    {avatar.storageNotice ? 'This profile is available for the rest of this prototype session. A reload starts over.' : 'Your profile is ready.'}
                   </span>
                 </span>
               </div>
@@ -220,7 +220,8 @@ export function ProfileOnboardingDialog({
                   Your chosen picture was previewed only and was not uploaded. {avatar.storageNotice}
                 </p>}
               <Button variant="primary" size="lg" fullWidth onClick={() => onComplete(create.createdProfile!.id)}>{completionActionLabel}</Button>
-            </div> : (draftLoading || (registration && create.isLoading)) ? null : <form onSubmit={submit} noValidate data-onboarding-step={isMobile ? 'profile' : undefined} className={isMobile ? 'mobile-onboarding-form' : 'mt-5 flex flex-col gap-4'}>
+            </div> : (draftLoading || (registration && create.isLoading)) ? null : <form onSubmit={submit} noValidate data-onboarding-step={isMobile ? 'profile' : undefined} className="profile-setup-form">
+              <div className="profile-setup-fields">
 
               {create.status === 'error' && <div ref={errorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed focus:outline-none">
                   <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
@@ -230,7 +231,7 @@ export function ProfileOnboardingDialog({
                   </span>
                 </div>}
 
-              <AvatarPicker presentation={isMobile ? 'onboarding' : 'featured'} pending={avatar.avatar} error={avatar.error} disabled={isSubmitting} labelId="onboarding-avatar" storageNotice={avatar.storageNotice} onSelect={(file, crop) => { touched.current.avatar = true; avatar.select(file, crop); }} onClear={() => { touched.current.avatar = true; setMissingSavedAvatar(false); setDraftNotice(null); avatar.clear(); }} />
+              <div className="profile-setup-avatar"><AvatarPicker presentation={isMobile ? 'onboarding' : 'featured'} pending={avatar.avatar} error={avatar.error} disabled={isSubmitting} labelId="onboarding-avatar" storageNotice={avatar.storageNotice} onSelect={(file, crop) => { touched.current.avatar = true; avatar.select(file, crop); }} onClear={() => { touched.current.avatar = true; setMissingSavedAvatar(false); setDraftNotice(null); avatar.clear(); }} /></div>
 
               <ProfileField id="onboarding-name" label="Profile name" required={isMobile} requiredIndicator="asterisk" value={name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Your name" error={fieldErrors.name} disabled={isSubmitting} onChange={(value) => {
             touched.current.name = true; setName(value);
@@ -241,15 +242,17 @@ export function ProfileOnboardingDialog({
           }} />
 
               <ProfileField id="onboarding-handle" label="Public handle" value={handle} error={fieldErrors.handle} disabled={isSubmitting || checkingHandle} onChange={value => { touched.current.handle = true; setRequestedHandle(value); setPreparedHandle(null); }} />
-              {preparedHandle === handle && <p role="status">Your public handle will be @{preparedHandle}. Continue to confirm.</p>}
+              {preparedHandle === handle && <p role="status">@{preparedHandle} is ready. Continue to confirm.</p>}
               {checkingHandle && <p role="status">Checking your handle…</p>}
               <ProfileLocationPicker focusedScreen={isMobile} id="onboarding-location" value={location} error={fieldErrors.location} disabled={isSubmitting} onChange={value => { touched.current.location = true; setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />
 
               {isMobile && <ProfileVisibilityField id="onboarding-visibility" collapsible isPrivate={isPrivate} onChange={value => { touched.current.isPrivate = true; setIsPrivate(value); }} disabled={isSubmitting} />}
-
+              </div>
+              <div className="profile-setup-submit">
               {isMobile ? <MobileOnboardingAction busy={isSubmitting}>{isSubmitting ? 'Finishing setup…' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={isSubmitting} disabled={!canSubmit}>
-                {isSubmitting ? 'Finishing setup…' : 'Finish setup'}
+                {isSubmitting ? 'Finishing setup…' : 'Continue'}
               </Button>}
+              </div>
             </form>}
 
     </AccountWelcomeSurface>;

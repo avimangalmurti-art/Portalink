@@ -115,7 +115,7 @@ function component(file, name, props, overrides = {}) {
     return [slots[index], (value) => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
   } };
   const exports = execute(read(file), { require(dependency) {
-    if (dependency.endsWith('/ServicesContext')) return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
+    if (dependency.endsWith('/ServicesContext')) return {useServices:()=>({profiles:{checkPublicHandle:overrides.checkPublicHandle??(async()=> 'available')}})};
     if (dependency.endsWith('/profileHandle')) return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
     if (dependency === 'react') return react;
     if (dependency === 'react/jsx-runtime') return jsxRuntime;
@@ -246,4 +246,54 @@ test('featured image selection keeps replace, remove and crop save while compact
   assert.equal(cleared, true);
   const compact = render({ presentation: 'compact' });
   assert.equal(find(compact, (node) => node.type === 'ResponsiveImage').props.width, 40);
+});
+
+test('profile setup explicitly opts both platforms into the new surface and retains native form submission',()=>{
+ for(const presentation of ['mobile','web']){
+  const create={status:'idle',isLoading:false,createdProfile:null,run:async()=>{}};
+  const render=component('src/features/profile/ProfileOnboardingDialog.tsx','ProfileOnboardingDialog',{isOpen:true,theme:'light',accentColor:'#0A84FF',onAccentColorChange(){},onDismiss(){},onComplete(){}},{presentation,useAvatarSelection:()=>({avatar:null,error:null,select(){},clear(){}}),useCreateProfile:()=>create});
+  let tree=render();assert.equal(tree.type,'AccountWelcomeSurface');assert.equal(tree.props.profileSetup,true);assert.equal(tree.props.title,'Create your profile');assert.equal(tree.props.theme,'light');
+  assert.equal(tree.props.showAppearance,presentation==='web');assert.equal(tree.props.busy,false);
+  const form=find(tree,node=>node.type==='form');assert.equal(typeof form.props.onSubmit,'function');assert.equal(form.props.noValidate,true);
+  assert.ok(find(form,node=>node.type==='AvatarPicker'));assert.ok(find(form,node=>node.props.id==='onboarding-name'));assert.ok(find(form,node=>node.props.id==='onboarding-handle'));assert.ok(find(form,node=>node.props.id==='onboarding-location'));
+  const action=find(form,node=>node.type===(presentation==='mobile'?'MobileOnboardingAction':'Button'));assert.ok(action,'The submit action remains within its real form.');assert.equal(action.props.children,'Continue');
+  if(presentation==='web')assert.equal(action.props.type,'submit');
+  create.status='success';create.createdProfile={id:'created',name:'Creator'};tree=render();
+  assert.equal(tree.props.title,presentation==='mobile'?'Finishing setup':'Profile ready');assert.equal(find(tree,node=>node.type==='form'),undefined);
+  if(presentation==='mobile')assert.ok(nodes(tree).some(node=>node.props.role==='status'&&node.props.children==='Finishing setup…'));
+  else assert.ok(nodes(tree).some(node=>node.props.children==='Your profile is ready.'));
+ }
+});
+
+test('profile setup checks the handle before creating once and permits retry after a refused completion',async()=>{
+ for(const presentation of ['mobile','web']){
+  let handleChecks=0,finish;const submissions=[];
+  const create={status:'idle',isLoading:false,createdProfile:null,run:input=>{submissions.push(input);return new Promise(resolve=>finish=resolve);}};
+  const render=component('src/features/profile/ProfileOnboardingDialog.tsx','ProfileOnboardingDialog',{isOpen:true,accentColor:'#0A84FF',onAccentColorChange(){},onDismiss(){},onComplete(){}},{presentation,checkPublicHandle:async()=>{handleChecks++;return 'available';},useAvatarSelection:()=>({avatar:null,error:null,select(){},clear(){}}),useCreateProfile:()=>create});
+  find(render(),node=>node.props.id==='onboarding-name').props.onChange('New Creator');
+  await find(render(),node=>node.type==='form').props.onSubmit({preventDefault(){}});
+  assert.equal(handleChecks,1);assert.equal(submissions.length,0);
+  let tree=render();assert.ok(nodes(tree).some(node=>node.props.role==='status'&&String(node.props.children).includes('newcreator')));
+  const submit=find(tree,node=>node.type==='form').props.onSubmit;
+  const pending=submit({preventDefault(){}});await submit({preventDefault(){}});assert.equal(submissions.length,1);
+  finish();await pending;create.status='error';create.error='Please try again';tree=render();
+  assert.ok(find(tree,node=>node.props.role==='alert'));
+  const retry=find(tree,node=>node.type==='form').props.onSubmit({preventDefault(){}});assert.equal(submissions.length,2);assert.equal(handleChecks,1);assert.equal(submissions[1].handle,'newcreator');finish();await retry;
+ }
+});
+
+test('profile setup busy presentation retains authored fields, avatar and location controls without enabling submission',async()=>{
+ for(const presentation of ['mobile','web']){
+  const pending={file:new File(['photo'],'photo.webp',{type:'image/webp'}),previewUrl:'blob:photo',crop:{zoom:2}};let writes=0;
+  const create={status:'idle',isLoading:false,createdProfile:null,run:async()=>writes++};
+  const render=component('src/features/profile/ProfileOnboardingDialog.tsx','ProfileOnboardingDialog',{isOpen:true,accentColor:'#0A84FF',onAccentColorChange(){},onDismiss(){},onComplete(){}},{presentation,useAvatarSelection:()=>({avatar:pending,error:null,select(){},clear(){}}),useCreateProfile:()=>create});
+  find(render(),node=>node.props.id==='onboarding-name').props.onChange('Retained creator');find(render(),node=>node.props.id==='onboarding-location').props.onChange('A custom place');
+  create.isLoading=true;const tree=render(),form=find(tree,node=>node.type==='form');
+  assert.equal(tree.props.busy,true);assert.equal(find(form,node=>node.type==='AvatarPicker').props.pending,pending);assert.equal(find(form,node=>node.type==='AvatarPicker').props.disabled,true);
+  for(const id of ['onboarding-name','onboarding-handle','onboarding-location'])assert.equal(find(form,node=>node.props.id===id).props.disabled,true);
+  assert.equal(find(form,node=>node.props.id==='onboarding-name').props.value,'Retained creator');assert.equal(find(form,node=>node.props.id==='onboarding-location').props.value,'A custom place');
+  if(presentation==='mobile')assert.equal(find(form,node=>node.type==='ProfileVisibilityField').props.disabled,true);
+  else assert.equal(find(form,node=>node.type==='Button').props.disabled,true);
+  await form.props.onSubmit({preventDefault(){}});assert.equal(writes,0);
+ }
 });

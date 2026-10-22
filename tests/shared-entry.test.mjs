@@ -159,7 +159,7 @@ function accountSurface(presentation) {
     '../ui/Button': { Button: 'button' }, '../ui/AppearanceSwitch': { AppearanceSwitch: 'button' },
     '../ui/ConfirmationDialog': { ConfirmationDialog: 'discard-confirmation' },
     '../../presentation/usePresentation': { usePresentation: () => presentation },
-    '../ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'welcome-media' }, './helloWorldSignIn.css': {},
+    '../ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'welcome-media' }, './helloWorldSignIn.css': {}, './profile-setup.css': {},
   }).AccountWelcomeSurface;
 }
 
