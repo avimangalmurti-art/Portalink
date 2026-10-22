@@ -1,5 +1,11 @@
 # Portalink confirmation email — template applied; delivery pending
 
+## Live reinspection - October 21, 2026
+
+The production dashboard was rechecked for the current urgent confirmation-email request. Subject remains **Portalink — Confirm your email address**; the branded template is already saved. Email provider, new signups and Confirm email remain enabled. Custom SMTP is still disabled, and the dashboard shows the built-in delivery warning. Resend still shows portalinknetworks.com verified.
+
+Prepared the same sender/SMTP draft and a domain-restricted Sending access key form without submitting either or handling any secret. The human must create/enter/submit the credential directly under browser security rules, then close its display before agent verification. A specific test recipient was requested separately. **Delivery is still pending; no confirmation email was sent or inbox receipt verified in this inspection.** Sixteen existing confirmation/session/return-origin checks pass. No application source, Auth policy, DNS, SQL, account or deployment changes were made; live Sites495 remains unchanged. Safe pre-credential form screenshots are in ignored logs/email-confirmation-20261021.
+
 Subject: **Portalink — Confirm your email address**
 
 The proposed HTML is `supabase/email-templates/confirmation.html`; the subject is stored separately in `confirmation.subject.txt`. It uses the existing public Hello World poster at https://portalinknetworks.com/portalink-splash-mobile-poster.png, ordinary email tables/inline styles, Portalink text branding and an explicit confirmation button. Static artwork keeps the email usable in clients that block animation/video; images can be blocked too, so the heading, explanation and action work independently of the artwork. No tracking pixels, scripts, forms, analytics or new assets are added.
