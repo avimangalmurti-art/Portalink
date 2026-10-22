@@ -139,7 +139,7 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
   const showDensity = Boolean(density && showControl && position.total > 1);
   return <div ref={navigatorRef} data-mobile-page-navigator="" data-page-density-enabled={showDensity || undefined} data-document-reader-header={readingMode || showProgress || undefined} data-reader-page-arrows={readingMode || undefined} data-project-reading-control={readingMode || showProgress || undefined}>
     {readingMode && <button type="button" aria-label="Previous page" disabled={position.current <= 1} onClick={() => onSelectPage?.(position.current-1)}><InterfaceIcon icon={ChevronLeftIcon} size="lg" /></button>}
-    <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" className="mobile-project-page-counter"
+    <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" data-ui-shape={readingMode || showProgress ? undefined : 'capsule'} className="mobile-project-page-counter"
     aria-label={`Page ${position.current} of ${position.total}. ${open ? 'Hide' : 'Show'} page previews`}
     aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpenScope(open ? null : scope)}>
     <InterfaceIcon icon={Grid2X2Icon} size="sm" weight="medium" />

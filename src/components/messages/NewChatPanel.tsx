@@ -61,7 +61,7 @@ export function NewChatPanel({
         <h2 className="min-w-0 truncate text-[16px] font-semibold text-[var(--text-primary)]">New message</h2>
       </div> : null}
 
-        <label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
+        <label data-ui-shape="field" className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
           <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
           <span className="sr-only">Search by name or username</span>
           <input ref={inputRef} type="search" disabled={disabled} value={query} onChange={(event) => { setQuery(event.target.value); onDismissError?.(); }} placeholder="Name or username" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />

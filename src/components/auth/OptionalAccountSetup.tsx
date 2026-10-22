@@ -20,7 +20,7 @@ export function OptionalAccountSetup(props: AccountAppearanceProps & { onDone: (
   useModalFocus(true, dialog, props.onDone);
   return <div ref={viewport} className="first-login-welcome-backdrop optional-setup-backdrop modal-scrim" data-presentation={presentation}>
     <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="optional-setup-title" aria-describedby="optional-setup-description" tabIndex={-1}
-      className="first-login-welcome optional-account-setup" data-appearance-open={appearance}
+      className="first-login-welcome optional-account-setup" data-ui-shape={presentation === 'mobile' ? 'sheet' : 'popup'} data-appearance-open={appearance}
       style={{
         '--optional-setup-surface': neutral['--control-rest-surface'],
         '--optional-setup-foreground': neutral['--control-text'],

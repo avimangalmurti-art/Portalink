@@ -777,7 +777,7 @@ export function ProjectMediaViewer({
       {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup} mobileMotion={mobilePopup === 'comments'}>{dismiss => <>
         <header data-comments-header="" className="flex items-center justify-between gap-3">
           <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
-          <button type="button" data-comments-close="" aria-label="Close project popup" onClick={dismiss}><InterfaceIcon icon={XIcon} size="md" weight="medium" /></button>
+          <button type="button" data-comments-close="" data-ui-shape="icon" aria-label="Close project popup" onClick={dismiss}><InterfaceIcon icon={XIcon} size="md" weight="medium" /></button>
         </header>
         <div data-mobile-project-popup-content="" className="min-h-0 overflow-y-auto overscroll-contain">
           {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>

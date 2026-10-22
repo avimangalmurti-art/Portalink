@@ -613,10 +613,10 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       onExit={exitFocus}
     /> : null}
     {!readingMode && focusedPageNumber !== null && pageCount > 1 ? <>
-        {!isMobile && focusedPageNumber > 1 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} data-side="previous" aria-label="Previous page" className="premium-viewer-page-control side-panel-compact-control absolute left-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
+        {!isMobile && focusedPageNumber > 1 ? <button type="button" data-viewer-page-control="" data-ui-shape="icon" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} data-side="previous" aria-label="Previous page" className="premium-viewer-page-control side-panel-compact-control absolute left-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
           <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
         </button> : null}
-        {!isMobile && focusedPageNumber < pageCount ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} data-side="next" aria-label="Next page" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
+        {!isMobile && focusedPageNumber < pageCount ? <button type="button" data-viewer-page-control="" data-ui-shape="icon" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} data-side="next" aria-label="Next page" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
           <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
         </button> : null}
         <FocusedPageCounter current={focusedPageNumber} total={pageCount} showMediaInteractions={showMediaInteractions} />

@@ -60,8 +60,8 @@ export function FollowContentInfoPopup({ projectId, title, description, creatorH
         <div className="follow-info-description scrollbar-overlay" tabIndex={0} aria-label="Content description"><FormattedText text={description || 'This project has no description.'} /></div>
         <footer className="follow-info-engagement">
           {engagementContent ?? <><div role="group" aria-label={`Engagement for ${title}`}>
-            <button type="button" aria-label={`Comments: ${title}`} onClick={onComments}><InterfaceIcon icon={MessageCircleIcon} />{comments.phase === 'ready' && <span>{comments.totalCount}</span>}</button>
-            {(['save', 'repost'] as const).map(kind => <button key={kind} type="button" aria-label={`${kind === 'save' ? 'Bookmark' : 'Repost'}: ${title}`} aria-pressed={engagement.isEngaged(kind)}
+            <button type="button" data-ui-shape="action" aria-label={`Comments: ${title}`} onClick={onComments}><InterfaceIcon icon={MessageCircleIcon} />{comments.phase === 'ready' && <span>{comments.totalCount}</span>}</button>
+            {(['save', 'repost'] as const).map(kind => <button key={kind} type="button" data-ui-shape="action" aria-label={`${kind === 'save' ? 'Bookmark' : 'Repost'}: ${title}`} aria-pressed={engagement.isEngaged(kind)}
               disabled={!onRequireAccount && (engagement.isPending(kind) || engagement.isResolving || engagement.resolveError !== null)} onClick={() => onRequireAccount ? onRequireAccount() : engagement.toggle(kind)}>
               <InterfaceIcon icon={kind === 'save' ? BookmarkIcon : Repeat2Icon} fill={engagement.isEngaged(kind) ? 'currentColor' : 'none'} />{engagement.count(kind) !== null && <span>{engagement.count(kind)}</span>}
             </button>)}

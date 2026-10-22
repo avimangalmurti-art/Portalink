@@ -753,7 +753,7 @@ export function UserProfilePage({
                 <span className="tabular-nums">{followRequests.count}</span>
                 <span>{followRequests.count === 1 ? 'request' : 'requests'}</span>
               </button>
-              {isRequestsOpen && <div role="dialog" aria-label="Follow requests" onKeyDown={(event) => {
+              {isRequestsOpen && <div data-ui-shape="popup" role="dialog" aria-label="Follow requests" onKeyDown={(event) => {
             if (event.key === 'Escape') {
               event.preventDefault();
               setIsRequestsOpen(false);

@@ -98,12 +98,12 @@ function ReorderableProfileLinkRow({
         <div className="profile-link-fields grid min-w-0 gap-3">
           <div className="min-w-0">
             <label htmlFor={`profile-link-label-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">Name</label>
-            <input id={`profile-link-label-${link.id}`} value={link.label} onChange={(event) => updateDestination({ label: event.target.value })} maxLength={PROFILE_LINK_LABEL_MAX_LENGTH} disabled={disabled} placeholder="Instagram" aria-invalid={errors.label ? true : undefined} aria-describedby={errors.label ? `profile-link-label-error-${link.id}` : undefined} className="text-control h-11 w-full min-w-0 px-3 text-[16px] text-[var(--text-primary)]" />
+            <input data-ui-shape="field" id={`profile-link-label-${link.id}`} value={link.label} onChange={(event) => updateDestination({ label: event.target.value })} maxLength={PROFILE_LINK_LABEL_MAX_LENGTH} disabled={disabled} placeholder="Instagram" aria-invalid={errors.label ? true : undefined} aria-describedby={errors.label ? `profile-link-label-error-${link.id}` : undefined} className="text-control h-11 w-full min-w-0 px-3 text-[16px] text-[var(--text-primary)]" />
             {errors.label ? <p id={`profile-link-label-error-${link.id}`} className="mt-1 text-[12px] leading-tight text-[var(--status-danger)]">{errors.label}</p> : null}
           </div>
           <div className="min-w-0">
             <label htmlFor={`profile-link-url-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">URL</label>
-            <input id={`profile-link-url-${link.id}`} type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={link.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={errors.href ? true : undefined} aria-describedby={errors.href ? `profile-link-url-error-${link.id}` : undefined} className="text-control h-11 w-full min-w-0 px-3 text-[16px] text-[var(--text-primary)]" />
+            <input data-ui-shape="field" id={`profile-link-url-${link.id}`} type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={link.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={errors.href ? true : undefined} aria-describedby={errors.href ? `profile-link-url-error-${link.id}` : undefined} className="text-control h-11 w-full min-w-0 px-3 text-[16px] text-[var(--text-primary)]" />
             {errors.href ? <p id={`profile-link-url-error-${link.id}`} className="mt-1 text-[12px] leading-tight text-[var(--status-danger)]">{errors.href}</p> : null}
           </div>
         </div>
@@ -143,12 +143,12 @@ function ReorderableProfileLinkRow({
         </button>
         <div className="min-w-0">
           <label htmlFor={`profile-link-label-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">Name</label>
-          <input id={`profile-link-label-${link.id}`} value={link.label} onChange={(event) => updateDestination({ label: event.target.value })} maxLength={PROFILE_LINK_LABEL_MAX_LENGTH} disabled={disabled} placeholder="Instagram" aria-invalid={errors.label ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] font-medium text-[var(--text-primary)]" />
+          <input data-ui-shape="field" id={`profile-link-label-${link.id}`} value={link.label} onChange={(event) => updateDestination({ label: event.target.value })} maxLength={PROFILE_LINK_LABEL_MAX_LENGTH} disabled={disabled} placeholder="Instagram" aria-invalid={errors.label ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] font-medium text-[var(--text-primary)]" />
           {errors.label ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{errors.label}</p> : null}
         </div>
         <div className="col-span-2 col-start-3 min-w-0 sm:col-span-1 sm:col-start-auto">
           <label htmlFor={`profile-link-url-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">URL</label>
-          <input id={`profile-link-url-${link.id}`} type="text" inputMode="url" value={link.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={errors.href ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] text-[var(--text-primary)]" />
+          <input data-ui-shape="field" id={`profile-link-url-${link.id}`} type="text" inputMode="url" value={link.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={errors.href ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] text-[var(--text-primary)]" />
           {errors.href ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{errors.href}</p> : null}
         </div>
         <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="col-start-4 row-start-1 mt-[22px] sm:col-start-auto sm:row-start-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -296,7 +296,7 @@ export function ProfileLinksEditor({
       <div ref={iconViewportRef} data-mobile-icon-create={presentation==='mobile'?'link':undefined} data-presentation={presentation} data-link-icon-screen="" role="presentation" onMouseDown={(event) => {
         if (event.target === event.currentTarget) setIsChoosingIcon(false);
       }} className="modal-scrim fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-4">
-        <section data-icon-create-panel="" data-link-icon-form="" ref={iconDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {
+        <section data-ui-shape={presentation === 'web' ? 'popup' : undefined} data-icon-create-panel="" data-link-icon-form="" ref={iconDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault();
             event.stopPropagation();
@@ -321,11 +321,11 @@ export function ProfileLinksEditor({
               {draftIconOption?.label ?? (selected.label || 'Profile link')}
             </p>
 
-            <div data-icon-create-field=""><label className="text-control-shell mt-5 flex h-11 items-center gap-2 rounded-[10px] px-3">
+            <div data-icon-create-field=""><label data-ui-shape="field" className="text-control-shell mt-5 flex h-11 items-center gap-2 rounded-[10px] px-3">
               <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
               <span className="sr-only">Search link icons</span>
               <input type="search" value={iconQuery} onChange={(event) => setIconQuery(event.target.value)} placeholder="Search Instagram, YouTube, maps…" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
-            </label>{presentation==='mobile'&&<button type="button" aria-label="Search link icons" onClick={()=>iconDialogRef.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus()}><InterfaceIcon icon={SearchIcon} size="lg"/></button>}</div>
+            </label>{presentation==='mobile'&&<button data-ui-shape="icon" type="button" aria-label="Search link icons" onClick={()=>iconDialogRef.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus()}><InterfaceIcon icon={SearchIcon} size="lg"/></button>}</div>
 
             </div>
             <div data-link-icon-scroll="" data-portal-icon-scroll={presentation === 'mobile' ? '' : undefined} className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents"}>

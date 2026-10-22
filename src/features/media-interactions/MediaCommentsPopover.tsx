@@ -85,7 +85,7 @@ function MobileMediaCommentsSheet({ id, label, anchorRef, onClose, children, mob
     onPointerDown={event => { stop(event); if (event.target === event.currentTarget) dismiss(); }}
     onPointerUp={stop} onClick={stop} onDoubleClick={stop} onWheel={stop} onTouchMove={stop} onKeyDown={stop}>
     <section ref={panelRef} id={id} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label}
-      data-media-interaction="" className="mobile-media-comments-sheet">
+      data-media-interaction="" data-ui-shape="popup" className="mobile-media-comments-sheet">
       {typeof children === 'function' ? children(dismiss) : children}
     </section>
   </div></div>, host);
@@ -160,6 +160,7 @@ function AnchoredMediaComments({ id, label, anchorRef, triggerRef, onClose, chil
     ref={panelRef}
     id={id}
     data-media-interaction=""
+    data-ui-shape="popup"
     aria-label={label}
     className="media-comments-popover scrollbar-overlay fixed z-[75] overflow-y-auto overscroll-contain rounded-[14px] text-left"
     style={position ?? { visibility: 'hidden' }}

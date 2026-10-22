@@ -117,7 +117,7 @@ export function PublicProfileDrawer({ name, children, enabled = true }: {
 
   return <div ref={layerRef} tabIndex={-1} className="mobile-shared-drawer-layer" data-visible={visible} {...gestures}>
     {enabled && <div className="mobile-shared-drawer-edge" aria-hidden="true" />}
-    {enabled && !visible && <button ref={openerRef} type="button" data-shared-drawer-opener="" className="mobile-shared-drawer-opener shape-compact"
+    {enabled && !visible && <button ref={openerRef} type="button" data-shared-drawer-opener="" data-ui-shape="icon" className="mobile-shared-drawer-opener shape-compact"
       aria-label={visible ? 'Close profile navigation' : 'Open profile navigation'} aria-expanded={visible} aria-controls="mobile-shared-profile-navigation"
       onClick={() => visible ? close() : settle(true)}>{visible ? <PanelLeftCloseIcon size={22} aria-hidden="true" /> : <PanelLeftOpenIcon size={22} aria-hidden="true" />}</button>}
     <motion.div aria-hidden="true" className="mobile-shared-drawer-scrim" style={{ opacity }} onClick={close} />

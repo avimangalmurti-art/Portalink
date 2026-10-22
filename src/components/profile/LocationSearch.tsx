@@ -80,7 +80,7 @@ export function LocationSearch({ hideLabel, citiesOnly, resultLimit, recommended
     (event.clientX - start.x) ** 2 + (event.clientY - start.y) ** 2 > 100;
   return <div className="location-search" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <label className={hideLabel ? 'sr-only' : undefined} htmlFor={inputId}>{label}</label>
-    <input ref={input} id={inputId} className="input-shell text-control-shell" role="combobox" value={value} disabled={disabled} maxLength={maxLength}
+    <input data-ui-shape="field" ref={input} id={inputId} className="input-shell text-control-shell" role="combobox" value={value} disabled={disabled} maxLength={maxLength}
       autoComplete="off" enterKeyHint={keepFocusOnSelect ? 'search' : undefined} aria-autocomplete="list" aria-expanded={searching} aria-controls={searching ? `${inputId}-results` : undefined}
       aria-activedescendant={searching && matchingResults[active] ? `${inputId}-result-${active}` : undefined}
       aria-invalid={error ? true : undefined} aria-describedby={error ? `${inputId}-error` : undefined}

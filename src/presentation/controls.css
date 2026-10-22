@@ -7,6 +7,8 @@
   --ui-row-radius: 14px;
   --ui-capsule-radius: 999px;
   --ui-icon-radius: 50%;
+  --ui-field-radius: 999px;
+  --ui-composer-radius: 24px;
 }
 :where(#root .codex-shell [data-ui-control]) {
   /* Responsive visibility utilities must take precedence over this default. */
@@ -163,6 +165,11 @@
   [data-presentation][data-presentation] [data-ui-shape='icon'][data-ui-shape] { border-radius: var(--ui-icon-radius) !important; }
   [data-presentation][data-presentation] [data-ui-shape='row'][data-ui-shape] { border-radius: var(--ui-row-radius) !important; }
   [data-presentation][data-presentation] [data-ui-shape='capsule'][data-ui-shape] { border-radius: var(--ui-capsule-radius) !important; }
+  /* Mark the border/fill host, leaving transparent inputs and attached actions
+     under their existing layout rules. Multiline fields keep a bounded curve. */
+  [data-presentation][data-presentation] [data-ui-shape='field'][data-ui-shape] { border-radius: var(--ui-field-radius) !important; }
+  [data-presentation][data-presentation] [data-ui-shape='composer'][data-ui-shape],
+  [data-presentation][data-presentation] [data-ui-shape='composer'][data-ui-shape]::before { border-radius: var(--ui-composer-radius) !important; }
   /* Opening account-entry fields paint either an input or its shell. Keep the
      transparent inner inputs and password-reveal controls under their own rules. */
   [data-presentation][data-presentation] .one-screen-entry :is(

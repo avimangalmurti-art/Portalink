@@ -66,7 +66,7 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
   }catch(caught){if(active.current)setError((caught instanceof Error?caught.message:'Could not confirm this portal.')+' Your details are still here. Try again or choose another portal.');}
   finally{flight.current=false;if(active.current)setBusy(false);}
  }
- return <ModalPortal><div ref={viewport} className="project-setup-screen modal-scrim" data-presentation={presentation}><section ref={panel} role="dialog" aria-modal="true" data-material="content" aria-labelledby="project-setup-title" tabIndex={-1} className="project-setup-page">
+ return <ModalPortal><div ref={viewport} className="project-setup-screen modal-scrim" data-presentation={presentation}><section ref={panel} role="dialog" aria-modal="true" data-material="content" data-ui-shape={presentation === 'mobile' ? 'sheet' : 'popup'} aria-labelledby="project-setup-title" tabIndex={-1} className="project-setup-page">
   <header><button type="button" aria-label="Cancel new idea" disabled={busy} onClick={requestClose}><XIcon aria-hidden="true"/></button><h1 id="project-setup-title">New idea</h1><span className="project-setup-header-balance" aria-hidden="true"/></header>
   <form id="project-setup-form" onSubmit={event=>{event.preventDefault();void proceed();}} noValidate>
    <div className="project-setup-art" aria-hidden="true"><img src="/onboarding/process.webp" alt="" width="1254" height="1254" draggable={false}/></div>

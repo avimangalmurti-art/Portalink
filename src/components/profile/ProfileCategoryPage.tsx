@@ -550,7 +550,7 @@ export function ProfileCategoryPage({
         {/* Filters the index that is already loaded. It reaches no service, so it
            cannot disagree with what the rows show. */}
         {!isIndexCollapsed && !isMobile && <div className="project-index-search side-panel-control-stack side-panel-content-inset shrink-0">
-            <div className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
+            <div data-ui-shape="field" className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
               <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
               <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects" aria-label={`Search projects in ${category.label}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
             </div>
