@@ -1,4 +1,12 @@
-# Portalink confirmation email — template applied; delivery pending
+# Portalink confirmation email — branded sender active; delivery test pending
+
+## Sender activation verified - October 21, 2026
+
+The owner completed the private key setup and saved custom SMTP in the existing production project. After a fresh reload at2026-10-22T03:38:55Z, custom SMTP remains enabled and public settings persist: **Portalink <avi@portalinknetworks.com>**, smtp.resend.com:465. Save changes is disabled, confirming there is no unsaved form draft. The agent did not read or capture the private key. The confirmation subject remains **Portalink — Confirm your email address**. Confirmation policy, redirects, other Auth templates, user accounts and existing DNS were not changed.
+
+This verifies saved provider/sender configuration, not inbox delivery. The approved existing account is already verified, so its accepted signup-resend request generated no new confirmation. A separately requested preview was sent through connected Gmail, labeled Preview only with an inactive button; its me sender was a preview artifact. A fresh actual signup delivery and confirmation-link check remain pending. No new test account or additional email was created during activation verification.
+
+Safe receipt and screenshot: external visualization folder portalink-sender-saved.json/png referenced in the current handoff; a credential-free copy of the activation receipt is ignored logs/email-confirmation-20261021/smtp-activation.json. Earlier disabled/draft notes below are historical and superseded by this section. Live Sites496 and the separate unpublished profile-photo changes are unchanged.
 
 ## Live reinspection - October 21, 2026
 

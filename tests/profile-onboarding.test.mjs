@@ -191,7 +191,7 @@ test('the directory picker preserves custom text and applies only explicit choic
   assert.equal(disabled.props.error, 'Use 48 characters or fewer.');
 });
 
-test('setup exposes large image selection, name and location and submits without hidden field requirements', async () => {
+test('setup collects name, handle and location without a photo picker or hidden field requirements', async () => {
   for (const presentation of ['web', 'mobile']) {
   let submitted;
   const render = component('src/features/profile/ProfileOnboardingDialog.tsx', 'ProfileOnboardingDialog', { isOpen: true, accentColor: '#0A84FF', onAccentColorChange() {}, onDismiss() {}, onComplete() {} }, {
@@ -204,7 +204,8 @@ test('setup exposes large image selection, name and location and submits without
   assert.deepEqual(fields.map((node) => node.props.label), ['Profile name', 'Public handle']);
   assert.equal(find(tree, node => node.props.id === 'onboarding-location').type, 'ProfileLocationPicker');
   assert.equal(fields[0].props.required, presentation === 'mobile');
-  assert.equal(find(tree, (node) => node.type === 'AvatarPicker').props.presentation, presentation === 'mobile' ? 'onboarding' : 'featured');
+  assert.equal(find(tree, (node) => node.type === 'AvatarPicker'),undefined);
+  assert.equal(nodes(tree).some(node=>node.type==='input'&&node.props.type==='file'),false);
   assert.equal(nodes(tree).some((node) => String(node.props?.children).includes('Signed in as')), false);
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(submitted, undefined);
@@ -222,6 +223,7 @@ test('setup exposes large image selection, name and location and submits without
   assert.equal(submitted.location, 'San Francisco');
   assert.equal(submitted.isPrivate, presentation === 'mobile');
   assert.equal(submitted.handle, 'avi');
+  assert.equal(submitted.avatar,undefined);
   assert.equal('headline' in submitted, false);
   }
 });
@@ -255,7 +257,7 @@ test('profile setup explicitly opts both platforms into the new surface and reta
   let tree=render();assert.equal(tree.type,'AccountWelcomeSurface');assert.equal(tree.props.profileSetup,true);assert.equal(tree.props.title,'Create your profile');assert.equal(tree.props.theme,'light');
   assert.equal(tree.props.showAppearance,presentation==='web');assert.equal(tree.props.busy,false);
   const form=find(tree,node=>node.type==='form');assert.equal(typeof form.props.onSubmit,'function');assert.equal(form.props.noValidate,true);
-  assert.ok(find(form,node=>node.type==='AvatarPicker'));assert.ok(find(form,node=>node.props.id==='onboarding-name'));assert.ok(find(form,node=>node.props.id==='onboarding-handle'));assert.ok(find(form,node=>node.props.id==='onboarding-location'));
+  assert.equal(find(form,node=>node.type==='AvatarPicker'),undefined);assert.equal(nodes(form).some(node=>node.type==='input'&&node.props.type==='file'),false);assert.equal(nodes(form).some(node=>node.props.children==='Add picture later'),false);assert.ok(find(form,node=>node.props.id==='onboarding-name'));assert.ok(find(form,node=>node.props.id==='onboarding-handle'));assert.ok(find(form,node=>node.props.id==='onboarding-location'));
   const action=find(form,node=>node.type===(presentation==='mobile'?'MobileOnboardingAction':'Button'));assert.ok(action,'The submit action remains within its real form.');assert.equal(action.props.children,'Continue');
   if(presentation==='web')assert.equal(action.props.type,'submit');
   create.status='success';create.createdProfile={id:'created',name:'Creator'};tree=render();
@@ -282,14 +284,14 @@ test('profile setup checks the handle before creating once and permits retry aft
  }
 });
 
-test('profile setup busy presentation retains authored fields, avatar and location controls without enabling submission',async()=>{
+test('profile setup busy presentation retains authored fields and location without enabling submission or photo selection',async()=>{
  for(const presentation of ['mobile','web']){
-  const pending={file:new File(['photo'],'photo.webp',{type:'image/webp'}),previewUrl:'blob:photo',crop:{zoom:2}};let writes=0;
+  let writes=0;
   const create={status:'idle',isLoading:false,createdProfile:null,run:async()=>writes++};
-  const render=component('src/features/profile/ProfileOnboardingDialog.tsx','ProfileOnboardingDialog',{isOpen:true,accentColor:'#0A84FF',onAccentColorChange(){},onDismiss(){},onComplete(){}},{presentation,useAvatarSelection:()=>({avatar:pending,error:null,select(){},clear(){}}),useCreateProfile:()=>create});
+  const render=component('src/features/profile/ProfileOnboardingDialog.tsx','ProfileOnboardingDialog',{isOpen:true,accentColor:'#0A84FF',onAccentColorChange(){},onDismiss(){},onComplete(){}},{presentation,useAvatarSelection:()=>({avatar:null,error:null,select(){},clear(){}}),useCreateProfile:()=>create});
   find(render(),node=>node.props.id==='onboarding-name').props.onChange('Retained creator');find(render(),node=>node.props.id==='onboarding-location').props.onChange('A custom place');
   create.isLoading=true;const tree=render(),form=find(tree,node=>node.type==='form');
-  assert.equal(tree.props.busy,true);assert.equal(find(form,node=>node.type==='AvatarPicker').props.pending,pending);assert.equal(find(form,node=>node.type==='AvatarPicker').props.disabled,true);
+  assert.equal(tree.props.busy,true);assert.equal(find(form,node=>node.type==='AvatarPicker'),undefined);assert.equal(nodes(form).some(node=>node.type==='input'&&node.props.type==='file'),false);
   for(const id of ['onboarding-name','onboarding-handle','onboarding-location'])assert.equal(find(form,node=>node.props.id===id).props.disabled,true);
   assert.equal(find(form,node=>node.props.id==='onboarding-name').props.value,'Retained creator');assert.equal(find(form,node=>node.props.id==='onboarding-location').props.value,'A custom place');
   if(presentation==='mobile')assert.equal(find(form,node=>node.type==='ProfileVisibilityField').props.disabled,true);

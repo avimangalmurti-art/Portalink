@@ -617,7 +617,7 @@ test('one registration form validates account and profile fields before the sing
   }
 });
 
-test('email confirmation completes the saved profile once; a missing image asks for selection instead', async () => {
+test('email confirmation completes the saved profile once; a missing legacy image waits for an explicit recovery choice', async () => {
   for (const mode of ['image', 'missing', 'no-image', 'mobile-welcome']) {
     const hooks = hookRuntime(), submissions = [], completed = [], cleaned = [];
     const image = new File(['synthetic-image'], 'photo.webp', {type: 'image/webp'});
@@ -665,7 +665,7 @@ test('email confirmation completes the saved profile once; a missing image asks 
       assert.equal(visibility.props.isPrivate, true);
       await nodes(tree).find(node => node.type === 'form').props.onSubmit({preventDefault() {}});
       assert.equal(submissions.length, 0, 'A missing promised image cannot silently produce an empty-avatar profile');
-      nodes(tree).find(node => node.type === 'AvatarPicker').props.onClear();
+      nodes(tree).find(node => node.type === 'button'&&node.props.children==='Add picture later').props.onClick();
       await nodes(render()).find(node => node.type === 'form').props.onSubmit({preventDefault() {}});
       assert.equal(submissions[0].isPrivate, true, 'Explicitly removing the saved image preserves privacy.');
       assert.equal(submissions[0].publicAppearance.systemGray, 'gray4');
@@ -675,7 +675,7 @@ test('email confirmation completes the saved profile once; a missing image asks 
   }
 });
 
-function profileResumeHarness({ initialRegistration, readAvatar = async () => null } = {}) {
+function profileResumeHarness({ initialRegistration, readAvatar = async () => null, presentation = 'mobile' } = {}) {
   const hooks = hookRuntime(), submissions = [], reads = [], cleaned = [], completed = [];
   let currentRegistration = initialRegistration;
   const avatar = { avatar: null, error: null,
@@ -697,7 +697,7 @@ function profileResumeHarness({ initialRegistration, readAvatar = async () => nu
     '../../components/profile/ProfileField': { ProfileField: 'ProfileField' }, '../../components/profile/AvatarPicker': { AvatarPicker: 'AvatarPicker' },
     '../../components/ui/Button': { Button: 'Button' }, '../../components/profile/ProfileVisibilityField': { ProfileVisibilityField: 'ProfileVisibilityField' },
     '../../components/profile/ProfileLocationPicker': { ProfileLocationPicker: 'ProfileLocationPicker' },
-    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
+    '../../presentation/usePresentation': { usePresentation: () => presentation },
     './useProfileOnboarding': { useAvatarSelection: () => avatar, useCreateProfile: () => create }, './validation': validation,
   });
   const props = { isOpen: true, accentColor: '#FFFFFF', onAccentColorChange() {}, onDismiss() {}, onComplete: key => completed.push(key) };
@@ -711,32 +711,34 @@ function profileResumeHarness({ initialRegistration, readAvatar = async () => nu
 
 test('late registration metadata hydrates untouched fields once and never overwrites edits or auto-submits them', async () => {
   const savedImage = new File(['saved-image'], 'saved.webp', { type: 'image/webp' });
-  const editedImage = new File(['new-image'], 'new.webp', { type: 'image/webp' });
   const incoming = { ...draft, name: 'Saved name', location: 'Saved city', isPrivate: true,
     accentColor: '#FF375F', systemGray: 'gray4', hasAvatar: true };
-  for (const edited of [null, 'name', 'location', 'isPrivate', 'avatar']) {
+  for (const edited of [null, 'name', 'location', 'isPrivate', 'handle']) {
     const h = profileResumeHarness({ readAvatar: async () => ({ file: savedImage }) });
     let tree = h.render();
     if (edited === 'name' || edited === 'location') {
       formNodes(tree).find(node => node.props?.id === `onboarding-${edited}`).props.onChange(`Edited ${edited}`);
     } else if (edited === 'isPrivate') {
       formNodes(tree).find(node => node.type === 'ProfileVisibilityField').props.onChange(false);
-    } else if (edited === 'avatar') {
-      formNodes(tree).find(node => node.type === 'AvatarPicker').props.onSelect(editedImage);
+    } else if (edited === 'handle') {
+      formNodes(tree).find(node => node.props?.id === 'onboarding-handle').props.onChange('edited.handle');
     }
     h.setRegistration(incoming); tree = await h.settle();
     assert.equal(h.submissions.length, edited ? 0 : 1, 'Late metadata must not authorize submission of an edited form');
     assert.equal(formNodes(tree).find(node => node.props?.id === 'onboarding-name').props.value, edited === 'name' ? 'Edited name' : incoming.name);
     assert.equal(formNodes(tree).find(node => node.props?.id === 'onboarding-location').props.value, edited === 'location' ? 'Edited location' : incoming.location);
     assert.equal(formNodes(tree).find(node => node.type === 'ProfileVisibilityField').props.isPrivate, edited !== 'isPrivate');
-    assert.equal(h.avatar.avatar.file, edited === 'avatar' ? editedImage : savedImage);
-    assert.deepEqual(h.reads, edited === 'avatar' ? [] : [id], 'A locally selected picture must not be replaced from storage');
+    assert.equal(formNodes(tree).find(node=>node.props?.id==='onboarding-handle').props.value,edited==='handle'?'edited.handle':incoming.handle);
+    assert.equal(h.avatar.avatar.file,savedImage);
+    assert.deepEqual(h.reads,[id],'Legacy picture restoration remains available without an ordinary photo picker.');
     if (edited) await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+    if(edited==='handle'){assert.equal(h.submissions.length,0,'An edited visible handle must still be checked before final submission.');await formNodes(h.render()).find(node=>node.type==='form').props.onSubmit({preventDefault(){}});}
     assert.equal(h.submissions.length, 1);
     assert.equal(h.submissions[0].creationKey, id);
+    assert.equal(h.submissions[0].handle,edited==='handle'?'edited.handle':incoming.handle);
     assert.equal(h.submissions[0].publicAppearance.accentColor, incoming.accentColor);
     assert.equal(h.submissions[0].publicAppearance.systemGray, incoming.systemGray);
-    assert.equal(h.submissions[0].avatar.file, edited === 'avatar' ? editedImage : savedImage);
+    assert.equal(h.submissions[0].avatar.file,savedImage);
     h.setRegistration({ ...incoming, name: 'Later metadata must not replace the form' });
     tree = await h.settle();
     assert.equal(formNodes(tree).find(node => node.props?.id === 'onboarding-name').props.value, edited === 'name' ? 'Edited name' : incoming.name);
@@ -745,30 +747,23 @@ test('late registration metadata hydrates untouched fields once and never overwr
   }
 });
 
-test('a missing saved picture can be restored or explicitly replaced without losing the pending profile', async () => {
+test('a missing legacy picture can be restored on either platform and remains recoverable until its upload persists', async () => {
   const image = new File(['restored-image'], 'restored.webp', { type: 'image/webp' });
   const incoming = { ...draft, name: 'Saved creator', isPrivate: true, hasAvatar: true, systemGray: 'gray4' };
-  for (const recovery of ['restore', 'replace']) {
+  for (const presentation of ['mobile','web']) {
     let storedImage = null;
-    const h = profileResumeHarness({ initialRegistration: incoming, readAvatar: async () => storedImage });
+    const h = profileResumeHarness({ initialRegistration: incoming, readAvatar: async () => storedImage,presentation });
     let tree = await h.settle();
     assert.equal(tree.props.busy, false);
     assert.equal(h.submissions.length, 0);
     await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
     assert.equal(h.submissions.length, 0);
     assert.deepEqual(h.cleaned, [], 'A missing picture never deletes the recoverable registration');
-    if (recovery === 'restore') {
-      storedImage = { file: image };
-      formNodes(tree).find(node => node.type === 'button' && node.props.children === 'Restore saved picture').props.onClick();
-      tree = await h.settle();
-      assert.equal(h.reads.length, 2);
-    } else {
-      formNodes(tree).find(node => node.type === 'AvatarPicker').props.onSelect(image);
-      tree = await h.settle();
-      assert.equal(formNodes(tree).some(node => node.type === 'button' && node.props.children === 'Restore saved picture'), false,
-        'A valid replacement clears the missing-photo notice and its stale retry action');
-      await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
-    }
+    assert.equal(formNodes(tree).some(node=>node.type==='AvatarPicker'||(node.type==='input'&&node.props.type==='file')),false);
+    storedImage = { file: image };
+    formNodes(tree).find(node => node.type === 'button' && node.props.children === 'Restore saved picture').props.onClick();
+    tree = await h.settle();
+    assert.equal(h.reads.length, 2);
     assert.equal(h.submissions.length, 1);
     assert.equal(h.submissions[0].creationKey, id);
     assert.equal(h.submissions[0].avatar.file, image);
@@ -786,25 +781,28 @@ test('a missing saved picture can be restored or explicitly replaced without los
   }
 });
 
-test('restoring the saved picture after an invalid replacement clears the error and cannot get stuck loading', async () => {
+test('repeated legacy picture restore failure retains edited fields and a successful retry still waits for explicit submission', async () => {
   const image = new File(['restored-image'], 'restored.webp', { type: 'image/webp' });
   let storedImage = null;
   const h = profileResumeHarness({ initialRegistration: { ...draft, hasAvatar: true }, readAvatar: async () => storedImage });
   let tree = await h.settle();
-  formNodes(tree).find(node => node.type === 'AvatarPicker').props.onSelect(new File(['invalid'], 'invalid.txt', { type: 'text/plain' }));
-  // Model the rejection delivered by useAvatarSelection without importing its image APIs.
-  h.avatar.avatar = null; h.avatar.error = 'Choose a PNG, JPEG, WebP, or GIF image.';
+  formNodes(tree).find(node=>node.props?.id==='onboarding-name').props.onChange('Edited creator');
+  formNodes(tree).find(node=>node.type==='button'&&node.props.children==='Restore saved picture').props.onClick();
+  tree=await h.settle();
+  assert.equal(h.reads.length,2);assert.equal(tree.props.busy,false);assert.equal(formNodes(tree).find(node=>node.props?.id==='onboarding-name').props.value,'Edited creator');assert.deepEqual(h.cleaned,[]);
   tree = h.render();
   await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(h.submissions.length, 0);
   storedImage = { file: image };
   formNodes(tree).find(node => node.type === 'button' && node.props.children === 'Restore saved picture').props.onClick();
   tree = await h.settle();
-  assert.equal(h.reads.length, 2, 'Retry must read the saved picture even though replacement marked the avatar as touched');
+  assert.equal(h.reads.length, 3, 'A second explicit retry must still read the retained legacy picture.');
   assert.equal(tree.props.busy, false);
   assert.equal(h.avatar.error, null);
   assert.equal(h.avatar.avatar.file, image);
-  assert.equal(h.submissions.length, 1);
+  assert.equal(h.submissions.length, 0,'A restored legacy picture cannot auto-submit real visible field edits.');
+  await formNodes(tree).find(node=>node.type==='form').props.onSubmit({preventDefault(){}});
+  assert.equal(h.submissions.length,1);assert.equal(h.submissions[0].name,'Edited creator');
   assert.equal(h.submissions[0].avatar.file, image);
   assert.equal(formNodes(tree).some(node => node.type === 'button' && node.props.children === 'Restore saved picture'), false);
   await h.settle();
@@ -812,12 +810,16 @@ test('restoring the saved picture after an invalid replacement clears the error 
   h.unmount();
 });
 
-test('explicitly removing a promised picture permits completion and cleans its draft only after success', async () => {
-  const h = profileResumeHarness({ initialRegistration: { ...draft, hasAvatar: true } });
+test('explicit Add picture later permits completion on either platform and cleans its draft only after success', async () => {
+ for(const presentation of ['mobile','web']){
+  const h = profileResumeHarness({ initialRegistration: { ...draft, hasAvatar: true },presentation });
   let tree = await h.settle();
-  formNodes(tree).find(node => node.type === 'AvatarPicker').props.onClear();
+  const addLater=formNodes(tree).find(node=>node.type==='button'&&node.props.children==='Add picture later');assert.equal(addLater.props.disabled,false);assert.equal(addLater.props.type,'button');
+  h.create.isLoading=true;assert.equal(formNodes(h.render()).find(node=>node.type==='button'&&node.props.children==='Add picture later').props.disabled,true);h.create.isLoading=false;
+  formNodes(h.render()).find(node=>node.type==='button'&&node.props.children==='Add picture later').props.onClick();
   tree = h.render();
   assert.equal(formNodes(tree).some(node => node.type === 'button' && node.props.children === 'Restore saved picture'), false);
+  assert.equal(formNodes(tree).some(node=>node.type==='button'&&node.props.children==='Add picture later'),false);
   await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(h.submissions.length, 1);
   assert.equal(h.submissions[0].avatar, undefined);
@@ -827,6 +829,33 @@ test('explicitly removing a promised picture permits completion and cleans its d
   await h.settle(); await h.settle();
   assert.deepEqual(h.cleaned, [id], 'A completed deliberate no-picture profile must not resurrect its old promised photo');
   h.unmount();
+ }
+});
+
+test('an invalid cached legacy picture exposes recovery and can be restored or deliberately declined on both platforms',async()=>{
+ for(const presentation of ['mobile','web'])for(const choice of ['restore','later']){
+  const invalid=new File(['invalid cached bytes'],'saved.txt',{type:'text/plain'}),valid=new File(['saved photo'],'saved.webp',{type:'image/webp'});let stored=invalid;
+  const h=profileResumeHarness({initialRegistration:{...draft,hasAvatar:true},presentation,readAvatar:async()=>({file:stored})});
+  h.avatar.select=()=>{h.avatar.avatar=null;h.avatar.error='The cached profile picture could not be read.';return false;};
+  let tree=await h.settle();h.create.status='error';h.create.error='Profile could not be completed';tree=h.render();
+  assert.equal(formNodes(tree).some(node=>node.props.role==='status'&&String(node.props.children).includes('cached profile picture could not be read')),true);
+  for(const label of ['Restore saved picture','Add picture later'])assert.ok(formNodes(tree).find(node=>node.type==='button'&&node.props.children===label));
+  assert.equal(formNodes(tree).some(node=>node.type==='AvatarPicker'||(node.type==='input'&&node.props.type==='file')),false);assert.deepEqual(h.cleaned,[]);
+  h.create.isLoading=true;tree=h.render();for(const label of ['Restore saved picture','Add picture later'])assert.equal(formNodes(tree).find(node=>node.type==='button'&&node.props.children===label).props.disabled,true);h.create.isLoading=false;
+  const attempts=h.submissions.length;
+  if(choice==='restore'){
+   stored=valid;h.avatar.select=(file,details={})=>{h.avatar.avatar={file,...details};h.avatar.error=null;return true;};
+   formNodes(h.render()).find(node=>node.type==='button'&&node.props.children==='Restore saved picture').props.onClick();tree=await h.settle();
+   assert.equal(h.submissions.length,attempts+1);assert.equal(h.submissions.at(-1).avatar.file,valid);assert.equal(h.reads.length,2);
+  }else{
+   formNodes(h.render()).find(node=>node.type==='button'&&node.props.children==='Add picture later').props.onClick();tree=h.render();
+   await formNodes(tree).find(node=>node.type==='form').props.onSubmit({preventDefault(){}});assert.equal(h.submissions.length,attempts+1);assert.equal(h.submissions.at(-1).avatar,undefined);
+  }
+  assert.equal(h.avatar.error,null);assert.equal(formNodes(h.render()).some(node=>node.type==='button'&&node.props.children==='Add picture later'),false);assert.deepEqual(h.cleaned,[]);
+  h.create.status='success';h.create.createdProfile={id:'created',avatar:''};await h.settle();
+  if(choice==='restore'){assert.deepEqual(h.cleaned,[],'Invalid recovery must not discard the restored file before persistence.');h.create.avatarPersisted=true;await h.settle();}
+  assert.deepEqual(h.cleaned,[id]);await h.settle();assert.deepEqual(h.cleaned,[id]);h.unmount();
+ }
 });
 
 

@@ -12,7 +12,6 @@ import { ProfileField } from '../../components/profile/ProfileField';
 import { ProfileVisibilityField } from '../../components/profile/ProfileVisibilityField';
 import { ProfileLocationPicker } from '../../components/profile/ProfileLocationPicker';
 import { usePresentation } from '../../presentation/usePresentation';
-import { AvatarPicker } from '../../components/profile/AvatarPicker';
 import { Button } from '../../components/ui/Button';
 import { useAvatarSelection, useCreateProfile } from './useProfileOnboarding';
 import { validateLocation, validateProfileName, NAME_MAX_LENGTH } from './validation';
@@ -154,6 +153,7 @@ export function ProfileOnboardingDialog({
   const isSubmitting = create.isLoading || draftLoading;
   const isComplete = create.status === 'success' && create.createdProfile !== null;
   const canSubmit = !isSubmitting;
+  const recoveryNotice = draftNotice ?? avatar.error;
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmit || (missingSavedAvatar && !avatar.avatar)) {
@@ -203,7 +203,7 @@ export function ProfileOnboardingDialog({
     highContrast={highContrast} onHighContrastChange={onHighContrastChange} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange}
     busy={isSubmitting} dirty={isDirty && !isComplete} onDismiss={onDismiss}>
           {(draftLoading || (registration && create.isLoading)) && <p role="status" className="py-4 text-center text-sm text-[var(--text-secondary)]">Finishing your account…</p>}
-          {draftNotice && <div className="mb-4 text-sm text-[var(--text-secondary)]"><p role="status">{draftNotice}</p><button type="button" className="min-h-11 text-[var(--accent-text)]" disabled={draftLoading} onClick={() => { autoStarted.current = false; touched.current.avatar = false; setDraftLoading(true); setRestoreAttempt(value => value + 1); }}>Restore saved picture</button></div>}
+          {recoveryNotice && <div className="mb-4 text-sm text-[var(--text-secondary)]"><p role="status">{recoveryNotice}</p>{registration?.hasAvatar && <button type="button" className="min-h-11 text-[var(--accent-text)]" disabled={isSubmitting} onClick={() => { autoStarted.current = false; touched.current.avatar = false; setDraftLoading(true); setRestoreAttempt(value => value + 1); }}>Restore saved picture</button>}{(missingSavedAvatar || avatar.error) && <button type="button" className="min-h-11 ml-4 text-[var(--accent-text)]" disabled={isSubmitting} onClick={() => { touched.current.avatar = true; setMissingSavedAvatar(false); setDraftNotice(null); avatar.clear(); }}>Add picture later</button>}</div>}
           {isComplete && create.createdProfile && isMobile ? <p role="status">Finishing setup…</p> : isComplete && create.createdProfile ? <div className="profile-setup-result mt-5 flex flex-col gap-4">
               <div role="status" className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[13px] leading-relaxed">
                 <CheckCircle2Icon className="mt-[2px] h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
@@ -230,8 +230,6 @@ export function ProfileOnboardingDialog({
                     <button type="submit" disabled={isSubmitting} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>
                   </span>
                 </div>}
-
-              <div className="profile-setup-avatar"><AvatarPicker presentation={isMobile ? 'onboarding' : 'featured'} pending={avatar.avatar} error={avatar.error} disabled={isSubmitting} labelId="onboarding-avatar" storageNotice={avatar.storageNotice} onSelect={(file, crop) => { touched.current.avatar = true; avatar.select(file, crop); }} onClear={() => { touched.current.avatar = true; setMissingSavedAvatar(false); setDraftNotice(null); avatar.clear(); }} /></div>
 
               <ProfileField id="onboarding-name" label="Profile name" required={isMobile} requiredIndicator="asterisk" value={name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Your name" error={fieldErrors.name} disabled={isSubmitting} onChange={(value) => {
             touched.current.name = true; setName(value);
