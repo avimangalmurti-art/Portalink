@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { clearMobileResume, MobileResumeSession, saveMobileResumeRoute, type MobileResumeSessionInput, type MobileResumeRecord } from './mobileResumeState';
+import { clearMobileMessageDrafts } from './mobileMessageDrafts';
 
 /** Root integration renders resumeTo before mounting the ordinary destination. */
 export function useMobileResumeSession(input: MobileResumeSessionInput): { resumeTo: string | null; launchRecord: MobileResumeRecord | null; checkpoint: () => void } {
@@ -20,6 +21,7 @@ export function useMobileResumeSession(input: MobileResumeSessionInput): { resum
     const previous = previousAccount.current;
     if (previous && previous !== input.accountId) {
       clearMobileResume(previous);
+      clearMobileMessageDrafts(previous);
       previousAccount.current = null;
     }
     // A WEB-only visit never touches this storage. A mobile visit that rotates

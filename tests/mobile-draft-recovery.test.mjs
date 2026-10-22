@@ -266,7 +266,7 @@ test('mobile initialization error requires an explicit confirmation before remov
 });
 
 test('uploaded and committed checkpoints restore the exact local files and transport state', async () => {
-  const react = { useCallback: fn => fn, useMemo: fn => fn(), useRef: current => ({ current }), useState: initial => [initial, () => {}] };
+  const react = { useEffect() {}, useCallback: fn => fn, useMemo: fn => fn(), useRef: current => ({ current }), useState: initial => [initial, () => {}] };
   const { useMediaUpload } = sourceModule('src/features/publishing/useMediaUpload.ts', {
     react, '../../contexts/ServicesContext': { useServices: () => ({ media: {} }) },
     '../media/persistedMediaAttachments': { attachmentsFromPersistedMedia: () => assert.fail('Restore must not re-upload') },

@@ -12,6 +12,7 @@ import { validateTitle } from './validation';
 import type { Id } from '../../types/domain';
 import type { DraftMetadata, DraftState, PersistedAttachment, ProjectDraft, PublishResult } from '../../types/publishing';
 import { deriveProjectRelevance } from '../../domain/discovery/ranking';
+import { usePresentation } from '../../presentation/usePresentation';
 
 /**
  * The publishing feature boundary.
@@ -42,6 +43,19 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     invalidateProfiles, cacheProfile
   } = useProfileData();
   const auth = useAuth();
+  const isMobile = usePresentation() === 'mobile';
+  const recoveryOpening = useRef({ accountId: auth.user?.id, profileId, categoryId, enabled: false, resumeId: undefined as string | undefined, wasOpen: false });
+  if (recoveryOpening.current.accountId !== auth.user?.id || recoveryOpening.current.profileId !== profileId || recoveryOpening.current.categoryId !== categoryId) {
+    recoveryOpening.current = { accountId: auth.user?.id, profileId, categoryId, enabled: false, resumeId: undefined, wasOpen: false };
+  }
+  const uploadRecoveryScope = recoveryOpening.current;
+  // Changing presentation must not turn off durability halfway through this
+  // opening. A fresh WEB opening still uses the existing ordinary transport.
+  if (isOpen && !uploadRecoveryScope.wasOpen) { uploadRecoveryScope.enabled = false; uploadRecoveryScope.resumeId = undefined; }
+  uploadRecoveryScope.wasOpen = isOpen;
+  if (isOpen && isMobile && (firstProject || workspace?.persist)) uploadRecoveryScope.enabled = true;
+  if (isOpen && isMobile && workspace?.resume?.id) uploadRecoveryScope.resumeId = workspace.resume.id;
+  const resumeId = uploadRecoveryScope.enabled ? uploadRecoveryScope.resumeId : workspace?.resume?.id;
   const waitForProfile = firstProject || workspace?.awaitProfile === true;
   // A project is a collection of assets of any family, so preparation is not
   // scoped to the category's presentation format.
@@ -51,7 +65,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
    * there is one answer about whether uploading is possible, and it can never
    * enter an uploading state while that answer is "no".
    */
-  const upload = useMediaUpload(media.capability);
+  const upload = useMediaUpload(media.capability, auth.user?.id ? { accountId: auth.user.id, enabled: uploadRecoveryScope.enabled } : undefined);
   const restoreMedia = media.restore, restoreUpload = upload.restore, getUploadCheckpoint = upload.getCheckpoint;
   const [draft, setDraft] = useState<ProjectDraft | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
@@ -89,9 +103,8 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const [saveDraftError, setSaveDraftError] = useState<string | null>(null);
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState<string | null>(null);
-  const persistWorkspace = Boolean(workspace?.persist);
+  const persistWorkspace = Boolean(workspace?.persist || uploadRecoveryScope.enabled);
   const activation = Boolean(workspace?.activation);
-  const resumeId = workspace?.resume?.id;
   const initialTitle = workspace?.initialMetadata?.title, initialSummary = workspace?.initialMetadata?.summary;
   const checkpointSignature = useRef<string | null>(null);
   const [checkpointStatus, setCheckpointStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -349,7 +362,8 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         const uploaded = await upload.upload({
           profileId,
           draftId: draft.id,
-          media: media.items
+          media: media.items,
+          onCheckpoint: async () => { assertCurrentOpening(); await saveLocalDraft(); assertCurrentOpening(); },
         });
         if (!uploaded) {
           // The upload state carries its own message, retry, and cancellation, so

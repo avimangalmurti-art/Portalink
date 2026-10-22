@@ -46,7 +46,8 @@ function fixture({ presentation = 'mobile', authenticated = true, initializing =
   const globals = { window, document, Event: BrowserEvent };
   const resumeState = sourceModule('src/presentation/mobile/mobileResumeState.ts', {}, globals);
   if (savedPath) assert.equal(resumeState.saveMobileResumeRoute('account', savedPath), true);
-  const resumeHook = sourceModule('src/presentation/mobile/useMobileResumeSession.ts', { react, './mobileResumeState': resumeState }, globals);
+  const messageDrafts = sourceModule('src/presentation/mobile/mobileMessageDrafts.ts', {}, globals);
+  const resumeHook = sourceModule('src/presentation/mobile/useMobileResumeSession.ts', { react, './mobileResumeState': resumeState, './mobileMessageDrafts': messageDrafts }, globals);
   const auth = { isInitializing: initializing, isAuthenticated: authenticated, isSessionUnavailable: sessionUnavailable, pendingView, phase,
     user: authenticated ? { id: 'account' } : null, session: authenticated ? { user: { id: 'account' } } : null,
     requestAuth(view) { trace.push(['request-auth', view]); auth.pendingView = view; } };

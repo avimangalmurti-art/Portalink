@@ -14,6 +14,7 @@ import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { useMessaging } from '../features/messages/useMessaging';
 import { useMobileMessageContinuity } from '../features/messages/useMobileMessageContinuity';
+import { clearLegacyMobileMessageDraft, clearSentMobileMessageDraft, migrateMobileMessageDrafts, readMobileMessageDraft, saveMobileMessageDraft } from '../presentation/mobile/mobileMessageDrafts';
 import { reducedMotion } from '../presentation/motion/motion';
 import type { Id } from '../types/domain';
 import type { DirectMessage, MessageAttachment } from '../types/messages';
@@ -105,7 +106,17 @@ export function MessagesPage({
   const [attachmentsByConversation, setAttachmentsByConversation] = useState<Record<string, File[]>>({});
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const draftStorageKey = `portalink-message-drafts:${auth.viewerProfileId ?? 'account'}`;
-  const [drafts, setDrafts] = useState<Record<string, string>>(() => readDrafts(draftStorageKey));
+  const draftAccountId = auth.isAuthenticated ? auth.user?.id ?? null : null;
+  const draftOwner = JSON.stringify([draftAccountId, auth.viewerProfileId]);
+  const draftOwnerRef = useRef(draftOwner); draftOwnerRef.current = draftOwner;
+  const [draftState, setDraftState] = useState(() => ({ owner: draftOwner, drafts: isMobile ? migrateMobileMessageDrafts(draftAccountId, auth.viewerProfileId) ?? {} : readDrafts(draftStorageKey) }));
+  const draftStateRef = useRef(draftState); draftStateRef.current = draftState;
+  const draftPresentation = useRef(isMobile);
+  const mobileDraftOwner = useRef<string | null>(isMobile ? draftOwner : null);
+  const draftRevisions = useRef<Record<string, number>>(Object.create(null));
+  const failedDraftSends = useRef(new Map<string, () => void>());
+  const draftMounted = useRef(true);
+  const drafts = useMemo(() => draftState.owner === draftOwner ? draftState.drafts : {}, [draftState, draftOwner]);
   const messageScrollerRef = useRef<HTMLDivElement>(null);
   const conversationListRef = useRef<HTMLDivElement>(null);
   const threadPanelRef = useRef<HTMLElement>(null);
@@ -141,8 +152,33 @@ export function MessagesPage({
   });
 
   useEffect(() => {
+    draftMounted.current = true;
+    return () => { draftMounted.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const previous = draftStateRef.current;
+    const enteringMobile = isMobile && !draftPresentation.current;
+    draftPresentation.current = isMobile;
+    if (previous.owner !== draftOwner) {
+      mobileDraftOwner.current = isMobile ? draftOwner : null;
+      draftRevisions.current = Object.create(null);
+      failedDraftSends.current.clear();
+      const next = { owner: draftOwner, drafts: isMobile ? migrateMobileMessageDrafts(draftAccountId, auth.viewerProfileId) ?? {} : readDrafts(draftStorageKey) };
+      draftStateRef.current = next; setDraftState(next);
+    } else if (enteringMobile) {
+      mobileDraftOwner.current = draftOwner;
+      // Resize preserves current unsent text; older device copies cannot replace it.
+      const next = { owner: draftOwner, drafts: { ...migrateMobileMessageDrafts(draftAccountId, auth.viewerProfileId), ...previous.drafts } };
+      for (const [id, text] of Object.entries(previous.drafts)) saveMobileMessageDraft(draftAccountId, id, text);
+      draftStateRef.current = next; setDraftState(next);
+    }
+  }, [auth.viewerProfileId, draftAccountId, draftOwner, draftStorageKey, isMobile]);
+
+  useEffect(() => {
+    if (isMobile || draftState.owner !== draftOwner) return;
     try { sessionStorage.setItem(draftStorageKey, JSON.stringify(drafts)); } catch { /* A draft can remain in memory when storage is unavailable. */ }
-  }, [draftStorageKey, drafts]);
+  }, [draftOwner, draftState.owner, draftStorageKey, drafts, isMobile]);
 
   useEffect(() => {
     if (activeId) {
@@ -261,8 +297,12 @@ export function MessagesPage({
   }, [conversationFilter, messaging.conversations, query, searchResults, resultQuery]);
 
   function updateDraft(value: string) {
-    if (!activeId) return;
-    setDrafts((current) => ({ ...current, [activeId]: value }));
+    if (!activeId || draftOwnerRef.current !== draftOwner) return;
+    draftRevisions.current[activeId] = (draftRevisions.current[activeId] ?? 0) + 1;
+    const current = draftStateRef.current.owner === draftOwner ? draftStateRef.current.drafts : {};
+    const next = { owner: draftOwner, drafts: { ...current, [activeId]: value } };
+    draftStateRef.current = next; setDraftState(next);
+    if (isMobile) saveMobileMessageDraft(draftAccountId, activeId, value);
     messaging.broadcastTyping(Boolean(value.trim()));
   }
 
@@ -271,10 +311,41 @@ export function MessagesPage({
     if (messaging.isSending || (isMobile && messaging.threadUnavailable) || !activeId || (!draft.trim() && attachments.length === 0)) return;
     const body = draft;
     const files = isMessageRequest ? [] : attachments;
-    setDrafts((current) => ({ ...current, [activeId]: '' }));
+    const conversationId = activeId;
+    const revision = draftRevisions.current[conversationId] ?? 0;
+    const ownsMobileDraft = isMobile || mobileDraftOwner.current === draftOwner;
+    const savedDraft = ownsMobileDraft ? readMobileMessageDraft(draftAccountId, conversationId) : null;
+    const sendKey = JSON.stringify([draftOwner, conversationId, body.trim()]);
+    const clearText = () => {
+      if (!draftMounted.current || draftOwnerRef.current !== draftOwner || draftStateRef.current.owner !== draftOwner || (draftRevisions.current[conversationId] ?? 0) !== revision || (draftStateRef.current.drafts[conversationId] ?? '') !== body) return false;
+      const next = { owner: draftOwner, drafts: { ...draftStateRef.current.drafts, [conversationId]: '' } };
+      draftStateRef.current = next; setDraftState(next);
+      return true;
+    };
+    if (!isMobile) clearText();
     setAttachments([]);
     messaging.broadcastTyping(false);
-    void messaging.sendMessage(body, files);
+    void messaging.sendMessage(body, files).then(sent => {
+      if (!ownsMobileDraft) return;
+      const acknowledge = () => {
+        // Acknowledgements retire only the submitted revision, never later typing.
+        if (savedDraft?.text === body) clearSentMobileMessageDraft(draftAccountId, savedDraft);
+        if (isMobile && clearText()) clearLegacyMobileMessageDraft(auth.viewerProfileId, conversationId, body);
+      };
+      if (sent) { failedDraftSends.current.delete(sendKey); acknowledge(); }
+      else if (draftOwnerRef.current === draftOwner) failedDraftSends.current.set(sendKey, acknowledge);
+    });
+  }
+
+  function retryMessage(messageId: Id) {
+    if (!isMobile && mobileDraftOwner.current !== draftOwner) return messaging.retryMessage(messageId);
+    const message = messaging.messages.find(item => item.id === messageId);
+    const key = JSON.stringify([draftOwner, activeId, message?.body.trim()]);
+    const acknowledge = failedDraftSends.current.get(key);
+    return messaging.retryMessage(messageId).then(sent => {
+      if (sent) { failedDraftSends.current.delete(key); acknowledge?.(); }
+      return sent;
+    });
   }
 
   async function loadEarlier() {
@@ -454,7 +525,7 @@ export function MessagesPage({
                     <button data-ui-shape="action" data-control-size="md" type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}
                 {!messaging.isLoadingThread && !mobileThreadError && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]">{isMobile && isMessageRequest ? <p className="text-[14px] leading-6 text-[var(--text-secondary)]">Send one text-only invitation to chat. You can send more messages and attachments after they accept.</p> : <EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} />}</div> : null}
-                <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest && !messaging.activeConversation.participant.isDeleted} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={messaging.retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
+                <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest && !messaging.activeConversation.participant.isDeleted} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
                 {hasNewBelow ? <button data-ui-shape="action" data-control-size="md" type="button" onClick={scrollToLatest} className="sticky bottom-2 mx-auto mt-3 flex items-center gap-2 rounded-full bg-[var(--surface-raised)] px-3 py-2 text-[12px] font-semibold text-[var(--accent-text)] shadow-lg ring-1 ring-[var(--hairline)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowDownIcon} />New messages</button> : null}
               </div>
 

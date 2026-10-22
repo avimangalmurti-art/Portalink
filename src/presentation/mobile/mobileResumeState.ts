@@ -9,6 +9,7 @@ const PROFILE = new RegExp(`^/p/${SEGMENT}$`);
 const CATEGORY = new RegExp(`^/p/${SEGMENT}/c/${SEGMENT}$`);
 const PROJECT = new RegExp(`^/p/${SEGMENT}/c/${SEGMENT}/${SEGMENT}$`);
 const CITY = new RegExp(`^/portalink/${SEGMENT}$`);
+const STUDIO_COLLECTIONS = ['overview', 'drafts', 'bookmarks', 'references', 'cited', 'activity'];
 type ResumeStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export type MobileResumeStorageOptions = { storage?: ResumeStorage | null; now?: number };
 export type MobileResumeFeedState = { scrollTop: number; loadedCount: number; anchorId?: string; anchorOffset?: number };
@@ -48,17 +49,20 @@ export function safeMobileResumePath(value: unknown): string | null {
   const [pathname, search = '', ...extra] = value.split('?');
   if (extra.length || (value.includes('?') && !search)) return null;
   const profile = PROFILE.test(pathname), project = PROJECT.test(pathname);
-  if (!profile && !project && !CATEGORY.test(pathname) && !CITY.test(pathname) && !['/', '/portalink', '/studio', '/saved'].includes(pathname)) return null;
+  if (!profile && !project && !CATEGORY.test(pathname) && !CITY.test(pathname) && !['/', '/portalink', '/studio', '/saved', '/messages'].includes(pathname)) return null;
   const query = new URLSearchParams(search);
   const seen = new Set<string>();
   for (const [key, item] of query) {
     if (seen.has(key)) return null;
     seen.add(key);
     if (profile && key === 'view' && ['projects', 'portals', 'followers', 'following'].includes(item)) continue;
+    if (pathname === '/messages' && key === 'conversation' && ID.test(item)) continue;
+    if (pathname === '/studio' && ['collection', 'category'].includes(key) && STUDIO_COLLECTIONS.includes(item)) continue;
     if (project && ((key === 'media' && ID.test(item)) || (key === 'page' && /^[1-9]\d{0,4}$/.test(item) && Number(item) <= 10000) || (key === 'view' && item === 'page'))) continue;
     return null;
   }
   if (project && query.has('view') && (!query.has('media') || !query.has('page'))) return null;
+  if (pathname === '/studio' && query.has('collection') && query.has('category') && query.get('collection') !== query.get('category')) return null;
   // Only declared ID segments and enum/numeric fields are emitted, never a URL token.
   return search ? `${pathname}?${query.toString()}` : pathname;
 }
