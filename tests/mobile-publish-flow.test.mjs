@@ -5,6 +5,8 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 
+const assetTypes={};
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/features/publishing/assetTypes.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:assetTypes});
 const validation={};
 vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/features/publishing/validation.ts',import.meta.url),'utf8'),{
   compilerOptions:{module:ts.ModuleKind.CommonJS},
@@ -24,7 +26,7 @@ function harness(overrides = {}, props = {}, presentation = 'mobile') {
   const flow = { step: 'metadata', state: 'editing', isSavingDraft: false, isDiscarding: false,
     draft: { id: 'draft-a' }, metadata: { title: 'Quiet Rooms', summary: 'A study of space.' }, location: 'London', fieldErrors: {},
     inferredRelevance:{},ignoreInferredLocation:false,setIgnoreInferredLocation:value=>calls.push(['ignore-location',value]),
-    media: { items: [{ id: 'image-a', isCover: true, metadata: { coverPageNumber: 2 } }], isComplete: true, state: 'ready' },
+    media: { items: [{ id: 'image-a', isCover: true, family: 'image', capability: 'native', metadata: { coverPageNumber: 2 } }], isComplete: true, state: 'ready' },
     upload: { phase: 'idle', dismissFailure: () => calls.push('dismiss-upload'), cancel: () => calls.push('cancel') },
     publish: { status: 'idle', reset: () => calls.push('reset-error'), run: async () => calls.push('publish') },
     canPublish: true, setField: (key, value) => { flow.metadata[key] = value; }, setLocation: value => { flow.location = value; },
@@ -38,6 +40,7 @@ function harness(overrides = {}, props = {}, presentation = 'mobile') {
       if(!previous||!deps||deps.some((value,item)=>!Object.is(value,previous.deps?.[item]))) {slots[index]={deps};effects.push(fn);}
     } };
     if (name === './validation') return validation;
+    if (name === './assetTypes') return assetTypes;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     return new Proxy({}, { get: (_, key) => key });
   } });
@@ -359,7 +362,7 @@ test('onboarding Review shows full authored details and accessible mixed-file su
  for(const presentation of ['mobile','web']){
   const title='An unabridged idea title for a catalogue of thoughtful experiments';
   const summary='A complete first paragraph.\n\nA second paragraph with **formatting** and the last detail.';
-  const items=Array.from({length:15},(_,index)=>({id:`review-${index}`,displayTitle:`Selected file ${index+1}`,family:index===1?'document':index===2?'audio':'image',previewUrl:`review-image-${index}`,isCover:index===0,metadata:{coverPageNumber:2}}));
+  const items=Array.from({length:15},(_,index)=>({id:`review-${index}`,displayTitle:`Selected file ${index+1}`,family:index===1?'document':index===2?'audio':'image',previewUrl:`review-image-${index}`,capability:'native',isCover:index===0,metadata:{coverPageNumber:2}}));
   const h=harness({step:'preview',metadata:{title:`  ${title}  `,summary:`  ${summary}  `},location:'  Kyoto  ',media:{items,isComplete:true,state:'ready'}},{onboarding:true,detailsFirst:true},presentation);
   const tree=h.render(),sections=nodes(tree).filter(node=>node.type==='section');
   assert.deepEqual(sections.map(node=>node.props['aria-label']),['Cover','Idea details','Selected files']);
@@ -445,5 +448,15 @@ test('onboarding Review handles missing cover and optional details while retaini
   const transportPicker=component(tree,'MediaPicker');assert.equal(transportPicker.props.media,h.flow.media);assert.equal(transportPicker.props.upload,h.flow.upload);assert.equal(transportPicker.props.compact,true);assert.equal(transportPicker.props.disabled,true);
   assert.ok(action(tree,'Edit cover'));assert.ok(action(tree,'Edit idea details'));assert.ok(action(tree,'Edit selected files'));assert.ok(button(tree,'Publish idea'));
   assert.deepEqual(h.calls,[]);
+ }
+});
+
+test('Review never presents a stale converted Word cover as a rendered page on either platform',()=>{
+ for(const presentation of ['mobile','web']){
+  const word={id:'word',displayTitle:'Notes.docx',family:'document',capability:'converted',isCover:true,previewUrl:null};
+  const h=harness({step:'preview',media:{items:[word],isComplete:true,state:'ready'}},{onboarding:true,detailsFirst:true},presentation);
+  const tree=h.render();assert.equal(component(tree,'CoverFilmstrip'),undefined);assert.ok(text(tree).includes('No cover selected'));
+  assert.ok(text(tree).includes('Interiors'));assert.ok(text(tree).includes('Quiet Rooms'));
+  assert.equal(component(tree,'FormattedText').props.text,'A study of space.');assert.equal(h.flow.media.items[0],word);assert.deepEqual(h.calls,[]);
  }
 });

@@ -14,6 +14,7 @@ import { ProfileField } from '../../components/profile/ProfileField';
 import { Button } from '../../components/ui/Button';
 import type { usePublishProject } from './usePublishProject';
 import { TITLE_MAX_LENGTH, validateTitle } from './validation';
+import { canBeCover } from './assetTypes';
 import { usePresentation } from '../../presentation/usePresentation';
 
 export type MobilePublishStep = 'files' | 'details';
@@ -127,7 +128,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
         {flow.hasCommittedProject && <p className="onboarding-review-status" role="status">Your idea is published. Finish saving its details.</p>}
         <section className="onboarding-review-cover" aria-label="Cover">
           <header><h4>Cover</h4>{editAction('Edit cover', 'files')}</header>
-          {flow.media.items.some(item => item.isCover) ? <CoverFilmstrip compact readOnly media={flow.media} disabled /> : <p className="onboarding-review-empty-cover">No cover selected</p>}
+          {flow.media.items.some(item => item.isCover && canBeCover(item.family, item.capability)) ? <CoverFilmstrip compact readOnly media={flow.media} disabled /> : <p className="onboarding-review-empty-cover">No cover selected</p>}
         </section>
         <section className="onboarding-review-idea" aria-label="Idea details">
           <p className="onboarding-review-portal"><span>Portal</span><strong>{categoryLabel}</strong></p>

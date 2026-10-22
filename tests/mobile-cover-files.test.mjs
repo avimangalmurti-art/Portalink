@@ -136,3 +136,33 @@ test('empty MOBILE Files has an explicit chooser before cover authoring and WEB 
  assert.ok(web.find(node=>node.props['aria-label']==='Selected files'));
  assert.equal(web.some(node=>node.props.className==='mobile-cover-empty-copy'),false);
 });
+
+test('Word sources request a separate PDF or image cover while normal Add remains unrestricted on both platforms',()=>{
+ for(const presentation of ['mobile','web']){
+  const word={id:'word',isCover:true,family:'document',capability:'converted',displayTitle:'Work.docx',previewUrl:null};
+  const h=harness(false,'idle',{presentation,onboarding:true,items:[word]}),all=nodes(h.render());
+  assert.equal(all.find(n=>n.type==='CoverFilmstrip'),undefined);
+  assert.match(text(h.render()),/Add a PDF or image for your cover\./);
+  const wordChoice=all.find(n=>n.props['aria-label']==='Use Work.docx as cover');assert.equal(wordChoice.props.disabled,true);assert.equal(wordChoice.props['aria-pressed'],false);
+  const general=all.find(n=>n.props['aria-label']==='Add idea files');
+  const cover=all.find(n=>n.props['aria-label']==='Add PDF or image cover');
+  assert.equal(general.props.accept,undefined);assert.equal(general.props.multiple,true);
+  assert.equal(cover.props.accept,'.pdf,.jpg,.jpeg,.png,.webp,.gif,.avif,.svg');assert.equal(cover.props.multiple,undefined);
+  all.find(n=>n.type==='button'&&text(n)==='Add PDF or image cover').props.onClick();assert.deepEqual(h.calls,['picker']);
+  const files=[{name:'cover.pdf'}],target={files,value:'selected'};cover.props.onChange({target});
+  assert.equal(h.calls.at(-1),files);assert.equal(target.value,'');assert.equal(h.media.items[0],word);
+  const pdf={id:'pdf',isCover:true,family:'document',capability:'native',displayTitle:'Cover.pdf',previewUrl:'cover.pdf'};
+  h.media.items=[{...word,isCover:false},pdf];const withCover=nodes(h.render());
+  assert.equal(withCover.find(n=>n.props['aria-label']==='Add PDF or image cover'),undefined);
+  assert.equal(withCover.find(n=>n.type==='CoverFilmstrip').props.media,h.media);
+ }
+});
+
+test('separate document-cover picker completions respect upload locks and capacity',()=>{
+ for(const presentation of ['mobile','web'])for(const state of [{disabled:true,phase:'idle',isFull:false},{disabled:false,phase:'uploaded',isFull:false},{disabled:false,phase:'idle',isFull:true}]){
+  const items=[{id:'word',isCover:false,family:'document',capability:'converted',displayTitle:'Work.docx'}];
+  const h=harness(state.disabled,state.phase,{presentation,onboarding:true,items,isFull:state.isFull}),all=nodes(h.render());
+  const cover=all.find(n=>n.props['aria-label']==='Add PDF or image cover');assert.equal(cover.props.disabled,true);
+  const target={files:[{name:'late.pdf'}],value:'selected'};cover.props.onChange({target});assert.deepEqual(h.calls,[]);assert.equal(target.value,'');
+ }
+});

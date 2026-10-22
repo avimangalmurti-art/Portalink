@@ -131,5 +131,40 @@ test('restoring source-only files cannot invent a PDF page or preview and a conv
   assert.equal(word.processingState, 'conversion-required'); assert.equal(word.previewUrl, null);
   assert.equal(word.metadata?.coverPageNumber, undefined);
   assert.equal(assets.mediaKindFor(word.family, word.capability), 'unknown');
-  assert.equal(word.file, original, 'The existing upload/eligibility contract is retained without claiming a rendered Word page.');
+  assert.equal(word.file, original, 'The original Word file is retained without claiming a rendered page.');
+  assert.equal(h.value.cover, null);
+  assert.equal(assets.canBeCover(word.family, word.capability), false);
+});
+
+test('Word stays attached when a PDF or image supplies its cover, including stale cover callbacks', async t => {
+  for (const separateCover of [pdf('cover.pdf'), image('cover.png')]) {
+    const h = harness(); t.after(() => h.dispose());
+    const original = file('work.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    await h.select([original]);
+    const word = h.value.items[0];
+    assert.equal(h.value.cover, null);
+    await h.select([pdf('earlier.pdf'), separateCover]);
+    const chosen = h.value.items[2];
+    h.value.setCover(chosen.id); await h.flush();
+    const frame = { x: .2, y: .8, zoom: 1.5, aspectRatio: 1 };
+    h.value.setCoverFrame(chosen.id, frame); await h.flush();
+    h.value.setCover(word.id); h.value.setCoverPage(word.id, 2, 3); await h.flush();
+    assert.equal(h.value.cover.id, chosen.id); assert.equal(h.value.cover.metadata.coverFrame, frame);
+    assert.equal(h.value.items[0].file, original); assert.equal(h.value.items[0].previewUrl, null);
+    assert.equal(h.value.items[0].metadata?.coverPageNumber, undefined);
+    assert.equal(h.value.items[0].isCover, false);
+    assert.equal(h.value.cover.family === 'document' ? h.value.cover.metadata.coverPageNumber : undefined, chosen.family === 'document' ? 1 : undefined);
+  }
+});
+
+test('restored nominal Word cover is cleared without altering its source or the saved draft', async t => {
+  const h = harness(); t.after(() => h.dispose());
+  const original = file('work.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  const word = savedItem('word', original, { isCover: true });
+  h.value.restore([word]); await h.flush();
+  assert.equal(h.value.cover, null); assert.equal(h.value.items[0].file, original);
+  assert.equal(h.value.items[0].isCover, false); assert.equal(word.isCover, true);
+  h.value.restore([word, savedItem('pdf', pdf('cover.pdf'), { order: 1 })]); await h.flush();
+  assert.equal(h.value.cover.id, 'pdf'); assert.equal(h.value.cover.metadata.coverPageNumber, 1);
+  assert.equal(h.value.items[0].file, original); assert.equal(word.isCover, true);
 });

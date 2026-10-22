@@ -187,6 +187,8 @@ export function useMediaPreparation() {
   }, []);
   const setCover = useCallback((mediaId: string) => {
     setItems((current) => {
+      const target = current.find(item => item.id === mediaId);
+      if (!target || !canBeCover(target.family, target.capability)) return current;
       if (current.every((item) => item.isCover === (item.id === mediaId))) {
         return current;
       }
@@ -207,7 +209,7 @@ export function useMediaPreparation() {
     const safePageNumber = Math.max(1, Math.min(Math.round(pageNumber), safePageCount ?? Number.MAX_SAFE_INTEGER));
     setItems((current) => {
       const target = current.find((item) => item.id === mediaId);
-      if (!target) {
+      if (!target || !canBeCover(target.family, target.capability)) {
         return current;
       }
       const nextPageCount = safePageCount ?? target.metadata?.pageCount;

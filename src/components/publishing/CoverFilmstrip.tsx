@@ -132,7 +132,7 @@ export function CoverFilmstrip({ media, disabled, compact = false, readOnly = fa
   const collapsed = focused || readOnly || (compact && !editing);
   const drafts = useRef(new Map<string, ProjectCoverFrame>());
   const [loaded, setLoaded] = useState<{ key: string; size: ImageSize } | null>(null);
-  const cover = media.items.find((item) => item.isCover);
+  const cover = media.items.find((item) => item.isCover && canBeCover(item.family, item.capability));
   const page = cover?.metadata?.coverPageNumber ?? 1;
   const key = `${cover?.id}:${page}`;
   const naturalRatio = naturalShape && cover?.metadata?.widthPixels && cover.metadata.heightPixels ? cover.metadata.widthPixels / cover.metadata.heightPixels : 4 / 3;

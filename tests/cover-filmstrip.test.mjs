@@ -12,6 +12,7 @@ function execute(source, globals = {}) {
   return exports;
 }
 const geometry = execute(read('utils/imageCrop.ts'));
+const assetTypes = execute(read('features/publishing/assetTypes.ts'));
 function callbacks(path, names) {
   const file = ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true);
   const found = {};
@@ -25,11 +26,11 @@ function callbacks(path, names) {
 
 function mediaHarness() {
   let items = [
-    { id: 'pdf', isCover: true, metadata: { pageCount: 5, coverPageNumber: 1, coverFrame: { x: .2, y: .8, zoom: 2, aspectRatio: 4 / 3 } } },
-    { id: 'other', isCover: false, metadata: {} },
+    { id: 'pdf', isCover: true, family: 'document', capability: 'native', metadata: { pageCount: 5, coverPageNumber: 1, coverFrame: { x: .2, y: .8, zoom: 2, aspectRatio: 4 / 3 } } },
+    { id: 'other', isCover: false, family: 'document', capability: 'native', metadata: {} },
   ];
   const actions = execute(callbacks('features/publishing/useMediaPreparation.ts', ['setCoverPage', 'setPageCount', 'setCoverFrame']), {
-    setItems: (update) => { items = update(items); }, reindex: (value) => value,
+    setItems: (update) => { items = update(items); }, reindex: (value) => value, canBeCover: assetTypes.canBeCover,
   });
   return { ...actions, get items() { return items; } };
 }
