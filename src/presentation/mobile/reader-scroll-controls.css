@@ -1,0 +1,47 @@
+/* Shared by the separate platform and public entries; only MOBILE changes. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator] > .mobile-project-page-counter[data-mobile-project-page-count] {
+  --navigation-control-transition: transform var(--m-base) var(--m-enter), background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
+  transition: var(--navigation-control-transition);
+}
+
+/* Scrolling lends Back's slot to the current page, without moving artwork or
+   the header's progress/density controls. Idle restores the exact rest layout. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-back:not(.mobile-project-portal-preview) {
+  --navigation-control-transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast);
+  transition: var(--navigation-control-transition);
+}
+#root .codex-shell[data-presentation='mobile'][data-project-scrolling] .mobile-project-back:not(.mobile-project-portal-preview) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+#root .codex-shell[data-presentation='mobile'][data-project-scrolling] [data-document-reader-header] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-reader-page-arrows] {
+  --reader-counter-leading-space: 46px; /* One existing 44px arrow and its 2px gap. */
+}
+#root .codex-shell[data-presentation='mobile'][data-project-scrolling] .mobile-project-page-counter[data-mobile-project-page-count] {
+  transform: translateX(calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap) - var(--reader-counter-leading-space, 0px)));
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+#root .codex-shell[data-presentation='mobile'][data-project-scrolling] [data-mobile-page-navigator][data-document-reader-header] > .mobile-project-page-counter[data-mobile-project-page-count] {
+  height: var(--mobile-control-size);
+  background: var(--project-control-surface) !important;
+  box-shadow: var(--project-control-shadow) !important;
+  -webkit-backdrop-filter: var(--project-control-blur) !important;
+  backdrop-filter: var(--project-control-blur) !important;
+  transition: var(--navigation-control-transition);
+}
+#root .codex-shell[data-presentation='mobile'][data-project-scrolling] .mobile-project-page-counter[data-mobile-project-page-count] * {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}

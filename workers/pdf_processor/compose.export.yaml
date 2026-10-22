@@ -1,0 +1,19 @@
+# Reviewable deployment input only; this does not provision hosting or configure Sites.
+# Keep HTTPS termination at the host ingress/reverse proxy. The published port is local.
+name: portalink-pdf-export
+services:
+  pdf-export:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    restart: unless-stopped
+    command: ["python", "-m", "portalink_pdf_worker.main", "--export-http"]
+    ports:
+      - "127.0.0.1:${PORTALINK_PDF_EXPORT_PORT:-8080}:8080"
+    environment:
+      SUPABASE_URL: "${SUPABASE_URL:?Set the existing Supabase project URL in the host environment}"
+      PORTFOLIO_PDF_WORKER_SECRET: "${PORTFOLIO_PDF_WORKER_SECRET:?Set the server-only export secret in the host environment}"
+      PORT: "8080"
+      PDF_EXPORT_BIND: "0.0.0.0"
+    stop_grace_period: 60s

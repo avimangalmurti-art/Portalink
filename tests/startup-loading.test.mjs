@@ -163,7 +163,7 @@ test('route chunks warm during profile data reads, including portal/category rou
   const file = ts.createSourceFile('App.tsx', read('src/App.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let effect;
   const visit = node => {
-    if (ts.isCallExpression(node) && node.expression.getText(file) === 'useEffect' && node.arguments[0]?.getText(file).includes('void loadProfilePage()')) effect = node.arguments[0].getText(file);
+    if (ts.isCallExpression(node) && node.expression.getText(file) === 'useEffect' && node.arguments[0]?.getText(file).includes('void loadProfilePage()') && node.arguments[0]?.getText(file).includes('route.kind')) effect = node.arguments[0].getText(file);
     ts.forEachChild(node, visit);
   };
   visit(file); assert.ok(effect);

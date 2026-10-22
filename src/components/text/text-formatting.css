@@ -4,3 +4,6 @@
 .text-format-tools--dropdown select { min-height: 44px; max-width: 160px; padding: 8px 12px; border-radius: 12px; background: var(--control-rest-surface); color: var(--accent-text); font-size: 16px; }
 .text-format-tools--dropdown select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .text-format-tools--dropdown [role='status'] { position: absolute; right: 0; top: 100%; z-index: 2; width: 220px; padding: 12px; border-radius: 12px; background: var(--surface-raised); color: var(--text-primary); font-size: 14px; }
+
+/* Formatting stays a grouped WEB toolbar; colour swatches keep their own geometry. */
+[data-presentation='web'] .text-format-panel :is(.text-format-headings, .text-format-buttons) > button[data-ui-shape='row'] { min-width:36px; min-height:36px; height:36px; padding:4px 8px; align-self:center; }
