@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -98,14 +99,31 @@ function focusEnvironment() {
       document.activeElement = this; dispatch('focusin', { target: this });
     }
   }
-  const { containModalFocus } = compile('../src/hooks/useModalFocus.ts', {
+  const { containModalFocus, dismissTopModal } = compile('../src/hooks/useModalFocus.ts', {
     document, HTMLElement: Element, getComputedStyle: (element) => ({ visibility: element.visibility }),
   });
-  return { document, Element, containModalFocus, key(key, shiftKey = false) {
+  return { document, Element, containModalFocus, dismissTopModal, key(key, shiftKey = false) {
     const event = { key, shiftKey, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
     dispatch('keydown', event); return event;
   } };
 }
+
+test('system dismissal awaits the active child without closing its parent', async () => {
+  const env = focusEnvironment();
+  const parent = new env.Element(null, true), child = new env.Element(null, true);
+  let parentCloses = 0, childCloses = 0, finish;
+  const releaseParent = env.containModalFocus(parent, () => { parentCloses++; });
+  const releaseChild = env.containModalFocus(child, () => { childCloses++; return new Promise(resolve => { finish = resolve; }); });
+  const dismissal = env.dismissTopModal();
+  let finished = false;
+  Promise.resolve(dismissal).then(() => { finished = true; });
+  await Promise.resolve();
+  assert.equal(childCloses, 1); assert.equal(parentCloses, 0); assert.equal(finished, false);
+  finish(); await dismissal;
+  releaseChild(); await env.dismissTopModal();
+  assert.equal(parentCloses, 1);
+  releaseParent(); assert.equal(env.dismissTopModal(), false);
+});
 
 test('only the top modal handles Escape and Tab; closing returns to its opener', () => {
   const env = focusEnvironment();
@@ -161,6 +179,7 @@ test('project editor Escape uses existing dirty and transfer safeguards', () => 
     const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
       useLayoutEffect() {}, useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, (next) => changes.push(next)] };
     const { ProjectEditorDialog } = compile('../src/features/projects/ProjectEditorDialog.tsx', { require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
       if (name.endsWith('/useTouchTap')) return {useTouchTap:fn=>({onPointerDown:fn})};
       if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
       if (name === 'react') return react;
@@ -180,6 +199,7 @@ test('shared project dialog sends all dismissal paths through the same transfer 
     let escape, closed = 0;
     const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }), useLayoutEffect() {}, useRef: () => ({ current: null }) };
     const { ProjectFormDialog } = compile('../src/components/publishing/ProjectFormDialog.tsx', { React: react, require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
       if (name.endsWith('/useTouchTap')) return {useTouchTap:fn=>({onPointerDown:fn})};
       if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
       if (name === 'react') return react;
@@ -208,6 +228,7 @@ test('editing keeps Save associated with the form so Enter uses the normal save 
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
     useLayoutEffect() {}, useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, () => {}] };
   const { ProjectEditorDialog } = compile('../src/features/projects/ProjectEditorDialog.tsx', { require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
     if (name.endsWith('/useTouchTap')) return {useTouchTap:fn=>({onPointerDown:fn})};
       if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
       if (name === 'react') return react;
@@ -232,6 +253,7 @@ for (const initialPreference of [false, true]) test(`compact navigation preserve
   const slots = [], changes = [];
   const { useCompactNavigation } = compile('../src/hooks/useCompactNavigation.ts', {
     require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
       if (name === 'react-router-dom') return { useLocation: () => location };
       if (name === '../presentation/usePresentation') return { usePresentation: () => presentation };
       return {

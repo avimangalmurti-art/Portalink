@@ -11,19 +11,29 @@ export type NotificationsState = {
   mutationError: string | null;
   pendingIds: Set<string>;
   isMarkingAll: boolean;
+  isRefreshing: boolean;
   /** Local completion time of a successful service fetch. */
   updatedAt: number | null;
   markRead: (id: string) => Promise<boolean>;
   markAllRead: () => Promise<void>;
   retry: () => void;
+  refresh: () => Promise<boolean>;
 };
 
+type NotificationsOptions = { mobileContinuity?: boolean };
+
+// The existing notification service forwards PostgREST's browser-fetch message.
+// Unknown failures (including permission/auth errors) must not retain private rows.
+function isTransportFailure(caught: unknown): boolean {
+  return caught instanceof Error && /^(?:TypeError: )?(?:Failed to fetch|fetch failed|Load failed|NetworkError when attempting to fetch resource\.?)$/.test(caught.message);
+}
+
 /** One synchronized Activity source with realtime refresh and per-row mutations. */
-export function useNotifications(): NotificationsState {
+export function useNotifications({ mobileContinuity = false }: NotificationsOptions = {}): NotificationsState {
   const { notifications: service } = useServices();
   const { user } = useAuth();
   const account = user?.id ?? null;
-  const scope = useMemo(() => ({ account, service }), [account, service]);
+  const scope = useMemo(() => ({ account, service, mobileContinuity }), [account, service, mobileContinuity]);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const [status, setStatus] = useState<AsyncStatus>('idle');
@@ -34,6 +44,7 @@ export function useNotifications(): NotificationsState {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const markingAllRef = useRef(false);
   const [loadedScope, setLoadedScope] = useState<typeof scope | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
@@ -41,36 +52,96 @@ export function useNotifications(): NotificationsState {
   const request = useRef(0);
   const accountRef = useRef(account);
   accountRef.current = account;
+  const mountedRef = useRef(false);
+  const snapshotScopeRef = useRef<typeof scope | null>(null);
+  const mobileFlightRef = useRef<{ scope: typeof scope; version: number; promise: Promise<boolean> } | null>(null);
 
-  const load = useCallback(async (background = false) => {
-    // The inverse order matters too: a foreground refresh cannot start in the
-    // middle of an acknowledgement that will invalidate older read requests.
-    if (!background && (pendingRef.current.size > 0 || markingAllRef.current)) return false;
-    const version = ++request.current;
-    if (!account) { setItems([]); statusRef.current = 'success'; setStatus('success'); return; }
-    if (!background) { statusRef.current = 'loading'; setStatus('loading'); }
-    try {
-      const next = await service.listNotifications();
-      if (version !== request.current || scopeRef.current !== scope || accountRef.current !== account) return;
-      setItems(next);
-      setLoadedScope(scope);
-      setUpdatedAt(Date.now());
-      setError(null);
-      statusRef.current = 'success';
-      setStatus('success');
-      return true;
-    } catch {
-      if (version === request.current && scopeRef.current === scope && !background) {
-        setLoadedScope(scope);
-        setError('Activity could not be loaded. Check the connection and try again.');
-        statusRef.current = 'error';
-        setStatus('error');
+  const load = useCallback((background = false): Promise<boolean> => {
+    if (!mountedRef.current || scopeRef.current !== scope) return Promise.resolve(false);
+    if (mobileContinuity) {
+      const existing = mobileFlightRef.current;
+      if (existing?.scope === scope) return existing.promise;
+      if (pendingRef.current.size > 0 || markingAllRef.current) return Promise.resolve(false);
+      if (!account) {
+        setItems([]); statusRef.current = 'success'; setStatus('success');
+        return Promise.resolve(true);
       }
-      return false;
+      const version = ++request.current;
+      const hasSnapshot = snapshotScopeRef.current === scope;
+      if (!hasSnapshot) { statusRef.current = 'loading'; setStatus('loading'); }
+      setIsRefreshing(true);
+      const current = () => mountedRef.current && version === request.current && scopeRef.current === scope && accountRef.current === account;
+      const flight = { scope, version, promise: Promise.resolve(false) };
+      mobileFlightRef.current = flight;
+      const promise = (async () => {
+        try {
+          const next = await service.listNotifications();
+          if (!current()) return false;
+          setItems(next);
+          snapshotScopeRef.current = scope;
+          setLoadedScope(scope);
+          setUpdatedAt(Date.now());
+          setError(null);
+          statusRef.current = 'success';
+          setStatus('success');
+          return true;
+        } catch (caught) {
+          if (current()) {
+            if (!isTransportFailure(caught)) {
+              setItems([]);
+              snapshotScopeRef.current = null;
+              setUpdatedAt(null);
+            }
+            setLoadedScope(scope);
+            setError('Activity could not be loaded. Check the connection and try again.');
+            statusRef.current = 'error';
+            setStatus('error');
+          }
+          return false;
+        } finally {
+          if (mobileFlightRef.current?.version === version && mobileFlightRef.current.scope === scope) {
+            mobileFlightRef.current = null;
+            if (mountedRef.current && scopeRef.current === scope) setIsRefreshing(false);
+          }
+        }
+      })();
+      flight.promise = promise;
+      return promise;
     }
-  }, [account, service, scope]);
+    return (async () => {
+      // The inverse order matters too: a foreground refresh cannot start in the
+      // middle of an acknowledgement that will invalidate older read requests.
+      if (!background && (pendingRef.current.size > 0 || markingAllRef.current)) return false;
+      const version = ++request.current;
+      if (!account) { setItems([]); statusRef.current = 'success'; setStatus('success'); return true; }
+      if (!background) { statusRef.current = 'loading'; setStatus('loading'); }
+      try {
+        const next = await service.listNotifications();
+        if (!mountedRef.current || version !== request.current || scopeRef.current !== scope || accountRef.current !== account) return false;
+        setItems(next);
+        setLoadedScope(scope);
+        setUpdatedAt(Date.now());
+        setError(null);
+        statusRef.current = 'success';
+        setStatus('success');
+        return true;
+      } catch {
+        if (mountedRef.current && version === request.current && scopeRef.current === scope && !background) {
+          setLoadedScope(scope);
+          setError('Activity could not be loaded. Check the connection and try again.');
+          statusRef.current = 'error';
+          setStatus('error');
+        }
+        return false;
+      }
+    })();
+  }, [account, service, scope, mobileContinuity]);
 
   useEffect(() => {
+    mountedRef.current = true;
+    mobileFlightRef.current = null;
+    snapshotScopeRef.current = null;
+    setIsRefreshing(false);
     setItems([]);
     setLoadedScope(null);
     setUpdatedAt(null);
@@ -80,7 +151,7 @@ export function useNotifications(): NotificationsState {
     setIsMarkingAll(false);
     markingAllRef.current = false;
     void load();
-    return () => { request.current += 1; };
+    return () => { mountedRef.current = false; mobileFlightRef.current = null; request.current += 1; };
   }, [account, load]);
 
   useEffect(() => {
@@ -101,7 +172,7 @@ export function useNotifications(): NotificationsState {
   async function markRead(id: string) {
     // Acknowledging rows from an older snapshot must not cancel a foreground
     // refresh and strand it in loading. A ref also protects retained callbacks.
-    if (!account || statusRef.current === 'loading' || scopeRef.current !== scope || loadedScope !== scope || pendingRef.current.has(id)) return false;
+    if (!mountedRef.current || !account || statusRef.current === 'loading' || scopeRef.current !== scope || loadedScope !== scope || (mobileContinuity && snapshotScopeRef.current !== scope) || pendingRef.current.has(id)) return false;
     const entry = items.find(item => item.id === id);
     if (!entry) return false;
     if (!entry.isUnread) return true;
@@ -110,16 +181,17 @@ export function useNotifications(): NotificationsState {
     setMutationError(null);
     try {
       await service.markRead(id);
-      if (scopeRef.current !== scope || accountRef.current !== account) return false;
+      if (!mountedRef.current || scopeRef.current !== scope || accountRef.current !== account) return false;
       request.current += 1;
+      if (mobileContinuity) { mobileFlightRef.current = null; setIsRefreshing(false); }
       const originalTimestamp = items.find((item) => item.id === id)?.timestamp;
       setItems((current) => current.map((item) => item.id === id && item.timestamp === originalTimestamp ? { ...item, isUnread: false } : item));
       return true;
     } catch {
-      if (scopeRef.current === scope && accountRef.current === account) setMutationError('That notification could not be marked as read. Please try again.');
+      if (mountedRef.current && scopeRef.current === scope && accountRef.current === account) setMutationError('That notification could not be marked as read. Please try again.');
       return false;
     } finally {
-      if (scopeRef.current === scope && accountRef.current === account) {
+      if (mountedRef.current && scopeRef.current === scope && accountRef.current === account) {
         pendingRef.current.delete(id);
         setPendingIds((current) => { const next = new Set(current); next.delete(id); return next; });
       }
@@ -127,23 +199,27 @@ export function useNotifications(): NotificationsState {
   }
 
   async function markAllRead() {
-    if (!account || statusRef.current === 'loading' || scopeRef.current !== scope || loadedScope !== scope || markingAllRef.current || !items.some((item) => item.isUnread)) return;
+    if (!mountedRef.current || !account || statusRef.current === 'loading' || scopeRef.current !== scope || loadedScope !== scope || (mobileContinuity && snapshotScopeRef.current !== scope) || markingAllRef.current || !items.some((item) => item.isUnread)) return;
     markingAllRef.current = true;
     setIsMarkingAll(true);
     setMutationError(null);
+    let refreshAfterMutation = false;
     try {
       await service.markAllRead();
-      if (scopeRef.current !== scope || accountRef.current !== account) return;
+      if (!mountedRef.current || scopeRef.current !== scope || accountRef.current !== account) return;
       request.current += 1;
+      if (mobileContinuity) { mobileFlightRef.current = null; setIsRefreshing(false); }
       const acknowledged = new Map(items.map((item) => [item.id, item.timestamp]));
       setItems((current) => current.map((item) => acknowledged.get(item.id) === item.timestamp ? { ...item, isUnread: false } : item));
-      void load(true);
+      if (mobileContinuity) refreshAfterMutation = true;
+      else void load(true);
     } catch {
-      if (scopeRef.current === scope && accountRef.current === account) setMutationError('Notifications could not be marked as read. Please try again.');
+      if (mountedRef.current && scopeRef.current === scope && accountRef.current === account) setMutationError('Notifications could not be marked as read. Please try again.');
     } finally {
-      if (scopeRef.current === scope && accountRef.current === account) {
+      if (mountedRef.current && scopeRef.current === scope && accountRef.current === account) {
         markingAllRef.current = false;
         setIsMarkingAll(false);
+        if (refreshAfterMutation) void load(true);
       }
     }
   }
@@ -159,9 +235,11 @@ export function useNotifications(): NotificationsState {
     mutationError: isCurrent ? mutationError : null,
     pendingIds: isCurrent ? new Set([...pendingIds, ...(status === 'loading' ? items.map(item => item.id) : [])]) : new Set<string>(),
     isMarkingAll: isCurrent && (isMarkingAll || status === 'loading'),
-    updatedAt: isCurrent && status === 'success' ? updatedAt : null,
+    isRefreshing: mobileContinuity && isRefreshing && mobileFlightRef.current?.scope === scope,
+    updatedAt: isCurrent && (status === 'success' || (mobileContinuity && snapshotScopeRef.current === scope)) ? updatedAt : null,
     markRead,
     markAllRead,
     retry: () => void load(),
+    refresh: () => load(),
   };
 }
