@@ -10,6 +10,7 @@ import { AppearanceSwitch } from '../ui/AppearanceSwitch';
 import { usePresentation } from '../../presentation/usePresentation';
 import { PortalinkSplashLoader } from '../ui/PortalinkSplashLoader';
 import './helloWorldSignIn.css';
+import './profile-setup.css';
 
 export type AccountAppearanceProps = {
   theme?: 'light' | 'dark';
@@ -24,9 +25,10 @@ export type AccountAppearanceProps = {
 };
 
 /** One welcome scene for every step of the account journey. */
-export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAccentColorChange, highContrast, onHighContrastChange, reduceTranslucency, onReduceTranslucencyChange, mobileOnboarding = false, signIn = false, onStepBack, showAppearance = true, showWelcomeMedia = true, busy = false, dirty = false, onDismiss, children }: AccountAppearanceProps & {
+export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAccentColorChange, highContrast, onHighContrastChange, reduceTranslucency, onReduceTranslucencyChange, mobileOnboarding = false, profileSetup = false, signIn = false, onStepBack, showAppearance = true, showWelcomeMedia = true, busy = false, dirty = false, onDismiss, children }: AccountAppearanceProps & {
   title: string;
   mobileOnboarding?: boolean;
+  profileSetup?: boolean;
   signIn?: boolean;
   onStepBack?: () => void;
   showAppearance?: boolean;
@@ -63,7 +65,7 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
       const active = document.activeElement;
       if (active instanceof HTMLElement && active.matches('input, textarea, [contenteditable="true"]')) active.blur();
       if (contentRef.current) contentRef.current.scrollTop = 0;
-      const stepFields = contentRef.current?.querySelector<HTMLElement>('.mobile-onboarding-fields');
+      const stepFields = contentRef.current?.querySelector<HTMLElement>(profileSetup ? '.profile-setup-fields' : '.mobile-onboarding-fields');
       if (stepFields) stepFields.scrollTop = 0;
       headingRef.current?.focus({ preventScroll: true });
     };
@@ -73,7 +75,7 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
     };
     window.addEventListener('pageshow', onPageShow);
     return () => window.removeEventListener('pageshow', onPageShow);
-  }, [title]);
+  }, [title, profileSetup]);
   useEffect(() => {
     if (!mobileRef.current) headingRef.current?.focus({ preventScroll: true });
   }, [title]);
@@ -87,7 +89,8 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
       frame = requestAnimationFrame(() => {
         const field = document.activeElement;
         if (!(field instanceof HTMLElement) || !content.contains(field) || !field.matches('input:not([type="file"]), textarea, select')) return;
-        const bounds = content.getBoundingClientRect();
+        const scroller = profileSetup ? content.querySelector<HTMLElement>('.profile-setup-fields') ?? content : content;
+        const bounds = scroller.getBoundingClientRect();
         const rect = field.getBoundingClientRect();
         // iOS can resize/pan the visual viewport after its initial focus scroll.
         // Recheck after layout so the active field stays inside our own scroller.
@@ -108,9 +111,50 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
       window.visualViewport?.removeEventListener('resize', revealField);
       window.visualViewport?.removeEventListener('scroll', revealField);
     };
-  }, [isMobile]);
+  }, [isMobile, profileSetup]);
   const keepEditing = () => { setPendingLeave(null); headingRef.current?.focus({ preventScroll: true }); };
   const selected = findNavAccent(accentColor);
+  if (profileSetup) return <div ref={viewportRef} className="profile-setup-backdrop modal-scrim" data-profile-setup={theme} data-presentation={isMobile ? 'mobile' : 'web'}
+    onPointerDown={event => { if (event.target === event.currentTarget) dismiss(); }}>
+    <section ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} aria-busy={busy} data-welcome-contrast={highContrast} data-welcome-solid={reduceTranslucency}
+      className="profile-setup-card" data-ui-surface={isMobile ? 'sheet' : 'popup'} style={resolveAccentTokens(accentColor, theme)}>
+      <header className="profile-setup-header">
+        <button type="button" aria-label="Close profile setup" disabled={busy} onClick={dismiss} data-ui-control="icon" data-control-size="lg" data-control-variant="ghost"><XIcon size={20} aria-hidden="true" /></button>
+        <span>Portalink</span><span className="profile-setup-header-spacer" aria-hidden="true" />
+      </header>
+      <div ref={contentRef} className="profile-setup-content">
+        <div className="profile-setup-intro">
+          <div className="profile-setup-art" aria-hidden="true"><img src="/onboarding/makers.webp" alt="" width="1254" height="1254" draggable={false} /></div>
+          <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
+          <p>Make a home for your ideas.</p>
+        </div>
+        {showAppearance && !isMobile && <details className="profile-setup-appearance" hidden={Boolean(pendingLeave)}>
+          <summary aria-disabled={busy || undefined} onClick={event => { if (busy) event.preventDefault(); }}>Appearance</summary>
+          <fieldset className="profile-setup-appearance-controls" disabled={busy}>
+            <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Accent color" className="profile-setup-colors">
+              {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-checked={selected.id === option.id} tabIndex={selected.id === option.id ? 0 : -1} aria-label={option.label} title={option.label}
+                disabled={busy} data-keep-color="" onClick={() => onAccentColorChange(option.dark)} className="profile-setup-swatch">
+                <span className="squircle" style={{ backgroundColor: option.dark }} />
+                {selected.id === option.id && <CheckIcon size={18} aria-hidden="true" style={{ color: isLightSurface(option.dark) ? '#1c1c1e' : '#fff' }} />}
+              </button>)}
+            </div>
+            <div className="profile-setup-switches">
+              <div className="profile-setup-switch-row">
+                <label htmlFor="welcome-high-contrast">High Contrast</label>
+                <AppearanceSwitch id="welcome-high-contrast" label="High Contrast" isOn={highContrast} onToggle={() => onHighContrastChange(!highContrast)} />
+              </div>
+              <div className="profile-setup-switch-row">
+                <label htmlFor="welcome-reduce-translucency">Reduce Translucency</label>
+                <AppearanceSwitch id="welcome-reduce-translucency" label="Reduce Translucency" isOn={reduceTranslucency} onToggle={() => onReduceTranslucencyChange(!reduceTranslucency)} />
+              </div>
+            </div>
+          </fieldset>
+        </details>}
+        <fieldset className="profile-setup-body" disabled={busy} hidden={Boolean(pendingLeave)}>{typeof children === 'function' ? children(requestLeave) : children}</fieldset>
+      </div>
+    </section>
+    {pendingLeave && <ConfirmationDialog title="Discard your changes?" description="Your unsaved account details will be lost." confirmLabel="Discard changes" cancelLabel="Keep editing" variant="destructive" pending={busy} onCancel={keepEditing} onConfirm={()=>{if(busy||!pendingLeave)return;const leave=pendingLeave;setPendingLeave(null);leave();}}/>}
+  </div>;
   return <div ref={viewportRef} data-mobile-onboarding={onboarding ? theme : undefined} data-account-signin={signIn || undefined} className="modal-scrim auth-signin-experience account-welcome-overlay fixed inset-x-0 z-[80] flex items-center justify-center p-4" style={{
     top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)',
   }} onPointerDown={event => { if (event.target === event.currentTarget) dismiss(); }}>

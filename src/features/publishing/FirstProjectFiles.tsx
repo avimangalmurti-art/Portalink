@@ -68,7 +68,7 @@ export function FirstProjectFiles({ flow, name, categories, busy, onSkip }: { fl
     {!file ? <>
       <p className="first-project-welcome">Welcome, {name.trim().split(/\s+/)[0] || 'creator'}</p>
       <h3>{flow.presetMadeIn ? `Add work from ${flow.presetMadeIn.slice(0, 4)}` : 'Add your first project'}</h3>
-      <p>{flow.presetMadeIn ? 'Bring earlier work into your Journey. You can adjust the month and year below.' : 'Drop in something you’ve made. See it become the first tile in your portfolio.'}</p>
+      <p>{flow.presetMadeIn ? 'Bring earlier work into your Timeline. You can adjust the month and year below.' : 'Drop in something you’ve made. See it become the first tile in your catalogue.'}</p>
       <button type="button" className="first-project-drop" disabled={busy} onClick={choose}
         onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (!busy) flow.media.select(Array.from(event.dataTransfer.files).slice(0, 1)); }}>
         <PlusIcon aria-hidden="true" size={32} /><span>Choose a file</span><small>PDF, image or video</small>
