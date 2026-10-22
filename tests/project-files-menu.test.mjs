@@ -171,3 +171,48 @@ test('resolution disclosure is omitted for large images and vectors, while move 
   earlier(rows[1]).props.onClick();
   assert.deepEqual(reorders, [[1, 0]]);
 });
+
+test('onboarding file menus retain presentation scope through their portal without changing legacy menus',()=>{
+ for(const presentation of ['mobile','web']){
+  for(const onboardingFiles of [false,true]){
+   let requirements=0;
+   const h=harness('ProjectFilesMenu','ProjectFilesMenu',{...menuProps,onboardingFiles,presentation,onRequirements:()=>requirements++},presentation);
+   const trigger=find(h.render(),node=>node.props?.['aria-haspopup']==='menu');
+   assert.equal(trigger.props['data-ui-shape'],onboardingFiles?'icon':undefined);
+   assert.equal(trigger.props['data-control-size'],onboardingFiles?'sm':undefined);
+   const menu=find(open(h),node=>node.props?.role==='menu');
+   assert.equal(menu.props['data-presentation'],onboardingFiles?presentation:undefined);
+   assert.equal(menu.props['data-onboarding-files-manager'],onboardingFiles?true:undefined);
+   label(menu,'File requirements').props.onClick();assert.equal(requirements,1);
+   assert.equal(find(h.render(),node=>node.props?.role==='menu'),undefined);
+  }
+ }
+});
+
+test('onboarding row actions keep order boundaries, disabled state and portalled file options',()=>{
+ for(const presentation of ['mobile','web']){
+  const reordered=[],removed=[];
+  const h=harness('MediaPicker','MediaPicker',{expanded:true,mobileFileManager:presentation==='mobile',onboardingFiles:true,
+   media:{items:rowAssets.slice(0,2),state:'ready',reorder:(from,to)=>reordered.push([from,to]),remove:id=>removed.push(id)}},presentation);
+  const section=h.render();assert.equal(section.props['data-presentation'],presentation);
+  const menuProps=find(section,node=>node.type==='ProjectFilesMenu').props;
+  assert.equal(menuProps.onboardingFiles,true);assert.equal(menuProps.presentation,presentation);
+  const rows=renderRows(h);assert.ok(rows.every(row=>row.props['data-ui-shape']==='row'));
+  const trigger=find(rows[1],node=>node.props?.['aria-haspopup']==='menu');
+  assert.equal(trigger.props['data-ui-shape'],'icon');assert.equal(trigger.props['data-control-size'],'sm');
+  if(presentation==='mobile'){
+   const earlier=row=>find(row,node=>node.props?.['aria-label']?.endsWith(' earlier'));
+   const later=row=>find(row,node=>node.props?.['aria-label']?.endsWith(' later'));
+   assert.equal(earlier(rows[0]).props.disabled,true);assert.equal(later(rows[1]).props.disabled,true);
+   assert.equal(earlier(rows[1]).props['data-ui-shape'],'icon');earlier(rows[1]).props.onClick();
+   assert.deepEqual(reordered,[[1,0]]);
+  }
+  trigger.props.onClick();
+  const popup=find(renderRows(h)[1],node=>node.props?.role==='menu');
+  assert.equal(popup.props['data-presentation'],presentation);assert.equal(popup.props['data-onboarding-files-manager'],true);
+  const remove=find(popup,node=>node.props?.label==='Remove');remove.props.onSelect();
+  assert.deepEqual(removed,[rowAssets[1].id]);
+  const locked=harness('MediaPicker','MediaPicker',{expanded:true,mobileFileManager:presentation==='mobile',onboardingFiles:true,disabled:true,media:{items:rowAssets.slice(0,2),state:'ready'}},presentation);
+  for(const row of renderRows(locked))for(const button of nodes(row).filter(node=>node.type==='button'))assert.equal(button.props.disabled,true);
+ }
+});

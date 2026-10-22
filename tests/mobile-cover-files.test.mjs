@@ -52,8 +52,23 @@ test('onboarding keeps every cover choice and reorders the original files on bot
   all.find(n=>n.type==='button'&&text(n)==='Reorder').props.onClick();
   const sheet=nodes(h.render()).find(n=>n.type==='MobileActionSheet'),picker=nodes(sheet).find(n=>n.type==='MediaPicker');
   assert.equal(picker.props.media,h.media);assert.equal(picker.props.expanded,true);
+  assert.equal(sheet.props.onboardingFiles,true);assert.equal(sheet.props.layout,'files');
+  assert.equal(picker.props.onboardingFiles,true);
   assert.equal(picker.props.mobileFileManager,presentation==='mobile'?true:undefined);
   sheet.props.onClose();assert.equal(nodes(h.render()).some(n=>n.type==='MobileActionSheet'),false);
+ }
+});
+
+test('onboarding file actions opt into the shared compact capsule scale while legacy controls retain their markers',()=>{
+ for(const presentation of ['mobile','web']){
+  for(const onboarding of [false,true]){
+   const h=harness(false,'idle',{presentation,onboarding}),all=nodes(h.render());
+   for(const label of ['Reorder','Add']){
+    const button=all.find(node=>node.type==='button'&&text(node)===label);
+    assert.equal(button.props['data-ui-control'],onboarding?'button':undefined);
+    assert.equal(button.props['data-control-size'],onboarding?'lg':undefined);
+   }
+  }
  }
 });
 

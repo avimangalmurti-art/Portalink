@@ -127,7 +127,7 @@ function FileThumbnails({ item, media, render }: { item: PreparedMedia; media: M
 }
 
 /** One selected page and crop shared by profile cards and discovery. */
-export function CoverFilmstrip({ media, disabled, compact = false, readOnly = false, naturalShape = false, freeShape = false, focused = false, cropInstructions }: { media: MediaPreparation; disabled: boolean; compact?: boolean; readOnly?: boolean; naturalShape?: boolean; freeShape?: boolean; focused?: boolean; cropInstructions?: string }) {
+export function CoverFilmstrip({ media, disabled, compact = false, readOnly = false, naturalShape = false, freeShape = false, focused = false, cropInstructions, onboardingControls = false }: { media: MediaPreparation; disabled: boolean; compact?: boolean; readOnly?: boolean; naturalShape?: boolean; freeShape?: boolean; focused?: boolean; cropInstructions?: string; onboardingControls?: boolean }) {
   const [editing, setEditing] = useState(false);
   const collapsed = focused || readOnly || (compact && !editing);
   const drafts = useRef(new Map<string, ProjectCoverFrame>());
@@ -180,7 +180,7 @@ export function CoverFilmstrip({ media, disabled, compact = false, readOnly = fa
       <div className="flex items-center justify-between gap-2"><label htmlFor="cover-zoom">Zoom</label><output htmlFor="cover-zoom" className="tabular-nums">{Math.round(frame.zoom * 100)}%</output></div>
       <div className="flex min-w-0 items-center gap-1">
       <input id="cover-zoom" type="range" min="1" max="3" step=".01" value={frame.zoom} disabled={disabled || !editable} className="h-8 min-w-0 flex-1 accent-[var(--accent-color)]" onChange={(event) => { if (size) { const next = zoomImage(frame, size, frame.aspectRatio, Number(event.target.value)); change({ ...next, aspectRatio: frame.aspectRatio, crop: cropFromPosition(size, frame.aspectRatio, next) }); } }} />
-      <button type="button" aria-label="Reset cover crop" title="Reset cover crop" disabled={disabled || !editable} className="shape-compact flex h-8 w-8 shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40" onClick={() => { if (size) { const next = { x: .5, y: .5, zoom: 1, aspectRatio: frame.aspectRatio }; change({ ...next, crop: cropFromPosition(size, frame.aspectRatio, next) }); } }}><RotateCcwIcon className="h-4 w-4" aria-hidden="true" /></button>
+      <button type="button" data-ui-shape={onboardingControls ? 'icon' : undefined} data-control-size={onboardingControls ? 'sm' : undefined} aria-label="Reset cover crop" title="Reset cover crop" disabled={disabled || !editable} className="shape-compact flex h-8 w-8 shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40" onClick={() => { if (size) { const next = { x: .5, y: .5, zoom: 1, aspectRatio: frame.aspectRatio }; change({ ...next, crop: cropFromPosition(size, frame.aspectRatio, next) }); } }}><RotateCcwIcon className="h-4 w-4" aria-hidden="true" /></button>
       </div>
     </div>
     </div>}

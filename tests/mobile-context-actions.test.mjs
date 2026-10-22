@@ -76,7 +76,7 @@ test('registration composition stays in the active route kind and keeps canonica
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 
-function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,model:providedModel}={}) {
+function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,model:providedModel,presentation='mobile',onboardingFiles=false}={}) {
  const slots=[], calls=[], motions=[], measurements={viewport:0,panel:0}; let cursor=0, escape, tree;
  class ElementStub {
   constructor(kind='header') { this.kind=kind; this.captured=new Set(); }
@@ -105,14 +105,14 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,mod
  }};
  const {MobileActionSheet}=compile('../src/components/messages/MobileActionSheet.tsx',{
   react,
-  '../../presentation/usePresentation':{usePresentation:()=> 'mobile'},
+  '../../presentation/usePresentation':{usePresentation:()=> presentation},
   '../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close(after,scope){motions.push({immediate:typeof after==='function',scope});if(after)after();else onClose();}})},
   '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:viewport})},
   '../../hooks/useModalFocus':{useModalFocus:(open,_ref,onClose,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=onClose;}},
  },{Element:ElementStub});
  const model=providedModel??contextActions('home',{signedIn:true},{handlers:{explore:()=>calls.push('explore'),newProject:()=>calls.push('new')}});
  const render=()=>{
-  cursor=0;tree=MobileActionSheet({model,onClose:()=>calls.push('close'),onAction:action=>action.run(),layout});
+  cursor=0;tree=MobileActionSheet({model,onClose:()=>calls.push('close'),onAction:action=>action.run(),layout,onboardingFiles});
   nodes(tree).find(node=>node.props.role==='dialog').ref.current=dialog;
   return tree;
  };
@@ -135,6 +135,38 @@ test('file-sheet opt-in provides an explicit Done action while ordinary sheets r
  assert.equal(done.props.children,'Done');done.props.onClick();assert.deepEqual(files.calls,['close']);
  const ordinary=sheetHarness();assert.equal(ordinary.dialog().props['data-sheet-layout'],undefined);
  assert.ok(ordinary.find(node=>node.props['aria-label']==='Close actions'));
+});
+
+test('onboarding file-sheet portals use the actual presentation and retain Done, Escape and backdrop dismissal',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=sheetHarness({layout:'files',presentation,onboardingFiles:true});
+  assert.equal(h.scrim().props['data-presentation'],presentation);
+  assert.equal(h.scrim().props['data-onboarding-files-manager'],true);
+  assert.equal(h.dialog().props['data-onboarding-files-manager'],true);
+  const done=h.find(node=>node.props['aria-label']==='Done reordering files');
+  assert.equal(done.props['data-ui-control'],'button');assert.equal(done.props['data-control-size'],'sm');
+  done.props.onClick();h.escape();
+  const scrim=h.scrim();scrim.props.onClick({target:scrim,currentTarget:scrim});
+  assert.deepEqual(h.calls,['close','close','close']);
+  const legacy=sheetHarness({layout:'files',presentation});
+  assert.equal(legacy.scrim().props['data-presentation'],'mobile');
+  assert.equal(legacy.scrim().props['data-onboarding-files-manager'],undefined);
+  assert.equal(legacy.find(node=>node.props['aria-label']==='Done reordering files').props['data-control-size'],'md');
+ }
+});
+
+test('onboarding WEB file manager omits mobile detents and never begins a header drag',()=>{
+ const web=sheetHarness({layout:'files',presentation:'web',onboardingFiles:true});
+ assert.equal(web.resizeButton(),undefined);
+ web.pointer('onPointerDown');web.pointer('onPointerMove',{clientY:450});web.pointer('onPointerUp',{clientY:450});
+ assert.equal(web.dialog().props['data-expanded'],false);
+ assert.equal(web.dialog().props['data-sheet-dragging'],undefined);
+ assert.equal(web.dialog().props.style['--sheet-drag-y'],'0px');
+ assert.deepEqual(web.measurements,{viewport:0,panel:0});assert.deepEqual(web.calls,[]);
+ for(const options of [{presentation:'mobile',onboardingFiles:true},{presentation:'web',onboardingFiles:false}]){
+  const retained=sheetHarness({layout:'files',...options});assert.ok(retained.resizeButton());
+  retained.clickResize();assert.equal(retained.dialog().props['data-expanded'],true);
+ }
 });
 
 test('owner profile actions open expanded and can collapse and reexpand without losing any action',()=>{

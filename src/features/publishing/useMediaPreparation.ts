@@ -29,6 +29,13 @@ function rejectionMessage(code: MediaRejectionCode, detail: string): string {
       return 'That file could not be read. Choose another.';
   }
 }
+function defaultCoverPage(item: PreparedMedia): PreparedMedia {
+  // Only native documents have a page renderer here. A converted source such
+  // as DOCX must not be presented as though its first page was generated.
+  return item.isCover && item.family === 'document' && item.capability === 'native' && item.metadata?.coverPageNumber === undefined
+    ? { ...item, metadata: { ...item.metadata, coverPageNumber: 1 } }
+    : item;
+}
 function reindex(items: PreparedMedia[]): PreparedMedia[] {
   const ordered = items.map((item, index) => ({
     ...item,
@@ -39,13 +46,13 @@ function reindex(items: PreparedMedia[]): PreparedMedia[] {
     return ordered.map((item) => ({
       ...item,
       isCover: item.isCover && canBeCover(item.family, item.capability)
-    }));
+    })).map(defaultCoverPage);
   }
   const suggested = ordered.find((item) => canBeCover(item.family, item.capability));
   return ordered.map((item) => ({
     ...item,
     isCover: item.id === suggested?.id
-  }));
+  })).map(defaultCoverPage);
 }
 export function useMediaPreparation() {
   const {
@@ -255,11 +262,11 @@ export function useMediaPreparation() {
     ownedUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
     ownedUrlsRef.current = [];
     hasReleasedRef.current = false;
-    setItems(saved.map(item => {
+    setItems(reindex(saved.map(item => {
       const previewUrl = canPreviewLocally(item.family, item.capability) ? URL.createObjectURL(item.file) : null;
       if (previewUrl) ownedUrlsRef.current.push(previewUrl);
       return { ...item, previewUrl };
-    }));
+    })));
   }, []);
   const cover = useMemo(() => items.find((item) => item.isCover) ?? null, [items]);
   const state: MediaPreparationState = error ? 'invalid' : isSelecting ? 'selecting' : items.length === 0 ? 'empty' : capability?.isAvailable ? 'ready' : 'upload-unavailable';

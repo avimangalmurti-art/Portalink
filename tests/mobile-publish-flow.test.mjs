@@ -363,8 +363,10 @@ test('onboarding Review shows full authored details and accessible mixed-file su
   const h=harness({step:'preview',metadata:{title:`  ${title}  `,summary:`  ${summary}  `},location:'  Kyoto  ',media:{items,isComplete:true,state:'ready'}},{onboarding:true,detailsFirst:true},presentation);
   const tree=h.render(),sections=nodes(tree).filter(node=>node.type==='section');
   assert.deepEqual(sections.map(node=>node.props['aria-label']),['Cover','Idea details','Selected files']);
-  assert.ok(nodes(tree).some(node=>node.type==='h3'&&text(node)==='Ready for your catalogue'));
-  assert.ok(text(tree).includes('Take one last look.'));
+  assert.equal(nodes(tree).some(node=>node.type==='h3'),false);
+  assert.equal(nodes(tree).some(node=>node.type==='img'&&node.props.src?.startsWith('/onboarding/')),false);
+  assert.ok(nodes(sections[1]).some(node=>node.type==='strong'&&text(node)==='Interiors'));
+  assert.ok(text(sections[1]).includes('Portal'));
   const details=sections[1],files=sections[2];
   assert.equal(text(nodes(details).find(node=>node.type==='h4')),title);
   assert.equal(component(details,'FormattedText').props.text,summary);
@@ -417,7 +419,7 @@ test('onboarding Review keeps busy and stored-file edit locks on either platform
 test('committed onboarding Review stays truthful, locks editing and guards final-detail retries',async()=>{
  for(const presentation of ['mobile','web']){
   const h=harness({hasCommittedProject:true,step:'metadata'},{onboarding:true,detailsFirst:true},presentation),tree=h.render('details');
-  assert.ok(nodes(tree).some(node=>node.type==='h3'&&text(node)==='Your idea is published'));
+  assert.ok(nodes(tree).some(node=>node.props.role==='status'&&text(node).includes('Your idea is published.')));
   assert.ok(text(tree).includes('Finish saving its details.'));assert.ok(!text(tree).includes('Ready for your catalogue'));
   assert.equal(component(tree,'ProfileField'),undefined);
   for(const label of ['Edit cover','Edit idea details','Edit selected files']){
@@ -438,7 +440,7 @@ test('onboarding Review handles missing cover and optional details while retaini
   const h=harness({step:'preview',metadata:{title:'Audio study',summary:'  '},location:' ',media:{items:[{id:'audio',displayTitle:'Recorded idea',family:'audio',metadata:{}}],isComplete:true,state:'ready'}},{onboarding:true,detailsFirst:true},presentation);
   Object.assign(h.flow.upload,transport);const tree=h.render(),details=nodes(tree).find(node=>node.type==='section'&&node.props['aria-label']==='Idea details');
   assert.ok(text(tree).includes('No cover selected'));assert.equal(component(tree,'CoverFilmstrip'),undefined);
-  assert.equal(component(details,'FormattedText'),undefined);assert.doesNotMatch(text(details),/Not added|Description|Location/);
+  assert.equal(component(details,'FormattedText'),undefined);assert.ok(text(details).includes('No description added.'));assert.doesNotMatch(text(details),/Not added|Location/);
   assert.equal(text(nodes(nodes(tree).find(node=>node.type==='section'&&node.props['aria-label']==='Selected files')).find(node=>node.type==='h4')),'1 file');
   const transportPicker=component(tree,'MediaPicker');assert.equal(transportPicker.props.media,h.flow.media);assert.equal(transportPicker.props.upload,h.flow.upload);assert.equal(transportPicker.props.compact,true);assert.equal(transportPicker.props.disabled,true);
   assert.ok(action(tree,'Edit cover'));assert.ok(action(tree,'Edit idea details'));assert.ok(action(tree,'Edit selected files'));assert.ok(button(tree,'Publish idea'));

@@ -20,7 +20,7 @@ export type MobilePublishStep = 'files' | 'details';
 type Flow = ReturnType<typeof usePublishProject>;
 
 /** Presentation steps share the existing draft, validation and upload lifecycle. */
-export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, notices, firstProject, closing = false, detailsFirst = false, onboarding = false, screenTitleId = 'publish-dialog-title' }: {
+export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, categoryLabel, notices, firstProject, closing = false, detailsFirst = false, onboarding = false, screenTitleId = 'publish-dialog-title' }: {
   closing?: boolean;
   detailsFirst?: boolean;
   onboarding?: boolean;
@@ -97,7 +97,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
   };
   const hint = stage === 'files' ? (preparing ? 'Preparing your files…' : !flow.media.isComplete ? onboarding ? null : 'Choose at least one file to continue.' : null)
     : null;
-  const editAction = (label: string, target: MobilePublishStep) => <button type="button" className={onboarding ? 'onboarding-review-edit' : mobile ? 'mobile-review-edit' : undefined} data-ui-control={onboarding ? 'button' : undefined} data-control-variant={onboarding ? 'ghost' : undefined} aria-label={label} disabled={busy || flow.hasCommittedProject || (target === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(target)}><PencilIcon size={16} aria-hidden="true" />Edit</button>;
+  const editAction = (label: string, target: MobilePublishStep) => <button type="button" className={onboarding ? 'onboarding-review-edit' : mobile ? 'mobile-review-edit' : undefined} data-ui-control={onboarding ? 'button' : undefined} data-control-variant={onboarding ? 'ghost' : undefined} data-control-size={onboarding ? 'sm' : undefined} aria-label={label} disabled={busy || flow.hasCommittedProject || (target === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(target)}><PencilIcon size={16} aria-hidden="true" />Edit</button>;
   return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" data-onboarding-publish={onboarding || undefined} data-cover-step={stage === 'files' || undefined} data-details-step={stage === 'details' || undefined} data-review-step={stage === 'review' || undefined} data-first-project={Boolean(firstProject) || undefined} aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
     {!singleHeading && <ol className="mobile-publish-progress" aria-label="Upload steps">
       {(detailsFirst ? ['Details', 'Files', 'Review'] : ['Files', 'Details', 'Review']).map((label, stepIndex) => <li key={label} aria-current={stepIndex === index ? 'step' : undefined} data-complete={stepIndex < index || undefined}>
@@ -124,18 +124,15 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
           </button>
         </div> : null : <ProfileField id="publish-location" label="Location" optional optionalParentheses workspace clearable leadingIcon={<MapPinIcon size={20} aria-hidden="true" />} value={flow.location} maxLength={80} placeholder="City or place" disabled={busy} onChange={flow.setLocation} />}
       </section> : onboarding ? <div className="onboarding-idea-review" data-onboarding-idea-review="">
-        <header className="onboarding-review-intro">
-          <img src="/onboarding/start.webp" alt="" width={1254} height={1254} draggable={false}/>
-          <h3>{flow.hasCommittedProject ? 'Your idea is published' : 'Ready for your catalogue'}</h3>
-          <p>{flow.hasCommittedProject ? 'Finish saving its details.' : 'Take one last look.'}</p>
-        </header>
+        {flow.hasCommittedProject && <p className="onboarding-review-status" role="status">Your idea is published. Finish saving its details.</p>}
         <section className="onboarding-review-cover" aria-label="Cover">
           <header><h4>Cover</h4>{editAction('Edit cover', 'files')}</header>
           {flow.media.items.some(item => item.isCover) ? <CoverFilmstrip compact readOnly media={flow.media} disabled /> : <p className="onboarding-review-empty-cover">No cover selected</p>}
         </section>
         <section className="onboarding-review-idea" aria-label="Idea details">
+          <p className="onboarding-review-portal"><span>Portal</span><strong>{categoryLabel}</strong></p>
           <header><h4>{flow.metadata.title.trim()}</h4>{editAction('Edit idea details', 'details')}</header>
-          {flow.metadata.summary.trim() && <div className="onboarding-review-summary"><FormattedText text={flow.metadata.summary.trim()}/></div>}
+          <div className="onboarding-review-summary" aria-label="Description">{flow.metadata.summary.trim() ? <FormattedText text={flow.metadata.summary.trim()}/> : <p className="onboarding-review-empty-description">No description added.</p>}</div>
           {flow.location.trim() && <p className="onboarding-review-location"><MapPinIcon size={16} aria-hidden="true"/><span>{flow.location.trim()}</span></p>}
         </section>
         <section className="onboarding-review-files" aria-label="Selected files">

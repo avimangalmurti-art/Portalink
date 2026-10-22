@@ -1,3 +1,14 @@
+#root .codex-shell .optional-setup-backdrop .optional-account-setup {
+  --text-primary:var(--optional-setup-foreground);
+  --text-secondary:var(--optional-setup-foreground);
+  --hairline:var(--optional-setup-border);
+  --hairline-strong:var(--optional-setup-border);
+  --surface-hover:var(--optional-setup-hover-surface);
+  --surface-placeholder:var(--optional-setup-selected-surface);
+  --focus-ring:var(--optional-setup-focus-ring);
+  background:var(--optional-setup-surface,var(--surface-raised))!important;
+  color:var(--optional-setup-foreground,var(--text-primary));
+}
 .optional-setup-backdrop .optional-setup-header-spacer { width:44px; flex:none; }
 .optional-setup-backdrop .optional-setup-content { padding-bottom:16px; }
 .optional-setup-backdrop .optional-setup-appearance-toggle {
@@ -44,7 +55,11 @@
 .optional-setup-backdrop[data-presentation='mobile'] .optional-account-setup[data-appearance-open='false'] .optional-setup-content>p { margin-bottom:20px; }
 .optional-setup-backdrop[data-presentation='mobile'] .optional-account-setup[data-appearance-open='false'] .optional-setup-appearance-toggle { margin-top:auto; }
 #root .codex-shell .optional-setup-backdrop[data-presentation='mobile'] > .optional-account-setup { border-radius:28px 28px 0 0 !important; }
-@media (hover:hover) { .optional-setup-backdrop .optional-setup-primary:hover { background:var(--accent-hover,var(--accent-primary)); } }
+@media (hover:hover) {
+  .optional-setup-backdrop .optional-account-setup :is(header>button,.optional-setup-appearance-toggle,.optional-setup-skip):hover { color:var(--optional-setup-hover-foreground); }
+  .optional-setup-backdrop .mobile-onboarding-swatches button[aria-checked='true']:hover { border-color:var(--optional-setup-hover-foreground); }
+  .optional-setup-backdrop .optional-setup-primary:hover { background:var(--accent-hover,var(--accent-primary)); }
+}
 @media (max-height:740px) {
   .optional-setup-backdrop .optional-setup-content { padding-inline:24px; }
   .optional-setup-backdrop .optional-setup-art { flex-basis:160px; min-height:160px; max-height:190px; }
