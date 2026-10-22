@@ -55,7 +55,7 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
   return <section className="mt-5" aria-label="Icon library">
     {searchQuery === undefined && <div className="relative">
       <SearchIcon aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-[var(--text-secondary)]" />
-      <input type="search" aria-label="Search icons" placeholder="Search icons" value={query} disabled={disabled}
+      <input type="search" aria-label="Search icons" data-ui-shape="field" placeholder="Search icons" value={query} disabled={disabled}
         onChange={event => { setLocalQuery(event.target.value); setPage({ query: event.target.value, limit: PAGE_SIZE }); }}
         onKeyDown={event => { if (event.key === 'Enter') event.preventDefault(); }}
         className="text-control h-11 w-full pl-10 pr-3 text-base text-[var(--text-primary)]" />

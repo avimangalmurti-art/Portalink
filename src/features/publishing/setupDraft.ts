@@ -1,7 +1,11 @@
-export type SetupDraft = { title: string; summary: string; portal: string; name: string };
+export type SetupDraft = { title: string; summary: string; portal: string; name: string; iconName?: string };
 
 type StoredSetupDraft = SetupDraft & { version: 1 };
 const PREFIX = 'portalink.project-setup.v1:';
+// Keep storage independent of the rendered icon registry. The screen resolves
+// catalog membership; malformed optional decoration must not discard the text.
+const savedIconName = (value: unknown): string | undefined => typeof value === 'string'
+  && value.length <= 96 && /^(?:lucide:)?[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value) ? value : undefined;
 const keyFor = (accountId: string, profileId: string) => {
   if (!accountId || !profileId) throw new Error('Sign in to save these project details.');
   return `${PREFIX}${encodeURIComponent(accountId)}:${encodeURIComponent(profileId)}`;
@@ -25,11 +29,14 @@ export function readSetupDraft(accountId: string, profileId: string): SetupDraft
     || typeof draft.portal !== 'string' || !draft.portal || typeof draft.name !== 'string') {
     throw new Error('Saved project details could not be opened.');
   }
-  return { title: draft.title, summary: draft.summary, portal: draft.portal, name: draft.name };
+  const iconName = savedIconName(draft.iconName);
+  return { title: draft.title, summary: draft.summary, portal: draft.portal, name: draft.name, ...(iconName ? { iconName } : {}) };
 }
 
 export function saveSetupDraft(accountId: string, profileId: string, draft: SetupDraft): void {
-  try { storage().setItem(keyFor(accountId, profileId), JSON.stringify({ ...draft, version: 1 } satisfies StoredSetupDraft)); }
+  const { iconName: optionalIconName, ...fields } = draft;
+  const iconName = savedIconName(optionalIconName);
+  try { storage().setItem(keyFor(accountId, profileId), JSON.stringify({ ...fields, ...(iconName ? { iconName } : {}), version: 1 } satisfies StoredSetupDraft)); }
   catch { throw new Error('Project details could not be saved on this device. Keep this screen open and try again.'); }
 }
 

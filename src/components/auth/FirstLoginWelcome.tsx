@@ -35,7 +35,7 @@ function WelcomeTour({onDone}:{onDone:()=>void}) {
   return <ModalPortal><div ref={viewport} className="first-login-welcome-backdrop modal-scrim" data-presentation={presentation}>
     <ScreenBack action={back}>{null}</ScreenBack>
     <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="first-welcome-title" aria-describedby="first-welcome-description" tabIndex={-1} className="first-login-welcome" data-ui-surface="popup">
-      <header><button type="button" onClick={onDone} aria-label="Skip Portalink introduction"><InterfaceIcon icon={XIcon}/></button><span>Welcome to Portalink</span><button type="button" onClick={onDone}>Skip</button></header>
+      <header><button type="button" onClick={onDone} aria-label="Skip Portalink introduction" data-ui-shape="icon"><InterfaceIcon icon={XIcon}/></button><span>Welcome to Portalink</span><button type="button" onClick={onDone} data-ui-shape="action">Skip</button></header>
       <div className="first-welcome-slide" aria-live="polite" aria-atomic="true"
         onTouchStart={event=>{start.current=event.touches.length===1?{x:event.touches[0].clientX,y:event.touches[0].clientY}:null;}}
         onTouchEnd={event=>{const from=start.current;start.current=null;const to=event.changedTouches[0];if(!from||!to)return;const x=to.clientX-from.x,y=to.clientY-from.y;if(Math.abs(x)<60||Math.abs(x)<Math.abs(y)*1.5)return;if(x<0)setStep(value=>Math.min(WELCOME_STEPS.length-1,value+1));else setStep(value=>Math.max(0,value-1));}} onTouchCancel={()=>{start.current=null;}}>

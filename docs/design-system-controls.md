@@ -11,12 +11,18 @@ Portalink shares control roles across MOBILE and WEB. The stable presentation ro
 | Selectable row | `--ui-row-radius: 14px` | The element painting a conversation, navigation or project-index highlight |
 | Floating capsule | `--ui-capsule-radius: 999px` | Existing floating navigation and grouped action capsules |
 | Circular icon action | `--ui-icon-radius: 50%` | Appropriate equal-width/height Settings, Back and Close controls |
+| Single-line field | `--ui-field-radius: 999px` | The painted search or single-line form input/shell |
+| Multiline composer | `--ui-composer-radius: 24px` | Bounded text areas and chat/comment composer outlines |
 
 These values are implementation choices for the approved visual reference. Attached sheets retain flat lower corners; drawers retain their attached edges. Joined rows retain straight internal joins and round the group's outer edges. Borderless controls stay borderless. Do not turn grouped controls into separate standalone buttons.
 
 Cards, feed/project cards, category tiles, thumbnails, artwork, PDF pages, embedded previews, media clipping, avatars, switches, drag handles and full-screen editors retain their existing geometry. The legacy MOBILE 3px fallback remains for these excluded elements. Opt eligible interface controls into semantic shapes instead of broadly deleting that fallback.
 
-For legacy controls, use `data-ui-shape="action|icon|row|capsule|popup|sheet"` on the element painting the shape. This changes geometry only, preserving existing materials, colors, typography, states and handlers. The important shape layer deliberately outranks lazy feature CSS and MOBILE fallback overrides. Body portals need the existing `data-presentation` scope.
+For legacy controls, use `data-ui-shape="action|icon|row|capsule|popup|sheet|field|composer"` on the element painting the shape. This changes geometry only, preserving existing materials, colors, typography, states and handlers. The important shape layer deliberately outranks lazy feature CSS and MOBILE fallback overrides. Body portals need the existing `data-presentation` scope.
+
+Keep transparent field children transparent. The message composer's painted `::before` outline shares its marked host's bounded radius. A standalone page counter uses capsule geometry; a transparent counter within a document header keeps the header's grouped capsule. Inline borderless overflow controls retain their dimensions and use capsule geometry when they are wider than tall. Expanded Settings sections and explanatory Reorder helpers remain content surfaces.
+
+Onboarding and initial Portal creation follow these same roles, including secondary, search, validation and recovery states: single-line fields are capsules, multiline fields use the composer curve, account-type/location choices use row geometry, and text actions remain capsules. Mark the painted host, including body-portalled frames. The mobile Portal creator remains full-screen; icon-library tiles, swatches, switches, artwork and cover/media geometry keep their existing treatment.
 
 `data-ui-surface="popup|sheet"` additionally opts a surface into the established shared material/type treatment. Use the shape-only marker when only geometry should change. The floating-surface treatment retains current backdrop, accessibility modes, focus, dismissal, scrolling and viewport lifecycles. Confirmation actions can wrap long labels.
 

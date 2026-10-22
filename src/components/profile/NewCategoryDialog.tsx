@@ -114,7 +114,7 @@ export function NewCategoryDialog({
 
           <label htmlFor="new-category-title" className="sr-only">{isIconSearch ? 'Search icons' : `${itemName === 'portal' ? 'Portal' : 'Category'} title`}</label>
           <div data-icon-create-field="" className="mt-5 flex items-center gap-2">
-            <input ref={fieldRef} disabled={isSaving} id="new-category-title" type={isIconSearch ? 'search' : 'text'}
+            <input ref={fieldRef} disabled={isSaving} id="new-category-title" data-ui-shape="field" type={isIconSearch ? 'search' : 'text'}
               value={isIconSearch ? iconQuery : label} onChange={event => isIconSearch ? setIconQuery(event.target.value) : setLabel(event.target.value)}
               onKeyDown={event => { if (isIconSearch && event.key === 'Enter') event.preventDefault(); }}
               maxLength={isIconSearch ? undefined : 48} autoComplete="off"

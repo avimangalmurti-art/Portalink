@@ -1525,7 +1525,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         setFirstProjectPublisher(false);
         setProjectSetupAccountId(null);
         setIsPublishOpen(true);
-      }} categories={(viewedProfile?.categories ?? []).map(category=>({...category,iconName:management.categoryIcons[category.id]??category.iconName}))} initialCategoryId={activeCategory?.id} onCreatePortal={name => management.createCategory(name, 'Grid2X2Icon')} onConfirmPortal={async category => {
+      }} categories={(viewedProfile?.categories ?? []).map(category=>({...category,iconName:management.categoryIcons[category.id]??category.iconName}))} initialCategoryId={activeCategory?.id} onCreatePortal={(name,iconName) => management.createCategory(name,iconName)} onConfirmPortal={async category => {
         if (!viewedProfileId) throw new Error('Choose your profile before continuing.');
         invalidateProfiles();
         const profile = await fetchProfile(viewedProfileId, 'overview');

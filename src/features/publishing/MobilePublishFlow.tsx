@@ -105,7 +105,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
         <span aria-hidden="true">{stepIndex < index ? <CheckIcon size={14} /> : stepIndex + 1}</span>{label}
       </li>)}
     </ol>}
-    {flow.state === 'publishing' && <PublishingProgress flow={flow} />}
+    {flow.state === 'publishing' && <PublishingProgress flow={flow} onboarding={onboarding} />}
     <div ref={bodyRef} className="mobile-publish-body scrollbar-slim">
       {!singleHeading && <header className="mobile-publish-step-heading">
         <h3 id="mobile-publish-step-title" ref={headingRef} tabIndex={-1}>{titles[stage]}</h3>
@@ -178,7 +178,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
   </form>;
 }
 
-function PublishingProgress({flow}: {flow: Flow}) {
+function PublishingProgress({flow, onboarding = false}: {flow: Flow; onboarding?: boolean}) {
   const viewport = useDialogViewport();
   const dialog = useRef<HTMLElement>(null);
   useModalFocus(true, dialog, () => { /* Publishing is dismissed by completion or transport cancellation. */ }, true);
@@ -191,6 +191,6 @@ function PublishingProgress({flow}: {flow: Flow}) {
     <h2 id="publish-progress-title">{cancelling ? 'Cancelling upload…' : uploading ? 'Uploading your files' : 'Publishing your project'}</h2>
     <p className="portalink-confirmation-description" role="status">{percentage !== null ? `${percentage}% uploaded` : 'Please wait. Keep this screen open.'}</p>
     {uploading && <progress aria-label="Upload progress" value={fraction === null ? undefined : fraction} max={1} className="mt-4 w-full" />}
-    {uploading && <div className="portalink-confirmation-actions"><button type="button" disabled={cancelling} onClick={() => void flow.upload.cancel()}>{cancelling ? 'Cancelling…' : 'Cancel upload'}</button></div>}
+    {uploading && <div className="portalink-confirmation-actions"><button type="button" data-ui-shape={onboarding ? 'action' : undefined} disabled={cancelling} onClick={() => void flow.upload.cancel()}>{cancelling ? 'Cancelling…' : 'Cancel upload'}</button></div>}
   </section></div></ModalPortal>;
 }

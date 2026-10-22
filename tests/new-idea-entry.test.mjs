@@ -112,6 +112,19 @@ test('shared setup retains WEB active Portal choice through the actual App prop'
   assert.equal(h.state.open, false);
 });
 
+test('the actual shared App creation callback forwards the chosen Portal icon without replacing it',async()=>{
+ const prop=setupAttributes.properties.find(item=>item.name?.getText(ast)==='onCreatePortal');
+ assert.ok(prop&&ts.isJsxExpression(prop.initializer));
+ const callbackCode=ts.transpileModule(`(${prop.initializer.expression.getText(ast)})`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ for(const presentation of ['mobile','web']){
+  const calls=[],created={id:'chosen-portal',label:'Research',iconName:'lucide:book-open'};
+  const callback=vm.runInNewContext(callbackCode,{presentation,management:{createCategory:(...args)=>{calls.push(args);return Promise.resolve(created);}}});
+  assert.deepEqual(calls,[],'Rendering the setup callback must not create a Portal.');
+  assert.equal(await callback('Research','lucide:book-open'),created);
+  assert.deepEqual(calls,[['Research','lucide:book-open']]);
+ }
+});
+
 test('existing WEB saved-draft selection keeps its prior direct publisher path and Portal', async () => {
   const saved = { draft: { id: 'legacy-draft', categoryId: 'saved' } };
   const h = harness({ saved, categories: [{ id: 'work' }, { id: 'saved' }], activeCategory: { id: 'work' } });

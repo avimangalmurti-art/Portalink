@@ -33,6 +33,34 @@ test('setup recovery preserves exact text and portal choice while isolating acco
   assert.equal(api.readSetupDraft('account:profile', 'a').title, setup.title);
 });
 
+test('legacy version-one drafts keep their original shape while optional icon IDs round-trip', () => {
+  const { api, entries } = storageFixture();
+  api.saveSetupDraft('account', 'profile', setup);
+  const key = [...entries.keys()][0];
+  assert.equal(entries.get(key), JSON.stringify({ ...setup, version: 1 }));
+  assert.equal(JSON.stringify(api.readSetupDraft('account', 'profile')), JSON.stringify(setup));
+  assert.equal(Object.hasOwn(api.readSetupDraft('account', 'profile'), 'iconName'), false);
+  for (const iconName of ['shapes', 'camera', 'lucide:telescope']) {
+    api.saveSetupDraft('account', 'profile', { ...setup, iconName });
+    assert.equal(JSON.stringify(api.readSetupDraft('account', 'profile')), JSON.stringify({ ...setup, iconName }));
+    assert.equal(api.readSetupDraft('other', 'profile'), null);
+    assert.equal(api.readSetupDraft('account', 'other'), null);
+  }
+});
+
+test('malformed optional icons never discard valid authored version-one details', () => {
+  const { api, entries } = storageFixture();
+  api.saveSetupDraft('account', 'profile', setup);
+  const key = [...entries.keys()][0];
+  for (const iconName of [null, false, 42, {}, [], '', ' camera ', 'CameraIcon', 'lucide:', 'lucide:../camera', '<svg>', 'a'.repeat(97)]) {
+    entries.set(key, JSON.stringify({ ...setup, iconName, version: 1 }));
+    assert.equal(JSON.stringify(api.readSetupDraft('account', 'profile')), JSON.stringify(setup));
+    api.saveSetupDraft('account', 'profile', { ...setup, iconName });
+    assert.equal(JSON.stringify(api.readSetupDraft('account', 'profile')), JSON.stringify(setup));
+    assert.equal(Object.hasOwn(JSON.parse(entries.get(key)), 'iconName'), false);
+  }
+});
+
 test('unreadable, unavailable and failed storage never silently delete the saved setup', () => {
   const h = storageFixture(); h.api.saveSetupDraft('account', 'profile', setup);
   const key = [...h.entries.keys()][0];
@@ -50,6 +78,7 @@ test('unreadable, unavailable and failed storage never silently delete the saved
 });
 
 function harness(storage, extraProps = {}) {
+  const { presentation = 'mobile', ...componentProps } = extraProps;
   const slots = [], effects = [], calls = [];
   let cursor = 0;
   const react = {
@@ -65,13 +94,15 @@ function harness(storage, extraProps = {}) {
   };
   const { ProjectSetupScreen } = sourceModule('src/features/publishing/ProjectSetupScreen.tsx', {
     react,
-    'lucide-react': { PlusIcon: 'plus', UsersIcon: 'users', XIcon: 'close' },
-    '../../components/profile/categoryIcons': { getCategoryIcon: () => 'portal-icon' },
+    'lucide-react': { ArrowLeftIcon: 'back', PlusIcon: 'plus', UsersIcon: 'users', XIcon: 'close' },
+    '../../components/profile/categoryIcons': { getCategoryIcon: () => 'portal-icon', getPortalIconLabel: name => name.replace(/^lucide:/, ''), portalIconNames: ['shapes', 'camera', 'lucide:telescope'] },
+    '../../components/profile/PortalIconLibrary': { PortalIconLibrary: 'portal-icon-library' },
+    '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
     '../../components/ui/ModalPortal': { ModalPortal: 'portal' },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus() {} },
     '../../components/publishing/useAuthoringFocus': { useAuthoringFocus() {} },
-    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
+    '../../presentation/usePresentation': { usePresentation: () => presentation },
     './validation': { validateTitle: value => value.trim() ? null : 'Add a title.', TITLE_MAX_LENGTH: 80 },
     '../profile/useCategoryManagement': { validateCategoryLabel: () => null, MAX_CATEGORY_LABEL: 80 },
     './setupDraft': storage.api,
@@ -79,9 +110,9 @@ function harness(storage, extraProps = {}) {
   });
   const props = {
     accountId: 'account', profileId: 'profile', categories: [{ id: 'design', label: 'Design' }],
-    onCreatePortal: async name => { calls.push(['create', name]); return { id: 'created', label: name }; },
+    onCreatePortal: async (name, iconName) => { calls.push(['create', name, iconName]); return { id: 'created', label: name, iconName }; },
     onContinue: value => calls.push(['continue', value]), onClose: () => calls.push(['close']),
-    onResumeDraft: draft => calls.push(['resume', draft]), ...extraProps,
+    onResumeDraft: draft => calls.push(['resume', draft]), ...componentProps,
   };
   const render = () => { cursor = 0; const tree = ProjectSetupScreen(props); effects.splice(0).forEach(effect => effect()); return nodes(tree); };
   const change = (name, value) => {
@@ -91,6 +122,13 @@ function harness(storage, extraProps = {}) {
   return {
     render, change, calls,
     click(label) { const button = render().find(node => node.type === 'button' && (node.props.children === label || node.props['aria-label'] === label)); assert.ok(button, label); return button.props.onClick(); },
+    chooseIcon(iconName) {
+      const button = render().find(node => node.type === 'button' && node.props['aria-label'] === 'Choose Portal icon');
+      assert.ok(button, 'New Portal exposes its existing icon library'); button.props.onClick();
+      const library = render().find(node => node.type === 'portal-icon-library');
+      assert.ok(library, 'The actual setup passes selection to the icon library'); library.props.onSelect(iconName);
+      return render();
+    },
     submit() { render().find(node => node.type === 'form').props.onSubmit({ preventDefault() {} }); },
   };
 }
@@ -108,6 +146,54 @@ test('a fresh setup is saved as fields change and restores on same-device reopen
   assert.equal(all.find(node => node.props['aria-label'] === 'New portal name').props.value, setup.name);
   assert.ok(all.some(node => node.type === 'button' && node.props.children === 'Start fresh'));
   assert.equal(reopened.calls.length, 0);
+});
+
+test('new Portal icon and exact authored details survive close and reopen on both platforms', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const storage = storageFixture(), first = harness(storage, { categories: [], presentation });
+    first.change('title', setup.title); first.change('summary', setup.summary); first.change('New portal name', setup.name);
+    const returned = first.chooseIcon('lucide:telescope');
+    assert.equal(returned.some(node => node.type === 'portal-icon-library'), false, 'Selection returns to the idea fields');
+    assert.equal(first.calls.length, 0, 'Choosing an icon is not a Portal write');
+    first.click('Cancel new idea');
+    assert.deepEqual(first.calls, [['close']]);
+    assert.equal(JSON.stringify(storage.api.readSetupDraft('account', 'profile')), JSON.stringify({ ...setup, iconName: 'lucide:telescope' }));
+    const reopened = harness(storage, { categories: [], presentation }), all = reopened.render();
+    assert.equal(all.find(node => node.props.name === 'title').props.value, setup.title);
+    assert.equal(all.find(node => node.type === 'textarea').props.value, setup.summary);
+    assert.equal(all.find(node => node.props['aria-label'] === 'New portal name').props.value, setup.name);
+    reopened.click('Choose Portal icon');
+    assert.equal(reopened.render().find(node => node.type === 'portal-icon-library').props.selected, 'lucide:telescope');
+    assert.equal(reopened.calls.length, 0);
+  }
+});
+
+test('an icon-only choice is saved and Start fresh restores the default without creating a Portal', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const storage = storageFixture(), first = harness(storage, { categories: [], presentation });
+    first.render(); assert.equal(storage.entries.size, 0);
+    first.chooseIcon('camera');
+    assert.equal(JSON.stringify(storage.api.readSetupDraft('account', 'profile')), JSON.stringify({ title: '', summary: '', portal: 'new', name: '', iconName: 'camera' }));
+    const reopened = harness(storage, { categories: [], presentation });
+    reopened.render(); reopened.click('Start fresh'); reopened.render();
+    assert.equal(storage.api.readSetupDraft('account', 'profile'), null);
+    reopened.click('Choose Portal icon');
+    assert.equal(reopened.render().find(node => node.type === 'portal-icon-library').props.selected, 'shapes');
+    assert.equal(reopened.calls.length, 0);
+  }
+});
+
+test('legacy or unavailable saved icons reopen with a default and preserve all earlier authored text', () => {
+  for (const draft of [setup, { ...setup, iconName: 'lucide:missing-catalog-icon' }]) {
+    const storage = storageFixture(); storage.api.saveSetupDraft('account', 'profile', draft);
+    const h = harness(storage), all = h.render();
+    assert.equal(all.find(node => node.props.name === 'title').props.value, setup.title);
+    assert.equal(all.find(node => node.type === 'textarea').props.value, setup.summary);
+    assert.equal(all.find(node => node.props['aria-label'] === 'New portal name').props.value, setup.name);
+    h.click('Choose Portal icon');
+    assert.equal(h.render().find(node => node.type === 'portal-icon-library').props.selected, 'shapes');
+    assert.equal(h.calls.length, 0);
+  }
 });
 
 test('Continue retains setup until the publisher explicitly clears it', async () => {
