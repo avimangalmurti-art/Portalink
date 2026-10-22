@@ -1,4 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { XIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { readSharedReturnPath } from '../../features/auth/registration';
@@ -33,14 +35,14 @@ export function SharedSignInBar({ name }: { name?: string }) {
     setDismissed(true);
     document.querySelector<HTMLElement>('#app-viewport .app-screen-layer:not([aria-hidden="true"]) > main')?.focus({ preventScroll: true });
   };
-  return <aside ref={barRef} className="shared-sign-in-bar" data-shared-sign-in-bar="" aria-label="Portfolio account options">
-    <span className="shared-sign-in-identity">Viewing {name}'s portfolio</span>
+  return <aside ref={barRef} className="shared-sign-in-bar" data-shared-sign-in-bar="" aria-label="Catalogue account options">
+    <span className="shared-sign-in-identity">Viewing {name}'s catalogue</span>
     <span className="shared-sign-in-actions">
       <span aria-hidden="true">·</span>
       <button type="button" disabled={auth.phase === 'authenticating'} onClick={() => requestAccount('signIn')}>Sign in</button>
       <span aria-hidden="true">·</span>
       <button type="button" disabled={auth.phase === 'authenticating'} onClick={() => requestAccount('signUp')}>Create account</button>
     </span>
-    <button type="button" className="shared-sign-in-dismiss" aria-label="Dismiss sign-in bar" onClick={dismiss}><span aria-hidden="true">×</span></button>
+    <button type="button" className="shared-sign-in-dismiss" aria-label="Dismiss sign-in bar" onClick={dismiss}><InterfaceIcon icon={XIcon} size="lg" /></button>
   </aside>;
 }

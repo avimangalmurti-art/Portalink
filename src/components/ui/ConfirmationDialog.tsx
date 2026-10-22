@@ -5,6 +5,9 @@ import { useModalFocus } from '../../hooks/useModalFocus';
 import { usePresentation } from '../../presentation/usePresentation';
 import { ModalPortal } from './ModalPortal';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
+import { DestructiveWarning } from './DestructiveWarning';
+import { CheckIcon } from 'lucide-react';
+import { InterfaceIcon } from './InterfaceIcon';
 import './confirmation-dialog.css';
 
 export type ConfirmationDialogProps = {
@@ -16,6 +19,8 @@ export type ConfirmationDialogProps = {
   pending?: boolean;
   pendingLabel?: string;
   confirmDisabled?: boolean;
+  /** Caller-provided confirmed result; never inferred from optimistic state. */
+  successLabel?: string;
   error?: string | null;
   onConfirm: () => void | boolean | Promise<void | boolean>;
   onCancel: () => void;
@@ -25,13 +30,14 @@ export type ConfirmationDialogProps = {
 };
 
 /** Decisions only. The caller closes after confirmed success; failures remain retryable. */
-export function ConfirmationDialog({ title, description, confirmLabel, cancelLabel = 'Cancel', variant = 'standard', pending = false, pendingLabel = 'Working…', confirmDisabled = false, error, onConfirm, onCancel, host, returnFocusRef }: ConfirmationDialogProps) {
+export function ConfirmationDialog({ title, description, confirmLabel, cancelLabel = 'Cancel', variant = 'standard', pending = false, pendingLabel = 'Working…', confirmDisabled = false, successLabel, error, onConfirm, onCancel, host, returnFocusRef }: ConfirmationDialogProps) {
   const id = useId(), viewport = useDialogViewport(), dialog = useRef<HTMLElement>(null), safe = useRef<HTMLButtonElement>(null);
   const presentation = usePresentation();
-  const lock = useRef(false), mounted = useRef(true);
+  const lock = useRef(false), mounted = useRef(true), confirmed = useRef(successLabel);
+  confirmed.current = successLabel;
   const [working, setWorking] = useState(false), [failure, setFailure] = useState('');
   const busy = pending || working;
-  const cancel = () => { if (!busy && !lock.current) onCancel(); };
+  const cancel = () => { if (confirmed.current || !busy && !lock.current) onCancel(); };
   useModalFocus(true, dialog, cancel, true);
   useEffect(() => { mounted.current = true; safe.current?.focus({ preventScroll: true }); return () => { mounted.current = false; if(returnFocusRef?.current?.isConnected)returnFocusRef.current.focus({preventScroll:true}); }; }, [returnFocusRef]);
   useEffect(() => {
@@ -39,21 +45,22 @@ export function ConfirmationDialog({ title, description, confirmLabel, cancelLab
     else if(dialog.current && document.activeElement===dialog.current)safe.current?.focus({preventScroll:true});
   },[busy]);
   const confirm = async () => {
-    if (busy || confirmDisabled || lock.current) return;
+    if (confirmed.current || busy || confirmDisabled || lock.current) return;
     lock.current = true; setWorking(true); setFailure('');
-    try { if (await onConfirm() === false && mounted.current) setFailure('This action could not be completed. Try again or cancel.'); }
-    catch (caught) { if (mounted.current) setFailure(caught instanceof Error ? caught.message : 'This action could not be completed. Try again or cancel.'); }
+    try { if (await onConfirm() === false && mounted.current && !confirmed.current) setFailure('This action could not be completed. Try again or cancel.'); }
+    catch (caught) { if (mounted.current && !confirmed.current) setFailure(caught instanceof Error ? caught.message : 'This action could not be completed. Try again or cancel.'); }
     finally { lock.current = false; if (mounted.current) setWorking(false); }
   };
   const content = <div ref={viewport} data-presentation={presentation} className="portalink-confirmation-overlay modal-scrim" role="presentation" onPointerDown={event => event.stopPropagation()}>
     <ScreenBack action={cancel}>{null}</ScreenBack>
-    <section ref={dialog} tabIndex={-1} data-material="content" className="portalink-confirmation" role="alertdialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} aria-busy={busy}>
+    <section ref={dialog} tabIndex={-1} data-material="content" data-ui-surface="popup" className="portalink-confirmation" role="alertdialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} aria-busy={busy}>
+      {variant === 'destructive' && <DestructiveWarning />}
       <h2 id={`${id}-title`}>{title}</h2>
       <div id={`${id}-description`} className="portalink-confirmation-description">{description}</div>
       {(error || failure) && <p role="alert" className="portalink-confirmation-error">{error || failure}</p>}
       <div className="portalink-confirmation-actions">
-        <button ref={safe} type="button" disabled={busy} onClick={cancel}>{cancelLabel}</button>
-        <button type="button" data-keep-color="" data-variant={variant} disabled={busy || confirmDisabled} onClick={() => void confirm()}>{busy ? pendingLabel : confirmLabel}</button>
+        <button data-ui-control="button" data-control-size="lg" data-control-variant="secondary" ref={safe} type="button" disabled={busy && !successLabel} onClick={cancel}>{cancelLabel}</button>
+        <button type="button" data-ui-control="button" data-control-size="lg" data-control-variant={successLabel ? 'secondary' : variant === 'destructive' ? 'danger' : 'primary'} data-keep-color="" data-variant={variant} data-confirmation-success={successLabel ? '' : undefined} disabled={Boolean(successLabel) || busy || confirmDisabled} onClick={() => void confirm()}>{successLabel ? <span className="portalink-confirmation-success" role="status"><InterfaceIcon icon={CheckIcon} keepColor />{successLabel}</span> : busy ? pendingLabel : confirmLabel}</button>
       </div>
     </section>
   </div>;

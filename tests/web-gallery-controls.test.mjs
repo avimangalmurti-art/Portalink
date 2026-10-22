@@ -13,24 +13,27 @@ function load(path, mocks = {}) {
   }).outputText, { exports, require(name) {
     if (name in mocks) return mocks[name];
     if (name === 'react') return React;
-    if (name.endsWith('/projectGridDensity')) return { DEFAULT_PROJECT_GRID_COLUMNS: 2, MIN_PROJECT_GRID_COLUMNS: 2, MAX_PROJECT_GRID_COLUMNS: 13 };
+    if (name.endsWith('/projectGridDensity')) return density;
     throw new Error(name);
   } });
   return exports;
 }
+const density = load('../src/utils/projectGridDensity.ts');
 
 test('desktop layout exposes every supported density and reset through the existing callback', () => {
   const { WebGalleryControls } = load('../src/presentation/web/WebGalleryControls.tsx');
   const changes = [];
   const tree = WebGalleryControls({ columns: 5, onChange: value => changes.push(value) });
-  assert.deepEqual(nodes(tree).filter(node => node.type === 'option').map(node => node.props.value), Array.from({ length: 12 }, (_, index) => index + 2));
+  assert.deepEqual(nodes(tree).filter(node => node.type === 'option').map(node => node.props.value), Array.from({ length: 13 }, (_, index) => index + 1));
   const select = nodes(tree).find(node => node.type === 'select');
   assert.equal(select.props.value, 5);
   assert.equal(select.props['aria-label'], 'Projects per row');
-  select.props.onChange({ target: { value: '8' } });
+  select.props.onChange({ target: { value: '1' } });
+  select.props.onChange({ target: { value: '13' } });
   nodes(tree).find(node => node.type === 'button').props.onClick();
-  assert.deepEqual(changes, [8, 2]);
+  assert.deepEqual(changes, [1, 13, 2]);
   assert.equal(nodes(WebGalleryControls({ columns: 2, onChange() {} })).find(node => node.type === 'button').props.disabled, true);
+  assert.equal(nodes(WebGalleryControls({ columns: 1, onChange() {} })).find(node => node.type === 'button').props.disabled, false);
 });
 
 test('layout controls remain desktop-only while shared galleries retain local card zoom', () => {
@@ -40,7 +43,7 @@ test('layout controls remain desktop-only while shared galleries retain local ca
     let gesturesEnabled;
     let zoomCallback;
     const { JustifiedImageWall } = load('../src/components/profile/JustifiedImageWall.tsx', {
-      react: { ...React, useMemo: fn => fn() },
+      react: { ...React, useMemo: fn => fn(), useRef: initial => ({ current: initial }) },
       '../../hooks/useElementSize': { useElementSize: () => ({ width: 1000 }) },
       '../../hooks/useContentZoom': { useContentZoom: (_columns, enabled, _resetKey, onChange) => { gesturesEnabled = enabled; zoomCallback = onChange; return { columns: 5, chooseColumns }; } },
       '../../presentation/usePresentation': { usePresentation: () => presentation },
