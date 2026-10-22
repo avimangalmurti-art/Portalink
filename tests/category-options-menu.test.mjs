@@ -42,7 +42,9 @@ function open(h) { const tree = h.render(); all(tree).find(node => node.props['a
 test('mobile exposes touch-sized menu actions while WEB retains its compact trigger', () => {
   for (const mobile of [true, false]) {
     const h = harness(mobile); const closed = h.render();
-    assert.match(all(closed).find(node => node.type === 'button').props.className, mobile ? /h-11 w-11/ : /h-6 w-6/);
+    const trigger = all(closed).find(node => node.type === 'button');
+    assert.equal(trigger.props['data-ui-shape'], 'icon');
+    assert.equal(trigger.props['data-control-size'], 'sm');
     const tree = open(h);
     assert.deepEqual(all(tree).filter(node => node.props.role === 'menuitem').map(text), ['Hide', 'Rename', 'Change icon', 'Delete']);
     assert.equal(all(tree).find(node => node.props.role === 'menu').props.style.position, 'fixed');

@@ -1,0 +1,151 @@
+/* Shared floating-surface finish. Opt-in leaves readers, full-screen editors,
+   artwork, navigation and the reviewed agreement sheet under their own layout. */
+:root {
+  --ui-floating-radius: 32px;
+  --ui-popup-radius: 24px;
+  --ui-menu-radius: 16px;
+  --ui-control-radius: 12px;
+  --ui-surface-inset: 24px;
+  --ui-surface-gap: 16px;
+  --ui-surface-title-size: 20px;
+  --ui-surface-body-size: 15px;
+}
+#root .codex-shell[data-presentation='mobile'] {
+  --ui-surface-inset: 20px;
+  --ui-surface-body-size: 16px;
+}
+#root .codex-shell [data-ui-surface][data-ui-surface] {
+  --codex-radius-dialog: var(--ui-popup-radius);
+  --codex-radius-panel: var(--ui-popup-radius);
+  border-radius: var(--ui-floating-radius) !important;
+  border-color: var(--codex-border-strong, var(--hairline-strong)) !important;
+  box-shadow: var(--codex-shadow-dialog, var(--shadow-modal)) !important;
+  color: var(--text-primary);
+}
+/* One backdrop separates every opted-in surface from the page beneath it.
+   A custom property keeps the standard and WebKit filter values identical. */
+#root .codex-shell :is(.portalink-confirmation-overlay, .follow-info-overlay,
+  [data-project-description-overlay], .portal-project-popup-layer,
+  .mobile-profile-portal-overlay, .mobile-context-scrim, .new-portal-screen) {
+  --ui-modal-filter: blur(18px) saturate(115%);
+  background: var(--scrim) !important;
+  -webkit-backdrop-filter: var(--ui-modal-filter) !important;
+  backdrop-filter: var(--ui-modal-filter) !important;
+}
+/* Attached sheets keep their lower edge and gesture/viewport geometry. */
+#root .codex-shell [data-ui-surface='sheet'][data-ui-surface] {
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+#root .codex-shell [data-ui-surface] :is(h2, .project-description-heading h2),
+#root .codex-shell .mobile-profile-portal-overlay #mobile-portals-title {
+  font-size: var(--ui-surface-title-size);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+#root .codex-shell [data-ui-surface='popup'].portalink-confirmation {
+  padding: var(--ui-surface-inset);
+  text-align: start;
+}
+#root .codex-shell [data-ui-surface] .portalink-confirmation-description {
+  margin-top: 12px;
+  font-size: var(--ui-surface-body-size);
+  line-height: 1.6;
+}
+#root .codex-shell [data-ui-surface] .portalink-confirmation-actions {
+  margin-top: 24px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#root .codex-shell [data-ui-surface] .portalink-confirmation-actions button {
+  flex: 1 1 120px;
+  height: auto;
+  min-height: 40px;
+  padding: 8px 12px;
+  line-height: 1.4;
+}
+#root .codex-shell[data-presentation='mobile'] [data-ui-surface] .portalink-confirmation-actions button { min-height: 44px; }
+#root .codex-shell [data-ui-surface].follow-info-panel {
+  padding: var(--ui-surface-inset);
+  gap: var(--ui-surface-gap);
+  background: color-mix(in srgb, var(--surface-raised) 94%, transparent) !important;
+}
+#root .codex-shell [data-ui-surface] :is(.follow-info-description, .project-description-body) {
+  font-size: var(--ui-surface-body-size);
+  line-height: 1.6;
+}
+#root .codex-shell [data-ui-surface] :is(.follow-info-header, .project-popup-identity) {
+  gap: 12px;
+}
+#root .codex-shell [data-ui-surface] :is(.follow-info-owner-menu, #project-description-actions) {
+  border-radius: var(--ui-menu-radius);
+}
+#root .codex-shell [data-ui-surface] .follow-info-engagement {
+  padding-top: var(--ui-surface-gap);
+  border-color: var(--hairline);
+}
+#root .codex-shell [data-ui-surface] .follow-info-engagement [role='group'] button {
+  border-radius: var(--ui-control-radius);
+  font-size: 14px;
+  font-weight: 500;
+}
+#root .codex-shell [data-ui-surface].mobile-context-sheet .mobile-context-group {
+  border-radius: var(--ui-menu-radius);
+}
+#root .codex-shell [data-ui-surface].mobile-context-sheet .mobile-context-heading {
+  gap: 12px;
+}
+/* Readability is explicit in both accessibility modes; the existing modal
+   scrim continues to separate content even when panel glass becomes solid. */
+#root .codex-shell:is(.high-contrast, .reduce-translucency) [data-ui-surface],
+#root .codex-shell:is(.high-contrast, .reduce-translucency) [data-ui-surface].follow-info-panel {
+  --ui-popup-surface: var(--surface-raised);
+  background: var(--surface-raised) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell [data-ui-surface][data-ui-surface] {
+    --ui-popup-surface: var(--surface-raised);
+    background: var(--surface-raised) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Information cards fit a short description instead of reserving a list-sized
+   empty frame. Long descriptions retain the existing bounded scroll region. */
+#root .codex-shell[data-presentation='mobile'] [data-centered-project]
+  .mobile-project-description-sheet[data-ui-surface='popup'][data-ui-surface] {
+  height: auto !important;
+  max-height: min(70dvh, 640px, calc(var(--dialog-viewport-height, 100dvh) - 32px)) !important;
+}
+
+/* Only floating interface frames opt in. Scope to presentation hosts rather
+   than #root so the same geometry reaches body-portalled menus. The legacy
+   popup token stays intact for cover stages, artwork and embedded previews. */
+@layer portalink-interface-shapes {
+  [data-presentation][data-presentation] :is(
+    [data-ui-surface], [data-ui-shape='popup'], .portalink-confirmation, [role='menu'],
+    [data-typography-popover], .location-search-results,
+    .follow-info-owner-menu,
+    .mobile-project-gesture-hint, .public-actions-sheet,
+    .mobile-profile-portal-overlay > .mobile-portals-page,
+    .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]
+  ):not([data-writing-screen], [data-ui-surface='sheet']):not(:where([data-presentation='mobile'] .first-login-welcome)),
+  [data-presentation] #project-description-actions,
+  [data-presentation][role='menu'],
+  [data-typography-popover][data-presentation][data-presentation],
+  [data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {
+    border-radius: var(--ui-floating-radius) !important;
+  }
+
+  /* Attached sheets retain their flat bottom. Actual side drawers are outside
+     the floating selectors; full-screen editors do not opt into surface roles. */
+  [data-presentation][data-presentation] :is([data-ui-surface='sheet'], [data-ui-shape='sheet']),
+  [data-presentation='mobile'][data-presentation] :is(.cite-sheet, .mobile-context-sheet, .first-login-welcome) {
+    border-radius: var(--ui-floating-radius) var(--ui-floating-radius) 0 0 !important;
+  }
+}

@@ -11,7 +11,7 @@ function compile(path, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(read(path), { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true,
-  } }).outputText, { exports, ...globals });
+  } }).outputText, { exports, URLSearchParams, ...globals });
   return exports;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -187,14 +187,18 @@ test('failed website saves stay retryable and prevent a successful pre-copy flus
 
 test('public bootstrap honors a newly opened creator link while retaining guest read-only routing', () => {
   const storage = new Map([['portalink.sharedViewerProfileId', 'old']]);
-  const fakeReact = { createElement: (type, props) => ({ type, props }), useState: () => [true, () => {}], useRef: initial => ({ current: initial }), useEffect: fn => fn(), useCallback: fn => fn };
+  const fakeReact = { createElement: (type, props) => ({ type, props }), useState: () => [true, () => {}], useRef: initial => ({ current: initial }), useEffect: fn => fn(), useCallback: fn => fn, useMemo: fn => fn() };
   const routes = { sharedCollaboration: {path:'/share/:profileId/collaboration'}, controlCenter: {path:'/settings'}, sharedProfile: { path: '/share/:profileId' }, sharedProfileCategory: { path: '/share/:profileId/c/:categoryId' }, sharedProject: { path: '/share/:profileId/c/:categoryId/:projectId' } };
   const router = { useLocation: () => ({ pathname: '/share/new' }), Navigate: 'redirect', matchPath: (path, pathname) => path === '/share/:profileId' ? { params: { profileId: pathname.split('/')[2] } } : null };
   const api = compile('../src/app/ApplicationBootstrap.tsx', {
     window: { sessionStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, setTimeout: () => 1 },
     require: name => name.endsWith('/shareModel') ? shareModel : name === 'react' ? fakeReact : name === 'react-router-dom' ? router : name.includes('AuthContext') ? { useAuth: () => ({ isAuthenticated: false, isInitializing: false }) }
       : name.includes('useViewportPresentation') ? { useViewportPresentation: () => 'web' }
-      : name === './routes' ? { routes, buildPath: (_, params) => `/share/${params.profileId}` } : {},
+      : name.includes('useMobileInstall') ? { useMobileInstallCapture() {} }
+      : name.includes('useMobileResumeSession') ? { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) }
+      : name.includes('MobileResumeContext') ? { MobileResumeProvider: 'resume-provider' }
+      : name === './routes' ? { routes, buildPath: (_, params) => `/share/${params.profileId}` }
+      : name === './screenModules' ? { warmScreenForPath: () => Promise.resolve([]) } : {},
   });
   assert.notEqual(api.ApplicationBootstrap().type, 'redirect');
   assert.equal(storage.get('portalink.sharedViewerProfileId'), 'new');
