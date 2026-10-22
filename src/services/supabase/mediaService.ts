@@ -106,7 +106,9 @@ async function uploadFileResumably(input: {
     const upload = new Upload(input.body ?? input.item.file, {
       endpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: { authorization: `Bearer ${input.accessToken}` },
+      // Native XHR appends repeated headers. Recovery sets its fresh token once
+      // in onBeforeRequest; ordinary WEB keeps its existing token snapshot.
+      headers: recovery ? {} : { authorization: `Bearer ${input.accessToken}` },
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
       chunkSize: TUS_CHUNK_BYTES,
