@@ -270,7 +270,8 @@ function bootstrapFixture({ pathname = '/', search = '', hash = '', mobile = tru
   core.saveMobileResumeRoute(account, project);
   let route = { pathname, search, hash, key: 'initial' };
   let auth = { isAuthenticated: !guest, isInitializing: false, isSessionUnavailable: false, pendingView, phase: 'authenticated', session: null, user: guest ? null : { id: account } };
-  const resume = r.load('src/presentation/mobile/useMobileResumeSession.ts', { './mobileResumeState': core });
+  const messageDrafts = r.load('src/presentation/mobile/mobileMessageDrafts.ts');
+  const resume = r.load('src/presentation/mobile/useMobileResumeSession.ts', { './mobileResumeState': core, './mobileMessageDrafts': messageDrafts });
   const routes = { controlCenter: { path: '/settings' }, sharedProfile: { path: '/share/:profileId' }, sharedCollaboration: { path: '/share/:profileId/collaboration' }, sharedProject: { path: '/share/:profileId/c/:categoryId/:projectId' }, sharedProfileCategory: { path: '/share/:profileId/c/:categoryId' } };
   const { ApplicationBootstrap } = r.load('src/app/ApplicationBootstrap.tsx', {
     '../features/sharing/shareModel': { handleFromPath: () => null }, 'framer-motion': { AnimatePresence: 'animate-presence' },

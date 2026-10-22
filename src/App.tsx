@@ -23,6 +23,7 @@ import { ActivityCollectionPage } from './components/profile/ActivityCollectionP
 import { ActivityPage, SavedPage, InsightsPage } from './features/library/PersonalPages';
 import type { NavigationDestination } from './components/navigation';
 import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, useRouteNavigator } from './app/useAppRoute';
+import { useMobilePortalCollectionReturn } from './presentation/mobile/useMobilePortalCollectionReturn';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { EmptyState, LoadingState, LoadingSkeleton } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
@@ -970,8 +971,19 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       : viewedProfileId ? buildPath('profile', { profileId: viewedProfileId }) : buildPath('home');
     nav.to(fallback, true);
   }
+  const returnToMobilePortalCollection = useMobilePortalCollectionReturn(
+    presentation === 'mobile' && !auth.isInitializing && auth.phase !== 'authenticating' && auth.phase !== 'signing-out'
+      ? `${auth.user?.id ?? 'guest'}:${isSharedRoute}` : null,
+    screenLocation,
+    screenNavigationType
+  );
   function returnToPortalCollection() {
     if (!viewedProfileId) return;
+    if (presentation === 'mobile' && activeCategoryId && returnToMobilePortalCollection({
+      categoryPath: buildPath(isSharedRoute ? 'sharedProfileCategory' : 'profileCategory', { profileId: viewedProfileId, categoryId: activeCategoryId }),
+      profilePath: buildPath(isSharedRoute ? 'sharedProfile' : 'profile', { profileId: viewedProfileId }),
+      owner: isOwnerMode && !isSharedRoute
+    })) return;
     const path = isSharedRoute ? buildPath('sharedProfile', { profileId: viewedProfileId })
       : isOwnerMode ? buildPath('portals')
       : `${buildPath('profile', { profileId: viewedProfileId })}?view=portals`;

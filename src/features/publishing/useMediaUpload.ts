@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { attachmentsFromPersistedMedia } from '../media/persistedMediaAttachments';
 import { UploadServiceError } from '../../types/publishing';
 import type { Id } from '../../types/domain';
-import type { PersistedAttachment, PersistedMedia, PreparedMedia, UploadCapability, UploadFailure, UploadId, UploadItemState, UploadProgress } from '../../types/publishing';
+import type { PersistedAttachment, PersistedMedia, PreparedMedia, UploadCapability, UploadFailure, UploadId, UploadItemState, UploadOperation, UploadProgress } from '../../types/publishing';
 
 /**
  * The media transport state machine.
@@ -50,7 +50,7 @@ export type MediaUploadState = {
   /** True when files are stored and a publish can proceed without re-uploading. */
   hasPersistedMedia: boolean;
 };
-export function useMediaUpload(capability: UploadCapability | null) {
+export function useMediaUpload(capability: UploadCapability | null, deviceRecovery?: { accountId: Id; enabled?: boolean }) {
   const {
     media: mediaService
   } = useServices();
@@ -78,9 +78,28 @@ export function useMediaUpload(capability: UploadCapability | null) {
   const attemptedMediaRef = useRef<PreparedMedia[]>([]);
   /** One operation at a time, independently of any disabled control. */
   const isRunningRef = useRef(false);
+  const ownerAccountId = deviceRecovery?.accountId;
+  const recoveryAccountId = deviceRecovery?.enabled === false ? undefined : ownerAccountId;
+  const currentRecoveryAccount = useRef(ownerAccountId);
+  currentRecoveryAccount.current = ownerAccountId;
+  const mounted = useRef(true);
+  const activeOperation = useRef<{ operation: UploadOperation; recovering: boolean } | null>(null);
+  const recoveringOperation = useRef(false);
+  const previousOwner = useRef(ownerAccountId);
+  const usedRecovery = useRef(Boolean(recoveryAccountId));
+  if (recoveryAccountId) usedRecovery.current = true;
+  const operationVersion = useRef(0);
+  const attemptedCheckpoint = useRef<(() => Promise<void>) | undefined>();
   const isAvailable = capability?.isAvailable === true;
   const reportsPerFile = capability?.reportsPerFileProgress === true;
   const reset = useCallback(() => {
+    operationVersion.current += 1;
+    if (recoveringOperation.current) {
+      void activeOperation.current?.operation.suspend?.().catch(() => undefined);
+      activeOperation.current = null;
+      recoveringOperation.current = false;
+    }
+    if (usedRecovery.current) setIsCleaningUp(false);
     setPhase('idle');
     setUploadId(null);
     setProgress(null);
@@ -91,6 +110,21 @@ export function useMediaUpload(capability: UploadCapability | null) {
     attemptedMediaRef.current = [];
     isRunningRef.current = false;
   }, [setAttachments, setPersisted]);
+  useEffect(() => {
+    mounted.current = true;
+    if (previousOwner.current !== ownerAccountId && usedRecovery.current) reset();
+    previousOwner.current = ownerAccountId;
+    return () => {
+      mounted.current = false;
+      if (recoveringOperation.current) {
+        operationVersion.current += 1;
+        void activeOperation.current?.operation.suspend?.().catch(() => undefined);
+        activeOperation.current = null;
+        recoveringOperation.current = false;
+        isRunningRef.current = false;
+      }
+    };
+  }, [ownerAccountId, reset]);
 
   /**
    * Deletes stored objects through the service. Used for orphan cleanup: files
@@ -103,6 +137,9 @@ export function useMediaUpload(capability: UploadCapability | null) {
    * silent orphans happen.
    */
   const cleanupPersisted = useCallback(async (objects: PersistedMedia[] = persisted): Promise<boolean> => {
+    const version = operationVersion.current;
+    const current = () => !recoveryAccountId || (mounted.current && version === operationVersion.current && currentRecoveryAccount.current === recoveryAccountId);
+    if (!current()) return false;
     const removable = objects.filter((item) => Boolean(item.storagePath) && Boolean(item.objectId));
     if (removable.length === 0) {
       return true;
@@ -110,6 +147,7 @@ export function useMediaUpload(capability: UploadCapability | null) {
     setIsCleaningUp(true);
     setCleanupError(null);
     const results = await Promise.allSettled(removable.map((item) => mediaService.deleteMedia(item.objectId)));
+    if (!current()) return false;
     const failed = removable.filter((_, index) => results[index].status === 'rejected');
     setIsCleaningUp(false);
     if (failed.length > 0) {
@@ -124,7 +162,7 @@ export function useMediaUpload(capability: UploadCapability | null) {
     setPersisted([]);
     setAttachments([]);
     return true;
-  }, [mediaService, persisted, setAttachments, setPersisted]);
+  }, [mediaService, persisted, setAttachments, setPersisted, recoveryAccountId]);
 
   /**
    * Starts — or retries — the upload of the given prepared media.
@@ -136,6 +174,7 @@ export function useMediaUpload(capability: UploadCapability | null) {
     profileId: Id;
     draftId: Id;
     media: PreparedMedia[];
+    onCheckpoint?: () => Promise<void>;
   }): Promise<PersistedAttachment[] | null> => {
     // The one hard gate: an unavailable transport can never produce an uploading
     // state, a progress figure, or a persisted result.
@@ -145,13 +184,23 @@ export function useMediaUpload(capability: UploadCapability | null) {
     if (isRunningRef.current) {
       return null;
     }
+    if (recoveryAccountId && !input.onCheckpoint) {
+      setFailure({ code: 'rejected', message: 'Save this draft on your device before uploading.', persisted: checkpoint.current.persisted, cleanupRequired: false });
+      return null;
+    }
     // Already stored from an earlier attempt: publishing may have failed after a
     // successful upload, and re-sending the same bytes would be wrong.
     if (attachments.length > 0 && phase === 'uploaded') {
       return attachments;
     }
     isRunningRef.current = true;
+    recoveringOperation.current = Boolean(recoveryAccountId);
+    const version = ++operationVersion.current;
+    const current = () => !recoveryAccountId || (mounted.current && version === operationVersion.current && currentRecoveryAccount.current === recoveryAccountId);
+    const tracked = (next: PersistedMedia[]) => recoveryAccountId
+      ? [...new Map([...checkpoint.current.persisted, ...next].map(item => [item.objectId, item])).values()] : next;
     attemptedMediaRef.current = input.media;
+    attemptedCheckpoint.current = input.onCheckpoint;
     setPhase('uploading');
     setFailure(null);
     setCleanupError(null);
@@ -162,11 +211,24 @@ export function useMediaUpload(capability: UploadCapability | null) {
         draftId: input.draftId,
         media: input.media,
         // The ONLY source of progress in the product.
-        onProgress: (next) => setProgress(next)
+        onProgress: (next) => { if (current()) setProgress(next); },
+        ...(recoveryAccountId ? {
+          deviceRecovery: { accountId: recoveryAccountId },
+          onCheckpoint: async (next: PersistedMedia[]) => {
+            if (!current()) throw new Error('This saved upload is no longer active.');
+            // Keep every started path until explicit cleanup succeeds, including failed attempts.
+            setPersisted(tracked(next));
+            await input.onCheckpoint?.();
+            if (!current()) throw new Error('This saved upload is no longer active.');
+          },
+        } : {}),
       });
+      if (current()) activeOperation.current = { operation, recovering: Boolean(recoveryAccountId) };
+      else if (recoveryAccountId) void operation.suspend?.().catch(() => undefined);
       // Available while the transfer runs, which is what makes Cancel real.
-      setUploadId(operation.uploadId);
+      if (current()) setUploadId(operation.uploadId);
       const outcome = await operation.completion;
+      if (!current()) return null;
       if (outcome.status === 'cancelled') {
         setPhase('cancelled');
         setUploadId(null);
@@ -174,24 +236,42 @@ export function useMediaUpload(capability: UploadCapability | null) {
         // Bytes that landed before the cancellation took effect are the caller's
         // to remove when the service says so.
         if (outcome.cleanupRequired && outcome.persisted.length > 0) {
-          setPersisted(outcome.persisted);
-          await cleanupPersisted(outcome.persisted);
+          const paths = tracked(outcome.persisted);
+          setPersisted(paths);
+          await cleanupPersisted(paths);
         }
         return null;
       }
       const persistedAttachments = attachmentsFromPersistedMedia(input.media, outcome.media);
       // A result that produced no storage-backed attachment did not persist.
       if (persistedAttachments.length !== input.media.length) {
-        setPersisted(outcome.media);
+        const paths = tracked(outcome.media);
+        setPersisted(paths);
         setFailure({
           code: 'rejected',
           message: 'Some files did not come back with a storage reference, so the upload is incomplete.',
-          persisted: outcome.media,
-          cleanupRequired: true
+          persisted: paths,
+          cleanupRequired: !recoveryAccountId,
         });
         setPhase('failed');
         setUploadId(null);
         return null;
+      }
+      if (recoveryAccountId) {
+        // A replaced local file has a different byte identity. Do not silently
+        // forget an older recovery path when its replacement finishes.
+        const completed = new Set(outcome.media.map(item => item.objectId));
+        const obsolete = checkpoint.current.persisted.filter(item => !completed.has(item.objectId));
+        if (obsolete.length) {
+          const cleaned = await cleanupPersisted(obsolete);
+          if (!current()) return null;
+          const remaining = checkpoint.current.persisted;
+          setPersisted([...outcome.media, ...remaining]);
+          if (!cleaned) {
+            setFailure({ code: 'network', message: 'The new files are uploaded, but an earlier upload still needs cleanup. Retry to finish safely.', persisted: [...outcome.media, ...remaining], cleanupRequired: false });
+            setPhase('failed'); setUploadId(null); return null;
+          }
+        }
       }
       setPersisted(outcome.media);
       setAttachments(persistedAttachments);
@@ -199,11 +279,12 @@ export function useMediaUpload(capability: UploadCapability | null) {
       setUploadId(null);
       return persistedAttachments;
     } catch (caught) {
+      if (!current()) return null;
       const asUploadError = caught instanceof UploadServiceError;
       const next: UploadFailure = {
         code: asUploadError ? caught.code : 'unknown',
         message: caught instanceof Error && caught.message ? caught.message : 'The upload could not be completed.',
-        persisted: asUploadError ? caught.persisted : [],
+        persisted: tracked(asUploadError ? caught.persisted : []),
         cleanupRequired: asUploadError ? caught.cleanupRequired : false
       };
       setFailure(next);
@@ -219,9 +300,9 @@ export function useMediaUpload(capability: UploadCapability | null) {
       }
       return null;
     } finally {
-      isRunningRef.current = false;
+      if (current()) { isRunningRef.current = false; activeOperation.current = null; recoveringOperation.current = false; }
     }
-  }, [isAvailable, mediaService, attachments, phase, cleanupPersisted, setAttachments, setPersisted]);
+  }, [isAvailable, mediaService, attachments, phase, cleanupPersisted, setAttachments, setPersisted, recoveryAccountId]);
 
   /** Retries the SAME intended upload. Nothing the creator chose is reset. */
   const retry = useCallback(async (input: {
@@ -235,7 +316,8 @@ export function useMediaUpload(capability: UploadCapability | null) {
     setPhase('idle');
     return upload({
       ...input,
-      media: intended
+      media: intended,
+      onCheckpoint: attemptedCheckpoint.current,
     });
   }, [upload]);
 
@@ -248,17 +330,23 @@ export function useMediaUpload(capability: UploadCapability | null) {
     if (!uploadId || phase !== 'uploading') {
       return;
     }
+    const version = operationVersion.current;
+    const current = () => !recoveryAccountId || (mounted.current && version === operationVersion.current && currentRecoveryAccount.current === recoveryAccountId);
+    if (!current()) return;
     setPhase('cancelling');
     try {
       const outcome = await mediaService.cancelUpload(uploadId);
+      if (!current()) return;
       setPhase('cancelled');
       setUploadId(null);
       setProgress(null);
       if (outcome.status === 'cancelled' && outcome.cleanupRequired && outcome.persisted.length > 0) {
-        setPersisted(outcome.persisted);
-        await cleanupPersisted(outcome.persisted);
+        const paths = recoveryAccountId ? [...new Map([...checkpoint.current.persisted, ...outcome.persisted].map(item => [item.objectId, item])).values()] : outcome.persisted;
+        setPersisted(paths);
+        await cleanupPersisted(paths);
       }
     } catch (caught) {
+      if (!current()) return;
       // The cancellation itself failed, so the upload may well still be running.
       // Saying "cancelled" here would be a lie about what is happening.
       setPhase('uploading');
@@ -269,7 +357,7 @@ export function useMediaUpload(capability: UploadCapability | null) {
         cleanupRequired: false
       });
     }
-  }, [uploadId, phase, mediaService, cleanupPersisted, setPersisted]);
+  }, [uploadId, phase, mediaService, cleanupPersisted, setPersisted, recoveryAccountId]);
   const dismissFailure = useCallback(() => setFailure(null), []);
   const dismissCleanupError = useCallback(() => setCleanupError(null), []);
   const state = useMemo<MediaUploadState>(() => ({

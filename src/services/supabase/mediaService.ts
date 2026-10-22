@@ -13,12 +13,14 @@ import { requireSupabase, requireSupabaseProjectUrl } from './client';
 import { PROJECT_MEDIA_BUCKET } from './contentServices';
 import { PART_BYTES } from '../../../public/portalink-media-core.js';
 import { ensureMultipartReader, MANIFEST_SUFFIX, multipartSource, multipartSpec, partPath, removeStoredMedia } from './multipartMedia';
+import { clearMobileUploadHandles, mobileUploadObjectId, mobileUploadUrlStorage } from './mobileUploadRecovery';
 
 type ActiveUpload = {
   cancelRequested: boolean;
-  activeParts: Set<() => Promise<void>>;
+  activeParts: Set<(terminate?: boolean) => Promise<void>>;
   completion: Promise<UploadOutcome>;
 };
+type UploadRecovery = { accountId: string; authorize: () => Promise<string>; exists: (path: string) => Promise<boolean> };
 
 const activeUploads = new Map<string, ActiveUpload>();
 
@@ -67,7 +69,14 @@ async function uploadFileResumably(input: {
   contentType?: string;
   onBytesUploaded: (bytes: number) => void;
   isStopped?: () => boolean;
+  recovery?: UploadRecovery;
 }): Promise<void> {
+  const recovery = input.recovery;
+  if (input.runtime.cancelRequested || input.isStopped?.()) return;
+  if (input.recovery && await input.recovery.exists(input.storagePath)) {
+    input.onBytesUploaded(input.body?.size ?? input.item.sizeBytes);
+    return;
+  }
   if (input.runtime.cancelRequested || input.isStopped?.()) return;
 
   // Browsing must not download the resumable upload client. Retain cancellation
@@ -88,6 +97,12 @@ async function uploadFileResumably(input: {
       input.runtime.activeParts.delete(cancel);
       callback();
     };
+    const metadata = {
+      bucketName: PROJECT_MEDIA_BUCKET,
+      objectName: input.storagePath,
+      contentType: input.contentType ?? (input.item.mimeType || 'application/octet-stream'),
+      cacheControl: IMMUTABLE_CACHE_SECONDS,
+    };
     const upload = new Upload(input.body ?? input.item.file, {
       endpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
@@ -96,12 +111,19 @@ async function uploadFileResumably(input: {
       removeFingerprintOnSuccess: true,
       chunkSize: TUS_CHUNK_BYTES,
       fingerprint: async () => `portalink:${input.storagePath}`,
-      metadata: {
-        bucketName: PROJECT_MEDIA_BUCKET,
-        objectName: input.storagePath,
-        contentType: input.contentType ?? (input.item.mimeType || 'application/octet-stream'),
-        cacheControl: IMMUTABLE_CACHE_SECONDS,
-      },
+      metadata,
+      ...(recovery ? {
+        urlStorage: mobileUploadUrlStorage(recovery.accountId, input.storagePath, endpoint, input.body?.size ?? input.item.sizeBytes, metadata),
+        onBeforeRequest: async (request: import('tus-js-client').HttpRequest) => {
+          // TUS termination uses the same callback. Explicit Cancel must still
+          // authenticate its DELETE while preventing any more transfer requests.
+          const terminating = request.getMethod() === 'DELETE';
+          if (!terminating && (input.runtime.cancelRequested || input.isStopped?.())) throw new Error('Upload stopped.');
+          const token = await recovery.authorize();
+          if (!terminating && (input.runtime.cancelRequested || input.isStopped?.())) throw new Error('Upload stopped.');
+          request.setHeader('authorization', `Bearer ${token}`);
+        },
+      } : {}),
       onProgress(bytesUploaded) {
         if (!settled && !aborting && !input.runtime.cancelRequested) input.onBytesUploaded(bytesUploaded);
       },
@@ -116,17 +138,25 @@ async function uploadFileResumably(input: {
         finish(resolve);
       },
     });
-    function cancel(): Promise<void> {
+    function cancel(terminate = true): Promise<void> {
       if (cancellation) return cancellation;
       aborting = true;
       cancellation = (async () => {
-        try { await upload.abort(true); }
+        try { await upload.abort(terminate); }
         finally { finish(resolve); }
       })();
       return cancellation;
     }
     input.runtime.activeParts.add(cancel);
-    try { upload.start(); } catch (error) { finish(() => reject(error)); }
+    void (async () => {
+      if (input.recovery) {
+        const previous = await upload.findPreviousUploads();
+        await input.recovery.authorize();
+        if (input.runtime.cancelRequested || input.isStopped?.() || aborting) return;
+        if (previous[0]) upload.resumeFromPreviousUpload(previous[0]);
+      }
+      if (!input.runtime.cancelRequested && !input.isStopped?.() && !aborting) upload.start();
+    })().catch(error => finish(() => reject(error)));
   });
 }
 
@@ -138,6 +168,7 @@ async function uploadMultipartParts(input: {
   accessToken: string;
   spec: ReturnType<typeof multipartSpec>;
   onBytesUploaded: (bytes: number) => void;
+  recovery?: UploadRecovery;
 }): Promise<void> {
   const bytesByPart = Array<number>(input.spec.partCount).fill(0);
   let totalUploaded = 0;
@@ -168,7 +199,7 @@ async function uploadMultipartParts(input: {
         progress(size);
       } catch (error) {
         if (!failed) { failed = true; failure = error; }
-        await Promise.allSettled([...input.runtime.activeParts].map(cancel => cancel()));
+        await Promise.allSettled([...input.runtime.activeParts].map(cancel => cancel(!input.recovery)));
       }
     }
   };
@@ -186,6 +217,23 @@ async function performUpload(
   const persisted: PersistedMedia[] = [];
   const totalBytes = input.media.reduce((sum, item) => sum + item.sizeBytes, 0);
   let sentBytes = 0;
+  const cancelled = (): UploadOutcome => ({ uploadId, status: 'cancelled', persisted, cleanupRequired: persisted.length > 0 });
+  const authorizeRecovery = async () => {
+      const { data, error } = await client.auth.getSession();
+      if (error || !data.session?.access_token || data.session.user.id !== input.deviceRecovery?.accountId) throw new Error('Sign in to the account that owns this saved upload.');
+      return data.session.access_token;
+  };
+  const recovery: UploadRecovery | undefined = input.deviceRecovery ? {
+    accountId: input.deviceRecovery.accountId,
+    authorize: authorizeRecovery,
+    exists: async (path: string) => {
+      await authorizeRecovery();
+      if (runtime.cancelRequested) return false;
+      const { data, error } = await bucket.exists(path);
+      if (error && ![400, 404].includes(Number('status' in error ? error.status : undefined))) throw error;
+      return data === true;
+    },
+  } : undefined;
 
   try {
     if (input.media.some((item) => item.sizeBytes > PART_BYTES)) await ensureMultipartReader();
@@ -201,7 +249,11 @@ async function performUpload(
 
       const item = input.media[index];
       const multipart = item.sizeBytes > PART_BYTES ? multipartSpec(item.sizeBytes) : undefined;
-      const storagePath = `${input.profileId}/${input.draftId}/${crypto.randomUUID()}-${safeFileName(item.fileName)}${multipart ? MANIFEST_SUFFIX : ''}`;
+      if (recovery) await recovery.authorize();
+      const objectId = recovery ? await mobileUploadObjectId(recovery.accountId, input.profileId, input.draftId, item, () => runtime.cancelRequested) : crypto.randomUUID();
+      if (!objectId || runtime.cancelRequested) return cancelled();
+      if (recovery) await recovery.authorize();
+      const storagePath = `${input.profileId}/${input.draftId}/${objectId}-${safeFileName(item.fileName)}${multipart ? MANIFEST_SUFFIX : ''}`;
       const metadata = multipart ? { ...item.metadata, multipart } : item.metadata;
       // Track the path before sending any bytes, so failure/cancellation can also
       // clean an unfinished logical file and all its already uploaded parts.
@@ -212,6 +264,12 @@ async function performUpload(
       };
       persisted.push(stored);
       try {
+        if (recovery) {
+          if (!input.onCheckpoint) throw new Error('Save this draft on your device before uploading.');
+          await input.onCheckpoint(persisted.map(value => ({ ...value, sourceUrl: null })));
+          if (runtime.cancelRequested) return cancelled();
+          await recovery.authorize();
+        }
         // One token snapshot per logical file, shared by its bounded part uploads.
         const { data, error: sessionError } = await client.auth.getSession();
         const accessToken = data.session?.access_token;
@@ -226,13 +284,18 @@ async function performUpload(
             items: progressItems(input.media, index, false, fraction),
           });
         };
-        const base = { runtime, item, accessToken, onBytesUploaded };
+        const base = { runtime, item, accessToken, onBytesUploaded, recovery };
         if (multipart) {
-          await uploadMultipartParts({ ...base, storagePath, spec: multipart });
+          // A prior attempt may have committed its manifest before the page closed.
+          const complete = recovery ? await recovery.exists(storagePath) : false;
+          if (!complete) await uploadMultipartParts({ ...base, storagePath, spec: multipart });
           if (!runtime.cancelRequested) {
-            const manifest = new Blob([JSON.stringify({ ...multipart, fileName: item.fileName, mimeType: item.mimeType })], { type: 'application/json' });
-            const { error } = await bucket.upload(storagePath, manifest, { contentType: 'application/json', cacheControl: IMMUTABLE_CACHE_SECONDS, upsert: false });
-            if (error) throw error;
+            if (!complete) {
+              if (recovery) await recovery.authorize();
+              const manifest = new Blob([JSON.stringify({ ...multipart, fileName: item.fileName, mimeType: item.mimeType })], { type: 'application/json' });
+              const { error } = await bucket.upload(storagePath, manifest, { contentType: 'application/json', cacheControl: IMMUTABLE_CACHE_SECONDS, upsert: false });
+              if (error) throw error;
+            }
             stored.sourceUrl = await multipartSource(storagePath, multipart, item.fileName, item.mimeType);
           }
         } else {
@@ -244,15 +307,17 @@ async function performUpload(
           }
         }
       } catch (error) {
+        if (runtime.cancelRequested) return cancelled();
         const message = error instanceof Error ? error.message : 'The resumable upload failed.';
         const exceedsStorageAllowance = /maximum|too large|size limit|413|payload too large|entity too large/i.test(message);
         throw new UploadServiceError({
           code: exceedsStorageAllowance ? 'too_large' : 'network',
           message: exceedsStorageAllowance
             ? `${item.fileName} exceeds the current Supabase file-size allowance.`
-            : `${item.fileName} could not be uploaded: ${message}`,
+            : recovery ? `${item.fileName} could not finish uploading. Your saved files are ready to retry when Portalink is open.` : `${item.fileName} could not be uploaded: ${message}`,
           persisted,
-          cleanupRequired: persisted.length > 0,
+          // MOBILE retains this draft's paths for foreground retry or explicit discard.
+          cleanupRequired: !recovery && persisted.length > 0,
         });
       }
 
@@ -284,6 +349,10 @@ async function performUpload(
       }
     }
     return { uploadId, status: 'uploaded', media: persisted };
+  } catch (error) {
+    if (runtime.cancelRequested) return cancelled();
+    if (!recovery || error instanceof UploadServiceError) throw error;
+    throw new UploadServiceError({ code: 'network', message: 'The saved upload could not continue. Sign in to its account and retry when Portalink is open.', persisted, cleanupRequired: false });
   } finally {
     activeUploads.delete(uploadId);
   }
@@ -300,6 +369,7 @@ export const supabaseMediaService: MediaService = {
   },
 
   async startUpload(input): Promise<UploadOperation> {
+    if (input.deviceRecovery && typeof input.onCheckpoint !== 'function') throw new UploadServiceError({ code: 'rejected', message: 'Save this draft on your device before uploading.', persisted: [], cleanupRequired: false });
     const uploadId = crypto.randomUUID();
     const runtime: ActiveUpload = {
       cancelRequested: false,
@@ -308,7 +378,11 @@ export const supabaseMediaService: MediaService = {
     };
     runtime.completion = performUpload(uploadId, input, runtime);
     activeUploads.set(uploadId, runtime);
-    return { uploadId, completion: runtime.completion };
+    return { uploadId, completion: runtime.completion, ...(input.deviceRecovery ? { suspend: async () => {
+      runtime.cancelRequested = true;
+      await Promise.allSettled([...runtime.activeParts].map(cancel => cancel(false)));
+      await runtime.completion.catch(() => undefined);
+    } } : {}) };
   },
 
   async cancelUpload(uploadId) {
@@ -329,6 +403,7 @@ export const supabaseMediaService: MediaService = {
   async deleteMedia(objectId) {
     try {
       await removeStoredMedia([objectId]);
+      await clearMobileUploadHandles(objectId);
     } catch (error) {
       throw new UploadServiceError({
         code: 'network',

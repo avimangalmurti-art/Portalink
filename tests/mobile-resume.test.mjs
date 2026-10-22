@@ -48,12 +48,12 @@ test('record access is account scoped, and clearing one account leaves another u
 });
 
 test('only safe canonical read destinations and verified query fields round-trip', () => {
-  const safe = ['/', '/portalink', '/portalink/5391959', '/studio', '/saved', '/p/a', '/p/a?view=portals', '/p/a?view=followers', '/p/a/c/b', project, `${project}?media=attachment-1&page=7&view=page`];
+  const safe = ['/', '/portalink', '/portalink/5391959', '/studio', '/studio?collection=drafts', '/studio?collection=activity&category=activity', '/messages', '/messages?conversation=thread-1', '/saved', '/p/a', '/p/a?view=portals', '/p/a?view=followers', '/p/a/c/b', project, `${project}?media=attachment-1&page=7&view=page`];
   for (const path of safe) assert.equal(core.safeMobileResumePath(path), path, path);
   const unsafe = [
     'https://portalinknetworks.com/p/a', '//evil.example/p/a', '/p/a#code=secret', '/?welcome=1', '/?code=secret', '/?entry=oauth',
-    '/?auth=signIn', '/settings', '/appearance', '/profile/edit', '/messages', '/messages?conversation=private', '/search?q=private', '/share/a',
-    '/p/a?share=portfolio', '/p/a?startHere=b', '/p/a?journeyPair=b', '/studio?collection=drafts', '/p/a?view=projects&view=portals',
+    '/?auth=signIn', '/settings', '/appearance', '/profile/edit', '/messages?recipient=private', '/messages?conversation=a&conversation=b', '/messages?conversation=thread&body=private', '/search?q=private', '/share/a',
+    '/p/a?share=portfolio', '/p/a?startHere=b', '/p/a?journeyPair=b', '/studio?collection=unknown', '/studio?collection=drafts&newProject=1', '/studio?collection=drafts&category=activity', '/p/a?view=projects&view=portals',
     `${project}?page=0`, `${project}?page=10001`, `${project}?page=1.5`, `${project}?view=page`, `${project}?media=https://signed.example/token`,
     '/p/%61', '/p/a\\b', '/p/a b', '/p/../a', '/p/a/', '/p/a?view=portals?', '/p/a?', '/p/a?view=portals#',
   ];
@@ -193,8 +193,9 @@ function hookFixture(initial = input({ authReady: true })) {
   const window = eventHub({ localStorage: store, setTimeout(callback) { timers.set(++timer, callback); return timer; }, clearTimeout(id) { timers.delete(id); } });
   const document = eventHub({ visibilityState: 'visible' });
   const actual = sourceModule(corePath, {}, { window });
-  const h = hookHarness(new URL('../src/presentation/mobile/useMobileResumeSession.ts', import.meta.url), 'useMobileResumeSession', {}, {}, initial, {}, { './mobileResumeState': actual }, { window, document });
-  return { h, store, window, document, timers, actual,
+  const messageDrafts = sourceModule('src/presentation/mobile/mobileMessageDrafts.ts', {}, { window });
+  const h = hookHarness(new URL('../src/presentation/mobile/useMobileResumeSession.ts', import.meta.url), 'useMobileResumeSession', {}, {}, initial, {}, { './mobileResumeState': actual, './mobileMessageDrafts': messageDrafts }, { window, document });
+  return { h, store, window, document, timers, actual, messageDrafts,
     flushTimers() { const pending = [...timers.values()]; timers.clear(); for (const callback of pending) callback(); },
   };
 }
@@ -233,6 +234,37 @@ test('real hook clears old-account device hints on signout and never restores a 
   f.h.options(input({ authReady: true, accountId: 'account-b' })); await f.h.flush();
   assert.equal(f.h.value.resumeTo, null); f.flushTimers();
   assert.equal(f.actual.readMobileResume('account-b').path, project, 'Accountswitch does not inheritoldroute'); f.h.dispose();
+});
+
+test('mobile draft cleanup follows confirmed identity changes, not refresh or fresh sign-in', async () => {
+  const f = hookFixture(input({ authReady: true, accountId: null }));
+  f.messageDrafts.saveMobileMessageDraft(account, 'thread', 'Prior device draft');
+  await f.h.flush();
+  f.h.options(input({ authReady: true, accountId: account })); await f.h.flush();
+  assert.equal(f.messageDrafts.readMobileMessageDrafts(account).thread, 'Prior device draft', 'Fresh sign-in must restore before any cleanup');
+  f.h.options(input({ authReady: false, accountId: account })); await f.h.flush();
+  f.h.options(input({ authReady: true, accountId: account })); await f.h.flush();
+  assert.equal(f.messageDrafts.readMobileMessageDrafts(account).thread, 'Prior device draft', 'Same account refresh keeps its draft');
+  f.h.options(input({ authReady: true, accountId: 'account-b' })); await f.h.flush();
+  assert.equal(f.messageDrafts.readMobileMessageDrafts(account).thread, undefined);
+  f.messageDrafts.saveMobileMessageDraft('account-b', 'thread', 'B draft');
+  f.h.options(input({ authReady: true, accountId: null })); await f.h.flush();
+  assert.equal(f.messageDrafts.readMobileMessageDrafts('account-b').thread, undefined);
+  f.h.dispose();
+});
+
+test('new Messages and Studio resume paths remain account scoped and explicit entry/auth wins', () => {
+  for (const path of ['/messages?conversation=thread-1', '/studio?collection=activity&category=activity']) {
+    const store = storage(), options = { storage: store, now };
+    assert.equal(core.saveMobileResumeRoute(account, path, options), true);
+    const saved = core.readMobileResume(account, options);
+    const cold = new core.MobileResumeSession(input());
+    assert.equal(cold.update(input({ authReady: true }), () => saved), path);
+    for (const entry of [input({ pathname: '/messages', search: '?conversation=explicit', authReady: true }), input({ pathname: '/studio', search: '?collection=drafts', authReady: true }), input({ search: '?code=callback', authReady: true }), input({ blocked: true, authReady: true })]) {
+      const explicit = new core.MobileResumeSession(entry);
+      assert.equal(explicit.update(entry, () => { throw Error('Explicit/auth entry cannot read resume'); }), null);
+    }
+  }
 });
 
 test('real hook on Web never touches localStorage or registers resume lifecycle listeners', async () => {

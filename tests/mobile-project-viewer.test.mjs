@@ -872,7 +872,8 @@ test('Back to portals targets the viewed creator collection rather than previous
     [false, true, 'portals/'], [false, false, 'profile/creator?view=portals'], [true, false, 'sharedProfile/creator'],
   ]) {
     const calls = [];
-    const go = vm.runInNewContext(`(${fn})`, { isSharedRoute, isOwnerMode, viewedProfileId: 'creator',
+    const go = vm.runInNewContext(`(${fn})`, { presentation: 'mobile', activeCategoryId: 'art', returnToMobilePortalCollection: () => false,
+      isSharedRoute, isOwnerMode, viewedProfileId: 'creator',
       nav: { to: (...args) => calls.push(args), back: () => assert.fail('Must not revisit a project') },
       buildPath: (kind, values) => `${kind}/${values?.profileId ?? ''}` });
     go();
