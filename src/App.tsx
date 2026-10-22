@@ -40,7 +40,8 @@ import { useLiveSessions } from './features/live/useLiveSessions';
 import { useCategoryManagement } from './features/profile/useCategoryManagement';
 import { useAuth } from './contexts/AuthContext';
 import { SessionStatusBanner } from './features/auth/SessionStatusBanner';
-import { AlertCircleIcon } from 'lucide-react';
+import { AlertCircleIcon, XIcon } from 'lucide-react';
+import { InterfaceIcon } from './components/ui/InterfaceIcon';
 import { InteractionSafePresence } from './components/ui/InteractionSafePresence';
 import { FeatureInDesignPage } from './components/FeatureInDesignPage';
 import { useProfileOnboardingStatus } from './features/profile/useProfileOnboarding';
@@ -1499,7 +1500,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         {presentation === 'mobile' && globalCreateError && <div role="alert" className="navigation-feedback shape-compact flex items-center gap-2.5 border border-[var(--hairline)] bg-[var(--surface-raised)] px-3 py-2.5 text-[13px]">
           <span className="min-w-0 flex-1">{globalCreateError}</span>
           <button type="button" onClick={requestGlobalPublish} className="font-semibold text-[var(--accent-text)]">Try again</button>
-          <button type="button" onClick={() => setGlobalCreateError(null)} aria-label="Dismiss">×</button>
+          <button type="button" onClick={() => setGlobalCreateError(null)} aria-label="Dismiss"><InterfaceIcon icon={XIcon} size="lg" /></button>
         </div>}
         <AppScreenLayers navigation={{location: screenLocation, navigationType: screenNavigationType, scope: `${auth.isAuthenticated ? auth.user?.id : 'guest'}:${isSharedRoute}`}} screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId ? <LoadingSkeleton kind="reader" projectId={projectNavigation.resolution.projectId} label="Opening project"/> : screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
       </div>

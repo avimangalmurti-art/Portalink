@@ -41,7 +41,7 @@ test('OAuth uses the same project client and official callback with sanitized pu
 function agreementHarness(){
  const slots=[];let cursor=0;let controls;let disagreed=0;
  const react={...React,useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return[slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}];},useRef(initial){const i=cursor++;return slots[i]??={current:initial};},useEffect(){}};
- const {EntryAgreements}=sourceModule('src/components/auth/EntryAgreements.tsx',{react,'../ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useModalFocus':{},'../../hooks/useDialogViewport':{},'./entryAgreements.css':{}});
+ const {EntryAgreements}=sourceModule('src/components/auth/EntryAgreements.tsx',{react,'lucide-react':{ChevronLeftIcon:'chevron-left',ChevronRightIcon:'chevron-right'},'../ui/InterfaceIcon':{InterfaceIcon:'icon'},'../ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useModalFocus':{},'../../hooks/useDialogViewport':{},'./entryAgreements.css':{}});
  function render(){cursor=0;return EntryAgreements({onDisagree:()=>disagreed++,children:value=>{controls=value;return null;}});}
  function sheet(){const tree=render();return React.Children.toArray(tree.props.children).find(node=>node.props?.onAgree);}
  render();return{get controls(){return controls;},sheet,get disagreed(){return disagreed;}};

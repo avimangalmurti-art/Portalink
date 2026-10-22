@@ -15,7 +15,7 @@ import type { Profile, PortfolioCategory as ProfileCategory } from '../types/dom
 import { getCategoryIcon } from './profile/categoryIcons';
 import type { CategoryManagement } from '../features/profile/useCategoryManagement';
 import type { CategoryDeletionCapability } from '../types/domain';
-import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, BarChart3Icon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, HomeIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, SearchIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, WarehouseIcon } from 'lucide-react';
+import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, ChartNoAxesColumnIcon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, HomeIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, UserSearchIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, WarehouseIcon } from 'lucide-react';
 import { PortalRingIcon } from './PortalRingIcon';
 import { NewCategoryDialog } from './profile/NewCategoryDialog';
 import { CategoryOptionsMenu } from './profile/CategoryOptionsMenu';
@@ -185,7 +185,7 @@ function PortalNetworkTile() {
 function PersonalFooterLinks({ collapsed, activityActive, insightsActive }: {collapsed: boolean;activityActive: boolean;insightsActive: boolean;}) {
   return <>{([
     ['Activity', 'notifications', BellIcon, activityActive],
-    ['Insights', 'insights', BarChart3Icon, insightsActive],
+    ['Insights', 'insights', ChartNoAxesColumnIcon, insightsActive],
   ] as const).map(([label, route, icon, active]) => <Link key={route} to={buildPath(route)} aria-label={`Open ${label}`} title={label} aria-current={active ? 'page' : undefined} className={`${collapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control mx-auto'} nav-button shape-compact flex shrink-0 items-center justify-center transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${active ? 'bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}><InterfaceIcon icon={icon} size="sm" weight="medium" /></Link>)}</>;
 }
 
@@ -615,7 +615,7 @@ export function Sidebar({
   }
   /* One system panel control in both states, matching the project and engagement
      sidebars instead of giving the main sidebar a separate globe metaphor. */
-  const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] ease-[var(--m-enter)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
+  const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" data-ui-shape="icon" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] ease-[var(--m-enter)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
       <InterfaceIcon icon={isSidebarCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
     </button>;
   if (isMobile) return <MobileNavigation onMessages={fromDock=>onMessagesOpen(undefined,fromDock)}
@@ -684,7 +684,7 @@ export function Sidebar({
                   <InterfaceIcon icon={WarehouseIcon} weight="medium" />
                 </button>
                 <button type="button" onClick={onSearchOpen} aria-label="Search accounts" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
-                  <InterfaceIcon icon={SearchIcon} weight="medium" />
+                  <InterfaceIcon icon={UserSearchIcon} weight="medium" />
                 </button>
                 <button type="button" onClick={() => onMessagesOpen()} aria-label="Open messages" aria-current={activeTarget === 'messages' ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none" data-profile-tile="">
                   <InterfaceIcon icon={MessageCircleIcon} weight="medium" />
@@ -707,7 +707,7 @@ export function Sidebar({
                 </div>
                 <div role="group" aria-label="Main navigation row two" className="contents">
                   <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />
-                  <NavTile label="Search" icon={SearchIcon} isActive={activeTarget === 'search'} activeClassName="" ariaLabel="Search accounts" onSelect={onSearchOpen} />
+                  <NavTile label="Search" icon={UserSearchIcon} isActive={activeTarget === 'search'} activeClassName="" ariaLabel="Search accounts" onSelect={onSearchOpen} />
                   <NavTile label="Messages" icon={MessageCircleIcon} isActive={activeTarget === 'messages'} activeClassName="" onSelect={() => onMessagesOpen()} ariaLabel="Open messages" isProfileTile />
                   <NavTile label="Profile" icon={CircleUserRoundIcon} isActive={activeTarget === 'profile'} activeClassName="" onSelect={handleProfileOpen} href={profileHref} ariaLabel="Open your profile" isProfileTile />
                 </div>

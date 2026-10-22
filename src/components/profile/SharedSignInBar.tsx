@@ -1,4 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { XIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { readSharedReturnPath } from '../../features/auth/registration';
@@ -41,6 +43,6 @@ export function SharedSignInBar({ name }: { name?: string }) {
       <span aria-hidden="true">·</span>
       <button type="button" disabled={auth.phase === 'authenticating'} onClick={() => requestAccount('signUp')}>Create account</button>
     </span>
-    <button type="button" className="shared-sign-in-dismiss" aria-label="Dismiss sign-in bar" onClick={dismiss}><span aria-hidden="true">×</span></button>
+    <button type="button" className="shared-sign-in-dismiss" aria-label="Dismiss sign-in bar" onClick={dismiss}><InterfaceIcon icon={XIcon} size="lg" /></button>
   </aside>;
 }

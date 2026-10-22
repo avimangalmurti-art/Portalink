@@ -62,10 +62,11 @@
 #root .codex-shell [data-ui-surface] .portalink-confirmation-actions button {
   flex: 1 1 120px;
   height: auto;
-  min-height: 48px;
-  padding: 10px 12px;
+  min-height: 40px;
+  padding: 8px 12px;
   line-height: 1.4;
 }
+#root .codex-shell[data-presentation='mobile'] [data-ui-surface] .portalink-confirmation-actions button { min-height: 44px; }
 #root .codex-shell [data-ui-surface].follow-info-panel {
   padding: var(--ui-surface-inset);
   gap: var(--ui-surface-gap);
@@ -127,7 +128,7 @@
    popup token stays intact for cover stages, artwork and embedded previews. */
 @layer portalink-interface-shapes {
   [data-presentation][data-presentation] :is(
-    [data-ui-surface], .portalink-confirmation, [role='menu'],
+    [data-ui-surface], [data-ui-shape='popup'], .portalink-confirmation, [role='menu'],
     [data-typography-popover], .location-search-results,
     .follow-info-owner-menu,
     .mobile-project-gesture-hint, .public-actions-sheet,
@@ -143,7 +144,7 @@
 
   /* Attached sheets retain their flat bottom. Actual side drawers are outside
      the floating selectors; full-screen editors do not opt into surface roles. */
-  [data-presentation][data-presentation] [data-ui-surface='sheet'],
+  [data-presentation][data-presentation] :is([data-ui-surface='sheet'], [data-ui-shape='sheet']),
   [data-presentation='mobile'][data-presentation] :is(.cite-sheet, .mobile-context-sheet, .first-login-welcome) {
     border-radius: var(--ui-floating-radius) var(--ui-floating-radius) 0 0 !important;
   }

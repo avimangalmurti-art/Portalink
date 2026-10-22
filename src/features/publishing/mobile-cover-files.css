@@ -76,7 +76,7 @@
 [data-presentation='mobile'] [data-review-step] .mobile-review-thumbnails img { width: 100%; height: 100%; object-fit: cover; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-actions { flex: none; padding: 12px 0 0; border-top: 1px solid var(--hairline); background: var(--surface-canvas); }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-actions > div { display: flex; gap: 12px; }
-[data-presentation='mobile'] [data-mobile-publish] .mobile-publish-actions button { min-height: 48px; border-radius: var(--ui-control-radius, 12px); font-size: 16px; }
+[data-presentation='mobile'] [data-mobile-publish] .mobile-publish-actions button { min-height: 44px; border-radius: var(--ui-control-radius, 12px); font-size: 16px; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-actions button[type=submit] { flex: 1; }
 @media (max-height: 700px) {
   [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-progress { padding-bottom: 8px; }
@@ -92,7 +92,7 @@
 [data-presentation='web'] .mobile-selected-thumbnails > button[aria-pressed=true] { border: 2px solid #ff315f; }
 [data-presentation='web'] .mobile-selected-thumbnails img { width: 100%; height: 100%; object-fit: cover; }
 [data-presentation='web'] .mobile-selected-actions { display: flex; gap: 8px; }
-[data-presentation='web'] .mobile-selected-actions > button { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; padding: 8px; font-size: 13px; color: #fff; border-radius: 12px; border: 1px solid #303030; background: #191919; }
+[data-presentation='web'] .mobile-selected-actions > button { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; padding: 8px; font-size: 13px; color: #fff; border-radius: 12px; border: 1px solid #303030; background: #191919; }
 [data-presentation='web'] .mobile-cover-empty { flex: 1; min-height: 80px; display: grid; place-items: center; border: 1px solid #303030; border-radius: 16px; background: #151515; color: #fff; }
 [data-presentation='web'] .mobile-cover-error { flex: none; font-size: 12px; line-height: 1.3; color: var(--status-danger); }
 [data-presentation='mobile'] .mobile-draft-status { display:flex; align-items:center; gap:12px; min-height:44px; color:var(--text-secondary); font-size:12px; }

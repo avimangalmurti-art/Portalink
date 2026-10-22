@@ -29,7 +29,8 @@
   font-weight:550;
   line-height:1.4;
 }
-.optional-setup-backdrop .optional-setup-primary { min-height:50px; background:var(--accent-primary); color:var(--accent-foreground); }
+.optional-setup-backdrop .optional-setup-primary { min-height:44px; background:var(--accent-primary); color:var(--accent-foreground); }
+.optional-setup-backdrop[data-presentation='web'] .optional-setup-primary { min-height:40px; }
 .optional-setup-backdrop .optional-setup-skip { min-height:44px; color:var(--text-secondary); }
 .optional-setup-backdrop .optional-setup-appearance { flex:none; width:100%; max-width:358px; text-align:left; }
 .optional-setup-backdrop .optional-setup-appearance .mobile-onboarding-appearance { padding-top:18px; }
@@ -40,6 +41,8 @@
 .optional-setup-backdrop [data-appearance-open='true'] .optional-setup-content { padding-top:16px; }
 .optional-setup-backdrop [data-appearance-open='true'] h1 { font-size:28px; }
 .optional-setup-backdrop [data-appearance-open='true'] .optional-setup-appearance-toggle { margin-top:16px; }
+.optional-setup-backdrop[data-presentation='mobile'] .optional-account-setup[data-appearance-open='false'] .optional-setup-content>p { margin-bottom:20px; }
+.optional-setup-backdrop[data-presentation='mobile'] .optional-account-setup[data-appearance-open='false'] .optional-setup-appearance-toggle { margin-top:auto; }
 #root .codex-shell .optional-setup-backdrop[data-presentation='mobile'] > .optional-account-setup { border-radius:28px 28px 0 0 !important; }
 @media (hover:hover) { .optional-setup-backdrop .optional-setup-primary:hover { background:var(--accent-hover,var(--accent-primary)); } }
 @media (max-height:740px) {

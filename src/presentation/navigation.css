@@ -73,8 +73,22 @@
   }
 }
 
+/* Desktop rails use a compact control scale. Phone navigation and its dock
+   retain their established targets, compensated hit regions and grouping. */
+#root .codex-shell[data-presentation='web'] {
+  --ui-navigation-target: 36px;
+  --sidebar-primary-control: 36px;
+  --cdx-header-control: 36px;
+  --side-panel-header-control: 36px;
+  --side-panel-compact-control: 36px;
+}
+#root .codex-shell[data-presentation='web'] [data-shared-navigation-header] {
+  --shared-header-control: 36px;
+  --shared-header-glyph: 20px;
+}
+
 #root .codex-shell[data-presentation] {
-  --sidebar-primary-control: 44px;
+  --sidebar-primary-control: var(--ui-navigation-target, 44px);
   --project-control-surface: var(--navigation-surface);
   --project-control-foreground: var(--navigation-foreground);
   --project-control-blur: var(--navigation-blur);
@@ -118,8 +132,8 @@
   [data-project-response-rail] > .global-control-header > button:not([data-keep-color])
 ) {
   /* Shared headers previously fixed a smaller !important minimum. */
-  min-width: 44px !important;
-  min-height: 44px !important;
+  min-width: var(--ui-navigation-target, 44px) !important;
+  min-height: var(--ui-navigation-target, 44px) !important;
   border: 0 !important;
   background: var(--navigation-item-surface, var(--navigation-item-rest-surface, transparent)) !important;
   color: var(--navigation-item-foreground, var(--navigation-foreground)) !important;
@@ -222,6 +236,10 @@
   width: 24px;
   height: 24px;
 }
+#root .codex-shell[data-presentation='web'] :is(.sidebar-surface, .shared-profile-sidebar, [data-project-response-rail], [data-project-index-panel], [data-project-file-strip], .account-menu-popover) [data-interface-icon-frame] {
+  --interface-icon-size: 20px;
+}
+#root .codex-shell[data-presentation='web'] [data-project-index-panel] .global-control-header button > svg { width: 20px; height: 20px; }
 
 @media (prefers-reduced-transparency: reduce) {
   #root .codex-shell[data-presentation] {

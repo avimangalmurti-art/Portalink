@@ -6,7 +6,7 @@ import test from 'node:test';
 import {sourceModule} from './helpers/source-module.mjs';
 const model=sourceModule('src/features/citations/model.ts');
 const {CitationCards}=sourceModule('src/citation/CitationCards.tsx',{'react':React,'lucide-react':{SatelliteDishIcon:()=>React.createElement('svg',{'aria-hidden':true})},'../features/citations/model':model,'../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.test'},'./citation-entry.css':{}});
-const {RouteError,routeErrorKind}=sourceModule('src/components/ui/RouteError.tsx',{'react':React,'./route-error.css':{}});
+const {RouteError,routeErrorKind}=sourceModule('src/components/ui/RouteError.tsx',{'react':React,'lucide-react':{ChevronLeftIcon:()=>React.createElement('svg',{'aria-hidden':true})},'./InterfaceIcon':{InterfaceIcon:({icon:Icon})=>React.createElement(Icon)},'./route-error.css':{}});
 const item={id:'example-image',creator:'Example Creator',creatorId:'example',projectTitle:'Field Notes',projectId:'work',attachmentId:'image',madeOn:'2024-06-15',kind:'image',number:1,citable:true,storagePath:null};
 for(const [name,variant] of Object.entries({image:item,page:{...item,kind:'page',number:2},citable:item,'view-only':{...item,citable:false}}))test(`citation ${name} card snapshot`,()=>{
  const html=renderToStaticMarkup(React.createElement(CitationCards,{item:variant,preview:React.createElement('img',{src:'/example.png',alt:'Field Notes'}),onCopy(){},onCite(){},onShare(){}}));

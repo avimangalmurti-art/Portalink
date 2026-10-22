@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
@@ -49,12 +51,12 @@ function AgreementSheet({ onAgree, onDisagree }: { onAgree: () => void; onDisagr
   useEffect(() => { if (scroller.current) scroller.current.scrollTop = 0; heading.current?.focus({ preventScroll:true }); }, [selected]);
   return <ModalPortal><div ref={viewport} className="entry-agreements-overlay" style={{ top:'var(--dialog-viewport-top, 0px)', height:'var(--dialog-viewport-height, 100dvh)' }}>
     <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="entry-agreement-title" tabIndex={-1} className="entry-agreements-sheet">
-      <header>{selected !== null && <button type="button" onClick={() => setSelected(null)}>‹ Terms and Conditions</button>}
+      <header>{selected !== null && <button type="button" onClick={() => setSelected(null)}><InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl /> Terms and Conditions</button>}
         <h1 id="entry-agreement-title" ref={heading} tabIndex={-1}>{selected === null ? 'Terms and Conditions' : agreements[selected]}</h1>
       </header>
       <div ref={scroller} className="entry-agreements-scroll">
         <div className="entry-agreements-card"><strong>IMPORTANT</strong><p>Placeholder legal copy — review required before release. These four agreements are awaiting approved legal text.</p>
-          {selected === null && <nav aria-label="Agreements">{agreements.map((title, index) => <button type="button" key={title} onClick={() => setSelected(index)}>{title}<span aria-hidden="true">›</span></button>)}</nav>}
+          {selected === null && <nav aria-label="Agreements">{agreements.map((title, index) => <button type="button" key={title} onClick={() => setSelected(index)}>{title}<InterfaceIcon icon={ChevronRightIcon} mirroredInRtl /></button>)}</nav>}
         </div>
         <div className="entry-agreements-card"><h2>{selected === null ? 'Agreements overview' : agreements[selected]}</h2>
           <p>[Placeholder: insert the approved {selected === null ? 'agreements summary' : agreements[selected].slice(3)} here.]</p>

@@ -105,7 +105,8 @@ test('missing name is rejected before uploading or writing', async () => {
 function component(file, name, props, overrides = {}) {
   const slots = [];
   let cursor = 0;
-  const react = { ...React, useLayoutEffect() {}, useEffect() {}, useRef(value) {
+  const profiles = { checkPublicHandle: overrides.checkPublicHandle ?? (async () => 'available') };
+  const react = { ...React, useCallback: callback => callback, useLayoutEffect() {}, useEffect() {}, useRef(value) {
     const index = cursor++;
     if (!(index in slots)) slots[index] = { current: value };
     return slots[index];
@@ -115,7 +116,7 @@ function component(file, name, props, overrides = {}) {
     return [slots[index], (value) => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
   } };
   const exports = execute(read(file), { require(dependency) {
-    if (dependency.endsWith('/ServicesContext')) return {useServices:()=>({profiles:{checkPublicHandle:overrides.checkPublicHandle??(async()=> 'available')}})};
+    if (dependency.endsWith('/ServicesContext')) return { useServices: () => ({ profiles }) };
     if (dependency.endsWith('/profileHandle')) return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
     if (dependency === 'react') return react;
     if (dependency === 'react/jsx-runtime') return jsxRuntime;
@@ -216,9 +217,6 @@ test('setup collects name, handle and location without a photo picker or hidden 
   visibility?.props.onChange(true);
   tree = render();
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
-  assert.equal(submitted, undefined, 'first press checks and displays the final handle');
-  tree = render();
-  await find(tree, node => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(submitted.name, 'Avi');
   assert.equal(submitted.location, 'San Francisco');
   assert.equal(submitted.isPrivate, presentation === 'mobile');
@@ -261,9 +259,7 @@ test('profile setup explicitly opts both platforms into the new surface and reta
   const action=find(form,node=>node.type===(presentation==='mobile'?'MobileOnboardingAction':'Button'));assert.ok(action,'The submit action remains within its real form.');assert.equal(action.props.children,'Continue');
   if(presentation==='web')assert.equal(action.props.type,'submit');
   create.status='success';create.createdProfile={id:'created',name:'Creator'};tree=render();
-  assert.equal(tree.props.title,presentation==='mobile'?'Finishing setup':'Profile ready');assert.equal(find(tree,node=>node.type==='form'),undefined);
-  if(presentation==='mobile')assert.ok(nodes(tree).some(node=>node.props.role==='status'&&node.props.children==='Finishing setup…'));
-  else assert.ok(nodes(tree).some(node=>node.props.children==='Your profile is ready.'));
+  assert.equal(tree,null,'A saved profile leaves setup without a redundant success card or another action.');
  }
 });
 
@@ -273,14 +269,14 @@ test('profile setup checks the handle before creating once and permits retry aft
   const create={status:'idle',isLoading:false,createdProfile:null,run:input=>{submissions.push(input);return new Promise(resolve=>finish=resolve);}};
   const render=component('src/features/profile/ProfileOnboardingDialog.tsx','ProfileOnboardingDialog',{isOpen:true,accentColor:'#0A84FF',onAccentColorChange(){},onDismiss(){},onComplete(){}},{presentation,checkPublicHandle:async()=>{handleChecks++;return 'available';},useAvatarSelection:()=>({avatar:null,error:null,select(){},clear(){}}),useCreateProfile:()=>create});
   find(render(),node=>node.props.id==='onboarding-name').props.onChange('New Creator');
-  await find(render(),node=>node.type==='form').props.onSubmit({preventDefault(){}});
-  assert.equal(handleChecks,1);assert.equal(submissions.length,0);
-  let tree=render();assert.ok(nodes(tree).some(node=>node.props.role==='status'&&String(node.props.children).includes('newcreator')));
-  const submit=find(tree,node=>node.type==='form').props.onSubmit;
-  const pending=submit({preventDefault(){}});await submit({preventDefault(){}});assert.equal(submissions.length,1);
+  const submit=find(render(),node=>node.type==='form').props.onSubmit;
+  const pending=submit({preventDefault(){}});await submit({preventDefault(){}});
+  for(let i=0;i<10;i++)await Promise.resolve();
+  assert.equal(handleChecks,1);assert.equal(submissions.length,1);assert.equal(submissions[0].handle,'newcreator');
+  let tree=render();assert.equal(find(tree,node=>node.props.id==='onboarding-handle').props.value,'newcreator');
   finish();await pending;create.status='error';create.error='Please try again';tree=render();
   assert.ok(find(tree,node=>node.props.role==='alert'));
-  const retry=find(tree,node=>node.type==='form').props.onSubmit({preventDefault(){}});assert.equal(submissions.length,2);assert.equal(handleChecks,1);assert.equal(submissions[1].handle,'newcreator');finish();await retry;
+  const retry=find(tree,node=>node.type==='form').props.onSubmit({preventDefault(){}});for(let i=0;i<10;i++)await Promise.resolve();assert.equal(submissions.length,2);assert.equal(handleChecks,1);assert.equal(submissions[1].handle,'newcreator');finish();await retry;
  }
 });
 

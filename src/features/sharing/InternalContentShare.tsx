@@ -8,6 +8,7 @@ import { containModalFocus, useModalFocus } from '../../hooks/useModalFocus';
 import { useSheetMotion } from '../../presentation/motion/useSheetMotion';
 import { reducedMotion } from '../../presentation/motion/motion';
 import { ArrowLeftIcon } from 'lucide-react';
+import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useRecipientKeyboard } from './useRecipientKeyboard';
 import { useRecipientScrollBoundary } from './useRecipientScrollBoundary';
@@ -95,7 +96,7 @@ export function InternalContentShareDialog({target,onClose,inline = false,mobile
   } catch(caught) {if(current())setError(caught instanceof Error?caught.message:'Content could not be sent. Try again.');}
   finally {if(guardSend)sendLock.current=false;if(current()){sending.current=false;setBusy(false);}}
  };
- const content = <> <header className="internal-share-header"><button type="button" aria-label="Back" disabled={busy} onClick={dismiss} className="internal-share-back"><ArrowLeftIcon aria-hidden="true" size={24}/></button><div><h1 id="internal-share-title">{sent&&!mobile?'Sent':'Send content'}</h1>
+ const content = <> <header className="internal-share-header"><button data-ui-shape="icon" data-control-size="sm" type="button" aria-label="Back" disabled={busy} onClick={dismiss} className="internal-share-back"><InterfaceIcon icon={ArrowLeftIcon} size="lg" mirroredInRtl/></button><div><h1 id="internal-share-title">{sent&&!mobile?'Sent':'Send content'}</h1>
  <p className="internal-share-source">{target.title}</p></div></header>
  {sent&&!mobile?<p className="internal-share-feedback" role="status">Sent in Portalink.</p>:<div className="internal-share-directory"><NewChatPanel key={mobile?scope:undefined} appearance="account-search" selectedCreatorId={recipient} showHeader={false} onClose={dismiss} disabled={mobile&&sent} startingCreatorId={busy?recipient:null} onSelectCreator={id=>{if(!busy&&(!mobile||(!sending.current&&session.current.active&&!session.current.confirmed&&session.current.scope===scope))){setRecipient(id);setError(null);}}} /></div>}
  {(!keyboardOpen||error)&&<footer className="internal-share-footer">

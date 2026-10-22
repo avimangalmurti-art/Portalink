@@ -43,7 +43,7 @@ test('layout controls remain desktop-only while shared galleries retain local ca
     let gesturesEnabled;
     let zoomCallback;
     const { JustifiedImageWall } = load('../src/components/profile/JustifiedImageWall.tsx', {
-      react: { ...React, useMemo: fn => fn() },
+      react: { ...React, useMemo: fn => fn(), useRef: initial => ({ current: initial }) },
       '../../hooks/useElementSize': { useElementSize: () => ({ width: 1000 }) },
       '../../hooks/useContentZoom': { useContentZoom: (_columns, enabled, _resetKey, onChange) => { gesturesEnabled = enabled; zoomCallback = onChange; return { columns: 5, chooseColumns }; } },
       '../../presentation/usePresentation': { usePresentation: () => presentation },

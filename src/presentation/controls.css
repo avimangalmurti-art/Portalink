@@ -43,12 +43,34 @@
   --ui-control-height: 44px;
 }
 :where(#root .codex-shell[data-presentation='mobile']) [data-ui-control][data-control-size='lg'] {
-  --ui-control-height: 48px;
+  --ui-control-height: 44px;
 }
 :where(#root .codex-shell) [data-ui-control='icon'] {
   width: var(--ui-control-height);
   min-width: var(--ui-control-height);
   padding: 0;
+}
+
+/* Legacy feature controls can share geometry and an explicit compact size
+   without replacing their existing materials, colours or typography. */
+#root .codex-shell[data-presentation] :is([data-ui-shape='action'], [data-ui-shape='icon'])[data-control-size] {
+  --ui-legacy-control-size: 36px;
+  box-sizing: border-box;
+  height: auto;
+  min-height: var(--ui-legacy-control-size);
+}
+#root .codex-shell[data-presentation] :is([data-ui-shape='action'], [data-ui-shape='icon'])[data-control-size='sm'] { --ui-legacy-control-size: 32px; }
+#root .codex-shell[data-presentation] :is([data-ui-shape='action'], [data-ui-shape='icon'])[data-control-size='lg'] { --ui-legacy-control-size: 40px; }
+#root .codex-shell[data-presentation='mobile'] :is([data-ui-shape='action'], [data-ui-shape='icon'])[data-control-size] { --ui-legacy-control-size: 44px; }
+#root .codex-shell[data-presentation] [data-ui-shape='icon'][data-control-size] {
+  width: var(--ui-legacy-control-size);
+  min-width: var(--ui-legacy-control-size);
+  height: var(--ui-legacy-control-size);
+  padding: 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Surface and ink move together. The strong scope replaces legacy .ps-btn
@@ -137,6 +159,10 @@
 /* Geometry only. The shared important layer survives lazy feature CSS and the
    phone's legacy 3px fallback. Existing grouped controls keep their children. */
 @layer portalink-interface-shapes {
+  [data-presentation][data-presentation] [data-ui-shape='action'][data-ui-shape] { border-radius: var(--ui-action-radius) !important; }
+  [data-presentation][data-presentation] [data-ui-shape='icon'][data-ui-shape] { border-radius: var(--ui-icon-radius) !important; }
+  [data-presentation][data-presentation] [data-ui-shape='row'][data-ui-shape] { border-radius: var(--ui-row-radius) !important; }
+  [data-presentation][data-presentation] [data-ui-shape='capsule'][data-ui-shape] { border-radius: var(--ui-capsule-radius) !important; }
   /* Opening account-entry fields paint either an input or its shell. Keep the
      transparent inner inputs and password-reveal controls under their own rules. */
   [data-presentation][data-presentation] .one-screen-entry :is(
@@ -154,7 +180,8 @@
     [data-messages-page] .side-panel-filter-grid > button[data-ui-control='button'],
     .studio-citation-pills > button[data-studio-pill],
     .mobile-insights-period > select[aria-label='Insights period'],
-    .mobile-insights-period > button
+    .mobile-insights-period > button, .mobile-insights-metrics > button,
+    .journey-order > button, .journey-order > button::before
   ) {
     border-radius: var(--ui-capsule-radius) !important;
   }

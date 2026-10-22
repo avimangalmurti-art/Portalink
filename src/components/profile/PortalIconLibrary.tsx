@@ -87,7 +87,7 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
       })}
     </div>
     {hasMore && (isMobile ? <div ref={moreRef} aria-hidden="true" className="h-px" /> :
-      <button type="button" disabled={disabled} onClick={() => setPage({ query, limit: limit + PAGE_SIZE })}
+      <button data-ui-shape="action" data-control-size="md" type="button" disabled={disabled} onClick={() => setPage({ query, limit: limit + PAGE_SIZE })}
         className="mt-3 min-h-11 w-full rounded-[10px] border border-[var(--hairline)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">Show more icons</button>)}
   </section>;
 }

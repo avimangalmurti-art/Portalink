@@ -163,10 +163,11 @@
 .first-welcome-actions button:disabled {opacity:.32;}
 .first-welcome-actions .first-welcome-next {
   min-width:172px;
-  min-height:50px;
+  min-height:44px;
   background:var(--accent-primary);
   color:var(--accent-foreground);
 }
+.first-login-welcome-backdrop[data-presentation='web'] .first-welcome-actions>button { min-height:40px; }
 .first-login-welcome button:focus-visible {
   outline:2px solid var(--focus-ring);
   outline-offset:-2px;

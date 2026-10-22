@@ -1,4 +1,6 @@
 import React from 'react';
+import { ChevronLeftIcon } from 'lucide-react';
+import { InterfaceIcon } from './InterfaceIcon';
 import './route-error.css';
 
 export type RouteErrorKind = 'not-found' | 'no-access' | 'expired' | 'network';
@@ -22,9 +24,9 @@ export function RouteError({ kind, creatorHandle, onBack, onHome, onCreator }: {
 }) {
   const [title, explanation] = messages[kind];
   return <section className="route-error" data-error-kind={kind} aria-label={title}>
-    <header><button type="button" aria-label="Back" onClick={onBack}>‹</button></header>
+    <header><button type="button" aria-label="Back" data-ui-shape="icon" data-control-size="md" onClick={onBack}><InterfaceIcon icon={ChevronLeftIcon} size="lg" mirroredInRtl /></button></header>
     <div className="route-error-card" role="alert"><h1>{title}</h1><p>{explanation}</p></div>
-    <button type="button" className="route-error-pill" onClick={() => { if(creatorHandle && onCreator)onCreator();else onHome(); }}>
+    <button type="button" data-ui-shape="action" data-control-size="md" className="route-error-pill" onClick={() => { if(creatorHandle && onCreator)onCreator();else onHome(); }}>
       {creatorHandle && onCreator ? 'Open the creator’s profile' : 'Go to Home'}
     </button>
   </section>;

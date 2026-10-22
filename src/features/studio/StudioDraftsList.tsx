@@ -1,6 +1,7 @@
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
-import { ChevronLeftIcon } from 'lucide-react';
+import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { createPortal } from 'react-dom';
 import React, { useRef, useState } from 'react';
 import { usePresentation } from '../../presentation/usePresentation';
@@ -17,12 +18,12 @@ export function StudioDraftsList({drafts,onBack,onResume,onDiscard,onNew,onBookm
  useMobileScreenActions(mobile?null:contextActions('studio',{signedIn:true,owner:true},{handlers:{newProject:onNew,drafts:finishSelection,bookmarks:onBookmarks,reads:onReads,select:drafts.length?()=>setSelecting(true):undefined}}));
  const selectedDrafts=drafts.filter(d=>selected.has(d.id));
  const toggle=(id:string)=>setSelected(v=>{const next=new Set(v);if(next.has(id))next.delete(id);else next.add(id);return next;});
- const navigation = <div className="studio-drafts-heading"><button type="button" className="studio-drafts-back" aria-label="Back from Drafts" disabled={busy} onClick={()=>selecting?finishSelection():onBack()}>{headerHost ? <ChevronLeftIcon aria-hidden="true" /> : <>← {selecting?'Done':'Studio'}</>}</button>
+ const navigation = <div className="studio-drafts-heading"><button type="button" className="studio-drafts-back" aria-label="Back from Drafts" disabled={busy} onClick={()=>selecting?finishSelection():onBack()}>{headerHost ? <InterfaceIcon icon={ChevronLeftIcon} size="lg" mirroredInRtl /> : <><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /> {selecting?'Done':'Studio'}</>}</button>
    <button type="button" className="studio-drafts-control" disabled={busy||!drafts.length} aria-pressed={selecting} onClick={()=>selecting?finishSelection():setSelecting(true)}>{selecting?'Done':'Select'}</button><div data-inline-screen-actions=""><MobileContextButton /></div></div>;
  return <section className="mobile-studio studio-workbench" data-studio-selecting={selecting?'true':'false'} aria-label="Drafts">
   <header className="studio-workbench-header">
    {mobile?<div className="studio-drafts-heading studio-drafts-inline-controls">
-    <ScreenBack action={selecting?finishSelection:onBack} visibleOnMobile>{selecting&&<button type="button" className="studio-drafts-back" aria-label="Back from Drafts" disabled={busy} onClick={finishSelection}><ChevronLeftIcon aria-hidden="true" /></button>}</ScreenBack>
+    <ScreenBack action={selecting?finishSelection:onBack} visibleOnMobile>{selecting&&<button type="button" className="studio-drafts-back" aria-label="Back from Drafts" disabled={busy} onClick={finishSelection}><InterfaceIcon icon={ChevronLeftIcon} size="lg" mirroredInRtl /></button>}</ScreenBack>
     <p className="studio-drafts-instruction">{selecting?'Tap drafts to select them for removal.':'Tap a draft to continue editing.'}</p>
     <button ref={selectionControl} type="button" className="studio-drafts-control" disabled={busy||!drafts.length} aria-pressed={selecting} onClick={()=>selecting?finishSelection():setSelecting(true)}>{selecting?'Done':'Select'}</button>
    </div>:<>{headerHost ? createPortal(navigation, headerHost) : navigation}<h1 className="studio-drafts-title">Drafts</h1><p>{selecting?'Tap drafts to select them for removal.':'Tap a draft to continue editing.'}</p></>}
@@ -32,7 +33,7 @@ export function StudioDraftsList({drafts,onBack,onResume,onDiscard,onNew,onBookm
    <button type="button" disabled={busy} aria-pressed={selecting?selected.has(d.id):undefined} onClick={()=>selecting?toggle(d.id):onResume(d)}>
     {selecting&&<span className="studio-draft-check" aria-hidden="true">{selected.has(d.id)?'✓':''}</span>}
     <span className="studio-draft-copy"><strong>{d.metadata.title.trim()||'Untitled'}</strong><span>{({files:'Files',details:'Details',review:'Review'})[d.stage]} · {new Date(d.updatedAt??d.createdAt).toLocaleDateString()}</span></span>
-    {!selecting&&<span aria-hidden="true">→</span>}
+    {!selecting&&<InterfaceIcon icon={ChevronRightIcon} mirroredInRtl />}
    </button>
   </li>)}</ul>{!drafts.length&&(mobile?<StudioEmptyState kind="drafts"/>:<p>No drafts to continue.</p>)}</div>
   {selecting&&<div className="studio-selection-toolbar studio-draft-toolbar" role="toolbar" aria-label="Selected draft actions"><span role="status">{selectedDrafts.length} selected</span><button type="button" disabled={busy||!selectedDrafts.length} onClick={()=>{setError('');setConfirm(true);}}>Discard {selectedDrafts.length||''} {selectedDrafts.length===1?'draft':'drafts'}</button></div>}

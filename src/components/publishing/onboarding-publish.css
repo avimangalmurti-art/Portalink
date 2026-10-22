@@ -95,7 +95,8 @@
   color:var(--text-secondary);
 }
 [data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div { display:flex; gap:8px; }
-[data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div>button { min-height:50px; }
+[data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div>button { min-height:44px; }
+[data-presentation='web'] [data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div>button { min-height:40px; }
 [data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div>button:first-child:not(:only-child) { flex:0 0 auto; }
 [data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div>button:last-child { flex:1; }
 .onboarding-publish-backdrop[data-presentation='mobile'] {

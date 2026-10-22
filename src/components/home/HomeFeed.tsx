@@ -2,7 +2,7 @@ import { DensitySeparator } from '../ui/DensitySeparator';
 import { ExploreCategories } from './ExploreCategories';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
-import { Globe2Icon, HomeIcon, CircleUserRoundIcon, LayoutGridIcon } from 'lucide-react';
+import { Globe2Icon, HomeIcon, UserSearchIcon, LayoutGridIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useHomePullRefresh } from './useHomePullRefresh';
 import { useHomeRefreshMotion } from './useHomeRefreshMotion';
@@ -272,7 +272,7 @@ export function HomeFeed({
           {showMobileSearch && <header className="mobile-home-search-header"><div className="mobile-screen-action-row">
               {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
               <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
-              {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>}
+              {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={UserSearchIcon} weight="medium" /></button>}
               <button type="button" aria-label="Explore categories" className="mobile-home-header-button" onClick={()=>setCategoriesOpen(true)}><InterfaceIcon icon={LayoutGridIcon} weight="medium" /></button>
             </div>
             <p role="status" className={hasReloaded && !feed.isRefreshing && feed.refreshError ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>

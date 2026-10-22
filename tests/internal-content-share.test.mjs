@@ -19,7 +19,7 @@ function harness(conversation={id:'thread',status:'active'},send=async()=>({id:'
  '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},'../../hooks/useModalFocus':{useModalFocus(){}},
  '../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close:after=>after?after():onClose(),finish:onClose})},'../../presentation/motion/motion':{reducedMotion:()=>false},
  '../../presentation/usePresentation':{usePresentation:()=>presentation},'./useRecipientKeyboard':{useRecipientKeyboard:enabled=>{keyboardCalls.push(enabled);return enabled&&keyboardOpen;}},'./useRecipientScrollBoundary':{useRecipientScrollBoundary:enabled=>scrollBoundaryCalls.push(enabled)},
- 'lucide-react':{ArrowLeftIcon:'back-icon'},
+ 'lucide-react':{ArrowLeftIcon:'back-icon'},'../../components/ui/InterfaceIcon':{InterfaceIcon:'interface-icon'},
  },'\nexports.dialog=InternalContentShareDialog;');
  const render=()=>{cursor=0;return dialog({target:{title:'Project',url:'https://portalink.test/p/creator/c/portal/work',onSent:()=>calls.push(['confirmed'])},onClose:()=>calls.push(['close']),inline});};
  const button=label=>nodes(render()).find(n=>n.type==='button'&&n.props.children===label);

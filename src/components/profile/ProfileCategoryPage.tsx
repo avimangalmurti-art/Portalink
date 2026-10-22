@@ -423,7 +423,7 @@ export function ProfileCategoryPage({
            than changing anything inside it — and it is absent unless the viewer
            actually arrived from the home surface. */}
         {onReturnToDiscovery && !mobileProjectView && <ScreenBack><div data-project-index-back="" className={`flex shrink-0 items-center pt-2 ${isIndexCollapsed ? 'justify-center px-1.5' : 'side-panel-content-inset'}`}>
-            <button type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`side-panel-primary-control flex items-center text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-10 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
+            <button data-ui-shape={isIndexCollapsed ? "icon" : "action"} data-control-size={isIndexCollapsed ? "sm" : "md"} type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`side-panel-primary-control flex items-center text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-10 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
               <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
               {!isIndexCollapsed && 'Back to home'}
             </button>
@@ -436,14 +436,14 @@ export function ProfileCategoryPage({
           </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined} sharedReadOnly={sharedReadOnly}
             layout={mobileLayout} onLayout={setMobileLayout} sort={mobileSort} onSort={setMobileSort} /> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
             {mobileProjectView && <div className="mobile-portal-projects-back side-panel-control-row side-panel-content-inset">
-              <button type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
+              <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
                 <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
               </button>
               <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h2>
             </div>}
             <div data-project-index-toolbar="" data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="side-panel-control-row side-panel-content-inset h-full min-w-0 flex-1">
               {mobileIndexOnly ? <>
-                <button type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
                 </button>
                 <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h1>
@@ -478,8 +478,8 @@ export function ProfileCategoryPage({
               {sharedReadOnly && <button data-shared-viewer-control="fullscreen" data-borderless-control="" type="button" onClick={() => void toggleProjectFullscreen()} aria-label={isProjectFullscreen ? 'Exit fullscreen presentation' : 'Open fullscreen presentation'} aria-pressed={isProjectFullscreen} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                   <InterfaceIcon icon={isProjectFullscreen ? Minimize2Icon : Maximize2Icon} weight="medium" />
                 </button>}
-              {showsOwnerTools && onCreateProject && <button type="button" onClick={onCreateProject} aria-label={`Add a new project to ${category.label}`} title="New project" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  <FilePlusIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+              {showsOwnerTools && onCreateProject && <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onCreateProject} aria-label={`Add a new project to ${category.label}`} title="New project" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                  <InterfaceIcon icon={FilePlusIcon} size="lg" />
                 </button>}
             </div>
           </header>}
@@ -494,7 +494,7 @@ export function ProfileCategoryPage({
               <AlertCircleIcon className="h-3.5 w-3.5 shrink-0 text-[var(--status-danger)]" aria-hidden="true" />
               <span>{arrangement.loadError} Showing this category in its own order.</span>
             </p>
-            <button type="button" onClick={arrangement.reload} className="mt-1.5 h-7 w-full rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <button data-ui-shape="action" data-control-size="md" type="button" onClick={arrangement.reload} className="mt-1.5 w-full rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               Try again
             </button>
           </div>}
@@ -507,10 +507,10 @@ export function ProfileCategoryPage({
               <span>{arrangement.saveError}</span>
             </p>
             <div className="mt-1.5 flex gap-1.5">
-              {arrangement.retrySave && <button type="button" onClick={arrangement.retrySave} className="h-7 flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              {arrangement.retrySave && <button data-ui-shape="action" data-control-size="md" type="button" onClick={arrangement.retrySave} className="flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   Try again
                 </button>}
-              <button type="button" onClick={arrangement.dismissSaveError} className="h-7 flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button data-ui-shape="action" data-control-size="md" type="button" onClick={arrangement.dismissSaveError} className="flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 Dismiss
               </button>
             </div>
@@ -525,7 +525,7 @@ export function ProfileCategoryPage({
               <AlertCircleIcon className="h-3.5 w-3.5 shrink-0 text-[var(--status-danger)]" aria-hidden="true" />
               <span>{typography.loadError} Showing this work in the interface face.</span>
             </p>
-            <button type="button" onClick={typography.reload} className="mt-1.5 h-7 w-full rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <button data-ui-shape="action" data-control-size="md" type="button" onClick={typography.reload} className="mt-1.5 w-full rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               Try again
             </button>
           </div>}
@@ -538,10 +538,10 @@ export function ProfileCategoryPage({
               <span>{typography.saveError}</span>
             </p>
             <div className="mt-1.5 flex gap-1.5">
-              {typography.retrySave && <button type="button" onClick={typography.retrySave} className="h-7 flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              {typography.retrySave && <button data-ui-shape="action" data-control-size="md" type="button" onClick={typography.retrySave} className="flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   Try again
                 </button>}
-              <button type="button" onClick={typography.dismissSaveError} className="h-7 flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button data-ui-shape="action" data-control-size="md" type="button" onClick={typography.dismissSaveError} className="flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 Dismiss
               </button>
             </div>
@@ -615,8 +615,8 @@ export function ProfileCategoryPage({
               <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">
                 {showsOwnerTools ? 'Choose Add project to publish the first one.' : 'No work has been published in this category.'}
               </p>
-              {showsOwnerTools && onCreateProject && <button type="button" onClick={onCreateProject} className="mt-4 flex h-9 items-center gap-1.5 rounded-full border border-[var(--hairline-strong)] px-3.5 text-[13px] font-semibold text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  <ImagePlusIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              {showsOwnerTools && onCreateProject && <button data-ui-shape="action" data-control-size="md" type="button" onClick={onCreateProject} className="mt-4 flex h-9 items-center gap-1.5 rounded-full border border-[var(--hairline-strong)] px-3.5 text-[13px] font-semibold text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                  <InterfaceIcon icon={ImagePlusIcon} size="md" />
                   Add project
                 </button>}
             </div>}

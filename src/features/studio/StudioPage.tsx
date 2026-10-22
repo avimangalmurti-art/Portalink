@@ -3,7 +3,7 @@ import { StudioOverview } from './StudioOverview';
 import { InsightsPage } from '../library/PersonalPages';
 import { StudioCitations } from '../citations/StudioCitations';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BarChart3Icon, BellIcon, BookmarkIcon, BookOpenIcon, FilePenLineIcon, QuoteIcon } from 'lucide-react';
+import { ChartNoAxesColumnIcon, BellIcon, BookmarkIcon, BookOpenIcon, FilePenLineIcon, QuoteIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -22,7 +22,7 @@ import { newestDraft, type DraftResume } from './workbenchModel';
 import { useWorkbench } from './useWorkbench';
 import './studio-workbench.css';
 type Props={onBack:()=>void;onOpenProject:(id:string,location?:ProjectLocation)=>void;savedRoute?:boolean;onNewProject?:()=>void};
-const collectionIcons: Record<string, typeof BarChart3Icon> = { overview: BarChart3Icon, drafts: FilePenLineIcon, bookmarks: BookmarkIcon, references: BookOpenIcon, cited: QuoteIcon, activity: BellIcon };
+const collectionIcons: Record<string, typeof ChartNoAxesColumnIcon> = { overview: ChartNoAxesColumnIcon, drafts: FilePenLineIcon, bookmarks: BookmarkIcon, references: BookOpenIcon, cited: QuoteIcon, activity: BellIcon };
 export function StudioPage({onBack,onOpenProject,onNewProject,savedRoute=false}:Props){
  const mobile=usePresentation()==='mobile';
  const auth=useAuth(),services=useServices(),navigate=useNavigate(),[params,setParams]=useSearchParams();

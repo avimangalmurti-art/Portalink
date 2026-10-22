@@ -67,7 +67,8 @@ test('mobile Drafts keeps local selection controls and selection-only Back while
  const {StudioDraftsList} = sourceModule('src/features/studio/StudioDraftsList.tsx',{
   react,
   'react-dom':{createPortal:(children,host)=>React.createElement('header-portal',{host},children)},
-  'lucide-react':{ChevronLeftIcon:'chevron'},
+  'lucide-react':{ChevronLeftIcon:'chevron',ArrowLeftIcon:'arrow-left'},
+  '../../components/ui/InterfaceIcon':{InterfaceIcon:'icon'},
   '../../components/ui/ModalPortal':{ModalPortal:'modal'},
   '../../components/publishing/ProjectFormDialog':{ProjectDiscardConfirmation:'confirmation'},
   '../../presentation/usePresentation':{usePresentation:()=>presentation},
@@ -105,7 +106,11 @@ test('mobile Drafts keeps local selection controls and selection-only Back while
  assert.equal(web.some(n=>n.type==='header-portal'),false);
  const webBack=web.find(n=>n.props['aria-label']==='Back from Drafts');
  assert.ok(webBack);
- assert.deepEqual(React.Children.toArray(webBack.props.children.props.children),['← ','Studio']);
+ const backContent=React.Children.toArray(webBack.props.children.props.children);
+ assert.equal(backContent[0].type,'icon');
+ assert.equal(backContent[0].props.icon,'arrow-left');
+ assert.equal(backContent[0].props.mirroredInRtl,true);
+ assert.equal(backContent.slice(1).join(''),' Studio');
  webBack.props.onClick();
  assert.deepEqual(calls,['back']);
 });

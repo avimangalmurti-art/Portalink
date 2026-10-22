@@ -1,13 +1,13 @@
-import { BookmarkIcon, ChartNoAxesColumnIcon, CheckIcon, CopyIcon, EyeIcon, Globe2Icon, Grid2X2Icon, ImageIcon, ListIcon, MapPinIcon, MessageCircleIcon, PencilIcon, PlusIcon, RefreshCwIcon, SearchIcon, SettingsIcon, ShareIcon, QuoteIcon, Trash2Icon, UserIcon, UserPlusIcon, VolumeXIcon, BanIcon, FlagIcon, HeartIcon } from 'lucide-react';
+import { ArrowUpDownIcon, BookmarkIcon, ChartNoAxesColumnIcon, CheckIcon, CopyIcon, EyeIcon, FilePenLineIcon, Globe2Icon, Grid2X2Icon, ImageIcon, InfoIcon, ListIcon, MapPinIcon, MessageCircleIcon, MessageSquarePlusIcon, PencilIcon, PlusIcon, RefreshCwIcon, SearchIcon, SettingsIcon, ShareIcon, QuoteIcon, Trash2Icon, UserIcon, UserPlusIcon, VolumeXIcon, BanIcon, FlagIcon, HeartIcon } from 'lucide-react';
 import type { InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 
 export type ContextKind = 'home' | 'profile' | 'project' | 'studio' | 'messages' | 'conversation' | 'explore' | 'shared' | 'message' | 'settings';
-const icons = { export: ShareIcon, copyCitation: CopyIcon, viewAsVisitor: EyeIcon, projectInfo: ListIcon, cite: QuoteIcon, search: SearchIcon, explore: Globe2Icon, newProject: PlusIcon, refresh: RefreshCwIcon, settings: SettingsIcon,
-  editProfile: PencilIcon, share: ShareIcon, reorder: Grid2X2Icon, insights: ChartNoAxesColumnIcon, copy: CopyIcon,
+const icons = { export: ShareIcon, copyCitation: CopyIcon, viewAsVisitor: EyeIcon, projectInfo: InfoIcon, cite: QuoteIcon, search: SearchIcon, explore: Globe2Icon, newProject: PlusIcon, refresh: RefreshCwIcon, settings: SettingsIcon,
+  editProfile: PencilIcon, share: ShareIcon, reorder: ArrowUpDownIcon, insights: ChartNoAxesColumnIcon, copy: CopyIcon,
   follow: UserPlusIcon, message: MessageCircleIcon, saveCreator: BookmarkIcon, report: FlagIcon,
-  saveProject: BookmarkIcon, savePage: MapPinIcon, comment: MessageCircleIcon, pageIndex: ListIcon,
+  saveProject: BookmarkIcon, savePage: BookmarkIcon, comment: MessageCircleIcon, pageIndex: ListIcon,
   reads: ChartNoAxesColumnIcon, startHere: MapPinIcon, thenNow: Grid2X2Icon, edit: PencilIcon, cover: ImageIcon, visibility: EyeIcon, delete: Trash2Icon, select: CheckIcon, list: ListIcon,
-  drafts: ListIcon, bookmarks: BookmarkIcon, categories: Grid2X2Icon, newMessage: PlusIcon, blocked: BanIcon, viewProfile: UserIcon, mute: VolumeXIcon,
+  drafts: FilePenLineIcon, bookmarks: BookmarkIcon, categories: Grid2X2Icon, newMessage: MessageSquarePlusIcon, blocked: BanIcon, viewProfile: UserIcon, mute: VolumeXIcon,
   block: BanIcon, yourWorld: Globe2Icon, myCity: MapPinIcon, reset: RefreshCwIcon, signIn: UserIcon,
   createAccount: UserPlusIcon, deleteChat: Trash2Icon, react: HeartIcon, editMessage: PencilIcon, unsend: Trash2Icon, leaveLive: BanIcon };
 export type ContextActionId = keyof typeof icons;

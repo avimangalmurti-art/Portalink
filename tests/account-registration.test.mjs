@@ -7,17 +7,18 @@ import ts from 'typescript';
 import React from 'react';
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+const defaultProfileServices = { profiles: { checkPublicHandle: async () => 'available' } };
 function execute(code, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText,
-    { exports, crypto, File, Blob, URL, ...globals, require(name) {
+    { exports, crypto, File, Blob, URL, setTimeout, clearTimeout, ...globals, require(name) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
     if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
 
       if(name==='../../utils/profileHandle')return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
-      if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
+      if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>defaultProfileServices};
 
       if (name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts'); assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name]; } });
   return exports;
@@ -732,7 +733,6 @@ test('late registration metadata hydrates untouched fields once and never overwr
     assert.equal(h.avatar.avatar.file,savedImage);
     assert.deepEqual(h.reads,[id],'Legacy picture restoration remains available without an ordinary photo picker.');
     if (edited) await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
-    if(edited==='handle'){assert.equal(h.submissions.length,0,'An edited visible handle must still be checked before final submission.');await formNodes(h.render()).find(node=>node.type==='form').props.onSubmit({preventDefault(){}});}
     assert.equal(h.submissions.length, 1);
     assert.equal(h.submissions[0].creationKey, id);
     assert.equal(h.submissions[0].handle,edited==='handle'?'edited.handle':incoming.handle);

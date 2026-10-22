@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { FileIcon, ListFilterIcon, PlusIcon } from 'lucide-react';
+import { ArrowUpDownIcon, FileIcon, PlusIcon } from 'lucide-react';
 import { CoverFilmstrip } from '../../components/publishing/CoverFilmstrip';
 import { MediaPicker } from '../../components/publishing/MediaPicker';
 import { MobileActionSheet } from '../../components/messages/MobileActionSheet';
@@ -35,7 +35,7 @@ export function MobileCoverFiles({ media, upload, disabled, onboarding = false }
           {item.family === 'image' && item.previewUrl ? <img src={item.previewUrl} alt="" /> : <FileIcon aria-hidden="true" size={20} />}
         </button>)}</div>
       </div>
-      <div className="mobile-selected-actions"><button type="button" data-ui-control={onboarding ? 'button' : undefined} data-control-variant={onboarding ? 'secondary' : undefined} disabled={locked || media.items.length === 0} onClick={() => setReordering(true)}><ListFilterIcon size={18} aria-hidden="true" />Reorder</button><button type="button" data-ui-control={onboarding ? 'button' : undefined} data-control-variant={onboarding ? 'secondary' : undefined} disabled={locked || media.isFull} onClick={() => input.current?.click()}><PlusIcon size={18} aria-hidden="true" />Add</button></div>
+      <div className="mobile-selected-actions"><button type="button" data-ui-control={onboarding ? 'button' : undefined} data-control-variant={onboarding ? 'secondary' : undefined} disabled={locked || media.items.length === 0} onClick={() => setReordering(true)}><ArrowUpDownIcon size={18} aria-hidden="true" />Reorder</button><button type="button" data-ui-control={onboarding ? 'button' : undefined} data-control-variant={onboarding ? 'secondary' : undefined} disabled={locked || media.isFull} onClick={() => input.current?.click()}><PlusIcon size={18} aria-hidden="true" />Add</button></div>
     </section>}
     {media.error && <p role="alert" className="mobile-cover-error">{media.error}</p>}
     {reordering && <MobileActionSheet layout={mobile ? 'files' : undefined} model={{ title: 'Reorder', primary: [], groups: [] }} onClose={() => setReordering(false)} onAction={() => undefined}>{mobile ? <div className="mobile-reorder-files"><p className="mobile-reorder-summary">{media.items.length} {media.items.length === 1 ? 'file' : 'files'} selected</p><MediaPicker media={media} upload={upload} disabled={locked} compact expanded mobileFileManager /></div> : <MediaPicker media={media} upload={upload} disabled={locked} compact expanded />}</MobileActionSheet>}

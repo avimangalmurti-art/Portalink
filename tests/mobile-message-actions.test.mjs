@@ -247,7 +247,7 @@ test('action sheet supports focus dismissal, touch reactions and only shows edit
   assert.equal(reactions.length, 3, 'All supported icon reactions are visible without duplicates');assert.deepEqual(reactions.map(node=>node.props['aria-label']),['Remove Love','React with Applause','React with Sparkle']);assert.ok(reactions.every(node=>!React.Children.toArray(node.props.children).some(child=>typeof child==='string'&&/[❤👏✨]/u.test(child))));
   assert.equal(reactions[0].props['aria-label'], 'Remove Love');
   assert.equal(reactions[0].props['aria-pressed'], true);
-  for (const reaction of reactions) assert.match(reaction.props.className, /min-h-\[80px\]/);
+  for (const reaction of reactions) assert.match(reaction.props.className, /min-h-\[64px\]/);
   reactions[0].props.onClick(); assert.deepEqual(h.calls.at(-1), ['react', '❤']);
   h.escape(); assert.equal(h.calls.at(-1), 'close');
   const overlay = nodes(tree).find(node => node.props.className?.includes('mobile-context-scrim'));

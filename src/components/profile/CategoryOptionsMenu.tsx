@@ -93,11 +93,11 @@ export function CategoryOptionsMenu({ category, isHidden = false, isBusy = false
   }, [isMenuOpen, isConfirmingDelete, capability, mobile]);
 
   return <div className={`${mobile ? 'mobile-portal-options flex shrink-0 items-center' : 'absolute inset-y-0 right-2 flex items-center'} transition-opacity duration-[var(--m-fast)] ease-[var(--m-enter)] motion-reduce:transition-none ${mobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
-          <button type="button" data-static-icon="" disabled={disabled || isBusy} aria-label={`Options for ${category.label}`} aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={(event) => {
+          <button data-ui-shape="icon" data-control-size="sm" type="button" data-static-icon="" disabled={disabled || isBusy} aria-label={`Options for ${category.label}`} aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={(event) => {
         event.stopPropagation();
         setIsMenuOpen((open) => !open);
-      }} ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} data-row-menu="" className={`${mobile ? 'h-11 w-11' : 'h-6 w-6'} flex items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40`}>
-            <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
+      }} ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} data-row-menu="" className="flex items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+            <InterfaceIcon icon={MoreHorizontalIcon} size={mobile ? "lg" : "md"} style={{'--interface-icon-size': mobile ? '20px' : '16px'} as React.CSSProperties} weight="medium" />
           </button>
 
           {/* The shell host keeps menus outside row clipping without a second theme. */}

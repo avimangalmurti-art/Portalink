@@ -2,7 +2,7 @@ import { focusMobileContextButton } from './contextFocus';
 import React, { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { EllipsisIcon } from 'lucide-react';
+import { EllipsisIcon, XIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePresentation } from '../usePresentation';
 import { useMobileScreenActive } from './MobileBackNavigation';
@@ -75,7 +75,7 @@ export function MobileContextProvider({ children, showFloatingButton = true, she
   void revision;
   const screenModel = currentScreen();
   const canOpenScreen = screenModel?.kind !== 'project' || [...entries.current.values()].some(item => item.route === route && item.onOpen);
-  return <MobileActions.Provider value={{ register, open, refresh, opened: Boolean(model), button, hint }}>{children}{mobile && screenModel && canOpenScreen && showFloatingButton && <MobileContextButton floating />}{mobile && model && <Sheet model={model} onClose={close} onAction={run} />}{mobile && notice && <div className="mobile-context-notice" role="alert">{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss action message">×</button></div>}</MobileActions.Provider>;
+  return <MobileActions.Provider value={{ register, open, refresh, opened: Boolean(model), button, hint }}>{children}{mobile && screenModel && canOpenScreen && showFloatingButton && <MobileContextButton floating />}{mobile && model && <Sheet model={model} onClose={close} onAction={run} />}{mobile && notice && <div className="mobile-context-notice" role="alert">{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss action message"><InterfaceIcon icon={XIcon} size="lg" /></button></div>}</MobileActions.Provider>;
 }
 export function useMobileScreenActions(model: ContextActions | null, priority = 10, onOpen?: () => void) {
   const context = useContext(MobileActions), id = useId(), { pathname, search } = useLocation(), mobile = usePresentation() === 'mobile';

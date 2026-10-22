@@ -55,7 +55,7 @@ export function NewChatPanel({
   return <div className="flex min-h-0 flex-1 flex-col" data-recipient-appearance={appearance} data-recipient-disabled={disabled || undefined} aria-busy={directory.status === 'loading' || Boolean(startingCreatorId)}>
       <div className="side-panel-control-stack side-panel-content-inset shrink-0">
       {showHeader ? <div className="side-panel-primary-control side-panel-control-row">
-        <ScreenBack><button type="button" onClick={onClose} aria-label="Back to messages" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        <ScreenBack><button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onClose} aria-label="Back to messages" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} size="lg" weight="medium" mirroredInRtl />
         </button></ScreenBack>
         <h2 className="min-w-0 truncate text-[16px] font-semibold text-[var(--text-primary)]">New message</h2>
@@ -83,14 +83,14 @@ export function NewChatPanel({
         {groups.map(([letter, people]) => <section key={letter} aria-labelledby={`new-chat-group-${letter === '#' ? 'other' : letter}`}>
             <h3 id={`new-chat-group-${letter === '#' ? 'other' : letter}`} className="side-panel-content-inset pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
             <ul className="side-panel-content-inset side-panel-navigation-list">
-              {people.map((person) => <li key={person.id} style={selectedCreatorId === person.id ? {background:'var(--surface-selected)',borderRadius:12} : undefined}>
+              {people.map((person) => <li data-ui-shape="row" key={person.id} style={selectedCreatorId === person.id ? {background:'var(--surface-selected)',borderRadius:12} : undefined}>
                   <PersonRow selected={selectedCreatorId === person.id} selectionMode={selectedCreatorId !== undefined} person={person} isStarting={startingCreatorId === person.id} isDisabled={disabled || Boolean(startingCreatorId) || !person.id} onSelect={() => { if (person.id) onSelectCreator(person.id); }} />
                 </li>)}
             </ul>
           </section>)}
 
         {directory.hasMore ? <div className="side-panel-content-inset pt-4">
-            <button type="button" disabled={disabled || directory.status === 'loading'} onClick={() => void directory.loadMore()} className="side-panel-primary-control w-full justify-center px-3 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
+            <button data-ui-shape="action" data-control-size="md" type="button" disabled={disabled || directory.status === 'loading'} onClick={() => void directory.loadMore()} className="side-panel-primary-control w-full justify-center px-3 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
               {directory.status === 'loading' ? 'Loading…' : 'Show more creators'}
             </button>
           </div> : null}

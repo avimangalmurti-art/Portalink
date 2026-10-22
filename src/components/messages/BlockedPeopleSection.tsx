@@ -53,9 +53,9 @@ export function BlockedPeopleSection() {
     <p role="status" className={loading ? 'mt-3 text-sm' : 'sr-only'}>{loading ? 'Loading blocked people…' : announcement}</p>
     {error && <p role="alert" className="mt-3 text-sm text-[var(--status-danger)]">{error} {!people.length && <button type="button" className="rounded-lg p-2 underline" onClick={() => void load()}>Try again</button>}</p>}
     {!loading && !error && !people.length && <p className="mt-3 text-sm text-[var(--text-secondary)]">You haven’t blocked anyone.</p>}
-    <ul className="mt-3 space-y-2">{people.map(person => <li key={person.id} className="flex items-center gap-3 rounded-xl bg-[var(--surface-sunken)] p-2">
+    <ul className="mt-3 space-y-2">{people.map(person => <li data-ui-shape="row" key={person.id} className="flex items-center gap-3 rounded-xl bg-[var(--surface-sunken)] p-2">
       <div className="min-w-0 flex-1 break-words text-sm"><span className="font-medium">{person.name}</span>{person.handle && <span className="block text-[var(--text-secondary)]">@{person.handle}</span>}</div>
-      <button type="button" disabled={pending !== null} onClick={event => void unblock(person, event.currentTarget)} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{pending === person.id ? 'Unblocking…' : 'Unblock'}</button>
+      <button data-ui-shape="action" data-control-size="md" type="button" disabled={pending !== null} onClick={event => void unblock(person, event.currentTarget)} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{pending === person.id ? 'Unblocking…' : 'Unblock'}</button>
     </li>)}</ul>
   </section>;
 }

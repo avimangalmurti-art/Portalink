@@ -12,7 +12,7 @@ import { contextActions } from '../../presentation/mobile/contextActions';
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeftIcon, ChevronLeftIcon, ArchiveIcon, BellIcon, BookmarkIcon, CopyIcon, EllipsisIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, ChevronLeftIcon, BellIcon, BookmarkIcon, CopyIcon, EllipsisIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, ShareIcon, XIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
@@ -246,9 +246,9 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   function actionsFor(row: StudioItem): StudioRowAction[] {
     const available = studioRowActions(row);
     const definitions: Record<string, StudioRowAction> = {
-      open: { id: 'open', label: 'Open', icon: ArchiveIcon, onAction: () => openRow(row) },
+      open: { id: 'open', label: 'Open', icon: ArrowRightIcon, onAction: () => openRow(row) },
       edit: { id: 'edit', label: 'Edit', icon: PencilIcon, onAction: () => { if (row.kind === 'published') management.editor.open(row.project.id); } },
-      share: { id: 'share', label: 'Share', icon: Share2Icon, onAction: () => { void shareRows([row]); } },
+      share: { id: 'share', label: 'Share', icon: ShareIcon, onAction: () => { void shareRows([row]); } },
       'copy-link': { id: 'copy-link', label: 'Copy link', icon: CopyIcon, onAction: () => { void shareRows([row], true); } },
       unsave: { id: 'unsave', label: 'Remove bookmark', icon: BookmarkIcon, onAction: () => { void mutateRow(row, 'unsave'); } },
       'mark-read': { id: 'mark-read', label: 'Mark read', icon: MailOpenIcon, onAction: () => { void mutateRow(row, 'markRead'); } },
@@ -275,7 +275,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const selectionControl = <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>;
   const search = <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input ref={mobile ? searchInput : undefined} type="search" aria-label="Search Studio" placeholder={`Search ${collectionTitle.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>;
   const navigation = <div className="studio-bookmarks-navigation">
-        <button type="button" className="studio-bookmarks-back" aria-label={`Back from ${collectionTitle}`} disabled={bulkPending} onClick={back}>{headerHost?<ChevronLeftIcon aria-hidden="true" />:<><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></>}</button>
+        <button type="button" className="studio-bookmarks-back" aria-label={`Back from ${collectionTitle}`} disabled={bulkPending} onClick={back}>{headerHost?<InterfaceIcon icon={ChevronLeftIcon} size="lg" mirroredInRtl />:<><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></>}</button>
         <div className="studio-bookmarks-controls">
           {selectionControl}
           <div data-inline-screen-actions=""><button type="button" className="mobile-context-button studio-round-control" data-keep-color="" aria-label={`${collectionTitle} options`} aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button></div>
@@ -308,7 +308,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
       <div className="studio-bulk-actions scrollbar-hidden">
         {bulk.unsave.length > 0 && <button type="button" disabled={bulkPending || isRefreshing} onClick={() => { void runBulk('unsave'); }}><InterfaceIcon icon={BookmarkIcon} /><span>Remove bookmarks ({bulk.unsave.length})</span></button>}
         {bulk.markRead.length > 0 && <button type="button" disabled={bulkPending || isRefreshing} onClick={() => { void runBulk('markRead'); }}><InterfaceIcon icon={MailOpenIcon} /><span>Mark read ({bulk.markRead.length})</span></button>}
-        {bulk.share.length > 0 && <button type="button" disabled={bulkPending || isRefreshing} onClick={() => { void shareRows(bulk.share); }}><InterfaceIcon icon={Share2Icon} /><span>Share ({bulk.share.length})</span></button>}
+        {bulk.share.length > 0 && <button type="button" disabled={bulkPending || isRefreshing} onClick={() => { void shareRows(bulk.share); }}><InterfaceIcon icon={ShareIcon} /><span>Share ({bulk.share.length})</span></button>}
         {!selectedRows.length && <span className="studio-selection-hint">Tap items to select them</span>}
         {selectedRows.length > 0 && !bulk.unsave.length && !bulk.markRead.length && !bulk.share.length && <span className="studio-selection-hint">These updates are already read</span>}
       </div>

@@ -3,7 +3,8 @@ import { TextFormattingToolbar } from '../text/TextFormattingToolbar';
 import { FormattedText } from '../text/FormattedText';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreHorizontalIcon, XIcon } from 'lucide-react';
+import { MoreHorizontalIcon, PencilIcon, XIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useDescriptionSheetScrollBoundary } from '../../hooks/useDescriptionSheetScrollBoundary';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -146,7 +147,7 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
           : <button type="button" className="project-description-top-save" disabled={busy || !activeEditor.isDirty || phase === 'loading'} aria-busy={busy} onClick={() => { void activeEditor.save(); }}>{busy ? 'Saving…' : 'Save'}</button>)}
         {(canEdit || ownerActions) && !editing && <div className="project-description-menu">
           <button ref={optionsRef} type="button" aria-label={directEditAction ? `Edit ${label}` : `${contentLabel} options`} aria-expanded={directEditAction ? undefined : menuOpen} aria-controls={directEditAction ? undefined : "project-description-actions"}
-            onClick={event => { stop(event); if (directEditAction) { setExpanded(true); activeEditor?.open(); } else setMenuOpen(value => !value); }}><MoreHorizontalIcon aria-hidden="true" /></button>
+            onClick={event => { stop(event); if (directEditAction) { setExpanded(true); activeEditor?.open(); } else setMenuOpen(value => !value); }}><InterfaceIcon icon={directEditAction ? PencilIcon : MoreHorizontalIcon} size="lg" /></button>
           {menuOpen && <div id="project-description-actions">
             {ownerActions ?? <>
             <button ref={editRef} type="button" onClick={() => { setMenuOpen(false); setExpanded(true); activeEditor?.open(); }}>{`Edit ${label}`}</button>

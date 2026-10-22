@@ -17,7 +17,7 @@ import { MobilePageContext } from '../../features/media-interactions/MobilePageC
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import type { PagePosition } from './MobileProjectPageCounter';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ListIcon, UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
+import { ListIcon, UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
 import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
@@ -676,7 +676,7 @@ export function ProjectMediaViewer({
         <div id="mobile-project-engagement-actions" data-mobile-engagement-content="" hidden={!mobileEngagementOpen}>
         <div ref={popupAnchorRef} data-mobile-project-popup-controls="" className="side-panel-navigation-list items-center">
           <button ref={descriptionTriggerRef} type="button" aria-label="Show project description" aria-haspopup="dialog" aria-expanded={mobilePopup === 'description'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('description')} className="mobile-project-popup-trigger text-[var(--text-primary)]">
-            <span data-shared-info-glyph="" aria-hidden="true" style={{ fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }} className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-[1.5px] border-current text-[15px] font-semibold leading-none">i</span>
+            <InterfaceIcon icon={InfoIcon} size="lg" />
           </button>
           <button ref={commentsTriggerRef} type="button" aria-label="Show comments" aria-haspopup="dialog" aria-expanded={mobilePopup === 'comments'} aria-controls="mobile-project-popup" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} className="mobile-project-popup-trigger">
             <InterfaceIcon icon={MessageCircleIcon} size="lg" weight="regular" keepColor stroke="var(--project-control-foreground, currentColor)" />
@@ -708,7 +708,7 @@ export function ProjectMediaViewer({
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
             </button>
             {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('project')} aria-label="Show project information" aria-pressed={sharedInfoPanel === 'project'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'project' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
-                <span data-shared-info-glyph="" aria-hidden="true" style={{ fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }} className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-current text-[12px] font-semibold leading-none">i</span>
+                <InterfaceIcon icon={InfoIcon} size="lg" />
               </button>}
             {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('verification')} aria-label="Show AI verification services" aria-pressed={sharedInfoPanel === 'verification'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'verification' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
                 <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
@@ -738,7 +738,7 @@ export function ProjectMediaViewer({
           {/* The semantic colour and spoken label identify the destination of the
              next press without adding a hover tooltip over the compact control. */}
           {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" />
+              <InterfaceIcon icon={railPanel === 'comments' ? InfoIcon : MessageCircleIcon} size="lg" weight="medium" />
             </button>}
           {/* Offered only where it has something to do: the owner of the portal,
              looking at a piece that genuinely holds more than one page. The
