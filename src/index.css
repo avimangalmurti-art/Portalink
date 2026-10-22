@@ -2817,13 +2817,13 @@ select:focus-visible {
    scrims retain their blur. Its cards are already opaque; preserve the dimming
    tint and change only the backdrop material. */
 .codex-shell.reduce-translucency :is(.first-login-welcome-backdrop, .profile-setup-backdrop, .project-setup-screen, .onboarding-publish-backdrop, .project-form-overlay[data-onboarding-publish], .post-publish-idea-backdrop) {
-  backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 @media (prefers-reduced-transparency: reduce) {
   .codex-shell :is(.first-login-welcome-backdrop, .profile-setup-backdrop, .project-setup-screen, .onboarding-publish-backdrop, .project-form-overlay[data-onboarding-publish], .post-publish-idea-backdrop) {
-    backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 }
 
