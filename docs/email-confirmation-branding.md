@@ -1,4 +1,36 @@
-# Portalink confirmation email — branded sender active; delivery test pending
+# Portalink confirmation email — branded sender and inbox delivery verified
+
+## Real password-reset delivery verified - October 21, 2026
+
+The user explicitly requested a password-reset test at their existing Gmail address. The normal production reset API accepted one request at2026-10-22T04:52:21Z; Gmail received it at04:52:23Z (9:52pmPacific), labeledINBOX. Metadata confirms **Portalink <avi@portalinknetworks.com>** and **Portalink — Reset your password**, with DKIM/SPF pass. No password change or recovery-link/token access occurred. Safe external receipts: portalink-reset-email-test.json and portalink-reset-inbox-proof.json. This adds actual reset-email delivery proof to the earlier signup proof; no other account-email type was sent for this test.
+
+## All account email subjects branded - October 21, 2026
+
+The live production dashboard's13 account email subjects were saved/reloaded and verified. Twelve subjects changed; signup confirmation already included Portalink. All share the enabled project-wide **Portalink** SMTP sender, whose **avi@portalinknetworks.com** address was proven by the actual signup inbox receipt below. Existing security-notification enabled/disabled states are preserved: these7 optional notices remain disabled. No template body, secure link/code placeholder, Auth policy, redirect or private SMTP credential changed. No new message was sent during this branding update.
+
+| Email | Saved subject |
+| --- | --- |
+| Signup confirmation | Portalink — Confirm your email address |
+| Password reset | Portalink — Reset your password |
+| Invitation | Portalink — You have been invited |
+| Email sign-in | Portalink — Your sign-in link |
+| Email-change confirmation | Portalink — Confirm your email change |
+| Reauthentication | Portalink — {{ .Token }} is your verification code |
+| Password changed | Portalink — Your password was changed |
+| Email address changed | Portalink — Your email address was changed |
+| Phone number changed | Portalink — Your phone number was changed |
+| Sign-in method linked | Portalink — A new sign-in method was linked to your account |
+| Sign-in method removed | Portalink — A sign-in method was removed from your account |
+| MFA method added | Portalink — A new verification method was added to your account |
+| MFA method removed | Portalink — A verification method was removed from your account |
+
+Evidence: external visualization folder all-account-email-branding.json, account-email-subjects.json and portalink-password-reset-subject.png, with per-template screenshots for remaining security notices. Redacted subject fields were verified visually after reload. This configuration is active for shared MOBILE/WEB/public Auth; no app deployment or SQL was needed. Actual delivery was tested for signup confirmation only, as recorded below.
+
+## Real signup delivery verified - October 21, 2026
+
+The user approved a separate Gmail test-alias signup. The existing production signup API generated a confirmation at 2026-10-22T04:40:23Z; Gmail received it at 04:40:24Z (9:40pm Pacific on October 21), labeled INBOX. Metadata verifies **Portalink <avi@portalinknetworks.com>** as From and **Portalink — Confirm your email address** as Subject. Gmail DKIM and SPF both pass. This is the actual production signup email, separate from the earlier Gmail preview.
+
+The authorized test signup remains unconfirmed; no confirmation link/token was read or opened. The existing account, provider configuration, templates, policy and redirects remain unchanged. Receipt: external visualization folder portalink-real-confirmation-test.json and portalink-confirmation-inbox-proof.json. Confirmation-link completion and real-phone mail rendering remain untested. Earlier delivery-pending sections below are historical and superseded by this section. Application source/live Sites497 were unchanged by this test.
 
 ## Sender activation verified - October 21, 2026
 

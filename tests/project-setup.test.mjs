@@ -45,7 +45,9 @@ test('zero portals on either platform require valid details and create only once
  for(const presentation of ['mobile','web']){
   let finish;
   const h=harness(()=>new Promise(resolve=>finish=resolve),undefined,{initialCategories:[],presentation});
-  let all=nodes(h.render());assert.equal(all.find(n=>n.props['aria-label']==='Portal').props.value,'new');
+  let all=nodes(h.render());assert.equal(all.find(n=>n.props['aria-label']==='Portal'),undefined);
+  assert.equal(all.find(n=>n.type==='button'&&n.props['aria-label']==='Create a Portal'),undefined);
+  assert.equal(all.find(n=>n.props['aria-label']==='New portal name').props.value,'');
   assert.equal(all.find(n=>n.props.name==='title').props.autoFocus,true);
   assert.equal(all.find(n=>n.props['aria-label']==='New portal name').props.autoFocus,false);assert.equal(h.calls.length,0);
   h.submit();await tick();assert.equal(h.calls.length,0);
@@ -56,5 +58,17 @@ test('zero portals on either platform require valid details and create only once
   finish({id:'created',label:'Ideas'});await tick();assert.equal(h.calls.length,2);
   assert.equal(h.calls[1][0],'continue');assert.equal(h.calls[1][1].categoryId,'created');
   assert.equal(h.calls[1][1].categoryLabel,'Ideas');assert.equal(h.calls[1][1].title,'First idea');assert.equal(h.calls[1][1].summary,'');
+ }
+});
+
+test('a newly created first Portal remains selectable after confirmation fails and retries without another creation',async()=>{
+ for(const presentation of ['mobile','web']){
+  let checks=0;
+  const h=harness(async name=>({id:'first-portal',label:name}),async()=>{if(++checks===1)throw Error('Refresh failed');},{initialCategories:[],presentation});
+  h.change('Idea title','First idea');h.change('New portal name','Ideas');h.submit();await tick();
+  let all=nodes(h.render());assert.equal(all.find(node=>node.props['aria-label']==='Portal').props.value,'first-portal');
+  assert.ok(all.some(node=>node.type==='option'&&node.props.value==='first-portal'));assert.equal(all.find(node=>node.props['aria-label']==='New portal name'),undefined);
+  assert.ok(all.some(node=>node.props.role==='alert'));assert.equal(h.calls.filter(call=>call[0]==='create').length,1);assert.equal(h.calls.some(call=>call[0]==='continue'),false);
+  h.submit();await tick();assert.equal(checks,2);assert.equal(h.calls.filter(call=>call[0]==='create').length,1);assert.equal(h.calls.at(-1)[0],'continue');assert.equal(h.calls.at(-1)[1].categoryId,'first-portal');
  }
 });

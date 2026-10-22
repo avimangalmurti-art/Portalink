@@ -154,10 +154,14 @@ test('existing draft and committed-project actions delegate only after an explic
 });
 
 test('removed saved portal stays explicit until the creator chooses another', () => {
+ for(const categories of [[],[{id:'design',label:'Design'}]]){
   const storage = storageFixture(); storage.api.saveSetupDraft('account', 'profile', { ...setup, portal: 'removed' });
-  const h = harness(storage), all = h.render();
+  const h = harness(storage,{categories}), all = h.render();
   assert.equal(all.find(node => node.props['aria-label'] === 'Portal').props.value, 'removed');
   assert.ok(all.some(node => node.type === 'option' && node.props.value === 'removed' && node.props.disabled));
+  assert.equal(h.calls.length,0);
+  h.change('Portal','new');const changed=h.render();assert.equal(Boolean(changed.find(node=>node.props['aria-label']==='Portal')),categories.length>0);assert.equal(changed.find(node=>node.props['aria-label']==='New portal name').props.value,setup.name);assert.equal(h.calls.length,0);
+ }
 });
 
 test('upload recovery-check failure is separate from setup storage and leaves restored fields available', () => {

@@ -11,7 +11,7 @@ const textOf = node => React.isValidElement(node) ? React.Children.toArray(node.
 
 // Run the actual component with controlled React effects and search completions.
 // This verifies interaction/state behavior; it is not browser layout evidence.
-function harness(overrides = {}) {
+function harness(overrides = {}, { profilePicker = false } = {}) {
   const slots = [], requests = [], changes = [], selected = [], timers = new Map();
   let cursor = 0, dirty = true, tree, effects = [], deferredEffects = [], now = 0, nextTimer = 0, focused = 0, blurred = 0;
   const focusOptions = [];
@@ -46,6 +46,16 @@ function harness(overrides = {}) {
     setTimeout(callback, delay) { const id = ++nextTimer; timers.set(id, { at: now + delay, callback }); return id; },
     clearTimeout(id) { timers.delete(id); },
   } });
+  const ProfileLocationPicker = profilePicker ? sourceModule('src/components/profile/ProfileLocationPicker.tsx', {
+    react,
+    './LocationSearch': { LocationSearch },
+    '../../data/locationDirectory': sourceModule('src/data/locationDirectory.ts', {
+      './cities': { cities: [] }, './countryCodes': { getCountryCode() { return ''; } },
+      '../utils/location': { toLocationId: value => value },
+      './locationDirectoryVersion': { LOCATION_DIRECTORY_MANIFEST: '/unused-fixture-manifest.json' },
+    }),
+    '../../features/profile/validation': { LOCATION_MAX_LENGTH: 48 },
+  }).ProfileLocationPicker : null;
   const props = { label: 'Location', value: '', onChange(value) { changes.push(value); props.value = value; dirty = true; }, onSelect(place) { selected.push(place); }, ...overrides };
   const inputElement = {
     focus(options) { focused++; focusOptions.push(options); nodes(tree).find(node => node.type === 'input').props.onFocus(); },
@@ -54,7 +64,7 @@ function harness(overrides = {}) {
   const listElement = { scrollTop: 0, clientHeight: 160, querySelector() { return null; } };
   function renderPass() {
     cursor = 0; dirty = false; effects = [];
-    tree = LocationSearch(props);
+    tree = LocationSearch(ProfileLocationPicker ? ProfileLocationPicker(props).props.children.props : props);
     nodes(tree).find(node => node.type === 'input').ref.current = inputElement;
     const listbox = nodes(tree).find(node => node.props.role === 'listbox');
     if (listbox) listbox.ref.current = listElement;
@@ -451,4 +461,53 @@ test('touch selection respects profile validation and its separate confirmation 
   assert.equal(h.focused, 1); assert.equal(h.blurred, 0);
   h.key('Enter');
   assert.deepEqual(confirmed, [london]); assert.equal(h.blurred, 1);
+});
+
+
+test('profile setup touch and keyboard choices fill the actual controlled label and immediately leave the focused chooser', async t => {
+  const city = { id: 'gn-5391959', kind: 'city', name: 'San Francisco', regionName: 'California', countryCode: 'US', countryName: 'United States', countryIso3: 'USA', uniqueInCountry: true };
+  for (const method of ['touch', 'keyboard']) {
+    const h = harness({ id: 'onboarding-location', focusedScreen: true }, { profilePicker: true });
+    t.after(() => h.dispose());
+    h.search('old city'); h.advance(180);
+    h.search('san fr'); h.advance(180); h.requests[1].resolve([city]); await h.flush();
+    const chosen = h.options()[0];
+    if (method === 'touch') {
+      chosen.props.onPointerDown(optionPointerEvent());
+      chosen.props.onPointerUp(optionPointerEvent());
+    } else {
+      assert.equal(h.key('Enter').defaultPrevented, true);
+    }
+    h.render();
+    assert.equal(h.input().props.value, 'San Francisco, California, US', method + ' must fill the real profile label immediately');
+    assert.equal(h.changes.filter(value => value === 'San Francisco, California, US').length, 1);
+    assert.equal(h.blurred, 1, method + ' must leave the focus-only full-screen chooser without another Enter');
+    assert.equal(h.focused, 0);
+    assert.equal(h.input().props['aria-expanded'], false);
+    assert.equal(h.options().length, 0);
+    if (method === 'touch') chosen.props.onClick({ detail: 1 });
+    if (method === 'touch') h.requests[0].resolve([london]);
+    else h.requests[0].reject(new Error('stale search failed'));
+    await h.flush();
+    assert.equal(h.input().props.value, 'San Francisco, California, US');
+    assert.equal(h.changes.filter(value => value === 'San Francisco, California, US').length, 1);
+    assert.equal(h.blurred, 1);
+    assert.equal(h.input().props['aria-expanded'], false);
+    assert.equal(h.options().length, 0);
+    assert.equal(h.key('Enter').defaultPrevented, false, 'The completed choice must not retain a confirmation step');
+  }
+});
+
+test('web profile selection fills the actual controlled label without forcing blur', async t => {
+  const city = { ...paris, countryCode: 'FR', countryIso3: 'FRA', uniqueInCountry: true };
+  const h = harness({ id: 'profile-editor-city', focusedScreen: false }, { profilePicker: true });
+  t.after(() => h.dispose());
+  h.search('par'); h.advance(180); h.requests[0].resolve([city]); await h.flush();
+  h.options()[0].props.onClick({ detail: 1 }); h.render();
+  assert.equal(h.input().props.value, 'Paris, Île-de-France, FR');
+  assert.equal(h.changes.filter(value => value === 'Paris, Île-de-France, FR').length, 1);
+  assert.equal(h.blurred, 0);
+  assert.equal(h.input().props['aria-expanded'], false);
+  assert.equal(h.options().length, 0);
+  assert.equal(h.key('Enter').defaultPrevented, false);
 });
