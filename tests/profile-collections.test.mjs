@@ -189,7 +189,11 @@ function profileHarness(search = '', options = {}) {
   const slots = [];
   const pendingEffects = [];
   const projects = options.projects ?? [];
-  const density = { columns: options.columns ?? 5, setColumns(value) { density.columns = value; }, saveError: null };
+  const density = {
+    columns: options.columns ?? 5, previews: [], commits: [], saveError: null,
+    previewColumns(value) { density.previews.push(value); density.columns = value; },
+    setColumns(value) { density.commits.push(value); density.columns = value; },
+  };
   const projectOrder = { order: projects.map(project => project.id), reset() {}, dismissError() {}, isSaving: false, commit: async () => true, ...options.projectOrder };
   let outside;
   let mobileActions, mobilePressModel;
@@ -287,7 +291,7 @@ test('mobile header keeps its Journey choice while hiding counts and links until
   assert.equal(toggle(h.render()).props.view, 'portfolio');
 });
 
-test('profile Journey controls retain owner/public permissions, editor guard and desktop placement', () => {
+test('profile Journey controls retain owner/public permissions, editor guard and WEB header placement', () => {
   for (const [viewerRole, showJourney, allowed] of [['owner', false, true], ['member', true, true], ['member', false, false], ['guest', false, false]]) {
     const h = profileHarness('', { presentation: 'mobile', viewerRole, showJourney });
     assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), allowed);
@@ -301,14 +305,68 @@ test('profile Journey controls retain owner/public permissions, editor guard and
   const web = profileHarness('', { presentation: 'web' });
   for (const expanded of [false, true]) {
     if (expanded) openProfileOptions(web);
-    const tree = web.render(), direct = React.Children.toArray(tree.props.children);
+    const tree = web.render();
     const toggle = nodes(tree).find(node => node.type === 'JourneyToggle');
     assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
-    assert.ok(direct.some(node => node.type === toggle.type));
+    const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
+    assert.equal(identity.props.profileView.props, toggle.props);
+    assert.ok(nodes(tree).find(node => node.type === 'EmployerOverview'));
     const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
     assert.equal(nodes(tools).some(node => node.type === 'JourneyToggle'), false);
-    assert.ok(direct.findIndex(node => node.type === 'JourneyToggle') > direct.findIndex(node => node.type === 'EmployerOverview'));
   }
+});
+
+test('WEB header exposes all four count destinations before opening Profile options', () => {
+  const h = profileHarness('keep=value', { presentation: 'web', projects: reorderProjects });
+  let tree = h.render();
+  assert.equal(nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props['aria-expanded'], false);
+  assert.equal(nodes(tree).some(node => node.props?.id === 'profile-navigation-tools'), false);
+  for (const view of ['portals', 'followers', 'following', 'projects']) {
+    const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
+    assert.equal(stats.props.expanded, true);
+    const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
+    assert.equal(controls.length, 4);
+    assert.deepEqual(controls.map(node => node.type), ['button', 'button', 'button', 'button']);
+    controls[['projects', 'portals', 'followers', 'following'].indexOf(view)].props.onClick();
+    tree = h.render();
+    assert.equal(new URLSearchParams(h.search()).get('keep'), 'value');
+    assert.equal(new URLSearchParams(h.search()).get('view'), view === 'projects' ? null : view);
+    assert.equal(h.navigation.at(-1).replace, true);
+    assert.equal(nodes(tree).find(node => node.type?.name === 'ProfileStats').props.activeView, view);
+    if (view !== 'projects') assert.equal(profileContent(tree).props.children.props.kind, view);
+    else assert.ok(wall(tree));
+  }
+  for (const viewerRole of ['visitor', 'guest']) {
+    const stats = nodes(profileHarness('', { presentation: 'web', viewerRole }).render()).find(node => node.type?.name === 'ProfileStats');
+    const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
+    assert.deepEqual(controls.map(node => node.type), ['button', 'button', 'span', 'span']);
+  }
+});
+
+test('WEB header Timeline selection and Projects count return use the same catalogue state', () => {
+  const h = profileHarness('keep=value', { presentation: 'web', projects: reorderProjects });
+  const toggle = () => nodes(h.render()).find(node => node.type === 'JourneyToggle');
+  toggle().props.onChange('journey');
+  let tree = h.render();
+  assert.equal(toggle().props.view, 'journey');
+  assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
+  assert.equal(nodes(tree).some(node => node.type?.name === 'ProfileStats'), false);
+  assert.equal(profileContent(tree).props.children.type, React.Suspense);
+  toggle().props.onChange('portfolio');
+  tree = h.render();
+  assert.equal(toggle().props.view, 'portfolio');
+  assert.ok(wall(tree));
+  assert.equal(new URLSearchParams(h.search()).get('keep'), 'value');
+
+  const fromPortals = profileHarness('keep=value&view=portals', { presentation: 'web', journeyView: 'journey', projects: reorderProjects });
+  const stats = nodes(fromPortals.render()).find(node => node.type?.name === 'ProfileStats');
+  nodes(stats.type(stats.props)).find(node => node.type === 'button').props.onClick();
+  const catalogue = fromPortals.render();
+  assert.ok(wall(catalogue), 'Projects must exit the remembered Timeline as it clears the collection URL');
+  assert.equal(nodes(catalogue).find(node => node.type === 'JourneyToggle').props.view, 'portfolio');
+  assert.equal(new URLSearchParams(fromPortals.search()).has('view'), false);
+  assert.equal(new URLSearchParams(fromPortals.search()).get('keep'), 'value');
+  assert.equal(fromPortals.navigation.at(-1).replace, true);
 });
 
 test('count controls replace the project area, report real Portal count, and restore from the profile URL', () => {
@@ -1199,9 +1257,58 @@ test('confirmed mutuals can list both connection directions',async()=>{
  }
 });
 
-test('mobile Profile separator changes the existing wall density and stays absent from WEB and shared portfolios',()=>{
+test('mobile Profile separator changes the existing wall density and stays absent from shared portfolios',()=>{
  const h=profileHarness('',{presentation:'mobile',projects:reorderProjects});
  const slider=()=>nodes(h.render()).find(n=>n.props.label==='Profile content per row');assert.ok(slider());slider().props.onChange(8);
  assert.equal(slider().props.columns,8);assert.equal(wall(h.render()).props.columns,8);
- for(const options of [{presentation:'web'},{presentation:'mobile',isSharedView:true}])assert.equal(nodes(profileHarness('',{...options,projects:reorderProjects}).render()).some(n=>n.props.label==='Profile content per row'),false);
+ assert.equal(nodes(profileHarness('',{presentation:'mobile',isSharedView:true,projects:reorderProjects}).render()).some(n=>n.props.label==='Profile content per row'),false);
+});
+
+test('WEB header density previews and commits the existing wall value without duplicate gallery controls', () => {
+  for (const viewerRole of ['owner', 'visitor']) {
+    const h = profileHarness('', { presentation: 'web', viewerRole, projects: reorderProjects, columns: 5 });
+    const sliders = () => nodes(h.render()).filter(node => node.props?.label === 'Profile content per row');
+    assert.equal(sliders().length, 1);
+    const slider = sliders()[0];
+    assert.equal(slider.props.columns, 5);
+    assert.equal(wall(h.render()).props.showDensityControl, false);
+    assert.equal(wall(h.render()).props.allowLayoutControls, true, 'Local zoom/readout remains enabled');
+    slider.props.onPreview(8);
+    assert.deepEqual(h.density.previews, [8]);
+    assert.deepEqual(h.density.commits, []);
+    assert.equal(wall(h.render()).props.columns, 8);
+    slider.props.onChange(13);
+    assert.deepEqual(h.density.commits, [13]);
+    assert.equal(sliders()[0].props.columns, 13);
+    assert.equal(wall(h.render()).props.columns, 13);
+    const { DensitySeparator } = compile('../src/components/ui/DensitySeparator.tsx', name => name === 'react'
+      ? { ...React, useRef: current => ({ current }), useEffect() {} }
+      : name.endsWith('/projectGridDensity') ? gridDensity : {});
+    const range = DensitySeparator(sliders()[0].props);
+    assert.equal(range.type, 'input');
+    assert.equal(range.props.type, 'range');
+    assert.equal(range.props.min, 1);
+    assert.equal(range.props.max, 13);
+  }
+});
+
+test('WEB header density stays out of shared, nested reader, collection, Timeline and reorder views', () => {
+  const hasSlider = tree => nodes(tree).some(node => node.props?.label === 'Profile content per row');
+  for (const options of [
+    { isSharedView: true },
+    { props: { mobileContent: React.createElement('project') } },
+    { journeyView: 'journey' },
+  ]) {
+    const tree = profileHarness('', { presentation: 'web', projects: reorderProjects, ...options }).render();
+    assert.equal(hasSlider(tree), false);
+    if (options.isSharedView) assert.equal(nodes(tree).some(node => node.type?.name === 'ProfileStats'), false);
+  }
+  for (const view of ['portals', 'followers', 'following']) {
+    assert.equal(hasSlider(profileHarness(`view=${view}`, { presentation: 'web', projects: reorderProjects }).render()), false);
+  }
+  const h = profileHarness('', { presentation: 'web', projects: reorderProjects });
+  reorderControl(openProfileOptions(h)).props.onClick();
+  const reordering = h.render();
+  assert.equal(wall(reordering).props.reorderMode.enabled, true);
+  assert.equal(hasSlider(reordering), false);
 });

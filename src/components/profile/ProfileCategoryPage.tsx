@@ -30,6 +30,7 @@ import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panel
 import { usePresentation } from '../../presentation/usePresentation';
 import { useAppRoute } from '../../app/useAppRoute';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
+import './web-reader-spacing.css';
 type ProfileCategoryPageProps = {
   profile: Profile;
   category: ProfileCategory;
@@ -571,7 +572,7 @@ export function ProfileCategoryPage({
         {!sharedReadOnly && !mobileProjectView && !isIndexCollapsed && !panelLayout.singlePanel && <ResizablePanelHandle side="right" value={panelLayout.indexWidth} min={220} max={420} onResize={(width) => { setLastOpened('index'); projectIndexWidth.updateWidth(width); }} onResizeEnd={projectIndexWidth.commitWidth} onReset={projectIndexWidth.resetWidth} label="Resize project navigation. Double-click to restore the default width." />}
       </div>;
 
-  return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
+  return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-web-reader-spacing={!isMobile && !sharedReadOnly ? '' : undefined} data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
       {!sharedReadOnly && mobileProjectView && isIndexCollapsed && !isPageFocused && activeAttachments.some(attachment => attachment.kind === 'image' || attachment.kind === 'document') && <MobileProjectGestureHint />}
       {mobileProjectView && isIndexCollapsed && !isPageFocused && <>
         <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">

@@ -63,3 +63,39 @@ test('layout controls remain desktop-only while shared galleries retain local ca
     if (web) assert.equal(web.props.onChange, chooseColumns);
   }
 });
+
+test('a header-owned density control hides only WEB gallery controls and preserves zoom feedback', () => {
+  for (const { presentation, allowLayoutControls, showDensityControl, hasControls, hasReadout } of [
+    { presentation: 'web', allowLayoutControls: true, hasControls: true, hasReadout: true },
+    { presentation: 'web', allowLayoutControls: true, showDensityControl: false, hasControls: false, hasReadout: true },
+    { presentation: 'mobile', allowLayoutControls: true, hasControls: false, hasReadout: true },
+    { presentation: 'mobile', allowLayoutControls: true, showDensityControl: false, hasControls: false, hasReadout: true },
+    { presentation: 'web', allowLayoutControls: false, hasControls: false, hasReadout: false },
+    { presentation: 'web', allowLayoutControls: false, showDensityControl: false, hasControls: false, hasReadout: false },
+  ]) {
+    const onColumnsChange = () => {};
+    const view = { columns: 7, ref: { current: null }, chooseColumns() {} };
+    let zoomArgs;
+    const { JustifiedImageWall } = load('../src/components/profile/JustifiedImageWall.tsx', {
+      react: { ...React, useMemo: fn => fn(), useRef: current => ({ current }) },
+      '../../hooks/useElementSize': { useElementSize: () => ({ width: 1000 }) },
+      '../../hooks/useContentZoom': { useContentZoom: (...args) => { zoomArgs = args; return view; } },
+      '../../presentation/usePresentation': { usePresentation: () => presentation },
+      '../../presentation/web/WebGalleryControls': { WebGalleryControls: 'web-controls' },
+      '../ui/ZoomReadout': { ZoomReadout: 'zoom' },
+      './ImageWallLayout': { ImageWallRows: 'rows', WALL_GAP: 4 },
+    });
+    const tree = JustifiedImageWall({
+      items: [{ key: 'a', ratio: 1, content: 'A' }], columns: 4, label: 'Projects', onColumnsChange, allowLayoutControls,
+      ...(showDensityControl === undefined ? {} : { showDensityControl }),
+    });
+    assert.equal(nodes(tree).some(node => node.type === 'web-controls'), hasControls);
+    const readout = nodes(tree).find(node => node.type === 'zoom');
+    assert.equal(Boolean(readout), hasReadout);
+    if (readout) assert.equal(readout.props.view, view);
+    assert.deepEqual(zoomArgs.slice(0, 3), [4, true, 4], 'The flag does not disable local zoom or change its reset scope');
+    assert.equal(zoomArgs[3], onColumnsChange);
+    assert.equal(tree.ref, view.ref);
+    assert.equal(nodes(tree).find(node => node.props?.role === 'list').props['data-profile-wall-columns'], 7);
+  }
+});

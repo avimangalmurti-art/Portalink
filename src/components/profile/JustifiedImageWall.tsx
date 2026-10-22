@@ -80,7 +80,7 @@ function packRows(items: WallItem[], width: number, columns: number, trailingRow
   return rows;
 }
 
-export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode, allowLayoutControls = true, fitColumns }: {
+export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode, allowLayoutControls = true, showDensityControl = true, fitColumns }: {
   items: WallItem[];
   /** Exact card count for every complete row. */
   columns: number;
@@ -91,6 +91,8 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   reorderMode?: ReorderMode;
   /** Hides layout chrome on public shares while retaining local card zoom. */
   allowLayoutControls?: boolean;
+  /** A profile header can host density selection while keeping zoom feedback. */
+  showDensityControl?: boolean;
 }) {
   const { ref, width: measuredWidth } = useElementSize<HTMLDivElement>();
   const isMobile = usePresentation() === 'mobile';
@@ -112,7 +114,7 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   const rowProps = { rows, items, itemIndexByKey, reorderMode };
   const canReorder = Boolean(reorderMode?.enabled || reorderMode?.onStart);
   return <div ref={view.ref} className="relative w-full">
-    {allowLayoutControls && !isMobile && items.length > 0 && !reorderMode?.enabled && <WebGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
+    {allowLayoutControls && showDensityControl && !isMobile && items.length > 0 && !reorderMode?.enabled && <WebGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
     {allowLayoutControls && <ZoomReadout view={view} />}
     {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">{isMobile ? 'Swipe to scroll. Hold a project briefly, then drag to move it. Hold near the top or bottom edge to scroll while dragging. ' : ''}Drag a project card toward the space where it belongs and the nearby cards will make room. For keyboard reordering, press Space, use the arrow keys, and press Space again; Alt plus an arrow also moves one position.</p> : null}
     <div ref={ref} role="list" aria-label={label} data-profile-wall-columns={effectiveColumns} className="w-full">
