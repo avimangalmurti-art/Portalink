@@ -112,7 +112,7 @@ test('installed tus4.3.1 uses a saved URL to HEAD the server offset and sends on
 
 function serviceHarness({ hashGate, checkpointGate, hash = async (_a, _p, _d, media) => media.id, signedFailure = false } = {}) {
   const uploads = [], objects = new Set(), checkpoints = [], manifests = [];
-  const db = database(), helper = recoveryModule(db); let account = 'account', sequence = 0;
+  const db = database(), helper = recoveryModule(db); let account = 'account', accessToken = 'in-memory-only', sequence = 0;
   class Upload {
     constructor(body, options) { this.body = body; this.options = options; this.aborts = []; uploads.push(this); }
     findPreviousUploads() { return this.options.urlStorage.findUploadsByFingerprint(`portalink:${this.options.metadata.objectName}`); }
@@ -120,7 +120,7 @@ function serviceHarness({ hashGate, checkpointGate, hash = async (_a, _p, _d, me
     async start() {
       await this.options.onBeforeRequest?.({ getMethod: () => this.previous ? 'HEAD' : 'POST', setHeader() {} });
       this.url = this.previous?.uploadUrl ?? `${endpoint}/session-${++sequence}`;
-      this.key = await this.options.urlStorage.addUpload(`portalink:${this.options.metadata.objectName}`, prior(this.url, this.body.size));
+      this.key = await this.options.urlStorage?.addUpload(`portalink:${this.options.metadata.objectName}`, prior(this.url, this.body.size));
       this.started = true;
     }
     async succeed() { objects.add(this.options.metadata.objectName); await this.options.urlStorage.removeUpload(this.key); this.options.onSuccess(); }
@@ -132,7 +132,7 @@ function serviceHarness({ hashGate, checkpointGate, hash = async (_a, _p, _d, me
     upload: async (path, body) => { manifests.push(path); objects.add(path); return { error: null }; },
     createSignedUrl: async path => signedFailure ? { error: new Error('Signing unavailable') } : { data: { signedUrl: `view/${path}` }, error: null },
   };
-  const client = { auth: { getSession: async () => ({ data: { session: { user: { id: account }, access_token: 'in-memory-only' } }, error: null }) }, storage: { from: () => bucket } };
+  const client = { auth: { getSession: async () => ({ data: { session: { user: { id: account }, access_token: accessToken } }, error: null }) }, storage: { from: () => bucket } };
   class UploadServiceError extends Error { constructor(value) { super(value.message); Object.assign(this, value); } }
   const source = ts.transpileModule(readFileSync(new URL('../src/services/supabase/mediaService.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
@@ -148,12 +148,101 @@ function serviceHarness({ hashGate, checkpointGate, hash = async (_a, _p, _d, me
     throw new Error(name);
   } });
   return { uploads, objects, checkpoints, manifests, db, service: exports.supabaseMediaService,
-    setAccount(value) { account = value; }, setSigningFailure(value) { signedFailure = value; },
+    setAccount(value) { account = value; }, setAccessToken(value) { accessToken = value; }, setSigningFailure(value) { signedFailure = value; },
     start: media => exports.supabaseMediaService.startUpload({ profileId: 'profile', draftId: 'draft', deviceRecovery: { accountId: 'account' }, media,
       onCheckpoint: async refs => { checkpoints.push(refs); if (checkpointGate) await checkpointGate.promise; },
     }),
   };
 }
+
+/** The installed browser stack calls this native-XHR boundary, where repeated
+ * setRequestHeader values append instead of overwriting the TUS header map. */
+function browserTransport({ failFirstPatch = false, holdPatch = false } = {}) {
+  const requests = []; let offset = 0;
+  class AppendXHR {
+    constructor() { this.headers = new Map(); this.writes = []; this.upload = {}; }
+    open(method, url) { this.method = method; this.url = url; }
+    setRequestHeader(name, value) {
+      const key = name.toLowerCase(); this.writes.push([key, value]);
+      this.headers.set(key, this.headers.has(key) ? `${this.headers.get(key)}, ${value}` : value);
+    }
+    getResponseHeader(name) { return this.responseHeaders?.get(name.toLowerCase()) ?? null; }
+    abort() { this.aborted = true; }
+    send(body) {
+      requests.push({ method: this.method, authorization: this.headers.get('authorization'), authorizationWrites: this.writes.filter(([name]) => name === 'authorization').length });
+      if (this.method === 'PATCH' && holdPatch) return;
+      setImmediate(() => {
+        if (this.aborted) return;
+        if (this.method === 'PATCH' && failFirstPatch) {
+          failFirstPatch = false; this.onerror?.(new Error('Connection interrupted')); return;
+        }
+        if (this.method === 'POST' || this.method === 'PATCH') offset += body?.size ?? 0;
+        this.status = this.method === 'POST' ? 201 : this.method === 'HEAD' ? 200 : 204;
+        this.responseText = '';
+        this.responseHeaders = new Map([['location', `${endpoint}/native-session`], ['upload-offset', String(offset)], ['upload-length', '7']]);
+        this.onload?.();
+      });
+    }
+  }
+  const { default: XHRHttpStack } = sourceModule('node_modules/tus-js-client/lib/browser/httpStack.js', {}, { XMLHttpRequest: AppendXHR });
+  return { requests, stack: new XHRHttpStack() };
+}
+function browserUpload(delegate, transport) {
+  let upload;
+  const completion = new Promise((resolve, reject) => {
+    upload = new TusUpload(delegate.body, { ...delegate.options, chunkSize: 3, retryDelays: null, httpStack: transport.stack,
+      fileReader: { openFile: async file => ({ size: file.size, slice: async (start, end) => ({ value: file.slice(start, end), done: end >= file.size }), close() {} }) },
+      onSuccess: resolve, onError: reject,
+    });
+  });
+  return { upload, completion };
+}
+
+test('production recovery options send one Authorization through installed browser XHR for POST, resumed HEAD and PATCH; WEB keeps its snapshot', async () => {
+  const h = serviceHarness(), operation = await h.start([item()]); await tick();
+  const delegate = h.uploads[0], transport = browserTransport({ failFirstPatch: true });
+  h.db.rows.clear(); // Remove the capture harness's placeholder; exercise actual TUS storage below.
+  const first = browserUpload(delegate, transport); first.upload.start();
+  await assert.rejects(first.completion, /Connection interrupted/);
+  h.setAccessToken('refreshed-in-memory-only');
+  const resumed = browserUpload(delegate, transport), previous = await resumed.upload.findPreviousUploads();
+  assert.equal(previous.length, 1); resumed.upload.resumeFromPreviousUpload(previous[0]); resumed.upload.start();
+  await resumed.completion;
+  assert.deepEqual(transport.requests, [
+    { method: 'POST', authorization: 'Bearer in-memory-only', authorizationWrites: 1 },
+    { method: 'PATCH', authorization: 'Bearer in-memory-only', authorizationWrites: 1 },
+    { method: 'HEAD', authorization: 'Bearer refreshed-in-memory-only', authorizationWrites: 1 },
+    { method: 'PATCH', authorization: 'Bearer refreshed-in-memory-only', authorizationWrites: 1 },
+    { method: 'PATCH', authorization: 'Bearer refreshed-in-memory-only', authorizationWrites: 1 },
+  ]);
+  await operation.suspend();
+
+  const web = serviceHarness(), webOperation = await web.service.startUpload({ profileId: 'profile', draftId: 'draft', media: [item()] }); await tick();
+  const webDelegate = web.uploads[0], webTransport = browserTransport();
+  assert.equal(webDelegate.options.onBeforeRequest, undefined);
+  web.setAccessToken('a-later-token');
+  const ordinary = browserUpload(webDelegate, webTransport); ordinary.upload.start(); await ordinary.completion;
+  assert.deepEqual(webTransport.requests.map(request => [request.method, request.authorization, request.authorizationWrites]), [
+    ['POST', 'Bearer in-memory-only', 1], ['PATCH', 'Bearer in-memory-only', 1], ['PATCH', 'Bearer in-memory-only', 1],
+  ]);
+  await web.service.cancelUpload(webOperation.uploadId);
+});
+
+test('production recovery Cancel sends one freshly authorized DELETE through installed browser XHR after transfer stops', async () => {
+  const h = serviceHarness(), operation = await h.start([item()]); await tick();
+  const delegate = h.uploads[0], transport = browserTransport({ holdPatch: true }), actual = browserUpload(delegate, transport);
+  delegate.abort = terminate => actual.upload.abort(terminate);
+  actual.upload.start(); await tick();
+  assert.deepEqual(transport.requests.map(request => request.method), ['POST', 'PATCH']);
+  h.setAccessToken('refreshed-before-cancel');
+  await h.service.cancelUpload(operation.uploadId);
+  assert.equal((await operation.completion).status, 'cancelled');
+  assert.deepEqual(transport.requests, [
+    { method: 'POST', authorization: 'Bearer in-memory-only', authorizationWrites: 1 },
+    { method: 'PATCH', authorization: 'Bearer in-memory-only', authorizationWrites: 1 },
+    { method: 'DELETE', authorization: 'Bearer refreshed-before-cancel', authorizationWrites: 1 },
+  ]);
+});
 
 test('durable cleanup checkpoint precedes bytes and a signing failure retries the completed object without uploading again', async () => {
   const gate = deferred(), h = serviceHarness({ checkpointGate: gate, signedFailure: true });
