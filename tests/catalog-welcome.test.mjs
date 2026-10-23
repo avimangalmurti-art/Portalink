@@ -49,6 +49,7 @@ function fixture(options = {}) {
     get lateStateWrites() { return lateStateWrites; }, get main() { return render(); }, get button() { return all().find(node => node.type === 'button'); }, get action() { return region('catalog-welcome-action'); },
     revealed(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph' && node.props['data-revealed']).map(textOf).join(''); },
     glyphs(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph'); },
+    lines(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-line'); },
     advance(milliseconds) { const target = now + milliseconds; for (let pass = 0; ; pass++) { assert.ok(pass < 10000, 'Timers must remain bounded'); const next = [...timers.entries()].filter(([, timer]) => timer.at <= target).sort((left, right) => left[1].at - right[1].at || left[0] - right[0])[0]; if (!next) break; const [id, timer] = next; timers.delete(id); now = timer.at; timer.callback(); render(); } now = target; render(); },
     pointerDown() { render().props.onPointerDownCapture(event()); render(); },
     pointerCancel() { render().props.onPointerCancelCapture(event()); render(); },
@@ -119,6 +120,55 @@ test('the actual composition reserves its full text and exposes one complete acc
   assert.equal(h.button.props.disabled, true); assert.equal(h.button.props.tabIndex, -1); assert.equal(h.action.props['aria-hidden'], true);
   assert.equal(h.main.props.role, 'dialog'); assert.equal(h.main.props['aria-modal'], 'true'); assert.equal(h.main.props.tabIndex, -1);
   assert.equal(h.focuses.length, 1); assert.equal(h.focuses[0].preventScroll, false); h.unmount();
+});
+
+test('line entrance states follow typing into each line while preserving the accumulating composition', () => {
+  const h = fixture();
+  const states = className => h.lines(className).map(line => [line.props['data-started'], line.props['data-finished']]);
+  const waiting = [[false, false], [false, false], [false, false]], finished = [[true, true], [true, true], [true, true]];
+  assert.deepEqual(states('catalog-welcome-headline'), waiting);
+  assert.deepEqual(states('catalog-welcome-support'), waiting);
+  assert.deepEqual(h.lines('catalog-welcome-headline').map(textOf), [...h.state.CATALOG_HEADLINE]);
+  assert.deepEqual(h.lines('catalog-welcome-support').map(textOf), [...h.state.CATALOG_SUPPORT]);
+
+  h.advance(80);
+  assert.deepEqual(states('catalog-welcome-headline'), [[true, false], [false, false], [false, false]]);
+  h.advance(1200);
+  assert.deepEqual(states('catalog-welcome-headline'), [[true, true], [true, false], [false, false]]);
+  assert.deepEqual(states('catalog-welcome-support'), waiting);
+  h.advance(1240);
+  assert.deepEqual(states('catalog-welcome-headline'), finished);
+  assert.deepEqual(states('catalog-welcome-support'), waiting);
+
+  h.advance(760);
+  assert.deepEqual(states('catalog-welcome-support'), [[true, false], [false, false], [false, false]]);
+  h.advance(640);
+  assert.deepEqual(states('catalog-welcome-support'), [[true, true], [true, false], [false, false]]);
+  assert.deepEqual(states('catalog-welcome-headline'), finished, 'Earlier lines retain their settled state.');
+  h.advance(800);
+  assert.deepEqual(states('catalog-welcome-support'), finished);
+  assert.equal(h.button.props.disabled, true, 'Settled text does not bypass the existing Start deadline.');
+  h.advance(280);
+  assert.equal(h.button.props.disabled, false);
+  assert.deepEqual(h.starts, []); h.unmount();
+});
+
+test('skip, return visits and reduced motion mark every line settled without a delayed entrance', () => {
+  const skipped = fixture(); skipped.advance(900); skipped.pointerDown(); skipped.click(true);
+  const returned = fixture({ storage: skipped.storage }), reduced = fixture({ reduced: true }), changed = fixture();
+  changed.advance(1280); changed.reduce(true);
+  for (const h of [skipped, returned, reduced, changed]) {
+    assert.equal(h.main.props['data-instant'], true);
+    assert.equal(h.main.props['data-complete'], true);
+    for (const className of ['catalog-welcome-headline', 'catalog-welcome-support']) {
+      assert.equal(h.lines(className).length, 3);
+      assert.ok(h.lines(className).every(line => line.props['data-started'] === true && line.props['data-finished'] === true));
+    }
+    assert.equal(h.timers.size, 0); assert.deepEqual(h.starts, []);
+    h.reduce(false); h.advance(1000);
+    assert.equal(h.main.props['data-instant'], true, 'Clearing a preference cannot replay the entrance.');
+    h.unmount();
+  }
 });
 
 test('welcome owns a presentation-scoped body or fullscreen portal while retaining its explicit action shape', () => {

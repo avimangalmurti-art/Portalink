@@ -71,6 +71,16 @@
   display: block;
 }
 
+/* Move the reserved line as one layer: glyph advances and wrapping stay intact. */
+.catalog-welcome[data-instant='false'] .catalog-welcome-line {
+  transform: translateY(.18em);
+  transition: transform var(--m-slow) var(--m-enter);
+}
+
+.catalog-welcome[data-instant='false'] .catalog-welcome-line[data-started='true'] {
+  transform: translateY(0);
+}
+
 .catalog-welcome .catalog-welcome-accessible {
   position: absolute;
   width: 1px;
@@ -116,7 +126,7 @@
   width: .055em;
   height: .84em;
   background: currentColor;
-  animation: catalog-welcome-cursor 950ms step-end infinite;
+  animation: catalog-welcome-cursor calc(var(--m-slow) * 4) step-end infinite;
   pointer-events: none;
 }
 
@@ -126,7 +136,7 @@
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 350ms ease-out;
+  transition: opacity var(--m-base) var(--m-enter);
 }
 
 .catalog-welcome .catalog-welcome-action[data-ready='true'] {
@@ -135,17 +145,27 @@
   pointer-events: auto;
 }
 
+.catalog-welcome[data-instant='false'] .catalog-welcome-action[data-ready='true'] {
+  animation: catalog-welcome-action-arrive var(--m-slow) var(--m-enter) both;
+}
+
 .catalog-welcome[data-complete='false'] .catalog-welcome-action {
   pointer-events: none;
 }
 
-.catalog-welcome[data-instant='true'] .catalog-welcome-action {
+.catalog-welcome[data-instant='true'] .catalog-welcome-line,
+.catalog-welcome[data-instant='true'] .catalog-welcome-action,
+.catalog-welcome[data-instant='true'] .catalog-welcome-start::before {
+  animation: none;
   transition: none;
 }
 
 .catalog-welcome .catalog-welcome-start {
   box-sizing: border-box;
   display: flex;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   align-items: center;
   justify-content: center;
   width: 100%;
@@ -154,7 +174,7 @@
   padding: 10px 16px;
   border: 0;
   border-radius: 999px;
-  background: #0752ff url('/welcome/world-map.svg') center / 100% 100% no-repeat;
+  background: #0752ff;
   color: #050505;
   font-family: inherit;
   font-size: 1rem;
@@ -165,10 +185,29 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  transition: transform var(--m-fast) var(--m-enter), box-shadow var(--m-fast) var(--m-enter);
+}
+
+.catalog-welcome .catalog-welcome-start::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0 -12px;
+  border-radius: inherit;
+  background: #0752ff url('/welcome/world-map.svg') center / 100% 100% no-repeat;
+  transform: translateX(0) scale(1.04);
+  transition: transform var(--m-slow) var(--m-enter);
+  pointer-events: none;
+}
+
+.catalog-welcome[data-instant='false'] .catalog-welcome-action[data-ready='true'] .catalog-welcome-start::before {
+  animation: catalog-welcome-map-arrive var(--m-slow) var(--m-enter);
 }
 
 .catalog-welcome .catalog-welcome-start-label {
   display: block;
+  position: relative;
+  z-index: 1;
   max-width: 100%;
   padding: 4px 12px;
   border-radius: 999px;
@@ -184,9 +223,27 @@
 
 .catalog-welcome .catalog-welcome-start:active {
   box-shadow: inset 0 0 0 2px rgb(0 0 0 / 24%);
+  transform: scale(.98);
 }
 
 .catalog-welcome .catalog-welcome-start:disabled { opacity: 1; }
+
+@media (hover: hover) and (pointer: fine) {
+  .catalog-welcome .catalog-welcome-start:not(:disabled):is(:hover, :focus-visible)::before {
+    transform: translateX(5px) scale(1.04);
+  }
+}
+
+@keyframes catalog-welcome-action-arrive {
+  from { transform: translateY(14px) scale(.96); }
+  70% { transform: translateY(-2px) scale(1.01); }
+  to { transform: translateY(0) scale(1); }
+}
+
+@keyframes catalog-welcome-map-arrive {
+  from { transform: translateX(-14px) scale(1.04); }
+  to { transform: translateX(0) scale(1.04); }
+}
 
 @keyframes catalog-welcome-cursor {
   0%, 48% { visibility: visible; }
@@ -215,6 +272,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .catalog-welcome .catalog-welcome-line,
+  .catalog-welcome .catalog-welcome-action,
+  .catalog-welcome .catalog-welcome-start,
+  .catalog-welcome .catalog-welcome-start::before {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
   .catalog-welcome .catalog-welcome-cursor::after {
     animation: none;
   }
