@@ -1,0 +1,29 @@
+/* Accessibility wins over feature-specific glass, including lazy styles and
+   body-portalled menus. Important declarations in this layer outrank the
+   existing unlayered important scrim filters without changing their tint,
+   geometry, content filters or the appearance when reduction is off. */
+@layer portalink-accessibility {
+  .reduce-translucency,
+  .reduce-translucency *,
+  .reduce-translucency::before,
+  .reduce-translucency::after,
+  .reduce-translucency *::before,
+  .reduce-translucency *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* The OS preference also covers the document's direct portal children and
+     decorative pseudo-elements when the in-app switch is off. */
+  @media (prefers-reduced-transparency: reduce) {
+    body,
+    body *,
+    body::before,
+    body::after,
+    body *::before,
+    body *::after {
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+  }
+}

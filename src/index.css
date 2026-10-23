@@ -2784,38 +2784,23 @@ select:focus-visible {
 .accent-theme [class*='fixed'][class*='inset-0'][class*='bg-black/'] {
   background-color: var(--scrim) !important;
 }
-/* Anything modal pushes the page behind it out of focus, so attention lands on
-   the surface in front. One rule covers every dialog, sheet, and menu scrim:
-   a full-bleed layer carrying a scrim tint. Explicit modal scrims retain their
-   background blur while Reduce Translucency makes interface glass solid. */
+/* Default modal materials soften the page behind each dialog, sheet and menu.
+   The shared accessibility layer removes this blur when translucency is reduced
+   while retaining the scrim tint and the surface's geometry. */
 .accent-theme [class*='fixed'][class*='inset-0'][class*='bg-black/'],
 .accent-theme [class*='fixed'][class*='inset-0'][class*='bg-white/'] {
   backdrop-filter: blur(18px) saturate(115%);
   -webkit-backdrop-filter: blur(18px) saturate(115%);
 }
-/* A modal is a whole-application state, even when the control that opened it
-   lives inside an animated project screen or a navigation panel. Every modal
-   scrim therefore owns one explicit, full-strength blur contract. This rule is
-   intentionally stronger than Reduce Translucency and the OS transparency
-   preference: those settings may simplify glass surfaces, but a modal still
-   needs to separate itself from every navigation and content layer behind it. */
+/* The default full-application blur also covers modals opened from an animated
+   screen or navigation panel. Reduce Translucency and the OS preference take
+   precedence through presentation/reduced-translucency.css. */
 .modal-scrim,
-.accent-theme .modal-scrim,
-.accent-theme.reduce-translucency .modal-scrim {
+.accent-theme .modal-scrim {
   backdrop-filter: blur(18px) saturate(115%) !important;
   -webkit-backdrop-filter: blur(18px) saturate(115%) !important;
 }
-@media (prefers-reduced-transparency: reduce) {
-  .modal-scrim,
-  .accent-theme .modal-scrim {
-    backdrop-filter: blur(18px) saturate(115%) !important;
-    -webkit-backdrop-filter: blur(18px) saturate(115%) !important;
-  }
-}
-
-/* Onboarding respects the transparency preference even though other modal
-   scrims retain their blur. Its cards are already opaque; preserve the dimming
-   tint and change only the backdrop material. */
+/* Preserve onboarding's existing opaque backdrop treatment and dimming tint. */
 .codex-shell.reduce-translucency :is(.first-login-welcome-backdrop, .profile-setup-backdrop, .project-setup-screen, .onboarding-publish-backdrop, .project-form-overlay[data-onboarding-publish], .post-publish-idea-backdrop) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;

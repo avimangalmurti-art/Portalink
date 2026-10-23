@@ -17,6 +17,7 @@ import './web/web.css';
 import './navigation.css';
 import './controls.css';
 import './surfaces.css';
+import './reduced-translucency.css';
 import './mobile/shapes.css';
 import './mobile/selection.css';
 import './mobile/reader-scroll-controls.css';

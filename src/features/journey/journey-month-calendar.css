@@ -11,7 +11,7 @@
 .journey-month-calendar-toolbar {
   display: grid; grid-template-columns: 52px minmax(0, 1fr) 64px; gap: 8px; align-items: center; flex: none;
   min-height: 72px; padding: 8px 20px; border-bottom: 1px solid var(--hairline); isolation: isolate;
-  background: color-mix(in srgb, var(--surface-canvas) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-canvas) var(--interface-glass-opacity, 88%), transparent);
   -webkit-backdrop-filter: blur(20px) saturate(140%); backdrop-filter: blur(20px) saturate(140%);
 }
 .journey-month-calendar-toolbar button {
