@@ -76,12 +76,10 @@ test('all public header controls share fixed geometry without pressed-state move
   assert.equal((parseInt(tokens['--shared-header-height']) - parseInt(tokens['--shared-header-control'])) / 2, 10);
 });
 
-test('information glyph stays on the header centerline without losing Plex Mono', () => {
+test('project information uses the shared icon frame within the centered header control', () => {
   const source = read('../src/components/media/ProjectMediaViewer.tsx');
-  assert.match(source, /data-shared-info-glyph=""[^\n]+IBM Plex Mono/);
-  const glyph = declarations(`${scope} [data-shared-navigation-header] [data-shared-info-glyph]`);
-  assert.equal(glyph['font-size'], '12px');
-  assert.equal(glyph['line-height'], '1');
+  assert.match(source, /<InterfaceIcon icon=\{InfoIcon\} size="lg" \/>/);
+  assert.equal(source.includes('data-shared-info-glyph'), false);
 });
 
 test('project header omits duplicate page totals but retains layout controls and project information', () => {
