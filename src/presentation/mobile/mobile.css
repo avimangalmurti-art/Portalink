@@ -6034,26 +6034,8 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   #root .codex-shell[data-presentation='mobile'] { --content-preview-edge-width: 1px; }
 }
 
-/* Single-column Explore cards keep readable overlays inside their own frame. */
+/* Single-column Explore content labels remain specific to the feed. */
 #root .codex-shell[data-presentation='mobile'] .mobile-feed-content-type { display: none; }
-#root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .explore-feed-card .mobile-preview-details {
-  right: 8px; bottom: 8px;
-  width: 56px; height: 44px;
-  padding: 0; align-items: center; justify-content: center;
-  border-radius: 999px;
-  background: var(--surface-raised); color: var(--text-primary);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 24%), 0 0 0 1px rgb(127 127 127 / 28%);
-}
-#root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .explore-feed-card .mobile-preview-details > [data-interface-icon-frame] {
-  --interface-icon-size: 20px;
-  --interface-icon-stroke: 1.75;
-}
-#root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .explore-feed-card .mobile-preview-details svg { filter: none; }
-@layer portalink-interface-shapes {
-  #root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .explore-feed-card .mobile-preview-details {
-    border-radius: var(--ui-capsule-radius) !important;
-  }
-}
 #root .codex-shell[data-presentation='mobile'] [data-project-grid-columns='1'] .explore-feed-card .mobile-feed-content-type {
   display: block; position: absolute; top: 8px; right: 8px; z-index: 4;
   max-width: calc(100% - 16px); padding: 6px 10px;

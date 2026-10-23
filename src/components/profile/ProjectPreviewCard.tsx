@@ -13,6 +13,7 @@ import { ProjectHoverDetails } from './ProjectHoverDetails';
 import type { ImagePriority } from '../ui/ResponsiveImage';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { warmProjectDocumentRenderer } from '../media/warmDocumentRenderer';
+import './project-preview-actions.css';
 
 const ProjectPreviewExtension = lazy(() => import('./ProjectPreviewExtension').then(module => ({ default: module.ProjectPreviewExtension })));
 
