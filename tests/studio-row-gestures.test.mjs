@@ -1,3 +1,4 @@
+import {sheetMotionFixture,motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -9,7 +10,7 @@ function compile(path, dependencies = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, ...globals, require(name) { return dependencies[name] ?? new Proxy({}, { get: (_object, key) => key === '__esModule' ? false : () => null }); } });
+  }).outputText, { exports, ...globals, require(name) { if(name.endsWith('/useSheetMotion'))return sheetMotionFixture;if(name.endsWith('/motion/motion'))return motionFixture; return dependencies[name] ?? new Proxy({}, { get: (_object, key) => key === '__esModule' ? false : () => null }); } });
   return exports;
 }
 const { navigationSwipe } = compile('../src/presentation/mobile/useNavigationSwipe.ts');
@@ -171,6 +172,7 @@ test('Studio action sheet uses shared modal focus, explicit close and invokes on
   };
   const { MobileActionSheet } = compile('../src/components/messages/MobileActionSheet.tsx', {
     react,
+    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus(open, _ref, _close, preventScroll) { assert.equal(open, true); assert.equal(preventScroll, true); } },
   });

@@ -63,6 +63,13 @@ test('Cancel discards the draft; reopening restores the last saved position', as
   editor.dispose();
 });
 
+test('the shared image editor keeps default Save and desktop instructions for unscoped callers',async()=>{
+ const editor=editorHarness();await editor.flush();
+ assert.ok(editor.button('Save'));
+ assert.ok(editor.find(node=>node.type==='p'&&node.props.children==='Drag to reposition. Scroll or use the slider to zoom. Arrow keys make small adjustments.'));
+ editor.dispose();
+});
+
 test('Save exports the current crop once and keeps it when Reposition opens again', async () => {
   const saves=[];const editor=editorHarness({onSave:(result)=>saves.push(result)});
   await editor.flush();editor.zoom(2);await editor.flush();
@@ -112,6 +119,7 @@ test('async Save stays busy and cannot Cancel until the caller finishes', async 
 });
 
 test('dialog guards X, backdrop and Escape for the entire Save', () => {
+ for(const {presentation,mobileAuthoring} of [{presentation:'mobile',mobileAuthoring:true},{presentation:'web',mobileAuthoring:true},{presentation:'mobile',mobileAuthoring:false}]){
   const slots=[]; let cursor=0,escape,closed=0;
   const react={
     useRef(initial){const i=cursor++;return slots[i]??=( {current:initial} );},
@@ -125,6 +133,7 @@ test('dialog guards X, backdrop and Escape for the entire Save', () => {
     if(name==='lucide-react')return {XIcon:'X'};
     if(name.endsWith('/useModalFocus'))return {useModalFocus:(_open,_ref,fn)=>{escape=fn;}};
     if(name.endsWith('/useDialogViewport'))return {useDialogViewport:()=>({current:null})};
+    if(name.endsWith('/usePresentation'))return {usePresentation:()=>presentation};
     if(name.endsWith('.css'))return {};
     if(name.endsWith('/InterfaceIcon'))return {InterfaceIcon:'Icon'};
     if(name.endsWith('/ModalPortal'))return {ModalPortal:'Portal'};
@@ -132,9 +141,13 @@ test('dialog guards X, backdrop and Escape for the entire Save', () => {
     if(name.endsWith('/StateViews'))return {LoadingState:'Loading',ErrorState:'Error'};
     throw Error(name);
   }});
-  const render=()=>{cursor=0;return exports.ImageRepositionDialog({title:'Cover',onClose:()=>closed++,source:'image.jpg',alt:'Cover',controls:'Shape',onSave(){}}).props.children;};
+  const render=()=>{cursor=0;const portal=exports.ImageRepositionDialog({title:'Cover',mobileAuthoring,onClose:()=>closed++,source:'image.jpg',alt:'Cover',controls:'Shape',onSave(){}});return portal.props.children.find(child=>child?.props?.className?.includes('image-reposition-overlay'));};
   let backdrop=render();let dialog=backdrop.props.children;
   const child=dialog.props.children[1].props.children.props.children[1];
+  const authoring=presentation==='mobile'&&mobileAuthoring;
+  assert.equal(backdrop.props['data-mobile-upload-surface'],authoring?'cover':undefined);
+  assert.equal(child.props.instructions,authoring?'Drag to reposition. Use the slider to zoom.':undefined);
+  assert.equal(child.props.saveLabel,authoring?'Save cover':undefined);
   child.props.onSavingChange(true);
   backdrop=render();dialog=backdrop.props.children;
   const close=dialog.props.children[0].props.children[1];
@@ -143,4 +156,5 @@ test('dialog guards X, backdrop and Escape for the entire Save', () => {
   close.props.onClick();backdrop.props.onMouseDown({target:backdrop,currentTarget:backdrop});escape();assert.equal(closed,0);
   child.props.onSavingChange(false);backdrop=render();
   escape();assert.equal(closed,1);
+ }
 });

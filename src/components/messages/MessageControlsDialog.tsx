@@ -25,10 +25,10 @@ export function MessageControlsDialog({ permission, isSaving, error, onChange, o
     <div className="modal-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
-      <div ref={dialogRef} id="message-privacy-settings" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="shape-container flex max-h-[min(640px,90dvh)] w-full max-w-[440px] flex-col overflow-hidden bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xl outline-none">
+      <div ref={dialogRef} id="message-privacy-settings" data-ui-shape="popup" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="shape-container flex max-h-[min(640px,90dvh)] w-full max-w-[440px] flex-col overflow-hidden bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-2xl outline-none">
         <header className="flex shrink-0 items-center gap-3 border-b border-[var(--hairline)] px-5 py-3">
           <h2 id={titleId} className="min-w-0 flex-1 text-[16px] font-semibold">Message settings</h2>
-          <button type="button" onClick={onClose} aria-label="Close message settings" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} /></button>
+          <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onClose} aria-label="Close message settings" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} /></button>
         </header>
         <div className="min-h-0 overflow-y-auto p-5">
           <fieldset aria-describedby={descriptionId} disabled={isSaving}>
@@ -39,7 +39,7 @@ export function MessageControlsDialog({ permission, isSaving, error, onChange, o
                 ['requests', 'Everyone', 'Allow requests from anyone.'],
                 ['followers', 'People who follow you', 'Only your followers can send requests.'],
                 ['following', 'No one', 'Turn off message requests.'],
-              ] as const).map(([value, label, description]) => <label key={value} className="shape-compact flex min-h-[var(--sidebar-primary-control)] cursor-pointer items-center justify-between gap-4 px-3 py-3 hover:bg-[var(--surface-hover)] has-[:disabled]:cursor-wait">
+              ] as const).map(([value, label, description]) => <label data-ui-shape="row" key={value} className="shape-compact flex min-h-[var(--sidebar-primary-control)] cursor-pointer items-center justify-between gap-4 px-3 py-3 hover:bg-[var(--surface-hover)] has-[:disabled]:cursor-wait">
                 <span className="min-w-0"><span className="block text-[14px] font-medium">{label}</span><span className="mt-1 block text-[12px] leading-relaxed text-[var(--text-secondary)]">{description}</span></span>
                 <input type="radio" name={groupName} value={value} checked={permission === value} onChange={() => void onChange(value)} className="h-[18px] w-[18px] shrink-0 accent-[var(--accent-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" />
               </label>)}

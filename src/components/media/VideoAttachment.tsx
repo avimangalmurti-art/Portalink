@@ -13,15 +13,15 @@ type ConversionRetry = { canRetry: boolean; isRetrying: boolean; onRetry: () => 
  * the element is never substituted with a still image.
  */
 export function VideoAttachment({
-  attachment, conversion, active = true
+  attachment, conversion, active = true, inlinePreview = false
 
 
-}: {attachment: ProjectAttachment; conversion?: ConversionRetry; active?: boolean;}) {
+}: {attachment: ProjectAttachment; conversion?: ConversionRetry; active?: boolean; inlinePreview?: boolean;}) {
   const sources = videoSources(attachment);
-  return <VideoPlayback key={JSON.stringify([attachment.id, ...sources])} attachment={attachment} sources={sources} conversion={conversion} active={active} />;
+  return <VideoPlayback key={JSON.stringify([attachment.id, ...sources])} attachment={attachment} sources={sources} conversion={conversion} active={active} inlinePreview={inlinePreview} />;
 }
 
-function VideoPlayback({ attachment, sources, conversion, active }: { attachment: ProjectAttachment; sources: string[]; conversion?: ConversionRetry; active: boolean }) {
+function VideoPlayback({ attachment, sources, conversion, active, inlinePreview }: { attachment: ProjectAttachment; sources: string[]; conversion?: ConversionRetry; active: boolean; inlinePreview: boolean }) {
   const { invalidateProfiles } = useProfileData();
   const isMobile = usePresentation() === 'mobile';
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -33,7 +33,12 @@ function VideoPlayback({ attachment, sources, conversion, active }: { attachment
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !isMobile) return;
+    if (!video) return;
+    if (inlinePreview) {
+      if (!active) video.pause();
+      return () => video.pause();
+    }
+    if (!isMobile) return;
     if (active) {
       // A newly selected clip always starts with sound, even when this retained
       // queue element was muted earlier. Do not override mute during rerenders.
@@ -45,7 +50,7 @@ function VideoPlayback({ attachment, sources, conversion, active }: { attachment
       setControlsRequested(false);
     }
     return () => video.pause();
-  }, [active, attempt, sourceIndex, isMobile]);
+  }, [active, attempt, sourceIndex, isMobile, inlinePreview]);
   const revealPlayerControls = (video: HTMLVideoElement) => {
     if (!isMobile || !active || controlsRequested) return;
     setControlsRequested(true);
@@ -78,18 +83,18 @@ function VideoPlayback({ attachment, sources, conversion, active }: { attachment
   }
   return <div className={`relative flex h-full w-full items-center justify-center p-3${isMobile ? ' mobile-video-playback' : ''}`}>
       {status === 'loading' && <div className="pointer-events-none absolute left-0 right-0 top-3 z-10"><LoadingState label={`Loading ${attachment.displayName}`} /></div>}
-      <video ref={videoRef} key={`${attempt}:${sourceIndex}`} src={source} autoPlay={active} loop={isMobile || undefined}
-        controls={isMobile ? active && controlsRequested : true} muted={!isMobile}
+      <video ref={videoRef} key={`${attempt}:${sourceIndex}`} src={source} autoPlay={active && !inlinePreview} loop={!inlinePreview && isMobile || undefined}
+        controls={inlinePreview || (isMobile ? active && controlsRequested : true)} muted={inlinePreview ? false : !isMobile}
         data-video-controls-requested={isMobile ? active && controlsRequested : undefined}
-        tabIndex={isMobile ? (active ? 0 : -1) : undefined}
-        onClick={event => revealPlayerControls(event.currentTarget)}
+        tabIndex={inlinePreview ? 0 : isMobile ? (active ? 0 : -1) : undefined}
+        onClick={inlinePreview ? undefined : event => revealPlayerControls(event.currentTarget)}
         onKeyDown={event => {
-          if (isMobile && active && !controlsRequested && (event.key === 'Enter' || event.key === ' ')) {
+          if (!inlinePreview && isMobile && active && !controlsRequested && (event.key === 'Enter' || event.key === ' ')) {
             event.preventDefault();
             revealPlayerControls(event.currentTarget);
           }
         }}
-        playsInline preload="metadata" aria-label={isMobile && !controlsRequested ? `${attachment.displayName}. Tap to play with sound and show controls.` : attachment.displayName}
+        playsInline preload="metadata" aria-label={!inlinePreview && isMobile && !controlsRequested ? `${attachment.displayName}. Tap to play with sound and show controls.` : attachment.displayName}
         onLoadedMetadata={() => setStatus('ready')} onPlay={event => { if (!active) event.currentTarget.pause(); else setStatus('ready'); }} onError={event => {
         if (sourceIndex + 1 < sources.length) {
           setSourceIndex(sourceIndex + 1);

@@ -3,11 +3,14 @@ export type FirstProjectStage = 'files' | 'details' | 'review';
 export type FirstProjectDraft = {
   updatedAt?: string; version: 1; accountId: string; profileId: string; draft: ProjectDraft;
   metadata: DraftMetadata; location: string; stage: FirstProjectStage;
+  hasChosenLocation?: boolean; ignoreInferredLocation?: boolean;
   media: PreparedMedia[]; persisted: PersistedMedia[]; attachments: PersistedAttachment[];
   committed?: PublishResult;
 };
 type Stored = Omit<FirstProjectDraft, 'media'> & { key: string; media: Array<Omit<PreparedMedia, 'file' | 'previewUrl'> & { lastModified: number }> };
 const queues = new Map<string, Promise<unknown>>();
+// A completed/discarded draft cannot be resurrected by an older queued save.
+const retiredDrafts = new Set<string>();
 const keyFor = (accountId: string, profileId: string, draftId?: string) => `${accountId}:${profileId}${draftId ? `:${draftId}` : ''}`;
 function serial<T>(key: string, run: () => Promise<T>): Promise<T> {
   const next = (queues.get(key) ?? Promise.resolve()).catch(() => undefined).then(run);
@@ -37,7 +40,8 @@ async function transaction<T>(mode: IDBTransactionMode, run: (tx: IDBTransaction
 }
 export function saveFirstProjectDraft(input: FirstProjectDraft, draftId?: string): Promise<void> {
   const key = keyFor(input.accountId, input.profileId, draftId);
-  return serial(key, () => transaction<void>('readwrite', tx => {
+  const identity = keyFor(input.accountId, input.profileId, input.draft.id);
+  return serial(key, () => retiredDrafts.has(identity) ? Promise.resolve() : transaction<void>('readwrite', tx => {
     const drafts = tx.objectStore('drafts'), files = tx.objectStore('files');
     const get = drafts.get(key);
     get.onsuccess = () => {
@@ -87,22 +91,30 @@ export function clearFirstProjectDraft(accountId: string, profileId: string, dra
   }));
 }
 
+export type DeviceDraft = Pick<FirstProjectDraft, 'draft' | 'metadata' | 'updatedAt' | 'stage' | 'committed'>;
 /** Metadata only: listing drafts never reads their files or creates object URLs. */
-export async function listDeviceDrafts(accountId: string, profileId: string) {
- return transaction<Array<{draft: ProjectDraft; metadata: DraftMetadata; updatedAt?: string; stage: FirstProjectStage; cover?: string}>>('readonly',(tx,done)=>{
+export async function listDeviceDrafts(accountId: string, profileId: string, includeCommitted = false) {
+ return transaction<DeviceDraft[]>('readonly',(tx,done)=>{
   const request=tx.objectStore('drafts').getAll();
-  request.onsuccess=()=>done((request.result as Stored[]).filter(r=>r.version===1&&r.accountId===accountId&&r.profileId===profileId&&r.draft.profileId===profileId&&!r.committed).map(r=>({draft:r.draft,metadata:r.metadata,stage:r.stage,updatedAt:r.updatedAt})));
+  request.onsuccess=()=>done((request.result as Stored[]).filter(r=>r.version===1&&r.accountId===accountId&&r.profileId===profileId&&r.draft.profileId===profileId&&(includeCommitted||!r.committed)).map(r=>({draft:r.draft,metadata:r.metadata,stage:r.stage,updatedAt:r.updatedAt,committed:r.committed})));
  });
+}
+
+/** Offer only work in this creator's current Portals; never delete unavailable work. */
+export function latestDeviceDraft(drafts: DeviceDraft[], categoryIds: string[]): DeviceDraft | null {
+ return [...drafts].filter(row=>categoryIds.includes(row.draft.categoryId))
+  .sort((a,b)=>Number(Boolean(b.committed))-Number(Boolean(a.committed))||(b.updatedAt??b.draft.createdAt).localeCompare(a.updatedAt??a.draft.createdAt))[0]??null;
 }
 
 /** Clear the legacy first-project alias only when it belongs to this draft. */
 export async function clearDraftWorkspace(accountId:string,profileId:string,draftId:string) {
+ retiredDrafts.add(keyFor(accountId,profileId,draftId));
  await clearFirstProjectDraft(accountId,profileId,draftId);
  const legacy=await readFirstProjectDraft(accountId,profileId);
  if(legacy?.draft.id===draftId)await clearFirstProjectDraft(accountId,profileId);
 }
 
 /** File bytes and temporary URLs are not edits; authored content and reached step are. */
-export function draftWorkspaceFingerprint(value: Pick<FirstProjectDraft,'metadata'|'location'|'stage'|'media'|'persisted'|'attachments'|'committed'>) {
+export function draftWorkspaceFingerprint(value: Pick<FirstProjectDraft,'metadata'|'location'|'hasChosenLocation'|'ignoreInferredLocation'|'stage'|'media'|'persisted'|'attachments'|'committed'>) {
  return JSON.stringify({...value,media:value.media.map(({file,previewUrl,...item})=>{void previewUrl;return {...item,lastModified:file.lastModified};})});
 }

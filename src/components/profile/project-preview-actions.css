@@ -1,0 +1,72 @@
+/* The same one-column details control belongs to Explore and catalogue cards,
+   including the separate public entry. Dense grids keep their compact control. */
+#root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .project-preview-card[data-mobile-project-card] .mobile-preview-details {
+  right: 8px; bottom: 8px;
+  width: 56px; height: 44px;
+  padding: 0; align-items: center; justify-content: center;
+  border-radius: 999px;
+  background: var(--surface-raised); color: var(--text-primary);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 24%), 0 0 0 1px rgb(127 127 127 / 28%);
+}
+#root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .project-preview-card[data-mobile-project-card] .mobile-preview-details > [data-interface-icon-frame] {
+  --interface-icon-size: 20px;
+  --interface-icon-stroke: 1.75;
+}
+#root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .project-preview-card[data-mobile-project-card] .mobile-preview-details svg { filter: none; }
+@layer portalink-interface-shapes {
+  #root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .project-preview-card[data-mobile-project-card] .mobile-preview-details {
+    border-radius: var(--ui-capsule-radius) !important;
+  }
+}
+
+#root .codex-shell[data-presentation='web'] .project-preview-card .mobile-preview-details {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card .mobile-preview-details svg {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 80%)) drop-shadow(0 0 1px rgb(0 0 0 / 90%));
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card[data-inline-project-pages] .mobile-preview-details {
+  right: 8px; bottom: 8px;
+  width: 56px; height: 44px;
+  padding: 0; align-items: center; justify-content: center;
+  border-radius: var(--ui-capsule-radius);
+  background: var(--surface-raised); color: var(--text-primary);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 24%), 0 0 0 1px rgb(127 127 127 / 28%);
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card[data-inline-project-pages] .mobile-preview-details > [data-interface-icon-frame] {
+  --interface-icon-size: 20px;
+  --interface-icon-stroke: 1.75;
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card[data-inline-project-pages] .mobile-preview-details svg { filter: none; }
+.project-preview-card .mobile-preview-details:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.inline-project-retry {
+  position: absolute;
+  z-index: 6;
+  top: 8px;
+  left: 8px;
+  min-height: 44px;
+  max-width: calc(100% - 16px);
+  padding: 8px 16px;
+  border-radius: var(--ui-capsule-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.inline-project-retry:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

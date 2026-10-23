@@ -1,0 +1,16 @@
+# Reviewable deployment input only; requires the separately reviewed PDF v2 schema.
+# Never start old and v2 queue workers together. No public port is exposed.
+name: portalink-pdf-queue
+services:
+  pdf-queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    restart: unless-stopped
+    command: ["python", "-m", "portalink_pdf_worker.main"]
+    environment:
+      SUPABASE_URL: "${SUPABASE_URL:?Set the existing Supabase project URL in the host environment}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:?Set the existing server-only worker key in the host environment}"
+    # Default job timeout is 900 seconds; allow its in-flight job to drain.
+    stop_grace_period: 20m
