@@ -22,8 +22,9 @@ function deepLinkedImageId(pages: ProjectAttachment[]): string | null {
 /**
  * One image page: loading, ready, and failure, per page rather than per project,
  * so one unreachable file never blanks the pages around it.
- * On mobile, the observer gates nearby pages; native lazy loading cannot start
- * an image that stays display:none until its load event.
+ * The observer gates nearby pages on both platforms. Once eligible, an image
+ * loads eagerly: native lazy loading cannot start a display:none image whose
+ * visibility waits for its load event. Only the first row gets high priority.
  */
 function ImagePage({
   projectId,
@@ -149,7 +150,7 @@ function ImagePage({
         cancelRecovery();
         retry();
       }} />
-        </div> : <ResponsiveImage data-media-page-surface="" key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} loading={isMobile ? 'eager' : 'lazy'} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media m-auto max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
+        </div> : <ResponsiveImage data-media-page-surface="" key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} loading="eager" onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media m-auto max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
       {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} pageCount={pageCount} isOwner={isOwner} target={{
         projectId,
