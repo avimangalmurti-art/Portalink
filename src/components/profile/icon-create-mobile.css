@@ -1,41 +1,57 @@
 /* Opt-in to the two mobile creation screens; desktop and other pickers are unchanged. */
 [data-mobile-icon-create] {--icon-create-gap:10px;--icon-create-edge:18px;--icon-create-control:50px;--icon-create-preview:102px;--icon-create-tile:78px;--icon-create-panel-radius:22px;}
-#root [data-mobile-icon-create],[data-presentation='mobile'][data-mobile-icon-create] {padding:0;background:#000;align-items:stretch;}
-#root [data-mobile-icon-create] [data-icon-create-panel],[data-presentation='mobile'][data-mobile-icon-create] [data-icon-create-panel] {height:var(--mobile-viewport-height,100dvh);max-height:var(--mobile-viewport-height,100dvh);width:100%;max-width:none;border:0;border-radius:0;background:#000;color:#fff;padding:var(--safe-area-top,env(safe-area-inset-top,0px)) 0 var(--safe-area-bottom,env(safe-area-inset-bottom,0px));box-shadow:none;}
+/* Portal creation follows the app's resolved Light appearance. Dark fallbacks
+   retain the existing creator palette, including the separate link picker. */
+#root .theme-light [data-mobile-icon-create='portal'] {
+  color-scheme: light;
+  --icon-create-canvas: var(--surface-canvas);
+  --icon-create-foreground: var(--text-primary);
+  --icon-create-muted: var(--text-secondary);
+  --icon-create-placeholder: var(--text-tertiary);
+  --icon-create-border: var(--hairline-strong);
+  --icon-create-tile-border: var(--hairline);
+  --icon-create-field-background: var(--surface-raised);
+  --icon-create-control-background: var(--surface-pressed);
+  --icon-create-close-background: var(--surface-hover);
+  --icon-create-library-background: var(--surface-sunken);
+  --icon-create-tile-background: var(--surface-raised);
+}
+#root [data-mobile-icon-create],[data-presentation='mobile'][data-mobile-icon-create] {padding:0;background:var(--icon-create-canvas,#000);align-items:stretch;}
+#root [data-mobile-icon-create] [data-icon-create-panel],[data-presentation='mobile'][data-mobile-icon-create] [data-icon-create-panel] {height:var(--mobile-viewport-height,100dvh);max-height:var(--mobile-viewport-height,100dvh);width:100%;max-width:none;border:0;border-radius:0;background:var(--icon-create-canvas,#000);color:var(--icon-create-foreground,#fff);padding:var(--safe-area-top,env(safe-area-inset-top,0px)) 0 var(--safe-area-bottom,env(safe-area-inset-bottom,0px));box-shadow:none;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-header] {height:56px;min-height:56px;padding:0 var(--icon-create-edge);}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-header] h2 {font-size:20px;font-weight:600;}
-#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-header] button {left:var(--icon-create-edge);width:44px;height:44px;min-width:44px;min-height:44px;border:1px solid #ffffff30;border-radius:999px;background:#ffffff14;color:#eee;}
+#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-header] button {left:var(--icon-create-edge);width:44px;height:44px;min-width:44px;min-height:44px;border:1px solid var(--icon-create-border,#ffffff30);border-radius:999px;background:var(--icon-create-close-background,#ffffff14);color:var(--icon-create-foreground,#eee);}
 #root [data-mobile-icon-create] [data-icon-create-body],[data-mobile-icon-create] [data-icon-create-body] {padding:0 0 16px;overflow:hidden;min-height:0;flex:1;display:flex;flex-direction:column;}
-#root [data-mobile-icon-create] .new-portal-pinned-controls,[data-mobile-icon-create] [data-link-icon-pinned] {display:block;flex-shrink:0;position:static;margin:0;padding:0;background:#000;backdrop-filter:none;-webkit-backdrop-filter:none;}
+#root [data-mobile-icon-create] .new-portal-pinned-controls,[data-mobile-icon-create] [data-link-icon-pinned] {display:block;flex-shrink:0;position:static;margin:0;padding:0;background:var(--icon-create-canvas,#000);backdrop-filter:none;-webkit-backdrop-filter:none;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-preview] {width:var(--icon-create-preview);height:var(--icon-create-preview);border-radius:22px;background:var(--accent-primary);color:var(--accent-foreground);}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-preview] svg {width:44px;height:44px;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-link-icon-pinned]>p {display:none;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field] {display:flex;gap:8px;margin-top:20px;margin-bottom:14px;align-items:center;}
-#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field] :is(input,label) {height:var(--icon-create-control);min-width:0;flex:1;margin:0;border:1px solid #ffffff30;border-radius:11px;background:#050505;text-align:left;padding:0 18px;font-size:16px;}
+#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field] :is(input,label) {height:var(--icon-create-control);min-width:0;flex:1;margin:0;border:1px solid var(--icon-create-border,#ffffff30);border-radius:11px;background:var(--icon-create-field-background,#050505);text-align:left;padding:0 18px;font-size:16px;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field] label input {padding:0;border:0;height:100%;width:100%;background:none;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field] label :is(svg,.interface-icon) {display:none;}
-#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field]>button {height:var(--icon-create-control);width:var(--icon-create-control);min-width:var(--icon-create-control);border:1px solid #ffffff30;border-radius:11px;background:#ffffff24;color:#fff;}
+#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field]>button {height:var(--icon-create-control);width:var(--icon-create-control);min-width:var(--icon-create-control);border:1px solid var(--icon-create-border,#ffffff30);border-radius:11px;background:var(--icon-create-control-background,#ffffff24);color:var(--icon-create-foreground,#fff);}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-link-icon-scroll] {overflow-y:auto;overflow-x:hidden;}
-#root [data-mobile-icon-create] [data-icon-create-panel] section[aria-label='Icon library'] {margin-top:0;background:#101010;border-radius:var(--icon-create-panel-radius);padding:12px;}
+#root [data-mobile-icon-create] [data-icon-create-panel] section[aria-label='Icon library'] {margin-top:0;background:var(--icon-create-library-background,#101010);border-radius:var(--icon-create-panel-radius);padding:12px;}
 #root [data-mobile-icon-create] [data-icon-create-panel] section[aria-label='Icon library']>p {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
 #root [data-mobile-icon-create] [data-icon-create-panel] section[aria-label='Icon library']>[role] {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--icon-create-gap);}
-#root [data-mobile-icon-create] [data-icon-create-panel] section[aria-label='Icon library'] button {aspect-ratio:1;height:auto;min-height:var(--icon-create-tile);border:1px solid #ffffff20;border-radius:12px;background:#121212;color:#ccc;}
-#root [data-mobile-icon-create] [data-icon-create-panel] section[aria-label='Icon library'] button:is([aria-checked='true'],[aria-pressed='true']) {border-color:var(--accent-primary);color:var(--accent-primary);background:#121212;box-shadow:none;outline:none;}
+#root [data-mobile-icon-create] [data-icon-create-panel] section[aria-label='Icon library'] button {aspect-ratio:1;height:auto;min-height:var(--icon-create-tile);border:1px solid var(--icon-create-tile-border,#ffffff20);border-radius:12px;background:var(--icon-create-tile-background,#121212);color:var(--icon-create-muted,#ccc);}
+#root [data-mobile-icon-create] [data-icon-create-panel] section[aria-label='Icon library'] button:is([aria-checked='true'],[aria-pressed='true']) {border-color:var(--accent-primary);color:var(--accent-primary);background:var(--icon-create-tile-background,#121212);box-shadow:none;outline:none;}
 #root [data-mobile-icon-create] [data-icon-create-panel] section[aria-label='Icon library'] button svg {width:26px;height:26px;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-link-brand-icons] {display:none;}
-#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] {display:flex;flex-wrap:nowrap;gap:10px;padding:14px var(--icon-create-edge) 22px;border-top:0;background:#000;}
+#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] {display:flex;flex-wrap:nowrap;gap:10px;padding:14px var(--icon-create-edge) 22px;border-top:0;background:var(--icon-create-canvas,#000);}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] button {flex:1;width:0;min-width:0;height:50px;min-height:50px;border-radius:14px;font-size:16px;justify-content:center;}
-#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] button:first-child {background:#ffffff24;color:white;}
+#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] button:first-child {background:var(--icon-create-control-background,#ffffff24);color:var(--icon-create-foreground,white);}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] button:last-child {background:var(--accent-primary);color:var(--accent-foreground);}
 
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-preview-row] {padding-top:8px;}
-#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-header] button {border:1px solid #ffffff30!important;border-radius:999px!important;background:#ffffff14!important;color:#eee!important;}
+#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-header] button {border:1px solid var(--icon-create-border,#ffffff30)!important;border-radius:999px!important;background:var(--icon-create-close-background,#ffffff14)!important;color:var(--icon-create-foreground,#eee)!important;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-header] button svg {width:26px!important;height:26px!important;}
-#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field] input,[data-mobile-icon-create] [data-icon-create-field] label {background:#050505!important;}
-#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field]>button {border:1px solid #ffffff30!important;border-radius:11px!important;background:#ffffff24!important;}
+#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field] input,[data-mobile-icon-create] [data-icon-create-field] label {background:var(--icon-create-field-background,#050505)!important;}
+#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field]>button {border:1px solid var(--icon-create-border,#ffffff30)!important;border-radius:11px!important;background:var(--icon-create-control-background,#ffffff24)!important;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-field]>button svg {width:24px!important;height:24px!important;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] button {border-radius:14px!important;font-size:16px!important;}
-#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] button:first-child {background:#ffffff24!important;color:white!important;}
+#root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] button:first-child {background:var(--icon-create-control-background,#ffffff24)!important;color:var(--icon-create-foreground,white)!important;}
 #root [data-mobile-icon-create] [data-icon-create-panel] [data-icon-create-footer] button:last-child {background:var(--accent-primary)!important;color:var(--accent-foreground)!important;}
 
 #root [data-mobile-icon-create] [data-icon-create-panel] :is([data-icon-create-preview],button) {corner-shape:round!important;}
@@ -45,23 +61,23 @@
 #root [data-mobile-icon-create='portal'] {z-index:100;}
 #root [data-mobile-icon-create] [data-icon-create-body] {overscroll-behavior-y:contain;}
 
-/* Portals can mount beside the presentation host. The mobile opt-in owns its
-   dark surface independently of the surrounding app's light/dark appearance. */
-#root [data-mobile-icon-create] {color-scheme:dark;--surface-canvas:#000;--surface-raised:#1c1c1e;--text-primary:#fff;--text-secondary:#ccc;--text-tertiary:#8e8e93;--label-primary:#fff;--label-secondary:#ccc;--label-tertiary:#8e8e93;background:#000!important;}
-#root [data-mobile-icon-create] [data-icon-create-panel] {background:#000!important;color:#fff!important;}
-#root [data-mobile-icon-create] [data-icon-create-header] h2 {color:#fff;}
+/* Keep the existing Dark and link-picker palettes. Light portal creation
+   inherits the themed app shell through ModalPortal without redefining tokens. */
+#root [data-mobile-icon-create='link'],#root .theme-dark [data-mobile-icon-create='portal'] {color-scheme:dark;--surface-canvas:#000;--surface-raised:#1c1c1e;--text-primary:#fff;--text-secondary:#ccc;--text-tertiary:#8e8e93;--label-primary:#fff;--label-secondary:#ccc;--label-tertiary:#8e8e93;background:#000!important;}
+#root [data-mobile-icon-create] [data-icon-create-panel] {background:var(--icon-create-canvas,#000)!important;color:var(--icon-create-foreground,#fff)!important;}
+#root [data-mobile-icon-create] [data-icon-create-header] h2 {color:var(--icon-create-foreground,#fff);}
 #root [data-mobile-icon-create] [data-icon-create-field] {width:100%;min-width:0;}
 #root [data-mobile-icon-create] [data-icon-create-field]>label {display:flex;width:0;overflow:hidden;}
-#root [data-mobile-icon-create] [data-icon-create-field] input {color:#fff!important;-webkit-text-fill-color:#fff;}
-#root [data-mobile-icon-create] [data-icon-create-field] input::placeholder {color:#8e8e93;-webkit-text-fill-color:#8e8e93;}
+#root [data-mobile-icon-create] [data-icon-create-field] input {color:var(--icon-create-foreground,#fff)!important;-webkit-text-fill-color:var(--icon-create-foreground,#fff);}
+#root [data-mobile-icon-create] [data-icon-create-field] input::placeholder {color:var(--icon-create-placeholder,#8e8e93);-webkit-text-fill-color:var(--icon-create-placeholder,#8e8e93);}
 #root [data-mobile-icon-create] [data-icon-create-field] label input {border-radius:0;background:transparent!important;}
-#root [data-mobile-icon-create] [data-icon-create-field]>button {color:#fff!important;}
+#root [data-mobile-icon-create] [data-icon-create-field]>button {color:var(--icon-create-foreground,#fff)!important;}
 #root [data-mobile-icon-create] [data-portal-icon-scroll] {flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;}
-#root [data-mobile-icon-create] [data-icon-create-field]>:is(input,label) {border:1px solid #ffffff30!important;border-radius:11px!important;}
-#root [data-mobile-icon-create] [data-link-icon-pinned] {background:#000!important;padding:0 var(--icon-create-edge);}
-#root [data-mobile-icon-create] [data-icon-create-field]>label {background:#050505!important;}
+#root [data-mobile-icon-create] [data-icon-create-field]>:is(input,label) {border:1px solid var(--icon-create-border,#ffffff30)!important;border-radius:11px!important;}
+#root [data-mobile-icon-create] [data-link-icon-pinned] {background:var(--icon-create-canvas,#000)!important;padding:0 var(--icon-create-edge);}
+#root [data-mobile-icon-create] [data-icon-create-field]>label {background:var(--icon-create-field-background,#050505)!important;}
 #root [data-mobile-icon-create] [data-icon-create-field]>label input {background:transparent!important;border:0!important;border-radius:0!important;padding:0!important;}
-#root [data-mobile-icon-create] .new-portal-pinned-controls {padding:0 var(--icon-create-edge)!important;margin:0!important;background:#000!important;}
+#root [data-mobile-icon-create] .new-portal-pinned-controls {padding:0 var(--icon-create-edge)!important;margin:0!important;background:var(--icon-create-canvas,#000)!important;}
 #root [data-mobile-icon-create] :is([data-portal-icon-scroll], [data-link-icon-scroll]) {padding-inline:var(--icon-create-edge);}
 
 /* Keep link-picker actions inside the visible viewport, including the keyboard.
@@ -93,7 +109,7 @@
   min-height: 0;
   container: new-portal-viewport / size;
   overflow: hidden;
-  background: #000 !important;
+  background: var(--icon-create-canvas, #000) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
