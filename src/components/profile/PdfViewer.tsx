@@ -137,11 +137,11 @@ export function PdfViewer({
           Page {hoveredPage ?? currentPage} of {pageCount}
         </p>
         <div className="side-panel-header-control side-panel-control-row min-w-0 bg-[var(--surface-sunken)] px-1.5">
-          <button type="button" onClick={() => adjustZoom(-ZOOM_STEP)} aria-label="Show smaller" disabled={zoom <= MIN_ZOOM} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button type="button" onClick={() => adjustZoom(-ZOOM_STEP)} aria-label="Show smaller" disabled={zoom <= MIN_ZOOM} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MinusIcon} size="sm" weight="medium" />
           </button>
           <input type="range" min={MIN_ZOOM} max={MAX_ZOOM} step={ZOOM_STEP} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Display size" className="zoom-range h-1 w-24 min-w-8 flex-1 cursor-pointer" />
-          <button type="button" onClick={() => adjustZoom(ZOOM_STEP)} aria-label="Show larger" disabled={zoom >= MAX_ZOOM} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button type="button" onClick={() => adjustZoom(ZOOM_STEP)} aria-label="Show larger" disabled={zoom >= MAX_ZOOM} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
           </button>
         </div>
@@ -161,7 +161,7 @@ export function PdfViewer({
         }} onDoubleClick={() => openPageAtFocusZoom(index)} onMouseEnter={() => setHoveredPage(index + 1)} onMouseLeave={() => setHoveredPage((current) => current === index + 1 ? null : current)} style={{
           width: `${pageWidth}px`
         }}>
-              <div aria-label={`Page ${index + 1}`} data-artboard="" className="flex aspect-[1/1.294] w-full flex-col gap-[3%] rounded-[4px] bg-[var(--surface-placeholder)] p-[8%] outline outline-1 outline-transparent transition-[outline-color] duration-150 hover:outline-[var(--hairline-strong)]">
+              <div aria-label={`Page ${index + 1}`} data-artboard="" className="flex aspect-[1/1.294] w-full flex-col gap-[3%] rounded-[4px] bg-[var(--surface-placeholder)] p-[8%] outline outline-1 outline-transparent transition-[outline-color] duration-[var(--m-fast)] hover:outline-[var(--hairline-strong)]">
                 <span aria-hidden="true" className="block h-[9%] w-[72%] rounded-[3px] bg-[var(--text-disabled)]" />
                 <span aria-hidden="true" className="block h-[9%] w-[54%] rounded-[3px] bg-[var(--text-disabled)]" />
                 <span aria-hidden="true" className="mt-[4%] block h-[34%] w-full rounded-[3px] bg-[var(--text-disabled)]" />
