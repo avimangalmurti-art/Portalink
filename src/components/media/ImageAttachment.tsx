@@ -11,6 +11,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import { FocusedPageExitControl } from './FocusedPageExitControl';
 import { FocusedPageCounter } from './FocusedPageCounter';
+import { useMobileMediaRecovery } from './useMobileMediaRecovery';
 
 function deepLinkedImageId(pages: ProjectAttachment[]): string | null {
   if (typeof window === 'undefined') return null;
@@ -46,6 +47,30 @@ function ImagePage({
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   // Remounting the element is what a retry actually means for an image.
   const [attempt, setAttempt] = useState(0);
+  const recoveryIdentity = `${projectId}:${attachment.id}:${attachment.sourceUrl ?? ''}`;
+  const previousSource = useRef(recoveryIdentity);
+  useLayoutEffect(() => {
+    if (previousSource.current === recoveryIdentity) return;
+    previousSource.current = recoveryIdentity;
+    if (isMobile) {
+      setStatus('loading');
+      setAttempt(current => current + 1);
+    }
+  }, [isMobile, recoveryIdentity]);
+  useLayoutEffect(() => {
+    if (!isMobile || !shouldRender || status !== 'loading') return;
+    const image = hostRef.current?.querySelector<HTMLImageElement>('img[data-media-page-surface]');
+    // A ready browser-cache hit needs no placeholder frame or synthetic load event.
+    if (image?.complete && image.naturalWidth > 0) setStatus('ready');
+  }, [attempt, isMobile, recoveryIdentity, shouldRender, status]);
+  const retry = () => {
+    setStatus('loading');
+    setAttempt(current => current + 1);
+  };
+  const cancelRecovery = useMobileMediaRecovery({
+    hostRef, identity: recoveryIdentity, enabled: isMobile && shouldRender && Boolean(attachment.sourceUrl),
+    failed: status === 'error', loading: status === 'loading', onRetry: retry,
+  });
   const loadingStyle = {
     '--page-loading-ratio': attachment.metadata?.widthPixels && attachment.metadata?.heightPixels
       ? `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}` : undefined,
@@ -86,7 +111,7 @@ function ImagePage({
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
-  return <li ref={hostRef} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })} onDoubleClick={isFocused ? undefined : (event) => {
+  return <li ref={hostRef} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={isFocused ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
@@ -106,6 +131,7 @@ function ImagePage({
       onToggleFocus(attachment.id);
     }
   }} onKeyDown={isFocused ? undefined : (event) => {
+    if (event.target !== event.currentTarget) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onToggleFocus(attachment.id);
@@ -118,10 +144,10 @@ function ImagePage({
       {status === 'loading' && <div data-page-loading="" data-initial-page-loading={pageNumber === 1 ? '' : undefined} style={loadingStyle} role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
           <span className="premium-media-loading-mark" aria-hidden="true" />
         </div>}
-      {status === 'error' ? <div className="flex min-h-[240px] w-full items-center justify-center p-8">
-          <ErrorState title="This image could not be displayed" description={attachment.fileName} onRetry={() => {
-        setStatus('loading');
-        setAttempt((current) => current + 1);
+      {status === 'error' ? <div onPointerUp={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} style={loadingStyle} data-page-loading="" className="flex min-h-[240px] w-full items-center justify-center p-5">
+          <ErrorState title="This image could not be displayed" description="Check your connection, then try loading this image again." onRetry={() => {
+        cancelRecovery();
+        retry();
       }} />
         </div> : <ResponsiveImage data-media-page-surface="" key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} loading={isMobile ? 'eager' : 'lazy'} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media m-auto max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
@@ -274,10 +300,10 @@ export function ImageAttachment({
           label="Exit single-image view"
         />
         {pages.length > 1 ? <>
-            {!isMobile && focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" data-side="previous" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous image" className="premium-viewer-page-control side-panel-compact-control absolute left-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
+            {!isMobile && focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" data-ui-shape="icon" data-side="previous" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous image" className="premium-viewer-page-control side-panel-compact-control absolute left-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
               <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
             </button> : null}
-            {!isMobile && focusedPageIndex < pages.length - 1 ? <button type="button" data-viewer-page-control="" data-side="next" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} aria-label="Next image" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
+            {!isMobile && focusedPageIndex < pages.length - 1 ? <button type="button" data-viewer-page-control="" data-ui-shape="icon" data-side="next" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} aria-label="Next image" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
               <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
             </button> : null}
             <FocusedPageCounter current={focusedPageIndex + 1} total={pages.length} showMediaInteractions={showMediaInteractions} />

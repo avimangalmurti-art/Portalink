@@ -79,3 +79,12 @@ test('public project navigation keeps its title and Back path without layout or 
   for (const name of ['Back to portals', 'Pages per row', 'Show project grid', 'Sort projects']) assert.equal(control(tree, name), undefined);
   assert.equal(nodes(tree).some(node => node.props.className === 'mobile-portal-index-preferences'), false);
 });
+
+test('a Timeline portal popup announces its own return destination while retaining the same Back action', () => {
+  const h = harness();
+  Object.assign(h.props, { sharedReadOnly: true, backLabel: 'Back to Timeline' });
+  const tree = h.render();
+  assert.equal(control(tree, 'Back to profile'), undefined);
+  control(tree, 'Back to Timeline').props.onClick();
+  assert.deepEqual(h.calls, [['back']]);
+});

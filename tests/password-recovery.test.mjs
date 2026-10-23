@@ -6,12 +6,18 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
+import { authReturnOriginFixture, officialAuthOrigin } from './helpers/auth-return-origin-fixture.mjs';
 
 function load(path, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, URL, URLSearchParams, atob, ...globals, require: (name) => {
+    if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
+    if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
+    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
+    if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
+
     assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name];
   } });
   return exports;
@@ -118,6 +124,7 @@ function serviceHarness({ callbackFailed = false } = {}) {
       },
     },
     '../../utils/passwordRecoveryReturn': returnHelpers,
+    '../../utils/authReturnOrigin': authReturnOriginFixture,
   }, { window: browser });
   return { auth, tracker, updates, browser, get requested() { return requested; },
     recover() { tracker.record('PASSWORD_RECOVERY', current); },
@@ -133,7 +140,7 @@ test('email requests use the reset form return URL and do not authorize a passwo
   const env = serviceHarness();
   const result = await env.auth.requestPasswordReset({ email: ' Person@Example.test ' });
   assert.equal(env.requested.email, 'person@example.test');
-  assert.equal(env.requested.options.redirectTo, 'https://portalink.test/?auth=reset-password');
+  assert.equal(env.requested.options.redirectTo, officialAuthOrigin + '/?auth=reset-password');
   assert.equal(result.deliveryConfirmed, true);
   assert.equal(await env.auth.getRecoverySession(), null);
   await assert.rejects(env.auth.updatePassword({ password: 'new-password-example' }), { code: 'recovery_session_invalid' });
