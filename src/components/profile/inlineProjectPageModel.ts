@@ -5,6 +5,7 @@ import { navigationSwipe } from '../../presentation/mobile/useNavigationSwipe';
 
 export type InlineProjectSlide = CataloguePagePosition & { attachment?: ProjectAttachment };
 export type InlineGestureSample = { x: number; y: number; time: number };
+type InlineProjectSource = Pick<Project, 'attachments'> & Partial<Pick<Project, 'cover' | 'coverThumbnail' | 'coverKind' | 'coverPageNumber'>>;
 
 export function inlinePositionMatches(position: CataloguePagePosition, slide: CataloguePagePosition): boolean {
   return position.key === slide.key && position.index === slide.index && position.attachmentId === slide.attachmentId && position.page === slide.page;
@@ -23,11 +24,47 @@ export function inlineDocumentCountKey(attachment: ProjectAttachment): string {
   return JSON.stringify([attachment.id, attachment.sourceUrl]);
 }
 
-/** The cover is a separate slide; no invented chapter, placeholder image or reordering. */
-export function inlineProjectSlides(project: Pick<Project, 'attachments'>, documentCounts: Readonly<Record<string, number>> = {}): InlineProjectSlide[] {
+/** Signing tokens are delivery credentials, not part of a stored asset's identity.
+ * Generic URL queries/fragments may identify different content and stay intact. */
+function canonicalSource(source?: string | null): string | undefined {
+  if (!source?.trim()) return undefined;
+  try {
+    const url = new URL(source, 'https://portalink.invalid');
+    if (/^\/storage\/v1\/object\/sign\//.test(url.pathname)) url.searchParams.delete('token');
+    return url.href;
+  } catch { return source; }
+}
+
+function sameSource(left?: string | null, right?: string | null): boolean {
+  const reference = canonicalSource(left);
+  return reference !== undefined && reference === canonicalSource(right);
+}
+
+/** Only the first actual content page can duplicate the cover. Later reuse is intentional. */
+function firstCoverDuplicateKey(project: InlineProjectSource, first?: ProjectAttachment): string | undefined {
+  if (!first) return undefined;
+  const sourceId = project.coverThumbnail?.sourceAttachmentId;
+  const source = sourceId ? project.attachments?.find(item => item.id === sourceId) : undefined;
+  // A thumbnail manifest describes the painted cover, even when cover is a stale fallback URL.
+  const sameAsset = sourceId
+    ? first.id === sourceId || Boolean(source && sameSource(source.sourceUrl, first.sourceUrl))
+    : sameSource(project.cover, first.sourceUrl);
+  if (first.kind === 'document') {
+    const page = project.coverPageNumber ?? source?.metadata?.coverPageNumber ?? first.metadata?.coverPageNumber ?? 1;
+    const firstRaster = first.metadata?.renderedPages?.find(item => item.attachmentId === first.id && item.withinDocumentIndex === 1);
+    if (page === 1 && (sameAsset || !sourceId && sameSource(project.cover, firstRaster?.sourceUrl))) return `${first.id}:page:1`;
+  } else if ((first.kind === 'image' || first.kind === 'video' && project.coverKind === 'video') && sameAsset) {
+    return `${first.id}:${first.kind === 'image' ? 'image' : 'media'}`;
+  }
+  return undefined;
+}
+
+/** Cover once, followed by ordered real content; reader page ordinals never change. */
+export function inlineProjectSlides(project: InlineProjectSource, documentCounts: Readonly<Record<string, number>> = {}): InlineProjectSlide[] {
   const slides: InlineProjectSlide[] = [{ index: 0, key: 'cover' }];
+  const ordered = [...(project.attachments ?? [])].sort((left, right) => left.order - right.order);
   let imageNumber = 0;
-  for (const attachment of [...(project.attachments ?? [])].sort((left, right) => left.order - right.order)) {
+  for (const attachment of ordered) {
     if (attachment.kind === 'document') {
       const count = inlineDocumentCount(attachment, documentCounts[inlineDocumentCountKey(attachment)]) ?? 1;
       for (let page = 1; page <= count; page++) slides.push({ index: slides.length, key: `${attachment.id}:page:${page}`, attachmentId: attachment.id, page, attachment });
@@ -37,15 +74,21 @@ export function inlineProjectSlides(project: Pick<Project, 'attachments'>, docum
       slides.push({ index: slides.length, key: `${attachment.id}:${image ? 'image' : 'media'}`, attachmentId: attachment.id, ...(image ? { page: imageNumber } : {}), attachment });
     }
   }
+  const duplicate = firstCoverDuplicateKey(project, ordered[0]);
+  if (duplicate && slides[1]?.key === duplicate) {
+    slides.splice(1, 1);
+    slides.forEach((slide, index) => { slide.index = index; });
+  }
   return slides;
 }
 
 /** Dense cards keep the same truthful target without needing to mount a renderer. */
-export function normalizeInlineProjectPosition(project: Pick<Project, 'attachments'>, position?: CataloguePagePosition, metadataComplete = false): CataloguePagePosition | undefined {
+export function normalizeInlineProjectPosition(project: InlineProjectSource, position?: CataloguePagePosition, metadataComplete = false): CataloguePagePosition | undefined {
   if (!metadataComplete || !position || project.attachments === undefined) return position;
   const cover = { index: 0, key: 'cover' };
   if (position.key === 'cover' || project.attachments.length === 0) return cover;
   const ordered = [...project.attachments].sort((left, right) => left.order - right.order);
+  if (position.key === firstCoverDuplicateKey(project, ordered[0])) return cover;
   const attachment = position.attachmentId ? ordered.find(item => item.id === position.attachmentId) : undefined;
   if (position.attachmentId && !attachment) return cover;
   const unknown = ordered.some(item => item.kind === 'document' && inlineDocumentCount(item) === undefined);

@@ -45,6 +45,109 @@ test('image reading targets count images independently of PDFs and other media',
   assert.equal(model.inlinePositionMatches({ index: 5, key: 'image2:image', attachmentId: 'image2', page: 1 }, slides.at(-1)), false);
 });
 
+test('authoritative cover attachment identity removes only the first matching image and retains original reader ordinals', () => {
+  const first = file('first', 'image', 0), second = file('second', 'image', 1);
+  const attachments = [second, first], original = JSON.stringify(attachments);
+  const project = { cover: '/pre-rendered-thumbnail.webp', coverThumbnail: { sourceAttachmentId: 'first' }, attachments };
+  assert.deepEqual(plain(model.inlineProjectSlides(project).map(({ index, key, attachmentId, page }) => ({ index, key, attachmentId, page }))), [
+    { index: 0, key: 'cover' }, { index: 1, key: 'second:image', attachmentId: 'second', page: 2 },
+  ]);
+  assert.equal(JSON.stringify(attachments), original, 'Cover de-duplication never mutates attachment data or authored ordering.');
+  const conflicting = { ...project, cover: first.sourceUrl, coverThumbnail: { sourceAttachmentId: 'second' } };
+  assert.deepEqual(plain(model.inlineProjectSlides(conflicting).map(slide => slide.key)), ['cover', 'first:image', 'second:image'],
+    'The displayed thumbnail source is authoritative over a stale project.cover URL.');
+  assert.deepEqual(plain(model.inlineProjectSlides({ ...project, attachments: [{ ...first, sourceUrl: null }] }).map(slide => slide.key)), ['cover'],
+    'Stable cover provenance remains valid when an original has no current delivery URL.');
+});
+
+test('canonical signed storage references tolerate token rotation but retain meaningful source differences', () => {
+  const base = 'https://storage.example.invalid/storage/v1/object/sign/project-media/profile/project/first.webp';
+  const first = { ...file('first', 'image', 0), sourceUrl: `${base}?token=new&download=original` };
+  const keys = cover => plain(model.inlineProjectSlides({ cover, attachments: [first, file('second', 'image', 1)] }).map(slide => slide.key));
+  assert.deepEqual(keys(`${base}?token=old&download=original`), ['cover', 'second:image']);
+  for (const cover of [
+    `${base}?token=old&download=different`,
+    `${base.replace('storage.example.invalid', 'other.example.invalid')}?token=old&download=original`,
+    `${base.replace('first.webp', 'different.webp')}?token=old&download=original`,
+  ]) assert.deepEqual(keys(cover), ['cover', 'first:image', 'second:image']);
+  for (const [cover, sourceUrl] of [
+    ['https://images.example.invalid/render?asset=first', 'https://images.example.invalid/render?asset=other'],
+    ['https://images.example.invalid/first.webp?token=old', 'https://images.example.invalid/first.webp?token=new'],
+    ['/first.webp#first-view', '/first.webp#other-view'],
+  ]) assert.deepEqual(plain(model.inlineProjectSlides({ cover, attachments: [{ ...first, sourceUrl }] }).map(slide => slide.key)), ['cover', 'first:image']);
+});
+
+test('separate covers, unproven cover flags and later intentional asset reuse remain content', () => {
+  const first = { ...file('first', 'image', 0), sourceUrl: '/cover.webp', isCover: true };
+  const later = { ...file('later', 'image', 2), sourceUrl: first.sourceUrl };
+  const second = file('second', 'image', 1);
+  assert.deepEqual(plain(model.inlineProjectSlides({ cover: first.sourceUrl, attachments: [first, second, later] }).map(slide => slide.key)),
+    ['cover', 'second:image', 'later:image'], 'Only the first content entry is removed; later reuse is authored content.');
+  assert.deepEqual(plain(model.inlineProjectSlides({ cover: '/different-cover.webp', attachments: [first, second] }).map(slide => slide.key)),
+    ['cover', 'first:image', 'second:image'], 'isCover alone cannot override a distinct displayed cover.');
+  assert.deepEqual(plain(model.inlineProjectSlides({ cover: second.sourceUrl, attachments: [first, second] }).map(slide => slide.key)),
+    ['cover', 'first:image', 'second:image'], 'A later cover asset is not silently removed from the project sequence.');
+});
+
+test('PDF cover identity includes the chosen page and removes only a matching first document page', () => {
+  const doc = file('doc', 'document', 0, { pageCount: 3, coverPageNumber: 2 });
+  const project = { cover: '/thumbnail.webp', coverThumbnail: { sourceAttachmentId: 'doc' }, coverKind: 'document', attachments: [doc] };
+  const keys = value => plain(model.inlineProjectSlides(value).map(slide => slide.key));
+  assert.deepEqual(keys({ ...project, coverPageNumber: 1 }), ['cover', 'doc:page:2', 'doc:page:3']);
+  assert.deepEqual(keys({ ...project, coverPageNumber: 2 }), ['cover', 'doc:page:1', 'doc:page:2', 'doc:page:3']);
+  assert.deepEqual(keys(project), ['cover', 'doc:page:1', 'doc:page:2', 'doc:page:3'], 'Attachment cover-page metadata is used when the project has no explicit page.');
+  const defaultDoc = file('doc', 'document', 0, { pageCount: 3 });
+  assert.deepEqual(keys({ ...project, attachments: [defaultDoc] }), ['cover', 'doc:page:2', 'doc:page:3']);
+  assert.deepEqual(plain(model.inlineProjectSlides({ ...project, coverPageNumber: 1 }).slice(1).map(({ index, page }) => ({ index, page }))),
+    [{ index: 1, page: 2 }, { index: 2, page: 3 }]);
+  const unknown = file('unknown', 'document', 0);
+  const resolved = model.inlineProjectSlides({ cover: unknown.sourceUrl, coverKind: 'document', attachments: [unknown] }, { [model.inlineDocumentCountKey(unknown)]: 3 });
+  assert.deepEqual(plain(resolved.map(slide => slide.key)), ['cover', 'unknown:page:2', 'unknown:page:3'],
+    'Resolving the real PDF catalog count cannot reintroduce its duplicate cover page.');
+});
+
+test('a rasterized PDF cover matches only its actual first page provenance', () => {
+  const doc = file('doc', 'document', 0, { pageCount: 2, renderedPages: [
+    { attachmentId: 'doc', withinDocumentIndex: 1, sourceUrl: '/rendered-first.webp', storagePath: 'profile/project/page-1.webp' },
+    { attachmentId: 'doc', withinDocumentIndex: 2, sourceUrl: '/rendered-second.webp', storagePath: 'profile/project/page-2.webp' },
+  ] });
+  const keys = (cover, attachments = [doc]) => plain(model.inlineProjectSlides({ cover, attachments }).map(slide => slide.key));
+  assert.deepEqual(keys('/rendered-first.webp'), ['cover', 'doc:page:2']);
+  assert.deepEqual(keys('/rendered-second.webp'), ['cover', 'doc:page:1', 'doc:page:2']);
+  const foreign = { ...doc, metadata: { ...doc.metadata, renderedPages: [{ attachmentId: 'other-document', withinDocumentIndex: 1, sourceUrl: '/rendered-first.webp' }] } };
+  assert.deepEqual(keys('/rendered-first.webp', [foreign]), ['cover', 'doc:page:1', 'doc:page:2']);
+});
+
+test('matching video cover assets are not duplicated while audio and unsupported cover kinds retain their content controls', () => {
+  const video = file('video', 'video', 0);
+  assert.deepEqual(plain(model.inlineProjectSlides({ cover: video.sourceUrl, coverKind: 'video', attachments: [video] }).map(slide => slide.key)), ['cover']);
+  const audio = file('audio', 'audio', 0);
+  assert.deepEqual(plain(model.inlineProjectSlides({ cover: audio.sourceUrl, attachments: [audio] }).map(slide => slide.key)), ['cover', 'audio:media']);
+  const unsupported = file('interactive', 'interactive', 0);
+  assert.deepEqual(plain(model.inlineProjectSlides({ cover: unsupported.sourceUrl, attachments: [unsupported] }).map(slide => slide.key)), ['cover', 'interactive:media']);
+});
+
+test('remembered duplicate positions resolve to the cover while later content retains attachment and true reading page', () => {
+  const first = file('first', 'image', 0), second = file('second', 'image', 1), repeat = { ...file('repeat', 'image', 2), sourceUrl: first.sourceUrl };
+  const project = { cover: first.sourceUrl, attachments: [first, second, repeat] };
+  const omitted = { index: 1, key: 'first:image', attachmentId: 'first', page: 1 };
+  assert.deepEqual(plain(model.normalizeInlineProjectPosition(project, omitted, true)), { index: 0, key: 'cover' });
+  assert.equal(model.normalizeInlineProjectPosition(project, omitted, false), omitted, 'Incomplete loads cannot erase a remembered position.');
+  assert.deepEqual(plain(model.normalizeInlineProjectPosition({ ...project, attachments: [first, file('unknown', 'document', 1)] }, omitted, true)),
+    { index: 0, key: 'cover' }, 'An unresolved later document must not preserve a known removed duplicate key.');
+  assert.deepEqual(plain(model.normalizeInlineProjectPosition(project, { index: 2, key: 'second:image', attachmentId: 'second', page: 2 }, true)),
+    { index: 1, key: 'second:image', attachmentId: 'second', page: 2 });
+  assert.deepEqual(plain(model.normalizeInlineProjectPosition(project, { index: 3, key: 'repeat:image', attachmentId: 'repeat', page: 3 }, true)),
+    { index: 2, key: 'repeat:image', attachmentId: 'repeat', page: 3 });
+  const pdf = file('doc', 'document', 0, { pageCount: 3 });
+  const pdfProject = { cover: pdf.sourceUrl, coverKind: 'document', coverPageNumber: 1, attachments: [pdf] };
+  assert.deepEqual(plain(model.normalizeInlineProjectPosition(pdfProject, { index: 1, key: 'doc:page:1', attachmentId: 'doc', page: 1 }, true)), { index: 0, key: 'cover' });
+  assert.deepEqual(plain(model.normalizeInlineProjectPosition(pdfProject, { index: 2, key: 'doc:page:2', attachmentId: 'doc', page: 2 }, true)),
+    { index: 1, key: 'doc:page:2', attachmentId: 'doc', page: 2 });
+  assert.deepEqual(plain(model.normalizeInlineProjectPosition({ ...pdfProject, coverPageNumber: 2 }, { index: 1, key: 'doc:page:1', attachmentId: 'doc', page: 1 }, true)),
+    { index: 1, key: 'doc:page:1', attachmentId: 'doc', page: 1 });
+});
+
 test('dense-grid targets normalize removals, changed PDF totals and image ordering without erasing incomplete loads', () => {
   const remembered = { index: 9, key: 'doc:page:9', attachmentId: 'doc', page: 9 };
   assert.equal(model.normalizeInlineProjectPosition({}, remembered), remembered);
@@ -101,10 +204,11 @@ test('keyboard page selection stays bounded and never becomes cross-project navi
   assert.equal(model.inlineKeyboardPage('Enter', 2, 5), null);
 });
 
-function inlineRendererFixture({ active = true, width = 388, attachments, selected = 1, metadataComplete = true } = {}) {
+function inlineRendererFixture({ active = true, width = 388, attachments, selected = 1, metadataComplete = true, projectFields = {} } = {}) {
   const react = { ...React, useEffect() {}, useMemo: read => read(), useCallback: fn => fn,
     useRef: initial => ({ current: initial }), useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}] };
   const noop = () => null;
+  const swipes = [];
   const renderer = sourceModule('src/components/profile/InlineProjectPages.tsx', {
     react, 'react-router-dom': { Link: noop },
     '../../features/profile/cataloguePagePosition': position,
@@ -114,10 +218,10 @@ function inlineRendererFixture({ active = true, width = 388, attachments, select
     '../ui/StateViews': { ErrorState: noop },
     '../../utils/projectContinuity': { getProjectContinuityArtwork: () => undefined, projectContinuityStyle: () => ({}) },
     './inlineProjectPageModel': model,
-    './useInlineProjectSwipe': { useInlineProjectSwipe: () => ({ offset: 0, dragging: false, handlers: {} }) },
+    './useInlineProjectSwipe': { useInlineProjectSwipe: (enabled, selected, total) => { swipes.push({ enabled, selected, total }); return { offset: 0, dragging: false, handlers: {} }; } },
     './inline-project-pages.css': {},
   });
-  const project = { id: 'project', title: 'Project', attachments: attachments ?? [file('a', 'image', 0), file('b', 'image', 1), file('c', 'image', 2)] };
+  const project = { id: 'project', title: 'Project', attachments: attachments ?? [file('a', 'image', 0), file('b', 'image', 1), file('c', 'image', 2)], ...projectFields };
   const slide = model.inlineProjectSlides(project)[selected];
   const calls = [], opened = [];
   const tree = renderer.InlineProjectPages({ project, active, metadataComplete, cover: 'cover', position: slide,
@@ -126,8 +230,24 @@ function inlineRendererFixture({ active = true, width = 388, attachments, select
   const walk = node => { if (Array.isArray(node)) return node.forEach(walk); if (!React.isValidElement(node)) return;
     nodes.push(node); walk(node.props.children); };
   walk(tree);
-  return { tree, nodes, calls, opened };
+  return { tree, nodes, calls, opened, swipes };
 }
+
+test('the final cover-deduplicated slide list controls pagination totals and whether swiping is enabled', () => {
+  const first = file('first', 'image', 0), second = file('second', 'image', 1);
+  const projectFields = { cover: '/thumbnail.webp', coverThumbnail: { sourceAttachmentId: 'first' } };
+  const single = inlineRendererFixture({ attachments: [first], selected: 0, projectFields });
+  assert.equal(single.tree.props['data-inline-slide-count'], 1);
+  assert.equal(single.nodes.some(node => node.props.role === 'slider'), false);
+  assert.deepEqual(single.swipes, [{ enabled: false, selected: 0, total: 1 }]);
+  const multiple = inlineRendererFixture({ attachments: [first, second], selected: 1, projectFields });
+  const slider = multiple.nodes.find(node => node.props.role === 'slider');
+  assert.equal(multiple.tree.props['data-inline-slide-count'], 2);
+  assert.equal(slider.props['aria-valuemax'], 2); assert.equal(slider.props['aria-valuenow'], 2);
+  assert.equal(multiple.nodes.filter(node => node.props.className === 'inline-project-dot').length, 2);
+  assert.deepEqual(multiple.swipes, [{ enabled: true, selected: 1, total: 2 }]);
+  assert.equal(multiple.nodes.find(node => node.props['data-preview-open'] === '').props['data-project-continuity-artwork'], '["second",0]');
+});
 
 test('only the selected slide owns the preview opener; compact dots share one accessible pagination control', () => {
   const { nodes } = inlineRendererFixture();
@@ -213,7 +333,7 @@ function gestureFixture({ enabled = true, selected = 1, total = 4 } = {}) {
   const react = { ...React,
     useRef(initial) { return slots[cursor++] ??= { current: initial }; },
     useState(initial) { const i = cursor++; slots[i] ??= { value: initial }; return [slots[i].value, value => { slots[i].value = typeof value === 'function' ? value(slots[i].value) : value; }]; },
-    useCallback(fn) { cursor++; return fn; },
+    useCallback(fn, deps) { const i = cursor++, old = slots[i]; if (!old || deps.some((dep, index) => !Object.is(dep, old.deps[index]))) slots[i] = { deps, fn }; return slots[i].fn; },
     useEffect(fn, deps) { const i = cursor++, old = slots[i]; if (!old || deps.some((dep, index) => !Object.is(dep, old.deps[index]))) { slots[i] = { deps }; effects.push(fn); } },
   };
   const api = sourceModule('src/components/profile/useInlineProjectSwipe.ts', { react, './inlineProjectPageModel': model }, { window: { innerWidth: 420 } });
@@ -322,4 +442,52 @@ test('a plain touch tap and a mouse click remain project openers; horizontal mou
   h.render().handlers.onPointerMoveCapture(h.event(150, 102, 80, { pointerType: 'mouse' }));
   h.render().handlers.onPointerUpCapture(h.event(150, 102, 100, { pointerType: 'mouse' }));
   assert.deepEqual(h.calls, [2]); assert.deepEqual(h.releases, [1]);
+});
+
+test('disabled paging and a final single cover still suppress drag-to-open without capturing or shifting content', () => {
+  for (const pointerType of ['touch', 'mouse']) {
+    for (const options of [{ enabled: false, selected: 0, total: 1 }, { enabled: false, selected: 1, total: 4 }]) {
+      const h = gestureFixture(options);
+      h.render().handlers.onPointerDownCapture(h.event(250, 100, 0, { pointerType }));
+      const move = h.event(150, 104, 80, { pointerType }); h.render().handlers.onPointerMoveCapture(move);
+      assert.equal(move.prevented, false); assert.equal(move.stopped, false);
+      assert.equal(h.render().offset, 0); assert.equal(h.render().dragging, false);
+      h.render().handlers.onPointerUpCapture(h.event(150, 104, 100, { pointerType }));
+      assert.deepEqual(h.calls, []); assert.deepEqual(h.captures, []); assert.deepEqual(h.releases, []);
+      const click = h.click(); h.render().handlers.onClickCapture(click);
+      assert.equal(click.prevented, true); assert.equal(click.stopped, true);
+      const keyboardClick = h.click(0); h.render().handlers.onClickCapture(keyboardClick);
+      assert.equal(keyboardClick.prevented, false); assert.equal(keyboardClick.stopped, false);
+    }
+  }
+});
+
+test('vertical drags over a single remaining cover retain native scrolling and cannot open the reader', () => {
+  for (const pointerType of ['touch', 'mouse']) {
+    const h = gestureFixture({ enabled: false, selected: 0, total: 1 });
+    h.render().handlers.onPointerDownCapture(h.event(250, 100, 0, { pointerType }));
+    const move = h.event(246, 190, 80, { pointerType }); h.render().handlers.onPointerMoveCapture(move);
+    assert.equal(move.prevented, false); assert.equal(move.stopped, false);
+    h.render().handlers.onPointerCancel(h.event(246, 190, 90, { pointerType }));
+    assert.equal(h.render().offset, 0); assert.equal(h.render().dragging, false);
+    assert.deepEqual(h.calls, []); assert.deepEqual(h.captures, []);
+    const click = h.click(); h.render().handlers.onClickCapture(click);
+    assert.equal(click.prevented, true); assert.equal(click.stopped, true);
+  }
+});
+
+test('a fresh tap or small pointer jitter opens normally when paging is disabled', () => {
+  for (const pointerType of ['touch', 'mouse']) {
+    const h = gestureFixture({ enabled: false, selected: 0, total: 1 });
+    h.render().handlers.onPointerDownCapture(h.event(250, 100, 0, { pointerType }));
+    h.render().handlers.onPointerMoveCapture(h.event(150, 104, 80, { pointerType }));
+    h.render().handlers.onPointerUpCapture(h.event(150, 104, 100, { pointerType }));
+    h.render().handlers.onClickCapture(h.click());
+    h.render().handlers.onPointerDownCapture(h.event(200, 100, 150, { pointerType }));
+    const jitter = h.event(197, 102, 180, { pointerType }); h.render().handlers.onPointerMoveCapture(jitter);
+    h.render().handlers.onPointerUpCapture(h.event(197, 102, 200, { pointerType }));
+    const click = h.click(); h.render().handlers.onClickCapture(click);
+    assert.equal(jitter.prevented, false); assert.equal(click.prevented, false); assert.equal(click.stopped, false);
+    assert.deepEqual(h.calls, []); assert.deepEqual(h.captures, []);
+  }
 });

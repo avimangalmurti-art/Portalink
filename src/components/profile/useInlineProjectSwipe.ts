@@ -4,7 +4,8 @@ import { inlineDragOffset, inlineGestureAxis, inlineSwipePage, type InlineGestur
 type Gesture = InlineGestureSample & { id: number; axis: 'pending' | 'x' | 'y'; width: number; host: HTMLElement };
 const controls = 'a,button,input,textarea,select,video,audio,iframe,[contenteditable="true"],[role="slider"],[data-inline-media-interactive] canvas';
 
-/** Only a card's horizontal gesture is captured. The browser retains pan-y and its edges. */
+/** Drag detection also protects single slides from accidental opens.
+ * Only enabled horizontal paging captures a gesture; native pan-y/edges stay intact. */
 export function useInlineProjectSwipe(enabled: boolean, selected: number, total: number, onSelect: (index: number) => void) {
   const gesture = useRef<Gesture | null>(null);
   const suppressed = useRef(false);
@@ -27,7 +28,7 @@ export function useInlineProjectSwipe(enabled: boolean, selected: number, total:
       settle();
       suppressed.current = false;
       if (!event.isPrimary) { suppressed.current = interrupted; return; }
-      if (!latest.current.enabled || event.button !== 0) return;
+      if (event.button !== 0) return;
       const control = (event.target as Element).closest(controls);
       if (control && !control.hasAttribute('data-inline-project-open')) return;
       if (event.clientX < 24 || window.innerWidth - event.clientX < 24) return;
@@ -38,6 +39,7 @@ export function useInlineProjectSwipe(enabled: boolean, selected: number, total:
       if (!start || start.id !== event.pointerId) return;
       const dx = event.clientX - start.x, dy = event.clientY - start.y;
       if (Math.max(Math.abs(dx), Math.abs(dy)) > 8) suppressed.current = true;
+      if (!latest.current.enabled) return;
       if (start.axis === 'pending') {
         start.axis = inlineGestureAxis(dx, dy);
         if (start.axis === 'x') {
