@@ -58,13 +58,14 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
   if (auth.pendingView === 'signUp') return <><PortalinkSplashLoader landing={{
     ready: !busy && !auth.isInitializing,
+    hideMedia: entryStage === 'email',
     suspendFocus: Boolean(pendingLeave),
     onCreateAccount: () => undefined,
     onSignIn: () => leaveEntry(() => auth.requestAuth('signIn')),
     onForgotPassword: () => auth.requestAuth('forgotPassword'),
     onContinue: () => leaveEntry(auth.closeAuth),
     continueLabel: 'Continue as guest',
-    content: <EntryChoices hideProviders={mobileSignup && signupStep === 'verification'} onDisagree={() => setEntryStage('welcome')} onEmail={entryStage === 'welcome' ? () => setEntryStage('email') : undefined} ready={!busy} returnPath={props.registrationReturnPath} onSignIn={() => leaveEntry(() => auth.requestAuth('signIn'))} onGuest={() => leaveEntry(auth.closeAuth)}>
+    content: <EntryChoices hideProviders onDisagree={() => setEntryStage('welcome')} onEmail={entryStage === 'welcome' ? () => setEntryStage('email') : undefined} ready={!busy} returnPath={props.registrationReturnPath} onSignIn={() => leaveEntry(() => auth.requestAuth('signIn'))} onGuest={() => leaveEntry(auth.closeAuth)}>
       {entryStage === 'email' && <div className="entry-inline-form"><h1>Create your account</h1>
         <SignUpForm {...props} {...formProps} compactEntry step="account" onStepChange={setSignupStep} onViewChange={view => leaveEntry(() => auth.requestAuth(view))} />
       </div>}

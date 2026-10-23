@@ -23,7 +23,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   welcomeMedia?: boolean;
   /** Leaving the white welcome scene for the app, including a completed sign-in. */
   welcomeHandoff?: boolean;
-  landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string; content?: React.ReactNode; suspendFocus?: boolean };
+  landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string; content?: React.ReactNode; suspendFocus?: boolean; hideMedia?: boolean };
 }) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
   // rather than mounting another app host or introducing device detection.
@@ -34,7 +34,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const loopLanding = isMobile && (Boolean(landing) || welcomeHandoff);
   const mobileStartupIntro = isMobile && !loopLanding && !welcomeMedia && !stillOnly;
   const fixedMobileIntro = mobileStartupIntro && timedIntro;
-  const playbackHidden = hidden;
+  const playbackHidden = hidden || Boolean(landing?.hideMedia);
   const playbackHiddenRef = useRef(playbackHidden);
   playbackHiddenRef.current = playbackHidden;
   const videoSrc = '/portalink-splash-mobile.mp4?v=9c1a9457';
@@ -103,13 +103,13 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     // The React poster is already committed underneath, including when WEB
     // reduced motion deliberately keeps the opening scene still.
     preboot?.remove();
-  }, [startupVideo, welcomeMedia]);
+  }, [startupVideo, welcomeMedia, landing?.hideMedia]);
   useLayoutEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     video.loop = (loopLanding || welcomeMedia) && !introPending;
     if (startupVideo) video.style.opacity = showVideo && !showBackup ? '1' : '0';
-  }, [introPending, loopLanding, welcomeMedia, showVideo, showBackup, startupVideo]);
+  }, [introPending, loopLanding, welcomeMedia, showVideo, showBackup, startupVideo, landing?.hideMedia]);
   useEffect(() => {
     if (showStill) { complete(); return; }
     const video = videoRef.current;
@@ -377,6 +377,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       data-portalink-splash={welcomeMedia ? undefined : 'true'}
       data-presentation={presentation}
       data-share-landing={sceneLanding ? 'true' : undefined}
+      data-entry-form={sceneLanding?.hideMedia || undefined}
       data-startup-playing={introPending ? 'true' : undefined}
       data-welcome-handoff={welcomeHandoff || undefined}
       role={welcomeMedia ? 'img' : landing && sceneLanding ? 'dialog' : 'status'}
@@ -391,7 +392,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       exit={{ opacity: 0 }}
       transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : motionSeconds('base'), ease: motionCurve() }}
     >
-      <div className="portalink-splash-media" aria-hidden="true" style={{ '--portalink-media-ratio': mediaWidth / mediaHeight } as React.CSSProperties}>
+      {!sceneLanding?.hideMedia && <div className="portalink-splash-media" aria-hidden="true" style={{ '--portalink-media-ratio': mediaWidth / mediaHeight } as React.CSSProperties}>
         <div className="portalink-splash-frame">
           <img src={SPLASH_POSTER_DATA_URL} alt="" aria-hidden="true" width={mediaWidth} height={mediaHeight} decoding="sync" className="portalink-splash-asset" />
           {!showStill && backupRequested && <img src={animatedBackupSrc} alt="" aria-hidden="true" width={mediaWidth} height={mediaHeight}
@@ -403,7 +404,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
             aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-asset portalink-splash-video"
             style={{ opacity: showVideo && !showBackup ? 1 : 0 }} />)}
         </div>
-      </div>
+      </div>}
       {sceneLanding && <div className="mobile-share-landing-actions" aria-busy={!sceneLanding.ready}>
         {sceneLanding.content ?? <EntryChoices presentation={presentation} ready={sceneLanding.ready} onEmail={sceneLanding.onCreateAccount} onSignIn={sceneLanding.onSignIn} onGuest={sceneLanding.onContinue} />}
         {!sceneLanding.ready && <span role="status" className="sr-only">Opening Portalink…</span>}

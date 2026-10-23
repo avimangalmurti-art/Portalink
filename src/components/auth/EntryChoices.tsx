@@ -6,7 +6,7 @@ import './oneScreenEntry.css';
 import { EntryAgreements, EntryLegal } from './EntryAgreements';
 import { usePresentation, type Presentation } from '../../presentation/usePresentation';
 
-export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, children, returnPath, onDisagree, presentation, hideProviders = false }: {
+export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, children, returnPath, onDisagree, presentation, hideProviders = true }: {
   ready?: boolean; onEmail?: () => void; onSignIn: () => void; onGuest: () => void;
   children?: React.ReactNode; returnPath?: string; onDisagree?: () => void; presentation?: Presentation; hideProviders?: boolean;
 }) {

@@ -18,7 +18,7 @@ function signupParent(presentation,initialSignupStep){
   useState:initial=>{const index=cursor++;if(!(index in states))states[index]=typeof initial==='function'?initial():initial;return[states[index],next=>{states[index]=typeof next==='function'?next(states[index]):next;}];},
   useRef:()=>({current:null}),useEffect:()=>{},PortalinkSplashLoader:'welcome',EntryChoices:'choices',SignUpForm:'signup',
  });
- return()=>{cursor=0;const welcome=nodes(exports.AuthDialog({initialSignupStep})).find(node=>node.type==='welcome'),choices=welcome.props.landing.content;return {choices,form:nodes(choices).find(node=>node.type==='signup')};};
+ return()=>{cursor=0;const welcome=nodes(exports.AuthDialog({initialSignupStep})).find(node=>node.type==='welcome'),choices=welcome.props.landing.content;return {landing:welcome.props.landing,choices,form:nodes(choices).find(node=>node.type==='signup')};};
 }
 test('both presentations open one inline account form instead of required appearance/profile steps', () => {
  const source=readFileSync(new URL('../src/features/auth/AuthDialog.tsx',import.meta.url),'utf8');
@@ -34,6 +34,8 @@ test('both presentations open one inline account form instead of required appear
   const welcome=React.Children.toArray(fragment.props.children)[0];
   assert.equal(welcome.type,'welcome');
   const content=welcome.props.landing.content;
+  assert.equal(welcome.props.landing.hideMedia,true,'The email form has no Hello World header');
+  assert.equal(content.props.hideProviders,true,'The email form has no provider strip');
   const form=React.Children.toArray(content.props.children.props.children).find(node=>node.type==='signup');
   assert.equal(form.props.compactEntry,true); assert.equal(form.props.step,'account');
   welcome.props.landing.onContinue();assert.equal(closed,1);
@@ -48,13 +50,13 @@ test('restoring unfinished signup values does not skip appearance; verification 
  assert.match(restore,/saved.requiresEmailVerification\) setRestoredResult/);
 });
 
-test('only MOBILE email verification hides providers, including restored verification and returning to account entry',()=>{
+test('both presentations omit the hero and providers throughout account entry, verification and restoration',()=>{
  for(const presentation of ['mobile','web']){
-  const render=signupParent(presentation,'account');let entry=render();assert.equal(entry.choices.props.hideProviders,false);
-  entry.form.props.onStepChange('verification');entry=render();assert.equal(entry.choices.props.hideProviders,presentation==='mobile');
+  const render=signupParent(presentation,'account');let entry=render();assert.equal(entry.choices.props.hideProviders,true);assert.equal(entry.landing.hideMedia,true);
+  entry.form.props.onStepChange('verification');entry=render();assert.equal(entry.choices.props.hideProviders,true);assert.equal(entry.landing.hideMedia,true);
   assert.equal(entry.form.props.compactEntry,true);assert.equal(entry.form.props.step,'account','The existing compact form still owns its verification content');
-  entry.form.props.onStepChange('account');assert.equal(render().choices.props.hideProviders,false,'Using a different email restores the entry choices');
-  assert.equal(signupParent(presentation,'verification')().choices.props.hideProviders,presentation==='mobile','A restored verification stage uses the same presentation boundary');
+  entry.form.props.onStepChange('account');entry=render();assert.equal(entry.choices.props.hideProviders,true,'Using a different email keeps the cleaner account screen');assert.equal(entry.landing.hideMedia,true);
+  const restored=signupParent(presentation,'verification')();assert.equal(restored.choices.props.hideProviders,true);assert.equal(restored.landing.hideMedia,true);
  }
 });
 

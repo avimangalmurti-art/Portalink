@@ -111,7 +111,7 @@ function compile(path, imports, globals) {
 }
 function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false, bootVideo = undefined, findBootVideo = undefined } = {}) {
   const h = hooks();
-  let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false;
+  let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false, renderedMediaRef;
   const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [], viewportCalls = [];
   h.window.addEventListener=(name,fn)=>windowListeners.set(name,fn);
   h.window.removeEventListener=(name,fn)=>{if(windowListeners.get(name)===fn)windowListeners.delete(name);};
@@ -174,7 +174,10 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
       const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, welcomeHandoff, hidden: surfaceHidden }));
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
-      const [poster, backup, media] = tree.props.children[0].props.children.props.children;
+      const mediaContainer = tree.props.children[0];
+      const [poster, backup, media] = React.isValidElement(mediaContainer) ? mediaContainer.props.children.props.children : [];
+      if (renderedMediaRef && renderedMediaRef !== media?.ref) renderedMediaRef.current = null;
+      renderedMediaRef = media?.ref;
       if (media) media.ref.current = media.type === 'video' ? video : host;
       h.flush(); return { poster, backup, media, tree };
     },
@@ -1013,6 +1016,39 @@ test('ordinary root and invitation fragments retain welcome unless authenticatio
 });
 
 const welcome = {ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'View shared content'};
+
+test('the account form omits welcome media, pauses playback and restores it when returning to choices on BOTH',()=>{
+ for(const presentation of ['mobile','web'])for(const adopted of [false,true]){
+  const bootVideo=adopted?{paused:false,readyState:4,currentTime:.7,dataset:{portalinkPainted:'true'}}:undefined;
+  const h=loader({presentation,landing:welcome,bootVideo});
+  assert.ok(h.render().media);h.start();h.paint();
+  if(adopted){h.emit('ended');h.render();h.start();h.paint();}
+  h.video.currentTime=.7;
+  h.setLanding({...welcome,hideMedia:true});const form=h.render();
+  assert.equal(form.media,undefined);assert.equal(form.poster,undefined);
+  assert.equal(form.tree.props['data-entry-form'],true);assert.equal(form.tree.props.children[0],false);
+  assert.equal(h.video.paused,true);assert.ok(h.pauses>0);
+  assert.equal(h.frames.size,0);assert.equal(h.timers.size,0,'The hidden form leaves no playback work queued');
+  if(!adopted){assert.equal(h.listeners.size,0);assert.equal(h.docListeners.size,0);assert.equal(h.windowListeners.size,0);}
+  const plays=h.plays;h.gesture();h.foreground();h.restore();assert.equal(h.plays,plays,'Background recovery cannot resume omitted media');
+  h.setLanding(welcome);const choices=h.render();assert.ok(choices.media);assert.equal(choices.tree.props['data-entry-form'],undefined);
+  assert.ok(h.plays>plays,'Returning choices reinitializes playback');h.start();h.paint();
+  const restored=h.render();assert.equal(restored.media.props.style.opacity,adopted?undefined:1);
+  if(adopted){assert.equal(h.video.style.opacity,'1');assert.equal(h.video.currentTime,.7);assert.equal(h.host.children.filter(child=>child===h.video).length,1);}
+  h.unmount();assert.equal(h.frames.size,0);assert.equal(h.timers.size,0);assert.equal(h.listeners.size,0);assert.equal(h.docListeners.size,0);assert.equal(h.windowListeners.size,0);
+ }
+});
+
+test('an initially media-free account form can return to playing welcome choices on BOTH',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=loader({presentation,landing:{...welcome,hideMedia:true}}),form=h.render();
+  assert.equal(form.media,undefined);assert.equal(form.tree.props['data-entry-form'],true);assert.equal(h.plays,0);
+  assert.equal(h.frames.size,0);assert.equal(h.timers.size,0);assert.equal(h.listeners.size,0);
+  h.setLanding(welcome);assert.ok(h.render().media);assert.ok(h.plays>0);
+  h.start();h.paint();assert.equal(h.render().media.props.style.opacity,1);
+  h.unmount();assert.equal(h.frames.size,0);assert.equal(h.timers.size,0);assert.equal(h.listeners.size,0);
+ }
+});
 
 test('only a visible MOBILE welcome subscribes its own stable frame to the dialog viewport',()=>{
  const mobile=loader({presentation:'mobile',landing:welcome});
