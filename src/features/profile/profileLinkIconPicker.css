@@ -1,0 +1,88 @@
+.profile-link-icon-picker-overlay {
+  --profile-link-picker-canvas: #f2f2f7;
+  --profile-link-picker-surface: #fff;
+  --profile-link-picker-ink: #1c1c1e;
+  --profile-link-picker-muted: #6d6d72;
+  --profile-link-picker-separator: #3c3c432e;
+  --profile-link-picker-action: #c61f4b;
+  --profile-link-picker-selected: #ff2d5510;
+  position: fixed;
+  z-index: 120;
+  inset-inline: 0;
+  top: var(--dialog-viewport-top, 0px);
+  height: var(--dialog-viewport-height, 100dvh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 24px;
+  background: #0006;
+}
+.theme-dark .profile-link-icon-picker-overlay,
+html[data-appearance='dark'] .profile-link-icon-picker-overlay {
+  --profile-link-picker-canvas: #000;
+  --profile-link-picker-surface: #1c1c1e;
+  --profile-link-picker-ink: #fff;
+  --profile-link-picker-muted: #aeaeb2;
+  --profile-link-picker-separator: #545458a6;
+  --profile-link-picker-action: #ff6484;
+  --profile-link-picker-selected: #ff64841a;
+}
+.profile-link-icon-picker {
+  --surface-raised: var(--profile-link-picker-surface);
+  --surface-sunken: var(--profile-link-picker-surface);
+  --text-primary: var(--profile-link-picker-ink);
+  --text-secondary: var(--profile-link-picker-muted);
+  --text-tertiary: var(--profile-link-picker-muted);
+  --hairline: var(--profile-link-picker-separator);
+  --accent-primary: var(--profile-link-picker-action);
+  --accent-text: var(--profile-link-picker-action);
+  --surface-selected: var(--profile-link-picker-selected);
+  box-sizing: border-box;
+  width: min(100%, 600px);
+  max-height: 100%;
+  height: min(720px, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--profile-link-picker-separator);
+  border-radius: var(--ui-popup-radius, 28px);
+  background: var(--profile-link-picker-canvas);
+  color: var(--profile-link-picker-ink);
+  box-shadow: none;
+  outline: none;
+}
+/* A content editor owns its solid canvas, rather than the shared glass dialog paint. */
+.app-shell .profile-link-icon-picker[role='dialog'][data-material='content'] {
+  margin: 0;
+  border: 1px solid var(--profile-link-picker-separator) !important;
+  border-radius: var(--ui-popup-radius, 24px) !important;
+  background: var(--profile-link-picker-canvas) !important;
+  box-shadow: none !important;
+}
+.profile-link-icon-picker-header { display: grid; grid-template-columns: minmax(64px, 1fr) auto minmax(64px, 1fr); align-items: center; flex: 0 0 auto; gap: 8px; padding: 4px 12px; border-bottom: 1px solid var(--profile-link-picker-separator); }
+.profile-link-icon-picker-header h2 { margin: 0; font-size: 1.0625rem; font-weight: 600; text-align: center; }
+.profile-link-icon-picker-header button { min-width: 44px; min-height: 44px; padding: 6px 4px; border: 0; background: transparent; text-align: start; color: var(--profile-link-picker-action); font-size: 1rem; }
+.profile-link-icon-picker-header button:last-child { text-align: end; font-weight: 600; }
+.profile-link-icon-picker-pinned { flex: 0 0 auto; padding: 16px 20px 12px; }
+.profile-link-icon-picker-preview { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; margin: 0 auto; border-radius: 16px; background: var(--profile-link-picker-surface); color: var(--profile-link-picker-ink); }
+.profile-link-icon-picker-preview svg { width: 32px; height: 32px; }
+.profile-link-icon-picker-selection { margin: 6px 0 14px; color: var(--profile-link-picker-muted); text-align: center; font-size: .8125rem; line-height: 1.4; }
+.profile-link-icon-picker-search { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--profile-link-picker-separator); border-radius: 12px; background: var(--profile-link-picker-surface); color: var(--profile-link-picker-muted); }
+.profile-link-icon-picker-search input { flex: 1; min-width: 0; min-height: 28px; border: 0; padding: 0; outline: none; background: transparent; color: var(--profile-link-picker-ink); font-size: 1rem; }
+.profile-link-icon-picker-search input::placeholder { color: var(--profile-link-picker-muted); }
+.profile-link-icon-picker-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px 20px; scroll-padding-block: 12px; }
+.profile-link-icon-picker-scroll > section { margin-top: 0; }
+.profile-link-icon-picker-scroll [role='radio'] { min-height: 44px; min-width: 44px; }
+#root .codex-shell .profile-link-icon-picker button { min-height: 44px !important; }
+.profile-link-icon-picker-scroll [role='radio'][aria-checked='true'] { color: var(--profile-link-picker-action); border-color: var(--profile-link-picker-action); background: var(--profile-link-picker-selected); }
+.profile-link-icon-picker :is(button, input):focus-visible { outline: 2px solid var(--profile-link-picker-action); outline-offset: 2px; }
+.profile-link-icon-picker-search:focus-within { outline: 2px solid var(--profile-link-picker-action); outline-offset: 2px; }
+.profile-link-icon-picker-search input:focus-visible { outline: none; }
+.profile-link-icon-picker-overlay[data-presentation='mobile'] { padding: 0; background: var(--profile-link-picker-canvas); }
+.profile-link-icon-picker-overlay[data-presentation='mobile'] .profile-link-icon-picker { width: 100%; height: 100%; max-width: none; border: 0; border-radius: 0; box-shadow: none; padding: var(--safe-area-top, env(safe-area-inset-top, 0px)) var(--safe-area-right, env(safe-area-inset-right, 0px)) var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)) var(--safe-area-left, env(safe-area-inset-left, 0px)); }
+.app-shell .profile-link-icon-picker-overlay[data-presentation='mobile'] .profile-link-icon-picker[role='dialog'][data-material='content'] { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+@media (max-height: 520px) {
+  .profile-link-icon-picker-preview, .profile-link-icon-picker-selection { display: none; }
+  .profile-link-icon-picker-pinned { padding-block: 10px; }
+}

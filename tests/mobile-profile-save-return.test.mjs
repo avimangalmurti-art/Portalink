@@ -72,10 +72,13 @@ function fixture(options = {}) {
     '../../hooks/useAsyncAction': asyncAction, '../employer/employer': sourceModule('src/features/employer/employer.ts'), './validation': validation, './profileLinks': profileLinks,
     './useProfileOnboarding': { useAvatarSelection: () => avatar },
   }, globals);
+  let pendingLeave = null;
   const { ProfileEditorPage } = sourceModule('src/features/profile/ProfileEditorDialog.tsx', {
     react, '../../components/ui/ConfirmationDialog': { ConfirmationDialog: 'confirmation-dialog' }, '../../presentation/mobile/MobileBackNavigation': { ScreenBack: 'screen-back', useMobileScreenActive: () => active },
-    'lucide-react': new Proxy({}, { get: (_target, key) => String(key) }), '../../components/profile/ProfileLocationPicker': { ProfileLocationPicker: 'location-picker' }, '../../components/profile/ProfileField': { ProfileField: 'profile-field' },
-    '../../components/profile/MobileProfileAvatarEditor': { MobileProfileAvatarEditor: 'avatar-editor' }, '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' }, '../../components/ui/StateViews': { ErrorState: 'error-state', LoadingState: 'loading-state' },
+    'lucide-react': new Proxy({}, { get: (_target, key) => String(key) }), '../../components/profile/CreatorAvatar': { CreatorAvatar: 'creator-avatar' },
+    './ProfilePersonalDetails': { ProfilePersonalDetails: 'personal-details' }, './ProfileLinkDetails': { ProfileLinkDetails: 'link-details' },
+    './useProfileLeaveGuard': { useProfileLeaveGuard: settings => ({ requestLeave(action) { if (settings.blocked) return; if (settings.enabled) { pendingLeave = action; settings.onRequestDiscard(); } else action(); }, confirmLeave() { const action = pendingLeave; pendingLeave = null; if (!settings.blocked) action?.(); }, cancelLeave() { pendingLeave = null; } }) },
+    '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' }, '../../components/ui/StateViews': { ErrorState: 'error-state', LoadingState: 'loading-state' },
     './useProfileEditor': { useProfileEditor(...args) { editor = profileHook.useProfileEditor(...args); return editor; } }, './ProfileLinksEditor': { ProfileLinksEditor: 'links-editor' }, './validation': validation,
     '../../contexts/AuthContext': { useAuth: () => auth }, '../../presentation/usePresentation': { usePresentation: () => presentation }, './profileEditorPage.css': {},
   }, globals);
@@ -113,12 +116,17 @@ function fixture(options = {}) {
     get editor() { render(); return editor; }, get tree() { render(); return tree; }, get writesAfterUnmount() { return writesAfterUnmount; }, get timers() { return timers; },
     find(predicate) { render(); return nodes(tree).find(predicate); },
     button(label) { return this.find(node => node.type === 'button' && (text(node) === label || node.props['aria-label'] === label)); },
-    field(label) { return this.find(node => node.type === 'profile-field' && node.props.label === label); },
     form() { return this.find(node => node.type === 'form'); },
     submit() { return this.form().props.onSubmit({ preventDefault() {} }); },
     async flush() { for (let i = 0; i < 4; i++) { if (frame.mounted) render(); await new Promise(setImmediate); } },
     async ready() { reads.at(-1).resolve(); await this.flush(); return this; },
-    async changeName(value = 'Updated name') { this.field('Name').props.onChange(value); await this.flush(); },
+    async changeName(value = 'Updated name') {
+      this.find(node => node.type === 'button' && node.props['aria-label']?.startsWith('Personal details,')).props.onClick(); await this.flush();
+      const child = this.find(node => node.type === 'personal-details');
+      // This widget double confirms a valid child transaction; the parent's
+      // real shared draft/save hook and all service completions remain actual.
+      child.props.onDone({ name: value.trim(), location: child.props.location, avatar: child.props.avatar }); await this.flush();
+    },
     advance(milliseconds) { now += milliseconds; for (const [id, timer] of [...timers]) if (timer.at <= now) { timers.delete(id); timer.callback(); } if (frame.mounted) render(); },
     paint() { const pending = [...frames.values()]; frames.clear(); pending.forEach(callback => callback(now)); },
     emit(name) { for (const callback of [...(listeners.get(name) ?? [])]) callback(); },
@@ -129,7 +137,7 @@ test('MOBILE Save stays truthful while the actual profile service is pending', a
   const h = await fixture().ready(); await h.changeName('  Updated name  '); h.submit(); await h.flush();
   assert.equal(h.writes.length, 1); assert.equal(h.writes[0].id, 'owner'); assert.deepEqual(h.writes[0].input, { name: 'Updated name' });
   assert.equal(h.editor.phase, 'saving'); assert.equal(h.button('Saving…').props.disabled, true); assert.equal(h.button('Back').props.disabled, true);
-  assert.equal(h.field('Name').props.disabled, true); assert.equal(h.find(node => node.type === 'avatar-editor').props.disabled, true); assert.equal(h.find(node => node.type === 'links-editor').props.disabled, true);
+  assert.equal(h.find(node => node.type === 'button' && node.props['aria-label']?.startsWith('Personal details,')).props.disabled, true); assert.equal(h.find(node => node.type === 'links-editor').props.disabled, true);
   assert.equal(h.saved.length, 0); assert.equal(h.closed.length, 0); assert.equal(h.invalidations.length, 0); assert.equal(h.find(node => node.props.role === 'status'), undefined);
   h.advance(5000); assert.equal(h.saved.length, 0); assert.equal(h.editor.phase, 'saving'); h.unmount(); h.writes[0].reject(new Error('Disposed request')); await h.flush();
 });
@@ -166,11 +174,56 @@ test('the same MOBILE submit and Back callbacks cannot bypass the synchronous pe
 test('MOBILE failure preserves the draft and focuses the error; Retry submits current edits once', async () => {
   const h = await fixture().ready(); await h.changeName('First draft'); h.submit(); h.writes[0].reject(new Error('Profile could not be saved.')); await h.flush();
   const alert = h.find(node => node.props.role === 'alert'); assert.ok(alert); assert.match(text(alert), /Profile could not be saved\./);
-  assert.equal(h.editor.phase, 'failed'); assert.equal(h.field('Name').props.value, 'First draft'); assert.equal(h.saved.length, 0); assert.equal(h.cached.length, 0); assert.equal(h.invalidations.length, 0);
+  assert.equal(h.editor.phase, 'failed'); assert.equal(h.editor.fields.name, 'First draft'); assert.equal(h.saved.length, 0); assert.equal(h.cached.length, 0); assert.equal(h.invalidations.length, 0);
   assert.equal(h.document.activeElement.props.role, 'alert'); assert.deepEqual(h.origin, { scrollTop: 812, scrollLeft: 7 });
   await h.changeName('Edited after failure'); const retry = h.button('Try again').props.onClick; retry(); retry();
   assert.equal(h.writes.length, 2); assert.deepEqual(h.writes[1].input, { name: 'Edited after failure' }); await h.flush(); assert.equal(h.button('Saving…').props.disabled, true); assert.equal(h.saved.length, 0);
   h.writes[1].resolve(); await h.flush(); assert.equal(h.saved.length, 1); h.unmount();
+});
+
+test('child Back abandons link scratch while preserving earlier shared changes and the main Save', async () => {
+  const h = await fixture().ready(); await h.changeName('Earlier confirmed name');
+  h.find(node => node.type === 'links-editor').props.onAdd(); await h.flush();
+  h.find(node => node.type === 'link-details').props.onDirtyChange(true); await h.flush();
+  h.button('Back to Edit profile').props.onClick(); await h.flush();
+  assert.equal(h.find(node => node.type === 'link-details'), undefined); assert.equal(h.editor.fields.name, 'Earlier confirmed name');
+  assert.equal(h.editor.fields.links.length, 0); assert.equal(h.editor.isDirty, true); assert.equal(h.writes.length, 0); assert.equal(h.button('Save').props.disabled, false);
+  h.submit(); assert.deepEqual(h.writes[0].input, { name: 'Earlier confirmed name' }); h.writes[0].resolve(); await h.flush(); assert.equal(h.saved.length, 1); h.unmount();
+});
+
+test('a presentation resize preserves the active child transaction and its validity', async () => {
+  for (const childType of ['personal-details', 'link-details']) {
+    const h = await fixture().ready(); await h.changeName('Earlier confirmed name');
+    if (childType === 'personal-details') h.button('Personal details, Earlier confirmed name').props.onClick();
+    else h.find(node => node.type === 'links-editor').props.onAdd();
+    await h.flush();
+    h.find(node => node.type === childType).props.onDirtyChange(true);
+    h.find(node => node.type === childType).props.onValidityChange(false); await h.flush();
+    for (const presentation of ['web', 'mobile']) {
+      h.render({ presentation }); await h.flush();
+      assert.ok(h.find(node => node.type === childType), 'The same child stays mounted across the breakpoint.');
+      assert.equal(h.button('Done').props.disabled, true);
+      assert.equal(h.editor.fields.name, 'Earlier confirmed name'); assert.equal(h.writes.length, 0);
+    }
+    h.button('Back to Edit profile').props.onClick(); await h.flush();
+    assert.equal(h.button('Save').props.disabled, false); h.unmount();
+  }
+});
+
+test('link Done and Remove merge into the shared draft without service writes until the main Save', async () => {
+  const h = await fixture().ready();
+  h.find(node => node.type === 'select' && node.props['aria-label'] === 'Account visibility').props.onChange({ target: { value: 'private' } }); await h.flush();
+  h.find(node => node.type === 'links-editor').props.onAdd(); await h.flush();
+  h.find(node => node.type === 'link-details').props.onDone({ label: 'My work', href: 'https://example.com/work', iconName: 'globe' }); await h.flush();
+  assert.equal(h.writes.length, 0); assert.equal(h.editor.fields.isPrivate, true); assert.equal(h.editor.fields.links.length, 1);
+  const addedId = h.editor.fields.links[0].id;
+  h.find(node => node.type === 'links-editor').props.onEdit(addedId); await h.flush();
+  h.find(node => node.type === 'link-details').props.onRemove(); await h.flush();
+  assert.equal(h.editor.fields.links.length, 0); assert.equal(h.writes.length, 0); assert.equal(h.editor.fields.isPrivate, true);
+  h.find(node => node.type === 'links-editor').props.onAdd(); await h.flush();
+  h.find(node => node.type === 'link-details').props.onDone({ label: 'Confirmed site', href: 'https://example.com/final', iconName: 'globe' }); await h.flush();
+  h.submit(); assert.equal(h.writes.length, 1); assert.deepEqual(h.writes[0].input, { isPrivate: true, links: [{ label: 'Confirmed site', href: 'https://example.com/final', iconName: 'globe' }], socialLinks: {} });
+  h.writes[0].resolve(); await h.flush(); assert.equal(h.saved.length, 1); h.unmount();
 });
 
 test('inactive MOBILE editors consume delayed success or failure and cannot return later on Forward', async () => {

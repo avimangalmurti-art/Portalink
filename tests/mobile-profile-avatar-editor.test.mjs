@@ -30,6 +30,9 @@ function harness(options = {}) {
     if (name.endsWith('/ResponsiveImage')) return { ResponsiveImage: 'Image' };
     if (name === './ProfilePhotoEditor') return { ProfilePhotoEditor: 'PhotoEditor' };
     if (name.endsWith('/avatarValidation')) return avatarValidation;
+    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
+    if (name.endsWith('/ModalPortal')) return { ModalPortal: 'modal-portal' };
+    if (name.endsWith('.css')) return {};
     throw Error(name);
   } });
   function walk(node, predicate) { if (!node || typeof node !== 'object') return null; if (Array.isArray(node)) { for (const child of node) { const found = walk(child, predicate); if (found) return found; } return null; } if (predicate(node)) return node; return walk(node.props?.children, predicate); }

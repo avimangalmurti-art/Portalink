@@ -145,12 +145,12 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean, cacheCon
       }
     }));
   }, []);
-  const addProfileLink = useCallback((): string | null => {
+  const addProfileLink = useCallback((initial: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName'>> = {}): string | null => {
     if (!fields || fields.links.filter(link => !isProfileLinkAction(link.action)).length >= MAX_PROFILE_LINKS) return null;
     const id = `profile-link-new-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     setFields({
       ...fields,
-      links: [...fields.links, { id, label: '', href: '', iconName: DEFAULT_PROFILE_LINK_ICON }]
+      links: [...fields.links, { id, label: '', href: '', iconName: DEFAULT_PROFILE_LINK_ICON, ...initial }]
     });
     return id;
   }, [fields]);
@@ -300,6 +300,10 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean, cacheCon
     isDirty,
     save,
     submit,
-    canSave: Boolean(fields) && isDirty && !save.isLoading
+    canSave: fields !== null && isDirty && !save.isLoading && !avatar.error
+      && !validateProfileName(fields.name) && !validateLocation(fields.location)
+      && fields.portfolioHeadline.length <= 80 && fields.school.length <= 120 && fields.availability.length <= 120
+      && (!fields.contactEmailPublic || validContactEmail(fields.contactEmail.trim()))
+      && fields.links.every(link => isProfileLinkAction(link.action) || (!validateProfileLinkLabel(link.label) && !validateProfileLinkUrl(link.href)))
   };
 }

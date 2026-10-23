@@ -1,15 +1,16 @@
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { ScreenBack, useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronDownIcon, LockKeyholeIcon } from 'lucide-react';
-import { ProfileLocationPicker } from '../../components/profile/ProfileLocationPicker';
-import { ProfileField } from '../../components/profile/ProfileField';
-import { MobileProfileAvatarEditor } from '../../components/profile/MobileProfileAvatarEditor';
+import { AlertCircleIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
+import { ProfilePersonalDetails } from './ProfilePersonalDetails';
+import { ProfileLinkDetails } from './ProfileLinkDetails';
+import { useProfileLeaveGuard } from './useProfileLeaveGuard';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { useProfileEditor } from './useProfileEditor';
 import { ProfileLinksEditor } from './ProfileLinksEditor';
-import { NAME_MAX_LENGTH } from './validation';
+import { validateLocation, validateProfileName } from './validation';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useAuth } from '../../contexts/AuthContext';
 import './profileEditorPage.css';
@@ -20,7 +21,7 @@ function ProfilePreferenceSwitch({ label, checked, disabled, onChange }: {
   disabled: boolean;
   onChange: (checked: boolean) => void;
 }) {
-  return <label className="flex min-h-11 items-center justify-between gap-4 text-sm">
+  return <label className="profile-settings-row profile-settings-switch-row">
     <span>{label}</span>
     <span className="profile-preference-switch">
       <input type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={event => onChange(event.target.checked)} />
@@ -61,6 +62,10 @@ export function ProfileEditorPage({
   const [discard, setDiscard] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [mobilePending, setMobilePending] = useState(false);
+  const [screen, setScreen] = useState<'overview' | 'personal' | 'link'>('overview');
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [childDirty, setChildDirty] = useState(false);
+  const [childValid, setChildValid] = useState(false);
   const owner = JSON.stringify([profileId, accountId]);
   const scope = JSON.stringify([isMobile, isMobile ? active : true, profileId, accountId]);
   const session = useRef({ scope, owner, epoch: 0, mobile: isMobile, mounted: true });
@@ -72,7 +77,6 @@ export function ProfileEditorPage({
   const pending = useRef(false);
   const attempt = useRef<{ epoch: number; returned: boolean } | null>(null);
   const pageRef = useRef<HTMLElement>(null);
-  const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { const state = session.current; state.mounted = true; return () => { state.mounted = false; state.epoch += 1; }; }, []);
@@ -80,6 +84,11 @@ export function ProfileEditorPage({
     // Retained mobile screens must not adopt a completion from an earlier entry.
     if (resetMobile) { resetSave(); setDiscard(false); setMobilePending(pending.current); }
   }, [scope, resetMobile, resetSave]);
+  useLayoutEffect(() => {
+    // A presentation resize keeps the same child transaction mounted. Only an
+    // owner/entry change abandons its scratch draft.
+    setScreen('overview'); setEditingLinkId(null); setChildDirty(false); setChildValid(false);
+  }, [owner, active]);
   const returnFocus = useRef<{ opener: HTMLElement | null; main: HTMLElement | null } | null>(null);
   useLayoutEffect(() => {
     if (!isMobile || !active) return;
@@ -109,7 +118,7 @@ export function ProfileEditorPage({
       });
     };
   }, [isMobile, active, owner, returnFocusTarget]);
-  useEffect(() => { if (!isMobile || active) headingRef.current?.focus({ preventScroll: true }); }, [isMobile, active]);
+  useEffect(() => { if (!isMobile || active) headingRef.current?.focus({ preventScroll: true }); }, [isMobile, active, screen]);
   useEffect(() => {
     // A failed save takes focus, so it is never missed.
     if (editor.phase === 'failed' && (!isMobile || (active && attempt.current?.epoch === epoch))) {
@@ -137,11 +146,19 @@ export function ProfileEditorPage({
   }, [hasSaved, onSaved, isMobile, active, epoch]);
   const {
     fields,
-    fieldErrors,
     linkErrors
   } = editor;
   const isBusy = editor.phase === 'saving' || mobilePending;
-  const requestClose = () => { if(isMobile && (!active || session.current.epoch !== epoch))return;if(isBusy || avatarBusy || pending.current)return;if(editor.isDirty)setDiscard(true);else onClose(); };
+  const leave = useProfileLeaveGuard({ enabled: (!isMobile || active) && !hasSaved && (editor.isDirty || childDirty || avatarBusy || isBusy), blocked: isBusy || avatarBusy, onRequestDiscard: () => setDiscard(true), onChildBack: (!isMobile || active) && !hasSaved && screen !== 'overview' ? () => { setScreen('overview'); setEditingLinkId(null); setChildDirty(false); setChildValid(false); } : undefined });
+  const closeChild = () => { setScreen('overview'); setEditingLinkId(null); setChildDirty(false); setChildValid(false); };
+  const openPersonal = () => { setChildDirty(false); setChildValid(Boolean(fields && !validateProfileName(fields.name) && !validateLocation(fields.location))); setScreen('personal'); };
+  const openLink = (id: string | null) => { setEditingLinkId(id); setChildDirty(false); setChildValid(false); setScreen('link'); };
+  const requestClose = () => {
+    if (isMobile && (!active || session.current.epoch !== epoch)) return;
+    if (isBusy || avatarBusy || pending.current) return;
+    if (screen !== 'overview') closeChild();
+    else leave.requestLeave(onClose);
+  };
   const canSubmit = editor.canSave && !hasSaved && !mobilePending && !avatarBusy && !editor.avatar.error;
   const submit = () => {
     if (!canSubmit || pending.current) return;
@@ -158,69 +175,51 @@ export function ProfileEditorPage({
     setMobilePending(true);
     void editor.submit().finally(() => { pending.current = false; if (session.current.mounted) setMobilePending(false); });
   };
-  return <section ref={pageRef} data-presentation={isMobile ? 'mobile' : 'web'} aria-labelledby="profile-editor-title" className="profile-editor-page flex h-full min-h-0 w-full flex-col text-[var(--text-primary)]">
-          <header className="profile-editor-header">
-            <ScreenBack visibleOnMobile action={requestClose}><button type="button" onClick={requestClose} aria-label="Back" disabled={isBusy || avatarBusy} data-ui-control="icon" data-control-size="md" data-control-variant="ghost" className="profile-editor-back"><InterfaceIcon icon={ChevronLeftIcon} /></button></ScreenBack>
-            <h1 ref={headingRef} tabIndex={-1} id="profile-editor-title">Edit profile</h1>
-            <button type="submit" form="profile-editor-form" data-ui-control="button" data-control-size="md" data-control-variant="primary" className="profile-editor-save bg-[var(--accent-primary)] text-[var(--accent-foreground)]" disabled={!canSubmit}>{isBusy ? 'Saving…' : 'Save'}</button>
-          </header>
-
-          {editor.loadError ? <div className="px-6 pb-6">
-              <ErrorState title="Unable to load profile" description={editor.loadError} />
-            </div> : editor.phase === 'loading' || !fields ? <div className="px-6 pb-6">
-              <LoadingState label="Loading profile" />
-            </div> : <form id="profile-editor-form" onSubmit={(event) => {
-          event.preventDefault();
-          submit();
-        }} noValidate className="flex min-h-0 flex-1 flex-col">
-            <div className="profile-editor-scroll scrollbar-overlay min-h-0 flex-1 overflow-y-auto px-5 pb-5 sm:px-6 sm:pb-6">
-              {editor.phase === 'failed' && <div ref={errorRef} tabIndex={-1} role="alert" className="mb-4 flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2 text-[12px] leading-relaxed focus:outline-none">
-                  <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="min-w-0 flex-1">
-                    {editor.save.error}
-                    {/* Retries the CURRENT values, so edits made after the
-                   failure are the ones sent. */}
-                    <button type="button" disabled={!canSubmit} onClick={submit} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>
-                  </span>
-                </div>}
-
-              {editor.phase === 'saved' && <div role="status" className="mb-4 flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-2 text-[12px] leading-relaxed">
-                  <CheckCircle2Icon className="mt-[2px] h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
-                  <span>Profile updated.</span>
-                </div>}
-
-              <div className="profile-editor-layout grid min-h-0 grid-cols-1 gap-5 md:grid-cols-[minmax(220px,0.78fr)_minmax(360px,1.55fr)] md:gap-6">
-              <section data-profile-editor-section="identity" aria-label="Profile details" className="flex min-w-0 flex-col gap-4 rounded-[14px] p-4">
-              {/* The profile picture is edited here, with the identity it
-               belongs to. It rides along on the same save as the fields
-               below, so nothing is written until the creator saves — and a
-               save that changes only a name leaves the picture alone. What
-               becomes of the file is reported in the transport's own words
-               rather than asserted here. */}
-              <MobileProfileAvatarEditor pending={editor.avatar.avatar} error={editor.avatar.error} currentUrl={editor.profile?.avatar} currentInitials={(editor.profile?.name ?? '').split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('')} disabled={isBusy} storageNotice={editor.avatar.storageNotice} onSelect={editor.avatar.select} onClear={editor.avatar.clear} onBusyChange={setAvatarBusy}>
-                <label className="mobile-profile-visibility">
-                  <LockKeyholeIcon aria-hidden="true" size={20} />
-                  <span>Account visibility<strong>{fields.isPrivate ? 'Private' : 'Public'}</strong></span>
-                  <ChevronDownIcon aria-hidden="true" size={16} />
-                  <select aria-label="Account visibility" value={fields.isPrivate ? 'private' : 'public'} disabled={isBusy} onChange={event => editor.setVisibility(event.target.value === 'private')}>
-                    <option value="public">Public</option><option value="private">Private</option>
-                  </select>
-                </label>
-              </MobileProfileAvatarEditor>
+  const selectedLink = fields?.links.find(link => link.id === editingLinkId) ?? null;
+  const title = screen === 'personal' ? 'Personal details' : screen === 'link' ? (editingLinkId ? 'Edit link' : 'Add link') : 'Edit profile';
+  return <section ref={pageRef} data-presentation={isMobile ? 'mobile' : 'web'} data-profile-editor-screen={screen} aria-labelledby="profile-editor-title" className="profile-editor-page flex h-full min-h-0 w-full flex-col">
+    <header className="profile-editor-header">
+      <div className="profile-editor-toolbar">
+        <ScreenBack visibleOnMobile action={requestClose}><button type="button" onClick={requestClose} aria-label={screen === 'overview' ? 'Back' : 'Back to Edit profile'} disabled={isBusy || avatarBusy} className="profile-editor-back"><InterfaceIcon icon={ChevronLeftIcon} />{screen !== 'overview' && <span>Edit profile</span>}</button></ScreenBack>
+        {screen !== 'overview' && <h1 ref={headingRef} tabIndex={-1} id="profile-editor-title">{title}</h1>}
+        {screen === 'overview' ? <button type="submit" form="profile-editor-form" className="profile-editor-save" disabled={!canSubmit}>{isBusy ? 'Saving…' : 'Save'}</button> : <button type="submit" form={screen === 'personal' ? 'profile-personal-form' : 'profile-link-form'} className="profile-editor-save" disabled={!childValid || isBusy || avatarBusy}>Done</button>}
+      </div>
+      {screen === 'overview' && <h1 ref={headingRef} tabIndex={-1} id="profile-editor-title" className="profile-editor-large-title">Edit profile</h1>}
+    </header>
+    {editor.loadError ? <div className="profile-settings-content"><ErrorState title="Unable to load profile" description={editor.loadError} /></div> : editor.phase === 'loading' || !fields ? <div className="profile-settings-content"><LoadingState label="Loading profile" /></div> :
+      <div className="profile-editor-scroll scrollbar-overlay" key={screen}>
+        {screen === 'overview' ? <form id="profile-editor-form" className="profile-settings-content" noValidate onSubmit={event => { event.preventDefault(); submit(); }}>
+          {editor.phase === 'failed' && <div ref={errorRef} tabIndex={-1} role="alert" className="profile-settings-notice profile-settings-error">
+            <AlertCircleIcon aria-hidden="true" size={20} /><div>{editor.save.error}<button type="button" disabled={!canSubmit} onClick={submit} className="profile-settings-action">Try again</button></div>
+          </div>}
+          {editor.phase === 'saved' && <div role="status" className="profile-settings-notice"><CheckCircle2Icon aria-hidden="true" size={20} />Profile updated.</div>}
+          {editor.isDirty && !editor.canSave && !isBusy && <p className="profile-settings-error" role="alert">Review your name, location and links before saving.</p>}
+          <div className="profile-settings-group">
+            <button type="button" className="profile-settings-row profile-settings-identity" onClick={openPersonal} disabled={isBusy} aria-label={`Personal details, ${fields.name}`}>
+              <span className="profile-settings-avatar"><CreatorAvatar name={fields.name} avatar={editor.avatar.avatar?.previewUrl ?? editor.profile?.avatar} shape="squircle" className="h-full w-full" /></span>
+              <span className="profile-settings-identity-copy"><strong>{fields.name}</strong>{fields.location && <span>{fields.location}</span>}</span><ChevronRightIcon className="profile-settings-chevron" aria-hidden="true" />
+            </button>
+          </div>
+          <section className="profile-settings-section" aria-labelledby="profile-visibility-heading">
+            <h2 id="profile-visibility-heading" className="profile-settings-section-title">Visibility</h2>
+            <div className="profile-settings-group">
+              <label className="profile-settings-row profile-settings-visibility"><span className="profile-settings-label">Account visibility</span><span className="profile-settings-value">{fields.isPrivate ? 'Private' : 'Public'}</span><ChevronRightIcon className="profile-settings-chevron" aria-hidden="true" /><select aria-label="Account visibility" value={fields.isPrivate ? 'private' : 'public'} disabled={isBusy} onChange={event => editor.setVisibility(event.target.value === 'private')}><option value="public">Public</option><option value="private">Private</option></select></label>
               <ProfilePreferenceSwitch label="Show Timeline publicly" checked={fields.showJourney} disabled={isBusy} onChange={editor.setShowJourney} />
               <ProfilePreferenceSwitch label="Show what I cite" checked={fields.showOutgoingCitations} disabled={isBusy} onChange={checked => editor.setCitationPreference('showOutgoingCitations', checked)} />
               <ProfilePreferenceSwitch label="Show who cites me" checked={fields.showIncomingCitations} disabled={isBusy} onChange={checked => editor.setCitationPreference('showIncomingCitations', checked)} />
-              <ProfileField ref={firstFieldRef} id="profile-editor-name" label="Name" required={isMobile} value={fields.name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Name shown on profile" error={fieldErrors.name} disabled={isBusy} onChange={(value) => editor.setField('name', value)} />
-              <ProfileLocationPicker id="profile-editor-city" value={fields.location} error={fieldErrors.location} disabled={isBusy} onChange={value => editor.setField('location', value)} />
-              </section>
-
-              <section data-profile-editor-section="links" aria-label="Profile destinations" className="min-w-0 rounded-[14px] p-4">
-                <ProfileLinksEditor compact={isMobile} links={fields.links} errors={linkErrors} disabled={isBusy} onAdd={editor.addProfileLink} onChange={editor.setProfileLink} onRemove={editor.removeProfileLink} onReorder={editor.reorderProfileLinks} />
-              </section>
-              </div>
             </div>
-
-            </form>}
-          {discard && <ConfirmationDialog title="Discard changes?" description="Your unsaved profile changes will be lost." confirmLabel="Discard changes" cancelLabel="Keep editing" variant="destructive" onCancel={()=>setDiscard(false)} onConfirm={onClose}/>}
-        </section>;
+          </section>
+          <ProfileLinksEditor links={fields.links} errors={linkErrors} disabled={isBusy} onAdd={() => openLink(null)} onEdit={openLink} onRemove={editor.removeProfileLink} onReorder={editor.reorderProfileLinks} />
+        </form> : screen === 'personal' ? <ProfilePersonalDetails name={fields.name} location={fields.location} avatar={editor.avatar.avatar} currentUrl={editor.profile?.avatar} disabled={isBusy} onBusyChange={setAvatarBusy} onDirtyChange={setChildDirty} onValidityChange={setChildValid} onDone={details => {
+          if (details.avatar && !editor.avatar.select(details.avatar.file, { originalSource: details.avatar.originalSource, crop: details.avatar.crop })) return false;
+          editor.setField('name', details.name); editor.setField('location', details.location);
+          closeChild(); return true;
+        }} /> : <ProfileLinkDetails link={selectedLink} disabled={isBusy} onDirtyChange={setChildDirty} onValidityChange={setChildValid} onDone={value => {
+          if (editingLinkId) editor.setProfileLink(editingLinkId, value);
+          else if (!editor.addProfileLink(value)) return;
+          closeChild();
+        }} onRemove={() => { if (editingLinkId) editor.removeProfileLink(editingLinkId); closeChild(); }} />}
+      </div>}
+    {discard && <ConfirmationDialog title="Discard changes?" description="Your unsaved profile changes will be lost." confirmLabel="Discard changes" cancelLabel="Keep editing" variant="destructive" onCancel={() => { setDiscard(false); leave.cancelLeave(); }} onConfirm={() => { setDiscard(false); leave.confirmLeave(); }} />}
+  </section>;
 }

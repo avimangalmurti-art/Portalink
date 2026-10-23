@@ -1,359 +1,140 @@
-import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
-import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useModalFocus } from '../../hooks/useModalFocus';
-import { useDialogViewport } from '../../hooks/useDialogViewport';
-import { createPortal } from 'react-dom';
-import { usePresentation } from '../../presentation/usePresentation';
+import React, { useId, useState } from 'react';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
-import { GripVerticalIcon, HandshakeIcon, InfoIcon, MessagesSquareIcon, LinkIcon, PlusIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react';
-import { getCategoryIcon, getPortalIconLabel, portalIconNames, profileLinkIconOptions, type ProfileLinkIconOption } from '../../components/profile/categoryIcons';
-import { PortalIconLibrary } from '../../components/profile/PortalIconLibrary';
+import { ChevronRightIcon, GripVerticalIcon, MinusCircleIcon, PlusIcon } from 'lucide-react';
+import { getCategoryIcon } from '../../components/profile/categoryIcons';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
+import { motionCurve, motionSeconds } from '../../presentation/motion/motion';
 import type { EditableProfileLink, ProfileLinkFieldError } from './useProfileEditor';
-import { inferProfileLinkIconName, isProfileLinkAction, MAX_PROFILE_LINKS } from './profileLinks';
-import { PROFILE_LINK_LABEL_MAX_LENGTH, PROFILE_LINK_URL_MAX_LENGTH } from './validation';
+import { isProfileLinkAction, MAX_PROFILE_LINKS } from './profileLinks';
+import './profileLinksEditor.css';
 
 type ProfileLinksEditorProps = {
   links: EditableProfileLink[];
   errors: Record<string, ProfileLinkFieldError>;
   disabled: boolean;
   compact?: boolean;
-  onAdd: () => string | null;
-  onChange: (linkId: string, patch: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName' | 'hidden'>>) => void;
+  onAdd: () => void;
+  onEdit: (linkId: string) => void;
   onRemove: (linkId: string) => void;
   onReorder: (linkIds: string[]) => void;
 };
 
-function ReorderableProfileLinkRow({
-  link,
-  index,
-  total,
-  errors,
-  disabled,
-  compact,
-  isExpanded,
-  onToggleExpanded,
-  onChange,
-  onChooseIcon,
-  onRequestRemove,
-}: {
+function removeWithFocus(button: HTMLButtonElement, onRemove: () => void) {
+  const ownerDocument = button.ownerDocument;
+  const row = button.closest<HTMLElement>('.profile-links-item');
+  const active = ownerDocument.activeElement;
+  const next = row?.nextElementSibling?.matches('.profile-links-item') ? row.nextElementSibling : null;
+  const previous = row?.previousElementSibling?.matches('.profile-links-item') ? row.previousElementSibling : null;
+  const target = row && active && row.contains(active)
+    ? next?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+      ?? previous?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+      ?? row.parentElement?.querySelector<HTMLButtonElement>('.profile-links-add:not(:disabled)')
+    : null;
+  onRemove();
+  if (!row || !active || !target) return;
+  ownerDocument.defaultView?.requestAnimationFrame(() => {
+    // Do not take focus back from a later interaction, dialog or destination.
+    if (row.isConnected || !target.isConnected || target.disabled || !target.getClientRects().length ||
+      target.closest('[hidden], [inert], [aria-hidden="true"]') || ownerDocument.querySelector('[aria-modal="true"]')) return;
+    const current = ownerDocument.activeElement;
+    if (current === ownerDocument.body || current === active) target.focus({ preventScroll: true });
+  });
+}
+
+function ProfileLinkRow({ link, index, total, error, editing, disabled, instructionsId, onEdit, onRemove, onMove, onDragEnd }: {
   link: EditableProfileLink;
   index: number;
   total: number;
-  errors: ProfileLinkFieldError;
+  error: ProfileLinkFieldError;
+  editing: boolean;
   disabled: boolean;
-  compact: boolean;
-  isExpanded: boolean;
-  onToggleExpanded: () => void;
-  onChange: (patch: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName'>>) => void;
-  onChooseIcon: () => void;
-  onRequestRemove: () => void;
+  instructionsId: string;
+  onEdit: () => void;
+  onRemove: () => void;
+  onMove: (destination: number) => void;
+  onDragEnd: () => void;
 }) {
-  const dragControls = useDragControls();
-  const shouldReduceMotion = useReducedMotion();
-  const summaryButtonRef = useRef<HTMLButtonElement>(null);
+  const controls = useDragControls();
+  const reduceMotion = useReducedMotion();
+  const [dragging, setDragging] = useState(false);
   const Icon = getCategoryIcon(link.iconName ?? 'globe');
-  if (isProfileLinkAction(link.action)) {
-    const ActionIcon = { bio: InfoIcon, collaboration: HandshakeIcon, message: MessagesSquareIcon }[link.action];
-    return <Reorder.Item value={link.id} dragListener={false} dragControls={dragControls} layout="position" role="listitem" aria-label={`${link.label}, position ${index + 1} of ${total}`} className="profile-link-editor-row profile-link-editor-row--compact list-none">
-      <div className="flex min-h-14 items-center gap-3 px-2">
-        <ActionIcon aria-hidden="true" className="h-[22px] w-[22px] shrink-0" /><span className="flex-1">{link.label}</span>
-        <button type="button" disabled={disabled} onPointerDown={disabled ? undefined : event => dragControls.start(event)} aria-label={`Drag ${link.label} to reorder`} className="flex h-11 w-11 touch-none items-center justify-center"><GripVerticalIcon aria-hidden="true" className="h-5 w-5" /></button>
-        <button type="button" disabled={disabled} onClick={onRequestRemove} aria-label={`Remove ${link.label}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="shrink-0 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><Trash2Icon aria-hidden="true" className="h-5 w-5" /></button>
-      </div>
+  const name = link.label.trim() || 'Untitled link';
+  const errorId = useId();
+  const message = error.label || error.href;
 
-    </Reorder.Item>;
-  }
-  function updateDestination(patch: Pick<Partial<EditableProfileLink>, 'label' | 'href'>) {
-    const nextLabel = patch.label ?? link.label;
-    const nextHref = patch.href ?? link.href;
-    const nextIconName = inferProfileLinkIconName(nextLabel, nextHref, link.iconName);
-    onChange({
-      ...patch,
-      ...(nextIconName !== link.iconName ? { iconName: nextIconName } : {})
-    });
-  }
-
-  if (compact) {
-    return <Reorder.Item value={link.id} dragListener={false} dragControls={dragControls} layout="position" transition={{
-      duration: shouldReduceMotion ? 0 : motionSeconds('base'),
-      ease: motionCurve()
-    }} whileDrag={{
-      zIndex: 120,
-      scale: 1.015,
-      boxShadow: '0 10px 24px rgba(0,0,0,0.16)'
-    }} role="listitem" aria-label={`${link.label || 'Untitled link'}, position ${index + 1} of ${total}`} data-expanded={isExpanded} className="profile-link-editor-row profile-link-editor-row--compact relative min-w-0 list-none">
-      <div className="profile-link-summary flex min-w-0 items-center">
-        <button ref={summaryButtonRef} type="button" onClick={onToggleExpanded} disabled={disabled} aria-expanded={isExpanded} aria-controls={`profile-link-details-${link.id}`} aria-label={`Edit ${link.label || 'untitled link'}`} className="profile-link-edit flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
-          <span className="profile-link-icon flex h-8 w-8 shrink-0 items-center justify-center" aria-hidden="true"><Icon className="h-[18px] w-[18px]" /></span>
-          <span className="profile-link-name min-w-0 truncate">{link.label || 'Untitled link'}</span>
-        </button>
-        <button type="button" disabled={disabled} onPointerDown={disabled ? undefined : event => dragControls.start(event)} aria-label={`Drag ${link.label || 'link'} to reorder`} className="flex h-11 w-11 shrink-0 touch-none items-center justify-center"><GripVerticalIcon aria-hidden="true" className="h-5 w-5" /></button>
-        <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="profile-link-remove shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-          <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
-        </button>
-      </div>
-      <div id={`profile-link-details-${link.id}`} hidden={!isExpanded} className="profile-link-details">
-        <div className="profile-link-fields grid min-w-0 gap-3">
-          <div className="min-w-0">
-            <label htmlFor={`profile-link-label-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">Name</label>
-            <input data-ui-shape="field" id={`profile-link-label-${link.id}`} value={link.label} onChange={(event) => updateDestination({ label: event.target.value })} maxLength={PROFILE_LINK_LABEL_MAX_LENGTH} disabled={disabled} placeholder="Instagram" aria-invalid={errors.label ? true : undefined} aria-describedby={errors.label ? `profile-link-label-error-${link.id}` : undefined} className="text-control h-11 w-full min-w-0 px-3 text-[16px] text-[var(--text-primary)]" />
-            {errors.label ? <p id={`profile-link-label-error-${link.id}`} className="mt-1 text-[12px] leading-tight text-[var(--status-danger)]">{errors.label}</p> : null}
-          </div>
-          <div className="min-w-0">
-            <label htmlFor={`profile-link-url-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">URL</label>
-            <input data-ui-shape="field" id={`profile-link-url-${link.id}`} type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={link.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={errors.href ? true : undefined} aria-describedby={errors.href ? `profile-link-url-error-${link.id}` : undefined} className="text-control h-11 w-full min-w-0 px-3 text-[16px] text-[var(--text-primary)]" />
-            {errors.href ? <p id={`profile-link-url-error-${link.id}`} className="mt-1 text-[12px] leading-tight text-[var(--status-danger)]">{errors.href}</p> : null}
-          </div>
-        </div>
-        <div className="profile-link-actions mt-3 flex min-w-0 items-center gap-2">
-          <button type="button" onClick={onChooseIcon} disabled={disabled} aria-label={`Choose icon for ${link.label || 'link'}`} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="profile-link-choose-icon gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
-            Icon
-          </button>
-          <button type="button" aria-label={`Drag ${link.label || 'link'} to reorder`} onPointerDown={disabled ? undefined : (event) => dragControls.start(event)} disabled={disabled} className={`profile-link-reorder flex min-h-11 min-w-11 touch-none items-center justify-center gap-1 rounded-[8px] px-2 text-[12px] text-[var(--text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${disabled ? 'cursor-default opacity-40' : 'cursor-grab active:cursor-grabbing'}`}>
-            <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
-            Reorder
-          </button>
-          <button type="button" onClick={() => {
-            onToggleExpanded();
-            summaryButtonRef.current?.focus();
-          }} disabled={disabled} aria-label={`Done editing ${link.label || 'link'}`} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="profile-link-done ml-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Done</button>
-        </div>
-      </div>
-
-    </Reorder.Item>;
-  }
-
-  return <Reorder.Item value={link.id} dragListener={false} dragControls={dragControls} layout="position" transition={{
-    duration: shouldReduceMotion ? 0 : motionSeconds('base'),
-    ease: motionCurve()
-  }} whileDrag={{
-    zIndex: 120,
-    scale: 1.015,
-    boxShadow: '0 10px 24px rgba(0,0,0,0.16)'
-  }} role="listitem" aria-label={`${link.label || 'Untitled link'}, position ${index + 1} of ${total}`} className="profile-link-editor-row relative min-w-0 list-none rounded-[12px] p-2.5">
-      <div className="grid min-w-0 grid-cols-[18px_40px_minmax(0,1fr)_auto] items-start gap-2 sm:grid-cols-[18px_40px_minmax(110px,0.75fr)_minmax(160px,1.25fr)_auto]">
-        <button type="button" aria-label={`Drag ${link.label || 'link'} to reorder`} onPointerDown={disabled ? undefined : (event) => dragControls.start(event)} disabled={disabled} className={`mt-[22px] flex h-8 w-[18px] shrink-0 touch-none items-center justify-center rounded-[6px] text-[var(--text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${disabled ? 'cursor-default opacity-40' : 'cursor-grab active:cursor-grabbing'}`}>
-          <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
-        </button>
-        <button type="button" onClick={onChooseIcon} disabled={disabled} aria-label={`Choose icon for ${link.label || 'link'}`} className="shape-squircle-compact mt-[18px] flex h-10 w-10 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--hairline)] transition-colors hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-          <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
-        </button>
-        <div className="min-w-0">
-          <label htmlFor={`profile-link-label-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">Name</label>
-          <input data-ui-shape="field" id={`profile-link-label-${link.id}`} value={link.label} onChange={(event) => updateDestination({ label: event.target.value })} maxLength={PROFILE_LINK_LABEL_MAX_LENGTH} disabled={disabled} placeholder="Instagram" aria-invalid={errors.label ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] font-medium text-[var(--text-primary)]" />
-          {errors.label ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{errors.label}</p> : null}
-        </div>
-        <div className="col-span-2 col-start-3 min-w-0 sm:col-span-1 sm:col-start-auto">
-          <label htmlFor={`profile-link-url-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">URL</label>
-          <input data-ui-shape="field" id={`profile-link-url-${link.id}`} type="text" inputMode="url" value={link.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={errors.href ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] text-[var(--text-primary)]" />
-          {errors.href ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{errors.href}</p> : null}
-        </div>
-        <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="col-start-4 row-start-1 mt-[22px] sm:col-start-auto sm:row-start-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-          <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
-        </button>
-
-      </div>
-    </Reorder.Item>;
+  return <Reorder.Item value={link.id} dragListener={false} dragControls={controls} layout="position"
+    transition={{ duration: reduceMotion ? 0 : motionSeconds('base'), ease: motionCurve() }}
+    whileDrag={{ zIndex: 1 }} onDragStart={() => setDragging(true)} onDragEnd={() => { setDragging(false); onDragEnd(); }}
+    role="listitem" aria-label={`${name}, position ${index + 1} of ${total}`}
+    data-dragging={dragging || undefined} className="profile-links-item">
+    <div className="profile-settings-row profile-links-row">
+      {editing && <button type="button" className="profile-links-remove" data-semantic-action="" disabled={disabled}
+        aria-label={`Remove ${name}`} onClick={event => removeWithFocus(event.currentTarget, onRemove)}>
+        <InterfaceIcon icon={MinusCircleIcon} size="lg" keepColor />
+      </button>}
+      <button type="button" className="profile-links-open" disabled={disabled} onClick={onEdit}
+        aria-label={`Edit ${name}`} aria-describedby={message ? errorId : undefined}>
+        <span className="profile-links-icon" aria-hidden="true"><Icon /></span>
+        <span className="profile-links-label">{name}{message && <span id={errorId} className="profile-links-error">{message}</span>}</span>
+        {!editing && <InterfaceIcon icon={ChevronRightIcon} size="sm" mirroredInRtl className="profile-settings-chevron profile-links-chevron" />}
+      </button>
+      {editing && <button type="button" className="profile-links-reorder" disabled={disabled}
+        aria-label={`Reorder ${name}`} aria-describedby={instructionsId} aria-keyshortcuts="ArrowUp ArrowDown Home End"
+        title="Drag or use the arrow keys to reorder" onPointerDown={disabled ? undefined : event => controls.start(event)}
+        onKeyDown={event => {
+          const destination = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : event.key === 'Home' ? 0 : event.key === 'End' ? total - 1 : null;
+          if (destination === null) return;
+          event.preventDefault();
+          if (!disabled) onMove(destination);
+        }}>
+        <InterfaceIcon icon={GripVerticalIcon} size="lg" />
+      </button>}
+    </div>
+  </Reorder.Item>;
 }
 
-/** One sortable row per destination: the order, icon, label, and URL are edited
- * in one place so there is no competing chip list or second reorder system. */
-export function ProfileLinksEditor({
-  links,
-  errors,
-  disabled,
-  compact = false,
-  onAdd,
-  onChange,
-  onRemove,
-  onReorder,
-}: ProfileLinksEditorProps) {
-  const presentation = usePresentation();
+/** One draft list; link details are edited on the parent screen's child page. */
+export function ProfileLinksEditor({ links, errors, disabled, onAdd, onEdit, onRemove, onReorder }: ProfileLinksEditorProps) {
+  const [editing, setEditing] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  const headingId = useId();
+  const listId = useId();
+  const instructionsId = useId();
   const visibleLinks = links.filter(link => !isProfileLinkAction(link.action));
-  const removedActions = links.filter(link => isProfileLinkAction(link.action) && link.hidden);
-  const [selectedId, setSelectedId] = useState<string | null>(links[0]?.id ?? null);
-  const [isChoosingIcon, setIsChoosingIcon] = useState(false);
-  const [iconQuery, setIconQuery] = useState('');
-  const [draftIconName, setDraftIconName] = useState('globe');
-  const [expandedIds, setExpandedIds] = useState<string[]>([]);
-  const addedLinkRef = useRef<string | null>(null);
-  useEffect(() => {
-    const id = addedLinkRef.current;
-    if (!compact || !id || !links.some(link => link.id === id)) return;
-    const frame = requestAnimationFrame(() => {
-      document.getElementById(`profile-link-details-${id}`)?.scrollIntoView({
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start'
-      });
-      addedLinkRef.current = null;
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [links, expandedIds, compact]);
 
-  useEffect(() => {
-    if (!compact) return;
-    const invalidIds = Object.keys(errors).filter((id) => errors[id]?.label || errors[id]?.href);
-    if (!invalidIds.length) return;
-    setExpandedIds((current) => {
-      const newlyExpandedIds = invalidIds.filter((id) => !current.includes(id));
-      return newlyExpandedIds.length ? [...current, ...newlyExpandedIds] : current;
-    });
-  }, [compact, errors]);
-
-  useEffect(() => {
-    if (selectedId && links.some((link) => link.id === selectedId)) return;
-    setSelectedId(links[0]?.id ?? null);
-    setIsChoosingIcon(false);
-    setIconQuery('');
-  }, [links, selectedId]);
-
-  const iconDialogRef = useRef<HTMLElement>(null);
-  const iconViewportRef = useDialogViewport(isChoosingIcon && presentation === 'mobile');
-  useModalFocus(isChoosingIcon && links.some((link) => link.id === selectedId), iconDialogRef, () => setIsChoosingIcon(false));
-  useEffect(() => {
-    if (!isChoosingIcon) return;
-    const frame = requestAnimationFrame(() => {
-      if (presentation === 'mobile') iconDialogRef.current?.focus();
-      else iconDialogRef.current?.querySelector<HTMLInputElement>('input')?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [isChoosingIcon, presentation]);
-
-  const selected = links.find((link) => link.id === selectedId) ?? null;
-  const DraftIcon = getCategoryIcon(draftIconName);
-  const draftIconOption = profileLinkIconOptions.find((option) => option.name === draftIconName) ?? (presentation === 'mobile' && portalIconNames.includes(draftIconName) ? { name: draftIconName, label: getPortalIconLabel(draftIconName), isBrand: false } : null);
-  const filteredIconOptions = useMemo(() => {
-    const normalized = iconQuery.trim().toLowerCase();
-    const options = presentation === 'mobile' ? profileLinkIconOptions.filter(option => option.isBrand) : profileLinkIconOptions;
-    if (!normalized) return options;
-    return options.filter((option) => `${option.label} ${option.name}`.toLowerCase().includes(normalized));
-  }, [iconQuery, presentation]);
-
-  const tabbableIconName = filteredIconOptions.find(option => option.name === draftIconName)?.name ?? filteredIconOptions[0]?.name;
-
-  function chooseIcon(option: ProfileLinkIconOption) {
-    if (!selected) return;
-    onChange(selected.id, {
-      iconName: option.name,
-      ...(!selected.label.trim() && option.isBrand ? { label: option.label } : {})
-    });
-    setIsChoosingIcon(false);
-    setIconQuery('');
+  function move(link: EditableProfileLink, destination: number) {
+    if (disabled) return;
+    const index = visibleLinks.findIndex(candidate => candidate.id === link.id);
+    const target = Math.max(0, Math.min(visibleLinks.length - 1, destination));
+    if (index < 0 || index === target) return;
+    const reordered = [...visibleLinks];
+    reordered.splice(index, 1);
+    reordered.splice(target, 0, link);
+    onReorder(reordered.map(candidate => candidate.id));
+    setAnnouncement(`${link.label || 'Untitled link'} moved to position ${target + 1} of ${reordered.length}.`);
   }
 
-  function openIconPicker(linkId: string) {
-    const link = links.find((candidate) => candidate.id === linkId);
-    if (!link) return;
-    setSelectedId(link.id);
-    setDraftIconName(link.iconName ?? 'globe');
-    setIconQuery('');
-    setIsChoosingIcon(true);
-  }
-
-  function addLink() {
-    if (compact && addedLinkRef.current) return;
-    const blank = compact ? visibleLinks.find(link => !link.label.trim() && !link.href.trim()) : undefined;
-    const id = blank?.id ?? onAdd();
-    if (compact && id) addedLinkRef.current = id;
-    if (id) {
-      setSelectedId(id);
-      if (compact) setExpandedIds((current) => [...current, id]);
-      setIsChoosingIcon(false);
-      setIconQuery('');
-    }
-  }
-
-  return <>
-    <fieldset className={`${compact ? 'profile-links-editor--compact ' : ''}m-0 flex min-h-0 min-w-0 flex-col gap-3 border-0 p-0`}>
-      <div className={`${compact ? 'profile-links-editor-heading ' : ''}flex min-h-9 items-start justify-between gap-3`}>
-        <div>
-          <legend className="p-0 text-[14px] font-semibold text-[var(--text-primary)]">Profile links</legend>
-          {!compact ? <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">Drag a handle to set the order viewers see.</p> : null}
-        </div>
-        <button type="button" onClick={addLink} disabled={disabled || links.filter(link => !isProfileLinkAction(link.action)).length >= MAX_PROFILE_LINKS} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="profile-links-editor-add shrink-0 gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-          <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
-          Add link
+  return <section className="profile-settings-section profile-links-editor" aria-labelledby={headingId}>
+    <div className="profile-links-heading">
+      <h2 id={headingId}>Profile links</h2>
+      {visibleLinks.length > 0 && <button type="button" className="profile-settings-action profile-links-edit" data-semantic-action=""
+        disabled={disabled} aria-pressed={editing} aria-controls={listId} onClick={() => setEditing(value => !value)}>{editing ? 'Done' : 'Edit'}</button>}
+    </div>
+    <p id={instructionsId} className="sr-only">Drag to reorder, or use the Up and Down arrow keys. Home moves to first and End moves to last.</p>
+    <Reorder.Group id={listId} axis="y" values={visibleLinks.map(link => link.id)} role="list" aria-label="Profile links"
+      className="profile-settings-group profile-links-group" onReorder={ids => { if (editing && !disabled) onReorder(ids); }}>
+      {visibleLinks.map((link, index) => <ProfileLinkRow key={link.id} link={link} index={index} total={visibleLinks.length}
+        error={errors[link.id] ?? {}} editing={editing} disabled={disabled} instructionsId={instructionsId}
+        onEdit={() => onEdit(link.id)} onRemove={() => { if (!disabled) { onRemove(link.id); setAnnouncement(`${link.label || 'Untitled link'} removed.`); } }}
+        onMove={destination => move(link, destination)} onDragEnd={() => setAnnouncement(`${link.label || 'Untitled link'} is at position ${index + 1} of ${visibleLinks.length}.`)} />)}
+      <li className="profile-links-add-row">
+        <button type="button" className="profile-settings-row profile-settings-action profile-links-add" data-semantic-action=""
+          disabled={disabled || visibleLinks.length >= MAX_PROFILE_LINKS} onClick={onAdd}>
+          <InterfaceIcon icon={PlusIcon} size="lg" keepColor /><span>Add link</span>
         </button>
-      </div>
-
-      {visibleLinks.length > 0 ? <Reorder.Group axis="y" values={visibleLinks.map((link) => link.id)} onReorder={disabled ? () => undefined : onReorder} className={compact ? 'profile-links-editor-list m-0 flex list-none flex-col p-0' : 'scrollbar-overlay m-0 flex max-h-[328px] list-none flex-col gap-2 overflow-y-auto p-0 pr-1'} role="list" aria-label="Profile links">
-          {visibleLinks.map((link, index) => <ReorderableProfileLinkRow key={link.id} link={link} index={index} total={visibleLinks.length} errors={errors[link.id] ?? {}} disabled={disabled} compact={compact} isExpanded={expandedIds.includes(link.id)} onToggleExpanded={() => setExpandedIds((current) => current.includes(link.id) ? current.filter((id) => id !== link.id) : [...current, link.id])} onChange={(patch) => onChange(link.id, patch)} onChooseIcon={() => openIconPicker(link.id)} onRequestRemove={() => {
-            onRemove(link.id);
-            if (compact) setExpandedIds((current) => current.filter((id) => id !== link.id));
-          }} />)}
-        </Reorder.Group> : <button type="button" onClick={addLink} disabled={disabled} data-ui-control="button" data-control-size="md" data-control-variant="secondary" className="profile-links-editor-empty self-start gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-          <InterfaceIcon icon={LinkIcon} size="sm" weight="medium" />
-          Add your first link
-        </button>}
-      {removedActions.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Add standard profile links">
-        {removedActions.map(link => <button key={link.id} type="button" disabled={disabled} onClick={() => onChange(link.id, { hidden: false })} data-ui-control="button" data-control-size="md" data-control-variant="secondary" className="gap-2"><PlusIcon aria-hidden="true" className="h-4 w-4" />Add {link.label}</button>)}
-      </div>}
-    </fieldset>
-
-    {isChoosingIcon && selected ? createPortal(
-      <div ref={iconViewportRef} data-mobile-icon-create={presentation==='mobile'?'link':undefined} data-presentation={presentation} data-link-icon-screen="" role="presentation" onMouseDown={(event) => {
-        if (event.target === event.currentTarget) setIsChoosingIcon(false);
-      }} className="modal-scrim fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-4">
-        <section data-ui-shape={presentation === 'web' ? 'popup' : undefined} data-icon-create-panel="" data-link-icon-form="" ref={iconDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            event.stopPropagation();
-            setIsChoosingIcon(false);
-          }
-        }} className="flex max-h-[min(720px,92dvh)] w-full max-w-[560px] flex-col overflow-hidden rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[0_24px_60px_rgba(0,0,0,0.34)]">
-          <div data-icon-create-header="" className="relative flex shrink-0 items-center justify-center px-4 pb-2 pt-4">
-            <button type="button" onClick={() => setIsChoosingIcon(false)} aria-label="Close icon picker" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="absolute left-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
-            </button>
-            <h2 id="profile-link-icon-heading" className="text-medium font-semibold">Choose link icon</h2>
-          </div>
-
-          <div data-icon-create-body="" className={presentation === 'mobile' ? "min-h-0 flex flex-1 flex-col overflow-hidden px-6 pb-4" : "min-h-0 flex-1 overflow-y-auto px-6 pb-4"}>
-            <div data-link-icon-pinned="" className={presentation === 'mobile' ? "shrink-0" : "contents"}>
-            <div data-icon-create-preview-row="" className="flex justify-center pt-4">
-              <span data-icon-create-preview="" aria-hidden="true" className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)]">
-                <DraftIcon className="h-10 w-10" />
-              </span>
-            </div>
-            <p className="mt-3 text-center text-[12px] font-medium text-[var(--text-secondary)]">
-              {draftIconOption?.label ?? (selected.label || 'Profile link')}
-            </p>
-
-            <div data-icon-create-field=""><label data-ui-shape="field" className="text-control-shell mt-5 flex h-11 items-center gap-2 rounded-[10px] px-3">
-              <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
-              <span className="sr-only">Search link icons</span>
-              <input type="search" value={iconQuery} onChange={(event) => setIconQuery(event.target.value)} placeholder="Search Instagram, YouTube, maps…" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
-            </label>{presentation==='mobile'&&<button data-ui-shape="icon" type="button" aria-label="Search link icons" onClick={()=>iconDialogRef.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus()}><InterfaceIcon icon={SearchIcon} size="lg"/></button>}</div>
-
-            </div>
-            <div data-link-icon-scroll="" data-portal-icon-scroll={presentation === 'mobile' ? '' : undefined} className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents"}>
-            <div data-link-brand-icons="" role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Profile link icon" className="mt-5 grid grid-cols-5 gap-2.5 pb-2 sm:grid-cols-7">
-              {filteredIconOptions.map((option) => {
-                const Icon = getCategoryIcon(option.name);
-                const isSelected = option.name === draftIconName;
-                return <button key={option.name} type="button" role="radio" aria-checked={isSelected} tabIndex={option.name === tabbableIconName ? 0 : -1} aria-label={option.label} title={option.label} onClick={() => setDraftIconName(option.name)} className={`flex aspect-square items-center justify-center rounded-full transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--accent-text)] ring-2 ring-[var(--focus-ring)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
-                  <Icon className="h-[19px] w-[19px]" aria-hidden="true" />
-                </button>;
-              })}
-            </div>
-            {presentation === 'mobile' && <PortalIconLibrary selected={draftIconName} onSelect={setDraftIconName} searchQuery={iconQuery} compact additionalOptions={profileLinkIconOptions} label="More link icons" />}
-            {presentation !== 'mobile' && filteredIconOptions.length === 0 ? <p className="py-8 text-center text-[12px] text-[var(--text-secondary)]">No matching icons</p> : null}
-            </div>
-          </div>
-
-          <div data-icon-create-footer="" className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] px-6 py-4">
-            <button type="button" onClick={() => setIsChoosingIcon(false)} data-ui-control="button" data-control-size="lg" data-control-variant="secondary" className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              Cancel
-            </button>
-            <button type="button" disabled={!draftIconOption} onClick={() => draftIconOption && chooseIcon(draftIconOption)} data-ui-control="button" data-control-size="lg" data-control-variant="primary" className="shrink-0 bg-[var(--accent-primary)] text-[var(--accent-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              Done
-            </button>
-          </div>
-        </section>
-      </div>,
-      document.querySelector<HTMLElement>('.app-shell') ?? document.body
-    ) : null}
-  </>;
+      </li>
+    </Reorder.Group>
+    <p className="profile-links-footnote">Links appear on your public profile.</p>
+    <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</span>
+  </section>;
 }

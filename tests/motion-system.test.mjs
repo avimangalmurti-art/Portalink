@@ -70,6 +70,7 @@ test('deferred dock handlers retain dock motion and other links use push motion'
  class ElementStub{closest(selector){return selector==='.mobile-navigation-dock'?this:null;}}
  const react={...React,useContext:()=>context,useLayoutEffect:fn=>fn(),useMemo:fn=>fn(),useRef:value=>({current:value})};
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  '../../features/profile/profileLeaveGuard':{interceptProfileNavigation:()=>false},
   '../../features/publishing/mobileAuthoringHistory':{replaceMobileAuthoringDestination:()=>false},
   './navigationContext':{ImmediateNavigationContext:{Provider:'immediate-provider'}},
   react,'react-dom':{flushSync:fn=>fn()},'framer-motion':{MotionConfig:'motion-config',useReducedMotion:()=>false},'react-router-dom':{UNSAFE_NavigationContext:{Provider:'provider'},useLocation:()=>({pathname:'/studio'})},
@@ -90,6 +91,7 @@ function profileNavigation(initial='/p/creator',motion){
  const context={navigator:{createHref:href,push:(...args)=>commit('push',...args),replace:(...args)=>commit('replace',...args),go:delta=>calls.push(['go',delta])}};
  const react={...React,useContext:()=>context,useLayoutEffect:fn=>fn(),useMemo:fn=>fn(),useRef:value=>({current:value})};
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  '../../features/profile/profileLeaveGuard':{interceptProfileNavigation:()=>false},
   '../../features/publishing/mobileAuthoringHistory':{replaceMobileAuthoringDestination:()=>false},
   './navigationContext':{ImmediateNavigationContext:{Provider:'immediate-provider'}},
   react,'react-dom':{flushSync:fn=>fn()},'framer-motion':{MotionConfig:'motion-config',useReducedMotion:()=>false},'react-router-dom':{UNSAFE_NavigationContext:{Provider:'provider'},useLocation:()=>location},
@@ -191,6 +193,7 @@ test('Cite dismisses a fast downward drag even before the move state renders',()
 test('standalone citation previews get motion defaults without requiring a router',()=>{
  let locationReads=0;
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  '../../features/profile/profileLeaveGuard':{interceptProfileNavigation:()=>false},
   '../../features/publishing/mobileAuthoringHistory':{replaceMobileAuthoringDestination:()=>false},
   './navigationContext':{ImmediateNavigationContext:{Provider:'immediate-provider'}},
   react:{...React,useContext:()=>null},'react-dom':{},'react-router-dom':{UNSAFE_NavigationContext:{},useLocation:()=>{locationReads++;throw Error('No router');}},
