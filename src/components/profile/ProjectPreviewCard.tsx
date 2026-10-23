@@ -2,7 +2,7 @@ import { MobileProjectPopup } from '../media/MobileProjectPopup';
 import type { ContextTarget } from '../../presentation/mobile/contextActions';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { InfoIcon, MoreHorizontalIcon } from 'lucide-react';
+import { MoreHorizontalIcon } from 'lucide-react';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { FeedCreator, Project } from '../../types/domain';
 import { useContentPreview } from '../../hooks/useContentPreview';
@@ -109,15 +109,13 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
       </Suspense> : targetHref ? <Link to={targetHref} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}
       {inlinePages && content.error && <button type="button" data-ui-shape="capsule" className="inline-project-retry" onClick={event => { event.preventDefault(); event.stopPropagation(); content.retry(); }}>Retry loading pages</button>}
       {!inlinePages && <ProjectHoverDetails summary={project.summary} href={targetHref} onOpen={(event) => { if(isMobile) { event.preventDefault(); event.stopPropagation(); setPopupOpen(true); } else preview.open(event, href ? () => undefined : onOpen); }} className="project-preview-description" />}
-      {inlinePages ? <button type="button" data-ui-shape="capsule" data-keep-color="" className="inline-preview-info"
+      {!disabled && <button type="button" data-ui-shape={inlinePages ? 'capsule' : undefined} data-keep-color="" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={popupOpen}
-        onClick={event => { event.stopPropagation(); setPopupOpen(true); }}><InterfaceIcon icon={InfoIcon} size="md" weight="medium" keepColor /></button> : isMobile && !disabled && <button type="button" data-keep-color="" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-        aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={popupOpen}
-        onClick={event => { event.stopPropagation(); setPopupOpen(true); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>}
+        onClick={event => { event.preventDefault(); event.stopPropagation(); setPopupOpen(true); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>}
       {isMobile && contentTypeLabel && <span className="mobile-feed-content-type">{contentTypeLabel}</span>}
       {editor}
     </div>
-    {active && (isMobile || inlinePages) && popupOpen && <MobileProjectPopup project={project} creator={creator} onEditDescription={onEditDescription} contextHandlers={contextHandlers} onClose={() => setPopupOpen(false)} onOpenComments={onOpenComments} />}
+    {active && popupOpen && <MobileProjectPopup project={project} creator={creator} onEditDescription={onEditDescription} contextHandlers={contextHandlers} onClose={() => setPopupOpen(false)} onOpenComments={onOpenComments} />}
     {!isMobile && !inlinePages && hasExtension && <Suspense fallback={null}><ProjectPreviewExtension expanded={preview.expanded} creator={creator}
       projectId={project.id} creatorHref={creatorHref} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator}
       onOpenComments={onOpenComments} showCreator={showCreator} showEngagementMetrics={showEngagementMetrics}

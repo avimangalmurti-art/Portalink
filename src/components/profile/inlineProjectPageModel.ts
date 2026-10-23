@@ -68,11 +68,12 @@ export function normalizeInlineProjectPosition(project: Pick<Project, 'attachmen
   return { index: resolved.index, key: resolved.key, ...(resolved.attachmentId ? { attachmentId: resolved.attachmentId } : {}), ...(resolved.page ? { page: resolved.page } : {}) };
 }
 
-/** Keep the dots truly centered while reserving the information target on both sides. */
+/** One compact pagination target, centered clear of the project menu. */
 export function inlineDotLimit(width: number): number {
-  if (width > 0 && width < 164) return 0;
-  const count = Math.min(5, Math.max(1, Math.floor((width - 120) / 44)));
-  return count > 1 && count % 2 === 0 ? count - 1 : count;
+  if (width <= 0) return 5;
+  if (width < 188) return 0;
+  const count = Math.min(5, Math.floor((width - 152) / 11));
+  return count % 2 === 0 ? count - 1 : count;
 }
 
 export function inlineDotWindow(selected: number, total: number, limit = 5): number[] {

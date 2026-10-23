@@ -19,24 +19,41 @@
   }
 }
 
-.project-preview-card .inline-preview-info {
+#root .codex-shell[data-presentation='web'] .project-preview-card .mobile-preview-details {
   position: absolute;
-  z-index: 6;
-  right: 8px;
-  bottom: 8px;
-  display: grid;
-  place-items: center;
+  z-index: 5;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
   width: 44px;
   height: 44px;
-  padding: 8px;
+  padding: 4px;
   border: 0;
-  border-radius: 999px;
-  background: rgb(0 0 0 / 68%);
+  border-radius: 0;
+  background: transparent;
   color: #fff;
   cursor: pointer;
   touch-action: manipulation;
 }
-.project-preview-card .inline-preview-info:focus-visible {
+#root .codex-shell[data-presentation='web'] .project-preview-card .mobile-preview-details svg {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 80%)) drop-shadow(0 0 1px rgb(0 0 0 / 90%));
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card[data-inline-project-pages] .mobile-preview-details {
+  right: 8px; bottom: 8px;
+  width: 56px; height: 44px;
+  padding: 0; align-items: center; justify-content: center;
+  border-radius: var(--ui-capsule-radius);
+  background: var(--surface-raised); color: var(--text-primary);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 24%), 0 0 0 1px rgb(127 127 127 / 28%);
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card[data-inline-project-pages] .mobile-preview-details > [data-interface-icon-frame] {
+  --interface-icon-size: 20px;
+  --interface-icon-stroke: 1.75;
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card[data-inline-project-pages] .mobile-preview-details svg { filter: none; }
+.project-preview-card .mobile-preview-details:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }

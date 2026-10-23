@@ -185,14 +185,29 @@ export function InlineProjectPages({ project, active, cover, position, onSelect,
         </div>;
       })}
     </div>
-    {slides.length > 1 && !unresolved && <div className="inline-project-pagination" role="group" aria-label={`Pages in ${project.title}`} data-inline-project-control="">
-      {pagination.map(index => <button key={index} type="button" className="inline-project-dot" data-ui-shape="capsule" data-selected={index === selected} data-window-edge={index !== selected && ((index === pagination[0] && index > 0) || (index === pagination[pagination.length - 1] && index < slides.length - 1)) || undefined}
-        aria-label={index === 0 ? `Show cover of ${project.title}` : `Show slide ${index + 1} of ${slides.length} in ${project.title}`} aria-current={index === selected ? 'true' : undefined}
-        tabIndex={active && index === selected ? 0 : -1} onClick={event => { event.preventDefault(); event.stopPropagation(); select(index); }} onKeyDown={event => {
-          const next = inlineKeyboardPage(event.key, selected, slides.length);
+    {slides.length > 1 && !unresolved && pagination.length > 0 && <div className="inline-project-pagination" role="slider" aria-label={`Pages in ${project.title}`} data-inline-project-control=""
+      aria-valuemin={1} aria-valuemax={slides.length} aria-valuenow={selected + 1} aria-valuetext={selectedDescription}
+      aria-orientation="horizontal" aria-disabled={!active || undefined} tabIndex={active ? 0 : -1}
+      onClick={event => {
+        event.preventDefault(); event.stopPropagation();
+        if (!active || event.detail === 0) return;
+        const dots = [...event.currentTarget.querySelectorAll<HTMLElement>('[data-inline-dot-index]')];
+        const nearest = dots.reduce<HTMLElement | undefined>((closest, dot) => {
+          const distance = (item: HTMLElement) => { const rect = item.getBoundingClientRect(); return Math.abs(event.clientX - rect.left - rect.width / 2); };
+          return !closest || distance(dot) < distance(closest) ? dot : closest;
+        }, undefined);
+        if (nearest) select(Number(nearest.dataset.inlineDotIndex));
+      }} onKeyDown={event => {
+          if (!active) return;
+          const key = event.key === 'ArrowUp' ? 'ArrowRight' : event.key === 'ArrowDown' ? 'ArrowLeft' : event.key;
+          const next = inlineKeyboardPage(key, selected, slides.length);
           if (next === null) return;
-          event.preventDefault(); event.stopPropagation(); ref.current?.focus({ preventScroll: true }); select(next);
-        }}><span /></button>)}
+          event.preventDefault(); event.stopPropagation(); select(next);
+        }}>
+      <span className="inline-project-dots" aria-hidden="true">
+        {pagination.map(index => <span key={index} className="inline-project-dot" data-inline-dot-index={index} data-selected={index === selected}
+          data-window-edge={index !== selected && ((index === pagination[0] && index > 0) || (index === pagination[pagination.length - 1] && index < slides.length - 1)) || undefined} />)}
+      </span>
     </div>}
     <span className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</span>
   </div>;

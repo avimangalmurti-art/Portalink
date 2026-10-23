@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 import { inlineDragOffset, inlineGestureAxis, inlineSwipePage, type InlineGestureSample } from './inlineProjectPageModel';
 
-type Gesture = InlineGestureSample & { id: number; axis: 'pending' | 'x' | 'y'; width: number };
+type Gesture = InlineGestureSample & { id: number; axis: 'pending' | 'x' | 'y'; width: number; host: HTMLElement };
 const controls = 'a,button,input,textarea,select,video,audio,iframe,[contenteditable="true"],[role="slider"],[data-inline-media-interactive] canvas';
 
 /** Only a card's horizontal gesture is captured. The browser retains pan-y and its edges. */
@@ -12,7 +12,14 @@ export function useInlineProjectSwipe(enabled: boolean, selected: number, total:
   const [dragging, setDragging] = useState(false);
   const latest = useRef({ enabled, selected, total, onSelect });
   latest.current = { enabled, selected, total, onSelect };
-  const settle = useCallback(() => { gesture.current = null; setDragging(false); setOffset(0); }, []);
+  const settle = useCallback(() => {
+    const current = gesture.current;
+    gesture.current = null;
+    // A density change or interrupted gesture must not leave this host owning
+    // the pointer. Clear our state first because release can emit capture loss.
+    if (current?.host.hasPointerCapture(current.id)) current.host.releasePointerCapture(current.id);
+    setDragging(false); setOffset(0);
+  }, []);
   useEffect(() => { if (!enabled) settle(); }, [enabled, settle]);
   return { offset, dragging, handlers: {
     onPointerDownCapture(event: PointerEvent<HTMLElement>) {
@@ -24,7 +31,7 @@ export function useInlineProjectSwipe(enabled: boolean, selected: number, total:
       const control = (event.target as Element).closest(controls);
       if (control && !control.hasAttribute('data-inline-project-open')) return;
       if (event.clientX < 24 || window.innerWidth - event.clientX < 24) return;
-      gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, axis: 'pending', width: event.currentTarget.clientWidth };
+      gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, axis: 'pending', width: event.currentTarget.clientWidth, host: event.currentTarget };
     },
     onPointerMoveCapture(event: PointerEvent<HTMLElement>) {
       const start = gesture.current;
@@ -44,13 +51,21 @@ export function useInlineProjectSwipe(enabled: boolean, selected: number, total:
     },
     onPointerUpCapture(event: PointerEvent<HTMLElement>) {
       const start = gesture.current;
+      if (!start || start.id !== event.pointerId) return;
       settle();
-      if (!start || start.id !== event.pointerId || start.axis !== 'x' || !latest.current.enabled) return;
+      if (start.axis !== 'x' || !latest.current.enabled) return;
       const next = inlineSwipePage(start, { x: event.clientX, y: event.clientY, time: event.timeStamp }, latest.current.selected, latest.current.total);
       if (next !== latest.current.selected) latest.current.onSelect(next);
     },
-    onPointerCancel: settle,
-    onLostPointerCapture() { if (gesture.current) settle(); },
+    onPointerCancel(event: PointerEvent<HTMLElement>) {
+      if (gesture.current?.id === event.pointerId) settle();
+    },
+    onLostPointerCapture(event: PointerEvent<HTMLElement>) {
+      // Touch implicitly captures the initially touched image/link. Moving
+      // capture to this host emits a bubbling loss from that descendant; only
+      // losing the host's own capture cancels the horizontal gesture.
+      if (event.target === event.currentTarget && gesture.current?.id === event.pointerId) settle();
+    },
     onClickCapture(event: MouseEvent<HTMLElement>) {
       if (event.detail === 0) { suppressed.current = false; return; }
       if (!suppressed.current) return;
