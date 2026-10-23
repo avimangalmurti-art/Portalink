@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" width="1200" height="280" preserveAspectRatio="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" width="1200" height="280" preserveAspectRatio="xMidYMid meet">
   <title>World map with coastal contours</title>
   <rect width="1200" height="280" fill="#0752ff"/>
   <!-- Deliberately wide cartographic artwork for the welcome capsule. -->
@@ -43,7 +43,7 @@
     <path d="M1034 274 1041 272 1045 277 1040 280 1035 279Z M1126 239 1134 232 1138 237 1134 247 1127 251 1123 247Z M1138 254 1145 248 1150 253 1147 264 1139 274 1132 271 1134 263Z"/>
   </g>
   <!-- Fine graticule contours echo the planet without competing with the label. -->
-  <g fill="none" stroke="#001b70" stroke-width="1.5" opacity=".24">
+  <g fill="none" stroke="#001b70" stroke-width="2.2" opacity=".3">
     <path d="M213-10C168 76 168 204 221 290M403-10C379 76 379 204 412 290M600-10V290M797-10C821 76 821 204 788 290M987-10C1032 76 1032 204 979 290"/>
     <path d="M-12 66Q600 27 1212 66M-12 139Q600 119 1212 139M-12 212Q600 239 1212 212"/>
   </g>

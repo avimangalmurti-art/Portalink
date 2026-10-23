@@ -38,7 +38,7 @@
 .catalog-welcome .catalog-welcome-copy {
   align-self: center;
   min-width: 0;
-  padding-block: 24px;
+  padding-block: clamp(64px, 10dvh, 104px) 16px;
 }
 
 .catalog-welcome .catalog-welcome-headline {
@@ -58,10 +58,10 @@
   margin: clamp(24px, 3.5dvh, 36px) 0 0;
   color: inherit;
   font-family: inherit;
-  font-size: clamp(1.125rem, calc(1rem + .45vw), 1.5rem);
+  font-size: clamp(1.25rem, calc(1.125rem + .45vw), 1.375rem);
   font-style: normal;
   font-weight: 400;
-  line-height: 1.35;
+  line-height: 1.4;
   letter-spacing: -.015em;
   text-align: left;
   overflow-wrap: anywhere;
@@ -73,7 +73,7 @@
 
 /* Move the reserved line as one layer: glyph advances and wrapping stay intact. */
 .catalog-welcome[data-instant='false'] .catalog-welcome-line {
-  transform: translateY(.18em);
+  transform: translateY(.12em);
   transition: transform var(--m-slow) var(--m-enter);
 }
 
@@ -169,7 +169,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 80px;
+  min-height: 96px;
   margin: 0;
   padding: 12px 20px;
   border: 0;
@@ -177,10 +177,10 @@
   background: #0752ff;
   color: #050505;
   font-family: inherit;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-style: normal;
   font-weight: 700;
-  line-height: 1.125;
+  line-height: 1.25;
   text-align: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -192,10 +192,10 @@
   content: '';
   position: absolute;
   z-index: 0;
-  inset: 0 -12px;
+  inset: 0;
   border-radius: inherit;
-  background: #0752ff url('/welcome/world-map.svg') center / 100% 100% no-repeat;
-  transform: translateX(0) scale(1.04);
+  background: #0752ff url('/welcome/world-map.svg') center / contain no-repeat;
+  transform: translateX(0);
   transition: transform var(--m-slow) var(--m-enter);
   pointer-events: none;
 }
@@ -209,9 +209,9 @@
   position: relative;
   z-index: 1;
   max-width: 100%;
-  padding: 6px 16px;
+  padding: 10px 20px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 88%);
+  background: rgb(255 255 255 / 92%);
   color: #050505;
   overflow-wrap: anywhere;
 }
@@ -230,19 +230,18 @@
 
 @media (hover: hover) and (pointer: fine) {
   .catalog-welcome .catalog-welcome-start:not(:disabled):is(:hover, :focus-visible)::before {
-    transform: translateX(5px) scale(1.04);
+    transform: translateX(3px);
   }
 }
 
 @keyframes catalog-welcome-action-arrive {
-  from { transform: translateY(14px) scale(.96); }
-  70% { transform: translateY(-2px) scale(1.01); }
-  to { transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes catalog-welcome-map-arrive {
-  from { transform: translateX(-14px) scale(1.04); }
-  to { transform: translateX(0) scale(1.04); }
+  from { transform: translateX(-8px); }
+  to { transform: translateX(0); }
 }
 
 @keyframes catalog-welcome-cursor {
