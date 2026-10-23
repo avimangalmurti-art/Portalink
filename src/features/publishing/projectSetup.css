@@ -7,7 +7,7 @@
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:24px;
+  padding:0;
   background:rgb(12 18 30 / 34%);
   color:var(--text-primary);
   backdrop-filter:blur(12px);
@@ -18,15 +18,17 @@
   display:flex;
   flex-direction:column;
   width:100%;
-  max-width:520px;
-  height:800px;
+  max-width:none;
+  height:100%;
   max-height:100%;
   min-height:0;
   margin:0;
-  border:1px solid var(--hairline);
-  border-radius:28px!important;
+  border:0!important;
+  border-radius:0!important;
   background:var(--surface-raised)!important;
-  box-shadow:0 24px 80px rgb(0 0 0 / 15%);
+  box-shadow:none;
+  padding-block:max(0px,calc(var(--safe-area-top,env(safe-area-inset-top,0px)) - var(--dialog-viewport-top,0px))) env(safe-area-inset-bottom,0px);
+  padding-inline:var(--safe-area-left,env(safe-area-inset-left,0px)) var(--safe-area-right,env(safe-area-inset-right,0px));
   backdrop-filter:none!important;
   outline:none;
   overflow:hidden;
@@ -38,6 +40,11 @@
   flex:none;
   gap:8px;
   padding:12px 16px 4px;
+}
+.project-setup-page>header,.project-setup-page form,.project-setup-page>footer,.project-setup-page>.project-setup-icon-picker {
+  width:100%;
+  max-width:620px;
+  margin-inline:auto;
 }
 .project-setup-page h1 {
   min-width:0;
@@ -217,22 +224,20 @@
   font-weight:550;
 }
 .project-setup-save-status { margin:12px 0 0; font-size:12px; line-height:1.5; color:var(--text-secondary); }
-.project-setup-screen[data-presentation='mobile'] { align-items:flex-end; padding:max(20px,env(safe-area-inset-top,0px)) 0 0; }
+.project-setup-screen[data-presentation='mobile'] { padding:0; }
 .app-shell .project-setup-screen[data-presentation='mobile']>.project-setup-page[role='dialog'] {
   max-width:none;
-  height:min(89dvh,820px);
+  height:100%;
   border-bottom:0;
-  border-radius:28px 28px 0 0!important;
-  padding-bottom:env(safe-area-inset-bottom,0px);
+  border-radius:0!important;
 }
-/* Keep the complete illustration and form together. Let the artwork use the
-   remaining space before the form needs to scroll in a short/keyboard viewport. */
-.project-setup-screen[data-presentation='mobile'] .project-setup-page form:not([hidden]) {
+/* Artwork yields space before fields do, keeping the complete form in view. */
+.project-setup-screen .project-setup-page form:not([hidden]) {
   display:flex;
   flex-direction:column;
 }
-.project-setup-screen[data-presentation='mobile'] .project-setup-page form>* { flex-shrink:0; }
-.project-setup-screen[data-presentation='mobile'] .project-setup-page .project-setup-art {
+.project-setup-screen .project-setup-page form>* { flex-shrink:0; }
+.project-setup-screen .project-setup-page .project-setup-art {
   flex-shrink:1;
   min-height:96px;
 }
@@ -241,6 +246,7 @@
   .project-setup-continue:not(:disabled):hover { background:var(--accent-hover,var(--accent-primary)); }
 }
 @media (max-height:740px) {
+  .project-setup-screen .project-setup-page .project-setup-art { min-height:64px; }
   .project-setup-art,.project-setup-screen[data-presentation='web'] .project-setup-art { height:120px; }
   .project-setup-intro { margin-bottom:16px; font-size:15px; }
   .project-setup-group { gap:12px; }

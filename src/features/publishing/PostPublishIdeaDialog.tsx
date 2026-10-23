@@ -32,7 +32,7 @@ export function PostPublishIdeaDialog({ onClose, onViewIdea, onOpenCatalogue }: 
   return <ModalPortal><div ref={viewport} className="post-publish-idea-backdrop modal-scrim" data-presentation={presentation}
     onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="post-publish-idea-title" aria-describedby="post-publish-idea-description" tabIndex={-1}
-      className="post-publish-idea-dialog" data-material="content" data-ui-surface={presentation === 'mobile' ? 'sheet' : 'popup'}>
+      className="post-publish-idea-dialog" data-material="content" data-ui-shape="screen">
       <header>
         <button type="button" aria-label="Close published project confirmation" data-ui-control="icon" data-control-variant="ghost" onClick={onClose}><XIcon size={20} aria-hidden="true"/></button>
         <span>Portalink</span><span className="post-publish-idea-header-spacer" aria-hidden="true"/>

@@ -133,7 +133,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
         <section className="onboarding-review-idea" aria-label="Project details">
           <p className="onboarding-review-portal"><span>Portal</span><strong>{categoryLabel}</strong></p>
           <header><h4>{flow.metadata.title.trim()}</h4>{editAction('Edit project details', 'details')}</header>
-          <div className="onboarding-review-summary" aria-label="Description">{flow.metadata.summary.trim() ? <FormattedText text={flow.metadata.summary.trim()}/> : <p className="onboarding-review-empty-description">No description added.</p>}</div>
+          <div className="onboarding-review-summary" role="region" tabIndex={0} aria-label="Description">{flow.metadata.summary.trim() ? <FormattedText text={flow.metadata.summary.trim()}/> : <p className="onboarding-review-empty-description">No description added.</p>}</div>
           {flow.location.trim() && <p className="onboarding-review-location"><MapPinIcon size={16} aria-hidden="true"/><span>{flow.location.trim()}</span></p>}
         </section>
         <section className="onboarding-review-files" aria-label="Selected files">

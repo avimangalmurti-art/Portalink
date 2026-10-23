@@ -1,4 +1,4 @@
-/* Only the authoring flow entered from New idea uses the welcome-card frame. */
+/* Guided project authoring. Creation frames opt into full-screen layout below. */
 .onboarding-publish-backdrop,
 .project-form-overlay[data-onboarding-publish] {
   position:fixed;
@@ -296,4 +296,70 @@
 @media(max-height:740px) {
   #root .codex-shell [data-onboarding-idea-review] { gap:12px; }
   #root .codex-shell [data-onboarding-idea-review] .onboarding-review-cover [data-cover-collapsed] { height:156px; }
+}
+
+/* Only creation opts in: published-project editing and Then/Now retain their frames. */
+.project-form-overlay[data-project-creation],
+.onboarding-publish-backdrop[data-project-creation] {
+  padding:0;
+  align-items:stretch;
+  overflow:hidden;
+}
+#root .codex-shell[data-presentation] :is(.project-form-dialog,.project-form-screen)[data-project-creation][data-project-creation] {
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  max-width:none;
+  height:var(--dialog-viewport-height,100dvh);
+  max-height:100%;
+  min-height:0;
+  margin:0;
+  padding:max(0px,calc(var(--safe-area-top,env(safe-area-inset-top,0px)) - var(--dialog-viewport-top,0px))) 0 env(safe-area-inset-bottom,0px);
+  padding-inline:var(--safe-area-left,env(safe-area-inset-left,0px)) var(--safe-area-right,env(safe-area-inset-right,0px));
+  gap:0;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  overflow:hidden;
+}
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.onboarding-publish-heading,
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.project-form-heading {
+  width:100%;
+  max-width:620px;
+  margin-inline:auto;
+  padding:12px 16px 4px;
+}
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.mobile-publish-flow {
+  width:100%;
+  max-width:620px;
+  min-height:0;
+  margin-inline:auto;
+  padding:0;
+}
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.mobile-publish-flow>.mobile-publish-actions { margin-inline:0; }
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.project-form-content:not([data-mobile-publish]) {
+  width:100%;
+  max-width:960px;
+  margin-inline:auto;
+  padding:12px 32px 24px;
+}
+/* Keep long authored text inside its own readable region, rather than making
+   the review screen scroll past its cover, file controls and primary action. */
+#root .codex-shell [data-project-creation] [data-onboarding-idea-review] { flex:1 1 0; min-height:0; }
+#root .codex-shell [data-project-creation] [data-onboarding-idea-review]>.onboarding-review-idea {
+  display:grid;
+  flex:1 1 0;
+  grid-template-rows:auto auto minmax(44px,1fr) auto;
+  min-height:min-content;
+}
+#root .codex-shell [data-project-creation] .onboarding-review-summary {
+  contain:size;
+  min-height:44px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+/* A short desktop window gives space to crop controls before the preview. */
+#root .codex-shell [data-project-creation][data-presentation='web'] [data-onboarding-files-cover] [data-focused-cover] .cover-filmstrip-track {
+  height:clamp(112px,calc(var(--dialog-viewport-height,100dvh) - 480px),280px);
+  min-height:112px;
 }
