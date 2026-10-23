@@ -28,4 +28,6 @@
 
 .portalink-destructive-warning { width:112px; height:112px; margin:0 auto 16px; border-radius:20px; overflow:hidden; pointer-events:none; }
 .portalink-destructive-warning video,.portalink-destructive-warning img { display:block; width:100%; height:100%; object-fit:contain; }
+/* Normalize the supplied media's near-white matte to the Light dialog surface. */
+.theme-light .portalink-destructive-warning :is(video, img) { filter: brightness(1.02); }
 @media (max-height:600px) { .portalink-destructive-warning { width:72px; height:72px; margin-bottom:12px; } }
