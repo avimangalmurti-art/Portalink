@@ -1,5 +1,5 @@
 import { profileHeadline, validContactEmail } from '../employer/employer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
@@ -52,12 +52,14 @@ function fieldsFromProfile(profile: Profile): ProfileEditorFields {
 function persistentLinks(links: readonly EditableProfileLink[]): ProfileLink[] {
   return links.map(({ id: _id, ...link }) => normalizeProfileLink(link));
 }
-export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
+export function useProfileEditor(profileId: Id | null, isOpen: boolean, cacheConfirmedSave = false) {
+  const cacheConfirmedSaveRef = useRef(cacheConfirmedSave);
+  cacheConfirmedSaveRef.current = cacheConfirmedSave;
   const {
     profiles
   } = useServices();
   const {
-    invalidateProfiles
+    invalidateProfiles, cacheProfile
   } = useProfileData();
   const [loadedProfile, setLoadedProfile] = useState<Profile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -211,9 +213,12 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     if (!profileId) {
       throw new Error('No profile to save.');
     }
-    await profiles.updateProfile(profileId, input);
+    const confirmed = await profiles.updateProfile(profileId, input);
     // One invalidation, so every surface re-reads the canonical record.
     invalidateProfiles();
+    // The mobile return can use the service's canonical record immediately.
+    // Other editors retain their existing invalidation/read lifecycle.
+    if (cacheConfirmedSaveRef.current) cacheProfile(confirmed);
   });
   const resetSave = save.reset;
   useEffect(() => {

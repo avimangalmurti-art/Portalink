@@ -213,6 +213,8 @@ export type UploadOperation = {
   uploadId: UploadId;
   /** Resolves when the operation ends; rejects with `UploadServiceError`. */
   completion: Promise<UploadOutcome>;
+  /** Optional page-lifecycle pause. Preserves recoverable bytes; explicit cancellation is separate. */
+  suspend?: () => Promise<void>;
 };
 
 /** What the transport is asked to do. Order and cover live on the prepared media. */
@@ -223,6 +225,10 @@ export type StartUploadInput = {
   media: PreparedMedia[];
   /** Called only from real transport events. */
   onProgress?: (progress: UploadProgress) => void;
+  /** Opt-in device recovery for a durable MOBILE draft; ordinary WEB uploads are unchanged. */
+  deviceRecovery?: { accountId: Id };
+  /** Confirm cleanup references are saved before a recoverable transfer sends bytes. */
+  onCheckpoint?: (persisted: PersistedMedia[]) => Promise<void>;
 };
 
 /**

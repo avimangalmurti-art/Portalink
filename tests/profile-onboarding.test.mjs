@@ -105,7 +105,8 @@ test('missing name is rejected before uploading or writing', async () => {
 function component(file, name, props, overrides = {}) {
   const slots = [];
   let cursor = 0;
-  const react = { ...React, useLayoutEffect() {}, useEffect() {}, useRef(value) {
+  const profiles = { checkPublicHandle: overrides.checkPublicHandle ?? (async () => 'available') };
+  const react = { ...React, useCallback: callback => callback, useLayoutEffect() {}, useEffect() {}, useRef(value) {
     const index = cursor++;
     if (!(index in slots)) slots[index] = { current: value };
     return slots[index];
@@ -115,7 +116,7 @@ function component(file, name, props, overrides = {}) {
     return [slots[index], (value) => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
   } };
   const exports = execute(read(file), { require(dependency) {
-    if (dependency.endsWith('/ServicesContext')) return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
+    if (dependency.endsWith('/ServicesContext')) return { useServices: () => ({ profiles }) };
     if (dependency.endsWith('/profileHandle')) return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
     if (dependency === 'react') return react;
     if (dependency === 'react/jsx-runtime') return jsxRuntime;
@@ -191,7 +192,7 @@ test('the directory picker preserves custom text and applies only explicit choic
   assert.equal(disabled.props.error, 'Use 48 characters or fewer.');
 });
 
-test('setup exposes large image selection, name and location and submits without hidden field requirements', async () => {
+test('setup collects name, handle and location without a photo picker or hidden field requirements', async () => {
   for (const presentation of ['web', 'mobile']) {
   let submitted;
   const render = component('src/features/profile/ProfileOnboardingDialog.tsx', 'ProfileOnboardingDialog', { isOpen: true, accentColor: '#0A84FF', onAccentColorChange() {}, onDismiss() {}, onComplete() {} }, {
@@ -204,7 +205,8 @@ test('setup exposes large image selection, name and location and submits without
   assert.deepEqual(fields.map((node) => node.props.label), ['Profile name', 'Public handle']);
   assert.equal(find(tree, node => node.props.id === 'onboarding-location').type, 'ProfileLocationPicker');
   assert.equal(fields[0].props.required, presentation === 'mobile');
-  assert.equal(find(tree, (node) => node.type === 'AvatarPicker').props.presentation, presentation === 'mobile' ? 'onboarding' : 'featured');
+  assert.equal(find(tree, (node) => node.type === 'AvatarPicker'),undefined);
+  assert.equal(nodes(tree).some(node=>node.type==='input'&&node.props.type==='file'),false);
   assert.equal(nodes(tree).some((node) => String(node.props?.children).includes('Signed in as')), false);
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(submitted, undefined);
@@ -215,13 +217,11 @@ test('setup exposes large image selection, name and location and submits without
   visibility?.props.onChange(true);
   tree = render();
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
-  assert.equal(submitted, undefined, 'first press checks and displays the final handle');
-  tree = render();
-  await find(tree, node => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(submitted.name, 'Avi');
   assert.equal(submitted.location, 'San Francisco');
   assert.equal(submitted.isPrivate, presentation === 'mobile');
   assert.equal(submitted.handle, 'avi');
+  assert.equal(submitted.avatar,undefined);
   assert.equal('headline' in submitted, false);
   }
 });
@@ -246,4 +246,52 @@ test('featured image selection keeps replace, remove and crop save while compact
   assert.equal(cleared, true);
   const compact = render({ presentation: 'compact' });
   assert.equal(find(compact, (node) => node.type === 'ResponsiveImage').props.width, 40);
+});
+
+test('profile setup explicitly opts both platforms into the new surface and retains native form submission',()=>{
+ for(const presentation of ['mobile','web']){
+  const create={status:'idle',isLoading:false,createdProfile:null,run:async()=>{}};
+  const render=component('src/features/profile/ProfileOnboardingDialog.tsx','ProfileOnboardingDialog',{isOpen:true,theme:'light',accentColor:'#0A84FF',onAccentColorChange(){},onDismiss(){},onComplete(){}},{presentation,useAvatarSelection:()=>({avatar:null,error:null,select(){},clear(){}}),useCreateProfile:()=>create});
+  let tree=render();assert.equal(tree.type,'AccountWelcomeSurface');assert.equal(tree.props.profileSetup,true);assert.equal(tree.props.title,'Create your profile');assert.equal(tree.props.theme,'light');
+  assert.equal(tree.props.showAppearance,presentation==='web');assert.equal(tree.props.busy,false);
+  const form=find(tree,node=>node.type==='form');assert.equal(typeof form.props.onSubmit,'function');assert.equal(form.props.noValidate,true);
+  assert.equal(find(form,node=>node.type==='AvatarPicker'),undefined);assert.equal(nodes(form).some(node=>node.type==='input'&&node.props.type==='file'),false);assert.equal(nodes(form).some(node=>node.props.children==='Add picture later'),false);assert.ok(find(form,node=>node.props.id==='onboarding-name'));assert.ok(find(form,node=>node.props.id==='onboarding-handle'));assert.ok(find(form,node=>node.props.id==='onboarding-location'));
+  const action=find(form,node=>node.type===(presentation==='mobile'?'MobileOnboardingAction':'Button'));assert.ok(action,'The submit action remains within its real form.');assert.equal(action.props.children,'Continue');
+  if(presentation==='web')assert.equal(action.props.type,'submit');
+  create.status='success';create.createdProfile={id:'created',name:'Creator'};tree=render();
+  assert.equal(tree,null,'A saved profile leaves setup without a redundant success card or another action.');
+ }
+});
+
+test('profile setup checks the handle before creating once and permits retry after a refused completion',async()=>{
+ for(const presentation of ['mobile','web']){
+  let handleChecks=0,finish;const submissions=[];
+  const create={status:'idle',isLoading:false,createdProfile:null,run:input=>{submissions.push(input);return new Promise(resolve=>finish=resolve);}};
+  const render=component('src/features/profile/ProfileOnboardingDialog.tsx','ProfileOnboardingDialog',{isOpen:true,accentColor:'#0A84FF',onAccentColorChange(){},onDismiss(){},onComplete(){}},{presentation,checkPublicHandle:async()=>{handleChecks++;return 'available';},useAvatarSelection:()=>({avatar:null,error:null,select(){},clear(){}}),useCreateProfile:()=>create});
+  find(render(),node=>node.props.id==='onboarding-name').props.onChange('New Creator');
+  const submit=find(render(),node=>node.type==='form').props.onSubmit;
+  const pending=submit({preventDefault(){}});await submit({preventDefault(){}});
+  for(let i=0;i<10;i++)await Promise.resolve();
+  assert.equal(handleChecks,1);assert.equal(submissions.length,1);assert.equal(submissions[0].handle,'newcreator');
+  let tree=render();assert.equal(find(tree,node=>node.props.id==='onboarding-handle').props.value,'newcreator');
+  finish();await pending;create.status='error';create.error='Please try again';tree=render();
+  assert.ok(find(tree,node=>node.props.role==='alert'));
+  const retry=find(tree,node=>node.type==='form').props.onSubmit({preventDefault(){}});for(let i=0;i<10;i++)await Promise.resolve();assert.equal(submissions.length,2);assert.equal(handleChecks,1);assert.equal(submissions[1].handle,'newcreator');finish();await retry;
+ }
+});
+
+test('profile setup busy presentation retains authored fields and location without enabling submission or photo selection',async()=>{
+ for(const presentation of ['mobile','web']){
+  let writes=0;
+  const create={status:'idle',isLoading:false,createdProfile:null,run:async()=>writes++};
+  const render=component('src/features/profile/ProfileOnboardingDialog.tsx','ProfileOnboardingDialog',{isOpen:true,accentColor:'#0A84FF',onAccentColorChange(){},onDismiss(){},onComplete(){}},{presentation,useAvatarSelection:()=>({avatar:null,error:null,select(){},clear(){}}),useCreateProfile:()=>create});
+  find(render(),node=>node.props.id==='onboarding-name').props.onChange('Retained creator');find(render(),node=>node.props.id==='onboarding-location').props.onChange('A custom place');
+  create.isLoading=true;const tree=render(),form=find(tree,node=>node.type==='form');
+  assert.equal(tree.props.busy,true);assert.equal(find(form,node=>node.type==='AvatarPicker'),undefined);assert.equal(nodes(form).some(node=>node.type==='input'&&node.props.type==='file'),false);
+  for(const id of ['onboarding-name','onboarding-handle','onboarding-location'])assert.equal(find(form,node=>node.props.id===id).props.disabled,true);
+  assert.equal(find(form,node=>node.props.id==='onboarding-name').props.value,'Retained creator');assert.equal(find(form,node=>node.props.id==='onboarding-location').props.value,'A custom place');
+  if(presentation==='mobile')assert.equal(find(form,node=>node.type==='ProfileVisibilityField').props.disabled,true);
+  else assert.equal(find(form,node=>node.type==='Button').props.disabled,true);
+  await form.props.onSubmit({preventDefault(){}});assert.equal(writes,0);
+ }
 });

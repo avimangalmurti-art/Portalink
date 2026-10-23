@@ -169,7 +169,7 @@ test('MOBILE restores the creator drawer and preserves WEB collapse preference',
   assert.equal(tree.type, 'PublicProfileDrawer');
   let closed = 0;
   const drawer = tree.props.children(() => closed++);
-  assert.equal(home(drawer).props.to, '/share/creator');
+  assert.equal(home(drawer), undefined);
   assert.equal(portals(drawer).length, 2);
   portals(drawer)[0].props.onClick();
   assert.equal(closed, 1);
@@ -177,4 +177,17 @@ test('MOBILE restores the creator drawer and preserves WEB collapse preference',
   assert.equal(nodes(drawer).some(node => node.type === 'context-button'), false);
   h.setPresentation('web'); const web = h.render();
   assert.equal(web.type, 'aside'); assert.equal(web.props['data-collapsed'], 'true');
+});
+test('MOBILE public portals switch list/cards without owner tools and retain visitor controls',()=>{
+ const h=harness('mobile');const close=()=>h.calls.push('close');
+ let view=h.render().props.children(close);
+ assert.equal(view.props['data-portals-layout'],'list');
+ assert.ok(!nodes(view).some(n=>['Add portal','Rename','Delete'].includes(n.props?.['aria-label'])));
+ nodes(view).find(n=>n.props?.['aria-label']==='Show portals as cards').props.onClick();
+ view=h.render().props.children(close);
+ assert.equal(view.props['data-portals-layout'],'grid');
+ assert.equal(portals(view).length,2);
+ assert.ok(nodes(view).some(n=>n.props?.['aria-label']==='Open settings'));
+ nodes(view).find(n=>n.props?.['aria-label']==='Show portals as list').props.onClick();
+ assert.equal(h.render().props.children(close).props['data-portals-layout'],'list');
 });
