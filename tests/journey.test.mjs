@@ -73,7 +73,7 @@ test('permission errors and invalid dates/captions never trigger compatibility w
 });
 test('source integration keeps Portfolio separate, restores drafts and protects a gap preset from PDF metadata',()=>{
  const profile=read('src/components/UserProfilePage.tsx'),visitor=read('src/visitor/VisitorProfileGrid.tsx'),app=read('src/App.tsx'),flow=read('src/features/publishing/usePublishProject.ts');
- assert.match(profile,/const showsMobileReorder = !isJourney/);assert.match(profile,/JourneyView profile=\{profile\}/);assert.match(profile,/mode !== 'description'/);
+ assert.match(profile,/const showsMobileReorder = !isJourney/);assert.match(profile,/JourneyView[^>]*profile=\{profile\}/);assert.match(profile,/mode !== 'description'/);
  assert.match(visitor,/profile.showJourney === true/);assert.match(visitor,/owner=\{false\}/);
  assert.match(app,/setJourneyMadeIn\(year \? `\$\{year\}-01`/);assert.match(app,/publishedProjectId=\{firstProjectPublisher && isFirstProjectPublish/);
  assert.ok(flow.indexOf('if (saved)')<flow.indexOf('madeIn: presetMadeIn'));assert.match(flow,/setMetadata\(saved.metadata\)/);

@@ -83,6 +83,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
   const readingScopes = [];
   const context = React.createContext('web');
   const { AppPresentation, AppPresentationProvider } = compile('../src/presentation/AppPresentation.tsx', { require(name) {
+    if(name.endsWith('/MotionNavigation'))return {MotionNavigation:'motion-navigation'};
     if (name.endsWith('/InternalContentShare')) return {InternalContentShareProvider:'InternalContentShareProvider'};
     if (name === 'react') return React;
     if (name === 'react-router-dom') return { useLocation: () => ({ pathname: '/share/profile/project' }) };
@@ -90,8 +91,10 @@ test('both presentations keep the same provider, DOM host, and child element ide
     if (name === './usePresentation') return { PresentationContext: context, usePresentation: () => presentation };
     if (name === './useViewportPresentation') return { useViewportPresentation: () => presentation };
     if (name === './mobile/useMobileBrowserSurface') return { useMobileBrowserSurface: () => ({ current: null }) };
+    if (name === './mobile/useMobileHeaderMaterial') return { useMobileHeaderMaterial() {} };
     if (name === './mobile/useMobileViewportFrame') return { useMobileViewportFrame() {} };
     if (name === './useAppZoomBoundary') return { useAppZoomBoundary() {} };
+    if (name === './mobile/useMobileSelectionBoundary') return { useMobileSelectionBoundary() {} };
     if (name === './mobile/useProjectScrollActivity') return { useProjectScrollActivity: (enabled, path) => readingScopes.push([enabled, path]) };
     if (name.endsWith('.css')) return {};
     throw new Error(`Unexpected presentation dependency: ${name}`);
@@ -108,7 +111,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
   assert.equal(web.provider.key, mobile.provider.key);
   for (const [tree, mode] of [[web, 'web'], [mobile, 'mobile']]) {
     assert.equal(tree.provider.props.value, mode);
-    assert.equal(tree.provider.props.children, children);
+    assert.equal(tree.provider.props.children.type,'motion-navigation');assert.equal(tree.provider.props.children.props.children,children);
     const host = tree.host;
     assert.equal(host.type, 'div'); assert.equal(host.key, null);
     assert.equal(host.props.children.type, 'InternalContentShareProvider');
@@ -125,18 +128,21 @@ function presentationBoundary(mode) {
   // The attribute may scope the shell itself or a descendant portal host.
   // The optional literal space permits only that descendant relation: no
   // unscoped siblings, negated attributes, or arbitrary intervening selectors.
-  return new RegExp(`^(?:(?:#root )?\\.(?:codex|app)-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)| ?\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?=[\\s:.#\\[]|$)`);
+  return new RegExp(`^(?:(?:#root )?\\.(?:codex|app)-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)| ?\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|(?:#root )?\\[data-presentation='${mode}'\\])(?=[\\s:.#\\[]|$)`);
 }
 
 test('presentation scope accepts an explicitly scoped descendant without accepting siblings or lookalike attributes', () => {
   for (const mode of ['web', 'mobile']) {
     const boundary = presentationBoundary(mode);
-    const compoundShellBoundary = new RegExp(`^#root \\.(?:codex|app)-shell(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
+    const compoundShellBoundary = new RegExp(`^#root \\.(codex|app)-shell(?:\\.\\1-shell)?(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
     assert.ok(boundary.test(`#root .codex-shell [data-presentation='${mode}'] .mobile-project-description-sheet`));
+    assert.ok(compoundShellBoundary.test(`#root .codex-shell.codex-shell[data-presentation='${mode}'] .studio-citation-pills`));
     assert.ok(boundary.test(`#root .codex-shell[data-presentation='${mode}'] .surface`));
+    assert.ok(boundary.test(`#root [data-presentation='${mode}'] [data-loading-layout]`));
     for (const selector of [
       '#root .codex-shell .mobile-project-description-sheet',
       `#root .codex-shell.unscoped[data-presentation='${mode}'] .surface`,
+      `#root .codex-shell.app-shell[data-presentation='${mode}'] .surface`,
       `#root .codex-shell + [data-presentation='${mode}'] .surface`,
       `#root .codex-shell :not([data-presentation='${mode}']) .surface`,
       `#root .codex-shell [data-presentation='${mode}-other'] .surface`,
@@ -177,7 +183,7 @@ test('every platform CSS selector is scoped, including nested rules and selector
         // with or without zero specificity for component-level overrides.
         // A compound host selector (:has(), data attributes, etc.) retains scope.
         const boundary = presentationBoundary(mode);
-        const compoundShellBoundary = new RegExp(`^#root \\.(?:codex|app)-shell(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
+        const compoundShellBoundary = new RegExp(`^#root \\.(codex|app)-shell(?:\\.\\1-shell)?(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
         // AccountWelcomeSurface emits this alternate DOM scope only when
         // usePresentation() is mobile; account-entry-focus exercises that gate.
         const mobileOnboardingBoundary = /^#root \.codex-shell (?:\.auth-signin-experience)?\[data-mobile-onboarding(?:='(?:light|dark)')?\](?=[\s:.#\[]|$)/;
@@ -205,7 +211,18 @@ test('every platform CSS selector is scoped, including nested rules and selector
             (node.prop === 'overflow' && node.value === 'hidden')
             || (node.prop === 'overscroll-behavior' && node.value === 'none')
           ));
-        const mobileRoot = "html:has(.codex-shell[data-presentation='mobile'])";
+        // Studio alone locks document scrolling while its active MOBILE screen
+        // delegates scrolling to its inner results pane. Never permit a global lock.
+        const studioScope = "#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .studio-citation-shell";
+        const worldScope = "#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world";
+        const mobileStudioScrollLock = mode === 'mobile'
+          && [studioScope, worldScope].some(scope => [`html:has(${scope})`, `body:has(${scope})`].includes(selector))
+          && rule.nodes.length === 3 && rule.nodes.every(node => node.type === 'decl' && !node.important && (
+            (node.prop === 'height' && node.value === '100%')
+            || (node.prop === 'overflow' && node.value === 'hidden')
+            || (node.prop === 'overscroll-behavior-y' && node.value === 'none')
+          ));
+        const mobileRoot = "html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *))";
         const mobileDocumentScrollbar = mode === 'mobile' && rule.nodes.length === 1 && rule.nodes.every(node => node.type === 'decl' && !node.important && (
           ([mobileRoot, `${mobileRoot} body`].includes(selector) && node.prop === 'scrollbar-width' && node.value === 'none')
           || ([`${mobileRoot}::-webkit-scrollbar`,`${mobileRoot} body::-webkit-scrollbar`].includes(selector) && node.prop === 'display' && node.value === 'none')
@@ -215,7 +232,7 @@ test('every platform CSS selector is scoped, including nested rules and selector
           ([readerRoot, `${readerRoot} body`].includes(selector) && node.prop === 'scrollbar-width' && node.value === 'none')
           || ([`${readerRoot}::-webkit-scrollbar`, `${readerRoot} body::-webkit-scrollbar`].includes(selector) && node.prop === 'display' && node.value === 'none')
         ));
-        assert.ok((boundary.test(selector) || compoundShellBoundary.test(selector)) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas || mobilePortalScrollLock || mobileReaderScrollbar || mobileDocumentScrollbar, `Unscoped ${mode} selector: ${selector}`);
+        assert.ok((boundary.test(selector) || compoundShellBoundary.test(selector)) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas || mobilePortalScrollLock || mobileReaderScrollbar || mobileDocumentScrollbar || mobileStudioScrollLock, `Unscoped ${mode} selector: ${selector}`);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }
     });

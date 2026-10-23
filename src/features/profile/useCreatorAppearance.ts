@@ -9,7 +9,7 @@ import { createAppearanceWriter, DEFAULT_PUBLIC_APPEARANCE, normalizePublicAppea
 export function useCreatorAppearance(profileId: string | null, enabled: boolean, initialPalette?: Pick<PublicAppearance, 'accentColor' | 'systemGray'>) {
   const { profiles } = useServices();
   const { invalidateProfiles } = useProfileData();
-  const query = useProfileQuery(enabled ? profileId : null);
+  const query = useProfileQuery(enabled ? profileId : null, 'overview');
   const [appearance, setAppearance] = useState<PublicAppearance>(() => normalizePublicAppearance({
     accentColor: readAccentColor('#0A84FF'), systemGray: readNavSystemGray('gray6'), mode: readAppearanceMode('auto'), ...initialPalette,
   }) ?? DEFAULT_PUBLIC_APPEARANCE);

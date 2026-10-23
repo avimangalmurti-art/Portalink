@@ -2,6 +2,27 @@
 
 The existing Portalink visual design and mobile/desktop presentation boundary are retained.
 
+## 22 October 2026 — consistent Reduce Translucency
+
+The shared presentation now gives the explicit Portalink preference priority over
+feature-specific modal, Portals, avatar, authentication and menu backdrop filters,
+including body portals and decorative pseudo-elements. Scrim dimming stays in
+place, while the scene behind a dialog is no longer blurred when reduction is on.
+The Journey calendar toolbar also uses the existing opaque-material switch.
+Normal appearance, layout, content filters and artwork are preserved.
+
+The equivalent OS media rule is retained through production CSS optimization;
+automatic OS detection still depends on browser support. Explicit app control
+works independently. Mobile, web and public preference records keep their existing
+scope. Actual physical iPhone/PWA and OS-preference emulation remain unverified.
+
+Local verification:49focused cases,6built-entry cases, typecheck, lint and the
+configured client/worker build pass. Fictional-service actual-App/Visitor browser
+checks at420x912 and1280x900 cover light/dark dialogs, Portals, profile actions,
+public Portal popups and body-portalled typography. Enabled samples have no
+remaining backdrop filters; switching OFF restores the initial WEB material and
+geometry sample exactly. This local fix is not a deployment receipt.
+
 ## Implemented
 
 - Public browsing no longer automatically presents sign-in. Explicit account entry, gated actions and verified password recovery still open the appropriate flow. Home's empty state offers an appropriate next action; the mobile search placeholder clearly says Coming soon.

@@ -3,7 +3,7 @@ import { MobileProfileContext } from '../../presentation/mobile/MobileProfileCon
 import { MobileContextButton } from '../../presentation/mobile/MobileContextActions';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { lazy, Suspense, useCallback, useState } from 'react';
-import { ArrowLeftIcon, BookmarkIcon } from 'lucide-react';
+import { ArrowLeftIcon, BookmarkIcon, ChevronLeftIcon } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,15 +19,13 @@ import { SavedPagesCollection } from './SavedPagesCollection';
 import { loadSavedCreators } from './collectionQueries';
 import { usePresentation } from '../../presentation/usePresentation';
 
-const ReadsList = lazy(() => import('../reads/ReadsView').then(module=>({default:module.ReadsList})));
 const ReadsProject = lazy(() => import('../reads/ReadsView').then(module=>({default:module.ReadsProject})));
-const LoadTimingInsights = lazy(() => import('./LoadTimingInsights'));
 const MobileInsights = lazy(() => import('./MobileInsights').then(module => ({ default: module.MobileInsights })));
 
-function PersonalHeader({ title, onBack, insights = false }: { title: string; onBack: () => void; insights?: boolean }) {
+function PersonalHeader({ title, onBack, insights = false, studio = false }: { title: string; onBack: () => void; insights?: boolean; studio?: boolean }) {
   const isMobile = usePresentation() === 'mobile';
   return <header className="ps-panel-toolbar global-control-header side-panel-content-inset">
-    <ScreenBack visibleOnMobile={insights}><button type="button" onClick={onBack} aria-label="Go back" className="shape-compact flex h-10 w-10 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button></ScreenBack>
+    <ScreenBack visibleOnMobile={insights}><button type="button" onClick={onBack} aria-label="Go back" className="shape-compact flex h-10 w-10 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={isMobile && studio ? ChevronLeftIcon : ArrowLeftIcon} mirroredInRtl /></button></ScreenBack>
     <h1 className="text-medium font-semibold text-[var(--text-primary)]">{title}</h1>
     {insights && isMobile && <div data-inline-screen-actions=""><MobileContextButton /></div>}
   </header>;
@@ -39,7 +37,7 @@ export function SavedPage({ onBack, onOpenProject }: { onBack: () => void; onOpe
   const selectedTab = params.get('tab');
   const tab = selectedTab === 'creators' || selectedTab === 'pages' ? selectedTab : 'projects';
   if (!auth.isAuthenticated) return null;
-  return <section aria-label="Saved library">
+  return <section data-library-actions="" aria-label="Saved library">
     <PersonalHeader title="Saved" onBack={onBack} />
     <div className="px-[var(--content-gutter)] py-6">
       <p className="text-[13px] text-[var(--text-secondary)]">Your private library. Saving a creator does not follow them.</p>
@@ -91,31 +89,26 @@ function SavedCreatorRow({ id, profile, onRemoved }: { id: string; profile: Prof
   </li></MobileProfileContext>;
 }
 
-export function InsightsPage({ onBack }: { onBack: () => void }) {
+export function InsightsPage({ onBack, studio = false }: { onBack: () => void; studio?: boolean }) {
   const isMobile = usePresentation() === 'mobile';
   const [params,setParams]=useSearchParams();const projectId=params.get('project');
   const { creatorSaves } = useServices();
   const query = useCallback(() => creatorSaves.getSaveInsights(), [creatorSaves]);
-  const state = useAccountQuery(query);
+  const state = useAccountQuery(query, { key: 'insights:audience', scope: creatorSaves });
+  const backFromProject = () => {
+    // A read notification already has its Activity entry in history. Clearing
+    // the query with PUSH instead creates a Reads/Insights return loop.
+    if (isMobile && typeof window !== 'undefined' && window.history?.state?.idx > 0) onBack();
+    else setParams({}, isMobile ? { replace: true } : undefined);
+  };
   return <section aria-label="Private creator insights" className={isMobile ? 'mobile-insights-page' : undefined}>
-    <PersonalHeader insights title={projectId ? "Reads" : isMobile ? "Your insights" : "Insights"} onBack={projectId ? () => setParams({}) : onBack} />
-    <div className={isMobile ? 'mobile-insights-scroll' : undefined}>{projectId ? <Suspense fallback={<LoadingState label="Loading Reads" />}><ReadsProject key={projectId} projectId={projectId}/></Suspense> : <>
-    {isMobile ? <Suspense fallback={<LoadingState label="Loading insights" />}><MobileInsights saves={state} /></Suspense> : <div className="px-[var(--content-gutter)] py-6">
-      <div className="flex items-center justify-between gap-4"><p className="text-[13px] text-[var(--text-secondary)]">Only you can see these insights.</p><button type="button" onClick={state.retry} disabled={state.loading} className="shape-compact px-3 py-2 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Refresh</button></div>
-      {state.loading ? <LoadingState label="Loading insights" /> : state.error ? <ErrorState title="Unable to load insights" description={state.error} onRetry={state.retry} /> : state.data ? <dl className="my-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        {([
-          ['Creator saves', state.data.creatorSaves, 'People who currently have your profile saved.'],
-          ['Project saves', state.data.projectSaves, 'Current bookmarks of your projects by other people.'],
-          ['Followers', state.data.followers, 'People following you. Pending requests are not included.'],
-        ] as const).map(([label, count, description]) => <div key={label} className="shape-container border border-[var(--hairline)] p-5"><dt className="text-[13px] font-semibold text-[var(--text-secondary)]">{label}</dt><dd className="mt-3 text-[32px] font-semibold tabular-nums">{count.toLocaleString()}</dd><dd className="mt-2 text-[12px] leading-relaxed text-[var(--text-secondary)]">{description}</dd></div>)}
-      </dl> : null}
-      <p className="max-w-[640px] text-[13px] leading-relaxed text-[var(--text-secondary)]">Saves recognise interest without requiring a follow. Saver identities remain private. These are current totals, so removing a save reduces the count; saving again never adds a duplicate.</p>
-      <Suspense fallback={null}><ReadsList/><LoadTimingInsights /></Suspense>
-    </div>}
-  </>}</div></section>;
+    {(!isMobile || !studio || projectId) && <PersonalHeader insights studio={studio} title={projectId ? "Reads" : isMobile ? "Your insights" : "Insights"} onBack={projectId ? backFromProject : onBack} />}
+    <div className={isMobile ? 'mobile-insights-scroll' : undefined}>{projectId ? <Suspense fallback={<LoadingState label="Loading Reads" />}><ReadsProject key={projectId} projectId={projectId}/></Suspense> :
+      <Suspense fallback={<LoadingState kind="insights" label="Loading insights" />}><MobileInsights saves={state} initialPeriod={isMobile ? '7d' : '30d'} /></Suspense>
+    }</div></section>;
 }
 
 export function ActivityPage({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
-  return <section aria-label="Activity"><PersonalHeader title="Activity" onBack={onBack} /><InboxPanel key={user?.id} /></section>;
+  return <section data-library-actions="" aria-label="Activity"><PersonalHeader title="Activity" onBack={onBack} /><InboxPanel key={user?.id} /></section>;
 }

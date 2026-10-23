@@ -7,13 +7,13 @@ import { useServices } from '../../contexts/ServicesContext';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useAccountQuery } from './useAccountQuery';
 
-export function CreatorSaveButton({ profileId, name }: { profileId: string; name: string }) {
+export function CreatorSaveButton({ profileId, name, registerScreenActions = true }: { profileId: string; name: string; registerScreenActions?: boolean }) {
   const auth = useAuth();
   if (auth.viewerProfileId === profileId) return null;
-  return <CreatorSaveControl key={`${auth.user?.id ?? 'guest'}:${profileId}`} profileId={profileId} name={name} />;
+  return <CreatorSaveControl key={`${auth.user?.id ?? 'guest'}:${profileId}`} profileId={profileId} name={name} registerScreenActions={registerScreenActions} />;
 }
 
-function CreatorSaveControl({ profileId, name }: { profileId: string; name: string }) {
+function CreatorSaveControl({ profileId, name, registerScreenActions }: { profileId: string; name: string; registerScreenActions: boolean }) {
   const auth = useAuth();
   const { creatorSaves: service } = useServices();
   const query = useCallback(() => service.getCreatorSave(profileId), [service, profileId]);
@@ -43,12 +43,12 @@ function CreatorSaveControl({ profileId, name }: { profileId: string; name: stri
       if (mounted.current) setPending(false);
     }
   }
-  useMobileScreenActions(contextActions('profile', { signedIn: auth.isAuthenticated }, { title: name, handlers: {
+  useMobileScreenActions(registerScreenActions ? contextActions('profile', { signedIn: auth.isAuthenticated }, { title: name, handlers: {
     saveCreator: !pending && !state.loading && !state.error ? () => toggle(true) : undefined,
-  }, labels: { saveCreator: isSaved ? 'Unsave creator' : 'Save creator' } }), 9);
+  }, labels: { saveCreator: isSaved ? 'Unsave creator' : 'Save creator' } }) : null, 9);
   const label = state.error ? 'Retry loading creator bookmark' : isSaved ? `Unsave ${name}` : `Save ${name}`;
   return <span data-profile-bookmark="" className="inline-flex flex-col items-start gap-1">
-    <button type="button" onClick={() => void toggle()} aria-label={label} title={isSaved ? 'Saved creator · private' : 'Save creator privately, without following'} aria-pressed={isSaved} aria-busy={pending || state.loading} disabled={pending || state.loading} className="side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
+    <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={() => void toggle()} aria-label={label} title={isSaved ? 'Saved creator · private' : 'Save creator privately, without following'} aria-pressed={isSaved} aria-busy={pending || state.loading} disabled={pending || state.loading} className="side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
       <InterfaceIcon icon={BookmarkIcon} size="sm" keepColor fill={isSaved ? 'currentColor' : 'none'} />
     </button>
     {(error || state.error) && <span role="alert" className="max-w-[200px] text-[11px] text-[var(--status-danger)]">{error ?? state.error}</span>}
