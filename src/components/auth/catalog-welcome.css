@@ -6,6 +6,7 @@
   --catalog-welcome-bottom: max(24px, env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   position: fixed;
+  isolation: isolate;
   z-index: 11000;
   inset-inline: 0;
   top: var(--dialog-viewport-top, 0px);
@@ -24,7 +25,32 @@
   overscroll-behavior-y: contain;
 }
 
+.catalog-welcome .catalog-welcome-map {
+  position: fixed;
+  z-index: 0;
+  inset-inline: 0;
+  top: var(--dialog-viewport-top, 0px);
+  height: var(--dialog-viewport-height, 100dvh);
+  background: #0752ff url('/welcome/world-map.svg') center / cover no-repeat;
+  clip-path: circle(0 at 50% calc(100% - var(--catalog-welcome-bottom) - 48px));
+  opacity: 0;
+  pointer-events: none;
+  transition: clip-path var(--m-slow) var(--m-enter), opacity var(--m-fast) var(--m-enter);
+}
+
+.catalog-welcome[data-map-revealed='true'] {
+  --catalog-welcome-foreground: #050505;
+  scrollbar-color: rgb(0 0 0 / 80%) #0752ff;
+}
+
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-map {
+  clip-path: circle(150vmax at 50% calc(100% - var(--catalog-welcome-bottom) - 48px));
+  opacity: 1;
+}
+
 .catalog-welcome .catalog-welcome-layout {
+  position: relative;
+  z-index: 1;
   align-self: flex-start;
   width: 100%;
   max-width: 600px;
@@ -69,6 +95,19 @@
 
 .catalog-welcome .catalog-welcome-line {
   display: block;
+}
+
+.catalog-welcome .catalog-welcome-line-ink {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Protect each line over both ocean and land without covering the composition. */
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-line-ink {
+  background: rgb(255 255 255 / 94%);
+  box-shadow: .1em 0 0 rgb(255 255 255 / 94%), -.1em 0 0 rgb(255 255 255 / 94%);
+  color: #050505;
 }
 
 /* Move the reserved line as one layer: glyph advances and wrapping stay intact. */
@@ -154,6 +193,7 @@
 }
 
 .catalog-welcome[data-instant='true'] .catalog-welcome-line,
+.catalog-welcome[data-instant='true'] .catalog-welcome-map,
 .catalog-welcome[data-instant='true'] .catalog-welcome-action,
 .catalog-welcome[data-instant='true'] .catalog-welcome-start::before {
   animation: none;
@@ -221,6 +261,15 @@
   outline-offset: 4px;
 }
 
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-start {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 70%);
+}
+
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-start:focus-visible {
+  outline-color: #050505;
+  box-shadow: 0 0 0 4px #fff, inset 0 0 0 1px rgb(255 255 255 / 70%);
+}
+
 .catalog-welcome .catalog-welcome-start:active {
   box-shadow: inset 0 0 0 2px rgb(0 0 0 / 24%);
   transform: scale(.98);
@@ -271,6 +320,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .catalog-welcome .catalog-welcome-map,
   .catalog-welcome .catalog-welcome-line,
   .catalog-welcome .catalog-welcome-action,
   .catalog-welcome .catalog-welcome-start,

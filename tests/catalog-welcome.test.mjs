@@ -47,7 +47,7 @@ function fixture(options = {}) {
   function event(extra = {}) { return { defaultPrevented: false, propagationStopped: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.propagationStopped = true; }, ...extra }; }
   render();
   return { ...environment, environment, timers, mediaEvents, starts, focuses, dismissals, document, portalTargets, render, all,
-    get lateStateWrites() { return lateStateWrites; }, get main() { return render(); }, get button() { return all().find(node => node.type === 'button'); }, get action() { return region('catalog-welcome-action'); },
+    get lateStateWrites() { return lateStateWrites; }, get main() { return render(); }, get button() { return all().find(node => node.type === 'button'); }, get action() { return region('catalog-welcome-action'); }, get map() { return region('catalog-welcome-map'); },
     revealed(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph' && node.props['data-revealed']).map(textOf).join(''); },
     glyphs(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph'); },
     lines(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-line'); },
@@ -120,6 +120,16 @@ test('the actual composition reserves its full text and exposes one complete acc
     assert.equal(nodes(visual).filter(node => node.props.className === 'catalog-welcome-accessible').length, 0);
   }
   assert.equal(h.all().some(node => node.props['aria-live'] || node.props.role === 'status'), false, 'Typing must not create character-by-character announcements');
+  assert.ok(h.map, 'The decorative map exists before its reveal without delaying the reserved composition.');
+  assert.equal(String(h.map.props['aria-hidden']), 'true');
+  assert.equal(h.map.props.tabIndex, undefined);
+  assert.equal(h.map.props.onClick, undefined, 'The map must not introduce another entry or navigation action.');
+  assert.equal(h.main.props['data-map-revealed'], false);
+  for (const className of ['catalog-welcome-headline', 'catalog-welcome-support']) {
+    const lines = h.lines(className);
+    assert.ok(lines.every(line => nodes(line).filter(node => node.props.className === 'catalog-welcome-line-ink').length === 1));
+    assert.deepEqual(lines.map(textOf), [...(className === 'catalog-welcome-headline' ? h.state.CATALOG_HEADLINE : h.state.CATALOG_SUPPORT)]);
+  }
   assert.equal(h.button.props.disabled, true); assert.equal(h.button.props.tabIndex, -1); assert.equal(h.action.props['aria-hidden'], true);
   assert.equal(h.main.props.role, 'dialog'); assert.equal(h.main.props['aria-modal'], 'true'); assert.equal(h.main.props.tabIndex, -1);
   assert.equal(h.focuses.length, 1); assert.equal(h.focuses[0].preventScroll, false); h.unmount();
@@ -163,6 +173,8 @@ test('skip, same-document reopening and reduced motion mark every line settled w
   for (const h of [skipped, returned, reduced, changed]) {
     assert.equal(h.main.props['data-instant'], true);
     assert.equal(h.main.props['data-complete'], true);
+    assert.equal(h.main.props['data-map-revealed'], true);
+    assert.equal(String(h.map.props['aria-hidden']), 'true');
     for (const className of ['catalog-welcome-headline', 'catalog-welcome-support']) {
       assert.equal(h.lines(className).length, 3);
       assert.ok(h.lines(className).every(line => line.props['data-started'] === true && line.props['data-finished'] === true));
@@ -202,6 +214,85 @@ test('actual timers reveal the support lines in order, reserve the button fade a
   h.advance(120); assert.equal(h.revealed('catalog-welcome-support'), support); assert.equal(h.action.props['data-ready'], true); assert.equal(h.button.props.disabled, true);
   h.advance(320); assert.equal(h.main.props['data-complete'], true); assert.equal(h.button.props.disabled, false); assert.equal(h.button.props.tabIndex, 0); assert.equal(h.action.props['aria-hidden'], undefined);
   assert.equal(h.state.hasCompletedCatalogWelcome(), true); assert.equal(h.state.hasEnteredCatalogWelcome(), false); assert.deepEqual(h.starts, []); assert.equal(h.focuses.length, 1); assert.equal(h.timers.size, 0); h.unmount();
+});
+
+test('the map reveal follows complete supporting text while the existing Start deadline remains enforced', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = fixture({ presentation }), start = h.button.props.onClick;
+    assert.equal(h.main.props['data-map-revealed'], false);
+    h.advance(4640);
+    assert.equal(h.main.props['data-map-revealed'], false);
+    assert.equal(h.state.catalogWelcomeProgress(h.state.CATALOG_TEXT_END_MS - 1).textComplete, false);
+    assert.equal(h.state.catalogWelcomeProgress(h.state.CATALOG_TEXT_END_MS).textComplete, true);
+    // The real component samples elapsed time every 40ms; this is its first
+    // frame after the 4650ms text boundary, not an invented immediate render.
+    h.advance(40);
+    assert.equal(h.revealed('catalog-welcome-support'), h.state.CATALOG_SUPPORT.join(''));
+    assert.equal(h.main.props['data-map-revealed'], true);
+    assert.equal(h.main.props['data-complete'], false);
+    assert.equal(h.main.props['data-instant'], false);
+    assert.equal(String(h.map.props['aria-hidden']), 'true');
+    assert.equal(h.button.props.disabled, true);
+    assert.equal(h.button.props.tabIndex, -1);
+    assert.equal(h.action.props['aria-hidden'], true);
+    assert.equal(h.all().some(node => node.props.className === 'catalog-welcome-cursor'), false);
+    start(); assert.deepEqual(h.starts, []);
+    assert.equal(h.state.hasCompletedCatalogWelcome(), false);
+    assert.equal(h.state.hasEnteredCatalogWelcome(), false);
+    h.advance(280); assert.equal(h.button.props.disabled, true);
+    h.advance(40);
+    assert.equal(h.main.props['data-map-revealed'], true);
+    assert.equal(h.button.props.disabled, false);
+    assert.equal(h.button.props.tabIndex, 0);
+    assert.equal(h.action.props['aria-hidden'], undefined);
+    assert.deepEqual(h.starts, [], 'Revealing the background must never start account entry.');
+    assert.equal(h.focuses.length, 1, 'The reveal must retain the existing modal focus owner.');
+    assert.equal(h.timers.size, 0);
+    h.unmount(); assert.equal(h.mediaEvents.size, 0);
+  }
+});
+
+test('a tap during the map reveal settles instantly without also entering, including a click after the deadline', () => {
+  for (const presentation of ['mobile', 'web']) for (const crossDeadline of [false, true]) {
+    const h = fixture({ presentation });
+    h.advance(4680);
+    assert.equal(h.main.props['data-map-revealed'], true);
+    assert.equal(h.main.props['data-complete'], false);
+    h.pointerDown();
+    if (crossDeadline) h.advance(400);
+    const click = h.click(true);
+    assert.equal(click.defaultPrevented, true);
+    assert.equal(click.propagationStopped, true);
+    assert.equal(h.main.props['data-map-revealed'], true);
+    assert.equal(h.main.props['data-instant'], true);
+    assert.equal(h.main.props['data-complete'], true);
+    assert.equal(h.button.props.disabled, false);
+    assert.equal(h.timers.size, 0);
+    assert.equal(h.focuses.length, 1);
+    assert.equal(h.state.hasEnteredCatalogWelcome(), false);
+    assert.deepEqual(h.starts, []);
+    h.advance(10000); assert.deepEqual(h.starts, []);
+    h.pointerDown(); h.click(true); h.pointerDown(); h.click(true);
+    assert.equal(h.starts.length, 1);
+    assert.equal(h.state.hasEnteredCatalogWelcome(), true);
+    h.unmount(); assert.equal(h.mediaEvents.size, 0);
+  }
+});
+
+test('unmount during the map reveal cancels the remaining entry delay without late focus, state or navigation', () => {
+  const h = fixture(); h.advance(4680);
+  assert.equal(h.main.props['data-map-revealed'], true);
+  assert.equal(h.button.props.disabled, true);
+  assert.equal(h.timers.size, 1);
+  assert.equal(h.mediaEvents.size, 1);
+  h.unmount(); h.advance(20000); h.reduce(true);
+  assert.equal(h.timers.size, 0);
+  assert.equal(h.mediaEvents.size, 0);
+  assert.equal(h.lateStateWrites, 0);
+  assert.equal(h.focuses.length, 1);
+  assert.equal(h.state.hasCompletedCatalogWelcome(), false);
+  assert.equal(h.state.hasEnteredCatalogWelcome(), false);
+  assert.deepEqual(h.starts, []);
 });
 
 test('a tap while typing completes the composition without entering, and a separate Start tap hands off once', () => {
@@ -254,6 +345,7 @@ test('Enter, Space and Escape finish the animation without invoking the account 
 
 test('Reduce Motion displays the complete composition immediately without timed typing', () => {
   const h = fixture({ reduced: true }); assert.equal(h.main.props['data-complete'], true); assert.equal(h.main.props['data-instant'], true);
+  assert.equal(h.main.props['data-map-revealed'], true); assert.equal(String(h.map.props['aria-hidden']), 'true');
   assert.equal(h.revealed('catalog-welcome-headline'), h.state.CATALOG_HEADLINE.join('')); assert.equal(h.revealed('catalog-welcome-support'), h.state.CATALOG_SUPPORT.join(''));
   assert.equal(h.button.props.disabled, false); assert.equal(h.timers.size, 0); assert.equal(h.all().some(node => node.props.className === 'catalog-welcome-cursor'), false);
   assert.deepEqual(h.starts, []); h.pointerDown(); h.click(true); assert.equal(h.starts.length, 1); h.unmount();
@@ -266,7 +358,7 @@ test('enabling Reduce Motion midway completes once and never restarts typing whe
 
 test('a completed introduction reopens immediately in the same document, while unavailable storage never blocks entry', () => {
   const first = fixture(); first.advance(5000); first.unmount();
-  const second = fixture({ environment: first.environment }); assert.equal(second.main.props['data-complete'], true); assert.equal(second.timers.size, 0); second.unmount();
+  const second = fixture({ environment: first.environment }); assert.equal(second.main.props['data-complete'], true); assert.equal(second.main.props['data-map-revealed'], true); assert.equal(second.timers.size, 0); second.unmount();
   const blocked = fixture({ blockedRead: true, blockedWrite: true }); blocked.pointerDown(); blocked.click(); assert.equal(blocked.button.props.disabled, false);
   blocked.pointerDown(); blocked.click(true); assert.equal(blocked.starts.length, 1); assert.equal(blocked.state.hasCompletedCatalogWelcome(), true); blocked.unmount();
 });
@@ -288,6 +380,7 @@ test('refreshing mobile or web replays the full introduction despite earlier com
     const refreshed = fixture({ presentation, storage });
     assert.equal(refreshed.state.hasEnteredCatalogWelcome(), false); assert.equal(refreshed.state.hasCompletedCatalogWelcome(), false);
     assert.equal(refreshed.main.props['data-instant'], false); assert.equal(refreshed.main.props['data-complete'], false);
+    assert.equal(refreshed.main.props['data-map-revealed'], false);
     assert.equal(refreshed.revealed('catalog-welcome-headline'), ''); assert.equal(refreshed.revealed('catalog-welcome-support'), '');
     assert.equal(refreshed.button.props.disabled, true); assert.equal(refreshed.button.props.tabIndex, -1); assert.equal(refreshed.action.props['aria-hidden'], true);
     refreshed.advance(1280); const partial = refreshed.revealed('catalog-welcome-headline');
@@ -298,6 +391,7 @@ test('refreshing mobile or web replays the full introduction despite earlier com
 
     const reducedRefresh = fixture({ presentation, storage, reduced: true });
     assert.equal(reducedRefresh.main.props['data-instant'], true); assert.equal(reducedRefresh.main.props['data-complete'], true); assert.equal(reducedRefresh.timers.size, 0);
+    assert.equal(reducedRefresh.main.props['data-map-revealed'], true);
     assert.equal(reducedRefresh.button.props.disabled, false); assert.deepEqual(reducedRefresh.starts, []); reducedRefresh.unmount();
   }
 });

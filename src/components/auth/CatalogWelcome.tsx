@@ -20,13 +20,13 @@ function TypedLines({ lines, count, cursor }: { lines: readonly string[]; count:
   return <span aria-hidden="true">{lines.map(line => {
     const start = offset;
     offset += Array.from(line).length;
-    return <span className="catalog-welcome-line" data-started={count > start} data-finished={count >= offset} key={line}>{Array.from(line).map((character, index) => {
+    return <span className="catalog-welcome-line" data-started={count > start} data-finished={count >= offset} key={line}><span className="catalog-welcome-line-ink">{Array.from(line).map((character, index) => {
       const position = start + index;
       const insertion = cursor && position === Math.max(0, count - 1);
       return <span className="catalog-welcome-glyph" data-revealed={position < count} key={index}>
         {character}{insertion && <span className="catalog-welcome-cursor" data-before={count === 0} />}
       </span>;
-    })}</span>;
+    })}</span></span>;
   })}</span>;
 }
 
@@ -86,7 +86,7 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
   };
 
   const screen = <section ref={viewport} className="catalog-welcome" data-presentation={presentation} role="dialog" aria-modal="true" tabIndex={-1} aria-labelledby="catalog-welcome-title"
-    data-complete={progress.complete} data-instant={instant}
+    data-complete={progress.complete} data-instant={instant} data-map-revealed={progress.textComplete}
     onPointerDownCapture={() => { skipGesture.current = !finished.current; }}
     onPointerCancelCapture={() => { skipGesture.current = false; }}
     onClickCapture={event => {
@@ -101,6 +101,7 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
         event.preventDefault(); event.stopPropagation(); finish();
       }
     }}>
+    <div className="catalog-welcome-map" aria-hidden="true" />
     <div className="catalog-welcome-layout">
       <div className="catalog-welcome-copy">
         <h1 id="catalog-welcome-title" className="catalog-welcome-headline">
