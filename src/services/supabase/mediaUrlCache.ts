@@ -3,15 +3,17 @@ import { requireSupabase } from './client';
 const SIGNED_URL_SECONDS = 6 * 60 * 60;
 const REFRESH_BUFFER_MS = 5 * 60_000;
 const MAX_ENTRIES = 4096;
+const MAX_SIGNING_REQUESTS = 4;
 type Entry = { expiresAt: number; value: Promise<string | null> };
-type Scope = { accountId: string | null | undefined; generation: number; entries: Map<string, Entry> };
+type Scope = { accountId: string | null | undefined; generation: number; entries: Map<string, Entry>; signingLanes: Promise<unknown>[]; nextSigningLane: number };
 const scopes = new WeakMap<object, Scope>();
 
 async function mediaScope() {
   const client = requireSupabase();
   let scope = scopes.get(client);
   if (!scope) {
-    scope = { accountId: undefined, generation: 0, entries: new Map() };
+    scope = { accountId: undefined, generation: 0, entries: new Map(),
+      signingLanes: Array.from({ length: MAX_SIGNING_REQUESTS }, () => Promise.resolve()), nextSigningLane: 0 };
     scopes.set(client, scope);
     const observedScope = scope;
     // Do not await SDK operations inside this callback. A refreshed token for
@@ -71,12 +73,14 @@ export async function signedMediaUrls(bucket: string, paths: string[], minimumLi
     return !entry || entry.expiresAt <= Date.now() + minimumLifetimeMs;
   });
   const values = new Map(unique.map((path) => [path, scope.entries.get(cacheKey(path))?.value]));
-  let previousBatch: Promise<unknown> = Promise.resolve();
-  // Keep signing requests bounded for long PDFs and multipart files.
+  // Four shared lanes overlap independent signing requests without letting
+  // simultaneous PDFs/multipart attachments create an unbounded HTTP burst.
   const batchSize = singleBatch ? Math.max(1, missing.length) : 100;
   for (let start = 0; start < missing.length; start += batchSize) {
     const batch = missing.slice(start, start + batchSize);
-    const request = previousBatch.then(() => {
+    const lane = scope.nextSigningLane;
+    scope.nextSigningLane = (lane + 1) % MAX_SIGNING_REQUESTS;
+    const request = scope.signingLanes[lane].then(() => {
       if (generation !== scope.generation) throw new Error('Your session changed. Please try again.');
       return client.storage.from(bucket).createSignedUrls(batch, SIGNED_URL_SECONDS);
     })
@@ -84,7 +88,7 @@ export async function signedMediaUrls(bucket: string, paths: string[], minimumLi
         if (error) throw new Error(error.message);
         return new Map((data ?? []).map((item) => [item.path, item.signedUrl]));
       });
-    previousBatch = request.catch(() => undefined);
+    scope.signingLanes[lane] = request.catch(() => undefined);
     for (const path of batch) {
       const value = request.then((urls) => urls.get(path) || null);
       values.set(path, value);

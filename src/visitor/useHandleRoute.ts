@@ -24,7 +24,7 @@ export function useHandleRoute(original: AppRoute): { route: AppRoute; pending: 
       if (!active) return;
       setState({ handle, value, done: true });
       if (value && portfolioPath(value.profileId,value.handle) !== `/${handle}`) navigate(portfolioPath(value.profileId, value.handle) + location.pathname.slice(handle.length + 1).replace(/\/$/, '') + location.search, { replace: true });
-    }).catch(() => { if (active) { setState({ handle, value: null, done: true }); setError({ handle, message: 'This portfolio could not load. Please try again.' }); } });
+    }).catch(() => { if (active) { setState({ handle, value: null, done: true }); setError({ handle, message: 'This catalogue could not load. Please try again.' }); } });
     if (!profiles.resolvePublicHandle) setState({ handle, value: null, done: true });
     return () => { active = false; };
   }, [handle, state.handle, state.done, profiles, navigate, location.pathname, location.search, attempt]);

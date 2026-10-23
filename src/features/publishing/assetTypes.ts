@@ -332,9 +332,12 @@ export function processingLabel(state: AssetProcessingState): string | null {
 
 /** A cover has to be something that can actually be shown. */
 export function canBeCover(family: AssetFamily, capability: AssetPreviewCapability): boolean {
+  // Word and other converted documents remain original files. Their cover
+  // must come from a renderable PDF or image rather than an unavailable page.
+  if (family === 'document' && capability !== 'native') return false;
   if (canPreviewLocally(family, capability)) {
     return family !== 'audio';
   }
   // A poster frame or page thumbnail can be generated for these later.
-  return family === 'document' || family === 'video' || family === 'model' || family === 'presentation';
+  return family === 'video' || family === 'model' || family === 'presentation';
 }

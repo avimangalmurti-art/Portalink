@@ -1,13 +1,15 @@
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ArrowLeftIcon, AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, FileIcon, InfoIcon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
 import { ProjectCoverRepositionDialog } from '../../components/media/ProjectCoverRepositionDialog';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { PublishedCoverFilmstrip } from '../../components/publishing/CoverFilmstrip';
 import { ProjectFormDialog, ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
+import { useAuthoringFocus } from '../../components/publishing/useAuthoringFocus';
 import { ProjectPreviewFrame } from '../../components/publishing/ProjectPreviewFrame';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { Button } from '../../components/ui/Button';
@@ -107,7 +109,7 @@ export function ProjectEditorDialog({
         await editor.close();
       }} />;
     }
-    return <ProjectFormDialog title="Reposition project preview" titleId="project-preview-editor-title" onClose={() => { void editor.close(); }}>
+    return <ProjectFormDialog mobileFlow={isMobile} title={isMobile ? 'Edit cover' : 'Reposition project preview'} titleId="project-preview-editor-title" onClose={() => { void editor.close(); }}>
       <div className="project-form-content scrollbar-slim">{editor.phase === 'loading' ? <LoadingState label="Loading project preview…" /> : editor.phase === 'load-failed' ? <ErrorState title="The preview could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <ErrorState title="No cover preview is available" description="Choose a cover file in Edit project first." />}</div>
     </ProjectFormDialog>;
   }
@@ -124,14 +126,14 @@ export function ProjectEditorDialog({
       focusField(outcome);
     }
   }
-  return <EditorFrame mobileFlow={isMobile} title={(isMobile ? section === 'cover' && editor.mode !== 'story' && editor.mode !== 'journey' : editor.mode === 'cover-choice') ? 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={isMobile ? undefined : editor.mode === 'story' ? 'Describe your project.' : editor.mode === 'journey' ? 'Update when you made this work.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
+  return <EditorFrame mobileFlow={isMobile} title={(isMobile ? section === 'cover' && editor.mode !== 'story' && editor.mode !== 'journey' : editor.mode === 'cover-choice') ? isMobile ? 'Edit cover' : 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={isMobile ? undefined : editor.mode === 'story' ? 'Describe your project.' : editor.mode === 'journey' ? 'Update when you made this work.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
     if (await editor.close()) setIsConfirmingDiscard(false);
   }} /> : null}>
         <form id="project-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void saveChanges(); }} className="project-form-content scrollbar-slim">
           {isMobile && !['journey', 'story'].includes(editor.mode) && <nav className="project-editor-sections" aria-label="Edit project sections">{(['details', 'files', 'cover'] as const).map(item => <button type="button" key={item} aria-pressed={section === item} onClick={() => setSection(item)}>{item === 'details' ? 'Details' : item === 'files' ? 'Files' : 'Cover'}</button>)}</nav>}
           {editor.phase === 'loading' ? <LoadingState label="Loading this project…" /> : editor.phase === 'load-failed' ? <ErrorState title="This project could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <>
               {(isMobile ? section === 'cover' && editor.mode !== 'story' && editor.mode !== 'journey' : editor.mode === 'cover-choice') ? <PublishedCoverFilmstrip attachments={editor.originalAttachments} selectedId={coverEdit?.id} disabled={isLocked} onSelect={editor.setCover} onAddFiles={() => { if (isMobile) setSection('files'); else if (editor.projectId) editor.open(editor.projectId, 'files'); }} /> : editor.mode === 'story' ? <div className="project-form-details">
-                <ProfileField id="project-summary" label="Description" formatting={isMobile} required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={value => editor.setField('summary', value)} />
+                <ProfileField id="project-summary" label="Description" formatting={isMobile} optional multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={value => editor.setField('summary', value)} />
 
               </div> : editor.mode === 'journey' ? <div className="project-form-details">
                 <label className="flex flex-col gap-2 text-sm" htmlFor="project-made-on">Made on<input id="project-made-on" type="date" className="text-control p-3" disabled={isLocked} value={editor.metadata.madeOn ?? ''} onChange={e=>editor.setField('madeOn',e.target.value)}/></label><label>Access<select value={editor.metadata.accessLevel ?? 'public'} disabled={isLocked} onChange={e=>editor.setField('accessLevel',e.target.value)}><option value="private">Private</option><option value="public">Public</option><option value="citable">Citable</option></select></label><p>Others' AI tools may use single pages or images from this project, always with your name and a link back.</p>
@@ -144,7 +146,7 @@ export function ProjectEditorDialog({
                 </div>
                 <details><summary className="min-h-11 cursor-pointer py-3 text-sm">How to replace a file</summary><p className="text-sm text-[var(--text-secondary)]">Add the new version and remove the old one. Changes apply when you save.</p></details>
                 {coverSource?.sourceUrl && ['image', 'video', 'document'].includes(coverSource.kind) ? <div className="project-media-selection">
-                  <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>Reposition preview</Button></div>
+                  <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>{isMobile ? 'Edit cover' : 'Reposition preview'}</Button></div>
                   <ProjectPreviewFrame aspectRatio={coverPreviewRatio}><ProjectCover source={coverSource.sourceUrl} alt="Project cover preview" kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : undefined} pageNumber={coverSource.metadata?.coverPageNumber} frame={coverEdit?.coverFrame} /></ProjectPreviewFrame>
                 </div> : null}
                 {repositionSource?.sourceUrl && ['image', 'document', 'video'].includes(repositionSource.kind) && repositionEdit ? <ProjectCoverRepositionDialog key={repositionSource.id} source={repositionSource.sourceUrl} kind={repositionSource.kind === 'document' ? 'document' : repositionSource.kind === 'video' ? 'video' : 'image'} pageNumber={repositionSource.metadata?.coverPageNumber} alt={repositionEdit.displayName} aspectRatio={coverPreviewRatio} frame={repositionEdit.coverFrame} onClose={() => setRepositionId(null)} onSave={({ frame }) => {
@@ -213,7 +215,7 @@ export function ProjectEditorDialog({
                         <button type="button" onClick={() => void upload.cancel()} disabled={upload.phase !== 'uploading'} className="font-semibold text-[var(--accent-text)] underline focus:outline-none disabled:opacity-50">Cancel upload</button>
                       </div>
                       <div role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={upload.fraction === null ? undefined : Math.round(upload.fraction * 100)} aria-valuetext={upload.fraction === null ? 'Upload in progress' : `${Math.round(upload.fraction * 100)} percent uploaded`} className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
-                        <div className="h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-200 ease-out motion-reduce:transition-none" style={{
+                        <div className="h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none" style={{
                     width: upload.fraction === null ? '35%' : `${Math.round(upload.fraction * 100)}%`
                   }} />
                       </div>
@@ -251,7 +253,7 @@ export function ProjectEditorDialog({
               <label className="flex flex-col gap-2 text-sm" htmlFor="project-details-made-on">Made on<input id="project-details-made-on" type="date" className="text-control p-3" disabled={isLocked} value={editor.metadata.madeOn ?? ''} onChange={e=>editor.setField('madeOn',e.target.value)}/></label>
                 <label>Access<select value={editor.metadata.accessLevel ?? 'public'} disabled={isLocked} onChange={e=>editor.setField('accessLevel',e.target.value)}><option value="private">Private</option><option value="public">Public</option><option value="citable">Citable</option></select></label><p>Others' AI tools may use single pages or images from this project, always with your name and a link back.</p>
                 <ProfileField ref={titleRef} id="project-title" label="Title" required value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" disabled={isLocked} onChange={(value) => editor.setField('title', value)} />
-              <ProfileField id="project-summary" label="Description" formatting={isMobile} required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
+              <ProfileField id="project-summary" label="Description" formatting={isMobile} optional multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
               </div>
               </>}
             </>}
@@ -282,10 +284,14 @@ export function ProjectEditorDialog({
 }
 
 /** A mobile screen; the shared desktop editor remains a dialog. */
-function MobileProjectEditorScreen({ title, titleId, onClose, closeDisabled, confirmation, children }: React.ComponentProps<typeof ProjectFormDialog>) {
+function MobileProjectEditorScreen({ title, titleId, onClose, closeDisabled, dialogRef, confirmation, children }: React.ComponentProps<typeof ProjectFormDialog>) {
   const viewport = useDialogViewport<HTMLElement>();
-  return <ModalPortal><section ref={viewport} className="mobile-project-editor-screen" aria-labelledby={titleId}>
-    <ScreenBack visibleOnMobile action={onClose}><header><button type="button" aria-label="Back" onClick={onClose} disabled={closeDisabled}><ArrowLeftIcon aria-hidden="true" size={24} /></button><h1 id={titleId}>{title}</h1></header></ScreenBack>
+  useAuthoringFocus(viewport);
+  const requestClose = () => { if (!closeDisabled) onClose(); };
+  useImperativeHandle<HTMLElement | null, HTMLElement | null>(dialogRef, () => viewport.current, [viewport]);
+  useModalFocus(true, viewport, requestClose, true);
+  return <ModalPortal><div className="mobile-upload-surface-backdrop" aria-hidden="true" /><section ref={viewport} className="mobile-project-editor-screen" data-mobile-upload-surface="editor" data-material="content" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <ScreenBack visibleOnMobile action={requestClose}><header><button type="button" aria-label="Back" onClick={requestClose} disabled={closeDisabled}><ArrowLeftIcon aria-hidden="true" size={24} /></button><h1 id={titleId}>{title}</h1></header></ScreenBack>
     {children}{confirmation}
   </section></ModalPortal>;
 }
@@ -308,5 +314,5 @@ export function DeleteProjectDialog({
     deletion
   } = management;
   if (deletion.projectId === null || deletion.phase === 'idle') return null;
-  return <ConfirmationDialog title="Delete this project?" description={`“${projectTitle}” and its files will be removed from your portfolio. This cannot be undone.`} confirmLabel="Delete project" variant="destructive" pending={deletion.isDeleting} pendingLabel="Deleting…" error={deletion.failure?.message} onCancel={deletion.cancel} onConfirm={async()=>{const deleted=await deletion.confirm();if(deleted)onDeleted();return deleted;}}/>;
+  return <ConfirmationDialog title="Delete this project?" description={`“${projectTitle}” and its files will be removed from your catalogue. This cannot be undone.`} confirmLabel="Delete project" variant="destructive" pending={deletion.isDeleting} pendingLabel="Deleting…" error={deletion.failure?.message} onCancel={deletion.cancel} onConfirm={async()=>{const deleted=await deletion.confirm();if(deleted)onDeleted();return deleted;}}/>;
 }

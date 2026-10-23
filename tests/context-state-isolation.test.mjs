@@ -91,6 +91,20 @@ function harness(kind, queryIds = []) {
 }
 
 const profile = (name, projects = []) => ({ id: 'creator', name, categories: [], projects });
+test('overview cache deduplicates overview reads without satisfying a full media read and clears on account change', async () => {
+  const h=harness('profile');
+  h.services.profiles.getProfileOverview=id=>{const request={id,mode:'overview',...deferred()};h.reads.push(request);return request.promise;};
+  const first=h.context.fetchProfile('creator','overview'), duplicate=h.context.fetchProfile('creator','overview');
+  assert.equal(h.reads.length,1);
+  const compact=profile('Compact',[{id:'document',attachments:[]}]);h.reads[0].resolve(compact);await Promise.all([first,duplicate]);await h.flush();
+  assert.equal(h.context.peekProfile('creator','overview'),compact);
+  assert.equal(h.context.peekProfile('creator'),null);
+  const full=h.context.fetchProfile('creator');assert.equal(h.reads.length,2);
+  const prepared=profile('Full',[{id:'document',attachments:[{sourceUrl:'private.pdf'}]}]);h.reads[1].resolve(prepared);await full;await h.flush();
+  assert.equal(h.context.peekProfile('creator'),prepared);
+  h.switchAccount('bob',false);assert.equal(h.context.peekProfile('creator'),null);assert.equal(h.context.peekProfile('creator','overview'),null);
+  h.dispose();
+});
 const summary = (changes = {}) => ({ projectId: 'project', isLiked: false, isSaved: false, isReposted: false,
   likeCount: 0, saveCount: 0, repostCount: 0, ...changes });
 async function loadedEngagement(initial = summary()) {

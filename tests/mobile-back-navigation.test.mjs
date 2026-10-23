@@ -106,6 +106,8 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
   const slots = [];
   let cursor = 0, options, actions, exits = 0, closes = 0;
   const routeChanges = [];
+  const remembered = [], opened = [];
+  let retries = 0;
   const ScreenBack = () => null;
   const NewChatPanel = () => null;
   const react = { ...React,
@@ -119,6 +121,9 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
   const props = { onBack: () => exits++, onConversationChange: (...args) => routeChanges.push(args), ...initial };
   const messaging = {
     messages: [], conversations: [], activeConversation: null, status: 'success',
+    openConversation(conversation) { opened.push(conversation.id); },
+    retryThread() { retries++; return Promise.resolve(true); },
+    broadcastTyping() {},
     closeConversation() {
       closes++; messaging.activeConversation = null;
       props.initialConversationId = null; props.initialRecipientId = null;
@@ -132,21 +137,76 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
-    if (name.endsWith('/MobileBackNavigation')) return { ScreenBack };
+    if (name.endsWith('/MobileBackNavigation')) return { ScreenBack, useMobileScreenActive: () => true };
+    if (name.endsWith('/useMobileMessageContinuity')) return { useMobileMessageContinuity: () => ({ rememberOpen(opener) { remembered.push(opener); } }) };
     if (name.endsWith('/NewChatPanel')) return { NewChatPanel };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: 'me' }) };
     if (name.endsWith('/useMessaging')) return { useMessaging: args => { options = args; return messaging; } };
     if (name.endsWith('/ResizablePanelHandle')) return { ResizablePanelHandle: () => null, useResizablePanelWidth: () => ({ width: 400 }) };
     return new Proxy({}, { get: () => () => null });
-  }, { sessionStorage: { getItem: () => null } });
+  }, { sessionStorage: { getItem: () => null }, document: { activeElement: null } });
   return {
-    render() { cursor = 0; return api.MessagesPage(props); }, messaging, routeChanges,
+    render() { cursor = 0; return api.MessagesPage(props); }, messaging, routeChanges, remembered, opened,
     newMessage() { actions.handlers.newMessage(); },
     back(tree) { find(tree, node => node.type === ScreenBack && node.props.action).props.action(); },
     newChat(tree) { return find(tree, node => node.type === NewChatPanel); },
     get options() { return options; }, get exits() { return exits; }, get closes() { return closes; },
+    get retries() { return retries; },
   };
 }
+
+test('only MOBILE opts into thread recovery and records the actual conversation opener', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = messagesHarness(presentation);
+    const conversation = { id: 'thread-a', participant: { id: 'alice', name: 'Alice' } };
+    h.messaging.conversations = [conversation];
+    const tree = h.render(), opener = {};
+    const row = find(tree, node => node.type === 'button' && find(node, child => child.type === 'span' && child.props.children === 'Alice'));
+    row.props.onClick({ currentTarget: opener });
+    assert.equal(h.options.mobileContinuity, presentation === 'mobile');
+    assert.deepEqual(h.opened, ['thread-a']);
+    assert.deepEqual(h.remembered, presentation === 'mobile' ? [opener] : []);
+  }
+});
+
+test('MOBILE thread failures bind Retry to the thread, retain the error during Retry and suppress the empty introduction', () => {
+  const h = messagesHarness();
+  h.messaging.activeConversation = { id: 'thread-a', participant: { id: 'alice', name: 'Alice' } };
+  h.messaging.threadLoadError = 'Messages could not reach the network.';
+  let tree = h.render();
+  assert.ok(find(tree, node => node.props.role === 'alert'));
+  assert.equal(find(tree, node => node.props['data-message-introduction'] !== undefined), null);
+  find(tree, node => node.type === 'button' && node.props.children === 'Retry').props.onClick({ currentTarget: {} });
+  assert.equal(h.retries, 1);
+  h.messaging.isRefreshingThread = true;
+  tree = h.render();
+  assert.equal(find(tree, node => node.type === 'button' && node.props.children === 'Retrying…').props.disabled, true);
+  assert.ok(find(tree, node => node.props.role === 'alert'));
+});
+
+test('WEB does not render mobile-only thread recovery feedback', () => {
+  const h = messagesHarness('web');
+  h.messaging.activeConversation = { id: 'thread-a', participant: { id: 'alice', name: 'Alice' } };
+  h.messaging.threadLoadError = 'Mobile-only refresh failure';
+  const tree = h.render();
+  assert.equal(find(tree, node => node.type === 'button' && node.props.children === 'Retry'), null);
+  assert.equal(find(tree, node => node.props.role === 'alert'), null);
+});
+
+test('MOBILE unavailable thread keeps a Retry path and prevents Send from clearing the draft', () => {
+  const h = messagesHarness();
+  h.messaging.activeConversation = { id: 'thread-a', participant: { id: 'alice', name: 'Alice' } };
+  h.messaging.threadUnavailable = true;
+  let tree = h.render();
+  find(tree, node => node.type === 'textarea').props.onChange({ target: { value: 'Keep this draft' } });
+  tree = h.render();
+  assert.ok(find(tree, node => node.type === 'button' && node.props.children === 'Retry'));
+  assert.equal(find(tree, node => node.type === 'button' && node.props.children === 'Dismiss'), null);
+  assert.equal(find(tree, node => node.props.description?.includes('Only you and this creator')), null);
+  assert.equal(find(tree, node => node.props['aria-label'] === 'Send message').props.disabled, true);
+  find(tree, node => node.type === 'form' && find(node, child => child.type === 'textarea')).props.onSubmit({ preventDefault() {} });
+  assert.equal(find(h.render(), node => node.type === 'textarea').props.value, 'Keep this draft');
+});
 
 test('mobile Back closes New message first, then leaves Messages from the list', () => {
   const h = messagesHarness();

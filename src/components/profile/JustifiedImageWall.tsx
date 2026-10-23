@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useElementSize } from '../../hooks/useElementSize';
 import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
@@ -80,20 +80,30 @@ function packRows(items: WallItem[], width: number, columns: number, trailingRow
   return rows;
 }
 
-export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode, allowLayoutControls = true }: {
+export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode, allowLayoutControls = true, showDensityControl = true, fitColumns }: {
   items: WallItem[];
   /** Exact card count for every complete row. */
   columns: number;
   label: string;
+  /** Optional Home-only density bound; never persists its responsive fallback. */
+  fitColumns?: (columns:number,width:number)=>number;
   onColumnsChange?: (columns: number) => void;
   reorderMode?: ReorderMode;
   /** Hides layout chrome on public shares while retaining local card zoom. */
   allowLayoutControls?: boolean;
+  /** A profile header can host density selection while keeping zoom feedback. */
+  showDensityControl?: boolean;
 }) {
-  const { ref, width } = useElementSize<HTMLDivElement>();
+  const { ref, width: measuredWidth } = useElementSize<HTMLDivElement>();
   const isMobile = usePresentation() === 'mobile';
+  // Retained phone catalogues must keep their cards while display:none reports
+  // zero. Their existing scroll/focus restoration and return snapshot use them.
+  const retainedWidth = useRef(0);
+  if (!isMobile) retainedWidth.current = 0;
+  else if (measuredWidth > 0) retainedWidth.current = measuredWidth;
+  const width = measuredWidth || (isMobile ? retainedWidth.current : 0);
   // Measurement and pinch selection survive loading/entering/exiting reorder.
-  const view = useContentZoom<HTMLDivElement>(columns, !reorderMode?.enabled, columns, onColumnsChange);
+  const view = useContentZoom<HTMLDivElement>(columns, !reorderMode?.enabled, columns, onColumnsChange, fitColumns ? value => fitColumns(value,width) : undefined);
   const effectiveColumns = view.columns;
   const rows = useMemo(() => {
     if (width === 0) return [];
@@ -104,7 +114,7 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   const rowProps = { rows, items, itemIndexByKey, reorderMode };
   const canReorder = Boolean(reorderMode?.enabled || reorderMode?.onStart);
   return <div ref={view.ref} className="relative w-full">
-    {allowLayoutControls && !isMobile && items.length > 0 && !reorderMode?.enabled && <WebGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
+    {allowLayoutControls && showDensityControl && !isMobile && items.length > 0 && !reorderMode?.enabled && <WebGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
     {allowLayoutControls && <ZoomReadout view={view} />}
     {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">{isMobile ? 'Swipe to scroll. Hold a project briefly, then drag to move it. Hold near the top or bottom edge to scroll while dragging. ' : ''}Drag a project card toward the space where it belongs and the nearby cards will make room. For keyboard reordering, press Space, use the arrow keys, and press Space again; Alt plus an arrow also moves one position.</p> : null}
     <div ref={ref} role="list" aria-label={label} data-profile-wall-columns={effectiveColumns} className="w-full">

@@ -141,6 +141,45 @@ test('visibility is staged locally and saved only on submit; Bio is not part of 
   assert.equal(h.current.phase, 'saved');
 });
 
+test('Save stays disabled while a staged name or link is invalid and recovers after correction', async () => {
+  const h = harness();
+  await h.flush();
+  h.current.setVisibility(true);
+  h.current.setField('name', '   ');
+  await h.flush();
+  assert.equal(h.current.isDirty, true);
+  assert.equal(h.current.canSave, false);
+  assert.equal(h.writes.length, 0);
+  h.current.setField('name', 'Corrected name');
+  const id = h.current.fields.links[0].id;
+  h.current.setProfileLink(id, { href: 'javascript:alert(1)' });
+  await h.flush();
+  assert.equal(h.current.canSave, false);
+  h.current.setProfileLink(id, { href: 'https://example.com', label: '   ' });
+  await h.flush();
+  assert.equal(h.current.canSave, false);
+  h.current.setProfileLink(id, { label: 'Portfolio' });
+  await h.flush();
+  assert.equal(h.current.canSave, true);
+  assert.equal(h.writes.length, 0);
+});
+
+test('a confirmed new link joins the shared draft with complete details and is persisted only by Save', async () => {
+  const h = harness();
+  await h.flush();
+  const id = h.current.addProfileLink({ label: 'Studio', href: 'https://studio.example.com', iconName: 'globe' });
+  await h.flush();
+  assert.ok(id);
+  assert.equal(h.current.fields.links.length, 2);
+  assert.equal(h.current.fields.links[1].label, 'Studio');
+  assert.equal(h.current.canSave, true);
+  assert.equal(h.writes.length, 0);
+  await h.submit();
+  assert.equal(h.writes.length, 1);
+  assert.equal(h.writes[0].input.links[1].label, 'Studio');
+  assert.equal(Object.hasOwn(h.writes[0].input.links[1], 'id'), false);
+});
+
 test('visibility can be returned to public without rewriting an unchanged bio', async () => {
   const h = harness({ isPrivate: true });
   await h.flush();
