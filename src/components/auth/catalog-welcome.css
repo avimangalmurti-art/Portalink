@@ -1,0 +1,289 @@
+.catalog-welcome {
+  --catalog-welcome-background: #fff;
+  --catalog-welcome-foreground: #0a0a0a;
+  --focus-ring: var(--catalog-welcome-foreground);
+  --catalog-welcome-top: max(24px, env(safe-area-inset-top, 0px));
+  --catalog-welcome-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 11000;
+  inset-inline: 0;
+  top: var(--dialog-viewport-top, 0px);
+  width: 100%;
+  height: var(--dialog-viewport-height, 100dvh);
+  min-height: 0;
+  padding: var(--catalog-welcome-top) max(32px, env(safe-area-inset-right, 0px)) var(--catalog-welcome-bottom) max(32px, env(safe-area-inset-left, 0px));
+  display: flex;
+  justify-content: center;
+  background: var(--catalog-welcome-background);
+  color: var(--catalog-welcome-foreground);
+  color-scheme: light;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.catalog-welcome .catalog-welcome-layout {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 600px;
+  min-width: 0;
+  min-height: calc(var(--dialog-viewport-height, 100dvh) - var(--catalog-welcome-top) - var(--catalog-welcome-bottom));
+  display: grid;
+  grid-template-rows: minmax(min-content, 1fr) auto;
+  row-gap: clamp(32px, 6dvh, 64px);
+}
+
+.catalog-welcome .catalog-welcome-copy {
+  align-self: center;
+  min-width: 0;
+  padding-block: 24px;
+}
+
+.catalog-welcome .catalog-welcome-headline {
+  margin: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: clamp(2.5rem, calc(2rem + 2.6vw), 4.75rem);
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -.045em;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.catalog-welcome .catalog-welcome-support {
+  margin: clamp(24px, 3.5dvh, 36px) 0 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: clamp(1.125rem, calc(1rem + .45vw), 1.5rem);
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: -.015em;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.catalog-welcome .catalog-welcome-line {
+  display: block;
+}
+
+/* Move the reserved line as one layer: glyph advances and wrapping stay intact. */
+.catalog-welcome[data-instant='false'] .catalog-welcome-line {
+  transform: translateY(.18em);
+  transition: transform var(--m-slow) var(--m-enter);
+}
+
+.catalog-welcome[data-instant='false'] .catalog-welcome-line[data-started='true'] {
+  transform: translateY(0);
+}
+
+.catalog-welcome .catalog-welcome-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.catalog-welcome .catalog-welcome-glyph {
+  position: relative;
+  display: inline;
+}
+
+/* Visibility reserves each character's full advance from the first frame. */
+.catalog-welcome [data-revealed='false'] {
+  visibility: hidden;
+}
+
+.catalog-welcome [data-revealed='true'] {
+  visibility: visible;
+}
+
+/* The insertion point occupies no extra width and cannot change wrapping. */
+.catalog-welcome .catalog-welcome-cursor {
+  position: relative;
+  display: inline;
+  visibility: visible;
+}
+
+.catalog-welcome .catalog-welcome-cursor[data-before='true'] {
+  position: static;
+}
+
+.catalog-welcome .catalog-welcome-cursor::after {
+  content: '';
+  position: absolute;
+  left: .035em;
+  bottom: -.035em;
+  width: .055em;
+  height: .84em;
+  background: currentColor;
+  animation: catalog-welcome-cursor calc(var(--m-slow) * 4) step-end infinite;
+  pointer-events: none;
+}
+
+.catalog-welcome .catalog-welcome-action {
+  align-self: end;
+  min-width: 0;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--m-base) var(--m-enter);
+}
+
+.catalog-welcome .catalog-welcome-action[data-ready='true'] {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.catalog-welcome[data-instant='false'] .catalog-welcome-action[data-ready='true'] {
+  animation: catalog-welcome-action-arrive var(--m-slow) var(--m-enter) both;
+}
+
+.catalog-welcome[data-complete='false'] .catalog-welcome-action {
+  pointer-events: none;
+}
+
+.catalog-welcome[data-instant='true'] .catalog-welcome-line,
+.catalog-welcome[data-instant='true'] .catalog-welcome-action,
+.catalog-welcome[data-instant='true'] .catalog-welcome-start::before {
+  animation: none;
+  transition: none;
+}
+
+.catalog-welcome .catalog-welcome-start {
+  box-sizing: border-box;
+  display: flex;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #0752ff;
+  color: #050505;
+  font-family: inherit;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.125;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform var(--m-fast) var(--m-enter), box-shadow var(--m-fast) var(--m-enter);
+}
+
+.catalog-welcome .catalog-welcome-start::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0 -12px;
+  border-radius: inherit;
+  background: #0752ff url('/welcome/world-map.svg') center / 100% 100% no-repeat;
+  transform: translateX(0) scale(1.04);
+  transition: transform var(--m-slow) var(--m-enter);
+  pointer-events: none;
+}
+
+.catalog-welcome[data-instant='false'] .catalog-welcome-action[data-ready='true'] .catalog-welcome-start::before {
+  animation: catalog-welcome-map-arrive var(--m-slow) var(--m-enter);
+}
+
+.catalog-welcome .catalog-welcome-start-label {
+  display: block;
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 88%);
+  color: #050505;
+  overflow-wrap: anywhere;
+}
+
+.catalog-welcome .catalog-welcome-start:focus-visible {
+  outline: 3px solid var(--catalog-welcome-foreground);
+  outline-offset: 4px;
+}
+
+.catalog-welcome .catalog-welcome-start:active {
+  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 24%);
+  transform: scale(.98);
+}
+
+.catalog-welcome .catalog-welcome-start:disabled { opacity: 1; }
+
+@media (hover: hover) and (pointer: fine) {
+  .catalog-welcome .catalog-welcome-start:not(:disabled):is(:hover, :focus-visible)::before {
+    transform: translateX(5px) scale(1.04);
+  }
+}
+
+@keyframes catalog-welcome-action-arrive {
+  from { transform: translateY(14px) scale(.96); }
+  70% { transform: translateY(-2px) scale(1.01); }
+  to { transform: translateY(0) scale(1); }
+}
+
+@keyframes catalog-welcome-map-arrive {
+  from { transform: translateX(-14px) scale(1.04); }
+  to { transform: translateX(0) scale(1.04); }
+}
+
+@keyframes catalog-welcome-cursor {
+  0%, 48% { visibility: visible; }
+  49%, 100% { visibility: hidden; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .catalog-welcome {
+    --catalog-welcome-background: #080808;
+    --catalog-welcome-foreground: #fff;
+    color-scheme: dark;
+  }
+}
+
+@media (min-width: 640px) {
+  .catalog-welcome {
+    --catalog-welcome-top: max(40px, env(safe-area-inset-top, 0px));
+    --catalog-welcome-bottom: max(40px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 359px) {
+  .catalog-welcome {
+    padding-inline: max(24px, env(safe-area-inset-left, 0px)) max(24px, env(safe-area-inset-right, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-welcome .catalog-welcome-line,
+  .catalog-welcome .catalog-welcome-action,
+  .catalog-welcome .catalog-welcome-start,
+  .catalog-welcome .catalog-welcome-start::before {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  .catalog-welcome .catalog-welcome-cursor::after {
+    animation: none;
+  }
+  .catalog-welcome .catalog-welcome-action {
+    transition: none;
+  }
+}

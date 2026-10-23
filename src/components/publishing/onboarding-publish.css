@@ -1,0 +1,365 @@
+/* Guided project authoring. Creation frames opt into full-screen layout below. */
+.onboarding-publish-backdrop,
+.project-form-overlay[data-onboarding-publish] {
+  position:fixed;
+  inset-inline:0;
+  top:var(--dialog-viewport-top,0px);
+  height:var(--dialog-viewport-height,100dvh);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgb(12 18 30 / 34%);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.onboarding-publish-backdrop { z-index:80; overflow:hidden; }
+#root .codex-shell .project-form-dialog[data-onboarding-publish] {
+  width:100%;
+  max-width:520px;
+  height:800px;
+  max-height:100%;
+  min-height:0;
+  padding:0;
+  gap:0;
+  overflow:hidden;
+  border:1px solid var(--hairline);
+  border-radius:var(--ui-floating-radius,28px);
+  background:var(--surface-raised);
+  box-shadow:0 24px 80px rgb(0 0 0 / 15%);
+}
+[data-onboarding-publish]>.onboarding-publish-heading {
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr) 44px;
+  flex:none;
+  gap:8px;
+  align-items:center;
+  padding:12px 16px 4px;
+  border:0;
+}
+[data-onboarding-publish]>.onboarding-publish-heading :is(h1,h2) {
+  min-width:0;
+  margin:0;
+  font-size:20px;
+  line-height:1.35;
+  font-weight:650;
+  letter-spacing:-.02em;
+  text-align:center;
+  outline:none;
+}
+#root .codex-shell [data-onboarding-publish]>.onboarding-publish-heading :is(h1,h2):focus { outline:none!important; box-shadow:none!important; }
+[data-onboarding-publish]>.onboarding-publish-heading>button,
+[data-onboarding-publish]>.onboarding-publish-heading>span {
+  display:grid;
+  place-items:center;
+  width:44px;
+  height:44px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:var(--text-secondary);
+}
+#root .codex-shell :is(.project-form-screen,.project-form-dialog)[data-onboarding-publish]>.mobile-publish-flow[data-onboarding-publish] {
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  min-height:0;
+  margin:0;
+  padding:0;
+  gap:0;
+  overflow:hidden;
+}
+#root .codex-shell :is(.project-form-screen,.project-form-dialog)[data-onboarding-publish]>.mobile-publish-flow[data-onboarding-publish]>.mobile-publish-body {
+  display:flex;
+  flex:1 1 0;
+  flex-direction:column;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  gap:16px;
+  padding:8px 32px 16px;
+  scroll-padding-block:12px;
+}
+#root .codex-shell :is(.project-form-screen,.project-form-dialog)[data-onboarding-publish]>.mobile-publish-flow[data-onboarding-publish]>.mobile-publish-actions {
+  flex:none;
+  margin:0;
+  padding:12px 32px 24px;
+  border:0;
+}
+[data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>p {
+  margin:0 0 10px;
+  text-align:center;
+  font-size:13px;
+  line-height:1.5;
+  color:var(--text-secondary);
+}
+[data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div { display:flex; gap:8px; }
+[data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div>button { min-height:44px; }
+[data-presentation='web'] [data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div>button { min-height:40px; }
+[data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div>button:first-child:not(:only-child) { flex:0 0 auto; }
+[data-onboarding-publish].mobile-publish-flow>.mobile-publish-actions>div>button:last-child { flex:1; }
+.onboarding-publish-backdrop[data-presentation='mobile'] {
+  align-items:flex-end;
+  padding:max(20px,calc(var(--safe-area-top,env(safe-area-inset-top,0px)) - var(--dialog-viewport-top,0px))) 0 0;
+}
+#root .codex-shell[data-presentation='mobile'] .onboarding-publish-backdrop>[data-onboarding-publish].project-form-screen {
+  position:relative;
+  inset:auto;
+  z-index:auto;
+  width:100%;
+  height:min(89dvh,820px);
+  max-height:100%;
+  min-height:0;
+  padding:0 0 env(safe-area-inset-bottom,0px);
+  border:1px solid var(--hairline)!important;
+  border-bottom:0!important;
+  border-radius:var(--ui-floating-radius,28px) var(--ui-floating-radius,28px) 0 0!important;
+  background:var(--surface-raised)!important;
+  box-shadow:0 24px 80px rgb(0 0 0 / 15%)!important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-onboarding-publish].project-form-screen>.onboarding-publish-heading {
+  display:grid;
+  padding:12px 16px 4px;
+  gap:8px;
+  border:0!important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-onboarding-publish].project-form-screen>.onboarding-publish-heading>button { background:transparent; }
+/* The existing crop renderer and controls expand to the card on WEB too. */
+[data-onboarding-publish][data-presentation='web'] [data-onboarding-files-cover] [data-focused-cover] { flex:none; min-height:0; padding:0; border:0; background:transparent; gap:12px; }
+[data-onboarding-publish][data-presentation='web'] [data-onboarding-files-cover] [data-focused-cover] .cover-filmstrip-track { flex:none; height:280px; min-height:220px; max-height:320px; overflow:hidden; padding:12px; }
+[data-onboarding-publish][data-presentation='web'] [data-focused-cover] .cover-filmstrip-track>div,
+[data-onboarding-publish][data-presentation='web'] [data-focused-cover] .cover-filmstrip-item { width:100%; min-width:0; }
+[data-onboarding-publish][data-presentation='web'] [data-focused-cover] .cover-filmstrip-slot { min-height:0; flex:1; }
+[data-onboarding-publish][data-presentation='web'] [data-focused-cover] .cover-panel-controls { flex:none; gap:12px; }
+[data-onboarding-publish][data-presentation='web'] [data-focused-cover] :is(.cover-panel-controls select,.cover-panel-controls input,.cover-panel-controls button) { min-height:44px; }
+@media(max-height:740px) {
+  #root .codex-shell :is(.project-form-screen,.project-form-dialog)[data-onboarding-publish]>.mobile-publish-flow[data-onboarding-publish]>.mobile-publish-body { padding-top:0; }
+  #root .codex-shell :is(.project-form-screen,.project-form-dialog)[data-onboarding-publish]>.mobile-publish-flow[data-onboarding-publish]>.mobile-publish-actions { padding-block:8px 16px; }
+}
+@media(max-width:374px) {
+  #root .codex-shell :is(.project-form-screen,.project-form-dialog)[data-onboarding-publish]>.mobile-publish-flow[data-onboarding-publish]>.mobile-publish-body,
+  #root .codex-shell :is(.project-form-screen,.project-form-dialog)[data-onboarding-publish]>.mobile-publish-flow[data-onboarding-publish]>.mobile-publish-actions { padding-inline:24px; }
+}
+
+/* A final look at the idea, within the same welcome-card frame. */
+#root .codex-shell [data-onboarding-idea-review] {
+  display:flex;
+  flex:1 0 auto;
+  flex-direction:column;
+  min-width:0;
+  gap:12px;
+}
+[data-onboarding-idea-review] .onboarding-review-status { margin:0; font-size:14px; line-height:1.5; color:var(--text-secondary); }
+[data-onboarding-idea-review]>section {
+  flex:none;
+  min-width:0;
+  padding-top:8px;
+  border-top:1px solid var(--hairline);
+}
+[data-onboarding-idea-review]>section>header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  min-height:44px;
+}
+[data-onboarding-idea-review]>section>header h4 {
+  min-width:0;
+  margin:0;
+  font-size:14px;
+  font-weight:550;
+  line-height:1.4;
+  color:var(--text-secondary);
+  overflow-wrap:anywhere;
+}
+[data-onboarding-idea-review] .onboarding-review-edit {
+  display:inline-flex;
+  flex:none;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-width:64px;
+  min-height:44px;
+  padding:8px;
+  border:0;
+  background:transparent;
+  color:var(--accent-text);
+  font:inherit;
+  font-size:14px;
+}
+[data-onboarding-idea-review] .onboarding-review-edit:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
+[data-presentation='web'] [data-onboarding-idea-review] .onboarding-review-edit { min-height:32px; padding:6px 12px; }
+#root .codex-shell [data-onboarding-idea-review] .onboarding-review-cover [data-cover-collapsed] {
+  position:relative;
+  display:flex;
+  flex:none;
+  height:clamp(156px,24dvh,220px);
+  min-height:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  container-type:size;
+}
+#root .codex-shell [data-onboarding-idea-review] [data-cover-collapsed]>div:first-child { display:none; }
+#root .codex-shell [data-onboarding-idea-review] [data-cover-collapsed] .cover-filmstrip-track {
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:auto;
+  min-height:0;
+  max-height:none;
+  padding:0;
+  overflow:hidden;
+}
+#root .codex-shell [data-onboarding-idea-review] .cover-filmstrip-track>div,
+#root .codex-shell [data-onboarding-idea-review] .cover-filmstrip-item,
+#root .codex-shell [data-onboarding-idea-review] .cover-filmstrip-slot {
+  display:flex;
+  flex:none;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+}
+#root .codex-shell [data-onboarding-idea-review] .cover-filmstrip-thumbnail {
+  width:min(100cqw,calc(100cqh * var(--thumbnail-ratio)));
+  height:auto;
+  max-width:100%;
+  max-height:100%;
+  padding:0;
+  opacity:1;
+  border:0;
+  box-shadow:none;
+}
+#root .codex-shell [data-onboarding-idea-review] .onboarding-review-idea>header h4 {
+  font-size:20px;
+  font-weight:600;
+  line-height:1.35;
+  letter-spacing:-.02em;
+  color:var(--text-primary);
+}
+[data-onboarding-idea-review] .onboarding-review-portal {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:4px 0 0;
+  font-size:14px;
+  line-height:1.5;
+  color:var(--text-secondary);
+  overflow-wrap:anywhere;
+}
+[data-onboarding-idea-review] .onboarding-review-portal strong { font-weight:550; color:var(--text-primary); }
+[data-onboarding-idea-review] .onboarding-review-summary {
+  margin-top:4px;
+  overflow-wrap:anywhere;
+  color:var(--text-secondary);
+}
+[data-onboarding-idea-review] .onboarding-review-summary .formatted-text { font-size:14px; line-height:1.5; }
+[data-onboarding-idea-review] .onboarding-review-summary p { margin:0; }
+[data-onboarding-idea-review] .onboarding-review-empty-description { font-size:14px; line-height:1.5; }
+[data-onboarding-idea-review] .onboarding-review-location {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:8px 0 0;
+  font-size:14px;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+  color:var(--text-secondary);
+}
+[data-onboarding-idea-review] .onboarding-review-location svg { flex:none; }
+[data-onboarding-idea-review] .onboarding-review-empty-cover { margin:0; padding:8px 0; font-size:14px; line-height:1.5; color:var(--text-secondary); }
+#root .codex-shell [data-onboarding-idea-review] .onboarding-review-thumbnails {
+  display:flex;
+  min-width:0;
+  gap:8px;
+  padding:4px 0 6px;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+}
+[data-onboarding-idea-review] .onboarding-review-thumbnails>span {
+  display:grid;
+  flex:none;
+  place-items:center;
+  width:52px;
+  height:52px;
+  overflow:hidden;
+  background:var(--surface-sunken);
+  color:var(--text-secondary);
+}
+[data-onboarding-idea-review] .onboarding-review-thumbnails img { width:100%; height:100%; object-fit:cover; }
+@media(max-height:740px) {
+  #root .codex-shell [data-onboarding-idea-review] { gap:12px; }
+  #root .codex-shell [data-onboarding-idea-review] .onboarding-review-cover [data-cover-collapsed] { height:156px; }
+}
+
+/* Only creation opts in: published-project editing and Then/Now retain their frames. */
+.project-form-overlay[data-project-creation],
+.onboarding-publish-backdrop[data-project-creation] {
+  padding:0;
+  align-items:stretch;
+  overflow:hidden;
+}
+#root .codex-shell[data-presentation] :is(.project-form-dialog,.project-form-screen)[data-project-creation][data-project-creation] {
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  max-width:none;
+  height:var(--dialog-viewport-height,100dvh);
+  max-height:100%;
+  min-height:0;
+  margin:0;
+  padding:max(0px,calc(var(--safe-area-top,env(safe-area-inset-top,0px)) - var(--dialog-viewport-top,0px))) 0 env(safe-area-inset-bottom,0px);
+  padding-inline:var(--safe-area-left,env(safe-area-inset-left,0px)) var(--safe-area-right,env(safe-area-inset-right,0px));
+  gap:0;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  overflow:hidden;
+}
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.onboarding-publish-heading,
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.project-form-heading {
+  width:100%;
+  max-width:620px;
+  margin-inline:auto;
+  padding:12px 16px 4px;
+}
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.mobile-publish-flow {
+  width:100%;
+  max-width:620px;
+  min-height:0;
+  margin-inline:auto;
+  padding:0;
+}
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.mobile-publish-flow>.mobile-publish-actions { margin-inline:0; }
+#root .codex-shell[data-presentation] [data-project-creation][data-project-creation]>.project-form-content:not([data-mobile-publish]) {
+  width:100%;
+  max-width:960px;
+  margin-inline:auto;
+  padding:12px 32px 24px;
+}
+/* Keep long authored text inside its own readable region, rather than making
+   the review screen scroll past its cover, file controls and primary action. */
+#root .codex-shell [data-project-creation] [data-onboarding-idea-review] { flex:1 1 0; min-height:0; }
+#root .codex-shell [data-project-creation] [data-onboarding-idea-review]>.onboarding-review-idea {
+  display:grid;
+  flex:1 1 0;
+  grid-template-rows:auto auto minmax(44px,1fr) auto;
+  min-height:min-content;
+}
+#root .codex-shell [data-project-creation] .onboarding-review-summary {
+  contain:size;
+  min-height:44px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+/* A short desktop window gives space to crop controls before the preview. */
+#root .codex-shell [data-project-creation][data-presentation='web'] [data-onboarding-files-cover] [data-focused-cover] .cover-filmstrip-track {
+  height:clamp(112px,calc(var(--dialog-viewport-height,100dvh) - 480px),280px);
+  min-height:112px;
+}

@@ -1,4 +1,7 @@
+import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
+import { ExportSheet } from '../../features/references/ExportSheet';
 import { FollowContentInfoPopup } from './FollowContentInfoPopup';
+import { ProjectPopupOwnerActions } from './MobileProjectPopup';
 import { CitationReferences } from '../../features/citations/CitationReferences';
 import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
 import { CreatorAvatar } from '../profile/CreatorAvatar';
@@ -7,14 +10,14 @@ import { useProjectReach } from '../../features/reads/useProjectReach';
 import { useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
-import { useMobileActions, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import { copyPublicLink } from '../../utils/copyPublicLink';
 import { MobilePageContext } from '../../features/media-interactions/MobilePageContext';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import type { PagePosition } from './MobileProjectPageCounter';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ListIcon, UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
+import { ListIcon, UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
 import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
@@ -255,7 +258,8 @@ export function ProjectMediaViewer({
     }
   }, [mobilePopup, engagement.resolveError, engagement.failure]);
   const sendContent = useInternalContentShare();
-  const shareProject = () => sendContent({title:projectTitle,url:window.location.href,onSent:()=>setIsProjectShared(true)});
+  const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/') + window.location.search + window.location.hash, PUBLIC_ORIGIN).href;
+  const shareProject = () => sendContent({title:projectTitle,url:publicUrl,onSent:()=>setIsProjectShared(true)});
   const active = attachments.find((item) => item.id === activeId) ?? attachments[0];
   useEffect(() => {
     setIsImmersive(false);
@@ -276,8 +280,11 @@ export function ProjectMediaViewer({
    * one piece rather than as separate files to step between — a photo essay is
    * one work, not five attachments.
    */
-  const isDocumentReading = isMobileViewer && active?.kind === 'document';
-  const isVerticalReading = isMobileViewer && (active?.kind === 'document' || active?.kind === 'image');
+  const singlePageQuery = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
+  const singlePageNumber = Number(singlePageQuery?.get('page'));
+  const isSavedSinglePage = singlePageQuery?.get('view') === 'page' && singlePageQuery.get('media') === active?.id && Number.isInteger(singlePageNumber) && singlePageNumber >= 1;
+  const isDocumentReading = isMobileViewer && !isSavedSinglePage && active?.kind === 'document';
+  const isVerticalReading = isMobileViewer && !isSavedSinglePage && (active?.kind === 'document' || active?.kind === 'image');
   const isReadingHeader = isDocumentReading || (readOnlyShare && isVerticalReading);
   const imagePages = attachments.filter((item) => item.kind === 'image');
   const previewScope = `${projectId}:${active?.id ?? ''}`;
@@ -298,17 +305,28 @@ export function ProjectMediaViewer({
   const journeyNavigate = useNavigate(), journeyAuth = useAuth();
   const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => { closeMobilePopup(); journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp'); } : undefined;
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
-  const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
-  const mobileActions = useMobileActions();
+  const [exportOpen,setExportOpen]=useState(false);
+  const [ownCopyStatus,setOwnCopyStatus]=useState('');
+  const copyScope=useRef<string|null>(null);
+  copyScope.current=`${projectId}:${journeyAuth.user?.id??''}:${pageAttachment?.id??''}:${currentPage??''}`;
+  useEffect(()=>()=>{copyScope.current=null;},[]);
+  useEffect(()=>{setExportOpen(false);setOwnCopyStatus('');},[projectId,journeyAuth.user?.id]);
+  const ownerReader = isOwner && !readOnlyShare;
+  const creatorProfileId = creator?.id;
   const projectActionModel = contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
+    list: ownerReader ? mobileNavigation?.onOpenIndex : undefined,
+    projectInfo: ownerReader ? () => setMobilePopup('description') : undefined,
+    viewProfile: ownerReader && creatorProfileId ? () => journeyNavigate(buildPath('profile', { profileId: creatorProfileId })) : undefined,
     edit: isOwner && !readOnlyShare && descriptionEditor ? () => { closeMobilePopup(); descriptionEditor.open(projectId); } : undefined,
     delete: isOwner && !readOnlyShare && onDeleteProject ? () => { closeMobilePopup(); onDeleteProject(); } : undefined,
     reads: isOwner ? () => journeyNavigate(`/insights?project=${encodeURIComponent(projectId)}`) : undefined,
     startHere: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?startHere=${encodeURIComponent(projectId)}`) : undefined,
     thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
     saveProject: !engagement.isResolving && !engagement.isPending('save') && !engagement.resolveError ? () => engagement.toggle('save') : undefined,
+    ...(isOwner&&!readOnlyShare&&!isImmersive&&active?.kind==='image'&&pageAttachment&&currentPage!==null&&journeyAuth.viewerProfileId?{copyCitation:async()=>{const scope=copyScope.current;try{const module=await import('../../features/references/ownCitation');const text=await module.ownPageCitation(journeyAuth.viewerProfileId!,projectId,pageAttachment.id,currentPage);if(copyScope.current!==scope)return;await navigator.clipboard.writeText(text);setOwnCopyStatus('Citation copied.');}catch(caught){if(copyScope.current===scope)setOwnCopyStatus(caught instanceof Error?caught.message:'Citation could not be copied.');}}}:{}),
+    export: creator?.id ? ()=>setExportOpen(true) : undefined,
     share: shareProject, copy: () => copyPublicLink(publicUrl),
-  }, labels: { saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
+  }, labels: { list: 'Open portal', projectInfo: 'Project information', saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
   useMobileScreenActions(projectActionModel, 20, () => setMobilePopup('description'));
   const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
   const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
@@ -509,7 +527,7 @@ export function ProjectMediaViewer({
               <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
             </div>
             <div>
-              {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
+              {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="project-description-text mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
             </div>
             {sharedProjectMetadata}
           </div>;
@@ -610,6 +628,8 @@ export function ProjectMediaViewer({
            so and offers the query again rather than a retry of the work. It stays
            with the work, because that is what it is about. */}
         <CitationReferences projectId={projectId} owner={isOwner} />
+        {ownCopyStatus&&<p role="status">{ownCopyStatus}</p>}
+        {exportOpen&&creator?.id&&<ExportSheet profileId={creator.id} projectId={projectId} onClose={()=>setExportOpen(false)}/>}
         {processing.error && <div role="alert" className="flex shrink-0 items-center gap-2.5 border-t border-[var(--hairline)] px-4 py-2 text-[13px] text-[var(--text-secondary)]">
             <span className="min-w-0 flex-1">{processing.error}</span>
             <button type="button" onClick={processing.refresh} className="shrink-0 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Check again</button>
@@ -628,7 +648,7 @@ export function ProjectMediaViewer({
           return <button key={attachment.id} type="button" onClick={() => {
             setActiveId(attachment.id);
             updateViewerMemory(viewerMemoryKey, { activeAttachmentId: attachment.id });
-          }} aria-current={isActive ? 'true' : undefined} aria-label={`${attachment.displayName}, ${attachment.typeLabel}`} className={`side-panel-primary-control side-panel-control-row max-w-[220px] px-2.5 text-[13px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
+          }} aria-current={isActive ? 'true' : undefined} aria-label={`${attachment.displayName}, ${attachment.typeLabel}`} className={`side-panel-primary-control side-panel-control-row max-w-[220px] px-2.5 text-[13px] transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
                 <InterfaceIcon icon={Icon} size="sm" weight="medium" />
                 <span className="min-w-0 truncate">{attachment.displayName}</span>
               </button>;
@@ -656,7 +676,7 @@ export function ProjectMediaViewer({
         <div id="mobile-project-engagement-actions" data-mobile-engagement-content="" hidden={!mobileEngagementOpen}>
         <div ref={popupAnchorRef} data-mobile-project-popup-controls="" className="side-panel-navigation-list items-center">
           <button ref={descriptionTriggerRef} type="button" aria-label="Show project description" aria-haspopup="dialog" aria-expanded={mobilePopup === 'description'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('description')} className="mobile-project-popup-trigger text-[var(--text-primary)]">
-            <span data-shared-info-glyph="" aria-hidden="true" style={{ fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }} className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-[1.5px] border-current text-[15px] font-semibold leading-none">i</span>
+            <InterfaceIcon icon={InfoIcon} size="lg" />
           </button>
           <button ref={commentsTriggerRef} type="button" aria-label="Show comments" aria-haspopup="dialog" aria-expanded={mobilePopup === 'comments'} aria-controls="mobile-project-popup" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} className="mobile-project-popup-trigger">
             <InterfaceIcon icon={MessageCircleIcon} size="lg" weight="regular" keepColor stroke="var(--project-control-foreground, currentColor)" />
@@ -674,23 +694,23 @@ export function ProjectMediaViewer({
           </button>
         </div>}
         </div>
-        <nav className="mobile-content-action-bar" aria-label="Content controls">
+        {<nav className="mobile-content-action-bar" aria-label="Content controls">
           <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={ListIcon} size="lg" /></button>
 
           <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => setMobilePopup('description')}>
           <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
         </button>
           <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>
-        </nav>
-      </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
+        </nav>}
+      </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
-            <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+            <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
             </button>
-            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('project')} aria-label="Show project information" aria-pressed={sharedInfoPanel === 'project'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'project' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
-                <span data-shared-info-glyph="" aria-hidden="true" style={{ fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }} className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-current text-[12px] font-semibold leading-none">i</span>
+            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('project')} aria-label="Show project information" aria-pressed={sharedInfoPanel === 'project'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'project' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
+                <InterfaceIcon icon={InfoIcon} size="lg" />
               </button>}
-            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('verification')} aria-label="Show AI verification services" aria-pressed={sharedInfoPanel === 'verification'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'verification' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
+            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('verification')} aria-label="Show AI verification services" aria-pressed={sharedInfoPanel === 'verification'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'verification' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
                 <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
               </button>}
           </div>
@@ -703,7 +723,7 @@ export function ProjectMediaViewer({
           {isRailOpen && sharedInfoPanel === 'comments' && <div id="shared-project-detail-panel" className="side-panel-content-inset py-2"><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={false} /></div>}
           {isRailOpen && sharedInfoPanel === 'project' && sharedProjectInformation}
           {isRailOpen && sharedInfoPanel === 'verification' && sharedVerification}
-        </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
+        </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
         {/* One row: the engagement controls and the control that hides them. The
@@ -712,13 +732,13 @@ export function ProjectMediaViewer({
         {/* Reading order: the control for the rail itself, then what the rail is
            showing, then the actions on the work. Broadest scope first. */}
         <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? 'engagement-panel-toolbar px-2' : 'justify-center px-1.5'}`}>
-          <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide engagement and comments' : 'Show engagement and comments'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+          <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide engagement and comments' : 'Show engagement and comments'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
           </button>
           {/* The semantic colour and spoken label identify the destination of the
              next press without adding a hover tooltip over the compact control. */}
-          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" />
+          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <InterfaceIcon icon={railPanel === 'comments' ? InfoIcon : MessageCircleIcon} size="lg" weight="medium" />
             </button>}
           {/* Offered only where it has something to do: the owner of the portal,
              looking at a piece that genuinely holds more than one page. The
@@ -748,23 +768,23 @@ export function ProjectMediaViewer({
                 {/* Only what the creator wrote, in the face the work is set in. A
                project with no description says so rather than being padded with
                fields to fill the space. */}
-                {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
+                {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="project-description-text whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
               </section>}
           </div>}
         {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
-      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <FollowContentInfoPopup key={projectId} projectId={projectId} title={projectTitle} description={projectSummary} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} engagement={engagement} onRequireAccount={requireSharedAccount} onComments={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} onOptions={() => { closeMobilePopup(); mobileActions?.open(projectActionModel); }} onClose={closeMobilePopup} />}
-      {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup}>
+      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <FollowContentInfoPopup key={projectId} projectId={projectId} title={projectTitle} description={projectSummary} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} engagement={engagement} onRequireAccount={requireSharedAccount} onComments={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} optionsContent={ownerReader && (descriptionEditor || onDeleteProject) ? <ProjectPopupOwnerActions onEditTitle={descriptionEditor ? () => descriptionEditor.open(projectId) : undefined} onDelete={onDeleteProject} onClose={closeMobilePopup} /> : undefined} onClose={closeMobilePopup} />}
+      {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup} mobileMotion={mobilePopup === 'comments'}>{dismiss => <>
         <header data-comments-header="" className="flex items-center justify-between gap-3">
           <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
-          <button type="button" data-comments-close="" aria-label="Close project popup" onClick={closeMobilePopup}><InterfaceIcon icon={XIcon} size="md" weight="medium" /></button>
+          <button type="button" data-comments-close="" data-ui-shape="icon" aria-label="Close project popup" onClick={dismiss}><InterfaceIcon icon={XIcon} size="md" weight="medium" /></button>
         </header>
         <div data-mobile-project-popup-content="" className="min-h-0 overflow-y-auto overscroll-contain">
           {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>
             : mobilePopup === 'verification' ? sharedVerification
             : readOnlyShare ? sharedProjectInformation
-            : <FormattedText style={{ fontFamily: contentTypefaceStack }} className="text-[16px] leading-relaxed text-[var(--text-primary)]" text={projectSummary || 'This project has no description.'} />}
+            : <FormattedText style={{ fontFamily: contentTypefaceStack }} className="project-description-text text-[16px] leading-relaxed text-[var(--text-primary)]" text={projectSummary || 'This project has no description.'} />}
         </div>
-      </MediaCommentsPopover>}
+      </>}</MediaCommentsPopover>}
     </div></MobilePageContext.Provider>;
 }

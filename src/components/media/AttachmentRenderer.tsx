@@ -3,7 +3,7 @@ import { MediaFrame } from './MediaFrame';
 import { ImageAttachment } from './ImageAttachment';
 import { GenericFileCard } from './GenericFileCard';
 import { ProcessingNotice } from './ProcessingNotice';
-import { LoadingState } from '../ui/StateViews';
+import { LoadingSkeleton } from '../ui/StateViews';
 import type { ProjectAttachment } from '../../types/domain';
 import type { PdfDocument } from './PdfPage';
 
@@ -20,6 +20,8 @@ type AttachmentRendererProps = {
   projectId: string;
   attachment: ProjectAttachment;
   videoActive?: boolean;
+  /** Catalogue previews expose controls without starting or looping playback. */
+  inlinePreview?: boolean;
   /** Every image in project order, so a multi-image piece stays one viewer. */
   imagePages?: ProjectAttachment[];
   imageColumns?: number;
@@ -50,7 +52,7 @@ type AttachmentRendererProps = {
 export function AttachmentRenderer({
   projectId, attachment, imagePages, imageColumns, projectTitle, artwork, processing,
   onDocumentPageCountResolved, onPreviewDocument, onFocusModeChange, controlsVisible,
-  videoActive, showMediaInteractions = true, isOwner = false, memoryScope = 'workspace',
+  videoActive, inlinePreview = false, showMediaInteractions = true, isOwner = false, memoryScope = 'workspace',
   readingMode = false, verticalReading = false, readerPageRequest = null, onReaderRequestHandled, pageViewToggleRequest = 0, onClose,
 }: AttachmentRendererProps) {
   const title = attachment.displayName || projectTitle;
@@ -66,7 +68,7 @@ export function AttachmentRenderer({
         onRetry={processing?.onRetry ?? (() => undefined)} />
     </MediaFrame>;
   }
-  const loading = <LoadingState label={`Loading ${title}…`} />;
+  const loading = <LoadingSkeleton kind="reader" projectId={projectId} label={`Loading ${title}…`} />;
   const documentLoading = <div data-page-loading="" data-initial-page-loading="">{loading}</div>;
   switch (attachment.kind) {
     case 'audio':
@@ -100,7 +102,7 @@ export function AttachmentRenderer({
       </MediaFrame>;
     case 'video':
       return <MediaFrame><Suspense fallback={loading}>
-        <VideoAttachment attachment={attachment} active={videoActive}
+        <VideoAttachment attachment={attachment} active={videoActive} inlinePreview={inlinePreview}
           conversion={processing ? { ...processing, canRetry: isOwner && processing.canRetry } : undefined} />
       </Suspense></MediaFrame>;
     case 'model3d':

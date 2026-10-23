@@ -77,13 +77,13 @@ test('the sidebar gear directly opens Settings without a menu in either sidebar 
     assert.deepEqual(h.statuses, ['idle', clipboardFails ? 'failed' : 'copied']);
   }
 });
-test('invite entry opens create account once and protects signed-in and recovery visits', () => {
+test('invite entry holds Hello World on both presentations without requesting signup', () => {
   const source = read('../src/app/ApplicationBootstrap.tsx');
-  const block = source.slice(source.indexOf('  const invitePresented'), source.indexOf('  // Only the opening mobile visit'));
-  for (const [isWelcomeInvite, initializing, authenticated, expected] of [[true,false,false,1],[false,false,false,0],[true,true,false,0],[true,false,true,0]]) {
-    const calls = []; let effect;
-    vm.runInNewContext(transpile(block), { useRef: () => ({current:false}), useEffect: callback => {effect=callback;}, isWelcomeInvite, auth: {isInitializing:initializing,isAuthenticated:authenticated,requestAuth:view=>calls.push(view)} });
-    effect(); effect();
-    assert.deepEqual(calls, expected ? ['signUp'] : []);
+  assert.doesNotMatch(source, /invitePresented|auth.requestAuth\('signUp'\)/);
+  const expression = source.match(/const holdLanding = (.*);/)[1];
+  for (const presentation of ['mobile', 'web']) {
+    for (const [isAuthenticated, isRecovery, isInitializing, expected] of [[false,false,false,true],[true,false,false,false],[false,true,false,false],[false,false,true,false]]) {
+      assert.equal(vm.runInNewContext(expression, { Boolean, isSharedView:false, landingPath:'/', hasLeftLanding:false, presentation, isWelcomeInvite:true, isRecovery, auth:{isAuthenticated,isInitializing} }), expected);
+    }
   }
 });

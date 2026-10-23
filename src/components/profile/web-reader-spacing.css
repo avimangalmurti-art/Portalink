@@ -1,0 +1,30 @@
+/* WEB reader chrome only; panel allocation and the work surface stay intact. */
+#root .codex-shell[data-presentation='web'] [data-web-reader-spacing] :is(
+  [data-project-index-panel][data-collapsed='false'],
+  [data-project-response-rail][data-rail-expanded='true']
+) {
+  --side-panel-content-inset: 12px;
+  --side-panel-row-gap: 8px;
+}
+/* Retain room for the page-density slider at the index's 220px minimum. */
+#root .codex-shell[data-presentation='web'] [data-web-reader-spacing] [data-project-index-toolbar] {
+  gap: 6px;
+}
+#root .codex-shell[data-presentation='web'] [data-web-reader-spacing] [data-project-response-rail][data-rail-expanded='true'] > .global-control-header {
+  padding-inline: 12px;
+}
+#root .codex-shell[data-presentation='web'] [data-web-reader-spacing] [data-project-response-rail][data-rail-expanded='true'] > .side-panel-content-inset {
+  padding-block: 12px;
+}
+@layer portalink-interface-shapes {
+  [data-presentation='web'][data-presentation] [data-web-reader-spacing] :is(
+    [data-project-index-panel] .side-panel-header-icon,
+    [data-project-index-panel] [data-structural-toggle],
+    [data-project-response-rail] > .global-control-header > button
+  ) {
+    border-radius: var(--ui-icon-radius) !important;
+  }
+  [data-presentation='web'][data-presentation] [data-web-reader-spacing] :is(.engagement-toolbar-actions, [data-project-rail-actions]) .side-panel-compact-control {
+    border-radius: var(--ui-action-radius) !important;
+  }
+}

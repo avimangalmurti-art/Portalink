@@ -42,7 +42,7 @@ export const routes: Record<RouteId, RouteDefinition> = {
     id: 'profile',
     path: '/p/:profileId',
     params: ['profileId'],
-    description: 'A creator profile: identity, stats, and portfolio categories.'
+    description: 'A creator profile: identity, stats, and catalogue categories.'
   },
   collaboration: {
     id: 'collaboration',
@@ -66,7 +66,7 @@ export const routes: Record<RouteId, RouteDefinition> = {
     id: 'profileCategory',
     path: '/p/:profileId/c/:categoryId',
     params: ['profileId', 'categoryId'],
-    description: 'One portfolio category, presented in its declared format.'
+    description: 'One catalogue category, presented in its declared format.'
   },
   project: {
     id: 'project',

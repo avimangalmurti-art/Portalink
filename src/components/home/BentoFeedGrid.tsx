@@ -1,3 +1,4 @@
+import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { layoutBento, type BentoPosition } from '../../utils/bentoLayout';
@@ -6,6 +7,7 @@ import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
 import { WebGalleryControls } from '../../presentation/web/WebGalleryControls';
 import { usePresentation } from '../../presentation/usePresentation';
+import { ProjectPageBrowsingProvider } from '../profile/ProjectPageBrowsingContext';
 
 /**
  * The packing layer for the discovery feed.
@@ -98,6 +100,7 @@ export function BentoFeedGrid({
     rows: Math.ceil((measurements[item.key].height + GAP) / ROW_UNIT),
   })), columns) : null;
   return <div ref={view.ref} className="relative w-full">
+      <ProjectPageBrowsingProvider columns={columns} surfaceRef={view.ref}>
       {isWeb && items.length > 0 && <WebGalleryControls columns={columns} onChange={view.chooseColumns} />}
       <ZoomReadout view={view} />
       <div ref={ref} data-project-grid-columns={columns} style={{
@@ -124,6 +127,7 @@ export function BentoFeedGrid({
           {item.content}
         </BentoCell>)}
       </div>
+      </ProjectPageBrowsingProvider>
     </div>;
 }
 function BentoCell({
@@ -172,7 +176,7 @@ function BentoCell({
   // The gutter is claimed as part of the span, which is why the grid itself runs
   // no row gap: a cell owns its own trailing space.
   const rows = canPack && height > 0 ? Math.ceil((height + GAP) / ROW_UNIT) : null;
-  return <motion.div data-project-preview-cell="" layout={reduceMotion ? false : 'position'} transition={{ layout: { duration: 0.18, ease: [0.2, 0.8, 0.2, 1] } }} className="min-w-0 self-start" style={{
+  return <motion.div data-project-preview-cell="" layout={reduceMotion ? false : 'position'} transition={{ layout: { duration: motionSeconds('base'), ease: motionCurve() } }} className="min-w-0 self-start" style={{
     gridColumn: position ? `${position.column + 1} / span ${span}` : `span ${span}`,
     ...(position ? { gridRow: `${position.row + 1} / span ${position.rows}` } : rows ? {
       gridRow: `span ${rows}`
