@@ -169,15 +169,15 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 56px;
+  min-height: 80px;
   margin: 0;
-  padding: 10px 16px;
+  padding: 12px 20px;
   border: 0;
   border-radius: 999px;
   background: #0752ff;
   color: #050505;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-style: normal;
   font-weight: 700;
   line-height: 1.125;
@@ -209,7 +209,7 @@
   position: relative;
   z-index: 1;
   max-width: 100%;
-  padding: 4px 12px;
+  padding: 6px 16px;
   border-radius: 999px;
   background: rgb(255 255 255 / 88%);
   color: #050505;
