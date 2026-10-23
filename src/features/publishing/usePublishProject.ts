@@ -12,7 +12,6 @@ import { validateTitle } from './validation';
 import type { Id } from '../../types/domain';
 import type { DraftMetadata, DraftState, PersistedAttachment, ProjectDraft, PublishResult } from '../../types/publishing';
 import { deriveProjectRelevance } from '../../domain/discovery/ranking';
-import { usePresentation } from '../../presentation/usePresentation';
 
 /**
  * The publishing feature boundary.
@@ -43,18 +42,17 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     invalidateProfiles, cacheProfile
   } = useProfileData();
   const auth = useAuth();
-  const isMobile = usePresentation() === 'mobile';
   const recoveryOpening = useRef({ accountId: auth.user?.id, profileId, categoryId, enabled: false, resumeId: undefined as string | undefined, wasOpen: false });
   if (recoveryOpening.current.accountId !== auth.user?.id || recoveryOpening.current.profileId !== profileId || recoveryOpening.current.categoryId !== categoryId) {
     recoveryOpening.current = { accountId: auth.user?.id, profileId, categoryId, enabled: false, resumeId: undefined, wasOpen: false };
   }
   const uploadRecoveryScope = recoveryOpening.current;
-  // Changing presentation must not turn off durability halfway through this
-  // opening. A fresh WEB opening still uses the existing ordinary transport.
+  // Keep one recoverable draft identity through presentation changes. Only a
+  // new opening or owner/category change starts another workspace.
   if (isOpen && !uploadRecoveryScope.wasOpen) { uploadRecoveryScope.enabled = false; uploadRecoveryScope.resumeId = undefined; }
   uploadRecoveryScope.wasOpen = isOpen;
-  if (isOpen && isMobile && (firstProject || workspace?.persist)) uploadRecoveryScope.enabled = true;
-  if (isOpen && isMobile && workspace?.resume?.id) uploadRecoveryScope.resumeId = workspace.resume.id;
+  if (isOpen && (firstProject || workspace?.persist)) uploadRecoveryScope.enabled = true;
+  if (isOpen && workspace?.resume?.id) uploadRecoveryScope.resumeId = workspace.resume.id;
   const resumeId = uploadRecoveryScope.enabled ? uploadRecoveryScope.resumeId : workspace?.resume?.id;
   const waitForProfile = firstProject || workspace?.awaitProfile === true;
   // A project is a collection of assets of any family, so preparation is not
@@ -170,9 +168,13 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       initializedOpening.current = {opening, draftId:existing.id};
       setDraft(existing);
       if (saved) {
-        checkpointSignature.current = draftWorkspaceFingerprint({metadata:saved.metadata,location:saved.location,stage:saved.stage,media:saved.media,persisted:saved.persisted,attachments:saved.attachments,committed:saved.committed});
+        checkpointSignature.current = draftWorkspaceFingerprint({metadata:saved.metadata,location:saved.location,hasChosenLocation:saved.hasChosenLocation,ignoreInferredLocation:saved.ignoreInferredLocation,stage:saved.stage,media:saved.media,persisted:saved.persisted,attachments:saved.attachments,committed:saved.committed});
         setMetadata(saved.metadata); updateLocation(saved.location);
-        setHasChosenLocation(true); restoreMedia(saved.media); restoreUpload(saved, saved.media);
+        // Legacy checkpoints restored a manual location choice, including an
+        // empty MOBILE field. New records preserve untouched WEB inference.
+        setHasChosenLocation(typeof saved.hasChosenLocation === 'boolean' ? saved.hasChosenLocation : true);
+        setIgnoreInferredLocation(saved.ignoreInferredLocation === true);
+        restoreMedia(saved.media); restoreUpload(saved, saved.media);
         setFirstProjectStage(saved.stage); setStep(saved.stage === 'review' ? 'preview' : 'metadata');
         committedPublish.current = saved.committed;
         setHasCommittedProject(Boolean(saved.committed));
@@ -238,7 +240,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const setCreationDetails = useCallback((details: NonNullable<DraftMetadata['creationDetails']>) => {
     setMetadata(current => ({ ...current, creationDetails: details, summary: JSON.stringify(current.creationDetails?.answers) === JSON.stringify(details.answers) ? current.summary : composeProjectDescription(details.answers) }));
   }, []);
-  const workspaceNow = {draft, metadata, location, stage:step === 'preview' ? 'review' as const : firstProjectStage, media:media.items, restoringDraft};
+  const workspaceNow = {draft, metadata, location, hasChosenLocation, ignoreInferredLocation, stage:step === 'preview' ? 'review' as const : firstProjectStage, media:media.items, restoringDraft};
   const latestWorkspace = useRef(workspaceNow);
   latestWorkspace.current = workspaceNow;
   const checkpointRevision = useRef(0);
@@ -253,7 +255,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     const revision = ++checkpointRevision.current;
     try {
       const confirmed = getUploadCheckpoint();
-      const contents = {metadata:snapshot.metadata,location:snapshot.location,stage:snapshot.stage,media:snapshot.media,...confirmed,committed:committedPublish.current};
+      const contents = {metadata:snapshot.metadata,location:snapshot.location,hasChosenLocation:snapshot.hasChosenLocation,ignoreInferredLocation:snapshot.ignoreInferredLocation,stage:snapshot.stage,media:snapshot.media,...confirmed,committed:committedPublish.current};
       const signature = draftWorkspaceFingerprint(contents);
       if (checkpointSignature.current !== signature) {
         setCheckpointStatus('saving');
@@ -278,7 +280,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   }, [firstProject, persistWorkspace, resumeId, auth.user?.id, profileId, categoryId, opening, getUploadCheckpoint, projectService, initialTitle, initialSummary]);
   useEffect(() => {
     if (isOpen && draft && !restoringDraft) void saveLocalDraft().catch(() => undefined);
-  }, [isOpen, draft, metadata, location, step, firstProjectStage, media.items, upload.persisted, upload.attachments, hasCommittedProject, restoringDraft, saveLocalDraft]);
+  }, [isOpen, draft, metadata, location, hasChosenLocation, ignoreInferredLocation, step, firstProjectStage, media.items, upload.persisted, upload.attachments, hasCommittedProject, restoringDraft, saveLocalDraft]);
   useEffect(() => {
     if (!isOpen || !persistWorkspace) return;
     const flush = () => { void saveLocalDraft().catch(() => undefined); };
@@ -579,7 +581,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
    */
   const willPersistMedia = media.capability?.isAvailable === true;
   const localDraftStatus = !firstProject && !persistWorkspace ? 'disabled' : localDraftError ? 'error'
-    : !isDirty ? 'idle' : checkpointStatus === 'saved' && checkpointSignature.current === draftWorkspaceFingerprint({metadata,location,stage:step === 'preview' ? 'review' : firstProjectStage,media:media.items,persisted:upload.persisted,attachments:upload.attachments,committed:committedPublish.current}) ? 'saved' : 'saving';
+    : !isDirty ? 'idle' : checkpointStatus === 'saved' && checkpointSignature.current === draftWorkspaceFingerprint({metadata,location,hasChosenLocation,ignoreInferredLocation,stage:step === 'preview' ? 'review' : firstProjectStage,media:media.items,persisted:upload.persisted,attachments:upload.attachments,committed:committedPublish.current}) ? 'saved' : 'saving';
   return {
     isOwner,
     isOpeningCurrent: () => opening.active && currentOpening.current === opening,

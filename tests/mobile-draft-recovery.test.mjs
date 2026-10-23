@@ -71,7 +71,7 @@ function operationHarness(overrides = {}) {
     ...overrides,
   });
   context.getUploadCheckpoint = () => context.upload.getCheckpoint();
-  for (const name of ['DraftError', 'RestoringDraft', 'Draft', 'Metadata', 'HasChosenLocation', 'FirstProjectStage', 'Step', 'HasCommittedProject', 'HasDiscardedDraft', 'CheckpointStatus', 'LocalDraftError', 'DiscardError', 'IsDiscarding', 'Result']) context[`set${name}`] = value => { states[name] = value; calls.push([name, value]); };
+  for (const name of ['DraftError', 'RestoringDraft', 'Draft', 'Metadata', 'HasChosenLocation', 'IgnoreInferredLocation', 'FirstProjectStage', 'Step', 'HasCommittedProject', 'HasDiscardedDraft', 'CheckpointStatus', 'LocalDraftError', 'DiscardError', 'IsDiscarding', 'Result']) context[`set${name}`] = value => { states[name] = value; calls.push([name, value]); };
   context.updateLocation = value => { states.location = value; };
   return { context, calls, states, initialize: () => evaluate(initialization, context)(), save: (...args) => evaluate(callback('saveLocalDraft'), context)(...args) };
 }
@@ -79,7 +79,7 @@ function operationHarness(overrides = {}) {
 function dialogHarness(presentation, changes = {}) {
   const calls = [], hookCalls = [];
   const slots = []; let cursor = 0;
-  const react = { ...React, useEffect() {}, useRef: current => ({ current }), useState: initial => { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => { slots[i] = typeof value === 'function' ? value(slots[i]) : value; }]; } };
+  const react = { ...React, useEffect() {}, useRef: current => { const i = cursor++; return slots[i] ??= { current }; }, useState: initial => { const i = cursor++; if (!(i in slots)) slots[i] = initial; return [slots[i], value => { slots[i] = typeof value === 'function' ? value(slots[i]) : value; }]; } };
   const flow = {
     step: 'metadata', state: 'editing', firstProjectStage: 'files', isOwner: true, isDirty: true,
     draft: { id: 'draft' }, metadata: { title: 'Project', summary: '' }, fieldErrors: {}, media: { items: [{}], state: 'ready' },
@@ -97,24 +97,211 @@ function dialogHarness(presentation, changes = {}) {
   return { calls, hookCalls, tree: render(), render, resumeDraft };
 }
 
-test('mobile close awaits durable saving, retains work on failure, and WEB still discards', async () => {
-  const pending = deferred(), mobile = dialogHarness('mobile', { saveLocalDraft: () => { mobile.calls.push('save'); return pending.promise; } });
-  const close = mobile.tree.props.onClose(); await tick(); assert.deepEqual(mobile.calls, ['save']);
-  pending.resolve(); await close; assert.deepEqual(mobile.calls, ['save', 'close']);
-  const failed = dialogHarness('mobile', { saveLocalDraft: async () => { throw Error('Local quota'); } });
-  await failed.tree.props.onClose(); assert.deepEqual(failed.calls, []);
-  const committed = dialogHarness('mobile', { isDirty: false, hasCommittedProject: true });
-  await committed.tree.props.onClose(); assert.deepEqual(committed.calls, ['save', 'close']);
-  const web = dialogHarness('web'); await web.tree.props.onClose(); assert.deepEqual(web.calls, ['discard', 'close']);
+test('MOBILE and WEB close await durable saving, retain work on failure and never discard authored work implicitly', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const pending = deferred(), h = dialogHarness(presentation, { saveLocalDraft: () => { h.calls.push('save'); return pending.promise; } });
+    const close = h.tree.props.onClose(), repeated = h.tree.props.onClose(); await tick(); assert.deepEqual(h.calls, ['save']);
+    pending.resolve(); await Promise.all([close, repeated]); assert.deepEqual(h.calls, ['save', 'close']);
+    const failed = dialogHarness(presentation, { saveLocalDraft: async () => { throw Error('Local quota'); } });
+    await failed.tree.props.onClose(); assert.deepEqual(failed.calls, []);
+    const committed = dialogHarness(presentation, { isDirty: false, hasCommittedProject: true });
+    await committed.tree.props.onClose(); assert.deepEqual(committed.calls, ['save', 'close']);
+    const stale = dialogHarness(presentation, { isOpeningCurrent: () => false });
+    await stale.tree.props.onClose(); assert.deepEqual(stale.calls, ['save']);
+    const empty = dialogHarness(presentation, { isDirty: false });
+    await empty.tree.props.onClose(); assert.deepEqual(empty.calls, ['discard', 'close']);
+  }
 });
 
-test('actual dialog forwards mobile recovery without enabling first-project defaults or changing WEB', () => {
+test('actual dialog forwards durable recovery on both platforms while preserving their frame, location and profile behavior', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = dialogHarness(presentation), args = h.hookCalls[0];
+    assert.equal(h.tree.type, presentation === 'mobile' ? 'ProjectFormScreen' : 'ProjectFormDialog');
+    assert.equal(h.tree.props.mobileFlow, presentation === 'mobile');
+    assert.equal(args[4], presentation === 'mobile');
     assert.equal(args[5], false);
-    assert.equal(args[7].persist, presentation === 'mobile');
-    assert.equal(args[7].resume, presentation === 'mobile' ? h.resumeDraft : undefined);
+    assert.equal(args[7].persist, true);
+    assert.equal(args[7].resume, h.resumeDraft);
     assert.equal(args[7].awaitProfile, presentation === 'mobile');
+  }
+});
+
+test('an ordinary WEB draft restored at review keeps the standard desktop form rather than switching to guided presentation', async () => {
+  const h = dialogHarness('web', { step: 'preview', canPublish: true });
+  assert.equal(h.tree.type, 'ProjectFormDialog');
+  assert.equal(h.tree.props.mobileFlow, false);
+  assert.equal(elements(h.tree, node => node.type === 'MobilePublishFlow').length, 0);
+  assert.equal(elements(h.tree, node => node.type === 'form' && node.props['data-web-publish'] === true).length, 1);
+  await h.tree.props.onClose(); assert.deepEqual(h.calls, ['save', 'close']);
+});
+
+function elements(tree, predicate) {
+  const result = [];
+  const visit = value => {
+    if (Array.isArray(value)) value.forEach(visit);
+    else if (React.isValidElement(value)) {
+      if (predicate(value)) result.push(value);
+      visit(value.props.children); visit(value.props.notices); visit(value.props.confirmation);
+    }
+  };
+  visit(tree); return result;
+}
+
+test('neither presentation can close while selected files are still being prepared', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = dialogHarness(presentation, { media: { items: [{}], state: 'selecting' } });
+    assert.equal(h.tree.props.closeDisabled, true);
+    await h.tree.props.onClose(); assert.deepEqual(h.calls, []);
+  }
+});
+
+test('both presentations expose failed-save retry and explicit draft discard, retaining the dialog on failed cleanup', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    let canDiscard = false;
+    const h = dialogHarness(presentation, { localDraftStatus: 'error', discard: async () => { h.calls.push('discard'); return canDiscard; } });
+    const status = elements(h.tree, node => 'data-upload-draft-status' in node.props)[0];
+    assert.equal(status.props['data-presentation'], presentation);
+    assert.equal(elements(status, node => node.props.role === 'status')[0].props.children, 'Not saved on this device');
+    elements(status, node => node.props.children === 'Retry save')[0].props.onClick(); await tick();
+    assert.deepEqual(h.calls, ['save']);
+    elements(status, node => node.props.children === 'Discard draft')[0].props.onClick();
+    let tree = h.render(); assert.equal(tree.props.confirmation.props.title, 'Discard this draft?');
+    await tree.props.confirmation.props.onDiscard(); assert.deepEqual(h.calls, ['save', 'discard']);
+    tree = h.render(); assert.ok(tree.props.confirmation);
+    canDiscard = true; await tree.props.confirmation.props.onDiscard();
+    assert.deepEqual(h.calls, ['save', 'discard', 'discard', 'close']);
+  }
+});
+
+test('a missing resumed draft offers removal of only its saved copy on WEB as well as MOBILE', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = dialogHarness(presentation, { draft: undefined, draftError: 'No longer available', removeLocalDraft: async () => { h.calls.push('remove-local'); return true; } });
+    const remove = elements(h.tree, node => node.props.children === 'Remove saved copy')[0];
+    assert.ok(remove); remove.props.onClick();
+    const confirmation = h.render().props.confirmation;
+    assert.equal(confirmation.props.title, 'Remove saved copy?');
+    await confirmation.props.onDiscard();
+    assert.deepEqual(h.calls, ['remove-local', 'close']);
+  }
+});
+
+function durablePublishingHarness(store, services, initial = {}) {
+  const slots = [], effects = [], uploadOptions = []; let cursor = 0, presentation = initial.presentation ?? 'web';
+  const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
+  const slot = initialize => { const index = cursor++; return slots[index] ??= initialize(); };
+  const memo = (fn, deps) => { const state = slot(() => ({})); if (!same(state.deps, deps)) { state.value = fn(); state.deps = deps; } return state.value; };
+  const react = {
+    useRef: value => slot(() => ({ current: value })), useMemo: memo, useCallback: (fn, deps) => memo(() => fn, deps),
+    useState: initial => { const state = slot(() => ({ value: typeof initial === 'function' ? initial() : initial })); return [state.value, next => { state.value = typeof next === 'function' ? next(state.value) : next; }]; },
+    useEffect: (fn, deps) => { const state = slot(() => ({})); if (!same(state.deps, deps)) effects.push(() => { state.cleanup?.(); state.cleanup = fn(); state.deps = deps; }); },
+  };
+  const media = { items: [], get isComplete() { return this.items.length > 0; }, capability: { isAvailable: true }, restore: items => { media.items = items; }, clear: () => { media.items = []; } };
+  const upload = { persisted: [], attachments: [], phase: 'idle', isBusy: false,
+    reset: () => { upload.persisted = []; upload.attachments = []; },
+    restore: saved => { upload.persisted = saved.persisted; upload.attachments = saved.attachments; },
+    getCheckpoint: () => ({ persisted: upload.persisted, attachments: upload.attachments }),
+  };
+  const { usePublishProject } = sourceModule('src/features/publishing/usePublishProject.ts', {
+    react, './firstProject': { EMPTY_CREATION: {}, composeProjectDescription: () => '' }, './firstProjectDraft': store,
+    './setupDraft': { readSetupDraft: () => null, clearSetupDraft() {} },
+    '../../contexts/ServicesContext': { useServices: () => services }, '../../contexts/ProfileDataContext': { useProfileData: () => ({ invalidateProfiles() {}, cacheProfile() {} }) },
+    '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'account' }, viewerProfileId: 'profile' }) },
+    '../../hooks/useAsyncAction': { useAsyncAction: run => ({ run, status: 'idle', isLoading: false }) },
+    './useMediaPreparation': { useMediaPreparation: () => media }, './useMediaUpload': { useMediaUpload: (_capability, options) => { uploadOptions.push(options); return upload; } },
+    './validation': { validateTitle: () => null }, '../../domain/discovery/ranking': { deriveProjectRelevance: () => initial.relevance ?? {} },
+  }, { structuredClone, window: { addEventListener() {}, removeEventListener() {} }, document: { visibilityState: 'visible', addEventListener() {}, removeEventListener() {} } });
+  const h = { media, upload, uploadOptions, render(nextPresentation = presentation) {
+    presentation = nextPresentation; cursor = 0;
+    h.output = usePublishProject('profile', 'portal', true, 'Work', presentation === 'mobile', false, '', { persist: true, resume: initial.resume, awaitProfile: presentation === 'mobile' });
+    effects.splice(0).forEach(run => run()); return h.output;
+  }, async settle() { for (let i = 0; i < 6; i++) { await tick(); h.render(); } return h.output; }, dispose() { slots.forEach(state => state.cleanup?.()); } };
+  h.render(); return h;
+}
+
+test('actual WEB publishing hook checkpoints and reloads exact files, Private details and upload ledger, retaining one draft through both resize directions', async () => {
+  const store = database(), saved = record(); let creates = 0, reads = 0;
+  const services = { projects: {
+    createDraft: async () => { creates++; return saved.draft; },
+    getDraft: async id => { assert.equal(id, saved.draft.id); reads++; return saved.draft; },
+    updateDraft: async () => saved.draft,
+  }, profiles: {} };
+  const first = durablePublishingHarness(store, services); let output = await first.settle();
+  first.media.items = saved.media;
+  output.setField('title', saved.metadata.title); output.setField('summary', saved.metadata.summary);
+  output.setCitationFields({ accessLevel: 'private', madeOn: '2026-10-20' }); output.setLocation(saved.location); output.setStep('preview');
+  first.upload.persisted = [{ objectId: 'stored', storagePath: 'profile/draft/stored', preparedId: saved.media[0].id }];
+  output = first.render(); await output.saveLocalDraft();
+  assert.equal(creates, 1); assert.equal(first.uploadOptions.at(-1).enabled, true); first.dispose();
+
+  const reloaded = durablePublishingHarness(store, services, { resume: saved.draft }); output = await reloaded.settle();
+  assert.equal(creates, 1); assert.equal(reads, 1); assert.equal(output.draft.id, saved.draft.id);
+  assert.equal(output.metadata.title, saved.metadata.title); assert.equal(output.metadata.summary, saved.metadata.summary);
+  assert.equal(output.metadata.accessLevel, 'private'); assert.equal(output.metadata.madeOn, '2026-10-20');
+  assert.equal(output.location, saved.location); assert.equal(output.step, 'preview');
+  assert.equal(reloaded.media.items[0].id, saved.media[0].id); assert.equal(await reloaded.media.items[0].file.text(), 'art');
+  assert.equal(reloaded.media.items[0].file.lastModified, 123); assert.equal(reloaded.media.items[0].isCover, true);
+  assert.deepEqual(reloaded.media.items[0].metadata.coverCrop, saved.media[0].metadata.coverCrop);
+  assert.equal(reloaded.upload.persisted[0].objectId, 'stored');
+  for (const presentation of ['mobile', 'web']) {
+    output = reloaded.render(presentation); await reloaded.settle(); output = reloaded.output;
+    assert.equal(output.draft.id, saved.draft.id); assert.equal(output.isOpeningCurrent(), true);
+    assert.equal(reloaded.uploadOptions.at(-1).enabled, true); assert.equal(creates, 1); assert.equal(reads, 1);
+  }
+  output.setField('title', 'Saved again after resizing'); output = reloaded.render(); await output.saveLocalDraft();
+  assert.equal((await store.readFirstProjectDraft('account', 'profile', 'draft')).metadata.title, 'Saved again after resizing');
+  reloaded.dispose();
+});
+
+test('WEB publication retains inferred geography, explicit opt-out and explicit location choices before and after reload', async () => {
+  for (const choice of ['inferred', 'ignored', 'manual']) {
+    const store = database(), saved = record({ location: '' }), publications = [];
+    const relevance = { topicKeys: ['architecture'], contentGeography: { label: 'London' }, geographicScope: 'place_specific', geographyConfidence: 0.8 };
+    const services = { projects: {
+      createDraft: async () => saved.draft, getDraft: async () => saved.draft, updateDraft: async () => saved.draft,
+      publishProject: async input => { publications.push(input); throw Error('Stopped at publication boundary'); },
+    }, profiles: {} };
+    const first = durablePublishingHarness(store, services, { relevance }); let output = await first.settle();
+    first.media.items = saved.media; first.upload.attachments = [{ id: 'stored', storagePath: 'profile/draft/stored' }];
+    output.setField('title', 'An idea about London'); output.setCitationFields({ accessLevel: 'private' });
+    if (choice === 'ignored') output.setIgnoreInferredLocation(true);
+    if (choice === 'manual') output.setLocation('Paris');
+    first.render(); output = await first.settle();
+    await assert.rejects(output.publish.run(), /Stopped at publication boundary/);
+    const checkpoint = await store.readFirstProjectDraft('account', 'profile', 'draft');
+    assert.equal(checkpoint.hasChosenLocation, choice === 'manual');
+    assert.equal(checkpoint.ignoreInferredLocation, choice === 'ignored'); first.dispose();
+
+    const reopened = durablePublishingHarness(store, services, { resume: saved.draft, relevance }); output = await reopened.settle();
+    await assert.rejects(output.publish.run(), /Stopped at publication boundary/);
+    assert.equal(publications.length, 2);
+    for (const input of publications) {
+      assert.equal(Object.hasOwn(input, 'location'), choice === 'manual');
+      if (choice === 'manual') assert.equal(input.location, 'Paris');
+      assert.equal(input.relevance.contentGeography?.label ?? null, choice === 'ignored' ? null : 'London');
+      assert.equal(input.relevance.geographicScope, choice === 'ignored' ? 'location_independent' : 'place_specific');
+    }
+    assert.equal(output.ignoreInferredLocation, choice === 'ignored'); reopened.dispose();
+  }
+});
+
+test('legacy MOBILE checkpoints retain their manual location behavior and acquire durable choice flags without losing files', async () => {
+  for (const location of ['', 'London']) {
+    const store = database(), saved = record({ location }), publications = [];
+    saved.attachments = [{ id: 'stored', storagePath: 'profile/draft/stored' }];
+    await store.saveFirstProjectDraft(saved, saved.draft.id);
+    const services = { projects: { getDraft: async () => saved.draft, updateDraft: async () => saved.draft,
+      createDraft: async () => assert.fail('A legacy checkpoint must keep its existing draft'),
+      publishProject: async input => { publications.push(input); throw Error('Stopped at publication boundary'); },
+    }, profiles: {} };
+    const h = durablePublishingHarness(store, services, { resume: saved.draft, presentation: 'mobile' }); let output = await h.settle();
+    await assert.rejects(output.publish.run(), /Stopped at publication boundary/);
+    assert.equal(publications[0].location, location); assert.equal(output.ignoreInferredLocation, false);
+    const upgraded = await store.readFirstProjectDraft('account', 'profile', 'draft');
+    assert.equal(upgraded.hasChosenLocation, true); assert.equal(upgraded.ignoreInferredLocation, false);
+    assert.equal(await upgraded.media[0].file.text(), 'art');
+    output = h.render('web'); await h.settle(); output = h.output;
+    await assert.rejects(output.publish.run(), /Stopped at publication boundary/);
+    assert.equal(publications[1].location, location); h.dispose();
   }
 });
 
@@ -248,21 +435,21 @@ test('saved-copy removal refuses active drafts and missing recovery/account/erro
   }
 });
 
-test('mobile initialization error requires an explicit confirmation before removing only the saved copy', async () => {
-  let removals = 0, allow = false;
-  const changes = { draft: null, draftError: 'This draft is no longer available.', removeLocalDraft: async () => { removals++; return allow; }, dismissDiscardError() {} };
-  const all = node => React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(all)] : [];
-  const h = dialogHarness('mobile', changes);
-  const action = all(h.tree).find(node => node.props.children === 'Remove saved copy');
-  assert.ok(action); assert.equal(removals, 0); action.props.onClick();
-  let confirmation = h.render().props.confirmation;
-  assert.equal(confirmation.props.title, 'Remove saved copy?');
-  assert.match(confirmation.props.description, /Published work and uploaded files remain/);
-  await confirmation.props.onDiscard(); assert.equal(removals, 1); assert.deepEqual(h.calls, []);
-  assert.ok(h.render().props.confirmation);
-  allow = true; confirmation = h.render().props.confirmation;
-  await confirmation.props.onDiscard(); assert.equal(removals, 2); assert.deepEqual(h.calls, ['close']);
-  assert.equal(all(dialogHarness('web', changes).tree).some(node => node.props.children === 'Remove saved copy'), false);
+test('initialization errors require explicit confirmation before removing only the saved copy on either presentation', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    let removals = 0, allow = false;
+    const changes = { draft: null, draftError: 'This draft is no longer available.', removeLocalDraft: async () => { removals++; return allow; }, dismissDiscardError() {} };
+    const h = dialogHarness(presentation, changes);
+    const action = elements(h.tree, node => node.props.children === 'Remove saved copy')[0];
+    assert.ok(action); assert.equal(removals, 0); action.props.onClick();
+    let confirmation = h.render().props.confirmation;
+    assert.equal(confirmation.props.title, 'Remove saved copy?');
+    assert.match(confirmation.props.description, /Published work and uploaded files remain/);
+    await confirmation.props.onDiscard(); assert.equal(removals, 1); assert.deepEqual(h.calls, []);
+    assert.ok(h.render().props.confirmation);
+    allow = true; confirmation = h.render().props.confirmation;
+    await confirmation.props.onDiscard(); assert.equal(removals, 2); assert.deepEqual(h.calls, ['close']);
+  }
 });
 
 test('uploaded and committed checkpoints restore the exact local files and transport state', async () => {

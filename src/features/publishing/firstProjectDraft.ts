@@ -3,6 +3,7 @@ export type FirstProjectStage = 'files' | 'details' | 'review';
 export type FirstProjectDraft = {
   updatedAt?: string; version: 1; accountId: string; profileId: string; draft: ProjectDraft;
   metadata: DraftMetadata; location: string; stage: FirstProjectStage;
+  hasChosenLocation?: boolean; ignoreInferredLocation?: boolean;
   media: PreparedMedia[]; persisted: PersistedMedia[]; attachments: PersistedAttachment[];
   committed?: PublishResult;
 };
@@ -114,6 +115,6 @@ export async function clearDraftWorkspace(accountId:string,profileId:string,draf
 }
 
 /** File bytes and temporary URLs are not edits; authored content and reached step are. */
-export function draftWorkspaceFingerprint(value: Pick<FirstProjectDraft,'metadata'|'location'|'stage'|'media'|'persisted'|'attachments'|'committed'>) {
+export function draftWorkspaceFingerprint(value: Pick<FirstProjectDraft,'metadata'|'location'|'hasChosenLocation'|'ignoreInferredLocation'|'stage'|'media'|'persisted'|'attachments'|'committed'>) {
  return JSON.stringify({...value,media:value.media.map(({file,previewUrl,...item})=>{void previewUrl;return {...item,lastModified:file.lastModified};})});
 }

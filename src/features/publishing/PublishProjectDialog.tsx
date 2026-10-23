@@ -46,7 +46,7 @@ export function PublishProjectDialog({
   const onboarding = Boolean(initialMetadata);
   const guided = isMobile || Boolean(firstProject) || onboarding;
   const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
-  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: isMobile, resume: isMobile ? resumeDraft : undefined, initialMetadata, awaitProfile: isMobile });
+  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: true, resume: resumeDraft, initialMetadata, awaitProfile: isMobile });
   const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? onboarding ? 'Review idea' : 'Review project' : publishFlow.firstProjectStage === 'details' ? onboarding ? 'Idea details' : 'New project' : 'Files & cover';
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -62,8 +62,8 @@ export function PublishProjectDialog({
     media
   } = publishFlow;
   const isPublishing = state === 'publishing';
-  const removingLocalCopy = isMobile && Boolean(resumeDraft) && Boolean(publishFlow.draftError) && !publishFlow.draft;
-  const isRecovering = isClosing || isPublishing || publishFlow.isSavingDraft || publishFlow.isDiscarding || publishFlow.upload.isBusy || publishFlow.upload.isCleaningUp || ((isMobile || onboarding) && media.state === 'selecting');
+  const removingLocalCopy = Boolean(resumeDraft) && Boolean(publishFlow.draftError) && !publishFlow.draft;
+  const isRecovering = isClosing || isPublishing || publishFlow.isSavingDraft || publishFlow.isDiscarding || publishFlow.upload.isBusy || publishFlow.upload.isCleaningUp || media.state === 'selecting';
   useEffect(() => {
     if (!isOpen) {
       setIsConfirmingDiscard(false);
@@ -122,7 +122,7 @@ export function PublishProjectDialog({
     return null;
   }
   async function requestClose() {
-    if (isRecovering || (isMobile && closeFlight.current)) {
+    if (isRecovering || closeFlight.current) {
       return;
     }
     // Bytes are moving. Closing here would abandon an upload silently, so the
@@ -131,7 +131,7 @@ export function PublishProjectDialog({
       uploadErrorRef.current?.focus();
       return;
     }
-    if (isMobile && (publishFlow.isDirty || publishFlow.hasCommittedProject)) {
+    if (publishFlow.isDirty || publishFlow.hasCommittedProject) {
       closeFlight.current = true;
       setIsClosing(true);
       try { await publishFlow.saveLocalDraft(); if (publishFlow.isOpeningCurrent?.() !== false) onClose(); }
@@ -152,7 +152,7 @@ export function PublishProjectDialog({
     : !media.items.length ? 'Add a file to publish.'
     : publishFlow.upload.isBusy ? 'Wait for your files to finish uploading.' : null;
   const notices = <>
-              {isMobile && publishFlow.isDirty && <div className="mobile-draft-status">
+              {publishFlow.isDirty && <div className="mobile-draft-status" data-upload-draft-status="" data-presentation={isMobile ? 'mobile' : 'web'}>
                 <span role="status" aria-live="polite">{publishFlow.localDraftStatus === 'error' ? 'Not saved on this device' : publishFlow.localDraftStatus === 'saved' ? 'Saved on this device' : 'Saving on this device…'}</span>
                 {publishFlow.localDraftStatus === 'error' && <button type="button" disabled={isRecovering} onClick={()=>void publishFlow.saveLocalDraft().catch(()=>undefined)}>Retry save</button>}
                 {!publishFlow.hasCommittedProject && <button type="button" disabled={isRecovering} onClick={()=>setIsConfirmingDiscard(true)}>Discard draft</button>}

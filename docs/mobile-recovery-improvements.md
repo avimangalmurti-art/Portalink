@@ -1,5 +1,36 @@
 # Mobile navigation and recovery
 
+## WEB upload recovery extension (2026-10-22)
+
+The user subsequently authorized durable upload recovery on WEB too, after live
+testing found that a fresh WEB reload lost its session-only file queue. This
+extension reuses the same account/profile/draft-scoped IndexedDB file workspace
+and authenticated resumable upload transport on both presentations. WEB keeps its
+existing dialog, Journey entry, location/profile-refresh behavior and Studio
+availability. New idea offers the existing explicit Continue draft action for
+ordinary saved WEB work. Closing saves dirty work; explicit Discard removes it.
+Storage failures keep the publisher available with an error and Retry save.
+
+Recovery is on the same browser and origin, subject to browser storage capacity
+and the existing upload-handle expiry. It does not synchronize local files across
+devices, promise offline startup, or keep transfers running while the OS suspends
+the browser. The original MOBILE-only boundary below describes the first release;
+its statements about ordinary WEB transport are superseded by this extension.
+Optional checkpoint flags preserve an untouched inferred location, an explicit
+location and the creator's location opt-out. Older MOBILE records retain their
+existing restore behavior. No new IndexedDB version or server schema is needed.
+
+Verification:132 focused cases, six emitted-entry checks, typecheck, full lint
+(zero errors/111 existing warnings), configured production build and independent
+source review pass. Actual-App browser checks with fictional services and real
+IndexedDB pass WEB reload and explicit Continue draft with identical file hashes,
+order, cover, Private metadata and draft ID; MOBILE420x912 reload and both resize
+directions retain the same workspace. Safe Close and explicit Discard pass.
+Light/dark WEB forms retain their layout and scrolling. These checks make no
+production writes and do not establish live positive-offset transfer continuation.
+Publication is pending explicit approval of the standard Sites credential transfer;
+current live507 still has the earlier MOBILE-only durable-recovery boundary.
+
 Scope: MOBILE/PWA behavior, preserving existing WEB presentation and workflows.
 Implementation starts from published Sites 504 source `0970dad3` on isolated
 `codex/mobile-navigation-recovery`, created from fresh `github/main` and retaining

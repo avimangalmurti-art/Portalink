@@ -1129,6 +1129,28 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       const saved = createAccountId
         ? await import('./features/publishing/firstProjectDraft').then(module => module.readFirstProjectDraft(createAccountId, viewedProfile.id)).catch(() => null) : null;
       if (!current) return;
+      // Ordinary drafts use their own durable IDs rather than the first-project
+      // alias. Offer the same explicit Continue draft entry without changing the
+      // existing WEB Journey/legacy publisher or its selected Portal.
+      if (!saved && createAccountId) {
+        let recoverable: import('./features/publishing/firstProjectDraft').DeviceDraft | null = null;
+        let recoveryError = '';
+        try {
+          const {listDeviceDrafts, latestDeviceDraft} = await import('./features/publishing/firstProjectDraft');
+          recoverable = latestDeviceDraft(await listDeviceDrafts(createAccountId, viewedProfile.id, true), viewedProfile.categories.map(category=>category.id));
+        } catch {
+          recoveryError = 'Saved upload drafts could not be checked. Your work has not been removed. Close and reopen New idea to try again.';
+        }
+        if (!current) return;
+        if (recoverable || recoveryError) {
+          setMobileRecoveryDraft(recoverable);
+          setMobileRecoveryError(recoveryError);
+          setProjectSetupAccountId(createAccountId);
+          setProjectSetupMetadata(undefined);
+          setGlobalCreateAccountId(null);
+          return;
+        }
+      }
       if (!saved && journeyMadeIn === null) {
         setMobileRecoveryDraft(null);
         setMobileRecoveryError('');

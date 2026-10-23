@@ -63,7 +63,7 @@ function harness(options = {}) {
     defaultCategoryRequest: { current: null },
     drafts: {
       async readFirstProjectDraft(...args) { calls.legacy.push(args); return options.readLegacy ? options.readLegacy(...args) : options.saved ?? null; },
-      async listDeviceDrafts(...args) { calls.list.push(args); if (options.recoveryError) throw Error('Unavailable'); return recovery ? [recovery] : []; },
+      async listDeviceDrafts(...args) { calls.list.push(args); if (options.recoveryError) throw Error('Unavailable'); return options.readDevice ? options.readDevice(...args) : recovery ? [recovery] : []; },
       latestDeviceDraft(records, categoryIds) { calls.latest.push([records, categoryIds]); return records[0] ?? null; },
     },
     async createFirstProjectCategory(...args) { calls.create.push(args); return { id: 'created', label: args[0] }; },
@@ -97,7 +97,7 @@ test('fresh WEB creation enters shared setup with zero or existing Portals befor
     assert.equal(h.state.pending, null);
     assert.deepEqual(h.calls.create, [], 'Entry must not create a default Portal.');
     assert.deepEqual(h.calls.legacy, [['account', 'profile']], 'Existing WEB recovery lookup must remain.');
-    assert.equal(h.calls.list.length, 0, 'WEB must not acquire MOBILE draft enumeration.');
+    assert.deepEqual(h.calls.list, [['account', 'profile', true]], 'WEB checks its same-device drafts before opening fresh work.');
   }
 });
 
@@ -171,6 +171,40 @@ test('MOBILE recovery failure retains the existing explicit error and still open
   assert.equal(h.state.recovery, null);
   assert.match(h.state.recoveryError, /Saved upload drafts could not be checked/);
   assert.equal(h.state.open, false);
+});
+
+test('WEB offers an ordinary device draft without creating a new draft or Portal', async () => {
+  const recovery = { draft: { id: 'ordinary-web', profileId: 'profile', categoryId: 'work' }, metadata: { title: 'Saved WEB title', summary: 'Original details' } };
+  const h = harness({ presentation: 'web', categories: [{ id: 'work' }], recovery }); await h.settle();
+  assert.equal(h.state.setup, 'account');
+  assert.equal(h.state.recovery, recovery);
+  assert.equal(h.state.recoveryError, '');
+  assert.equal(h.state.open, false, 'Continue draft remains an explicit creator action.');
+  assert.equal(h.state.target, null);
+  assert.deepEqual(h.calls.list, [['account', 'profile', true]]);
+  assert.deepEqual(h.calls.latest[0][1], ['work']);
+  assert.equal(h.calls.create.length, 0);
+});
+
+test('WEB device-storage errors remain visible instead of silently dropping saved work', async () => {
+  const h = harness({ presentation: 'web', recoveryError: true }); await h.settle();
+  assert.equal(h.state.setup, 'account');
+  assert.equal(h.state.recovery, null);
+  assert.match(h.state.recoveryError, /Saved upload drafts could not be checked/);
+  assert.equal(h.state.open, false);
+  assert.equal(h.calls.create.length, 0);
+});
+
+test('cancelled WEB device enumeration cannot reopen another account or opening', async () => {
+  let finish;
+  const pending = new Promise(resolve => { finish = resolve; });
+  const h = harness({ presentation: 'web', readDevice: () => pending });
+  await tick(); h.cleanup();
+  finish([{ draft: { id: 'old-draft', categoryId: 'work' }, metadata: { title: 'Old work' } }]);
+  await h.settle();
+  assert.equal(h.state.setup, null);
+  assert.equal(h.state.open, false);
+  assert.equal(h.state.pending, 'account');
 });
 
 test('a cancelled WEB opening cannot install setup after its asynchronous recovery read', async () => {

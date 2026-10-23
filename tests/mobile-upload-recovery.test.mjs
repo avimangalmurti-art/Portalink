@@ -402,7 +402,7 @@ test('a paused operation cannot send a POST/PATCH after an asynchronous authoriz
   assert.equal(await Promise.race([gate.promise, Promise.resolve('not sent')]), 'not sent');
 });
 
-test('actual publishing hook retains a resumed mobile opening through WEB resize without creating a second draft', async () => {
+test('publishing recovery stays latched when a caller changes its opt-in during resize; fresh opt-outs remain ordinary', async () => {
   const slots = [], effects = [], saves = [], uploadOptions = []; let cursor = 0, presentation = 'mobile', open = true, creates = 0, reads = 0;
   const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
   const slot = initialize => { const index = cursor++; return slots[index] ??= initialize(); };
@@ -433,7 +433,8 @@ test('actual publishing hook retains a resumed mobile opening through WEB resize
   }, { structuredClone, window: { addEventListener() {}, removeEventListener() {} }, document: { visibilityState: 'visible', addEventListener() {}, removeEventListener() {} } });
   const render = () => {
     cursor = 0;
-    // These are the actual PublishProjectDialog workspace values on either side of the breakpoint.
+    // Exercise a caller withdrawing its opt-in across the breakpoint. The shared
+    // dialog now keeps persist:true; an existing opening must still stay latched.
     const output = usePublishProject('profile', 'portal', open, 'Work', presentation === 'mobile', false, '', { persist: presentation === 'mobile', resume: presentation === 'mobile' ? draft : undefined, awaitProfile: presentation === 'mobile' });
     effects.splice(0).forEach(run => run()); return output;
   };
