@@ -1,7 +1,94 @@
 /* One navigation material and state grammar. Geometry remains in the WEB and
    MOBILE frames; all colours come from the active Settings appearance record. */
+@layer portalink-interface-shapes {
+  /* These frames paint joined interface rows, rather than content cards. */
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ),
+  [data-presentation][data-presentation] [data-messages-page]
+    ul.inset-row-group:has(> li > .message-contact-row) {
+    border-radius: var(--ui-row-radius) !important;
+  }
+
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ) > button {
+    border-radius: 0 !important;
+  }
+
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ) > :first-child,
+  [data-presentation][data-presentation] [data-messages-page]
+    ul.inset-row-group:has(> li > .message-contact-row) > :first-child {
+    border-start-start-radius: var(--ui-row-radius) !important;
+    border-start-end-radius: var(--ui-row-radius) !important;
+  }
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ) > :last-child,
+  [data-presentation][data-presentation] [data-messages-page]
+    ul.inset-row-group:has(> li > .message-contact-row) > :last-child {
+    border-end-start-radius: var(--ui-row-radius) !important;
+    border-end-end-radius: var(--ui-row-radius) !important;
+  }
+
+  /* A one-action group, such as Settings, has standalone action geometry. */
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ):has(> button:only-child),
+  [data-presentation][data-presentation] :is(
+    .mobile-context-sheet .mobile-context-group, .public-actions-group
+  ) > button:only-child {
+    border-radius: var(--ui-action-radius) !important;
+  }
+
+  /* The outer contact/project row paints selection; its inner button is often
+     transparent. Grid layouts are content cards and retain their own corners. */
+  [data-presentation][data-presentation] :is(
+    .message-contact-row,
+    .side-panel-navigation-list > li:has(> .message-contact-row),
+    :is(.sidebar-surface, .shared-profile-sidebar) :is(.sidebar-pill-row, [data-category-row]),
+    .account-menu-popover :is(.account-menu-row, .account-menu-identity),
+    [role='menu'] [role='menuitem'],
+    [data-typography-popover] button[aria-pressed], .location-search-results [role='option']
+  ),
+  [data-presentation][data-presentation][role='menu'] [role='menuitem'],
+  [data-presentation][data-presentation][data-typography-popover] button[aria-pressed],
+  [data-presentation='web'][data-presentation] [data-project-index-list] .project-index-row,
+  [data-presentation='mobile'][data-presentation] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row,
+  [data-presentation='mobile'][data-presentation] .mobile-portals-page:not([data-portals-layout='grid']) .mobile-portal-row {
+    border-radius: var(--ui-row-radius) !important;
+  }
+
+  /* The existing painted group gets the capsule; its insets, targets, internal
+     divisions and destinations stay under the feature's existing rules. */
+  [data-presentation][data-presentation] :is(
+    .mobile-navigation-dock, .mobile-dock-destination, .studio-selection-toolbar,
+    [data-mobile-engagement-content],
+    .mobile-project-page-counter, .mobile-project-density
+  ),
+  [data-presentation='mobile'][data-presentation] [data-project-response-rail][data-rail-expanded='false'] {
+    border-radius: var(--ui-capsule-radius) !important;
+  }
+}
+
+/* Desktop rails use a compact control scale. Phone navigation and its dock
+   retain their established targets, compensated hit regions and grouping. */
+#root .codex-shell[data-presentation='web'] {
+  --ui-navigation-target: 36px;
+  --sidebar-primary-control: 36px;
+  --cdx-header-control: 36px;
+  --side-panel-header-control: 36px;
+  --side-panel-compact-control: 36px;
+}
+#root .codex-shell[data-presentation='web'] [data-shared-navigation-header] {
+  --shared-header-control: 36px;
+  --shared-header-glyph: 20px;
+}
+
 #root .codex-shell[data-presentation] {
-  --sidebar-primary-control: 44px;
+  --sidebar-primary-control: var(--ui-navigation-target, 44px);
   --project-control-surface: var(--navigation-surface);
   --project-control-foreground: var(--navigation-foreground);
   --project-control-blur: var(--navigation-blur);
@@ -45,13 +132,13 @@
   [data-project-response-rail] > .global-control-header > button:not([data-keep-color])
 ) {
   /* Shared headers previously fixed a smaller !important minimum. */
-  min-width: 44px !important;
-  min-height: 44px !important;
+  min-width: var(--ui-navigation-target, 44px) !important;
+  min-height: var(--ui-navigation-target, 44px) !important;
   border: 0 !important;
   background: var(--navigation-item-surface, var(--navigation-item-rest-surface, transparent)) !important;
   color: var(--navigation-item-foreground, var(--navigation-foreground)) !important;
   box-shadow: var(--navigation-item-shadow, none) !important;
-  transition: var(--navigation-control-transition, background-color 160ms ease, color 160ms ease);
+  transition: var(--navigation-control-transition, background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter));
 }
 
 #root .codex-shell[data-presentation] :is(
@@ -136,7 +223,7 @@
   border-radius: var(--shape-compact);
 }
 #root .codex-shell[data-presentation] .mobile-project-page-counter {
-  --navigation-control-transition: transform 160ms ease, background-color 160ms ease, color 160ms ease;
+  --navigation-control-transition: transform var(--m-base) var(--m-enter), background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
 }
 #root .codex-shell[data-presentation] :is(.nav-button, [data-structural-toggle], .mobile-project-back, .mobile-project-popup-trigger, .mobile-project-engagement-toggle) {
   transform: none !important;
@@ -149,6 +236,10 @@
   width: 24px;
   height: 24px;
 }
+#root .codex-shell[data-presentation='web'] :is(.sidebar-surface, .shared-profile-sidebar, [data-project-response-rail], [data-project-index-panel], [data-project-file-strip], .account-menu-popover) [data-interface-icon-frame] {
+  --interface-icon-size: 20px;
+}
+#root .codex-shell[data-presentation='web'] [data-project-index-panel] .global-control-header button > svg { width: 20px; height: 20px; }
 
 @media (prefers-reduced-transparency: reduce) {
   #root .codex-shell[data-presentation] {

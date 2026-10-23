@@ -44,6 +44,7 @@ function fixture({ handle = 'mira', copyError, markGate, markError, storage = ne
     },
   };
   const { PortfolioLiveCard } = sourceModule('src/features/publishing/PortfolioLiveCard.tsx', {
+    '../citations/publicOrigin': { PUBLIC_ORIGIN: 'https://portalinknetworks.com' },
     react,
     '../../contexts/ServicesContext': { useServices: () => ({ profiles }) },
     '../sharing/PortfolioPreview': { PortfolioPreview: () => null },
@@ -93,7 +94,7 @@ test('Copy link copies the actual handle URL even when the share-dialog callback
   const h = fixture();
   button(await h.ready(), 'Copy link').props.onClick();
   await tick();
-  assert.deepEqual(h.calls, [['before'], ['mark', 'creator', 'mira'], ['copy', 'https://portfolio.example/mira'], ['dismiss', 'creator']]);
+  assert.deepEqual(h.calls, [['before'], ['mark', 'creator', 'mira'], ['copy', 'https://portalinknetworks.com/mira'], ['dismiss', 'creator']]);
   assert.equal(h.render(), null);
   h.unmount();
 });
@@ -112,7 +113,7 @@ test('successful copy dismisses once and the live card remains dismissed after r
   const h = fixture({ handle: null });
   button(await h.ready(), 'Copy link').props.onClick();
   await tick();
-  assert.deepEqual(h.calls, [['before'], ['copy', 'https://portfolio.example/share/creator'], ['dismiss', 'creator']]);
+  assert.deepEqual(h.calls, [['before'], ['copy', 'https://portalinknetworks.com/share/creator'], ['dismiss', 'creator']]);
   assert.equal(h.first.livePortfolioDismissed('creator'), true);
   assert.equal(h.render(), null);
   h.unmount();
@@ -127,7 +128,7 @@ test('copy failure leaves the card and its retry available without dismissing', 
   button(await h.ready(), 'Copy link').props.onClick();
   await tick();
   const tree = h.render();
-  assert.deepEqual(h.calls, [['before'], ['mark', 'creator', 'mira'], ['copy', 'https://portfolio.example/mira']]);
+  assert.deepEqual(h.calls, [['before'], ['mark', 'creator', 'mira'], ['copy', 'https://portalinknetworks.com/mira']]);
   assert.equal(h.first.livePortfolioDismissed('creator'), false);
   assert.equal(button(tree, 'Copy link').props.disabled, false);
   assert.equal(text(elements(tree).find(node => node.props.role === 'alert')), 'Could not share the link. Please try again.');
@@ -145,7 +146,7 @@ test('handle sharing must finish before a URL is copied and the card is dismisse
   assert.equal(h.first.livePortfolioDismissed('creator'), false);
   release();
   await tick();
-  assert.deepEqual(h.calls.slice(2), [['copy', 'https://portfolio.example/mira'], ['dismiss', 'creator']]);
+  assert.deepEqual(h.calls.slice(2), [['copy', 'https://portalinknetworks.com/mira'], ['dismiss', 'creator']]);
   assert.equal(h.render(), null);
   h.unmount();
 });

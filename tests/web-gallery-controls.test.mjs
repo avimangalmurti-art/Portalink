@@ -13,24 +13,27 @@ function load(path, mocks = {}) {
   }).outputText, { exports, require(name) {
     if (name in mocks) return mocks[name];
     if (name === 'react') return React;
-    if (name.endsWith('/projectGridDensity')) return { DEFAULT_PROJECT_GRID_COLUMNS: 2, MIN_PROJECT_GRID_COLUMNS: 2, MAX_PROJECT_GRID_COLUMNS: 13 };
+    if (name.endsWith('/projectGridDensity')) return density;
     throw new Error(name);
   } });
   return exports;
 }
+const density = load('../src/utils/projectGridDensity.ts');
 
 test('desktop layout exposes every supported density and reset through the existing callback', () => {
   const { WebGalleryControls } = load('../src/presentation/web/WebGalleryControls.tsx');
   const changes = [];
   const tree = WebGalleryControls({ columns: 5, onChange: value => changes.push(value) });
-  assert.deepEqual(nodes(tree).filter(node => node.type === 'option').map(node => node.props.value), Array.from({ length: 12 }, (_, index) => index + 2));
+  assert.deepEqual(nodes(tree).filter(node => node.type === 'option').map(node => node.props.value), Array.from({ length: 13 }, (_, index) => index + 1));
   const select = nodes(tree).find(node => node.type === 'select');
   assert.equal(select.props.value, 5);
   assert.equal(select.props['aria-label'], 'Projects per row');
-  select.props.onChange({ target: { value: '8' } });
+  select.props.onChange({ target: { value: '1' } });
+  select.props.onChange({ target: { value: '13' } });
   nodes(tree).find(node => node.type === 'button').props.onClick();
-  assert.deepEqual(changes, [8, 2]);
+  assert.deepEqual(changes, [1, 13, 2]);
   assert.equal(nodes(WebGalleryControls({ columns: 2, onChange() {} })).find(node => node.type === 'button').props.disabled, true);
+  assert.equal(nodes(WebGalleryControls({ columns: 1, onChange() {} })).find(node => node.type === 'button').props.disabled, false);
 });
 
 test('layout controls remain desktop-only while shared galleries retain local card zoom', () => {
@@ -40,13 +43,14 @@ test('layout controls remain desktop-only while shared galleries retain local ca
     let gesturesEnabled;
     let zoomCallback;
     const { JustifiedImageWall } = load('../src/components/profile/JustifiedImageWall.tsx', {
-      react: { ...React, useMemo: fn => fn() },
+      react: { ...React, useMemo: fn => fn(), useRef: initial => ({ current: initial }) },
       '../../hooks/useElementSize': { useElementSize: () => ({ width: 1000 }) },
       '../../hooks/useContentZoom': { useContentZoom: (_columns, enabled, _resetKey, onChange) => { gesturesEnabled = enabled; zoomCallback = onChange; return { columns: 5, chooseColumns }; } },
       '../../presentation/usePresentation': { usePresentation: () => presentation },
       '../../presentation/web/WebGalleryControls': { WebGalleryControls: 'web-controls' },
       '../ui/ZoomReadout': { ZoomReadout: 'zoom' },
       './ImageWallLayout': { ImageWallRows: 'rows', WALL_GAP: 4 },
+      './ProjectPageBrowsingContext': { ProjectPageBrowsingProvider: 'page-browsing' },
     });
     const tree = JustifiedImageWall({ items: hasItems ? [{ key: 'a', ratio: 1, content: 'A' }] : [], columns: 4, label: 'Projects', onColumnsChange, reorderMode: { enabled }, allowLayoutControls });
     const web = nodes(tree).find(node => node.type === 'web-controls');
@@ -58,5 +62,42 @@ test('layout controls remain desktop-only while shared galleries retain local ca
     assert.equal(nodes(tree).find(node => node.props?.role === 'list').props['data-profile-wall-columns'], 5, 'The wall uses the zoom selection even when layout chrome is hidden');
     assert.equal(nodes(tree).some(node => node.type === 'zoom'), allowLayoutControls);
     if (web) assert.equal(web.props.onChange, chooseColumns);
+  }
+});
+
+test('a header-owned density control hides only WEB gallery controls and preserves zoom feedback', () => {
+  for (const { presentation, allowLayoutControls, showDensityControl, hasControls, hasReadout } of [
+    { presentation: 'web', allowLayoutControls: true, hasControls: true, hasReadout: true },
+    { presentation: 'web', allowLayoutControls: true, showDensityControl: false, hasControls: false, hasReadout: true },
+    { presentation: 'mobile', allowLayoutControls: true, hasControls: false, hasReadout: true },
+    { presentation: 'mobile', allowLayoutControls: true, showDensityControl: false, hasControls: false, hasReadout: true },
+    { presentation: 'web', allowLayoutControls: false, hasControls: false, hasReadout: false },
+    { presentation: 'web', allowLayoutControls: false, showDensityControl: false, hasControls: false, hasReadout: false },
+  ]) {
+    const onColumnsChange = () => {};
+    const view = { columns: 7, ref: { current: null }, chooseColumns() {} };
+    let zoomArgs;
+    const { JustifiedImageWall } = load('../src/components/profile/JustifiedImageWall.tsx', {
+      react: { ...React, useMemo: fn => fn(), useRef: current => ({ current }) },
+      '../../hooks/useElementSize': { useElementSize: () => ({ width: 1000 }) },
+      '../../hooks/useContentZoom': { useContentZoom: (...args) => { zoomArgs = args; return view; } },
+      '../../presentation/usePresentation': { usePresentation: () => presentation },
+      '../../presentation/web/WebGalleryControls': { WebGalleryControls: 'web-controls' },
+      '../ui/ZoomReadout': { ZoomReadout: 'zoom' },
+      './ImageWallLayout': { ImageWallRows: 'rows', WALL_GAP: 4 },
+      './ProjectPageBrowsingContext': { ProjectPageBrowsingProvider: 'page-browsing' },
+    });
+    const tree = JustifiedImageWall({
+      items: [{ key: 'a', ratio: 1, content: 'A' }], columns: 4, label: 'Projects', onColumnsChange, allowLayoutControls,
+      ...(showDensityControl === undefined ? {} : { showDensityControl }),
+    });
+    assert.equal(nodes(tree).some(node => node.type === 'web-controls'), hasControls);
+    const readout = nodes(tree).find(node => node.type === 'zoom');
+    assert.equal(Boolean(readout), hasReadout);
+    if (readout) assert.equal(readout.props.view, view);
+    assert.deepEqual(zoomArgs.slice(0, 3), [4, true, 4], 'The flag does not disable local zoom or change its reset scope');
+    assert.equal(zoomArgs[3], onColumnsChange);
+    assert.equal(tree.ref, view.ref);
+    assert.equal(nodes(tree).find(node => node.props?.role === 'list').props['data-profile-wall-columns'], 7);
   }
 });

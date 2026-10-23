@@ -16,6 +16,7 @@ export function FocusedPageExitControl({
 }) {
   return <button
     type="button"
+    data-ui-shape="icon"
     onClick={onExit}
     aria-label={label}
     className="premium-viewer-exit-control side-panel-compact-control absolute left-2 top-2 z-50 flex items-center justify-center text-white"

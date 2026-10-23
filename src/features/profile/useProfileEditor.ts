@@ -1,5 +1,5 @@
 import { profileHeadline, validContactEmail } from '../employer/employer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
@@ -52,12 +52,14 @@ function fieldsFromProfile(profile: Profile): ProfileEditorFields {
 function persistentLinks(links: readonly EditableProfileLink[]): ProfileLink[] {
   return links.map(({ id: _id, ...link }) => normalizeProfileLink(link));
 }
-export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
+export function useProfileEditor(profileId: Id | null, isOpen: boolean, cacheConfirmedSave = false) {
+  const cacheConfirmedSaveRef = useRef(cacheConfirmedSave);
+  cacheConfirmedSaveRef.current = cacheConfirmedSave;
   const {
     profiles
   } = useServices();
   const {
-    invalidateProfiles
+    invalidateProfiles, cacheProfile
   } = useProfileData();
   const [loadedProfile, setLoadedProfile] = useState<Profile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -143,12 +145,12 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
       }
     }));
   }, []);
-  const addProfileLink = useCallback((): string | null => {
+  const addProfileLink = useCallback((initial: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName'>> = {}): string | null => {
     if (!fields || fields.links.filter(link => !isProfileLinkAction(link.action)).length >= MAX_PROFILE_LINKS) return null;
     const id = `profile-link-new-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     setFields({
       ...fields,
-      links: [...fields.links, { id, label: '', href: '', iconName: DEFAULT_PROFILE_LINK_ICON }]
+      links: [...fields.links, { id, label: '', href: '', iconName: DEFAULT_PROFILE_LINK_ICON, ...initial }]
     });
     return id;
   }, [fields]);
@@ -211,9 +213,12 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     if (!profileId) {
       throw new Error('No profile to save.');
     }
-    await profiles.updateProfile(profileId, input);
+    const confirmed = await profiles.updateProfile(profileId, input);
     // One invalidation, so every surface re-reads the canonical record.
     invalidateProfiles();
+    // The mobile return can use the service's canonical record immediately.
+    // Other editors retain their existing invalidation/read lifecycle.
+    if (cacheConfirmedSaveRef.current) cacheProfile(confirmed);
   });
   const resetSave = save.reset;
   useEffect(() => {
@@ -295,6 +300,10 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     isDirty,
     save,
     submit,
-    canSave: Boolean(fields) && isDirty && !save.isLoading
+    canSave: fields !== null && isDirty && !save.isLoading && !avatar.error
+      && !validateProfileName(fields.name) && !validateLocation(fields.location)
+      && fields.portfolioHeadline.length <= 80 && fields.school.length <= 120 && fields.availability.length <= 120
+      && (!fields.contactEmailPublic || validContactEmail(fields.contactEmail.trim()))
+      && fields.links.every(link => isProfileLinkAction(link.action) || (!validateProfileLinkLabel(link.label) && !validateProfileLinkUrl(link.href)))
   };
 }

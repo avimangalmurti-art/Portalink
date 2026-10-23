@@ -1,7 +1,6 @@
+import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import { ProjectPopupEngagement } from './ProjectPopupEngagement';
-import { useMobileActions } from '../../presentation/mobile/MobileContextActions';
-
-import { contextActions, type ContextTarget } from '../../presentation/mobile/contextActions';
+import type { ContextTarget } from '../../presentation/mobile/contextActions';
 
 import React, { useEffect, useState } from 'react';
 
@@ -17,7 +16,7 @@ import { useProjectEngagement } from '../../features/engagement/useProjectEngage
 
 import { CreatorAvatar } from '../profile/CreatorAvatar';
 
-import { MobileProjectDescriptionSheet } from './MobileProjectDescriptionSheet';
+import { FollowContentInfoPopup } from './FollowContentInfoPopup';
 
 
 
@@ -41,8 +40,6 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
 }) {
 
-
- const mobileActions = useMobileActions();
 
  const services = useServices(), auth = useAuth(), navigate = useNavigate(), location = useLocation();
 
@@ -70,12 +67,14 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
  const requireAccount = shared && !auth.isAuthenticated ? () => auth.requestAuthenticatedDestination({kind:'route',path:location.pathname + location.search,label:'engage with this project'},'signUp') : undefined;
 
- const url = new URL(buildPath('sharedProject', {profileId: creator?.id ?? creatorId ?? '',categoryId:project.categoryId,projectId:project.id}),window.location.origin).href;
+ const url = new URL(buildPath('sharedProject', {profileId: creator?.id ?? creatorId ?? '',categoryId:project.categoryId,projectId:project.id}),PUBLIC_ORIGIN).href;
 
  const owner = !shared && auth.viewerProfileId === (creator?.id ?? creatorId);
- const options = onOptions ?? (contextHandlers ? () => mobileActions?.open(contextActions(shared ? 'shared' : 'project',{signedIn:auth.isAuthenticated,owner:!shared && auth.viewerProfileId === (creator?.id ?? creatorId)}, {title:project.title,handlers:contextHandlers})) : undefined);
+ const editTitle = contextHandlers?.edit ?? onOptions;
+ const editDescription = onEditDescription ?? contextHandlers?.edit ?? onOptions;
+ const hasOwnerActions = owner && Boolean(onOptions || editTitle || editDescription || contextHandlers?.delete);
 
- return <MobileProjectDescriptionSheet projectId={project.id} projectTitle={project.title} description={project.summary} ownerActions={owner ? <ProjectPopupOwnerActions onOptions={options} onEditTitle={contextHandlers?.edit ?? onOptions} onEditDescription={onEditDescription ?? contextHandlers?.edit ?? onOptions} onDelete={contextHandlers?.delete} onClose={onClose} /> : undefined} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} details={<>
+ return <FollowContentInfoPopup projectId={project.id} title={project.title} description={project.summary} optionsContent={hasOwnerActions ? <ProjectPopupOwnerActions onOptions={onOptions} onEditTitle={editTitle} onEditDescription={editDescription} onDelete={contextHandlers?.delete} onClose={onClose} /> : undefined} onComments={() => { onClose(); onOpenComments?.(); }} engagement={engagement} onRequireAccount={requireAccount} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} engagementContent={<>
 
   <ProjectPopupEngagement projectId={project.id} projectTitle={project.title} url={url} engagement={engagement} onRequireAccount={requireAccount} onOpenComments={onOpenComments ? () => { onClose(); onOpenComments(); } : undefined} />
 
@@ -92,7 +91,8 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
 
 export function ProjectPopupOwnerActions({ onOptions, onEditTitle, onEditDescription, onDelete, onClose }: { onOptions?: () => unknown; onEditTitle?: () => unknown; onEditDescription?: () => unknown; onDelete?: () => unknown; onClose: () => void }) {
+ const editProject = onEditTitle ?? onOptions ?? onEditDescription;
  return <div className="project-popup-owner-actions">
-  {([['Project options', onOptions], ['Edit title', onEditTitle], ['Edit description', onEditDescription], ['Delete project', onDelete]] as const).map(([label, run]) => run && <button key={label} type="button" className="project-popup-owner-button" data-destructive={label === 'Delete project' || undefined} onClick={() => { onClose(); void run(); }}>{label}</button>)}
+  {([['Edit project', editProject], ['Delete project', onDelete]] as const).map(([label, run]) => run && <button key={label} type="button" className="project-popup-owner-button" data-destructive={label === 'Delete project' || undefined} onClick={() => { onClose(); void run(); }}>{label}</button>)}
  </div>;
 }

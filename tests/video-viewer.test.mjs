@@ -61,7 +61,7 @@ test('queued and failed conversion never blocks an available original; missing s
 });
 
 const ErrorState = () => null, LoadingState = () => null;
-function harness(attachment = { ...original, kind: 'video' }, conversion, mobile = true) {
+function harness(attachment = { ...original, kind: 'video' }, conversion, mobile = true, inlinePreview = false) {
   const slots = []; let cursor = 0, refreshes = 0, changed = false;
   let active = true, playError = null;
   const pending = [];
@@ -118,7 +118,7 @@ function harness(attachment = { ...original, kind: 'video' }, conversion, mobile
     do {
       assert.ok(renders++ < 10, 'Effects must settle without a render loop');
       changed = false; cursor = 0;
-      const element = VideoAttachment({ attachment, conversion, active }); tree = element.type(element.props);
+      const element = VideoAttachment({ attachment, conversion, active, inlinePreview }); tree = element.type(element.props);
       const video = find(tree, 'video');
       if (video) {
         video.ref.current = nativeVideo;
@@ -158,6 +158,23 @@ test('MOBILE videos first render unmuted inline without playback overlays', () =
   assert.deepEqual(h.playbackAttempts, [{ muted: false, defaultMuted: false }]);
   video.props.onPlay(h.event());
   assert.equal(find(h.render(), LoadingState), undefined);
+});
+
+test('catalogue video previews expose native controls and truthful labels without autoplay or looping on either platform', () => {
+  for (const mobile of [true, false]) {
+    const h = harness({ ...original, kind: 'video' }, undefined, mobile, true);
+    const video = find(h.render(), 'video');
+    assert.equal(video.props.controls, true);
+    assert.equal(video.props.autoPlay, false);
+    assert.equal(video.props.loop, undefined);
+    assert.equal(video.props['aria-label'], original.displayName);
+    assert.equal(video.props.onClick, undefined);
+    assert.deepEqual(h.playbackAttempts, []);
+    const nativeKey = h.event({ key: 'Enter' }); video.props.onKeyDown(nativeKey);
+    assert.equal(nativeKey.prevented, false);
+    h.setActive(false); h.render();
+    assert.equal(h.calls.at(-1), 'pause');
+  }
 });
 
 test('the first tap reveals native controls and requests playback within that gesture only', () => {

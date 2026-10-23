@@ -1,3 +1,4 @@
+import { projectContinuityStyle } from '../../utils/projectContinuity';
 import React from 'react';
 import { AlertTriangleIcon, Loader2Icon } from 'lucide-react';
 import { Button } from './Button';
@@ -34,17 +35,31 @@ export function EmptyState({
     </div>;
 }
 
-/** Announced politely, so a slow request is not silent for screen readers. */
-export function LoadingState({
-  label = 'Loading'
-
-
-}: {label?: string;}) {
-  return <div role="status" aria-live="polite" className="flex min-h-[200px] flex-col items-center justify-center gap-2 px-6 py-8 text-center">
-      <InterfaceIcon icon={Loader2Icon} effect="rotate" effectActive className="text-[var(--text-tertiary)]" />
-      <p className="type-body text-[var(--text-secondary)]">{label}</p>
-    </div>;
+/** Loading geometry describes the destination, never another screen's layout. */
+export type LoadingLayout = 'rows' | 'reader' | 'studio' | 'profile' | 'grid' | 'journey' | 'overview' | 'insights' | 'audience' | 'messages' | 'conversation';
+type LoadingProps = { label?: string; kind?: LoadingLayout; projectId?: string; columns?: number };
+function LoadingShapes({kind, columns = 2}: {kind: LoadingLayout; columns?: number}) {
+ const bone = (name: string) => <span className={`motion-skeleton loading-${name}`} />;
+ const grid = <div className="loading-project-grid" style={{'--loading-columns': Math.max(1, Math.min(13, Math.floor(columns) || 2))} as React.CSSProperties}>{Array.from({length:8}, (_,i) => <div key={i}>{bone('cover')}{bone('caption')}</div>)}</div>;
+ const rows = <div className="loading-item-list">{[0,1,2,3].map(i=><div key={i} className="loading-item-row">{bone(kind==='messages'?'avatar':'thumbnail')}<div>{bone('title')}{bone('subtitle')}{kind!=='messages'&&bone('metadata')}</div></div>)}</div>;
+ return <div className="screen-loading-shapes" aria-hidden="true">
+  {kind==='profile'?<><div className="loading-profile-identity">{bone('avatar')}<div>{bone('title')}{bone('subtitle')}<div className="loading-inline-tabs">{bone('tab')}{bone('tab')}</div></div></div><div className="loading-profile-counts">{[0,1,2,3].map(i=><span key={i} className="motion-skeleton" />)}</div><div className="loading-profile-links">{[0,1,2].map(i=><span key={i} className="motion-skeleton" />)}</div>{grid}</>
+   :kind==='grid'?grid
+   :kind==='overview'?<div className="loading-overview">{[0,1,2].map(i=><div key={i}>{bone('title')}{bone('subtitle')}{bone('action')}</div>)}</div>
+   :kind==='insights'?<>{bone('headline')}<div className="loading-metric-pills">{[0,1,2].map(i=><span key={i} className="motion-skeleton" />)}</div>{bone('subtitle')}<div className="loading-chart">{[0,1,2,3,4,5,6,7].map(i=><span key={i} className="motion-skeleton"/>)}</div>{rows}</>
+   :kind==='audience'?<div className="loading-audience">{[0,1,2].map(i=><div key={i}>{bone('subtitle')}{bone('count')}</div>)}</div>
+   :kind==='journey'?<div className="loading-journey">{bone('year')}{[0,1,2].map(i=><div key={i}>{bone('cover')}<div>{bone('date')}{bone('title')}{bone('subtitle')}</div></div>)}</div>
+   :kind==='conversation'?<div className="loading-conversation">{[0,1,2,3].map(i=><span key={i} className="motion-skeleton" />)}</div>:rows}
+ </div>;
 }
+export function LoadingSkeleton({label='Loading',kind='rows',projectId,columns}:LoadingProps) {
+ if(kind==='reader')return <div role="status" aria-label={label} aria-live="polite" data-reader-frame="" data-premium-project-viewer="" data-mobile-page-reader="" className="motion-reader-skeleton"><span className="motion-skeleton motion-reader-counter"/><div className="motion-reader-page motion-skeleton" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectId ? projectContinuityStyle(projectId) : undefined}/></div>;
+ return <div role="status" aria-label={label} aria-live="polite" data-loading-layout={kind} className={kind==='profile'||kind==='journey'?'motion-profile-skeleton':undefined}>
+  <LoadingShapes kind={kind} columns={columns}/>
+  <div className="legacy-loading-shapes" aria-hidden="true">{(kind==='profile'||kind==='journey')&&<div className="motion-profile-identity motion-skeleton"/>}<div className="motion-list-skeleton">{[0,1,2,3].map(i=><span key={i} className="motion-skeleton"/>)}</div></div>
+ </div>;
+}
+export function LoadingState(props:LoadingProps) {return <LoadingSkeleton {...props}/>;}
 
 /** Failure is never colour-only: it carries an icon, a message, and a way out. */
 export function ErrorState({
