@@ -8,6 +8,7 @@ const nodes = node => React.isValidElement(node) ? [node, ...React.Children.toAr
 const textOf = node => React.isValidElement(node) ? React.Children.toArray(node.props.children).map(textOf).join('') : node == null ? '' : String(node);
 const expanded = node => !React.isValidElement(node) ? node : typeof node.type === 'function' ? expanded(node.type(node.props)) : React.cloneElement(node, {}, ...React.Children.toArray(node.props.children).map(expanded));
 const count = lines => lines.reduce((total, line) => total + Array.from(line).length, 0);
+const legacyWelcomeKey = 'portalink:catalog-welcome:v1';
 
 function stateFixture(options = {}) {
   const storage = options.storage ?? new Map(), reads = [], writes = [];
@@ -24,7 +25,7 @@ function stateFixture(options = {}) {
  * events and accessibility markup; browser QA establishes layout and CSS motion.
  */
 function fixture(options = {}) {
-  const environment = stateFixture(options), { state } = environment;
+  const environment = options.environment ?? stateFixture(options), { state } = environment;
   const slots = [], timers = new Map(), mediaEvents = new Set(), starts = [], focuses = [], dismissals = [], portalTargets = [];
   let cursor = 0, effects = [], dirty = true, tree, now = 0, timerId = 0, mounted = true, lateStateWrites = 0, reduced = options.reduced ?? false, modalClose;
   const root = { focus(settings) { focuses.push(settings); } }, viewport = { current: root };
@@ -45,7 +46,7 @@ function fixture(options = {}) {
   const region = className => all().find(node => node.props.className === className);
   function event(extra = {}) { return { defaultPrevented: false, propagationStopped: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.propagationStopped = true; }, ...extra }; }
   render();
-  return { ...environment, timers, mediaEvents, starts, focuses, dismissals, document, portalTargets, render, all,
+  return { ...environment, environment, timers, mediaEvents, starts, focuses, dismissals, document, portalTargets, render, all,
     get lateStateWrites() { return lateStateWrites; }, get main() { return render(); }, get button() { return all().find(node => node.type === 'button'); }, get action() { return region('catalog-welcome-action'); },
     revealed(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph' && node.props['data-revealed']).map(textOf).join(''); },
     glyphs(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph'); },
@@ -81,16 +82,18 @@ test('welcome timeline types the headline, pauses, accumulates support and compl
   assert.equal(state.catalogWelcomeProgress(100000).support, supportLength);
 });
 
-test('completion persistence is device-local, best effort, and distinct from entering the account form', () => {
+test('completion and account entry are document-local and ignore legacy completion storage', () => {
   for (const blocked of [false, true]) {
-    const h = stateFixture({ blockedRead: blocked, blockedWrite: blocked });
+    const storage = new Map([[legacyWelcomeKey, 'done']]);
+    const h = stateFixture({ storage, blockedRead: blocked, blockedWrite: blocked });
     assert.equal(h.state.hasCompletedCatalogWelcome(), false); assert.equal(h.state.hasEnteredCatalogWelcome(), false);
     assert.doesNotThrow(() => h.state.rememberCatalogWelcomeCompletion()); assert.equal(h.state.hasCompletedCatalogWelcome(), true); assert.equal(h.state.hasEnteredCatalogWelcome(), false);
     h.state.rememberCatalogWelcomeEntry(); assert.equal(h.state.hasEnteredCatalogWelcome(), true);
-    assert.equal(stateFixture({ storage: h.storage }).state.hasCompletedCatalogWelcome(), !blocked);
-    if (!blocked) assert.deepEqual(h.writes, [[h.state.CATALOG_WELCOME_KEY, 'done']]);
+    const refreshed = stateFixture({ storage: h.storage, blockedRead: blocked, blockedWrite: blocked });
+    assert.equal(refreshed.state.hasCompletedCatalogWelcome(), false); assert.equal(refreshed.state.hasEnteredCatalogWelcome(), false);
+    assert.deepEqual(h.reads, []); assert.deepEqual(h.writes, []); assert.deepEqual(refreshed.reads, []); assert.deepEqual(refreshed.writes, []);
+    assert.deepEqual([...storage], [[legacyWelcomeKey, 'done']], 'Presentation state must not read, write or remove existing storage.');
   }
-  const unknown = stateFixture(); unknown.storage.set(unknown.state.CATALOG_WELCOME_KEY, 'pending'); assert.equal(unknown.state.hasCompletedCatalogWelcome(), false);
 });
 
 test('welcome eligibility preserves recovery, OAuth and token callback entry paths', () => {
@@ -153,9 +156,9 @@ test('line entrance states follow typing into each line while preserving the acc
   assert.deepEqual(h.starts, []); h.unmount();
 });
 
-test('skip, return visits and reduced motion mark every line settled without a delayed entrance', () => {
+test('skip, same-document reopening and reduced motion mark every line settled without a delayed entrance', () => {
   const skipped = fixture(); skipped.advance(900); skipped.pointerDown(); skipped.click(true);
-  const returned = fixture({ storage: skipped.storage }), reduced = fixture({ reduced: true }), changed = fixture();
+  const returned = fixture({ environment: skipped.environment }), reduced = fixture({ reduced: true }), changed = fixture();
   changed.advance(1280); changed.reduce(true);
   for (const h of [skipped, returned, reduced, changed]) {
     assert.equal(h.main.props['data-instant'], true);
@@ -261,10 +264,42 @@ test('enabling Reduce Motion midway completes once and never restarts typing whe
   h.reduce(false); h.advance(10000); assert.equal(h.main.props['data-complete'], true); assert.equal(h.timers.size, 0); assert.equal(h.focuses.length, 1); h.unmount();
 });
 
-test('a stored completed introduction remounts immediately, while unavailable storage never blocks entry', () => {
-  const first = fixture(); first.advance(5000); const second = fixture({ storage: first.storage }); assert.equal(second.main.props['data-complete'], true); assert.equal(second.timers.size, 0); first.unmount(); second.unmount();
+test('a completed introduction reopens immediately in the same document, while unavailable storage never blocks entry', () => {
+  const first = fixture(); first.advance(5000); first.unmount();
+  const second = fixture({ environment: first.environment }); assert.equal(second.main.props['data-complete'], true); assert.equal(second.timers.size, 0); second.unmount();
   const blocked = fixture({ blockedRead: true, blockedWrite: true }); blocked.pointerDown(); blocked.click(); assert.equal(blocked.button.props.disabled, false);
   blocked.pointerDown(); blocked.click(true); assert.equal(blocked.starts.length, 1); assert.equal(blocked.state.hasCompletedCatalogWelcome(), true); blocked.unmount();
+});
+
+test('refreshing mobile or web replays the full introduction despite earlier completion and a legacy saved value', () => {
+  for (const presentation of ['mobile', 'web']) for (const completion of ['natural', 'skipped']) {
+    const storage = new Map([[legacyWelcomeKey, 'done']]);
+    const first = fixture({ presentation, storage });
+    assert.equal(first.main.props['data-complete'], false, 'A previous stored completion cannot suppress this document\'s animation.');
+    if (completion === 'natural') first.advance(5000);
+    else { first.advance(900); first.pointerDown(); first.click(true); }
+    assert.equal(first.main.props['data-complete'], true); assert.deepEqual(first.starts, []); first.unmount();
+
+    const reopened = fixture({ presentation, environment: first.environment });
+    assert.equal(reopened.main.props['data-instant'], true); assert.equal(reopened.button.props.disabled, false); assert.equal(reopened.timers.size, 0);
+    reopened.pointerDown(); reopened.click(true); assert.equal(reopened.starts.length, 1); assert.equal(reopened.state.hasEnteredCatalogWelcome(), true); reopened.unmount();
+
+    // A fresh source module models a document reload; its backing storage survives.
+    const refreshed = fixture({ presentation, storage });
+    assert.equal(refreshed.state.hasEnteredCatalogWelcome(), false); assert.equal(refreshed.state.hasCompletedCatalogWelcome(), false);
+    assert.equal(refreshed.main.props['data-instant'], false); assert.equal(refreshed.main.props['data-complete'], false);
+    assert.equal(refreshed.revealed('catalog-welcome-headline'), ''); assert.equal(refreshed.revealed('catalog-welcome-support'), '');
+    assert.equal(refreshed.button.props.disabled, true); assert.equal(refreshed.button.props.tabIndex, -1); assert.equal(refreshed.action.props['aria-hidden'], true);
+    refreshed.advance(1280); const partial = refreshed.revealed('catalog-welcome-headline');
+    assert.ok(partial.length > 0 && partial.length < count(refreshed.state.CATALOG_HEADLINE)); assert.equal(refreshed.revealed('catalog-welcome-support'), '');
+    refreshed.advance(3720); assert.equal(refreshed.main.props['data-complete'], true); assert.equal(refreshed.button.props.disabled, false);
+    assert.equal(refreshed.revealed('catalog-welcome-support'), refreshed.state.CATALOG_SUPPORT.join('')); assert.deepEqual(refreshed.starts, []);
+    assert.deepEqual(refreshed.reads, []); assert.deepEqual(refreshed.writes, []); assert.deepEqual([...storage], [[legacyWelcomeKey, 'done']]); refreshed.unmount();
+
+    const reducedRefresh = fixture({ presentation, storage, reduced: true });
+    assert.equal(reducedRefresh.main.props['data-instant'], true); assert.equal(reducedRefresh.main.props['data-complete'], true); assert.equal(reducedRefresh.timers.size, 0);
+    assert.equal(reducedRefresh.button.props.disabled, false); assert.deepEqual(reducedRefresh.starts, []); reducedRefresh.unmount();
+  }
 });
 
 test('unmount cancels pending typing and preference listeners without late state or navigation', () => {

@@ -1,5 +1,4 @@
-/** A device-local presentation preference, independent of accounts and drafts. */
-export const CATALOG_WELCOME_KEY = 'portalink:catalog-welcome:v1';
+/** Welcome progress belongs to this document and resets on page refresh. */
 export const CATALOG_HEADLINE = ['There’s a place', 'for the things', 'in your head.'] as const;
 export const CATALOG_SUPPORT = ['Your creations.', 'Your thoughts.', 'Your process.'] as const;
 export const CATALOG_HEADLINE_MS = 2500;
@@ -11,15 +10,11 @@ let completed = false;
 let entered = false;
 
 export function hasCompletedCatalogWelcome(): boolean {
-  if (completed) return true;
-  try { return window.localStorage.getItem(CATALOG_WELCOME_KEY) === 'done'; }
-  catch { return false; }
+  return completed;
 }
 
 export function rememberCatalogWelcomeCompletion(): void {
   completed = true;
-  try { window.localStorage.setItem(CATALOG_WELCOME_KEY, 'done'); }
-  catch { /* Blocked storage must never prevent entry. */ }
 }
 
 /** Avoid a second welcome when the same page hands off to its account form. */
