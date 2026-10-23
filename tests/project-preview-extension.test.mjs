@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -31,11 +32,12 @@ function cardHarness(presentation = 'mobile') {
     if (name === 'lucide-react') return { MoreHorizontalIcon: 'horizontal-dots' };
     if (name.endsWith('/MobileContextActions')) return { useMobileActions: () => ({ open() {} }) };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: 'interface-icon' };
+    if (name.endsWith('/warmDocumentRenderer')) return { warmProjectDocumentRenderer() {} };
     if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useContentPreview')) return { useContentPreview: () => ({ expanded, events: {}, ref: {}, open: (event, action) => action(), toggleDetails: () => details++ }) };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 0.75, getProjectCoverPreview: () => undefined };
-    if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}) };
+    if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}), getProjectContinuityArtwork: () => project.cover, beginProjectContinuity() {} };
     if (name.endsWith('/ProjectCover')) return { ProjectCover: 'cover' };
     if (name === './ProjectHoverDetails') return { ProjectHoverDetails: 'details' };
     if (name === './ProjectPreviewExtension') return { ProjectPreviewExtension: 'loaded-extension' };
@@ -92,6 +94,7 @@ function extensionHarness(reducedMotion = false) {
   const state = [], effects = [], element = { inert: undefined };
   let cursor = 0;
   const { ProjectPreviewExtension } = load('ProjectPreviewExtension', name => {
+    if(name.endsWith('/motion/motion')) return motionFixture;
     if (name === 'react') return { ...React,
       useRef: () => ({ current: element }), useLayoutEffect: effect => effects.push(effect),
       useState(initial) { const i = cursor++; if (!(i in state)) state[i] = initial; return [state[i], next => { state[i] = next; }]; },

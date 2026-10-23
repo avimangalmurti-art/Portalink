@@ -1,3 +1,4 @@
+import { motionMs, motionEase } from '../../presentation/motion/motion';
 import React from 'react';
 import {
   DndContext,
@@ -61,8 +62,8 @@ function SortableWallCard({
     id: item.key,
     disabled: !canSort,
     transition: shouldReduceMotion ? null : {
-      duration: 190,
-      easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+      duration: motionMs('base'),
+      easing: motionEase(),
     },
     animateLayoutChanges: (args) => !shouldReduceMotion && defaultAnimateLayoutChanges(args),
   });
@@ -116,7 +117,7 @@ function SortableWallCard({
       >
         <div className={`relative w-full ${isReordering ? 'profile-project-reorder-card rounded-[8px] ring-2 ring-inset ring-[var(--accent-primary)]' : ''}`} style={isReordering ? {
           animationDelay: `${itemIndex % 5 * -75}ms`,
-          animationDuration: `${620 + itemIndex % 4 * 55}ms`
+          animationDuration: 'var(--m-fast)'
         } : undefined}>
           <div className={isReordering ? 'pointer-events-none w-full select-none' : 'w-full'}>
             {item.content}

@@ -1,0 +1,65 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import React from 'react';
+import {sourceModule} from './helpers/source-module.mjs';
+import {deferred} from './helpers/hook-harness.mjs';
+const citation=sourceModule('src/features/citations/model.ts'),model=sourceModule('src/features/references/model.ts',{'../citations/model':citation});
+const nodes=tree=>!tree||typeof tree!=='object'?[]:[tree,...React.Children.toArray(tree.props?.children).flatMap(nodes)];
+const label=node=>React.Children.toArray(node.props.children).filter(value=>typeof value==='string').join('');
+function component(file,name,imports,props){const slots=[];let cursor=0,dirty=true,tree,effects=[];const same=(a,b)=>a&&b&&a.length===b.length&&a.every((value,i)=>Object.is(value,b[i]));const react={...React,useState(initial){const index=cursor++;slots[index]??={value:typeof initial==='function'?initial():initial};return[slots[index].value,next=>{slots[index].value=typeof next==='function'?next(slots[index].value):next;dirty=true;}];},useRef(initial){const index=cursor++;slots[index]??={current:initial};return slots[index];},useEffect(effect,deps){const index=cursor++;if(!same(slots[index]?.deps,deps)){const prior=slots[index];slots[index]={deps};effects.push(()=>{prior?.cleanup?.();slots[index].cleanup=effect();});}}};
+ const loaded=sourceModule(file,{react,...imports},{requestAnimationFrame:callback=>{callback();return 1;}}),render=()=>{cursor=0;dirty=false;effects=[];tree=loaded[name](props);effects.forEach(effect=>effect());return tree;};return{get tree(){return dirty?render():tree;},async flush(){for(let i=0;i<30;i++){if(dirty)render();await Promise.resolve();}return tree;},button(text){return nodes(this.tree).find(node=>node.type==='button'&&label(node)===text);},dispose(){slots.forEach(slot=>slot?.cleanup?.());}};
+}
+const sheetImports={ 'lucide-react':{XIcon:'close-icon'},'../../components/ui/InterfaceIcon':{InterfaceIcon:'interface-icon'},'../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useModalFocus':{useModalFocus(){}},'./model':model,'./references.css':{}};
+test('Add reference resolves for review, defaults to the first recently edited project, and saves only on confirmation',async()=>{
+ const resolution=deferred(),saved=[],service={referenceProjects:async()=>[{id:'newest',title:'Newest edit'},{id:'older',title:'Older edit'}],resolveReference:()=>resolution.promise,saveExternalReference:async(...args)=>saved.push(args)};let closed=0,notified=0;
+ const h=component('src/features/references/AddReferenceSheet.tsx','AddReferenceSheet',{...sheetImports,'./useReferences':{useReferences:()=>service}},{profileId:'owner',onClose:()=>closed++,onSaved:()=>notified++});await h.flush();assert.equal(nodes(h.tree).find(node=>node.type==='select').props.value,'newest');nodes(h.tree).find(node=>node.type==='textarea').props.onChange({target:{value:'10.1234/study'}});h.button('Resolve reference').props.onClick();await h.flush();assert.equal(saved.length,0);resolution.resolve({kind:'doi',raw_input:'10.1234/study',resolved:{title:'Resolved study',authors:['A Author'],year:'2024',verified:true}});await h.flush();assert.ok(nodes(h.tree).some(node=>node.type==='strong'&&node.props.children==='Resolved study'));assert.equal(saved.length,0);h.button('Confirm and save').props.onClick();await h.flush();assert.equal(saved.length,1);assert.equal(saved[0][0],'owner');assert.equal(saved[0][1],'newest');assert.equal(saved[0][2].kind,'doi');assert.equal(closed,1);assert.equal(notified,1);h.dispose();
+});
+test('unverified paste is explicitly confirmed as text, while changing input discards the old resolution',async()=>{
+ const service={referenceProjects:async()=>[{id:'p',title:'Project'}],resolveReference:async input=>model.textReference(input),saveExternalReference:()=>assert.fail('No save without confirmation')};const h=component('src/features/references/AddReferenceSheet.tsx','AddReferenceSheet',{...sheetImports,'./useReferences':{useReferences:()=>service}},{profileId:'owner',onClose(){},onSaved(){}});await h.flush();nodes(h.tree).find(node=>node.type==='textarea').props.onChange({target:{value:'A personal citation'}});h.button('Resolve reference').props.onClick();await h.flush();assert.ok(nodes(h.tree).some(node=>node.type==='p'&&label(node).includes('saved as text')));nodes(h.tree).find(node=>node.type==='textarea').props.onChange({target:{value:'Changed citation'}});assert.equal(h.button('Confirm and save'),undefined);assert.ok(h.button('Resolve reference'));h.dispose();
+});
+test('Overview has exactly Continue, This week and Export, resumes a draft or starts work, with no feed/stats',async()=>{
+ const service={weekReferenceCount:async()=>3},imports={'../references/useReferences':{useReferences:()=>service},'../references/model':model,'../references/ExportSheet':{ExportSheet:'export-sheet'},'../references/references.css':{}};
+ for(const draft of [null,{id:'draft',metadata:{title:'Recent draft'}}]){const calls=[],h=component('src/features/studio/StudioOverview.tsx','StudioOverview',imports,{profile:{id:'owner',projects:[{publishedAt:new Date().toISOString()}]},draft,onContinue:value=>calls.push(value.id),onNew:()=>calls.push('new')});await h.flush();assert.deepEqual(nodes(h.tree).filter(node=>node.type==='h2').map(node=>node.props.children),['Continue','This week','Export']);assert.ok(nodes(h.tree).some(node=>node.type==='p'&&React.Children.toArray(node.props.children).join('').includes('3 references added')));h.button(draft?'Continue draft':'Add work').props.onClick();assert.deepEqual(calls,[draft?'draft':'new']);assert.equal(nodes(h.tree).some(node=>node.type==='feed'||node.type==='stats'),false);h.dispose();}
+});
+test('project visitors read mixed references without edit/delete controls; owner can edit an external reference',async()=>{
+ const row={id:'external',project_id:'project',owner_profile_id:'owner',kind:'doi',raw_input:'doi',created_at:'2026-10-12',resolved:{title:'External study',verified:true}},service={externalReferences:async()=>[row],deleteExternalReference:()=>assert.fail('No removal in read-only test')},item={id:'item',projectTitle:'Portalink work',creator:'Other creator',kind:'page',number:1};
+ for(const owner of [false,true]){const h=component('src/features/citations/CitationReferences.tsx','CitationReferences',{'../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:owner?'owner':null})},'../references/useReferences':{useReferences:()=>service},'../references/model':model,'../references/AddReferenceSheet':{AddReferenceSheet:'add-reference'},'./service':{listCitations:async()=>[{id:'citation',cited_item_id:'item'}],resolveCitationItem:async()=>item},'./model':citation,'./citations.css':{}},{projectId:'project',owner});await h.flush();const text=nodes(h.tree).map(node=>typeof node.props?.children==='string'?node.props.children:'').join(' ');assert.match(text,/External study/);assert.match(text,/Portalink work/);assert.match(text,/DOI/);if(owner){h.button('Edit').props.onClick();assert.ok(nodes(h.tree).some(node=>node.type==='add-reference'&&node.props.initial.id==='external'));}else assert.equal(nodes(h.tree).some(node=>node.type==='button'),false);h.dispose();}
+});
+test('own-page Copy citation reuses the exact /cite block without creating a citation row',async()=>{
+ const item={id:'page-9',creatorId:'owner',projectId:'project',creator:'Creator',projectTitle:'Work',kind:'page',number:9,madeOn:'2024-01-02'};const source=sourceModule('src/features/references/ownCitation.ts',{'../citations/service':{resolveImageId:async()=>null,resolvePageId:async(id,index)=>{assert.equal(index,8);return'page-9';},resolveCitationItem:async()=>item},'../citations/model':citation,'../citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.example'}});assert.equal(await source.ownPageCitation('owner','project','attachment',8),citation.plainCitation(item,'https://portalink.example'));await assert.rejects(source.ownPageCitation('other','project','attachment',8),/unavailable/);
+});
+
+test('References keeps mobile selection beside search, selection-only Back, WEB header and free-text editing',async()=>{
+ const row={id:'text-ref',project_id:'project',owner_profile_id:'owner',kind:'text',raw_input:'Notes',resolved:{title:'Notes',verified:false},created_at:'2026-10-12'};
+ const service={externalReferences:async()=>[row],deleteExternalReference:async()=>{}};
+ for(const presentation of ['mobile','web']) {
+ const navigation=[];
+ const h=component('src/features/references/ReferencesTab.tsx','ReferencesTab',{
+ 'lucide-react':{ChevronLeftIcon:'chevron'},'react-router-dom':{useNavigate:()=>path=>navigation.push(path)},'react-dom':{createPortal:(children,host)=>React.createElement('header-portal',{host},children)},'../studio/StudioEmptyState':{StudioEmptyState:'empty'},'../../components/ui/StateViews':{LoadingSkeleton:'loading'},
+ '../../presentation/usePresentation':{usePresentation:()=>presentation},'../../presentation/mobile/MobileBackNavigation':{ScreenBack:'screen-back'},'../../components/ui/InterfaceIcon':{InterfaceIcon:'icon'},
+ '../../presentation/mobile/MobileContextActions':{useMobileScreenActions(){},MobileContextButton:'context'},'../../presentation/mobile/contextActions':{contextActions:()=>({})},'../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'owner',isAuthenticated:true})},'../studio/StudioRow':{StudioRow:'row'},'../studio/StudioActionSheet':{StudioActionSheet:'actions'},'../citations/service':{listCitations:async()=>[],citationProject:async()=>({title:'Work'})},'../citations/model':citation,'./useReferences':{useReferences:()=>service},'./model':model,'./AddReferenceSheet':{AddReferenceSheet:'editor'},'./ExportSheet':{ExportSheet:'export'}
+ },{headerHost:{}});await h.flush();assert.equal(nodes(h.tree).some(n=>n.type==='h2'),false);assert.equal(nodes(h.tree).find(n=>n.type==='input').props.type,'search');assert.ok(h.button('Select'));
+ if(presentation==='mobile') {
+  assert.equal(nodes(h.tree).some(n=>n.type==='header-portal'||n.type==='h1'||n.props['aria-label']==='Back from References'||n.props['aria-label']==='Back from selection'),false);
+  const toolbar=nodes(h.tree).find(n=>n.props.className==='studio-inline-toolbar');
+  assert.ok(nodes(toolbar).some(n=>n.type==='input'&&n.props['aria-label']==='Search references'));
+  assert.ok(nodes(toolbar).some(n=>n.props['aria-label']==='Select items'));
+  h.button('Select').props.onClick();await h.flush();
+  nodes(h.tree).find(n=>n.type==='row').props.onSelect();await h.flush();
+  assert.equal(nodes(h.tree).find(n=>n.type==='row').props.selected,true);
+  nodes(h.tree).find(n=>n.props['aria-label']==='Back from selection').props.onClick();await h.flush();
+  assert.equal(nodes(h.tree).find(n=>n.type==='row').props.selected,false);
+  assert.equal(nodes(h.tree).some(n=>n.props['aria-label']==='Back from selection'),false);
+  assert.deepEqual(navigation,[]);
+  h.button('Select').props.onClick();await h.flush();
+  nodes(h.tree).find(n=>n.type==='screen-back').props.action();await h.flush();
+  assert.ok(h.button('Select'));assert.deepEqual(navigation,[]);
+  nodes(h.tree).find(n=>n.type==='screen-back').props.action();
+  assert.deepEqual(navigation,['/studio']);
+ } else {
+  assert.ok(nodes(h.tree).some(n=>n.type==='header-portal'));
+  assert.ok(nodes(h.tree).some(n=>n.props['aria-label']==='Back from References'));
+ }
+ const reference=nodes(h.tree).find(n=>n.type==='row');assert.equal(typeof reference.props.onOpen,'function');reference.props.onOpen();nodes(h.tree).find(n=>n.type==='actions').props.actions.find(a=>a.id==='edit-reference').onAction();assert.equal(nodes(h.tree).find(n=>n.type==='editor').props.initial.id,'text-ref');h.dispose();
+ }
+});

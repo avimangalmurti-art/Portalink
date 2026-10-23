@@ -2,21 +2,24 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { pinchDistance, pinchSteps } from '../utils/pinchGesture';
 import { normalizeProjectGridColumns as clampColumns } from '../utils/projectGridDensity';
 
-/** Ordinary wheels and one-finger swipes scroll; deliberate zoom chooses density. */
-export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabled = true, resetKey?: number, onColumnsChange?: (columns: number) => void) {
+/** Ordinary wheels and one-finger swipes scroll; deliberate zoom chooses density.
+ * An optional Home projection bounds gestures; rendering a fallback never commits it. */
+export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabled = true, resetKey?: number, onColumnsChange?: (columns: number) => void, projectColumns?: (columns:number)=>number) {
   const ref = useRef<T | null>(null);
   const [selection, setSelection] = useState<{ columns: number; key?: number } | null>(null);
-  const baseline = clampColumns(baseColumns);
+  const baseline = clampColumns(projectColumns?.(clampColumns(baseColumns)) ?? baseColumns);
   // Disabling gestures for reorder must not discard the current layout.
   // Only an explicit saved-density change supersedes the local choice.
   const selected = selection?.key === resetKey ? selection?.columns : undefined;
-  const columns = selected ?? baseline;
+  const columns = clampColumns(projectColumns?.(selected ?? baseline) ?? (selected ?? baseline));
   const columnsRef = useRef(columns);
   columnsRef.current = columns;
   const onColumnsChangeRef = useRef(onColumnsChange);
   onColumnsChangeRef.current = onColumnsChange;
   const resetKeyRef = useRef(resetKey);
   resetKeyRef.current = resetKey;
+  const projectionRef = useRef(projectColumns);
+  projectionRef.current = projectColumns;
   const [isAdjusting, setIsAdjusting] = useState(false);
   const explicitChoiceVersion = useRef(0);
   useEffect(() => { setSelection(null); setIsAdjusting(false); }, [resetKey]);
@@ -39,7 +42,7 @@ export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabl
       if (resetKeyRef.current === resetKey && pendingVersion === explicitChoiceVersion.current) onColumnsChangeRef.current?.(next);
     };
     const choose = (value: number) => {
-      const next = clampColumns(value);
+      const next = clampColumns(projectionRef.current?.(clampColumns(value)) ?? value);
       if (next === columnsRef.current) return;
       columnsRef.current = next;
       pendingColumns = next;
@@ -90,7 +93,7 @@ export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabl
   const reset = useCallback(() => setSelection(null), []);
   const chooseColumns = useCallback((value: number) => {
     if (!enabled) return;
-    const next = clampColumns(value);
+    const next = clampColumns(projectionRef.current?.(clampColumns(value)) ?? value);
     explicitChoiceVersion.current += 1;
     columnsRef.current = next;
     setSelection({ columns: next, key: resetKeyRef.current });

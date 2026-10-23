@@ -1,7 +1,7 @@
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { Grid2X2Icon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, Grid2X2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MobilePageThumbnails } from './MobilePageThumbnails';
 import type { PdfDocument } from './PdfPage';
@@ -137,15 +137,15 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
   useMobileScreenActions(showControl && position?.scope === scope ? contextActions('project', { signedIn: true }, { handlers: { pageIndex: () => setOpenScope(scope) } }) : null, 12);
   if (!position || position.scope !== scope) return null;
   const showDensity = Boolean(density && showControl && position.total > 1);
-  return <div ref={navigatorRef} data-mobile-page-navigator="" data-page-density-enabled={showDensity || undefined} data-document-reader-header={readingMode || showProgress || undefined} data-project-reading-control={readingMode || showProgress || undefined}>
-    {readingMode && <button type="button" aria-label="Previous page" disabled={position.current <= 1} onClick={() => onSelectPage?.(position.current-1)}>‹</button>}
-    <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" className="mobile-project-page-counter"
+  return <div ref={navigatorRef} data-mobile-page-navigator="" data-page-density-enabled={showDensity || undefined} data-document-reader-header={readingMode || showProgress || undefined} data-reader-page-arrows={readingMode || undefined} data-project-reading-control={readingMode || showProgress || undefined}>
+    {readingMode && <button type="button" aria-label="Previous page" disabled={position.current <= 1} onClick={() => onSelectPage?.(position.current-1)}><InterfaceIcon icon={ChevronLeftIcon} size="lg" /></button>}
+    <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" data-ui-shape={readingMode || showProgress ? undefined : 'capsule'} className="mobile-project-page-counter"
     aria-label={`Page ${position.current} of ${position.total}. ${open ? 'Hide' : 'Show'} page previews`}
     aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpenScope(open ? null : scope)}>
     <InterfaceIcon icon={Grid2X2Icon} size="sm" weight="medium" />
     <span>{showDensity ? `${position.current} / ${position.total}` : readingMode ? `Page ${position.current} of ${position.total}` : `${position.current} of ${position.total}`}</span>
     </button>
-    {readingMode && <button type="button" aria-label="Next page" disabled={position.current >= position.total} onClick={() => onSelectPage?.(position.current+1)}>›</button>}
+    {readingMode && <button type="button" aria-label="Next page" disabled={position.current >= position.total} onClick={() => onSelectPage?.(position.current+1)}><InterfaceIcon icon={ChevronRightIcon} size="lg" /></button>}
     {showProgress && (segmentedProgress ? <div className="mobile-reader-progress" role="progressbar" aria-label="Reading progress"
         aria-valuemin={0} aria-valuemax={position.total} aria-valuenow={position.current} aria-valuetext={`Page ${position.current} of ${position.total}`}
         style={{ '--reader-page-count': position.total } as React.CSSProperties}>

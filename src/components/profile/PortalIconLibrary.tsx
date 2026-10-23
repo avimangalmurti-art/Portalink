@@ -8,7 +8,8 @@ import { usePresentation } from '../../presentation/usePresentation';
 const PAGE_SIZE = 60;
 
 /** One bounded, searchable catalog for creating a portal or changing its icon. */
-export function PortalIconLibrary({ selected, onSelect, disabled = false, pendingName, compact = false, label = 'Portal icon', searchQuery }: {
+export function PortalIconLibrary({ selected, onSelect, disabled = false, pendingName, compact = false, label = 'Portal icon', searchQuery, additionalOptions = [] }: {
+  additionalOptions?: readonly { name: string; label: string }[];
   selected: string;
   onSelect: (name: string) => void;
   disabled?: boolean;
@@ -25,9 +26,9 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
   const [page, setPage] = useState({ query: '', limit: PAGE_SIZE });
   const limit = page.query === query ? page.limit : PAGE_SIZE;
   const [initialSelected] = useState(selected);
-  const matches = searchPortalIcons(query);
+  const matches = [...new Set([...additionalOptions.filter(option=>(option.label+' '+option.name).toLowerCase().includes(query.toLowerCase().trim())).map(option=>option.name),...searchPortalIcons(query)])];
   // A saved selection remains easy to locate when reopening the picker.
-  const ordered = !query.trim() && portalIconNames.includes(initialSelected)
+  const ordered = !query.trim() && (portalIconNames.includes(initialSelected)||additionalOptions.some(option=>option.name===initialSelected))
     ? [initialSelected, ...matches.filter(name => name !== initialSelected)] : matches;
   const visible = ordered.slice(0, limit);
   const tabStop = visible.includes(selected) ? selected : visible[0];
@@ -54,7 +55,7 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
   return <section className="mt-5" aria-label="Icon library">
     {searchQuery === undefined && <div className="relative">
       <SearchIcon aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-[var(--text-secondary)]" />
-      <input type="search" aria-label="Search icons" placeholder="Search icons" value={query} disabled={disabled}
+      <input type="search" aria-label="Search icons" data-ui-shape="field" placeholder="Search icons" value={query} disabled={disabled}
         onChange={event => { setLocalQuery(event.target.value); setPage({ query: event.target.value, limit: PAGE_SIZE }); }}
         onKeyDown={event => { if (event.key === 'Enter') event.preventDefault(); }}
         className="text-control h-11 w-full pl-10 pr-3 text-base text-[var(--text-primary)]" />
@@ -69,7 +70,9 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
         const Icon = getCategoryIcon(name);
         const chosen = name === selected;
         const pending = disabled && pendingName === name;
-        const title = getPortalIconLabel(name);
+        const extraOption = additionalOptions.find(option => option.name === name);
+        const catalogTitle = getPortalIconLabel(name);
+        const title = extraOption?.label ?? (additionalOptions.some(option => option.label === catalogTitle) ? catalogTitle + ' (outline)' : catalogTitle);
         const selectedStyle = compact ? 'border-[var(--accent-primary)] bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-foreground)]';
         return <button key={name} type="button" role={compact ? 'radio' : undefined}
           aria-label={compact ? title : `Use the ${title} icon`} title={title}
@@ -84,7 +87,7 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
       })}
     </div>
     {hasMore && (isMobile ? <div ref={moreRef} aria-hidden="true" className="h-px" /> :
-      <button type="button" disabled={disabled} onClick={() => setPage({ query, limit: limit + PAGE_SIZE })}
+      <button data-ui-shape="action" data-control-size="md" type="button" disabled={disabled} onClick={() => setPage({ query, limit: limit + PAGE_SIZE })}
         className="mt-3 min-h-11 w-full rounded-[10px] border border-[var(--hairline)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">Show more icons</button>)}
   </section>;
 }

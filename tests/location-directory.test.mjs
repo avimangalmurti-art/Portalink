@@ -398,3 +398,12 @@ test('prototype city, region, country and legacy feeds apply the same privacy an
     assert.deepEqual(plain((await exports.service.listLocationProjects(id)).map(view => view.project.id)), expected, id);
   }
 });
+
+test('globe default city recommendations resolve to five distinct real city records',async()=>{
+ const h=harness();const resolved=[];
+ for(const name of ['San Francisco','New York','London','Tokyo','Paris']){
+  const matches=await h.client.search(name);const city=matches.find(place=>place.kind==='city'&&place.name.toLowerCase()===name.toLowerCase())??matches.find(place=>place.kind==='city');
+  assert.ok(city,name);assert.ok(Number.isFinite(city.latitude)&&Number.isFinite(city.longitude));resolved.push(city.id);
+ }
+ assert.equal(new Set(resolved).size,5);
+});

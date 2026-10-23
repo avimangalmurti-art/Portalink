@@ -1,0 +1,32 @@
+/* Native selection belongs to reading descriptions and editing text, not app chrome.
+   The explicit presentation scope also covers body-portalled mobile surfaces. */
+[data-presentation='mobile'],
+[data-presentation='mobile'] * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+[data-presentation='mobile'] :where(
+  input:not([type='button'], [type='submit'], [type='reset'], [type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='image'], [type='hidden']),
+  textarea, [contenteditable]:not([contenteditable='false']),
+  [contenteditable]:not([contenteditable='false']) *,
+  .project-description-body, .project-description-body *,
+  .follow-info-description, .follow-info-description *,
+  [data-project-hover-description], [data-project-hover-description] *,
+  .project-description-text, .project-description-text *,
+  .mobile-review-summary, .mobile-review-summary *,
+  .text-format-preview, .text-format-preview *
+) {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+}
+
+/* Media remains protected even when it is embedded in selectable content. */
+[data-presentation='mobile'] :is(img, picture, video, canvas, svg) {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-drag: none;
+}

@@ -1,4 +1,5 @@
 import "./index.css";
+import './components/profile/icon-create-mobile.css';
 import './presentation/mobile/mobile.css';
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -11,6 +12,7 @@ import { ApplicationBootstrap } from "./app/ApplicationBootstrap";
 import { services } from "./services";
 import { initializeRum } from './features/performance/rum';
 import { RumPageView } from './features/performance/RumPageView';
+import { waitForStartupStyles } from './app/startupStyles';
 
 initializeRum(__APP_VERSION__, import.meta.env.VITE_RUNTIME_MODE !== 'prototype' && import.meta.env.PROD);
 
@@ -22,7 +24,13 @@ if (rootEl) {
   // The browser URL is the canonical navigation state, so the router wraps
   // everything: the shell derives its destination from the location rather than
   // maintaining a second navigation state machine.
-  ReactDOM.createRoot(rootEl).render(<BrowserRouter>
+  document.documentElement.dataset.portalinkEntryReady = 'true';
+  window.dispatchEvent(new Event('portalink:main-entry-ready'));
+  void waitForStartupStyles().then(() => {
+    // Public entries skip the intro. Ordinary startup adopts this same video
+    // inside its layout effect, after the application has actually mounted.
+    if (document.documentElement.hasAttribute('data-shared-view')) document.getElementById('portalink-preboot')?.remove();
+    ReactDOM.createRoot(rootEl).render(<BrowserRouter useTransitions={false}>
       <RumPageView />
       <ServicesProvider services={services}>
         <AuthProvider>
@@ -36,4 +44,5 @@ if (rootEl) {
         </AuthProvider>
       </ServicesProvider>
     </BrowserRouter>);
+  });
 }

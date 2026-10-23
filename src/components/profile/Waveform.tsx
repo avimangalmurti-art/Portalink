@@ -76,7 +76,7 @@ export function Waveform({
         {bars.map((height, index) => {
         const isPlayed = index < playedIndex;
         const gaze = gazeOverlay?.[index];
-        return <span key={index} aria-hidden="true" className="block min-w-0 flex-1 rounded-[1px] transition-colors duration-150" style={{
+        return <span key={index} aria-hidden="true" className="block min-w-0 flex-1 rounded-[1px] transition-colors duration-[var(--m-fast)] " style={{
           height: `${height * 100}%`,
           // Attention, when Studio supplies it, replaces the played tone.
           backgroundColor: gaze !== undefined ? 'var(--studio-gaze)' : isPlayed ? 'var(--studio-audio)' : 'var(--surface-inset)',

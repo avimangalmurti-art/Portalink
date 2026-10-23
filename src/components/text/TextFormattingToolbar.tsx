@@ -3,6 +3,7 @@ import { BoldIcon, ItalicIcon, UnderlineIcon, StrikethroughIcon, ListIcon, ListO
 import { formatSelection, type TextFormat } from './textFormatting';
 import { usePresentation } from '../../presentation/usePresentation';
 import { FormattedText } from './FormattedText';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 export function TextFormattingToolbar({inputRef,value,onChange,disabled,maxLength,variant='panel'}:{inputRef:RefObject<HTMLTextAreaElement>;value:string;onChange:(value:string)=>void;disabled?:boolean;maxLength?:number;variant?:'panel'|'dropdown'|'workspace'}){
  const mobile = usePresentation() === 'mobile';
  const inline = false;
@@ -26,10 +27,10 @@ export function TextFormattingToolbar({inputRef,value,onChange,disabled,maxLengt
   </select>{notice&&<p role="status">{notice}</p>}
  </div>;
  return <div className={`text-format-tools${inline ? ` text-format-tools--inline${variant === 'workspace' ? ' text-format-tools--workspace' : ''}` : ''}`}>
-  {!inline && <button type="button" className="text-format-open" disabled={disabled} aria-expanded={open} onClick={()=>setOpen(!open)}><TypeIcon size={18}/>Format text</button>}
-  {(inline || open)&&<section aria-label="Text formatting" className="text-format-panel">{!inline && <header><strong>Format</strong><button type="button" aria-label="Close formatting" onClick={()=>setOpen(false)}><XIcon size={20}/></button></header>}
-   <div className="text-format-headings">{(['title','heading','subheading','body'] as const).map(f=><button type="button" key={f} disabled={disabled} onPointerDown={e=>e.preventDefault()} onClick={()=>apply(f)}>{f[0].toUpperCase()+f.slice(1)}</button>)}</div>
-   <div className="text-format-buttons">{icons.map(([f,label,Icon])=><button type="button" key={f} aria-label={label} title={label} disabled={disabled} onPointerDown={e=>e.preventDefault()} onClick={()=>apply(f)}><Icon size={20}/></button>)}
+  {!inline && <button data-ui-shape="action" data-control-size="md" type="button" className="text-format-open" disabled={disabled} aria-expanded={open} onClick={()=>setOpen(!open)}><InterfaceIcon icon={TypeIcon} size="lg"/>Format text</button>}
+  {(inline || open)&&<section aria-label="Text formatting" className="text-format-panel">{!inline && <header><strong>Format</strong><button data-ui-shape="icon" data-control-size="sm" type="button" aria-label="Close formatting" onClick={()=>setOpen(false)}><InterfaceIcon icon={XIcon} size="lg"/></button></header>}
+   <div className="text-format-headings">{(['title','heading','subheading','body'] as const).map(f=><button data-ui-shape="row" type="button" key={f} disabled={disabled} onPointerDown={e=>e.preventDefault()} onClick={()=>apply(f)}>{f[0].toUpperCase()+f.slice(1)}</button>)}</div>
+   <div className="text-format-buttons">{icons.map(([f,label,Icon])=><button data-ui-shape="row" type="button" key={f} aria-label={label} title={label} disabled={disabled} onPointerDown={e=>e.preventDefault()} onClick={()=>apply(f)}><InterfaceIcon icon={Icon} size="lg"/></button>)}
    {['#ff315f','#ff9500','#34c759','#0a84ff','#af52de'].map(color=><button type="button" key={color} aria-label={`Text color ${color}`} disabled={disabled} onPointerDown={e=>e.preventDefault()} onClick={()=>apply('color',color)}><span style={{background:color}} className="text-format-color"/></button>)}</div>
    {!inline && <><p className="text-format-hint">Select text to format. Preview below.</p><div className="text-format-preview" aria-label="Formatted preview"><FormattedText text={value}/></div></>}
   </section>}{notice&&<p role="status">{notice}</p>}

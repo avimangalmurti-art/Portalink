@@ -2,6 +2,50 @@
 
 The existing Portalink visual design and mobile/desktop presentation boundary are retained.
 
+## 22 October 2026 — consistent Reduce Translucency
+
+The shared presentation now gives the explicit Portalink preference priority over
+feature-specific modal, Portals, avatar, authentication and menu backdrop filters,
+including body portals and decorative pseudo-elements. Scrim dimming stays in
+place, while the scene behind a dialog is no longer blurred when reduction is on.
+The Journey calendar toolbar also uses the existing opaque-material switch.
+Normal appearance, layout, content filters and artwork are preserved.
+
+The equivalent OS media rule is retained through production CSS optimization;
+automatic OS detection still depends on browser support. Explicit app control
+works independently. Mobile, web and public preference records keep their existing
+scope. Actual physical iPhone/PWA and OS-preference emulation remain unverified.
+
+Local verification:49focused cases,6built-entry cases, typecheck, lint and the
+configured client/worker build pass. Fictional-service actual-App/Visitor browser
+checks at420x912 and1280x900 cover light/dark dialogs, Portals, profile actions,
+public Portal popups and body-portalled typography. Enabled samples have no
+remaining backdrop filters; switching OFF restores the initial WEB material and
+geometry sample exactly. This local fix is not a deployment receipt.
+
+Publication: Sites509 from `0beecfd5a06834c6b29428f1ab3b4a2c9b4f778d`
+succeeded on22October2026 (Pacific). See sites-deployment.md for native release
+evidence. A subsequent live browser retry passes MOBILE420x912 and WEB1280x900
+signed-out profile/Settings/account checks: opaque dock/navigation/Portal chooser,
+unblurred dimmed Portal and avatar backgrounds, and an actual light confirmation
+dialog. Explicit ON samples have no remaining visible backdrop filters, including
+pseudo-elements. Original System/OFF settings and normal materials were restored;
+no signup/content submission or new deployment occurred. Full raw-file comparison
+remains incomplete after a separate403 response. Signed-in owner-only menus,
+physical iPhone/PWA and actual OS reporting remain unverified. See external
+release-509-live-browser-proof.json and the current handoff for exact evidence.
+
+Subsequent signed-in live verification also passes representative light/dark
+MOBILE420x912/WEB1280x900 owner Portal menus, WEB direct-body TypographyInspector,
+mobile Portal panel/background/nested chooser, project information/content actions,
+profile action sheet and Message settings dialog. Enabled panels are opaque and
+backgrounds retain dimming without backdrop blur. No typeface or message-permission
+choices were changed, no conversation opened and no content submitted. Both original
+System/OFF appearance slots and normal materials were restored; viewport reset.
+See release-509-signedin-browser-proof.json. This resolves the signed-in/owner-menu
+verification gap; physical iPhone/PWA/actual OS reporting remain unverified. Separate
+WEB reader image load failures observed during QA are not attributed to translucency.
+
 ## Implemented
 
 - Public browsing no longer automatically presents sign-in. Explicit account entry, gated actions and verified password recovery still open the appropriate flow. Home's empty state offers an appropriate next action; the mobile search placeholder clearly says Coming soon.

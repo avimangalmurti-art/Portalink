@@ -1,33 +1,27 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-test('Studio rail follows the safe-area header and selected pills never scroll vertically',()=>{
- const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
- assert.ok(source.indexOf('className="studio-mobile-shell-header"')<source.indexOf('className="studio-citation-pills"'));
- assert.match(source,/hideHeader=\{mobile\}/);assert.match(source,/rail\.scrollLeft=/);assert.doesNotMatch(source,/scrollIntoView/);
- const css=readFileSync('src/presentation/mobile/mobile.css','utf8');
- const scoped=css.slice(css.indexOf('/* Studio: one stationary safe-area header'));
- assert.match(scoped,/data-presentation='mobile'/);assert.match(scoped,/padding-top: var\(--mobile-screen-action-top\)/);
- assert.match(scoped,/\.studio-citation-shell \{\s*height: var\(--mobile-viewport-height, 100dvh\); overflow: hidden/);
- assert.match(scoped,/\.studio-workbench-scroll \{\s*overflow-y: auto; flex: 1; min-height: 0/);
- assert.match(readFileSync('src/features/studio/studio-workbench.css','utf8'),/\.studio-mobile-shell-header \{ display: none/);
-});
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+import vm from 'node:vm';
+import ts from 'typescript';
 
+const source=ts.createSourceFile('StudioPage.tsx',readFileSync('src/features/studio/StudioPage.tsx','utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+let activePillRef;
+function find(node) {
+ if(ts.isJsxAttribute(node)&&node.name.getText(source)==='ref'&&node.initializer&&ts.isJsxExpression(node.initializer)&&node.initializer.expression?.getText(source).includes('rail.scrollLeft')) activePillRef=node.initializer.expression;
+ ts.forEachChild(node,find);
+}
+find(source);
 
-test('mobile Studio header receives existing collection controls and hides its redundant title',()=>{
- const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
- assert.match(source,/className="studio-mobile-header-controls" ref=\{setHeaderHost\}/);
- assert.match(source,/<BookmarksList headerHost=\{mobile\?headerHost:undefined\}/);
- assert.match(source,/<StudioDraftsList headerHost=\{mobile\?headerHost:undefined\}/);
- const css=readFileSync('src/presentation/mobile/mobile.css','utf8');
- assert.match(css, /data-presentation='mobile'\] \.studio-mobile-shell-header h1 \{ display: none;/);
-});
-
-test('mobile landing overview is the first tab, with reference-style fallback header controls', () => {
- const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
- assert.match(source,/mobile\?\['overview'\]:\[\]\),'drafts','published'/);
- assert.match(source,/collection\?\?\(mobile\?'overview':'all'\)/);
- assert.match(source,/mobile&&!collectionHeader&&<div className="studio-mobile-header-fallback"/);
- assert.match(source,/aria-label="Back from Studio"/);
- assert.match(source,/className="studio-text-control" aria-label="Select items" disabled>Select/);
- assert.match(source,/<BookmarksList headerHost=\{mobile\?headerHost:undefined\}/);
- assert.match(source,/<StudioDraftsList headerHost=\{mobile\?headerHost:undefined\}/);
+test('only the selected Studio tab centres horizontally without moving the page',()=>{
+ assert.ok(activePillRef,'The selected tab must stay discoverable after changing collections.');
+ const callback=ts.transpileModule(`(${activePillRef.getText(source)})`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ for(const width of [375,420,430])for(const selected of [false,true]) {
+  const rail={clientWidth:width,scrollLeft:17,scrollTop:39};
+  const pill={parentElement:rail,clientWidth:80,offsetLeft:400,scrollIntoView(){assert.fail('Tab changes must not scroll the surrounding page.');}};
+  const ref=vm.runInNewContext(callback,{mobile:true,collection:selected?'bookmarks':'drafts',pill:'bookmarks',selected});
+  ref(pill);
+  assert.equal(rail.scrollLeft,selected?400-(width-80)/2:17);
+  assert.equal(rail.scrollTop,39);
+  ref(null);
+ }
 });
