@@ -38,7 +38,7 @@ test('onboarding empty chooser accepts a file batch on both platforms without ch
   const chooser=all.find(n=>n.type==='button'&&text(n)==='Choose files');assert.ok(chooser);chooser.props.onClick();
   assert.deepEqual(h.calls,['picker']);
   const files=[{name:'first.png'},{name:'notes.pdf'}],target={files,value:'selection'};
-  const input=all.find(n=>n.type==='input');assert.equal(input.props.multiple,true);assert.equal(input.props['aria-label'],'Add idea files');
+  const input=all.find(n=>n.type==='input');assert.equal(input.props.multiple,true);assert.equal(input.props['aria-label'],'Add project files');
   input.props.onChange({target});assert.equal(h.calls.at(-1),files);assert.equal(target.value,'');
  }
 });
@@ -144,7 +144,7 @@ test('Word sources request a separate PDF or image cover while normal Add remain
   assert.equal(all.find(n=>n.type==='CoverFilmstrip'),undefined);
   assert.match(text(h.render()),/Add a PDF or image for your cover\./);
   const wordChoice=all.find(n=>n.props['aria-label']==='Use Work.docx as cover');assert.equal(wordChoice.props.disabled,true);assert.equal(wordChoice.props['aria-pressed'],false);
-  const general=all.find(n=>n.props['aria-label']==='Add idea files');
+  const general=all.find(n=>n.props['aria-label']==='Add project files');
   const cover=all.find(n=>n.props['aria-label']==='Add PDF or image cover');
   assert.equal(general.props.accept,undefined);assert.equal(general.props.multiple,true);
   assert.equal(cover.props.accept,'.pdf,.jpg,.jpeg,.png,.webp,.gif,.avif,.svg');assert.equal(cover.props.multiple,undefined);

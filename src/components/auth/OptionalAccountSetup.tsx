@@ -34,14 +34,14 @@ export function OptionalAccountSetup(props: AccountAppearanceProps & { onDone: (
       <div className="first-welcome-slide optional-setup-content">
         <div className="first-welcome-art optional-setup-art" aria-hidden="true"><img src="/onboarding/makers.webp" alt="" width="1254" height="1254" draggable={false}/></div>
         <h1 id="optional-setup-title">Make Portalink yours</h1>
-        <p id="optional-setup-description">Your catalogue starts with one idea.</p>
+        <p id="optional-setup-description">Your catalogue starts with one project.</p>
         <button type="button" className="optional-setup-appearance-toggle" data-ui-shape="action" aria-expanded={appearance} aria-controls={appearance ? 'optional-setup-appearance' : undefined} onClick={() => setAppearance(value => !value)}>
           <InterfaceIcon icon={PaletteIcon}/><span>{appearance ? 'Hide appearance' : 'Choose appearance'}</span><InterfaceIcon icon={ChevronDownIcon}/>
         </button>
         {appearance && <div id="optional-setup-appearance" className="optional-setup-appearance"><MobileOnboardingAppearance {...props} showPreview={false}/></div>}
       </div>
       <footer className="optional-setup-actions">
-        <button type="button" className="optional-setup-primary" onClick={props.onFirstProject}>Add your first idea<InterfaceIcon icon={ArrowRightIcon}/></button>
+        <button type="button" className="optional-setup-primary" onClick={props.onFirstProject}>Add your first project<InterfaceIcon icon={ArrowRightIcon}/></button>
         <button type="button" className="optional-setup-skip" onClick={props.onDone}>Skip for now</button>
       </footer>
     </section>

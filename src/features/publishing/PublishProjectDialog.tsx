@@ -47,7 +47,7 @@ export function PublishProjectDialog({
   const guided = isMobile || Boolean(firstProject) || onboarding;
   const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
   const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: true, resume: resumeDraft, initialMetadata, awaitProfile: isMobile });
-  const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? onboarding ? 'Review idea' : 'Review project' : publishFlow.firstProjectStage === 'details' ? onboarding ? 'Idea details' : 'New project' : 'Files & cover';
+  const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? 'Review project' : publishFlow.firstProjectStage === 'details' ? onboarding ? 'Project details' : 'New project' : 'Files & cover';
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);

@@ -31,10 +31,10 @@ test('mobile setup has one screen title and one explicit continue action without
  const all=nodes(harness().render()),header=all.find(node=>node.type==='header');
  const headings=all.filter(node=>typeof node.type==='string'&&/^h[1-6]$/.test(node.type));
  assert.equal(headings.length,1);assert.equal(headings[0].type,'h1');
- assert.equal(headings[0].props.children,'New idea');
+ assert.equal(headings[0].props.children,'New project');
  assert.equal(headings[0].props.id,all.find(node=>node.props.role==='dialog').props['aria-labelledby']);
  assert.equal(nodes(header).filter(node=>node.type==='button').length,1);
- assert.equal(nodes(header).find(node=>node.type==='button').props['aria-label'],'Cancel new idea');
+ assert.equal(nodes(header).find(node=>node.type==='button').props['aria-label'],'Cancel new project');
  assert.equal(all.filter(node=>node.type==='button'&&node.props.type==='submit').length,1);
  assert.equal(all.find(node=>node.type==='button'&&node.props.type==='submit').props.form,'project-setup-form');
  assert.equal(all.some(node=>node.type==='ol'||node.props['aria-current']==='step'||node.props.className==='project-creation-orientation'),false);
@@ -88,13 +88,13 @@ test('new Portal icon selection is a local same-dialog step and hidden-form subm
   assert.equal(library().props.selected,'shapes');assert.equal(library().props.onCreatePortal,undefined);
   h.submit();await tick();assert.deepEqual(h.calls,[],'A hidden form must reject submission while browsing/searching icons.');
   library().props.onSelect('lucide:book-open');
-  all=nodes(h.render());assert.equal(library(),undefined);assert.equal(all.find(node=>node.type==='h1').props.children,'New idea');
+  all=nodes(h.render());assert.equal(library(),undefined);assert.equal(all.find(node=>node.type==='h1').props.children,'New project');
   assert.equal(all.find(node=>node.props.name==='title').props.value,'First idea');
   assert.equal(all.find(node=>node.type==='textarea').props.value,'A thought');
   assert.equal(all.find(node=>node.props['aria-label']==='New portal name').props.value,'Ideas');
   assert.deepEqual(h.calls,[],'Choosing an icon must never create a Portal or open uploads.');
   open();assert.equal(library().props.selected,'lucide:book-open');
-  nodes(h.render()).find(node=>node.props['aria-label']==='Back to new idea').props.onClick();
+  nodes(h.render()).find(node=>node.props['aria-label']==='Back to new project').props.onClick();
   assert.equal(library(),undefined);assert.deepEqual(h.calls,[]);
   open();assert.equal(library().props.selected,'lucide:book-open','Cancelling the picker retains the last selected icon.');
  }
@@ -127,7 +127,7 @@ test('failed Portal creation retains the chosen icon for retry while existing Po
   open();nodes(h.render()).find(node=>node.type==='PortalIconLibrary').props.onSelect('globe');h.submit();await tick();
   assert.deepEqual(h.calls,[['create','Ideas','globe']]);assert.ok(nodes(h.render()).some(node=>node.props.role==='alert'));
   open();assert.equal(nodes(h.render()).find(node=>node.type==='PortalIconLibrary').props.selected,'globe');
-  nodes(h.render()).find(node=>node.props['aria-label']==='Back to new idea').props.onClick();h.submit();await tick();
+  nodes(h.render()).find(node=>node.props['aria-label']==='Back to new project').props.onClick();h.submit();await tick();
   assert.deepEqual(h.calls.filter(call=>call[0]==='create'),[['create','Ideas','globe'],['create','Ideas','globe']]);
   assert.equal(h.calls.at(-1)[1].categoryId,'restored-portal');
   const existing=harness(undefined,undefined,{presentation,initialCategories:[{id:'existing',label:'Design',iconName:'camera'}]});

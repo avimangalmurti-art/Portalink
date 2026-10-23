@@ -306,9 +306,9 @@ test('shared setup opts WEB and MOBILE into Files, Details and Review while lega
   const h=harness(presentation);
   for(const [flow,title,stage] of [
    [{firstProjectStage:'files'},'Files & cover','files'],
-   [{firstProjectStage:'details'},'Idea details','details'],
-   [{step:'preview',firstProjectStage:'files'},'Review idea','files'],
-   [{hasCommittedProject:true,firstProjectStage:'details',state:'failed'},'Review idea','details'],
+   [{firstProjectStage:'details'},'Project details','details'],
+   [{step:'preview',firstProjectStage:'files'},'Review project','files'],
+   [{hasCommittedProject:true,firstProjectStage:'details',state:'failed'},'Review project','details'],
   ]){
    const tree=h.render(flow,{initialMetadata}),guided=nodes(tree).find(node=>node.type==='MobilePublishFlow');
    assert.equal(tree.type,presentation==='mobile'?'ProjectFormScreen':'ProjectFormDialog');
@@ -406,12 +406,12 @@ test('published idea dialog exposes meaningful context and explicit actions on b
   try{
    assert.equal(h.dialog.props['aria-modal'],'true');assert.equal(h.dialog.props.tabIndex,-1);
    const heading=h.all.find(node=>node.type==='h1'),description=h.all.find(node=>node.props?.id===h.dialog.props['aria-describedby']);
-   assert.equal(heading.props.id,h.dialog.props['aria-labelledby']);assert.equal(dialogText(heading),'Your idea is published');assert.equal(dialogText(description),'Your catalogue is growing.');
+   assert.equal(heading.props.id,h.dialog.props['aria-labelledby']);assert.equal(dialogText(heading),'Your project is published');assert.equal(dialogText(description),'Your catalogue is growing.');
    assert.ok(h.all.some(node=>node.props?.['data-presentation']===presentation));
    const art=h.all.find(node=>node.props?.['aria-hidden']==='true'&&nodes(node).some(child=>child.type==='img'));
    assert.equal(nodes(art).find(node=>node.type==='img').props.alt,'');
-   h.buttons.find(node=>dialogText(node)==='View idea').props.onClick();h.buttons.find(node=>dialogText(node)==='My catalogue').props.onClick();
-   h.buttons.find(node=>node.props['aria-label']==='Close published idea confirmation').props.onClick();
+   h.buttons.find(node=>dialogText(node)==='View project').props.onClick();h.buttons.find(node=>dialogText(node)==='My catalogue').props.onClick();
+   h.buttons.find(node=>node.props['aria-label']==='Close published project confirmation').props.onClick();
    assert.deepEqual(h.calls,['idea','catalogue','close']);
   }finally{h.cleanup();}
  }

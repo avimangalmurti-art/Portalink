@@ -34,16 +34,16 @@ export function PostPublishIdeaDialog({ onClose, onViewIdea, onOpenCatalogue }: 
     <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="post-publish-idea-title" aria-describedby="post-publish-idea-description" tabIndex={-1}
       className="post-publish-idea-dialog" data-material="content" data-ui-surface={presentation === 'mobile' ? 'sheet' : 'popup'}>
       <header>
-        <button type="button" aria-label="Close published idea confirmation" data-ui-control="icon" data-control-variant="ghost" onClick={onClose}><XIcon size={20} aria-hidden="true"/></button>
+        <button type="button" aria-label="Close published project confirmation" data-ui-control="icon" data-control-variant="ghost" onClick={onClose}><XIcon size={20} aria-hidden="true"/></button>
         <span>Portalink</span><span className="post-publish-idea-header-spacer" aria-hidden="true"/>
       </header>
       <div className="post-publish-idea-content">
         <div className="post-publish-idea-art" aria-hidden="true"><img src="/onboarding/share.webp" alt="" width="1254" height="1254" draggable={false}/></div>
-        <h1 id="post-publish-idea-title">Your idea is published</h1>
+        <h1 id="post-publish-idea-title">Your project is published</h1>
         <p id="post-publish-idea-description">Your catalogue is growing.</p>
       </div>
       <footer>
-        <button type="button" className="post-publish-idea-primary" data-ui-control="button" data-control-variant="primary" onClick={onViewIdea}>View idea<ArrowRightIcon size={20} aria-hidden="true"/></button>
+        <button type="button" className="post-publish-idea-primary" data-ui-control="button" data-control-variant="primary" onClick={onViewIdea}>View project<ArrowRightIcon size={20} aria-hidden="true"/></button>
         <button type="button" className="post-publish-idea-catalogue" data-ui-control="button" data-control-variant="ghost" onClick={onOpenCatalogue}>My catalogue</button>
       </footer>
     </section>

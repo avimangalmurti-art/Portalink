@@ -271,12 +271,12 @@ test('onboarding Files goes directly to Review on either platform using the same
   let tree=h.render(),all=nodes(tree);
   assert.equal(component(tree,'MobileCoverFiles').props.onboarding,true);
   assert.equal(all.some(node=>node.type==='ol'||node.type==='h3'),false);
-  assert.ok(button(tree,'Review idea'));assert.deepEqual(h.calls,[]);
+  assert.ok(button(tree,'Review project'));assert.deepEqual(h.calls,[]);
   await h.submit(tree);tree=h.render();assert.deepEqual(h.calls,['save']);
-  assert.ok(button(tree,'Publish idea'));assert.equal(h.flow.media,media);assert.equal(h.flow.draft,draft);
+  assert.ok(button(tree,'Publish project'));assert.equal(h.flow.media,media);assert.equal(h.flow.draft,draft);
   assert.equal(component(tree,'FormattedText').props.text,'A study of space.');
   assert.ok(h.focusCalls.every(call=>call.id==='onboarding-title'&&call.options?.preventScroll===true));
-  action(tree,'Edit idea details').props.onClick();tree=h.render();
+  action(tree,'Edit project details').props.onClick();tree=h.render();
   assert.equal(component(tree,'ProfileField').props.value,'Quiet Rooms');
   assert.equal(nodes(tree).find(node=>node.props.className==='project-form-details').props['aria-labelledby'],'onboarding-title');
   assert.equal(h.flow.media,media);assert.equal(h.calls.includes('publish'),false);
@@ -290,7 +290,7 @@ test('onboarding Files suppresses duplicate pending Review saves and allows retr
   let tree=h.render();await h.submit(tree);await h.submit(tree);assert.deepEqual(h.calls,['save']);
   h.flow.saveDraftError='Save refused';finish();await tick();tree=h.render();
   assert.ok(nodes(tree).some(node=>node.props.role==='alert'&&text(node).includes('Save refused')));
-  assert.ok(button(tree,'Review idea'));assert.equal(h.calls.includes('publish'),false);
+  assert.ok(button(tree,'Review project'));assert.equal(h.calls.includes('publish'),false);
   await h.submit(tree);assert.deepEqual(h.calls,['save','save']);finish();await tick();
  }
 });
@@ -300,7 +300,7 @@ test('onboarding WEB Back retains file locks and details editing dismisses stale
  let tree=h.render();const media=h.flow.media;
  assert.equal(button(tree,'Back').props['aria-label'],'Back to files');assert.equal(button(tree,'Back').props.disabled,true);
  assert.equal(action(tree,'Edit cover').props.disabled,true);assert.equal(action(tree,'Edit selected files').props.disabled,true);
- action(tree,'Edit idea details').props.onClick();tree=h.render();
+ action(tree,'Edit project details').props.onClick();tree=h.render();
  assert.deepEqual(h.calls,['dismiss-upload','reset-error','dismiss-save']);assert.equal(h.flow.media,media);
  assert.equal(button(tree,'Back'),undefined);assert.equal(component(tree,'ProfileField').props.value,'Quiet Rooms');
  h.flow.upload.phase='idle';h.flow.step='preview';tree=h.render();button(tree,'Back').props.onClick();
@@ -344,7 +344,7 @@ test('stale title errors never interrupt onboarding file selection when the curr
   let tree=h.render('files');h.render();
   assert.ok(component(tree,'MobileCoverFiles'));assert.equal(component(tree,'ProfileField'),undefined);
   assert.equal(h.focus.includes('publish-title'),false);assert.deepEqual(h.calls,[]);
-  await h.submit(tree);tree=h.render();assert.ok(button(tree,'Publish idea'));
+  await h.submit(tree);tree=h.render();assert.ok(button(tree,'Publish project'));
   assert.deepEqual(h.calls,['save']);assert.equal(h.flow.media,media);assert.equal(h.flow.metadata.title,'Quiet Rooms');
  }
 });
@@ -365,7 +365,7 @@ test('onboarding Review shows full authored details and accessible mixed-file su
   const items=Array.from({length:15},(_,index)=>({id:`review-${index}`,displayTitle:`Selected file ${index+1}`,family:index===1?'document':index===2?'audio':'image',previewUrl:`review-image-${index}`,capability:'native',isCover:index===0,metadata:{coverPageNumber:2}}));
   const h=harness({step:'preview',metadata:{title:`  ${title}  `,summary:`  ${summary}  `},location:'  Kyoto  ',media:{items,isComplete:true,state:'ready'}},{onboarding:true,detailsFirst:true},presentation);
   const tree=h.render(),sections=nodes(tree).filter(node=>node.type==='section');
-  assert.deepEqual(sections.map(node=>node.props['aria-label']),['Cover','Idea details','Selected files']);
+  assert.deepEqual(sections.map(node=>node.props['aria-label']),['Cover','Project details','Selected files']);
   assert.equal(nodes(tree).some(node=>node.type==='h3'),false);
   assert.equal(nodes(tree).some(node=>node.type==='img'&&node.props.src?.startsWith('/onboarding/')),false);
   assert.ok(nodes(sections[1]).some(node=>node.type==='strong'&&text(node)==='Interiors'));
@@ -391,14 +391,14 @@ test('onboarding Review shows full authored details and accessible mixed-file su
 });
 
 test('all onboarding Review edit routes preserve the same draft, media, crop and authored details',()=>{
- for(const presentation of ['mobile','web'])for(const label of ['Edit cover','Edit idea details','Edit selected files']){
+ for(const presentation of ['mobile','web'])for(const label of ['Edit cover','Edit project details','Edit selected files']){
   const h=harness({step:'preview'},{onboarding:true,detailsFirst:true},presentation),media=h.flow.media,draft=h.flow.draft,cover=media.items[0],crop=cover.metadata;
   action(h.render(),label).props.onClick();const tree=h.render();
   assert.deepEqual(h.calls,['dismiss-upload','reset-error','dismiss-save']);
   assert.equal(h.flow.step,'metadata');assert.equal(h.flow.media,media);assert.equal(h.flow.draft,draft);
   assert.equal(media.items[0],cover);assert.equal(cover.metadata,crop);assert.equal(crop.coverPageNumber,2);
   assert.equal(h.flow.metadata.title,'Quiet Rooms');assert.equal(h.flow.metadata.summary,'A study of space.');assert.equal(h.flow.location,'London');
-  if(label==='Edit idea details')assert.equal(nodes(tree).find(node=>node.props.id==='publish-title').props.value,'Quiet Rooms');
+  if(label==='Edit project details')assert.equal(nodes(tree).find(node=>node.props.id==='publish-title').props.value,'Quiet Rooms');
   else assert.equal(component(tree,'MobileCoverFiles').props.media,media);
  }
 });
@@ -407,14 +407,14 @@ test('onboarding Review keeps busy and stored-file edit locks on either platform
  for(const presentation of ['mobile','web']){
   for(const [overrides,props] of [[{state:'publishing'},{}],[{isSavingDraft:true},{}],[{isDiscarding:true},{}],[{upload:{phase:'failed',isCleaningUp:true}},{}],[{media:{items:[{id:'kept',isCover:true}],isComplete:true,state:'selecting'}},{}],[{}, {closing:true}]]){
    const h=harness({step:'preview',...overrides},{onboarding:true,detailsFirst:true,...props},presentation),tree=h.render();
-   for(const label of ['Edit cover','Edit idea details','Edit selected files'])assert.equal(action(tree,label).props.disabled,true);
+   for(const label of ['Edit cover','Edit project details','Edit selected files'])assert.equal(action(tree,label).props.disabled,true);
    assert.equal(button(tree,'Back').props.disabled,true);
-   assert.equal(button(tree,overrides.state==='publishing'?'Publishing…':overrides.isSavingDraft?'Saving details…':'Publish idea').props.disabled,true);
+   assert.equal(button(tree,overrides.state==='publishing'?'Publishing…':overrides.isSavingDraft?'Saving details…':'Publish project').props.disabled,true);
    await h.submit(tree);assert.deepEqual(h.calls,[]);
   }
   const h=harness({step:'preview',upload:{phase:'uploaded',dismissFailure:()=>h.calls.push('dismiss-upload')}},{onboarding:true,detailsFirst:true},presentation),tree=h.render(),media=h.flow.media;
   assert.equal(action(tree,'Edit cover').props.disabled,true);assert.equal(action(tree,'Edit selected files').props.disabled,true);assert.equal(button(tree,'Back').props.disabled,true);
-  assert.equal(action(tree,'Edit idea details').props.disabled,false);action(tree,'Edit idea details').props.onClick();
+  assert.equal(action(tree,'Edit project details').props.disabled,false);action(tree,'Edit project details').props.onClick();
   assert.ok(component(h.render(),'ProfileField'));assert.equal(h.flow.media,media);assert.equal(h.calls.includes('publish'),false);
  }
 });
@@ -422,10 +422,10 @@ test('onboarding Review keeps busy and stored-file edit locks on either platform
 test('committed onboarding Review stays truthful, locks editing and guards final-detail retries',async()=>{
  for(const presentation of ['mobile','web']){
   const h=harness({hasCommittedProject:true,step:'metadata'},{onboarding:true,detailsFirst:true},presentation),tree=h.render('details');
-  assert.ok(nodes(tree).some(node=>node.props.role==='status'&&text(node).includes('Your idea is published.')));
+  assert.ok(nodes(tree).some(node=>node.props.role==='status'&&text(node).includes('Your project is published.')));
   assert.ok(text(tree).includes('Finish saving its details.'));assert.ok(!text(tree).includes('Ready for your catalogue'));
   assert.equal(component(tree,'ProfileField'),undefined);
-  for(const label of ['Edit cover','Edit idea details','Edit selected files']){
+  for(const label of ['Edit cover','Edit project details','Edit selected files']){
    const edit=action(tree,label);assert.equal(edit.props.disabled,true);edit.props.onClick();
   }
   assert.equal(button(tree,'Back').props.disabled,true);assert.deepEqual(h.calls,[]);
@@ -441,12 +441,12 @@ test('committed onboarding Review stays truthful, locks editing and guards final
 test('onboarding Review handles missing cover and optional details while retaining failure and cleanup transport',()=>{
  for(const presentation of ['mobile','web'])for(const transport of [{failure:{message:'Upload refused'}},{cleanupError:'Cleanup refused'}]){
   const h=harness({step:'preview',metadata:{title:'Audio study',summary:'  '},location:' ',media:{items:[{id:'audio',displayTitle:'Recorded idea',family:'audio',metadata:{}}],isComplete:true,state:'ready'}},{onboarding:true,detailsFirst:true},presentation);
-  Object.assign(h.flow.upload,transport);const tree=h.render(),details=nodes(tree).find(node=>node.type==='section'&&node.props['aria-label']==='Idea details');
+  Object.assign(h.flow.upload,transport);const tree=h.render(),details=nodes(tree).find(node=>node.type==='section'&&node.props['aria-label']==='Project details');
   assert.ok(text(tree).includes('No cover selected'));assert.equal(component(tree,'CoverFilmstrip'),undefined);
   assert.equal(component(details,'FormattedText'),undefined);assert.ok(text(details).includes('No description added.'));assert.doesNotMatch(text(details),/Not added|Location/);
   assert.equal(text(nodes(nodes(tree).find(node=>node.type==='section'&&node.props['aria-label']==='Selected files')).find(node=>node.type==='h4')),'1 file');
   const transportPicker=component(tree,'MediaPicker');assert.equal(transportPicker.props.media,h.flow.media);assert.equal(transportPicker.props.upload,h.flow.upload);assert.equal(transportPicker.props.compact,true);assert.equal(transportPicker.props.disabled,true);
-  assert.ok(action(tree,'Edit cover'));assert.ok(action(tree,'Edit idea details'));assert.ok(action(tree,'Edit selected files'));assert.ok(button(tree,'Publish idea'));
+  assert.ok(action(tree,'Edit cover'));assert.ok(action(tree,'Edit project details'));assert.ok(action(tree,'Edit selected files'));assert.ok(button(tree,'Publish project'));
   assert.deepEqual(h.calls,[]);
  }
 });

@@ -1112,7 +1112,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           const {listDeviceDrafts, latestDeviceDraft} = await import('./features/publishing/firstProjectDraft');
           if (accountId) recoverable = latestDeviceDraft(await listDeviceDrafts(accountId, viewedProfile.id, true), viewedProfile.categories.map(category=>category.id));
         } catch {
-          recoveryError = 'Saved upload drafts could not be checked. Your work has not been removed. Close and reopen New idea to try again.';
+          recoveryError = 'Saved upload drafts could not be checked. Your work has not been removed. Close and reopen New project to try again.';
         }
         if (!current) return;
         setMobileRecoveryDraft(recoverable);
@@ -1139,7 +1139,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           const {listDeviceDrafts, latestDeviceDraft} = await import('./features/publishing/firstProjectDraft');
           recoverable = latestDeviceDraft(await listDeviceDrafts(createAccountId, viewedProfile.id, true), viewedProfile.categories.map(category=>category.id));
         } catch {
-          recoveryError = 'Saved upload drafts could not be checked. Your work has not been removed. Close and reopen New idea to try again.';
+          recoveryError = 'Saved upload drafts could not be checked. Your work has not been removed. Close and reopen New project to try again.';
         }
         if (!current) return;
         if (recoverable || recoveryError) {

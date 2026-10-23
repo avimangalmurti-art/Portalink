@@ -125,14 +125,14 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
           </button>
         </div> : null : <ProfileField id="publish-location" label="Location" optional optionalParentheses workspace clearable leadingIcon={<MapPinIcon size={20} aria-hidden="true" />} value={flow.location} maxLength={80} placeholder="City or place" disabled={busy} onChange={flow.setLocation} />}
       </section> : onboarding ? <div className="onboarding-idea-review" data-onboarding-idea-review="">
-        {flow.hasCommittedProject && <p className="onboarding-review-status" role="status">Your idea is published. Finish saving its details.</p>}
+        {flow.hasCommittedProject && <p className="onboarding-review-status" role="status">Your project is published. Finish saving its details.</p>}
         <section className="onboarding-review-cover" aria-label="Cover">
           <header><h4>Cover</h4>{editAction('Edit cover', 'files')}</header>
           {flow.media.items.some(item => item.isCover && canBeCover(item.family, item.capability)) ? <CoverFilmstrip compact readOnly media={flow.media} disabled /> : <p className="onboarding-review-empty-cover">No cover selected</p>}
         </section>
-        <section className="onboarding-review-idea" aria-label="Idea details">
+        <section className="onboarding-review-idea" aria-label="Project details">
           <p className="onboarding-review-portal"><span>Portal</span><strong>{categoryLabel}</strong></p>
-          <header><h4>{flow.metadata.title.trim()}</h4>{editAction('Edit idea details', 'details')}</header>
+          <header><h4>{flow.metadata.title.trim()}</h4>{editAction('Edit project details', 'details')}</header>
           <div className="onboarding-review-summary" aria-label="Description">{flow.metadata.summary.trim() ? <FormattedText text={flow.metadata.summary.trim()}/> : <p className="onboarding-review-empty-description">No description added.</p>}</div>
           {flow.location.trim() && <p className="onboarding-review-location"><MapPinIcon size={16} aria-hidden="true"/><span>{flow.location.trim()}</span></p>}
         </section>
@@ -149,8 +149,8 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
           <header><h4>Cover</h4>{editAction('Edit cover', 'files')}</header>
           <CoverFilmstrip compact readOnly media={flow.media} disabled />
         </section>
-        <section className="mobile-review-card mobile-publish-review-details" aria-label={onboarding ? 'Idea details' : 'Project details'}>
-          <header><h4>{onboarding ? 'Idea details' : 'Project details'}</h4>{editAction(onboarding ? 'Edit idea details' : 'Edit project details', 'details')}</header>
+        <section className="mobile-review-card mobile-publish-review-details" aria-label="Project details">
+          <header><h4>Project details</h4>{editAction('Edit project details', 'details')}</header>
           <dl><div><dt>Title</dt><dd>{flow.metadata.title.trim()}</dd></div>
             {(mobile || flow.metadata.summary.trim()) && <div><dt>Description{mobile && <span className="mobile-review-optional"> (optional)</span>}</dt><dd className={flow.metadata.summary.trim() ? 'mobile-review-summary' : 'mobile-review-empty'}>{flow.metadata.summary.trim() ? <FormattedText text={flow.metadata.summary.trim()} /> : 'Not added'}</dd></div>}
             {flow.location.trim() && <div><dt>Location</dt><dd><MapPinIcon size={16} aria-hidden="true" />{flow.location.trim()}</dd></div>}
@@ -167,10 +167,10 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
     <footer className="mobile-publish-actions">
       {hint && <p id="mobile-publish-hint" role="status">{hint}</p>}
       <div>
-        {backStep && <Button type="button" variant="secondary" size="lg" aria-label={singleHeading ? `Back to ${backStep === 'files' ? 'files' : onboarding ? 'idea details' : 'project details'}` : undefined} disabled={busy || flow.hasCommittedProject || (singleHeading && backStep === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(backStep)}><ArrowLeftIcon size={18} aria-hidden="true" />Back</Button>}
+        {backStep && <Button type="button" variant="secondary" size="lg" aria-label={singleHeading ? `Back to ${backStep === 'files' ? 'files' : 'project details'}` : undefined} disabled={busy || flow.hasCommittedProject || (singleHeading && backStep === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(backStep)}><ArrowLeftIcon size={18} aria-hidden="true" />Back</Button>}
         <Button type="submit" variant="primary" size="lg" fullWidth isLoading={flow.state === 'publishing' || flow.isSavingDraft}
           disabled={busy || (stage === 'files' && !flow.media.isComplete) || (stage === 'review' && !flow.canPublish)}>
-          {flow.state === 'publishing' ? 'Publishing…' : flow.isSavingDraft ? 'Saving details…' : stage === 'review' ? flow.hasCommittedProject ? 'Finish saving details' : onboarding ? 'Publish idea' : 'Publish project' : onboarding ? stage === 'files' || flow.media.isComplete ? 'Review idea' : 'Continue to upload' : mobile && stage === 'files' ? detailsFirst ? 'Review project' : 'Continue to details' : detailsFirst && !flow.media.isComplete ? 'Continue to upload' : stage === 'details' || detailsFirst ? 'Review project' : 'Continue'}
+          {flow.state === 'publishing' ? 'Publishing…' : flow.isSavingDraft ? 'Saving details…' : stage === 'review' ? flow.hasCommittedProject ? 'Finish saving details' : 'Publish project' : onboarding ? stage === 'files' || flow.media.isComplete ? 'Review project' : 'Continue to upload' : mobile && stage === 'files' ? detailsFirst ? 'Review project' : 'Continue to details' : detailsFirst && !flow.media.isComplete ? 'Continue to upload' : stage === 'details' || detailsFirst ? 'Review project' : 'Continue'}
           {!busy && <ArrowRightIcon size={20} aria-hidden="true" />}
         </Button>
       </div>

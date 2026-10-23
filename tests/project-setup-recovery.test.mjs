@@ -137,7 +137,7 @@ test('a fresh setup is saved as fields change and restores on same-device reopen
   const storage = storageFixture(), first = harness(storage);
   first.render(); assert.equal(storage.entries.size, 0);
   first.change('title', setup.title); first.change('summary', setup.summary); first.change('Portal', 'new'); first.change('New portal name', setup.name);
-  first.click('Cancel new idea');
+  first.click('Cancel new project');
   assert.deepEqual(first.calls, [['close']]);
   const reopened = harness(storage), all = reopened.render();
   assert.equal(all.find(node => node.props.name === 'title').props.value, setup.title);
@@ -156,7 +156,7 @@ test('new Portal icon and exact authored details survive close and reopen on bot
     const returned = first.chooseIcon('lucide:telescope');
     assert.equal(returned.some(node => node.type === 'portal-icon-library'), false, 'Selection returns to the idea fields');
     assert.equal(first.calls.length, 0, 'Choosing an icon is not a Portal write');
-    first.click('Cancel new idea');
+    first.click('Cancel new project');
     assert.deepEqual(first.calls, [['close']]);
     assert.equal(JSON.stringify(storage.api.readSetupDraft('account', 'profile')), JSON.stringify({ ...setup, iconName: 'lucide:telescope' }));
     const reopened = harness(storage, { categories: [], presentation }), all = reopened.render();
@@ -211,7 +211,7 @@ test('Continue retains setup until the publisher explicitly clears it', async ()
 test('clearing authored text also saves the cleared values rather than resurrecting the earlier text', () => {
   const storage = storageFixture(), h = harness(storage);
   h.change('title', 'Old title'); h.render();
-  h.change('title', ''); h.click('Cancel new idea');
+  h.change('title', ''); h.click('Cancel new project');
   assert.equal(storage.api.readSetupDraft('account', 'profile').title, '');
   assert.equal(harness(storage).render().find(node => node.props.name === 'title').props.value, '');
 });
@@ -219,12 +219,12 @@ test('clearing authored text also saves the cleared values rather than resurrect
 test('save failure keeps close open and restored fields available until storage recovers', () => {
   const storage = storageFixture(); storage.api.saveSetupDraft('account', 'profile', setup);
   const h = harness(storage); h.render(); storage.failWrite(true);
-  h.change('title', 'Edited title'); h.click('Cancel new idea');
+  h.change('title', 'Edited title'); h.click('Cancel new project');
   assert.equal(h.calls.length, 0);
   assert.ok(h.render().some(node => node.props.role === 'alert' && /could not be saved/.test(node.props.children)));
   assert.equal(h.render().find(node => node.props.name === 'title').props.value, 'Edited title');
   assert.equal(storage.api.readSetupDraft('account', 'profile').title, setup.title);
-  storage.failWrite(false); h.click('Cancel new idea');
+  storage.failWrite(false); h.click('Cancel new project');
   assert.deepEqual(h.calls, [['close']]);
   assert.equal(storage.api.readSetupDraft('account', 'profile').title, 'Edited title');
 });
@@ -233,7 +233,7 @@ test('existing draft and committed-project actions delegate only after an explic
   for (const committed of [undefined, { projectId: 'published' }]) {
     const draft = { id: 'draft', profileId: 'profile', categoryId: 'design' };
     const h = harness(storageFixture(), { recoveryDraft: { draft, metadata: { title: 'Saved project', summary: '' }, committed } });
-    const label = committed ? 'Finish published idea' : 'Continue draft';
+    const label = committed ? 'Finish published project' : 'Continue draft';
     assert.ok(h.render().some(node => node.type === 'button' && node.props.children === label));
     assert.equal(h.calls.length, 0); h.click(label);
     assert.deepEqual(h.calls, [['resume', draft]]);
@@ -255,7 +255,7 @@ test('upload recovery-check failure is separate from setup storage and leaves re
   const storage = storageFixture(); storage.api.saveSetupDraft('account', 'profile', setup);
   const message = 'Saved upload drafts could not be checked. Close and reopen New project to try again.';
   const h = harness(storage, { recoveryError: message }), all = h.render();
-  assert.ok(all.some(node => node.props.role === 'alert' && node.props.children === 'Saved upload drafts could not be checked. Close and reopen New idea to try again.'));
+  assert.ok(all.some(node => node.props.role === 'alert' && node.props.children === 'Saved upload drafts could not be checked. Close and reopen New project to try again.'));
   assert.equal(all.find(node => node.props.name === 'title').props.value, setup.title);
   assert.equal(all.find(node => node.type === 'textarea').props.value, setup.summary);
   h.change('title', 'Still editable'); h.render();
