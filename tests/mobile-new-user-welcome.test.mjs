@@ -62,7 +62,10 @@ function harness(presentation = 'mobile') {
     highContrast: false, reduceTranslucency: false, chooseMode() {}, chooseAppearance() {} };
   const navigate = (...args) => navigations.push(args);
   const names = (...items) => Object.fromEntries(items.map(name => [name, name]));
+  react.useLayoutEffect = react.useEffect;
   const { VisitorApp } = sourceModule('src/visitor/VisitorApp.tsx', {
+    '../features/profile/cataloguePageNavigation': { withCataloguePageTarget: href => href, captureCatalogueReaderOrigin: () => null, restoreCatalogueReaderOrigin: () => () => {} },
+    './useMobileProjectReturn': { useMobileProjectReturn: () => ({ close: () => false, open: () => {}, captureOpener: () => {} }) },
     react, 'react-router-dom': { useLocation: () => location, useNavigate: () => navigate },
     '../app/useAppRoute': { useAppRoute: () => route },
     '../app/routes': { buildPath: () => '/profile' },

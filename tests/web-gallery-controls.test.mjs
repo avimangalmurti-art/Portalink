@@ -50,6 +50,7 @@ test('layout controls remain desktop-only while shared galleries retain local ca
       '../../presentation/web/WebGalleryControls': { WebGalleryControls: 'web-controls' },
       '../ui/ZoomReadout': { ZoomReadout: 'zoom' },
       './ImageWallLayout': { ImageWallRows: 'rows', WALL_GAP: 4 },
+      './ProjectPageBrowsingContext': { ProjectPageBrowsingProvider: 'page-browsing' },
     });
     const tree = JustifiedImageWall({ items: hasItems ? [{ key: 'a', ratio: 1, content: 'A' }] : [], columns: 4, label: 'Projects', onColumnsChange, reorderMode: { enabled }, allowLayoutControls });
     const web = nodes(tree).find(node => node.type === 'web-controls');
@@ -84,6 +85,7 @@ test('a header-owned density control hides only WEB gallery controls and preserv
       '../../presentation/web/WebGalleryControls': { WebGalleryControls: 'web-controls' },
       '../ui/ZoomReadout': { ZoomReadout: 'zoom' },
       './ImageWallLayout': { ImageWallRows: 'rows', WALL_GAP: 4 },
+      './ProjectPageBrowsingContext': { ProjectPageBrowsingProvider: 'page-browsing' },
     });
     const tree = JustifiedImageWall({
       items: [{ key: 'a', ratio: 1, content: 'A' }], columns: 4, label: 'Projects', onColumnsChange, allowLayoutControls,

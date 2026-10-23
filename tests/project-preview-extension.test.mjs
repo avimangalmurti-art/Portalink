@@ -23,13 +23,20 @@ const project = { id: 'project', title: 'Report', summary: 'Published research',
 function cardHarness(presentation = 'mobile') {
   const imports = [];
   let expanded = false, lazyFactory, opened = 0, details = 0;
+  let inline = false;
+  const positions = new Map();
   const LazyExtension = () => null;
   const { ProjectPreviewCard } = load('ProjectPreviewCard', name => {
     imports.push(name);
     if (name === 'framer-motion' || name === './PreviewCreatorName') assert.fail('A bitmap card must not import animated attribution');
     if (name === 'react') return { ...React, useState: initial => [initial, next => { if (next === true) details++; }], lazy: factory => { lazyFactory = factory; return LazyExtension; }, useEffect: () => undefined };
     if (name === 'react-router-dom') return { Link: 'link' };
-    if (name === 'lucide-react') return { MoreHorizontalIcon: 'horizontal-dots' };
+    if (name === 'lucide-react') return { MoreHorizontalIcon: 'horizontal-dots', InfoIcon: 'info-circle' };
+    if (name === './ProjectPageBrowsingContext') return { useInlineProjectPages: () => inline };
+    if (name.endsWith('/cataloguePagePosition')) return { getCataloguePagePosition: id => positions.get(id), rememberCataloguePagePosition: (id, value) => positions.set(id, value) };
+    if (name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href };
+    if (name.endsWith('/useInlineProjectContent')) return { useInlineProjectContent: ({ project }) => ({ project, metadataComplete: true }) };
+    if (name === './inlineProjectPageModel') return { normalizeInlineProjectPosition: (_, position) => position, inlinePositionMatches: (left, right) => left === right };
     if (name.endsWith('/MobileContextActions')) return { useMobileActions: () => ({ open() {} }) };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: 'interface-icon' };
     if (name.endsWith('/warmDocumentRenderer')) return { warmProjectDocumentRenderer() {} };
@@ -43,7 +50,7 @@ function cardHarness(presentation = 'mobile') {
     if (name === './ProjectPreviewExtension') return { ProjectPreviewExtension: 'loaded-extension' };
     return {};
   });
-  return { imports, LazyExtension, openCount: () => opened, detailsCount: () => details, loadExtension: () => lazyFactory(),
+  return { imports, LazyExtension, openCount: () => opened, detailsCount: () => details, loadExtension: () => lazyFactory(), setInline: value => { inline = value; },
     render(props = {}, nextExpanded = false) { expanded = nextExpanded; return ProjectPreviewCard({ project, creator, onOpen: () => opened++, ...props }); },
   };
 }
@@ -67,6 +74,36 @@ test('shared bitmap cards do not load the animated extension on WEB or MOBILE, e
     assert.equal(h.openCount(), 2);
     assert.equal(h.detailsCount(), presentation === 'mobile' ? 2 : 0);
     assert.ok(!h.imports.includes('./ProjectPreviewExtension'));
+  }
+});
+
+test('one-column cards select the inline surface and information popup while denser cards retain their existing control', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = cardHarness(presentation); h.setInline(true);
+    let tree = h.render();
+    const inline = nodes(tree).find(node => node.type === h.LazyExtension && node.props.onSelect);
+    assert.ok(inline); assert.equal(inline.props.project, project);
+    assert.equal(tree.props['data-expanded'], false);
+    const frame = nodes(tree).find(node => node.props['data-packing-base'] !== undefined);
+    const info = nodes(tree).find(node => node.props.className === 'inline-preview-info');
+    assert.ok(info); assert.equal(info.props['aria-haspopup'], 'dialog');
+    assert.equal(nodes(info).find(node => node.type === 'interface-icon').props.icon, 'info-circle');
+    assert.equal(nodes(tree).some(node => node.props.className?.startsWith('mobile-preview-details')), false);
+    let stopped = false; info.props.onClick({ stopPropagation() { stopped = true; } });
+    assert.equal(stopped, true); assert.equal(h.detailsCount(), 1); assert.equal(h.openCount(), 0);
+    const selected = { index: 2, key: 'page-two', attachmentId: 'image-two', page: 2 };
+    inline.props.onSelect(selected);
+    tree = h.render(); assert.equal(nodes(tree).find(node => node.type === h.LazyExtension && node.props.onSelect).props.position, selected);
+    h.setInline(false); tree = h.render();
+    assert.equal(nodes(tree).some(node => node.type === h.LazyExtension && node.props.onSelect), false);
+    assert.deepEqual(nodes(tree).find(node => node.props['data-packing-base'] !== undefined).props.style, frame.props.style);
+    const dots = nodes(tree).find(node => node.props.className?.startsWith('mobile-preview-details'));
+    assert.equal(Boolean(dots), presentation === 'mobile');
+    if (dots) assert.equal(nodes(dots).find(node => node.type === 'interface-icon').props.icon, 'horizontal-dots');
+    h.setInline(true);
+    for (const props of [{ cover: React.createElement('span', {}, 'Saved page') }, { disabled: true }]) {
+      assert.equal(nodes(h.render(props)).some(node => node.type === h.LazyExtension && node.props.onSelect), false);
+    }
   }
 });
 

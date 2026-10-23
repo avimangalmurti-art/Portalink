@@ -29,6 +29,7 @@ function harness(initial = {}) {
     '../../presentation/usePresentation': { usePresentation: () => state.presentation },
     '../../presentation/web/WebGalleryControls': { WebGalleryControls: () => null },
     './ImageWallLayout': { ImageWallRows, WALL_GAP: 4 },
+    './ProjectPageBrowsingContext': { ProjectPageBrowsingProvider: 'page-browsing' },
   });
   function rowsNode(tree) {
     if (!tree || typeof tree !== 'object') return null;

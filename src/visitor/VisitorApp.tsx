@@ -5,7 +5,7 @@ import { VisitorPreviewBar } from '../features/profile/VisitorPreviewBar';
 import { isOwnVisitorPreview, visitorPreviewReturn } from '../features/profile/visitorPreview';
 import { handleFromPath, isPublicSharePath, portfolioPath, portfolioProjectPath } from '../features/sharing/shareModel';
 import { useHandleRoute } from './useHandleRoute';
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppRoute, type AppRoute } from '../app/useAppRoute';
 import { buildPath } from '../app/routes';
@@ -28,6 +28,7 @@ import { canResumeRegistration, readSharedReturnPath } from '../features/auth/re
 import { interactionIntent } from '../features/auth/interactionIntent';
 import type { AuthIntent } from '../types/auth';
 import { loadVisitorProjectPage } from '../app/screenModules';
+import { captureCatalogueReaderOrigin, restoreCatalogueReaderOrigin, withCataloguePageTarget, type CatalogueReaderOrigin } from '../features/profile/cataloguePageNavigation';
 import '../app/screenTransitions.css';
 
 const VisitorProjectPage = lazy(loadVisitorProjectPage);
@@ -87,6 +88,21 @@ export function VisitorApp() {
   // session identity hidden until resolution confirms (or changes) the creator.
   const returnProfileId = profileId ?? (handlePending || handleError ? lastSharedRoute.current?.profileId : null);
   const catalogueScope = `${returnProfileId ?? ''}:${auth.user?.id ?? ''}`;
+  const desktopCatalogueOrigin = useRef<{ scope: string; origin: CatalogueReaderOrigin; pending: boolean } | null>(null);
+  useLayoutEffect(() => {
+    const memory = desktopCatalogueOrigin.current;
+    if (presentation !== 'web' || (memory && memory.scope !== catalogueScope)) {
+      desktopCatalogueOrigin.current = null;
+      return;
+    }
+    if (!memory) return;
+    if (projectId) { memory.pending = true; return; }
+    if (!catalogueRoute) { memory.pending = false; return; }
+    if (!catalogueReady || !memory.pending) return;
+    memory.pending = false;
+    if (location.pathname + location.search + location.hash !== memory.origin.path) return;
+    return restoreCatalogueReaderOrigin(memory.origin, () => document.querySelector<HTMLElement>('[data-public-portfolio-grid]'));
+  }, [presentation, catalogueScope, projectId, catalogueRoute, catalogueReady, location.pathname, location.search, location.hash]);
   // Keep only this creator/account's MOBILE catalogue mounted while reading.
   // Timeline selection and sort belong to that composition, not a second URL model.
   const catalogue = useMemo(() => ({ scope: catalogueScope, presentation, profile: null as Profile | null }), [catalogueScope, presentation]);
@@ -104,6 +120,11 @@ export function VisitorApp() {
   }, [presentation, location.pathname, projectId, catalogueRoute]);
   const back = () => {
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
+    const desktopOrigin = desktopCatalogueOrigin.current;
+    if (presentation === 'web' && projectId && desktopOrigin?.scope === catalogueScope) {
+      navigate(desktopOrigin.origin.path);
+      return;
+    }
     if (profileId && !invalidShared && projectReturn.close(portfolioPath(profileId, handleFromPath(location.pathname)) + previewSuffix)) return;
     if (!profileId || !profile || invalidShared || handleError) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else window.location.assign('/'); return; }
     if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + (projectId && presentation !== 'mobile' && categoryId ? `/c/${encodeURIComponent(categoryId)}` : '') + previewSuffix);
@@ -179,7 +200,12 @@ export function VisitorApp() {
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
   const openProject = (category: string, id: string) => { if (profileId) {
     if (presentation === 'mobile') setPortalPopup(null);
-    projectReturn.open(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix, id);
+    if (presentation === 'web' && !projectId && catalogueReady) {
+      const origin = captureCatalogueReaderOrigin(profileId, location.pathname + location.search + location.hash, id,
+        document.querySelector<HTMLElement>('[data-public-portfolio-grid]'));
+      desktopCatalogueOrigin.current = origin ? { scope: catalogueScope, origin, pending: true } : null;
+    }
+    projectReturn.open(withCataloguePageTarget(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix, id), id);
   } };
   const pending = <LoadingSkeleton kind={projectId ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…"/>;
   const profileOnboarding = <ProfileOnboardingDialog key={auth.user?.id} isOpen theme={theme} systemGray={systemGray}

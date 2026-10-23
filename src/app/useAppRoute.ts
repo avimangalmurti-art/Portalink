@@ -6,6 +6,7 @@ import type { EngagementKind } from '../types/engagement';
 import type { NavigationDestination } from '../components/navigation';
 import type { Id } from '../types/domain';
 import { beginProjectContinuity } from '../utils/projectContinuity';
+import { withCataloguePageTarget } from '../features/profile/cataloguePageNavigation';
 
 /**
  * The URL, read as a destination.
@@ -337,11 +338,11 @@ export function useRouteNavigator() {
     })),
     sharedProject: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
       const viewTransition = !replace && beginProjectContinuity(projectId);
-      navigate(buildPath('sharedProject', {
+      navigate(withCataloguePageTarget(buildPath('sharedProject', {
         profileId,
         categoryId,
         projectId
-      }), {
+      }), projectId), {
         replace,
         viewTransition
       });
@@ -357,11 +358,11 @@ export function useRouteNavigator() {
      */
     project: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
       const viewTransition = !replace && beginProjectContinuity(projectId);
-      navigate(buildPath('project', {
+      navigate(withCataloguePageTarget(buildPath('project', {
         profileId,
         categoryId,
         projectId
-      }), {
+      }), projectId), {
         replace,
         viewTransition
       });

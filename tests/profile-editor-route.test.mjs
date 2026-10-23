@@ -11,6 +11,7 @@ function load(path, imports, globals = {}) {
   const exports = {};
   const code = ts.transpileModule(read(path), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   vm.runInNewContext(code, { exports, URLSearchParams, ...globals, require: name => {
+    if (!(name in imports) && name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href };
     assert.ok(Object.hasOwn(imports, name), `Unexpected import ${name}`);
     return imports[name];
   } });

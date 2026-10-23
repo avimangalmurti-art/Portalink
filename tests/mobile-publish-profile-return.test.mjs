@@ -13,6 +13,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 function load(path, imports, globals = {}) {
   const exports = {};
   vm.runInNewContext(compile(read(path)), { exports, URLSearchParams, ...globals, require(name) {
+    if (!(name in imports) && name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href };
     assert.ok(Object.hasOwn(imports, name), `Unexpected import ${name}`);
     return imports[name];
   } });

@@ -7,6 +7,7 @@ import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
 import { WebGalleryControls } from '../../presentation/web/WebGalleryControls';
 import { usePresentation } from '../../presentation/usePresentation';
+import { ProjectPageBrowsingProvider } from '../profile/ProjectPageBrowsingContext';
 
 /**
  * The packing layer for the discovery feed.
@@ -99,6 +100,7 @@ export function BentoFeedGrid({
     rows: Math.ceil((measurements[item.key].height + GAP) / ROW_UNIT),
   })), columns) : null;
   return <div ref={view.ref} className="relative w-full">
+      <ProjectPageBrowsingProvider columns={columns} surfaceRef={view.ref}>
       {isWeb && items.length > 0 && <WebGalleryControls columns={columns} onChange={view.chooseColumns} />}
       <ZoomReadout view={view} />
       <div ref={ref} data-project-grid-columns={columns} style={{
@@ -125,6 +127,7 @@ export function BentoFeedGrid({
           {item.content}
         </BentoCell>)}
       </div>
+      </ProjectPageBrowsingProvider>
     </div>;
 }
 function BentoCell({

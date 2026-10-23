@@ -26,7 +26,7 @@ function deepLinkedImageId(pages: ProjectAttachment[]): string | null {
  * loads eagerly: native lazy loading cannot start a display:none image whose
  * visibility waits for its load event. Only the first row gets high priority.
  */
-function ImagePage({
+export function ImagePage({
   projectId,
   attachment,
   pageNumber,
@@ -37,10 +37,11 @@ function ImagePage({
   zoom = 1,
   showMediaInteractions = true,
   isOwner = false,
+  inlinePreview = false,
   focusMemoryKey,
   onToggleFocus
 
-}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;isMobile?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;focusMemoryKey?: string;onToggleFocus: (attachmentId: string) => void;}) {
+}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;isMobile?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;inlinePreview?: boolean;focusMemoryKey?: string;onToggleFocus: (attachmentId: string) => void;}) {
   const hostRef = useRef<HTMLLIElement>(null);
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
@@ -112,7 +113,7 @@ function ImagePage({
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
-  return <li ref={hostRef} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={isFocused ? undefined : (event) => {
+  return <li ref={hostRef} data-inline-page-image={inlinePreview || undefined} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused && !inlinePreview ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={inlinePreview ? attachment.displayName : `${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={isFocused ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
@@ -146,7 +147,7 @@ function ImagePage({
           <span className="premium-media-loading-mark" aria-hidden="true" />
         </div>}
       {status === 'error' ? <div onPointerUp={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} style={loadingStyle} data-page-loading="" className="flex min-h-[240px] w-full items-center justify-center p-5">
-          <ErrorState title="This image could not be displayed" description="Check your connection, then try loading this image again." onRetry={() => {
+          <ErrorState title="This image could not be displayed" description="Check your connection, then try loading this image again." onRetry={inlinePreview ? undefined : () => {
         cancelRecovery();
         retry();
       }} />

@@ -5,6 +5,7 @@ import { ZoomReadout } from '../ui/ZoomReadout';
 import { usePresentation } from '../../presentation/usePresentation';
 import { WebGalleryControls } from '../../presentation/web/WebGalleryControls';
 import { ImageWallRows, WALL_GAP as GAP, type WallItem, type ReorderMode, type WallRow as Row } from './ImageWallLayout';
+import { ProjectPageBrowsingProvider } from './ProjectPageBrowsingContext';
 export type { WallItem } from './ImageWallLayout';
 
 const ReorderableImageWall = React.lazy(() => import('./ReorderableImageWall').then(module => ({ default: module.ReorderableImageWall })));
@@ -114,6 +115,7 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   const rowProps = { rows, items, itemIndexByKey, reorderMode };
   const canReorder = Boolean(reorderMode?.enabled || reorderMode?.onStart);
   return <div ref={view.ref} className="relative w-full">
+    <ProjectPageBrowsingProvider columns={effectiveColumns} reordering={reorderMode?.enabled} surfaceRef={view.ref}>
     {allowLayoutControls && showDensityControl && !isMobile && items.length > 0 && !reorderMode?.enabled && <WebGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
     {allowLayoutControls && <ZoomReadout view={view} />}
     {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">{isMobile ? 'Swipe to scroll. Hold a project briefly, then drag to move it. Hold near the top or bottom edge to scroll while dragging. ' : ''}Drag a project card toward the space where it belongs and the nearby cards will make room. For keyboard reordering, press Space, use the arrow keys, and press Space again; Alt plus an arrow also moves one position.</p> : null}
@@ -122,5 +124,6 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
         <ReorderableImageWall {...rowProps} />
       </React.Suspense> : <ImageWallRows {...rowProps} />}
     </div>
+    </ProjectPageBrowsingProvider>
   </div>;
 }

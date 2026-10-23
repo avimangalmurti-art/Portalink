@@ -6,12 +6,13 @@ function harness({ enabled = true, active = true, reduced = false, history = 1 }
   const handlers = new Map(), values = new Map(), animations = [], documentRoot = { dataset: {} };
   let returns = 0, cleanup, modal = false, preparations = 0, restorations = 0, running;
   class Target {
-    constructor({ header = false, control = false, handle = false, scroll = 0 } = {}) {
-      Object.assign(this, { header, control, handle, scrollTop: scroll, parentElement: null });
+    constructor({ header = false, control = false, handle = false, inline = false, scroll = 0 } = {}) {
+      Object.assign(this, { header, control, handle, inline, scrollTop: scroll, parentElement: null });
     }
     closest(selector) {
       if (selector === '.profile-header-region') return this.header ? this : null;
       if (selector === '.profile-return-handle') return this.handle ? this : null;
+      if (selector === '[data-inline-project-pages]') return this.inline ? this : null;
       return this.control ? this : null;
     }
   }
@@ -87,6 +88,12 @@ test('horizontal and upward fresh pulls preserve scrolling; short pulls settle w
   for (const [x, y] of [[50, 90], [0, -20]]) { const h = harness(); h.swipe({}, x, y); assert.equal(h.animations.length, 0); h.cleanup(); }
   const h = harness(); h.swipe({}, 0, 30); assert.equal(h.animations[0].options.duration, 180);
   h.animations[0].finish(); await flush(); assert.equal(h.returns, 0); assert.equal(h.restorations, 1); h.cleanup();
+});
+
+test('vertical gestures over inline project media never borrow the profile Back gesture', () => {
+  const h = harness();
+  assert.equal(h.swipe({ inline: true }), false);
+  assert.equal(h.animations.length, 0); assert.equal(h.returns, 0); h.cleanup();
 });
 
 test('a new touch catches snap-back at its displayed position and keeps the same stage', async () => {

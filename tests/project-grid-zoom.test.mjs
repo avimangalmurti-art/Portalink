@@ -177,10 +177,13 @@ test('Home uses one project per track at every density on both presentations, pr
       if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
       if (name.endsWith('/WebGalleryControls')) return { WebGalleryControls: 'WebGalleryControls' };
       if (name.endsWith('/ZoomReadout')) return { ZoomReadout: 'ZoomReadout' };
+      if (name.endsWith('/ProjectPageBrowsingContext')) return { ProjectPageBrowsingProvider: 'page-browsing' };
       return {};
     });
     const outer = BentoFeedGrid({ items });
-    const grid = React.Children.toArray(outer.props.children).find(node => node.props['data-project-grid-columns']);
+    const provider = React.Children.toArray(outer.props.children).find(node => node.type === 'page-browsing');
+    assert.equal(provider.props.columns, columns);
+    const grid = React.Children.toArray(provider.props.children).find(node => node.props['data-project-grid-columns']);
     assert.equal(grid.props['data-project-grid-columns'], columns);
     assert.equal(grid.props.style.gridTemplateColumns, `repeat(${columns}, minmax(0, 1fr))`);
     const cells = React.Children.toArray(grid.props.children);

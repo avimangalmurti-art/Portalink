@@ -44,6 +44,7 @@ function wallHarness(presentation, reorderMode, { width = 390, columns = 3, sele
       if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ width, ref: 'measured-list' }) };
       if (name.endsWith('/useContentZoom')) return { useContentZoom: (base, enabled, resetKey, callback) => { zoomEnabled = enabled; assert.equal(callback, onColumnsChange); return { columns: selectedColumns ?? density.normalizeProjectGridColumns(base), ref: 'pinch-root' }; } };
       if (name === './ImageWallLayout') return load('ImageWallLayout');
+      if (name === './ProjectPageBrowsingContext') return { ProjectPageBrowsingProvider: 'page-browsing' };
       return placeholder;
     } });
     return exports;

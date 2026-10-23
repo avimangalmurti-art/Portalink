@@ -201,6 +201,7 @@ function appHarness({ firstVisit = false } = {}) {
     throw new Error(name);
   }, browser);
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
+    if (name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href, captureCatalogueReaderOrigin: () => null, restoreCatalogueReaderOrigin: () => () => {} };
     if (name === './useMobileProjectReturn') return projectReturn;
     if (name === '../app/screenModules') return { loadVisitorProjectPage: () => Promise.resolve({ default: 'VisitorProjectPage' }) };
     if(name.endsWith('/StateViews'))return {LoadingSkeleton:'loading'};
@@ -531,6 +532,11 @@ test('a retained inactive catalogue hides from interaction and propagates inacti
 test('retained project cards discard body popup state while inactive and ordinary cards remain active by default', () => {
   const h = hooks(), state = { active: undefined }, project = profile.projects[0];
   const { ProjectPreviewCard } = load('components/profile/ProjectPreviewCard.tsx', name => {
+    if (name.endsWith('/ProjectPageBrowsingContext')) return { useInlineProjectPages: () => false };
+    if (name.endsWith('/cataloguePagePosition')) return { getCataloguePagePosition: () => undefined, rememberCataloguePagePosition() {} };
+    if (name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href };
+    if (name.endsWith('/useInlineProjectContent')) return { useInlineProjectContent: ({ project }) => ({ project, metadataComplete: false, loading: false, error: null, retry() {} }) };
+    if (name.endsWith('/inlineProjectPageModel')) return { normalizeInlineProjectPosition: (_project, position) => position, inlinePositionMatches: () => true };
     if (name === 'react') return h.react;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => 'mobile' };
     if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };

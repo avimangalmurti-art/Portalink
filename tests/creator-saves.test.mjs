@@ -13,6 +13,7 @@ function load(path, imports) {
   const code = ts.transpileModule(read(path), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
   vm.runInNewContext(code, { exports, require: (id) => {
+    if (!(id in imports) && id.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href };
     if (!(id in imports) && id.endsWith('/MobileContextActions')) return {useMobileScreenActions(){}};
     if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
     if (!(id in imports)) throw new Error(`Missing test import ${id}`);
@@ -104,7 +105,7 @@ test('footer utilities have real routes and selected states in both sidebar size
   const component = source.slice(start, end).replace('function PersonalFooterLinks', 'export function PersonalFooterLinks');
   const code = ts.transpileModule(component, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, React, BellIcon: icons.BellIcon, BarChart3Icon: icons.BarChart3Icon, buildPath: routes.buildPath,
+  vm.runInNewContext(code, { exports, React, BellIcon: icons.BellIcon, ChartNoAxesColumnIcon: icons.ChartNoAxesColumnIcon, buildPath: routes.buildPath,
     Link: ({ to, ...props }) => React.createElement('a', { ...props, href: to }), InterfaceIcon: () => React.createElement('svg') });
   for (const collapsed of [true, false]) {
     const html = renderToStaticMarkup(React.createElement(exports.PersonalFooterLinks, { collapsed, activityActive: false, insightsActive: true }));

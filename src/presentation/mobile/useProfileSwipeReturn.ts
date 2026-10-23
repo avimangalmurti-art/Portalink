@@ -22,7 +22,7 @@ export function useProfileSwipeReturn(ref: RefObject<HTMLElement>, enabled: bool
       if (returned || (window.history.state?.idx ?? 0) === 0 && !document.querySelector('[data-mobile-screen-underlay]')) return;
       if (event.touches.length !== 1 || document.querySelector('[aria-modal="true"]')) return;
       const target = event.target instanceof Element ? event.target : null;
-      if (!target || (target.closest('button,a,input,textarea,select,[contenteditable="true"]') && !target.closest('.profile-return-handle'))) return;
+      if (!target || target.closest('[data-inline-project-pages]') || (target.closest('button,a,input,textarea,select,[contenteditable="true"]') && !target.closest('.profile-return-handle'))) return;
       const inHeader = Boolean(target.closest('.profile-header-region')); 
       for (let node: Element | null = target; node; node = node.parentElement) {
         if (!inHeader && node.scrollTop > 1) return;

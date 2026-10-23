@@ -55,14 +55,20 @@ function fixture({ presentation = 'mobile', project: nextProject = {}, ...props 
   const preview = sourceModule('src/hooks/useContentPreview.ts', { react }, { document: { addEventListener() {}, removeEventListener() {} } });
   const { ProjectPreviewCard } = sourceModule('src/components/profile/ProjectPreviewCard.tsx', {
     react, 'react-router-dom': { Link: 'router-link' }, 'lucide-react': { MoreHorizontalIcon: 'dots' },
+    './ProjectPageBrowsingContext': { useInlineProjectPages: () => false },
+    '../../features/profile/cataloguePagePosition': { getCataloguePagePosition: () => undefined, rememberCataloguePagePosition() {} },
+    '../../features/profile/cataloguePageNavigation': { withCataloguePageTarget: href => href },
+    '../../features/profile/useInlineProjectContent': { useInlineProjectContent: ({ project }) => ({ project, metadataComplete: false }) },
+    './inlineProjectPageModel': { normalizeInlineProjectPosition: (_, position) => position, inlinePositionMatches: (left, right) => left === right },
     '../media/MobileProjectPopup': { MobileProjectPopup: 'project-popup' },
     '../../presentation/mobile/useMobileProjectContext': { useMobileProjectContext: () => ({}) },
     '../../presentation/usePresentation': { usePresentation: () => presentation },
     '../../hooks/useContentPreview': preview,
     '../../utils/projectPresentation': { getProjectAspectRatio: () => 0.75, getProjectCoverPreview: () => undefined },
-    '../../utils/projectContinuity': { projectContinuityStyle: () => ({}) },
+    '../../utils/projectContinuity': { projectContinuityStyle: () => ({}), getProjectContinuityArtwork: () => undefined, beginProjectContinuity() {} },
     '../media/ProjectCover': { ProjectCover: 'project-cover' }, './ProjectHoverDetails': { ProjectHoverDetails: 'hover-details' },
     '../ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' }, '../media/warmDocumentRenderer': { warmProjectDocumentRenderer: warm.warm },
+    './project-preview-actions.css': {},
   });
   function render(changes = {}) {
     options = { ...options, ...changes }; dirty = true;
