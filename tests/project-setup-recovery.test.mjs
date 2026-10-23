@@ -144,7 +144,8 @@ test('a fresh setup is saved as fields change and restores on same-device reopen
   assert.equal(all.find(node => node.type === 'textarea').props.value, setup.summary);
   assert.equal(all.find(node => node.props['aria-label'] === 'Portal').props.value, 'new');
   assert.equal(all.find(node => node.props['aria-label'] === 'New portal name').props.value, setup.name);
-  assert.ok(all.some(node => node.type === 'button' && node.props.children === 'Start fresh'));
+  assert.equal(all.some(node => node.type === 'button' && node.props.children === 'Start fresh'), false);
+  assert.equal(all.some(node => ['project-setup-recovered', 'project-setup-save-status', 'project-setup-hint'].includes(node.props.className)), false);
   assert.equal(reopened.calls.length, 0);
 });
 
@@ -168,17 +169,18 @@ test('new Portal icon and exact authored details survive close and reopen on bot
   }
 });
 
-test('an icon-only choice is saved and Start fresh restores the default without creating a Portal', () => {
+test('an icon-only choice is saved and restores without creating a Portal or exposing a reset action', () => {
   for (const presentation of ['mobile', 'web']) {
     const storage = storageFixture(), first = harness(storage, { categories: [], presentation });
     first.render(); assert.equal(storage.entries.size, 0);
     first.chooseIcon('camera');
     assert.equal(JSON.stringify(storage.api.readSetupDraft('account', 'profile')), JSON.stringify({ title: '', summary: '', portal: 'new', name: '', iconName: 'camera' }));
     const reopened = harness(storage, { categories: [], presentation });
-    reopened.render(); reopened.click('Start fresh'); reopened.render();
-    assert.equal(storage.api.readSetupDraft('account', 'profile'), null);
+    const all = reopened.render();
+    assert.equal(all.some(node => node.type === 'button' && node.props.children === 'Start fresh'), false);
     reopened.click('Choose Portal icon');
-    assert.equal(reopened.render().find(node => node.type === 'portal-icon-library').props.selected, 'shapes');
+    assert.equal(reopened.render().find(node => node.type === 'portal-icon-library').props.selected, 'camera');
+    assert.equal(storage.api.readSetupDraft('account', 'profile').iconName, 'camera');
     assert.equal(reopened.calls.length, 0);
   }
 });
@@ -214,18 +216,17 @@ test('clearing authored text also saves the cleared values rather than resurrect
   assert.equal(harness(storage).render().find(node => node.props.name === 'title').props.value, '');
 });
 
-test('save failure keeps close open and fresh-action failure preserves restored fields', () => {
+test('save failure keeps close open and restored fields available until storage recovers', () => {
   const storage = storageFixture(); storage.api.saveSetupDraft('account', 'profile', setup);
   const h = harness(storage); h.render(); storage.failWrite(true);
   h.change('title', 'Edited title'); h.click('Cancel new idea');
   assert.equal(h.calls.length, 0);
   assert.ok(h.render().some(node => node.props.role === 'alert' && /could not be saved/.test(node.props.children)));
-  storage.failRemove(true); h.click('Start fresh');
   assert.equal(h.render().find(node => node.props.name === 'title').props.value, 'Edited title');
   assert.equal(storage.api.readSetupDraft('account', 'profile').title, setup.title);
-  storage.failWrite(false); storage.failRemove(false); h.click('Start fresh');
-  assert.equal(h.render().find(node => node.props.name === 'title').props.value, '');
-  assert.equal(storage.api.readSetupDraft('account', 'profile'), null);
+  storage.failWrite(false); h.click('Cancel new idea');
+  assert.deepEqual(h.calls, [['close']]);
+  assert.equal(storage.api.readSetupDraft('account', 'profile').title, 'Edited title');
 });
 
 test('existing draft and committed-project actions delegate only after an explicit tap', () => {

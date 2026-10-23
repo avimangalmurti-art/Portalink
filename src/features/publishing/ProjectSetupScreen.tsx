@@ -12,7 +12,7 @@ import { validateTitle, TITLE_MAX_LENGTH } from './validation';
 import { validateCategoryLabel, MAX_CATEGORY_LABEL } from '../profile/useCategoryManagement';
 import type { PortfolioCategory } from '../../types/domain';
 import type { DraftMetadata, ProjectDraft, PublishResult } from '../../types/publishing';
-import { clearSetupDraft, readSetupDraft, saveSetupDraft, type SetupDraft } from './setupDraft';
+import { readSetupDraft, saveSetupDraft, type SetupDraft } from './setupDraft';
 import './projectSetup.css';
 export type ProjectSetup = { categoryId: string; categoryLabel: string; title: string; summary: string };
 const DEFAULT_PORTAL_ICON='shapes';
@@ -36,21 +36,16 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
  const [choosingIcon,setChoosingIcon]=useState(false);
  const iconButton=useRef<HTMLButtonElement>(null),wasChoosingIcon=useRef(false);
  const PortalIcon=getCategoryIcon(iconName);
- const [storageError,setStorageError]=useState(initial.current.error),[recovered,setRecovered]=useState(Boolean(initial.current.value)),[saved,setSaved]=useState(Boolean(initial.current.value));
+ const [storageError,setStorageError]=useState(initial.current.error);
  const lastSaved=useRef(initial.current.value?JSON.stringify(initial.current.value):'');
  const setup={title,summary,portal,name,iconName};
- const hasDetails=Boolean(title||summary||name||iconName!==DEFAULT_PORTAL_ICON||portal!==initial.current.defaultPortal||recovered||lastSaved.current);
+ const hasDetails=Boolean(title||summary||name||iconName!==DEFAULT_PORTAL_ICON||portal!==initial.current.defaultPortal||lastSaved.current);
  function saveSetup(value:SetupDraft=setup){
   if(!accountId||!profileId||!hasDetails)return true;
-  try{const signature=JSON.stringify(value);if(signature!==lastSaved.current){saveSetupDraft(accountId,profileId,value);lastSaved.current=signature;}setStorageError('');setSaved(true);return true;}
-  catch(caught){setSaved(false);setStorageError(caught instanceof Error?caught.message:'Idea details could not be saved on this device. Keep this screen open.');return false;}
+  try{const signature=JSON.stringify(value);if(signature!==lastSaved.current){saveSetupDraft(accountId,profileId,value);lastSaved.current=signature;}setStorageError('');return true;}
+  catch(caught){setStorageError(caught instanceof Error?caught.message:'Idea details could not be saved on this device. Keep this screen open.');return false;}
  }
  function requestClose(){if(saveSetup())onClose();}
- function startFresh(){
-  if(!accountId||!profileId)return;
-  try{clearSetupDraft(accountId,profileId);setTitle('');setSummary('');setName('');setIconName(DEFAULT_PORTAL_ICON);setPortal(initial.current?.defaultPortal??defaultPortal);setRecovered(false);setSaved(false);lastSaved.current='';setStorageError('');setError('');}
-  catch(caught){setStorageError(caught instanceof Error?caught.message:'Saved idea details could not be cleared. Your details are still here.');}
- }
  const viewport=useDialogViewport(),panel=useRef<HTMLElement>(null),flight=useRef(false),active=useRef(true);
  useAuthoringFocus(viewport);
  useEffect(()=>{active.current=true;return()=>{active.current=false;};},[]);
@@ -87,8 +82,7 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
    <p className="project-setup-intro">Add to your catalogue.</p>
    {recoveryDraft&&onResumeDraft&&<div className="project-setup-recovery"><span>{recoveryDraft.metadata.title||'Your idea'}</span><button type="button" disabled={busy} onClick={()=>{if(saveSetup())onResumeDraft(recoveryDraft.draft);}}>{recoveryDraft.committed?'Finish published idea':'Continue draft'}</button></div>}
    {recoveryError&&<p role="alert">{ideaMessage(recoveryError)}</p>}
-   {recovered&&<div className="project-setup-recovered"><span>Idea details restored.</span><button type="button" disabled={busy} onClick={startFresh}>Start fresh</button></div>}
-   <div className="project-setup-group"><label className="project-setup-identity"><span>Idea title</span><input autoFocus name="title" data-ui-shape="field" value={title} onChange={e=>setTitle(e.target.value)} maxLength={TITLE_MAX_LENGTH} placeholder="Give your idea a name" disabled={busy} required/></label>
+   <div className="project-setup-group"><label className="project-setup-identity"><span>Title</span><input autoFocus name="title" data-ui-shape="field" value={title} onChange={e=>setTitle(e.target.value)} maxLength={TITLE_MAX_LENGTH} placeholder="Enter a title" disabled={busy} required/></label>
     {(availableCategories.length>0||portal!=='new')&&<div className="project-setup-portal-choice"><label className="project-setup-row"><span>Portal</span><select aria-label="Portal" data-ui-shape="field" value={portal} onChange={e=>setPortal(e.target.value)} disabled={busy}>{portal!=='new'&&!selectedPortal&&<option value={portal} disabled>Portal unavailable — choose another</option>}{availableCategories.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}<option value="new">Create a Portal</option></select></label>
      {portal!=='new'&&<button type="button" className="project-setup-add-portal" aria-label="Create a Portal" disabled={busy} onClick={()=>setPortal('new')}><PlusIcon size={18} aria-hidden="true"/></button>}
     </div>}
@@ -96,9 +90,9 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
     <label className="project-setup-description"><span>Note <span className="project-setup-optional">(optional)</span></span><textarea data-ui-shape="composer" value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Capture a thought…" rows={2} disabled={busy}/></label>
    </div>
    {error&&<p role="alert">{ideaMessage(error)}</p>}
-   {storageError?<p role="alert">{ideaMessage(storageError)}</p>:saved&&lastSaved.current===JSON.stringify(setup)&&<p className="project-setup-save-status" role="status">Saved on this device.</p>}
+   {storageError&&<p role="alert">{ideaMessage(storageError)}</p>}
   </form>
   {choosingIcon&&<div className="project-setup-icon-picker" data-portal-icon-scroll=""><p className="project-setup-icon-portal">{name.trim()||'Your Portal'}</p><PortalIconLibrary compact selected={iconName} disabled={busy} onSelect={selected=>{if(!busy){setIconName(selected);setChoosingIcon(false);}}}/></div>}
-  <footer hidden={choosingIcon}><p className="project-setup-hint">You can add files next.</p><button type="submit" form="project-setup-form" className="project-setup-continue" disabled={busy}>{busy?'Preparing…':'Continue'}</button></footer>
+  <footer hidden={choosingIcon}><button type="submit" form="project-setup-form" className="project-setup-continue" disabled={busy}>{busy?'Preparing…':'Continue'}</button></footer>
  </section></div></ModalPortal>;
 }

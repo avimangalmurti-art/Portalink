@@ -225,6 +225,17 @@
   border-radius:28px 28px 0 0!important;
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
+/* Keep the complete illustration and form together. Let the artwork use the
+   remaining space before the form needs to scroll in a short/keyboard viewport. */
+.project-setup-screen[data-presentation='mobile'] .project-setup-page form:not([hidden]) {
+  display:flex;
+  flex-direction:column;
+}
+.project-setup-screen[data-presentation='mobile'] .project-setup-page form>* { flex-shrink:0; }
+.project-setup-screen[data-presentation='mobile'] .project-setup-page .project-setup-art {
+  flex-shrink:1;
+  min-height:96px;
+}
 @media (hover:hover) {
   .project-setup-page>header button:not(:disabled):hover,.project-setup-add-portal:not(:disabled):hover { background:var(--surface-hover,var(--surface-sunken)); }
   .project-setup-continue:not(:disabled):hover { background:var(--accent-hover,var(--accent-primary)); }
