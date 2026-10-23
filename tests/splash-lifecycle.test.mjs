@@ -85,6 +85,7 @@ function compile(path, imports, globals) {
       '../features/install/useMobileInstall': { useMobileInstallCapture() {} },
       '../presentation/mobile/useMobileResumeSession': { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) },
       '../presentation/mobile/MobileResumeContext': { MobileResumeProvider: 'resume-provider' },
+      '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
       ...imports,
     };
     globals = { Event: class { constructor(type) { this.type = type; } }, document: { getElementById: () => null }, ...globals,
@@ -644,7 +645,9 @@ test('preboot matches the supplied clip ratio and canvas on MOBILE and WEB', () 
 
 test('ready content loads beneath the bounded intro; navigation and auth retries never replay it', () => {
   for (const first of ['auth', 'media']) {
-  const h = hooks(), auth = { isInitializing: true, isAuthenticated: false }, location = { pathname: '/' };
+  // Known WEB accounts retain this media/readiness flow. First guest entry on
+  // both platforms is covered separately by the catalog welcome gate tests.
+  const h = hooks(), auth = { isInitializing: true, isAuthenticated: true }, location = { pathname: '/' };
   const storage = new Map(), warmed = [];
   const { ApplicationBootstrap } = compile('../src/app/ApplicationBootstrap.tsx', {
     react: h.react, 'framer-motion': { AnimatePresence: 'presence' },
@@ -791,7 +794,7 @@ test('invites open root welcome without a previous shared-profile redirect or ac
   assert.equal(reopened.render().props.landing.ready,true,'opening a new invitation shows welcome again');
 });
 
-test('ordinary and explicit MOBILE welcome keep their splash host when the intro ends before guest restoration', () => {
+test('MOBILE guest readiness hands off once to the account-entry host, then retains it through auth and guest choices', () => {
   for(const entry of [{search:''},{search:'?welcome=1'},{search:'?entry=oauth',hash:'#error=access_denied'}]) {
     const h=sharedBootstrap({path:'/',homeReady:false,...entry});
     const initial=h.render();assert.equal(initial.type,'splash');assert.equal(initial.key,'portalink-splash');
@@ -804,13 +807,13 @@ test('ordinary and explicit MOBILE welcome keep their splash host when the intro
       assert.equal(h.app,null);assert.equal(h.homeTimerCount,0);
     }
     h.auth.isInitializing=false;
-    const welcome=h.render();assert.equal(welcome.type,initial.type);assert.equal(welcome.key,initial.key);
+    const welcome=h.render();assert.equal(welcome.type,initial.type);assert.equal(welcome.key,'portalink-account-entry');
     assert.equal(welcome.props.landing.ready,true);assert.equal(h.app.type,'app');assert.equal(h.waiting,false);
     welcome.props.landing.onSignIn();
     assert.deepEqual(h.requested.at(-1),{view:'signIn'});
-    const account=h.render();assert.equal(account.key,initial.key);assert.equal(account.props.hidden,true);
+    const account=h.render();assert.equal(account.key,welcome.key);assert.equal(account.props.hidden,true);
     h.auth.pendingView=null;
-    const returned=h.render();assert.equal(returned.key,initial.key);assert.equal(returned.props.hidden,false);
+    const returned=h.render();assert.equal(returned.key,welcome.key);assert.equal(returned.props.hidden,false);
     returned.props.landing.onContinue();assert.equal(h.render(),null);assert.equal(h.app.type,'app');
     assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
   }
@@ -880,7 +883,7 @@ test('ordinary MOBILE guests see Hello World before choosing guest Home without 
     assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
     if(first==='media') splash.props.onComplete(); else h.auth.isInitializing=false;
     splash=h.render();
-    assert.equal(splash.type,initial.type);assert.equal(splash.key,initial.key);
+    assert.equal(splash.type,initial.type);assert.equal(splash.key,first==='media'?initial.key:'portalink-account-entry');
     assert.equal(splash.props.onComplete,initial.props.onComplete);
     if(first==='media') {
       assert.equal(splash.props.landing,undefined);assert.equal(h.app,null);assert.equal(h.waiting,false);
@@ -889,7 +892,7 @@ test('ordinary MOBILE guests see Hello World before choosing guest Home without 
       assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,true,'the intro alone defers speculative screen warming');
     }
     if(first==='media') h.auth.isInitializing=false; else splash.props.onComplete();
-    splash=h.render();assert.equal(splash.key,initial.key);assert.equal(splash.props.landing.ready,true);
+    splash=h.render();assert.equal(splash.key,'portalink-account-entry');assert.equal(splash.props.landing.ready,true);
     assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,false);assert.equal(h.waiting,false);assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
     assert.equal(h.requested.length,0,'Hello World precedes any requested signup or sign-in form');
     splash.props.landing.onContinue();assert.equal(h.render(),null);h.render();assert.equal(h.render(),null);
@@ -901,8 +904,8 @@ test('ordinary MOBILE guests see Hello World before choosing guest Home without 
   }
 });
 
-test('authenticated visitors, recovery, WEB and callback URLs never hold the landing', () => {
-  for(const options of [{authenticated:true},{recovery:true},{presentation:'web'},{search:'?auth=signIn'},{search:'?code=private'},{hash:'#type=recovery'},{path:'/messages'}]) {
+test('authenticated visitors, recovery and callback URLs never hold the landing', () => {
+  for(const options of [{authenticated:true},{recovery:true},{search:'?auth=signIn'},{search:'?code=private'},{hash:'#type=recovery'},{path:'/messages'}]) {
     const h=sharedBootstrap({path:'/',search:'',...options}); let splash=h.render(); assert.equal(splash.props.landing,undefined);
     splash.props.onComplete(); h.auth.isInitializing=false; h.render(); h.render(); assert.equal(h.render(),null);
     h.auth.isAuthenticated=false; h.auth.pendingView=null; assert.equal(h.render(),null);

@@ -33,6 +33,7 @@ function bootstrap(presentation, authenticated = true) {
     react, 'framer-motion': { AnimatePresence: 'presence' },
     'react-router-dom': { Navigate: 'navigate', matchPath: () => null, useLocation: () => ({ pathname: '/', search: authenticated ? '' : '?welcome=1', hash: '' }) },
     '../App': { App: 'app' }, '../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'splash' },
+    '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
     '../components/ui/StateViews': { ErrorState: 'error', LoadingState: 'loading' },
     '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes: { sharedCollaboration: {}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {}, controlCenter: { path: '/settings' } }, buildPath: () => '/share' },

@@ -16,6 +16,8 @@ function execute(code, imports = {}, globals = {}) {
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
     if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
+    if (name.endsWith('/CatalogWelcome') && !(name in imports)) return { CatalogWelcome: 'catalog-welcome' };
+    if (name.endsWith('/catalogWelcomeState') && !(name in imports)) return { hasEnteredCatalogWelcome: () => true, canOfferCatalogWelcome: () => false };
 
       if(name==='../../utils/profileHandle')return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
       if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>defaultProfileServices};

@@ -4,6 +4,8 @@ import { AnimatePresence } from 'framer-motion';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { App } from '../App';
 import { PortalinkSplashLoader } from '../components/ui/PortalinkSplashLoader';
+import { CatalogWelcome } from '../components/auth/CatalogWelcome';
+import { hasEnteredCatalogWelcome } from '../components/auth/catalogWelcomeState';
 import { ErrorState, LoadingState } from '../components/ui/StateViews';
 import { useAuth } from '../contexts/AuthContext';
 import { buildPath, routes } from './routes';
@@ -40,9 +42,9 @@ function readSharedViewerProfileId(): string | null {
 }
 
 /**
- * Restore the session alongside the opening clip. Returning MOBILE accounts
- * enter as soon as authentication is ready; guests retain Hello World and WEB
- * retains its ready-layout/artwork Home handoff.
+ * Restore the session alongside startup. Returning MOBILE accounts enter as
+ * soon as authentication is ready; guests see the text welcome before the
+ * existing account choices. Signed-in WEB retains its ready Home handoff.
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
@@ -68,16 +70,17 @@ export function ApplicationBootstrap() {
   const resumeBlocked = isAuthCallback || isRecovery || isWelcomeInvite || Boolean(auth.pendingView) || auth.isSessionUnavailable || auth.phase === 'authenticating' || auth.phase === 'signing-out';
   const resume = useMobileResumeSession({ mobile: presentation === 'mobile', accountId: auth.isAuthenticated ? auth.user?.id ?? null : null,
     authReady: !auth.isInitializing && !auth.isSessionUnavailable, pathname, search, hash, locationKey, blocked: resumeBlocked });
-  // Mobile guests choose how to enter from Hello World. A prior public-view
+  // Guests choose how to enter after the welcome. A prior public-view
   // context keeps its destination unless this is an explicit invitation.
-  const [landingPath] = useState(() => (isWelcomeInvite || (openingPresentation === 'mobile' && !readSharedViewerProfileId()))
+  const [landingPath] = useState(() => (isWelcomeInvite || !readSharedViewerProfileId())
     && !isAuthCallback && !isRecovery && pathname === '/' ? '/' : null);
   const [hasLeftLanding, setHasLeftLanding] = useState(false);
+  const [hasEnteredWelcome, setHasEnteredWelcome] = useState(hasEnteredCatalogWelcome);
   const [hasPresentedLanding, setHasPresentedLanding] = useState(false);
   const [hasStartupCompleted, setHasStartupCompleted] = useState(isSharedView);
   const [hasSplashCompleted, setHasSplashCompleted] = useState(false);
   const completeSplash = useCallback(() => setHasSplashCompleted(true), []);
-  // A restored account can enter immediately; first-visit welcome and WEB keep their existing intro.
+  // A restored mobile account can enter immediately; signed-in WEB keeps its intro.
   const returningMobileReady = openingPresentation === 'mobile' && auth.isAuthenticated && !auth.isInitializing && !resumeBlocked && !hasPresentedLanding;
   const startupCompleted = hasStartupCompleted || returningMobileReady;
   useEffect(() => {
@@ -93,7 +96,8 @@ export function ApplicationBootstrap() {
   const sessionSharedProfileId = isWelcomeInvite ? null : readSharedViewerProfileId();
   // A newly opened public URL is authoritative, even after visiting another creator.
   const lockedSharedProfileId = auth.isAuthenticated ? null : routeSharedProfileId ?? sessionSharedProfileId;
-  const holdLanding = Boolean(!isSharedView && landingPath && !hasLeftLanding && (presentation === 'mobile' || isWelcomeInvite) && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
+  const holdLanding = Boolean(!isSharedView && landingPath && !hasLeftLanding && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
+  const showCatalogWelcome = holdLanding && !hasEnteredWelcome && !hasEnteredCatalogWelcome() && !auth.pendingView && !isAuthCallback;
   const [homeAttempt, setHomeAttempt] = useState(0);
   const homeScope = useMemo(() => ({ session: auth.session, account: auth.user?.id ?? null, attempt: homeAttempt }), [auth.session, auth.user?.id, homeAttempt]);
   const currentHomeScope = useRef(homeScope);
@@ -143,8 +147,8 @@ export function ApplicationBootstrap() {
   }, [holdLanding]);
 
   useEffect(() => {
-    if (auth.isAuthenticated || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite)) setHasLeftLanding(true);
-  }, [auth.isAuthenticated, isRecovery, presentation, isWelcomeInvite]);
+    if (auth.isAuthenticated || isRecovery) setHasLeftLanding(true);
+  }, [auth.isAuthenticated, isRecovery]);
 
   useEffect(() => {
     // Ready screens load beneath the splash while its complete intro plays.
@@ -181,10 +185,10 @@ export function ApplicationBootstrap() {
         // splash fade on the compositor instead of competing with globe work.
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
-        {!isSharedView && (!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={startupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
+        {!isSharedView && (!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry ? <PortalinkSplashLoader key={holdLanding || hasPresentedLanding ? 'portalink-account-entry' : 'portalink-splash'} onComplete={completeSplash} stillOnly={startupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery}
           welcomeHandoff={hasPresentedLanding && !holdLanding}
-          hidden={Boolean(landingPath && ((!auth.isAuthenticated && auth.pendingView) || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite && hasPresentedLanding)))}
+          hidden={showCatalogWelcome || Boolean(landingPath && ((!auth.isAuthenticated && auth.pendingView) || isRecovery))}
           landing={holdLanding ? {
             ready: !auth.isInitializing,
             onCreateAccount: () => startAccount('signUp'),
@@ -196,5 +200,6 @@ export function ApplicationBootstrap() {
       </AnimatePresence>
       {(isSharedView || timedIntroEnded) && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><LoadingState label={isSharedView ? 'Opening shared content…' : 'Opening Portalink…'} /></div>}
       {showHomeRetry && <div data-home-startup-retry="" data-presentation={presentation} className="portalink-startup-wait fixed inset-0 z-[1000] grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><ErrorState title="Home could not finish loading" description="Check your connection and try again." onRetry={retryHome} /></div>}
+      {showCatalogWelcome && <CatalogWelcome onStart={() => setHasEnteredWelcome(true)} />}
     </>;
 }

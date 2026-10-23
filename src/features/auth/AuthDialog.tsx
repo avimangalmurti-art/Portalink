@@ -7,6 +7,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import type { AuthView } from '../../contexts/AuthContext';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { EntryChoices } from '../../components/auth/EntryChoices';
+import { CatalogWelcome } from '../../components/auth/CatalogWelcome';
+import { canOfferCatalogWelcome, hasEnteredCatalogWelcome } from '../../components/auth/catalogWelcomeState';
 import { AuthField } from '../../components/auth/AuthField';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
@@ -39,6 +41,7 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
   const isMobile = usePresentation() === 'mobile';
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [hasEnteredWelcome, setHasEnteredWelcome] = useState(hasEnteredCatalogWelcome);
   const [entryStage, setEntryStage] = useState<'welcome' | 'email'>('email');
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const leaveEntry = (action: () => void) => { if (busy) return; if (dirty) setPendingLeave(() => action); else action(); };
@@ -48,6 +51,10 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
   const mobileSignup = isMobile && auth.pendingView === 'signUp';
   const signIn = auth.pendingView === 'signIn';
   if (!auth.pendingView) return null;
+  if (!auth.isAuthenticated && !auth.session?.isPasswordRecovery && !hasEnteredWelcome
+    && canOfferCatalogWelcome(auth.pendingView, window.location.search, window.location.hash)) {
+    return <CatalogWelcome onStart={() => setHasEnteredWelcome(true)} onDismiss={auth.closeAuth} />;
+  }
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
   if (auth.pendingView === 'signUp') return <><PortalinkSplashLoader landing={{
     ready: !busy && !auth.isInitializing,
