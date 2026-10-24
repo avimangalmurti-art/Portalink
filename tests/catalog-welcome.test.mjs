@@ -125,6 +125,8 @@ test('the actual composition reserves its full text and exposes one complete acc
   assert.equal(h.map.props.tabIndex, undefined);
   assert.equal(h.map.props.onClick, undefined, 'The map must not introduce another entry or navigation action.');
   assert.equal(h.main.props['data-map-revealed'], false);
+  assert.equal(h.all().find(node => node.props.className === 'catalog-welcome-copy').props['aria-hidden'], undefined);
+  assert.equal(h.main.props['aria-labelledby'], 'catalog-welcome-title');
   for (const className of ['catalog-welcome-headline', 'catalog-welcome-support']) {
     const lines = h.lines(className);
     assert.ok(lines.every(line => nodes(line).filter(node => node.props.className === 'catalog-welcome-line-ink').length === 1));
@@ -174,6 +176,10 @@ test('skip, same-document reopening and reduced motion mark every line settled w
     assert.equal(h.main.props['data-instant'], true);
     assert.equal(h.main.props['data-complete'], true);
     assert.equal(h.main.props['data-map-revealed'], true);
+    assert.equal(h.all().find(node => node.props.className === 'catalog-welcome-copy').props['aria-hidden'], true);
+    assert.equal(h.main.props['aria-labelledby'], undefined);
+    assert.equal(h.main.props['aria-label'], 'Create catalogue');
+    assert.equal(textOf(h.button), 'Create catalogue');
     assert.equal(String(h.map.props['aria-hidden']), 'true');
     for (const className of ['catalog-welcome-headline', 'catalog-welcome-support']) {
       assert.equal(h.lines(className).length, 3);
@@ -231,6 +237,7 @@ test('the map reveal follows complete supporting text while the existing Start d
     assert.equal(h.main.props['data-map-revealed'], true);
     assert.equal(h.main.props['data-complete'], false);
     assert.equal(h.main.props['data-instant'], false);
+    assert.equal(h.all().find(node => node.props.className === 'catalog-welcome-copy').props['aria-hidden'], undefined, 'Intro text remains available while the map arrives.');
     assert.equal(String(h.map.props['aria-hidden']), 'true');
     assert.equal(h.button.props.disabled, true);
     assert.equal(h.button.props.tabIndex, -1);
@@ -242,6 +249,10 @@ test('the map reveal follows complete supporting text while the existing Start d
     h.advance(280); assert.equal(h.button.props.disabled, true);
     h.advance(40);
     assert.equal(h.main.props['data-map-revealed'], true);
+    assert.equal(h.all().find(node => node.props.className === 'catalog-welcome-copy').props['aria-hidden'], true);
+    assert.equal(h.main.props['aria-label'], 'Create catalogue');
+    assert.equal(h.main.props['aria-labelledby'], undefined);
+    assert.equal(textOf(h.button), 'Create catalogue');
     assert.equal(h.button.props.disabled, false);
     assert.equal(h.button.props.tabIndex, 0);
     assert.equal(h.action.props['aria-hidden'], undefined);

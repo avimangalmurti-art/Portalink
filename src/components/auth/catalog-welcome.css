@@ -85,6 +85,14 @@
   padding-block: clamp(64px, 10dvh, 104px) 16px;
 }
 
+.catalog-welcome[data-complete='true'] .catalog-welcome-layout {
+  grid-template-rows: 1fr;
+}
+
+.catalog-welcome[data-complete='true'] .catalog-welcome-copy {
+  display: none;
+}
+
 .catalog-welcome .catalog-welcome-headline {
   margin: 0;
   color: inherit;

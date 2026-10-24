@@ -85,7 +85,8 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
     onStart();
   };
 
-  const screen = <section ref={viewport} className="catalog-welcome" data-presentation={presentation} role="dialog" aria-modal="true" tabIndex={-1} aria-labelledby="catalog-welcome-title"
+  const screen = <section ref={viewport} className="catalog-welcome" data-presentation={presentation} role="dialog" aria-modal="true" tabIndex={-1}
+    aria-labelledby={progress.complete ? undefined : 'catalog-welcome-title'} aria-label={progress.complete ? 'Create catalogue' : undefined}
     data-complete={progress.complete} data-instant={instant} data-map-revealed={progress.textComplete}
     onPointerDownCapture={() => { skipGesture.current = !finished.current; }}
     onPointerCancelCapture={() => { skipGesture.current = false; }}
@@ -103,7 +104,7 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
     }}>
     <div className="catalog-welcome-map" aria-hidden="true" />
     <div className="catalog-welcome-layout">
-      <div className="catalog-welcome-copy">
+      <div className="catalog-welcome-copy" aria-hidden={progress.complete || undefined}>
         <h1 id="catalog-welcome-title" className="catalog-welcome-headline">
           <span className="catalog-welcome-accessible">{CATALOG_HEADLINE.join(' ')}</span>
           <TypedLines lines={CATALOG_HEADLINE} count={progress.headline} cursor={!progress.supporting && !progress.complete} />
@@ -115,7 +116,7 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
       </div>
       <div className="catalog-welcome-action" data-ready={progress.textComplete} aria-hidden={!progress.complete || undefined}>
         <button className="catalog-welcome-start" type="button" data-ui-shape="action" data-keep-color="" disabled={!progress.complete} tabIndex={progress.complete ? 0 : -1} onClick={start}>
-          <span className="catalog-welcome-start-label">Start your catalog</span>
+          <span className="catalog-welcome-start-label">Create catalogue</span>
         </button>
       </div>
     </div>
