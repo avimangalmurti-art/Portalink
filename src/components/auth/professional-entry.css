@@ -72,24 +72,34 @@
 .professional-entry-footer { border-top: 1px solid var(--entry-rule); padding-top: 8px; color: var(--entry-muted); }
 .professional-entry-footer button { font-size: .75rem; font-weight: 450; }
 @media (max-width: 639px) {
+  .professional-entry { --entry-bg: #f2f2f7; }
   .professional-entry-frame { padding-inline: max(24px, env(safe-area-inset-left, 0px)) max(24px, env(safe-area-inset-right, 0px)); }
   .professional-entry-main { grid-template-columns: 1fr; align-content: center; gap: 24px; padding: 24px 0; }
-  .professional-entry h1 { font-size: clamp(2.5rem, 11vw, 3.25rem); }
-  .professional-entry-description { max-width: 340px; margin: 20px 0 0; font-size: 1rem; line-height: 1.55; }
+  .professional-entry-copy { text-align: center; }
+  .professional-entry h1 { font-size: clamp(1.875rem, 8vw, 2.25rem); letter-spacing: -.035em; line-height: 1.1; }
+  .professional-entry-description { max-width: 18rem; margin: 16px auto 0; font-size: 1.125rem; line-height: 1.5; }
   .professional-entry button.professional-entry-create { max-width: none; }
-  .professional-entry-preview { padding: 0; border: 0; border-radius: 0; background: transparent; }
-  .professional-entry-grid { gap: 8px; }
-  .professional-entry-image { height: clamp(128px, 43vw, 180px); aspect-ratio: auto; }
-  .professional-entry-characters .professional-entry-image { border: 0; background: transparent; }
-  .professional-entry-characters .professional-entry-image img { object-fit: cover; }
+  .professional-entry-benefits { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
+  .professional-entry-benefits li { display: grid; grid-template-columns: 20px minmax(0, 1fr) 64px; align-items: center; gap: 16px; min-height: 64px; }
+  .professional-entry-benefit-check { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #30d158; color: #102314; }
+  .professional-entry-benefits li > span:nth-child(2) { font-size: 1.1875rem; font-weight: 600; line-height: 1.35; }
+  .professional-entry-benefits img { display: block; width: 64px; height: 64px; object-fit: contain; }
+  .professional-entry-footer { border-top: 0; }
 }
 @media (max-width: 639px) and (max-height: 620px) {
   .professional-entry-main { gap: 16px; padding-block: 16px; }
+  .professional-entry-description { margin-top: 12px; }
+  .professional-entry-benefits { gap: 8px; }
+  .professional-entry-benefits li { grid-template-columns: 20px minmax(0, 1fr) 52px; gap: 12px; min-height: 52px; }
+  .professional-entry-benefits img { width: 52px; height: 52px; }
 }
 /* The retained account-entry host sets a legacy mobile font; this scene owns its typography. */
 .portalink-splash[data-share-landing] .mobile-share-landing-actions .professional-entry .professional-entry-frame button { font-family: inherit !important; }
 @media (prefers-color-scheme: dark) {
   .professional-entry { --entry-bg: #111112; --entry-ink: #f3f3f1; --entry-muted: #aaaab0; --entry-card: #f7f7f5; --entry-rule: #343437; --entry-preview: #1c1c1e; color-scheme: dark; }
+  @media (max-width: 639px) {
+    .professional-entry { --entry-bg: #1c1c1e; --entry-muted: #d1d1d6; }
+  }
 }
 @media (forced-colors: active) {
   .professional-entry button.professional-entry-create { border: 1px solid ButtonText; }

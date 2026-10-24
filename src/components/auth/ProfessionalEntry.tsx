@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { sourceImages } from '../../data/sourceImages';
 import { usePresentation } from '../../presentation/usePresentation';
 import { CatalogWelcome } from './CatalogWelcome';
@@ -15,9 +15,9 @@ const preview = [
 ];
 
 const characters = [
-  { image: { id: 'portalink-world', src: '/onboarding/welcome.webp', alt: 'Portalink character holding the Earth' }, title: 'Your work' },
-  { image: { id: 'portalink-process', src: '/onboarding/process.webp', alt: 'Portalink character holding a process book' }, title: 'Your process' },
-  { image: { id: 'portalink-portals', src: '/onboarding/portals.webp', alt: 'Portalink character holding a Portals folder' }, title: 'Your Portals' },
+  { image: { id: 'portalink-world', src: '/onboarding/welcome.webp', alt: 'Portalink character holding the Earth' }, title: 'Keep your projects together' },
+  { image: { id: 'portalink-process', src: '/onboarding/process.webp', alt: 'Portalink character holding a process book' }, title: 'Show your process' },
+  { image: { id: 'portalink-portals', src: '/onboarding/portals.webp', alt: 'Portalink character holding a Portals folder' }, title: 'Organize work into Portals' },
 ];
 
 /** Immediate account choices; the optional brand film never gates a form. */
@@ -38,18 +38,24 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
         <section className="professional-entry-copy">
           {!mobile && <p className="professional-entry-eyebrow">Projects. Process. Portals.</p>}
           <h1 id="professional-entry-title">A home for<br />your work.</h1>
-          <p className="professional-entry-description">{mobile ? 'Organize your projects. Share your process.' : 'Organize your projects, show your process, and share your catalogue.'}</p>
+          <p className="professional-entry-description">{mobile ? <>Organize your projects. <br />Share your process.</> : 'Organize your projects, show your process, and share your catalogue.'}</p>
           {!mobile && createAction}
         </section>
-        <figure className={`professional-entry-preview${mobile ? ' professional-entry-characters' : ''}`} aria-label={mobile ? 'Portalink characters: your work, process and Portals' : 'Catalogue preview of creator work'}>
-          {!mobile && <figcaption><span>Catalogue preview</span><span>Projects & process</span></figcaption>}
+        {mobile ? <ul className="professional-entry-benefits" aria-label="What you can do with Portalink">
+          {characters.map(({ image, title }) => <li key={image.id}>
+            <span className="professional-entry-benefit-check" aria-hidden="true"><Check size={14} strokeWidth={3} /></span>
+            <span>{title}</span>
+            <img src={image.src} alt={image.alt} width={64} height={64} draggable={false} decoding="async" />
+          </li>)}
+        </ul> : <figure className="professional-entry-preview" aria-label="Catalogue preview of creator work">
+          <figcaption><span>Catalogue preview</span><span>Projects & process</span></figcaption>
           <div className="professional-entry-grid">
-            {(mobile ? characters : preview).map(({ image, title }) => <div className="professional-entry-project" key={image.id}>
+            {preview.map(({ image, title }) => <div className="professional-entry-project" key={image.id}>
               <div className="professional-entry-image"><img src={image.src} alt={image.alt} draggable={false} decoding="async" /></div>
-              {!mobile && <span>{title}</span>}
+              <span>{title}</span>
             </div>)}
           </div>
-        </figure>
+        </figure>}
         {mobile && createAction}
       </div>
       <footer className="professional-entry-footer">

@@ -10,7 +10,7 @@ function fixture(ready = true, presentation = 'web') {
   const calls = [];
   const { ProfessionalEntry } = sourceModule('src/components/auth/ProfessionalEntry.tsx', {
     react: { ...React, useState: () => [story, value => { story = typeof value === 'function' ? value(story) : value; }] },
-    'lucide-react': { ArrowRight: 'arrow' },
+    'lucide-react': { ArrowRight: 'arrow', Check: 'check' },
     '../../data/sourceImages': sourceModule('src/data/sourceImages.ts'),
     '../../presentation/usePresentation': { usePresentation: () => presentation },
     './CatalogWelcome': { CatalogWelcome: 'optional-story' }, './professional-entry.css': {},
@@ -49,7 +49,10 @@ test('mobile keeps a single create action after the three Portalink characters a
   assert.equal(words(all.find(n => n.props.className === 'professional-entry-description')), 'Organize your projects. Share your process.');
   const actions = all.filter(n => n.type === 'button' && words(n).trim() === 'Create catalogue');
   assert.equal(actions.length, 1);
-  assert.ok(all.indexOf(actions[0]) > all.findIndex(n => n.type === 'figure'), 'The primary action follows the preview in reading order');
+  const benefits = all.find(n => n.type === 'ul');
+  assert.ok(benefits);
+  assert.equal(nodes(benefits).filter(n => n.type === 'li').length, 3);
+  assert.ok(all.indexOf(actions[0]) > all.indexOf(benefits), 'The primary action follows the benefits in reading order');
   for (const label of ['Create catalogue', 'Sign in', 'Continue as guest']) {
     all.find(n => n.type === 'button' && words(n).trim() === label).props.onClick();
   }
