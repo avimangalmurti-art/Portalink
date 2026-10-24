@@ -102,12 +102,19 @@
 .professional-entry-company-panel .professional-entry-preview { margin-top: 16px; padding: 16px; }
 @media (max-width: 639px) {
   .professional-entry { --entry-bg: #f2f2f7; }
-  .professional-entry-frame { padding: max(24px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); }
-  .professional-entry-main { grid-template-columns: 1fr; align-content: start; gap: 40px; padding: 18px 0 24px; }
+  .professional-entry-frame { padding: max(12px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); }
+  .professional-entry-main { grid-template-columns: 1fr; align-content: start; gap: 20px; padding: 8px 0 12px; }
+  .professional-entry-wordmark { grid-template-columns: 56px minmax(0, 1fr); gap: 12px; min-height: 0; padding: 14px 16px; }
+  .professional-entry-logo { width: 56px; height: 56px; }
+  .professional-entry-company-name { font-size: 1.5rem; }
+  .professional-entry-description { margin-top: 4px; font-size: 1rem; }
+  .professional-entry-account-actions { margin-top: 12px; }
+  .professional-entry-company-sections summary { min-height: 52px; padding-block: 10px; }
+  .professional-entry-company-sections li:nth-child(7) { margin-top: 16px; }
   .professional-entry-company-panel { padding-inline: 18px; }
   .professional-entry-company-panel .professional-entry-preview { padding: 12px; }
-  .professional-entry-footer { justify-content: stretch; padding-top: 16px; }
-  .professional-entry-footer button { width: 100%; justify-content: space-between; }
+  .professional-entry-footer { justify-content: stretch; padding-top: 8px; }
+  .professional-entry-footer button { width: 100%; min-height: 48px; justify-content: space-between; }
 }
 /* The retained account-entry host sets a legacy mobile font; this scene owns its typography. */
 .portalink-splash[data-share-landing] .mobile-share-landing-actions .professional-entry .professional-entry-frame button { font-family: inherit !important; }
