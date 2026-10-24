@@ -9,7 +9,7 @@ function fixture(ready = true, presentation = 'web') {
   const calls = [];
   const { ProfessionalEntry } = sourceModule('src/components/auth/ProfessionalEntry.tsx', {
     react: React,
-    'lucide-react': { ArrowRight: 'arrow', BriefcaseBusiness: 'briefcase', ChevronRight: 'chevron', Compass: 'compass', Info: 'info', LayoutGrid: 'grid', Palette: 'palette', PanelsTopLeft: 'panels', Route: 'route', ShieldCheck: 'shield', Users: 'users' },
+    'lucide-react': { ArrowRight: 'arrow', BriefcaseBusiness: 'briefcase', ChevronRight: 'chevron', Compass: 'compass', Info: 'info', LayoutGrid: 'grid', LogIn: 'login', Palette: 'palette', PanelsTopLeft: 'panels', Route: 'route', ShieldCheck: 'shield', UserPlus: 'user-plus', Users: 'users' },
     '../../data/sourceImages': sourceModule('src/data/sourceImages.ts'),
     '../../presentation/usePresentation': { usePresentation: () => presentation },
     './professional-entry.css': {},

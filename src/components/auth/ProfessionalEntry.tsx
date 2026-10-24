@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, Info, LayoutGrid, Palette, PanelsTopLeft, Route, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, Info, LayoutGrid, LogIn, Palette, PanelsTopLeft, Route, ShieldCheck, UserPlus, Users } from 'lucide-react';
 import { sourceImages } from '../../data/sourceImages';
 import { usePresentation } from '../../presentation/usePresentation';
 import './professional-entry.css';
@@ -44,8 +44,12 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
             </div>
           </div>
           <div className="professional-entry-account-actions" role="group" aria-label="Account options">
-            <button type="button" className="professional-entry-create" data-keep-color="" disabled={!ready} onClick={onCreate}>Create account <ArrowRight size={16} aria-hidden="true" /></button>
-            <button type="button" className="professional-entry-signin" disabled={!ready} onClick={onSignIn}>Sign in <ArrowRight size={16} aria-hidden="true" /></button>
+            <button type="button" className="professional-entry-create" data-keep-color="" disabled={!ready} onClick={onCreate}>
+              {mobile ? <><span className="professional-entry-company-icon" aria-hidden="true"><UserPlus size={20} strokeWidth={1.9} /></span><span className="professional-entry-company-title">Create account</span><ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" /></> : <>Create account <ArrowRight size={16} aria-hidden="true" /></>}
+            </button>
+            <button type="button" className="professional-entry-signin" disabled={!ready} onClick={onSignIn}>
+              {mobile ? <><span className="professional-entry-company-icon" aria-hidden="true"><LogIn size={20} strokeWidth={1.9} /></span><span className="professional-entry-company-title">Sign in</span><ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" /></> : <>Sign in <ArrowRight size={16} aria-hidden="true" /></>}
+            </button>
           </div>
           {!mobile && <p className="professional-entry-eyebrow">Projects. Process. Portals.</p>}
         </section>

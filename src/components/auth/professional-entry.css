@@ -108,13 +108,21 @@
   .professional-entry-logo { width: 56px; height: 56px; }
   .professional-entry-company-name { font-size: 1.5rem; }
   .professional-entry-description { margin-top: 4px; font-size: 1rem; }
-  .professional-entry-account-actions { margin-top: 12px; }
+  .professional-entry-account-actions { display: block; margin-top: 12px; border-radius: 28px; background: var(--entry-surface); }
+  .professional-entry-account-actions button { --mobile-component-radius: 0; position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) 18px; gap: 12px; width: 100%; min-height: 52px; padding: 10px 18px; border-radius: 0; background: transparent; color: var(--entry-ink); text-align: left; }
+  .professional-entry-account-actions button:first-child { --mobile-component-radius: 28px 28px 0 0; border-radius: var(--mobile-component-radius); }
+  .professional-entry-account-actions button:last-child { --mobile-component-radius: 0 0 28px 28px; border-radius: var(--mobile-component-radius); }
+  .professional-entry-account-actions button:first-child::after { content: ''; position: absolute; bottom: 0; left: 62px; right: 18px; height: 1px; background: var(--entry-rule); }
+  .professional-entry-account-actions button:focus-visible { outline-offset: -3px; }
   .professional-entry-company-sections summary { min-height: 52px; padding-block: 10px; }
   .professional-entry-company-sections li:nth-child(7) { margin-top: 16px; }
   .professional-entry-company-panel { padding-inline: 18px; }
   .professional-entry-company-panel .professional-entry-preview { padding: 12px; }
   .professional-entry-footer { justify-content: stretch; padding-top: 8px; }
   .professional-entry-footer button { width: 100%; min-height: 48px; justify-content: space-between; }
+  @media (max-height: 800px) {
+    .professional-entry-account-actions button, .professional-entry-company-sections summary { min-height: 44px; padding-block: 6px; }
+  }
 }
 /* The retained account-entry host sets a legacy mobile font; this scene owns its typography. */
 .portalink-splash[data-share-landing] .mobile-share-landing-actions .professional-entry .professional-entry-frame button { font-family: inherit !important; }
