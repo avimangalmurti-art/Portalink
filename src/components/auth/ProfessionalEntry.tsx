@@ -14,15 +14,15 @@ const preview = [
 ];
 
 const companySections = [
-  { id: 'about', title: 'About Portalink', icon: Info, tone: 'blue', paragraphs: ['Portalink is a home for projects, ideas and the process behind them. Build a catalogue that connects what you make with how you make it.'] },
-  { id: 'mission', title: 'Mission', icon: Compass, tone: 'purple', paragraphs: ['Give people a place to turn the things in their heads into work they can develop, build on and share.'] },
-  { id: 'features', title: 'Features', icon: LayoutGrid, tone: 'orange', paragraphs: ['Bring images, documents and video into your projects. Add context, organize related work into Portals, and present it through your catalogue and Timeline.'] },
-  { id: 'how-it-works', title: 'How it works', icon: Route, tone: 'teal', paragraphs: ['Create your catalogue. Add a project and its content. Organize your work into Portals, then choose how you share it. Start with what you have and keep building.'] },
-  { id: 'portals', title: 'Portals', icon: PanelsTopLeft, tone: 'cyan', paragraphs: ['Group related projects by discipline, subject or interest. Give each Portal a title and an icon so people can find their way through your catalogue.'] },
-  { id: 'creators', title: 'For creators', icon: Palette, tone: 'pink', paragraphs: ['From sketches and experiments to research and finished work: Portalink is for people who want to show both the outcome and the process.'] },
-  { id: 'team', title: 'Team', icon: Users, tone: 'indigo', paragraphs: ['A maker’s approach to building a tool for makers: thoughtful design, careful engineering and attention to the details people use every day.'] },
-  { id: 'careers', title: 'Careers', icon: BriefcaseBusiness, tone: 'green', paragraphs: ['Help shape tools for people who create. Portalink’s work brings product, design and engineering together.', 'No roles are listed on this page at present.'] },
-  { id: 'privacy', title: 'Privacy & control', icon: ShieldCheck, tone: 'gray', paragraphs: ['Choose account visibility and what appears on your profile, including your Timeline and citation connections. Review the available options before sharing your work.'] },
+  { id: 'about', title: 'About Portalink', icon: Info, paragraphs: ['Portalink is a home for projects, ideas and the process behind them. Build a catalogue that connects what you make with how you make it.'] },
+  { id: 'mission', title: 'Mission', icon: Compass, paragraphs: ['Give people a place to turn the things in their heads into work they can develop, build on and share.'] },
+  { id: 'features', title: 'Features', icon: LayoutGrid, paragraphs: ['Bring images, documents and video into your projects. Add context, organize related work into Portals, and present it through your catalogue and Timeline.'] },
+  { id: 'how-it-works', title: 'How it works', icon: Route, paragraphs: ['Create your catalogue. Add a project and its content. Organize your work into Portals, then choose how you share it. Start with what you have and keep building.'] },
+  { id: 'portals', title: 'Portals', icon: PanelsTopLeft, paragraphs: ['Group related projects by discipline, subject or interest. Give each Portal a title and an icon so people can find their way through your catalogue.'] },
+  { id: 'creators', title: 'For creators', icon: Palette, paragraphs: ['From sketches and experiments to research and finished work: Portalink is for people who want to show both the outcome and the process.'] },
+  { id: 'team', title: 'Team', icon: Users, paragraphs: ['A maker’s approach to building a tool for makers: thoughtful design, careful engineering and attention to the details people use every day.'] },
+  { id: 'careers', title: 'Careers', icon: BriefcaseBusiness, paragraphs: ['Help shape tools for people who create. Portalink’s work brings product, design and engineering together.', 'No roles are listed on this page at present.'] },
+  { id: 'privacy', title: 'Privacy & control', icon: ShieldCheck, paragraphs: ['Choose account visibility and what appears on your profile, including your Timeline and citation connections. Review the available options before sharing your work.'] },
 ];
 
 /** Company information and immediate account choices. */
@@ -30,28 +30,22 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
   ready?: boolean; onCreate: () => void; onSignIn: () => void; onGuest: () => void;
 }) {
   const mobile = usePresentation() === 'mobile';
-  const createAction = <button type="button" className="professional-entry-create" data-keep-color="" disabled={!ready} onClick={onCreate}>
-    <span className="professional-entry-company-icon" data-tone="blue" aria-hidden="true"><LayoutGrid size={20} strokeWidth={1.9} /></span>
-    <span>Create catalogue</span>
-    <ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
-  </button>;
   return <main className="professional-entry professional-entry-company" aria-labelledby="professional-entry-title">
     <div className="professional-entry-frame">
-      <header className="professional-entry-header">
-        <h1 id="professional-entry-title">Portalink</h1>
-        <button type="button" className="professional-entry-signin" disabled={!ready} onClick={onSignIn}>Sign in <ArrowRight size={16} aria-hidden="true" /></button>
-      </header>
       <div className="professional-entry-main">
         <section className="professional-entry-copy" aria-label="Portalink Networks Inc.">
           <div className="professional-entry-company-card">
             <div className="professional-entry-wordmark">
               <img className="professional-entry-logo squircle" src="/icons/portalink-app-192-62b9d2e7.png" alt="" aria-hidden="true" width={68} height={68} />
               <div className="professional-entry-brand-copy">
-                <span className="professional-entry-company-name">Portalink Networks Inc.</span>
+                <h1 id="professional-entry-title" className="professional-entry-company-name">Portalink Networks Inc.</h1>
                 <p className="professional-entry-description">Create, organize and share your work.</p>
               </div>
             </div>
-            {createAction}
+          </div>
+          <div className="professional-entry-account-actions" role="group" aria-label="Account options">
+            <button type="button" className="professional-entry-create" data-keep-color="" disabled={!ready} onClick={onCreate}>Create account <ArrowRight size={16} aria-hidden="true" /></button>
+            <button type="button" className="professional-entry-signin" disabled={!ready} onClick={onSignIn}>Sign in <ArrowRight size={16} aria-hidden="true" /></button>
           </div>
           {!mobile && <p className="professional-entry-eyebrow">Projects. Process. Portals.</p>}
         </section>
@@ -59,7 +53,7 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
           {companySections.map(section => <li key={section.id}>
             <details data-company-section={section.id}>
               <summary>
-                <span className="professional-entry-company-icon" data-tone={section.tone} aria-hidden="true"><section.icon size={20} strokeWidth={1.9} /></span>
+                <span className="professional-entry-company-icon" aria-hidden="true"><section.icon size={20} strokeWidth={1.9} /></span>
                 <span className="professional-entry-company-title">{section.title}</span>
                 <ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
               </summary>

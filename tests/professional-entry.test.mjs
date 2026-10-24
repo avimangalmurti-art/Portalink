@@ -21,7 +21,7 @@ test('professional entry immediately exposes create, sign-in and guest actions w
   assert.equal(tree.type, 'main');
   assert.equal(all.find(n => n.type === 'h1').props.id, tree.props['aria-labelledby']);
   assert.equal(all.some(n => n.type === 'optional-story'), false);
-  for (const [label, action] of [['Create catalogue', 'create'], ['Sign in ', 'signin'], ['Continue as guest ', 'guest']]) {
+  for (const [label, action] of [['Create account', 'create'], ['Sign in ', 'signin'], ['Continue as guest ', 'guest']]) {
     const button = all.find(n => n.type === 'button' && words(n).trim() === label.trim());
     assert.ok(button, label); assert.equal(button.props.disabled, false); button.props.onClick(); assert.equal(h.calls.at(-1), action);
   }
@@ -58,10 +58,12 @@ test('both presentations expose nine native company disclosures with distinct ic
     assert.equal(icons.length, 9);
     assert.equal(new Set(icons.map(n => n.props.children.type)).size, 9);
     assert.ok(icons.every(n => n.props['aria-hidden'] === 'true'), 'Decorative icons do not repeat the section names');
-    const actions = all.filter(n => n.type === 'button' && words(n).trim() === 'Create catalogue');
-    assert.equal(actions.length, 1);
-    assert.ok(nodes(all.find(n => n.props.className === 'professional-entry-company-card')).some(n => n.type === 'button' && words(n).trim() === 'Create catalogue'), 'The company card contains the primary account action');
-    for (const label of ['Create catalogue', 'Sign in', 'Continue as guest']) {
+    assert.equal(all.some(n => n.type === 'header'), false, 'The redundant Portalink heading and header sign-in row are removed');
+    assert.equal(words(tree).includes('Create catalogue'), false);
+    assert.equal(nodes(all.find(n => n.props.className === 'professional-entry-company-card')).some(n => n.type === 'button'), false, 'Account actions are separate from the company identity card');
+    const accountActions = nodes(all.find(n => n.props.className === 'professional-entry-account-actions')).filter(n => n.type === 'button');
+    assert.deepEqual(accountActions.map(button => words(button).trim()), ['Create account', 'Sign in']);
+    for (const label of ['Create account', 'Sign in', 'Continue as guest']) {
       all.find(n => n.type === 'button' && words(n).trim() === label).props.onClick();
     }
     assert.deepEqual(h.calls, ['create', 'signin', 'guest']);
