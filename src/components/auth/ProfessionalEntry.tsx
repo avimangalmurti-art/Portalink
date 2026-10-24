@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { sourceImages } from '../../data/sourceImages';
+import { usePresentation } from '../../presentation/usePresentation';
 import { CatalogWelcome } from './CatalogWelcome';
 import './professional-entry.css';
 
@@ -18,7 +19,9 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
   ready?: boolean; onCreate: () => void; onSignIn: () => void; onGuest: () => void;
 }) {
   const [story, setStory] = useState(false);
+  const mobile = usePresentation() === 'mobile';
   if (story) return <CatalogWelcome onStart={() => { setStory(false); onCreate(); }} onDismiss={() => setStory(false)} />;
+  const createAction = <button type="button" className="professional-entry-create" data-ui-shape="action" data-keep-color="" disabled={!ready} onClick={onCreate}>Create catalogue <ArrowRight size={20} aria-hidden="true" /></button>;
   return <main className="professional-entry" aria-labelledby="professional-entry-title">
     <div className="professional-entry-frame">
       <header className="professional-entry-header">
@@ -27,20 +30,21 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
       </header>
       <div className="professional-entry-main">
         <section className="professional-entry-copy">
-          <p className="professional-entry-eyebrow">Projects. Process. Portals.</p>
+          {!mobile && <p className="professional-entry-eyebrow">Projects. Process. Portals.</p>}
           <h1 id="professional-entry-title">A home for<br />your work.</h1>
-          <p className="professional-entry-description">Organize your projects, show your process, and share your catalogue.</p>
-          <button type="button" className="professional-entry-create" data-ui-shape="action" data-keep-color="" disabled={!ready} onClick={onCreate}>Create catalogue <ArrowRight size={20} aria-hidden="true" /></button>
+          <p className="professional-entry-description">{mobile ? 'Organize your projects. Share your process.' : 'Organize your projects, show your process, and share your catalogue.'}</p>
+          {!mobile && createAction}
         </section>
-        <figure className="professional-entry-preview" aria-label="Example catalogue with object studies, photography, typography and engineering work">
-          <figcaption><span>Catalogue preview</span><span>Projects & process</span></figcaption>
+        <figure className="professional-entry-preview" aria-label="Catalogue preview of creator work">
+          {!mobile && <figcaption><span>Catalogue preview</span><span>Projects & process</span></figcaption>}
           <div className="professional-entry-grid">
-            {preview.map(({ image, title }) => <div className="professional-entry-project" key={image.id}>
+            {(mobile ? preview.slice(0, 3) : preview).map(({ image, title }) => <div className="professional-entry-project" key={image.id}>
               <div className="professional-entry-image"><img src={image.src} alt={image.alt} draggable={false} decoding="async" /></div>
-              <span>{title}</span>
+              {!mobile && <span>{title}</span>}
             </div>)}
           </div>
         </figure>
+        {mobile && createAction}
       </div>
       <footer className="professional-entry-footer">
         <button type="button" disabled={!ready} onClick={() => setStory(true)}>About Portalink</button>

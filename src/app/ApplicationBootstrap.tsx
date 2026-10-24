@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { buildPath, routes } from './routes';
 import { PORTALINK_SPLASH_EXIT_EVENT } from './splashLifecycle';
 import { useViewportPresentation } from '../presentation/useViewportPresentation';
+import { PresentationContext } from '../presentation/usePresentation';
 import { warmScreenForPath } from './screenModules';
 import { HOME_STARTUP_TIMEOUT_MS } from './homeStartup';
 import { useMobileInstallCapture } from '../features/install/useMobileInstall';
@@ -189,7 +190,7 @@ export function ApplicationBootstrap() {
           landing={holdLanding ? {
             ready: !auth.isInitializing,
             hideMedia: true,
-            content: <ProfessionalEntry ready={!auth.isInitializing} onCreate={() => startAccount('signUp')} onSignIn={() => startAccount('signIn')} onGuest={() => { setHasLeftLanding(true); if (!auth.isInitializing && (!homeStartupTarget || homeReady)) setHasStartupCompleted(true); }} />,
+            content: <PresentationContext.Provider value={presentation}><ProfessionalEntry ready={!auth.isInitializing} onCreate={() => startAccount('signUp')} onSignIn={() => startAccount('signIn')} onGuest={() => { setHasLeftLanding(true); if (!auth.isInitializing && (!homeStartupTarget || homeReady)) setHasStartupCompleted(true); }} /></PresentationContext.Provider>,
             onCreateAccount: () => startAccount('signUp'),
             onSignIn: () => startAccount('signIn'),
             onForgotPassword: () => startAccount('forgotPassword'),

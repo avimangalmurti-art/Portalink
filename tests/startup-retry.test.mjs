@@ -42,6 +42,7 @@ function bootstrap(presentation, authenticated = true) {
     './homeStartup': { HOME_STARTUP_TIMEOUT_MS: 12000 },
     '../features/sharing/shareModel': { handleFromPath: () => null },
     '../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
+    '../presentation/usePresentation': { PresentationContext: { Provider: 'presentation-provider' } },
     '../features/install/useMobileInstall': { useMobileInstallCapture() {} },
     '../presentation/mobile/useMobileResumeSession': { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) },
     '../presentation/mobile/MobileResumeContext': { MobileResumeProvider: 'resume-provider' },

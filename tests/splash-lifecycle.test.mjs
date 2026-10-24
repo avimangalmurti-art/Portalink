@@ -85,6 +85,7 @@ function compile(path, imports, globals) {
       '../features/install/useMobileInstall': { useMobileInstallCapture() {} },
       '../presentation/mobile/useMobileResumeSession': { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) },
       '../presentation/mobile/MobileResumeContext': { MobileResumeProvider: 'resume-provider' },
+      '../presentation/usePresentation': { PresentationContext: { Provider: 'presentation-provider' } },
       '../components/auth/ProfessionalEntry': { ProfessionalEntry: 'professional-entry' }, '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
       ...imports,
     };
@@ -783,14 +784,16 @@ test('guest landing exposes the professional entry immediately and wires every a
     h.render(); h.auth.isInitializing = false;
     const landing = h.render().props.landing;
     assert.equal(landing.hideMedia, true);
-    assert.equal(landing.content.type, 'professional-entry');
-    assert.equal(landing.content.props.ready, true);
-    landing.content.props.onCreate(); assert.deepEqual(h.requested.at(-1), { view: 'signUp' });
+    assert.equal(landing.content.type, 'presentation-provider');
+    assert.equal(landing.content.props.value, presentation, 'The pre-shell entry receives the existing presentation choice');
+    assert.equal(landing.content.props.children.type, 'professional-entry');
+    assert.equal(landing.content.props.children.props.ready, true);
+    landing.content.props.children.props.onCreate(); assert.deepEqual(h.requested.at(-1), { view: 'signUp' });
     assert.equal(h.render().props.hidden, true);
     h.auth.pendingView = null;
-    h.render().props.landing.content.props.onSignIn(); assert.deepEqual(h.requested.at(-1), { view: 'signIn' });
+    h.render().props.landing.content.props.children.props.onSignIn(); assert.deepEqual(h.requested.at(-1), { view: 'signIn' });
     h.auth.pendingView = null;
-    h.render().props.landing.content.props.onGuest(); assert.equal(h.render(), null);
+    h.render().props.landing.content.props.children.props.onGuest(); assert.equal(h.render(), null);
   }
 });
 

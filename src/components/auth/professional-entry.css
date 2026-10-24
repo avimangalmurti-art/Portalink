@@ -73,16 +73,16 @@
 .professional-entry-footer button { font-size: .75rem; font-weight: 450; }
 @media (max-width: 639px) {
   .professional-entry-frame { padding-inline: max(24px, env(safe-area-inset-left, 0px)) max(24px, env(safe-area-inset-right, 0px)); }
-  .professional-entry-main { grid-template-columns: 1fr; gap: 32px; padding: 32px 0 28px; }
-  .professional-entry-eyebrow { margin-bottom: 16px; font-size: .75rem; }
+  .professional-entry-main { grid-template-columns: 1fr; align-content: center; gap: 24px; padding: 24px 0; }
   .professional-entry h1 { font-size: clamp(2.5rem, 11vw, 3.25rem); }
-  .professional-entry-description { max-width: 340px; margin: 20px 0 24px; font-size: 1rem; line-height: 1.55; }
+  .professional-entry-description { max-width: 340px; margin: 20px 0 0; font-size: 1rem; line-height: 1.55; }
   .professional-entry button.professional-entry-create { max-width: none; }
-  .professional-entry-preview { padding: 16px; border-radius: 20px; }
-  .professional-entry-preview figcaption { margin-bottom: 14px; font-size: .6875rem; }
-  .professional-entry-grid { gap: 12px 8px; }
-  .professional-entry-image { aspect-ratio: 1; }
-  .professional-entry-project > span { font-size: .6875rem; }
+  .professional-entry-preview { padding: 0; border: 0; border-radius: 0; background: transparent; }
+  .professional-entry-grid { gap: 8px; }
+  .professional-entry-image { height: clamp(128px, 43vw, 180px); aspect-ratio: auto; }
+}
+@media (max-width: 639px) and (max-height: 620px) {
+  .professional-entry-main { gap: 16px; padding-block: 16px; }
 }
 /* The retained account-entry host sets a legacy mobile font; this scene owns its typography. */
 .portalink-splash[data-share-landing] .mobile-share-landing-actions .professional-entry .professional-entry-frame button { font-family: inherit !important; }
