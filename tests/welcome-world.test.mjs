@@ -41,3 +41,19 @@ test('visitor ideas stay local, retain stable ids and are bounded without mutati
   assert.equal(previous.length, 0); assert.equal(current.length, world.MAX_WORLD_IDEAS);
   assert.deepEqual(Array.from(current, idea => idea.id), [5, 6, 7, 8]);
 });
+
+test('the ten-second film phases portals around their centre passage and repeats across the world seam', () => {
+  assert.equal(world.WORLD_FILM_MS, 10000);
+  for (const portal of world.WORLD_INDUSTRIES) {
+    const delay = world.worldPortalDelay(portal.x);
+    assert.ok(delay <= 0 && delay > -world.WORLD_FILM_MS);
+    const passage = ((portal.x - world.WORLD_WIDTH / 2 + world.WORLD_WIDTH) % world.WORLD_WIDTH) / world.WORLD_WIDTH;
+    const phaseAtCentre = ((passage * world.WORLD_FILM_MS - delay) % world.WORLD_FILM_MS) / world.WORLD_FILM_MS;
+    assert.ok(Math.abs(phaseAtCentre - .14) < .0001, `${portal.id} must be open as it passes the screen centre`);
+    assert.equal(world.worldPortalDelay(portal.x + world.WORLD_WIDTH), delay);
+    assert.equal(world.worldPortalDelay(portal.x - world.WORLD_WIDTH), delay);
+  }
+  assert.equal(world.worldPortalDelay(world.WORLD_WIDTH / 2), -1400);
+  assert.ok(Math.max(...world.WORLD_CONNECTIONS.map(link => link.delay)) + world.WORLD_FILM_MS * .12 <= world.WORLD_FILM_MS,
+    'Even the last route finishes drawing within the first ten-second film');
+});

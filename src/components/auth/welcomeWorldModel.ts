@@ -3,6 +3,7 @@ export type WorldPoint = { x: number; y: number };
 export type WorldIdea = WorldPoint & { id: number };
 export const WORLD_WIDTH = 1200;
 export const WORLD_HEIGHT = 280;
+export const WORLD_FILM_MS = 10000;
 export const MAX_WORLD_IDEAS = 4;
 
 export const WORLD_PLACES = [
@@ -32,6 +33,13 @@ export function worldArrival(index: number, total: number, duration = 8500) {
 const wrap = (x: number) => ((x % WORLD_WIDTH) + WORLD_WIDTH) % WORLD_WIDTH;
 const delta = (a: number, b: number) => wrap(b - a + WORLD_WIDTH / 2) - WORLD_WIDTH / 2;
 
+/** Open each portal around its passage through the viewport centre, including the wrap. */
+export function worldPortalDelay(x: number) {
+  const passage = wrap(x - WORLD_WIDTH / 2) / WORLD_WIDTH;
+  const age = ((.14 - passage) % 1 + 1) % 1;
+  return -Math.round(age * WORLD_FILM_MS);
+}
+
 /** Curves crossing the map seam get a matching segment at the other edge. */
 export function worldPaths(from: WorldPoint, to: WorldPoint): string[] {
   const end = from.x + delta(from.x, to.x);
@@ -50,13 +58,13 @@ export const WORLD_CONNECTIONS = connections.map(([a, b], index) => ({
 }));
 
 export const WORLD_INDUSTRIES = [
-  { id: 'cultivate', x: 602, y: 165, delay: 300 },
-  { id: 'make', x: 230, y: 76, delay: 2600 },
-  { id: 'discover', x: 475, y: 95, delay: 4500 },
-  { id: 'power', x: 715, y: 84, delay: 6000 },
-  { id: 'compute', x: 936, y: 93, delay: 7100 },
-  { id: 'create', x: 1017, y: 247, delay: 7900 },
-  { id: 'explore', x: 377, y: 220, delay: 8500 },
+  { id: 'cultivate', x: 602, y: 165 },
+  { id: 'make', x: 230, y: 76 },
+  { id: 'discover', x: 475, y: 95 },
+  { id: 'power', x: 715, y: 84 },
+  { id: 'compute', x: 936, y: 93 },
+  { id: 'create', x: 1017, y: 200 },
+  { id: 'explore', x: 377, y: 220 },
 ] as const;
 
 /** Recover a tap's position from the actually transformed two-copy map track. */

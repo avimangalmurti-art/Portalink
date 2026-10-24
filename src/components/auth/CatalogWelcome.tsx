@@ -127,7 +127,7 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
       }
     }}>
     <WelcomeWorld trackRef={track} ideas={ideas} />
-    {progress.complete && <span id="catalog-welcome-world-help" className="catalog-welcome-accessible">Human ideas connect and change the world. Tap the world or press Space to see an idea connect. Create catalogue to begin.</span>}
+    {progress.complete && <span id="catalog-welcome-world-help" className="catalog-welcome-accessible">Portals connect human ideas that change the world. Tap the world or press Space to see an idea connect. Create catalogue to begin.</span>}
     <div className="catalog-welcome-layout">
       <div className="catalog-welcome-copy" aria-hidden={progress.complete || undefined}>
         <h1 id="catalog-welcome-title" className="catalog-welcome-headline">

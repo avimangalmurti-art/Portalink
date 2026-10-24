@@ -62,7 +62,7 @@
 }
 
 .catalog-welcome[data-map-revealed='true'] .catalog-welcome-world-track {
-  animation: catalog-welcome-map-spin 24s linear infinite;
+  animation: catalog-welcome-map-spin var(--world-film-duration) linear infinite;
 }
 
 .catalog-welcome-world-copy {
@@ -77,27 +77,57 @@
 
 .catalog-welcome-world-copy[data-world-copy='1'] { left: var(--catalog-welcome-map-width); }
 .catalog-world-link, .catalog-world-idea-link { stroke: #fff5bc; stroke-width: .65; }
-.catalog-world-link-glow { stroke-width: 3; opacity: .16; }
-.catalog-world-city-halo, .catalog-world-industry-halo { fill: #fff5bc; opacity: .18; }
+.catalog-world-link-glow { stroke-width: 3; stroke-opacity: .16; }
+.catalog-world-city-halo { fill: #fff5bc; opacity: .18; }
 .catalog-world-city-light, .catalog-world-satellite { fill: #fff5bc; }
-.catalog-world-industry-disc, .catalog-world-idea-disc { fill: #06266a; stroke: #fff5bc; stroke-width: .55; }
+.catalog-world-idea-disc { fill: #06266a; stroke: #fff5bc; stroke-width: .55; }
 .catalog-world-industry, .catalog-world-idea { color: #fff5bc; }
+.catalog-world-portal-ground, .catalog-world-portal-aura { fill: #fff5bc; opacity: .16; }
+.catalog-world-portal-window { fill: #06266a; fill-opacity: .94; stroke: #fff5bc; stroke-width: .85; }
+.catalog-world-portal-contour, .catalog-world-portal-horizon { fill: none; stroke: #fff5bc; stroke-width: .35; opacity: .5; }
+.catalog-world-portal { transform-box: fill-box; transform-origin: center; }
 .catalog-world-idea-link { stroke-width: .9; }
 .catalog-world-idea-ring { fill: none; stroke: #fff5bc; stroke-width: .65; opacity: 0; }
 
 .catalog-welcome[data-map-revealed='true'] .catalog-world-link {
   stroke-dasharray: 1;
-  animation: catalog-world-connect 1.1s ease-out var(--world-delay, 0ms) both;
+  animation: catalog-world-link-film var(--world-film-duration) linear var(--world-delay, 0ms) infinite both;
 }
-.catalog-welcome[data-map-revealed='true'] .catalog-world-city,
-.catalog-welcome[data-map-revealed='true'] .catalog-world-industry {
-  animation: catalog-world-appear .65s ease-out var(--world-delay, 0ms) both;
+.catalog-welcome[data-map-revealed='true'] .catalog-world-city {
+  animation: catalog-world-city-film var(--world-film-duration) linear var(--world-delay, 0ms) infinite both;
+}
+.catalog-welcome[data-map-revealed='true'] .catalog-world-portal {
+  animation: catalog-world-portal-film var(--world-film-duration) ease-in-out var(--world-portal-delay) infinite both;
+}
+.catalog-welcome[data-map-revealed='true'] .catalog-world-portal-ground {
+  animation: catalog-world-portal-light var(--world-film-duration) ease-in-out var(--world-portal-delay) infinite both;
 }
 .catalog-world-idea-link { stroke-dasharray: 1; animation: catalog-world-connect .7s ease-out both; }
 .catalog-world-idea-ring { transform-box: fill-box; transform-origin: center; animation: catalog-world-ripple 1.4s ease-out both; }
 
 @keyframes catalog-world-connect { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@keyframes catalog-world-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes catalog-world-link-film {
+  0% { stroke-dashoffset: 1; opacity: 0; }
+  12%, 65% { stroke-dashoffset: 0; opacity: 1; }
+  88% { stroke-dashoffset: 0; opacity: .15; }
+  98% { stroke-dashoffset: 0; opacity: 0; }
+  100% { stroke-dashoffset: 1; opacity: 0; }
+}
+@keyframes catalog-world-city-film {
+  0%, 100% { opacity: .15; }
+  8%, 70% { opacity: 1; }
+}
+@keyframes catalog-world-portal-film {
+  0%, 24%, 100% { opacity: 0; transform: scaleX(.04) scaleY(.75); }
+  6% { opacity: .4; transform: scaleX(.08) scaleY(.9); }
+  10% { opacity: .85; transform: scaleX(.45) scaleY(.95); }
+  12%, 16% { opacity: 1; transform: scaleX(1) scaleY(1); }
+  20% { opacity: .6; transform: scaleX(.12) scaleY(.9); }
+}
+@keyframes catalog-world-portal-light {
+  0%, 24%, 100% { opacity: 0; }
+  12%, 16% { opacity: .22; }
+}
 @keyframes catalog-world-ripple { from { opacity: .9; transform: scale(.5); } to { opacity: 0; transform: scale(7); } }
 
 .catalog-welcome .catalog-welcome-layout {
@@ -372,8 +402,9 @@
   .catalog-welcome .catalog-welcome-action {
     transition: none;
   }
-  .catalog-world-link, .catalog-world-city, .catalog-world-industry, .catalog-world-idea-link, .catalog-world-idea-ring {
+  .catalog-world-link, .catalog-world-city, .catalog-world-portal, .catalog-world-portal-ground, .catalog-world-idea-link, .catalog-world-idea-ring {
     animation: none !important;
     stroke-dashoffset: 0;
+    transform: none;
   }
 }
