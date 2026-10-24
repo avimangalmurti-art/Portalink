@@ -5533,7 +5533,7 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
 /* The profile-picture preview is an identity composition, not a modal card.
    Its figure stays completely clear so the image and label sit directly on
    the single full-screen translucent backdrop. */
-#root > .app-shell > [data-avatar-preview-scrim] > [data-avatar-preview] {
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-scrim] > [data-avatar-preview] {
   overflow: visible !important;
   padding: 0 !important;
   border: 0 !important;
@@ -5547,7 +5547,7 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
 /* The identity preview uses a neutral smoke scrim instead of the light-mode
    surface overlay. Content remains visible through it without turning the
    full viewport milky white behind the floating avatar and creator name. */
-#root > .app-shell > [data-avatar-preview-scrim] {
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-scrim] {
   position: fixed !important;
   inset: 0 !important;
   z-index: 1000 !important;
@@ -5568,7 +5568,7 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
 /* Safari can paint the page beneath translucent browser controls outside the
    visual viewport. Its decorative backdrop covers that large viewport while
    the interactive preview follows the measured, safe visible screen. */
-#root > .app-shell > [data-avatar-preview-backdrop][data-presentation='mobile'] {
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-backdrop][data-presentation='mobile'] {
   position: fixed;
   inset: 0 0 auto;
   z-index: 1000;
@@ -5580,7 +5580,7 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   backdrop-filter: blur(18px) saturate(115%) !important;
   -webkit-backdrop-filter: blur(18px) saturate(115%) !important;
 }
-#root > .app-shell > [data-avatar-preview-scrim][data-presentation='mobile'] {
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-scrim][data-presentation='mobile'] {
   inset: var(--dialog-viewport-top, 0px) 0 auto !important;
   width: 100% !important;
   height: var(--dialog-viewport-height, 100dvh) !important;
@@ -5591,10 +5591,10 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-#root > .app-shell > [data-avatar-preview-scrim][data-presentation='mobile'] > [data-avatar-preview] {
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-scrim][data-presentation='mobile'] > [data-avatar-preview] {
   max-height: 100% !important;
 }
-#root > .app-shell > [data-avatar-preview-scrim][data-presentation='mobile'] > [data-avatar-preview] > [data-avatar-preview-image] {
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-scrim][data-presentation='mobile'] > [data-avatar-preview] > [data-avatar-preview-image] {
   width: auto !important;
   min-height: 0;
   aspect-ratio: 1;

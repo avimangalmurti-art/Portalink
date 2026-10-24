@@ -12,6 +12,7 @@ function fixture(ready = true, presentation = 'web') {
     'lucide-react': { ArrowRight: 'arrow', BriefcaseBusiness: 'briefcase', ChevronRight: 'chevron', Compass: 'compass', Info: 'info', LayoutGrid: 'grid', LogIn: 'login', Palette: 'palette', PanelsTopLeft: 'panels', Route: 'route', ShieldCheck: 'shield', UserPlus: 'user-plus', Users: 'users' },
     '../../data/sourceImages': sourceModule('src/data/sourceImages.ts'),
     '../../presentation/usePresentation': { usePresentation: () => presentation },
+    '../profile/ProfileAvatar': { ProfileAvatar: 'profile-avatar' },
     './professional-entry.css': {},
   });
   return { calls, render: () => ProfessionalEntry({ ready, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin'), onGuest: () => calls.push('guest') }) };
@@ -46,10 +47,18 @@ test('both presentations expose nine native company disclosures with distinct ic
     const h = fixture(true, presentation), tree = h.render(), all = nodes(tree);
     const brand = all.find(n => n.props.className === 'professional-entry-wordmark');
     assert.equal(words(all.find(n => n.props.className === 'professional-entry-company-name')), 'Portalink Networks Inc.');
-    const logo = nodes(brand).find(n => n.type === 'img');
-    assert.equal(logo.props.src, '/icons/portalink-app-192-62b9d2e7.png');
-    assert.ok(logo.props.className.includes('squircle'));
-    assert.equal(logo.props.alt, '');
+    if (presentation === 'mobile') {
+      const avatar = nodes(brand).find(n => n.type === 'profile-avatar');
+      assert.equal(avatar.props.avatar, '/icons/portalink-app-512-62b9d2e7.png');
+      assert.equal(avatar.props.name, 'Portalink Networks Inc.');
+      assert.equal(avatar.props.inlinePreview, true);
+      assert.equal(words(tree).includes('Create, organize and share your work.'), false);
+    } else {
+      const logo = nodes(brand).find(n => n.type === 'img');
+      assert.equal(logo.props.src, '/icons/portalink-app-192-62b9d2e7.png');
+      assert.ok(logo.props.className.includes('squircle'));
+      assert.equal(logo.props.alt, '');
+    }
     const sections = all.filter(n => n.type === 'details');
     assert.equal(sections.length, 9);
     assert.ok(sections.every(n => n.props.open === undefined), 'Company sections start collapsed without hiding their native keyboard controls');
@@ -60,7 +69,7 @@ test('both presentations expose nine native company disclosures with distinct ic
     assert.ok(icons.every(n => n.props['aria-hidden'] === 'true'), 'Decorative icons do not repeat the section names');
     assert.equal(all.some(n => n.type === 'header'), false, 'The redundant Portalink heading and header sign-in row are removed');
     assert.equal(words(tree).includes('Create catalogue'), false);
-    assert.equal(nodes(all.find(n => n.props.className === 'professional-entry-company-card')).some(n => n.type === 'button'), false, 'Account actions are separate from the company identity card');
+    assert.equal(nodes(all.find(n => n.props.className === 'professional-entry-company-card')).some(n => n.props.className === 'professional-entry-create' || n.props.className === 'professional-entry-signin'), false, 'Account actions are separate from the company identity card');
     const accountActions = nodes(all.find(n => n.props.className === 'professional-entry-account-actions')).filter(n => n.type === 'button');
     assert.deepEqual(accountActions.map(button => words(button).trim()), ['Create account', 'Sign in']);
     for (const label of ['Create account', 'Sign in', 'Continue as guest']) {

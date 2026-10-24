@@ -10,6 +10,8 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
   const instances = new Map();
   const elements = new Map();
   let current;
+  let portalRenders = 0;
+  const inlineLayers = [];
   function eventTarget(attributes = {}) {
     const listeners = new Map();
     return { ...attributes, listeners,
@@ -68,7 +70,8 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
   const { ProfileAvatar } = load('../src/components/profile/ProfileAvatar.tsx', {
     './CreatorAvatar': creator,
     '../ui/ResponsiveImage': image,
-    '../ui/ModalPortal': { ModalPortal: ({ children }) => children },
+    '../ui/ModalPortal': { ModalPortal: ({ children }) => { portalRenders++; return children; } },
+    '../../hooks/useModalFocus': { containModalFocus: (dialog, onEscape, preventScroll) => { const layer = { dialog, onEscape, preventScroll }; inlineLayers.push(layer); return () => inlineLayers.splice(inlineLayers.indexOf(layer), 1); } },
     '../../hooks/useDialogViewport': dialogViewport,
     '../../presentation/usePresentation': { usePresentation: () => presentation },
   });
@@ -118,7 +121,7 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
       }
       return tree;
     },
-    document, window, viewport,
+    document, window, viewport, inlineLayers, portalRenders: () => portalRenders,
     find,
   };
 }
@@ -138,6 +141,18 @@ test('initials avatars open and dismiss the standard preview even without an upl
     tree = harness.render();
     assert.equal(harness.find(tree, (node) => node.props?.role === 'dialog'), null);
   }
+});
+
+test('welcome avatars can use the same preview inside their containing modal before the app portal exists', () => {
+  const h = avatarHarness({ name: 'Portalink Networks Inc.', avatar: '/company.png', inlinePreview: true }, { presentation: 'mobile' });
+  h.find(h.render(), node => node.type === 'button').props.onClick();
+  assert.ok(h.find(h.render(), node => node.props?.role === 'dialog'));
+  assert.equal(h.portalRenders(), 0, 'The welcome preview does not require the app-shell portal');
+  assert.equal(h.inlineLayers.length, 1, 'It registers with the shared modal stack');
+  assert.equal(h.inlineLayers[0].preventScroll, true);
+  h.inlineLayers[0].onEscape();
+  assert.equal(h.find(h.render(), node => node.props?.role === 'dialog'), null);
+  assert.equal(h.inlineLayers.length, 0);
 });
 
 test('uploaded avatars open at full size and failed images fall back to initials inside the popup', () => {

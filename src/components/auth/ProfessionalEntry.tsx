@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, Info, LayoutGrid, LogIn, Palette, PanelsTopLeft, Route, ShieldCheck, UserPlus, Users } from 'lucide-react';
 import { sourceImages } from '../../data/sourceImages';
 import { usePresentation } from '../../presentation/usePresentation';
+import { ProfileAvatar } from '../profile/ProfileAvatar';
 import './professional-entry.css';
 
 const preview = [
@@ -36,10 +37,12 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
         <section className="professional-entry-copy" aria-label="Portalink Networks Inc.">
           <div className="professional-entry-company-card">
             <div className="professional-entry-wordmark">
-              <img className="professional-entry-logo squircle" src="/icons/portalink-app-192-62b9d2e7.png" alt="" aria-hidden="true" width={68} height={68} />
+              {mobile ? <div className="professional-entry-avatar" data-profile-avatar-host="">
+                <ProfileAvatar name="Portalink Networks Inc." avatar="/icons/portalink-app-512-62b9d2e7.png" size="profile" priority inlinePreview />
+              </div> : <img className="professional-entry-logo squircle" src="/icons/portalink-app-192-62b9d2e7.png" alt="" aria-hidden="true" width={68} height={68} />}
               <div className="professional-entry-brand-copy">
                 <h1 id="professional-entry-title" className="professional-entry-company-name">Portalink Networks Inc.</h1>
-                <p className="professional-entry-description">Create, organize and share your work.</p>
+                {!mobile && <p className="professional-entry-description">Create, organize and share your work.</p>}
               </div>
             </div>
           </div>
