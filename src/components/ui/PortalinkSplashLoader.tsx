@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useViewportPresentation } from '../../presentation/useViewportPresentation';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { useEntryFieldViewport } from '../auth/useEntryFieldViewport';
 import { EntryChoices } from '../auth/EntryChoices';
 
 const SPLASH_TIMEOUT_MS = 2200;
@@ -71,6 +72,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   // Keep the exact white scene geometry while a completed sign-in fades it out.
   const sceneLanding = introPending ? undefined : landing ?? (welcomeHandoff ? lastLanding.current : undefined);
   const landingRef = useDialogViewport<HTMLDivElement>(presentation === 'mobile' && Boolean(sceneLanding) && !hidden);
+  useEntryFieldViewport(landingRef, presentation === 'mobile' && Boolean(sceneLanding?.hideMedia) && !hidden);
   useModalFocus(Boolean(landing && sceneLanding) && !hidden && !landing?.suspendFocus, landingRef, () => landing?.onContinue(), true);
   const complete = useCallback(() => {
     if (reported.current) return;

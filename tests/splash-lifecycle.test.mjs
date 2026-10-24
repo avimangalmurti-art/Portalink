@@ -112,7 +112,7 @@ function compile(path, imports, globals) {
 function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false, bootVideo = undefined, findBootVideo = undefined } = {}) {
   const h = hooks();
   let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false, renderedMediaRef;
-  const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [], viewportCalls = [];
+  const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [], viewportCalls = [], entryViewportCalls = [];
   h.window.addEventListener=(name,fn)=>windowListeners.set(name,fn);
   h.window.removeEventListener=(name,fn)=>{if(windowListeners.get(name)===fn)windowListeners.delete(name);};
   let frameId = 0;
@@ -166,6 +166,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     '../../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
     '../../hooks/useModalFocus': { useModalFocus(open) { modalCalls.push(open); } },
     '../../hooks/useDialogViewport': { useDialogViewport(enabled=true) { const ref=h.react.useRef(null);viewportCalls.push({enabled,ref});return ref; } },
+    '../auth/useEntryFieldViewport': { useEntryFieldViewport(ref, enabled) { entryViewportCalls.push({ref,enabled}); } },
     './splashPoster': { SPLASH_POSTER_DATA_URL: 'data:image/webp;base64,inline-poster-fixture' },
   }, { window: h.window, document, Event });
   const onComplete = () => completed++;
@@ -195,7 +196,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     setHandoff(value) { welcomeHandoff = value; },
     setLanding(value) { landing = value; },
     timer(delay) { const entry = [...h.timers.entries()].find(([, timer]) => timer.delay === delay); assert.ok(entry, `missing timer ${delay}`); h.timers.delete(entry[0]); entry[1].fn(); },
-    listeners, docListeners, windowListeners, frames, modalCalls, viewportCalls,
+    listeners, docListeners, windowListeners, frames, modalCalls, viewportCalls, entryViewportCalls,
     restore() { windowListeners.get('pageshow')?.(); },
     leave() { windowListeners.get('pagehide')?.(); },
     gesture() { docListeners.get('pointerup')?.(); },
@@ -1016,6 +1017,17 @@ test('ordinary root and invitation fragments retain welcome unless authenticatio
 });
 
 const welcome = {ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'View shared content'};
+
+test('only the visible MOBILE inline account form enables the field viewport hook',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=loader({presentation,landing:welcome});h.render();assert.equal(h.entryViewportCalls.at(-1).enabled,false);
+  h.setLanding({...welcome,hideMedia:true});h.render();assert.equal(h.entryViewportCalls.at(-1).enabled,presentation==='mobile');
+  assert.equal(h.entryViewportCalls.at(-1).ref,h.viewportCalls.at(-1).ref);
+  h.setHidden(true);h.render();assert.equal(h.entryViewportCalls.at(-1).enabled,false);
+  h.setHidden(false);h.setLanding(welcome);h.render();assert.equal(h.entryViewportCalls.at(-1).enabled,false);h.unmount();
+ }
+ const noScene=loader({presentation:'mobile'});noScene.render();assert.equal(noScene.entryViewportCalls.at(-1).enabled,false);noScene.unmount();
+});
 
 test('the account form omits welcome media, pauses playback and restores it when returning to choices on BOTH',()=>{
  for(const presentation of ['mobile','web'])for(const adopted of [false,true]){

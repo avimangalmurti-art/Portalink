@@ -15,6 +15,8 @@
 .portalink-splash[data-share-landing] .mobile-share-landing-actions { position:relative; z-index:1; grid-area:2 / 1; width:calc(100% - 40px); max-width:400px; }
 .portalink-splash[data-share-landing] .mobile-share-landing-actions { flex-shrink:0; }
 .portalink-splash[data-share-landing][data-entry-form] .mobile-share-landing-actions { padding-block:16px; }
+[data-presentation='mobile'].portalink-splash[data-share-landing][data-entry-form][data-entry-editing] { justify-content:flex-start; }
+[data-presentation='mobile'].portalink-splash[data-share-landing][data-entry-form][data-entry-editing] .mobile-share-landing-actions { margin-top:var(--entry-editing-inset, 0px); }
 .entry-inline-form { --text-primary:#071326; --text-secondary:#535d6b; --text-tertiary:#535d6b; --accent-text:#071326; --surface-sunken:#fdffff; --hairline-strong:#929aa4; --status-danger:#b42318; --focus-ring:#071326; display:flex; flex-direction:column; gap:12px; }
 .entry-inline-form input { min-height:44px; padding-inline:12px; border:1px solid #929aa4; border-radius:10px; color:#071326; background:#fdffff; }
 .entry-inline-form input[aria-invalid='true'] { border-color:var(--status-danger); }
