@@ -26,6 +26,7 @@
 }
 
 .catalog-welcome .catalog-welcome-map {
+  --catalog-welcome-map-width: max(100vw, calc(var(--dialog-viewport-height, 100dvh) * 30 / 7));
   position: fixed;
   z-index: 0;
   inset-inline: 0;
@@ -42,11 +43,11 @@
 .catalog-welcome .catalog-welcome-map::before {
   content: '';
   position: absolute;
-  left: calc(50% - 75vmax);
-  top: calc(50% - 75vmax);
-  width: 150vmax;
-  height: 150vmax;
-  background: #0752ff url('/welcome/world-map.svg') center / contain no-repeat;
+  left: calc(50% - var(--catalog-welcome-map-width) / 2);
+  top: 0;
+  width: calc(var(--catalog-welcome-map-width) * 2);
+  height: 100%;
+  background: #0752ff url('/welcome/world-map.svg') left center / var(--catalog-welcome-map-width) auto repeat-x;
   transform-origin: center;
   pointer-events: none;
 }
@@ -62,7 +63,7 @@
 }
 
 .catalog-welcome[data-map-revealed='true'] .catalog-welcome-map::before {
-  animation: catalog-welcome-map-spin 120s linear infinite;
+  animation: catalog-welcome-map-spin 24s linear infinite;
 }
 
 .catalog-welcome .catalog-welcome-layout {
@@ -281,8 +282,8 @@
 }
 
 @keyframes catalog-welcome-map-spin {
-  from { transform: rotate(0turn); }
-  to { transform: rotate(1turn); }
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(0px - var(--catalog-welcome-map-width))); }
 }
 
 @keyframes catalog-welcome-cursor {
