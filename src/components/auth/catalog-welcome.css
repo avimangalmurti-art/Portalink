@@ -40,8 +40,7 @@
   transition: clip-path var(--m-slow) var(--m-enter), opacity var(--m-fast) var(--m-enter);
 }
 
-.catalog-welcome .catalog-welcome-map::before {
-  content: '';
+.catalog-welcome .catalog-welcome-world-track {
   position: absolute;
   left: calc(50% - var(--catalog-welcome-map-width) / 2);
   top: 0;
@@ -62,9 +61,44 @@
   opacity: 1;
 }
 
-.catalog-welcome[data-map-revealed='true'] .catalog-welcome-map::before {
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-world-track {
   animation: catalog-welcome-map-spin 24s linear infinite;
 }
+
+.catalog-welcome-world-copy {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--catalog-welcome-map-width);
+  height: 100%;
+  overflow: hidden;
+  color: #fff5bc;
+}
+
+.catalog-welcome-world-copy[data-world-copy='1'] { left: var(--catalog-welcome-map-width); }
+.catalog-world-link, .catalog-world-idea-link { stroke: #fff5bc; stroke-width: .65; }
+.catalog-world-link-glow { stroke-width: 3; opacity: .16; }
+.catalog-world-city-halo, .catalog-world-industry-halo { fill: #fff5bc; opacity: .18; }
+.catalog-world-city-light, .catalog-world-satellite { fill: #fff5bc; }
+.catalog-world-industry-disc, .catalog-world-idea-disc { fill: #06266a; stroke: #fff5bc; stroke-width: .55; }
+.catalog-world-industry, .catalog-world-idea { color: #fff5bc; }
+.catalog-world-idea-link { stroke-width: .9; }
+.catalog-world-idea-ring { fill: none; stroke: #fff5bc; stroke-width: .65; opacity: 0; }
+
+.catalog-welcome[data-map-revealed='true'] .catalog-world-link {
+  stroke-dasharray: 1;
+  animation: catalog-world-connect 1.1s ease-out var(--world-delay, 0ms) both;
+}
+.catalog-welcome[data-map-revealed='true'] .catalog-world-city,
+.catalog-welcome[data-map-revealed='true'] .catalog-world-industry {
+  animation: catalog-world-appear .65s ease-out var(--world-delay, 0ms) both;
+}
+.catalog-world-idea-link { stroke-dasharray: 1; animation: catalog-world-connect .7s ease-out both; }
+.catalog-world-idea-ring { transform-box: fill-box; transform-origin: center; animation: catalog-world-ripple 1.4s ease-out both; }
+
+@keyframes catalog-world-connect { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes catalog-world-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes catalog-world-ripple { from { opacity: .9; transform: scale(.5); } to { opacity: 0; transform: scale(7); } }
 
 .catalog-welcome .catalog-welcome-layout {
   position: relative;
@@ -92,6 +126,8 @@
 .catalog-welcome[data-complete='true'] .catalog-welcome-copy {
   display: none;
 }
+
+.catalog-welcome[data-complete='true'] { cursor: crosshair; }
 
 .catalog-welcome .catalog-welcome-headline {
   margin: 0;
@@ -322,7 +358,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .catalog-welcome .catalog-welcome-map,
-  .catalog-welcome .catalog-welcome-map::before,
+  .catalog-welcome .catalog-welcome-world-track,
   .catalog-welcome .catalog-welcome-line,
   .catalog-welcome .catalog-welcome-action,
   .catalog-welcome .catalog-welcome-start {
@@ -335,5 +371,9 @@
   }
   .catalog-welcome .catalog-welcome-action {
     transition: none;
+  }
+  .catalog-world-link, .catalog-world-city, .catalog-world-industry, .catalog-world-idea-link, .catalog-world-idea-ring {
+    animation: none !important;
+    stroke-dashoffset: 0;
   }
 }

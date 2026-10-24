@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
+import * as worldIcons from 'lucide-react';
 import { sourceModule } from './helpers/source-module.mjs';
+
+const worldModel = sourceModule('src/components/auth/welcomeWorldModel.ts');
+const worldView = sourceModule('src/components/auth/WelcomeWorld.tsx', { react: React, 'lucide-react': worldIcons, './welcomeWorldModel': worldModel });
 
 const same = (left, right) => left && right && left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
 const nodes = node => React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
@@ -28,25 +32,26 @@ function fixture(options = {}) {
   const environment = options.environment ?? stateFixture(options), { state } = environment;
   const slots = [], timers = new Map(), mediaEvents = new Set(), starts = [], focuses = [], dismissals = [], portalTargets = [];
   let cursor = 0, effects = [], dirty = true, tree, now = 0, timerId = 0, mounted = true, lateStateWrites = 0, reduced = options.reduced ?? false, modalClose;
-  const root = { focus(settings) { focuses.push(settings); } }, viewport = { current: root };
+  const root = { focus(settings) { focuses.push(settings); }, getBoundingClientRect: () => ({ left: 0, top: 0, width: 420, height: 912 }) }, viewport = { current: root };
   const media = { get matches() { return reduced; }, addEventListener(type, listener) { assert.equal(type, 'change'); mediaEvents.add(listener); }, removeEventListener(type, listener) { assert.equal(type, 'change'); mediaEvents.delete(listener); } };
   const window = { ...environment.window, matchMedia(query) { assert.equal(query, '(prefers-reduced-motion: reduce)'); return media; },
     setTimeout(callback, delay = 0) { const id = ++timerId; timers.set(id, { callback, at: now + delay }); return id; }, clearTimeout(id) { timers.delete(id); },
   };
   const react = { ...React,
     useState(initial) { const index = cursor++; slots[index] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[index].value, next => { if (!mounted) { lateStateWrites++; return; } const value = typeof next === 'function' ? next(slots[index].value) : next; if (!Object.is(value, slots[index].value)) { slots[index].value = value; dirty = true; } }]; },
-    useRef(initial) { return slots[cursor++] ??= { current: initial }; },
+    useRef(initial) { const slot = slots[cursor++] ??= { current: initial }; if (initial === null && options.trackBounds) slot.current = { getBoundingClientRect: () => options.trackBounds }; return slot; },
     useCallback(callback, deps) { const index = cursor++; if (!same(slots[index]?.deps, deps)) slots[index] = { deps, callback }; return slots[index].callback; },
     useEffect(callback, deps) { const index = cursor++, previous = slots[index]; if (!same(previous?.deps, deps)) { const slot = slots[index] = { deps }; effects.push(() => { previous?.cleanup?.(); if (mounted) slot.cleanup = callback(); }); } },
   };
   const document = { body: { kind: 'body' }, fullscreenElement: options.fullscreen ? { kind: 'fullscreen' } : null };
-  const { CatalogWelcome } = sourceModule('src/components/auth/CatalogWelcome.tsx', { react, 'react-dom': { createPortal(child, target) { portalTargets.push(target); return child; } }, '../../presentation/useViewportPresentation': { useViewportPresentation: () => options.presentation ?? 'mobile' }, '../../hooks/useDialogViewport': { useDialogViewport: () => viewport }, '../../hooks/useModalFocus': { useModalFocus(open, target, close, preventScroll = false) { assert.equal(open, true); assert.equal(preventScroll, false, 'Keyboard focus must be allowed to scroll a short or enlarged welcome viewport'); modalClose = close; react.useEffect(() => { target.current?.focus({ preventScroll }); }, []); } }, './catalogWelcomeState': state, './catalog-welcome.css': {} }, { window, document, performance: { now: () => now } });
+  const { CatalogWelcome } = sourceModule('src/components/auth/CatalogWelcome.tsx', { react, 'react-dom': { createPortal(child, target) { portalTargets.push(target); return child; } }, '../../presentation/useViewportPresentation': { useViewportPresentation: () => options.presentation ?? 'mobile' }, '../../hooks/useDialogViewport': { useDialogViewport: () => viewport }, '../../hooks/useModalFocus': { useModalFocus(open, target, close, preventScroll = false) { assert.equal(open, true); assert.equal(preventScroll, false, 'Keyboard focus must be allowed to scroll a short or enlarged welcome viewport'); modalClose = close; react.useEffect(() => { target.current?.focus({ preventScroll }); }, []); } }, './catalogWelcomeState': state, './WelcomeWorld': worldView, './welcomeWorldModel': worldModel, './catalog-welcome.css': {} }, { window, document, performance: { now: () => now } });
   function render() { if (!mounted) return tree; for (let pass = 0; dirty; pass++) { assert.ok(pass < 20, 'Welcome effects should settle'); dirty = false; cursor = 0; effects = []; tree = CatalogWelcome({ onStart() { starts.push(now); }, onDismiss: options.dismissible ? () => dismissals.push(now) : undefined }); effects.splice(0).forEach(run => run()); } return tree; }
   const all = () => nodes(expanded(render()));
   const region = className => all().find(node => node.props.className === className);
   function event(extra = {}) { return { defaultPrevented: false, propagationStopped: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.propagationStopped = true; }, ...extra }; }
   render();
-  return { ...environment, environment, timers, mediaEvents, starts, focuses, dismissals, document, portalTargets, render, all,
+  return { ...environment, environment, timers, mediaEvents, starts, focuses, dismissals, document, portalTargets, render, all, root,
+    get ideas() { return nodes(render()).find(node => node.type === worldView.WelcomeWorld).props.ideas; },
     get lateStateWrites() { return lateStateWrites; }, get main() { return render(); }, get button() { return all().find(node => node.type === 'button'); }, get action() { return region('catalog-welcome-action'); }, get map() { return region('catalog-welcome-map'); },
     revealed(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph' && node.props['data-revealed']).map(textOf).join(''); },
     glyphs(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph'); },
@@ -54,13 +59,34 @@ function fixture(options = {}) {
     advance(milliseconds) { const target = now + milliseconds; for (let pass = 0; ; pass++) { assert.ok(pass < 10000, 'Timers must remain bounded'); const next = [...timers.entries()].filter(([, timer]) => timer.at <= target).sort((left, right) => left[1].at - right[1].at || left[0] - right[0])[0]; if (!next) break; const [id, timer] = next; timers.delete(id); now = timer.at; timer.callback(); render(); } now = target; render(); },
     pointerDown() { render().props.onPointerDownCapture(event()); render(); },
     pointerCancel() { render().props.onPointerCancelCapture(event()); render(); },
-    click(start = false) { const click = event(); render().props.onClickCapture(click); if (!click.propagationStopped && start) this.button.props.onClick(click); render(); return click; },
-    key(key) { const pressed = event({ key }); render().props.onKeyDownCapture(pressed); render(); return pressed; },
+    click(start = false, extra = {}) { const click = event(extra); render().props.onClickCapture(click); if (!click.propagationStopped && start) this.button.props.onClick(click); render(); return click; },
+    key(key, extra = {}) { const pressed = event({ ...extra, key }); render().props.onKeyDownCapture(pressed); render(); return pressed; },
     modalDismiss() { modalClose(); render(); },
     reduce(value) { reduced = value; for (const listener of [...mediaEvents]) listener({ matches: value }); render(); },
     unmount() { mounted = false; slots.forEach(slot => slot?.cleanup?.()); },
   };
 }
+
+test('world taps add bounded ideas only after completion; the catalogue action never adds an idea', () => {
+  const h = fixture({ trackBounds: { left: -1744.285714, top: 0, width: 7817.142856, height: 912 } });
+  const tap = { clientX: 210, clientY: 456, target: { closest: () => null } };
+  h.advance(1000); h.pointerDown(); h.click(false, tap);
+  assert.equal(h.ideas.length, 0, 'The first tap only finishes the introduction.'); assert.deepEqual(h.starts, []);
+  for (let i = 0; i < 7; i++) { h.pointerDown(); h.click(false, tap); }
+  assert.equal(h.ideas.length, 4); assert.deepEqual(Array.from(h.ideas, idea => idea.id), [4, 5, 6, 7]);
+  assert.ok(Math.abs(h.ideas[0].x - 600) < .001); assert.ok(Math.abs(h.ideas[0].y - 140) < .001);
+  h.pointerDown(); h.click(true, { ...tap, target: { closest: () => ({ tagName: 'BUTTON' }) } });
+  assert.equal(h.ideas.length, 4); assert.equal(h.starts.length, 1); h.unmount();
+});
+
+test('Space on the focused world creates an idea while reduced motion and keyboard Start remain usable', () => {
+  const h = fixture({ reduced: true, trackBounds: { left: 0, top: 0, width: 2400, height: 912 } });
+  assert.equal(h.main.props['aria-describedby'], 'catalog-welcome-world-help');
+  const space = h.key(' ', { target: h.root, currentTarget: h.root });
+  assert.equal(space.defaultPrevented, true); assert.equal(h.ideas.length, 1); assert.deepEqual(h.starts, []);
+  h.key(' ', { target: {}, currentTarget: h.root }); assert.equal(h.ideas.length, 1);
+  h.button.props.onClick(); assert.equal(h.starts.length, 1); assert.equal(h.timers.size, 0); h.unmount();
+});
 
 test('welcome timeline types the headline, pauses, accumulates support and completes around five seconds', () => {
   const { state } = stateFixture(), headlineLength = count(state.CATALOG_HEADLINE), supportLength = count(state.CATALOG_SUPPORT);

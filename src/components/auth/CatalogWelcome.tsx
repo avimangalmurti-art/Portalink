@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { useViewportPresentation } from '../../presentation/useViewportPresentation';
+import { WelcomeWorld } from './WelcomeWorld';
+import { addWorldIdea, worldPointAt, type WorldIdea } from './welcomeWorldModel';
 import {
   CATALOG_HEADLINE, CATALOG_SUPPORT, CATALOG_WELCOME_MS,
   catalogWelcomeProgress, hasCompletedCatalogWelcome,
@@ -37,6 +39,9 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
   const [portalHost] = useState(() => document.fullscreenElement ?? document.body);
   const viewport = useDialogViewport<HTMLElement>();
   const presentation = useViewportPresentation();
+  const track = useRef<HTMLDivElement>(null);
+  const [ideas, setIdeas] = useState<WorldIdea[]>([]);
+  const nextIdea = useRef(0);
   const finished = useRef(instant);
   const started = useRef(false);
   const skipGesture = useRef(false);
@@ -85,8 +90,19 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
     onStart();
   };
 
+  const imagine = (x: number, y: number) => {
+    const bounds = track.current?.getBoundingClientRect?.();
+    if (!bounds) return;
+    const point = worldPointAt({ x, y }, bounds);
+    if (point) {
+      const idea = { ...point, id: ++nextIdea.current };
+      setIdeas(previous => addWorldIdea(previous, idea));
+    }
+  };
+
   const screen = <section ref={viewport} className="catalog-welcome" data-presentation={presentation} role="dialog" aria-modal="true" tabIndex={-1}
     aria-labelledby={progress.complete ? undefined : 'catalog-welcome-title'} aria-label={progress.complete ? 'Create catalogue' : undefined}
+    aria-describedby={progress.complete ? 'catalog-welcome-world-help' : undefined}
     data-complete={progress.complete} data-instant={instant} data-map-revealed={progress.textComplete}
     onPointerDownCapture={() => { skipGesture.current = !finished.current; }}
     onPointerCancelCapture={() => { skipGesture.current = false; }}
@@ -94,15 +110,24 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
       if (skipGesture.current || !finished.current) {
         skipGesture.current = false;
         event.preventDefault(); event.stopPropagation(); finish();
+      } else {
+        const target = event.target as Element | null;
+        if (Number.isFinite(event.clientX) && Number.isFinite(event.clientY)
+          && !target?.closest?.('button, a, input, select, textarea, [role="button"]')) imagine(event.clientX, event.clientY);
       }
     }}
     onKeyDownCapture={event => {
       skipGesture.current = false;
       if (!finished.current && (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape')) {
         event.preventDefault(); event.stopPropagation(); finish();
+      } else if (finished.current && event.key === ' ' && event.target === event.currentTarget) {
+        event.preventDefault();
+        const bounds = viewport.current?.getBoundingClientRect?.();
+        if (bounds) imagine(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
       }
     }}>
-    <div className="catalog-welcome-map" aria-hidden="true" />
+    <WelcomeWorld trackRef={track} ideas={ideas} />
+    {progress.complete && <span id="catalog-welcome-world-help" className="catalog-welcome-accessible">Human ideas connect and change the world. Tap the world or press Space to see an idea connect. Create catalogue to begin.</span>}
     <div className="catalog-welcome-layout">
       <div className="catalog-welcome-copy" aria-hidden={progress.complete || undefined}>
         <h1 id="catalog-welcome-title" className="catalog-welcome-headline">
