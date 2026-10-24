@@ -10,7 +10,7 @@ function fixture(ready = true, presentation = 'web') {
   const calls = [];
   const { ProfessionalEntry } = sourceModule('src/components/auth/ProfessionalEntry.tsx', {
     react: { ...React, useState: () => [story, value => { story = typeof value === 'function' ? value(story) : value; }] },
-    'lucide-react': { ArrowRight: 'arrow', Check: 'check' },
+    'lucide-react': { ArrowRight: 'arrow', Check: 'check', ChevronDown: 'chevron' },
     '../../data/sourceImages': sourceModule('src/data/sourceImages.ts'),
     '../../presentation/usePresentation': { usePresentation: () => presentation },
     './CatalogWelcome': { CatalogWelcome: 'optional-story' }, './professional-entry.css': {},
@@ -27,38 +27,44 @@ test('professional entry immediately exposes create, sign-in and guest actions w
     assert.ok(button, label); assert.equal(button.props.disabled, false); button.props.onClick(); assert.equal(h.calls.at(-1), action);
     if (action === 'create') assert.equal(button.props['data-ui-shape'], 'action', 'Use the shared action radius instead of the mobile fallback');
   }
-  const images = all.filter(n => n.type === 'img');
+  const images = nodes(all.find(n => n.type === 'figure')).filter(n => n.type === 'img');
   assert.equal(images.length, 6); assert.equal(new Set(images.map(n => n.props.src)).size, 6);
   assert.ok(images.every(n => n.props.src.startsWith('/') && n.props.alt));
 });
 test('the brand film opens only on request and Back restores immediate choices without an auth action', () => {
-  const h = fixture(); nodes(h.render()).find(n => n.type === 'button' && words(n) === 'About Portalink').props.onClick();
-  let story = h.render(); assert.equal(story.type, 'optional-story'); assert.deepEqual(h.calls, []);
-  story.props.onDismiss(); assert.equal(h.render().type, 'main'); assert.deepEqual(h.calls, []);
-  nodes(h.render()).find(n => n.type === 'button' && words(n) === 'About Portalink').props.onClick();
-  story = h.render(); story.props.onStart(); assert.deepEqual(h.calls, ['create']);
-  assert.equal(h.render().type, 'main', 'The body-portalled story must unmount before the parent opens authentication');
+  const h = fixture(); nodes(h.render()).find(n => n.type === 'button' && words(n) === 'Watch our story').props.onClick();
+  let tree = h.render(), story = nodes(tree).find(n => n.type === 'optional-story');
+  assert.ok(story); assert.deepEqual(h.calls, []);
+  assert.equal(tree.props.style.visibility, 'hidden');
+  assert.equal(nodes(tree).filter(n => n.type === 'details').length, 9, 'Company DOM stays mounted to preserve open sections and scroll');
+  story.props.onDismiss(); assert.equal(h.render().props.style, undefined); assert.deepEqual(h.calls, []);
+  nodes(h.render()).find(n => n.type === 'button' && words(n) === 'Watch our story').props.onClick();
+  story = nodes(h.render()).find(n => n.type === 'optional-story'); story.props.onStart(); assert.deepEqual(h.calls, ['create']);
+  assert.equal(nodes(h.render()).some(n => n.type === 'optional-story'), false, 'The body-portalled story must unmount before the parent opens authentication');
 });
 
-test('mobile keeps a single create action after the three Portalink characters and retains the entry actions', () => {
-  const h = fixture(true, 'mobile'), tree = h.render(), all = nodes(tree);
-  assert.equal(all.filter(n => n.type === 'img').length, 3);
-  assert.deepEqual(all.filter(n => n.type === 'img').map(n => n.props.src), ['/onboarding/welcome.webp', '/onboarding/process.webp', '/onboarding/portals.webp']);
-  assert.equal(all.some(n => n.type === 'figcaption'), false);
-  assert.equal(all.some(n => n.props.className === 'professional-entry-eyebrow'), false);
-  assert.equal(words(all.find(n => n.props.className === 'professional-entry-description')), 'Organize your projects. Share your process.');
-  const actions = all.filter(n => n.type === 'button' && words(n).trim() === 'Create catalogue');
-  assert.equal(actions.length, 1);
-  const benefits = all.find(n => n.type === 'ul');
-  assert.ok(benefits);
-  assert.equal(nodes(benefits).filter(n => n.type === 'li').length, 3);
-  assert.ok(all.indexOf(actions[0]) > all.indexOf(benefits), 'The primary action follows the benefits in reading order');
-  for (const label of ['Create catalogue', 'Sign in', 'Continue as guest']) {
-    all.find(n => n.type === 'button' && words(n).trim() === label).props.onClick();
+test('both presentations expose nine native company disclosures, characters and the original account actions', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = fixture(true, presentation), tree = h.render(), all = nodes(tree);
+    const sections = all.filter(n => n.type === 'details');
+    assert.equal(sections.length, 9);
+    assert.ok(sections.every(n => n.props.open === undefined), 'Company sections start collapsed without hiding their native keyboard controls');
+    assert.deepEqual(all.filter(n => n.type === 'summary').map(words), ['About Portalink', 'Mission', 'Features', 'How it works', 'Portals', 'For creators', 'Team', 'Careers', 'Privacy & control']);
+    const characters = all.filter(n => n.props.className === 'professional-entry-company-character');
+    assert.equal(characters.length, 9);
+    assert.equal(new Set(characters.map(n => n.props.src)).size, 3);
+    assert.ok(characters.every(n => n.props.alt === '' && n.props['aria-hidden'] === 'true'), 'Decorative characters do not repeat the section names');
+    const actions = all.filter(n => n.type === 'button' && words(n).trim() === 'Create catalogue');
+    assert.equal(actions.length, 1);
+    if (presentation === 'mobile') assert.ok(all.indexOf(actions[0]) > all.indexOf(sections.at(-1)), 'The mobile primary action follows the nine sections');
+    for (const label of ['Create catalogue', 'Sign in', 'Continue as guest']) {
+      all.find(n => n.type === 'button' && words(n).trim() === label).props.onClick();
+    }
+    assert.deepEqual(h.calls, ['create', 'signin', 'guest']);
   }
-  assert.deepEqual(h.calls, ['create', 'signin', 'guest']);
 });
 test('entry controls follow readiness without enabling account actions before restoration completes', () => {
   const h = fixture(false); assert.ok(nodes(h.render()).filter(n => n.type === 'button').every(n => n.props.disabled));
+  assert.equal(nodes(h.render()).filter(n => n.type === 'summary').length, 9, 'Company information remains available while account restoration is pending');
   assert.deepEqual(h.calls, []);
 });

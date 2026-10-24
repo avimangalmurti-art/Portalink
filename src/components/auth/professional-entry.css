@@ -53,7 +53,7 @@
 }
 .professional-entry button:focus-visible { outline: 3px solid #e62b5c; outline-offset: 5px; border-radius: 6px; }
 .professional-entry button:disabled { cursor: default; opacity: .5; }
-.professional-entry-main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: clamp(40px, 6vw, 88px); padding: 32px 0; }
+.professional-entry-main { flex: 1; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: start; gap: clamp(40px, 6vw, 72px); padding: 24px 0; }
 .professional-entry-eyebrow { margin: 0 0 24px; color: var(--entry-muted); font-size: .8125rem; font-weight: 600; letter-spacing: .025em; }
 .professional-entry h1 { margin: 0; color: inherit; font: inherit; font-size: clamp(2.625rem, 5.1vw, 4.125rem); font-weight: 700; letter-spacing: -.065em; line-height: 1.04; }
 .professional-entry-description { max-width: 360px; margin: 24px 0 32px; color: var(--entry-muted); font-size: 1.125rem; line-height: 1.6; }
@@ -71,27 +71,43 @@
 .professional-entry-project > span { display: block; margin-top: 7px; color: var(--entry-ink); font-size: .6875rem; font-weight: 550; line-height: 1.4; overflow-wrap: anywhere; }
 .professional-entry-footer { border-top: 1px solid var(--entry-rule); padding-top: 8px; color: var(--entry-muted); }
 .professional-entry-footer button { font-size: .75rem; font-weight: 450; }
+.professional-entry-company-art { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: min(100%, 264px); margin-top: 24px; }
+.professional-entry-company-art img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; }
+.professional-entry-company-sections { list-style: none; min-width: 0; margin: 0; padding: 0; }
+.professional-entry-company-sections li, .professional-entry-company-sections details { min-width: 0; }
+.professional-entry-company-sections summary { display: grid; grid-template-columns: 20px minmax(0, 1fr) 40px 16px; align-items: center; gap: 16px; min-height: 52px; padding: 6px 0; border-radius: 8px; list-style: none; cursor: pointer; touch-action: manipulation; }
+.professional-entry-company-sections summary::-webkit-details-marker { display: none; }
+.professional-entry-company-sections summary::marker { content: ''; }
+.professional-entry-company-sections summary:focus-visible { outline: 3px solid #e62b5c; outline-offset: 4px; }
+.professional-entry-company-sections summary:active { opacity: .8; }
+.professional-entry-company-check { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #30d158; color: #102314; }
+.professional-entry-company-title { min-width: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.professional-entry-company-character { display: block; width: 40px; height: 40px; object-fit: contain; }
+.professional-entry-company-chevron { color: var(--entry-muted); transition: transform 160ms ease; }
+.professional-entry-company-sections details[open] > summary .professional-entry-company-chevron { transform: rotate(180deg); }
+.professional-entry-company-panel { padding: 4px 16px 20px 36px; color: var(--entry-muted); font-size: .9375rem; line-height: 1.6; overflow-wrap: anywhere; }
+.professional-entry-company-panel p { margin: 0 0 12px; }
+.professional-entry-company-panel p:last-child { margin-bottom: 0; }
+.professional-entry-company-panel .professional-entry-preview { margin-top: 16px; padding: 16px; }
 @media (max-width: 639px) {
   .professional-entry { --entry-bg: #f2f2f7; }
   .professional-entry-frame { padding-inline: max(24px, env(safe-area-inset-left, 0px)) max(24px, env(safe-area-inset-right, 0px)); }
-  .professional-entry-main { grid-template-columns: 1fr; align-content: center; gap: 24px; padding: 24px 0; }
+  .professional-entry-main { grid-template-columns: 1fr; align-content: start; gap: 16px; padding: 48px 0 16px; }
   .professional-entry-copy { text-align: center; }
-  .professional-entry h1 { font-size: clamp(1.875rem, 8vw, 2.25rem); letter-spacing: -.035em; line-height: 1.1; }
-  .professional-entry-description { max-width: 18rem; margin: 16px auto 0; font-size: 1.125rem; line-height: 1.5; }
+  .professional-entry h1 { font-size: 1.75rem; letter-spacing: -.035em; line-height: 1.15; }
+  .professional-entry-description { max-width: 24rem; margin: 8px auto 0; font-size: 1rem; line-height: 1.5; }
   .professional-entry button.professional-entry-create { max-width: none; }
-  .professional-entry-benefits { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
-  .professional-entry-benefits li { display: grid; grid-template-columns: 20px minmax(0, 1fr) 64px; align-items: center; gap: 16px; min-height: 64px; }
-  .professional-entry-benefit-check { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #30d158; color: #102314; }
-  .professional-entry-benefits li > span:nth-child(2) { font-size: 1.1875rem; font-weight: 600; line-height: 1.35; }
-  .professional-entry-benefits img { display: block; width: 64px; height: 64px; object-fit: contain; }
+  .professional-entry-company-sections summary { gap: 12px; }
+  .professional-entry-company-panel { padding-inline: 32px 0; }
+  .professional-entry-company-panel .professional-entry-preview { padding: 12px; }
   .professional-entry-footer { border-top: 0; }
 }
-@media (max-width: 639px) and (max-height: 620px) {
-  .professional-entry-main { gap: 16px; padding-block: 16px; }
-  .professional-entry-description { margin-top: 12px; }
-  .professional-entry-benefits { gap: 8px; }
-  .professional-entry-benefits li { grid-template-columns: 20px minmax(0, 1fr) 52px; gap: 12px; min-height: 52px; }
-  .professional-entry-benefits img { width: 52px; height: 52px; }
+@media (max-width: 639px) and (max-height: 800px) {
+  .professional-entry-frame { padding-top: max(16px, env(safe-area-inset-top, 0px)); padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
+  .professional-entry-main { gap: 12px; padding-block: 4px; }
+  .professional-entry-company-sections summary { grid-template-columns: 20px minmax(0, 1fr) 32px 16px; gap: 10px; min-height: 44px; }
+  .professional-entry-company-character { width: 32px; height: 32px; }
+  .professional-entry-footer { padding-top: 0; }
 }
 /* The retained account-entry host sets a legacy mobile font; this scene owns its typography. */
 .portalink-splash[data-share-landing] .mobile-share-landing-actions .professional-entry .professional-entry-frame button { font-family: inherit !important; }
@@ -103,4 +119,7 @@
 }
 @media (forced-colors: active) {
   .professional-entry button.professional-entry-create { border: 1px solid ButtonText; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .professional-entry-company-chevron { transition: none; }
 }
