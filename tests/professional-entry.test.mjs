@@ -40,9 +40,10 @@ test('the brand film opens only on request and Back restores immediate choices w
   assert.equal(h.render().type, 'main', 'The body-portalled story must unmount before the parent opens authentication');
 });
 
-test('mobile keeps a single create action after three real covers and retains the entry actions', () => {
+test('mobile keeps a single create action after the three Portalink characters and retains the entry actions', () => {
   const h = fixture(true, 'mobile'), tree = h.render(), all = nodes(tree);
   assert.equal(all.filter(n => n.type === 'img').length, 3);
+  assert.deepEqual(all.filter(n => n.type === 'img').map(n => n.props.src), ['/onboarding/welcome.webp', '/onboarding/process.webp', '/onboarding/portals.webp']);
   assert.equal(all.some(n => n.type === 'figcaption'), false);
   assert.equal(all.some(n => n.props.className === 'professional-entry-eyebrow'), false);
   assert.equal(words(all.find(n => n.props.className === 'professional-entry-description')), 'Organize your projects. Share your process.');

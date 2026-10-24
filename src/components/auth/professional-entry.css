@@ -80,6 +80,8 @@
   .professional-entry-preview { padding: 0; border: 0; border-radius: 0; background: transparent; }
   .professional-entry-grid { gap: 8px; }
   .professional-entry-image { height: clamp(128px, 43vw, 180px); aspect-ratio: auto; }
+  .professional-entry-characters .professional-entry-image { border: 0; background: transparent; }
+  .professional-entry-characters .professional-entry-image img { object-fit: cover; }
 }
 @media (max-width: 639px) and (max-height: 620px) {
   .professional-entry-main { gap: 16px; padding-block: 16px; }
