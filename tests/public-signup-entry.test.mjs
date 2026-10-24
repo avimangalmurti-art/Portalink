@@ -90,11 +90,10 @@ function catalogAuthParent({ presentation = 'mobile', view = 'signUp', search = 
  return {state,auth,calls,props,render(){cursor=0;return exports.AuthDialog(props);}};
 }
 
-test('direct sign-in and signup show the catalog composition before mounting their original account content',()=>{
+test('direct sign-in and signup mount their original forms immediately on both presentations',()=>{
  for(const presentation of ['mobile','web'])for(const view of ['signIn','signUp']){
-  const h=catalogAuthParent({presentation,view});const intro=h.render();assert.equal(intro.type,'catalog-welcome');assert.equal(intro.props.onDismiss,h.auth.closeAuth);
-  assert.equal(h.auth.pendingView,view);assert.deepEqual(h.calls,[]);assert.equal(nodes(intro).some(node=>node.type==='signup'||node.type==='signin'||node.type==='surface'),false);
-  h.state.rememberCatalogWelcomeEntry();intro.props.onStart();intro.props.onStart();const entry=h.render();assert.deepEqual(h.calls,[]);assert.equal(h.auth.pendingView,view);
+  const h=catalogAuthParent({presentation,view}),entry=h.render();assert.notEqual(entry.type,'catalog-welcome');
+  assert.equal(h.auth.pendingView,view);assert.deepEqual(h.calls,[]);
   if(view==='signIn'){assert.equal(entry.type,'surface');assert.equal(entry.props.title,'Sign in');assert.equal(entry.props.registrationReturnPath,h.props.registrationReturnPath);}
   else{const welcome=nodes(entry).find(node=>node.type==='welcome');assert.ok(welcome);assert.equal(welcome.props.landing.content.props.returnPath,h.props.registrationReturnPath);assert.equal(nodes(welcome.props.landing.content).some(node=>node.type==='signup'),true);}
  }
@@ -106,7 +105,7 @@ test('auth recovery, callbacks and signed-in forms bypass the catalog gate witho
  }
 });
 
-test('auth parent reuses the entered module state while cancellation remains the original close action',()=>{
- const first=catalogAuthParent({view:'signIn'}),intro=first.render();assert.equal(intro.type,'catalog-welcome');intro.props.onDismiss();assert.deepEqual(first.calls,[['close']]);
+test('form cancellation retains the original close action independently of optional film state',()=>{
+ const first=catalogAuthParent({view:'signIn'}),entry=first.render();assert.equal(entry.type,'surface');entry.props.onDismiss();assert.deepEqual(first.calls,[['close']]);
  first.state.rememberCatalogWelcomeEntry();const second=catalogAuthParent({view:'signUp',state:first.state});assert.notEqual(second.render().type,'catalog-welcome');assert.deepEqual(second.calls,[]);
 });

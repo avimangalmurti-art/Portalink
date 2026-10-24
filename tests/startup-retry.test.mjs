@@ -33,7 +33,7 @@ function bootstrap(presentation, authenticated = true) {
     react, 'framer-motion': { AnimatePresence: 'presence' },
     'react-router-dom': { Navigate: 'navigate', matchPath: () => null, useLocation: () => ({ pathname: '/', search: authenticated ? '' : '?welcome=1', hash: '' }) },
     '../App': { App: 'app' }, '../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'splash' },
-    '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
+    '../components/auth/ProfessionalEntry': { ProfessionalEntry: 'professional-entry' }, '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
     '../components/ui/StateViews': { ErrorState: 'error', LoadingState: 'loading' },
     '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes: { sharedCollaboration: {}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {}, controlCenter: { path: '/settings' } }, buildPath: () => '/share' },
@@ -45,7 +45,7 @@ function bootstrap(presentation, authenticated = true) {
     '../features/install/useMobileInstall': { useMobileInstallCapture() {} },
     '../presentation/mobile/useMobileResumeSession': { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) },
     '../presentation/mobile/MobileResumeContext': { MobileResumeProvider: 'resume-provider' },
-  }, { window: {
+  }, { Event: class { constructor(type) { this.type = type; } }, document: { getElementById: () => null }, window: { dispatchEvent() {},
     sessionStorage: { getItem: () => null, removeItem() { return; } },
     setTimeout(callback, delay) { timers.set(++timer, { callback, delay }); return timer; },
     clearTimeout(id) { timers.delete(id); },
@@ -56,34 +56,17 @@ function bootstrap(presentation, authenticated = true) {
   };
 }
 
-test('WEB Home Retry preserves completed startup media while retaining account/attempt readiness', () => {
-    const h = bootstrap('web');
-    let [app, presence] = h.render();
-    assert.equal(presence.props.children.props.stillOnly, false);
-    presence.props.children.props.onComplete();
-    [app, presence] = h.render(); const old = app.props;
-    assert.equal(presence.props.children.props.stillOnly, false, 'The first attempt retains its painted final frame');
-    h.timeout(); const timeout = h.render(); assert.equal(timeout[1].props.children, null);
-    timeout[3].props.children.props.onRetry(); [app, presence] = h.render();
-    assert.equal(presence.props.children.props.stillOnly, true, 'Retry cannot replay the already completed intro');
-    assert.equal(app.props.homeStartupAttempt, 1);
-    old.onHomeStartupReady(true); old.onHomeStartupShellReady(true);
-    assert.equal(h.render()[1].props.children.type, 'splash', 'Old attempt cannot uncover Home');
-    app.props.onHomeStartupReady(true); app.props.onHomeStartupShellReady(true);
-    h.render(); assert.equal(h.render()[1].props.children, null);
+test('restored WEB skips startup media while Home Retry retains account and attempt readiness', () => {
+ const h=bootstrap('web');let [app,presence]=h.render();assert.equal(presence.props.children,null);assert.equal(app.props.homeStartupPending,true);const old=app.props;
+ h.timeout();const timeout=h.render();assert.equal(timeout[1].props.children,null);timeout[3].props.children.props.onRetry();[app,presence]=h.render();assert.equal(app.props.homeStartupAttempt,1);assert.equal(presence.props.children,null);
+ old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render()[0].props.homeStartupPending,true,'Old attempt cannot uncover Home');
+ app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render()[0].props.homeStartupPending,false);
 });
 
-test('WEB natural completion keeps the first-attempt media surface while Home waits', () => {
-    const h = bootstrap('web');
-    let [app, presence] = h.render();
-    presence.props.children.props.onComplete();
-    for (let render = 0; render < 3; render++) {
-      [app, presence] = h.render();
-      assert.equal(app.props.homeStartupAttempt, 0);
-      assert.equal(presence.props.children.props.stillOnly, false, 'Completion must not replace the final video frame with the first poster');
-    }
-    app.props.onHomeStartupReady(true); app.props.onHomeStartupShellReady(true);
-    h.render(); assert.equal(h.render()[1].props.children, null);
+test('restored WEB retains its loading state without requiring an introductory animation', () => {
+ const h=bootstrap('web');let [app,presence]=h.render();
+ for(let i=0;i<3;i++){[app,presence]=h.render();assert.equal(presence.props.children,null);assert.equal(app.props.homeStartupAttempt,0);assert.equal(app.props.homeStartupPending,true);}
+ app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render()[0].props.homeStartupPending,false);
 });
 
 test('explicit welcome Continue enters MOBILE immediately and preserves WEB Home-wait handoff', () => {

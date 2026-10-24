@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ArrowLeft, Pause, Play } from 'lucide-react';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { useViewportPresentation } from '../../presentation/useViewportPresentation';
@@ -34,6 +35,7 @@ function TypedLines({ lines, count, cursor }: { lines: readonly string[]; count:
 
 /** One accumulating composition, followed by the existing account entry. */
 export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; onDismiss?: () => void }) {
+  const [paused, setPaused] = useState(false);
   const [instant, setInstant] = useState(() => hasCompletedCatalogWelcome() || prefersReducedMotion());
   const [elapsed, setElapsed] = useState(() => instant ? CATALOG_WELCOME_MS : 0);
   const [portalHost] = useState(() => document.fullscreenElement ?? document.body);
@@ -54,8 +56,8 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
     setElapsed(CATALOG_WELCOME_MS);
   }, []);
   useModalFocus(true, viewport, () => {
-    if (!finished.current || !onDismiss) finish();
-    else onDismiss();
+    if (onDismiss) onDismiss();
+    else finish();
   });
 
   useEffect(() => {
@@ -103,10 +105,11 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
   const screen = <section ref={viewport} className="catalog-welcome" data-presentation={presentation} role="dialog" aria-modal="true" tabIndex={-1}
     aria-labelledby={progress.complete ? undefined : 'catalog-welcome-title'} aria-label={progress.complete ? 'Create catalogue' : undefined}
     aria-describedby={progress.complete ? 'catalog-welcome-world-help' : undefined}
-    data-complete={progress.complete} data-instant={instant} data-map-revealed={progress.textComplete}
+    data-complete={progress.complete} data-instant={instant} data-map-revealed={progress.textComplete} data-world-paused={paused}
     onPointerDownCapture={() => { skipGesture.current = !finished.current; }}
     onPointerCancelCapture={() => { skipGesture.current = false; }}
     onClickCapture={event => {
+      if ((event.target as Element | null)?.closest?.('[data-welcome-controls]')?.hasAttribute?.('data-welcome-controls')) { skipGesture.current = false; return; }
       if (skipGesture.current || !finished.current) {
         skipGesture.current = false;
         event.preventDefault(); event.stopPropagation(); finish();
@@ -117,6 +120,8 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
       }
     }}
     onKeyDownCapture={event => {
+      if ((event.target as Element | null)?.closest?.('[data-welcome-controls]')?.hasAttribute?.('data-welcome-controls')) return;
+      if (event.key === 'Escape' && onDismiss) { event.preventDefault(); event.stopPropagation(); onDismiss(); return; }
       skipGesture.current = false;
       if (!finished.current && (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape')) {
         event.preventDefault(); event.stopPropagation(); finish();
@@ -127,6 +132,12 @@ export function CatalogWelcome({ onStart, onDismiss }: { onStart: () => void; on
       }
     }}>
     <WelcomeWorld trackRef={track} ideas={ideas} />
+    {onDismiss && <nav className="catalog-welcome-controls" data-welcome-controls="" aria-label="About Portalink controls">
+      <button type="button" data-ui-shape="action" onClick={onDismiss}><ArrowLeft size={18} aria-hidden="true" /> Back</button>
+      {progress.textComplete && <button className="catalog-welcome-playback" type="button" data-ui-shape="action" onClick={() => setPaused(value => !value)} aria-label={paused ? 'Resume animation' : 'Pause animation'}>
+        {paused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}{paused ? 'Play' : 'Pause'}
+      </button>}
+    </nav>}
     {progress.complete && <span id="catalog-welcome-world-help" className="catalog-welcome-accessible">Portals connect human ideas that change the world. Tap the world or press Space to see an idea connect. Create catalogue to begin.</span>}
     <div className="catalog-welcome-layout">
       <div className="catalog-welcome-copy" aria-hidden={progress.complete || undefined}>

@@ -44,7 +44,7 @@ function fixture(options = {}) {
     useEffect(callback, deps) { const index = cursor++, previous = slots[index]; if (!same(previous?.deps, deps)) { const slot = slots[index] = { deps }; effects.push(() => { previous?.cleanup?.(); if (mounted) slot.cleanup = callback(); }); } },
   };
   const document = { body: { kind: 'body' }, fullscreenElement: options.fullscreen ? { kind: 'fullscreen' } : null };
-  const { CatalogWelcome } = sourceModule('src/components/auth/CatalogWelcome.tsx', { react, 'react-dom': { createPortal(child, target) { portalTargets.push(target); return child; } }, '../../presentation/useViewportPresentation': { useViewportPresentation: () => options.presentation ?? 'mobile' }, '../../hooks/useDialogViewport': { useDialogViewport: () => viewport }, '../../hooks/useModalFocus': { useModalFocus(open, target, close, preventScroll = false) { assert.equal(open, true); assert.equal(preventScroll, false, 'Keyboard focus must be allowed to scroll a short or enlarged welcome viewport'); modalClose = close; react.useEffect(() => { target.current?.focus({ preventScroll }); }, []); } }, './catalogWelcomeState': state, './WelcomeWorld': worldView, './welcomeWorldModel': worldModel, './catalog-welcome.css': {} }, { window, document, performance: { now: () => now } });
+  const { CatalogWelcome } = sourceModule('src/components/auth/CatalogWelcome.tsx', { react, 'lucide-react': worldIcons, 'react-dom': { createPortal(child, target) { portalTargets.push(target); return child; } }, '../../presentation/useViewportPresentation': { useViewportPresentation: () => options.presentation ?? 'mobile' }, '../../hooks/useDialogViewport': { useDialogViewport: () => viewport }, '../../hooks/useModalFocus': { useModalFocus(open, target, close, preventScroll = false) { assert.equal(open, true); assert.equal(preventScroll, false, 'Keyboard focus must be allowed to scroll a short or enlarged welcome viewport'); modalClose = close; react.useEffect(() => { target.current?.focus({ preventScroll }); }, []); } }, './catalogWelcomeState': state, './WelcomeWorld': worldView, './welcomeWorldModel': worldModel, './catalog-welcome.css': {} }, { window, document, performance: { now: () => now } });
   function render() { if (!mounted) return tree; for (let pass = 0; dirty; pass++) { assert.ok(pass < 20, 'Welcome effects should settle'); dirty = false; cursor = 0; effects = []; tree = CatalogWelcome({ onStart() { starts.push(now); }, onDismiss: options.dismissible ? () => dismissals.push(now) : undefined }); effects.splice(0).forEach(run => run()); } return tree; }
   const all = () => nodes(expanded(render()));
   const region = className => all().find(node => node.props.className === className);
@@ -52,7 +52,7 @@ function fixture(options = {}) {
   render();
   return { ...environment, environment, timers, mediaEvents, starts, focuses, dismissals, document, portalTargets, render, all, root,
     get ideas() { return nodes(render()).find(node => node.type === worldView.WelcomeWorld).props.ideas; },
-    get lateStateWrites() { return lateStateWrites; }, get main() { return render(); }, get button() { return all().find(node => node.type === 'button'); }, get action() { return region('catalog-welcome-action'); }, get map() { return region('catalog-welcome-map'); },
+    get lateStateWrites() { return lateStateWrites; }, get main() { return render(); }, get button() { return all().find(node => node.props.className === 'catalog-welcome-start'); }, get action() { return region('catalog-welcome-action'); }, get map() { return region('catalog-welcome-map'); },
     revealed(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph' && node.props['data-revealed']).map(textOf).join(''); },
     glyphs(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-glyph'); },
     lines(className) { return nodes(region(className)).filter(node => node.props.className === 'catalog-welcome-line'); },
@@ -362,9 +362,22 @@ test('the shared modal dismissal path completes the intro without bypassing its 
   assert.equal(h.timers.size, 0); h.pointerDown(); h.click(true); assert.equal(h.starts.length, 1); h.unmount();
 });
 
-test('dismissible auth intros consume an unfinished Escape but retain the existing cancel action after completion', () => {
-  const h = fixture({ dismissible: true }); h.advance(640); h.modalDismiss(); assert.equal(h.main.props['data-complete'], true); assert.deepEqual(h.starts, []); assert.deepEqual(h.dismissals, []);
-  h.modalDismiss(); assert.equal(h.dismissals.length, 1); assert.deepEqual(h.starts, []); assert.equal(h.state.hasEnteredCatalogWelcome(), false); h.unmount();
+test('the optional About film can be left immediately without completing or entering account creation', () => {
+  const h = fixture({ dismissible: true }); h.advance(640); h.modalDismiss(); assert.equal(h.main.props['data-complete'], false); assert.deepEqual(h.starts, []); assert.equal(h.dismissals.length, 1);
+  h.key('Escape'); assert.equal(h.dismissals.length, 2); assert.deepEqual(h.starts, []); assert.equal(h.state.hasEnteredCatalogWelcome(), false); h.unmount();
+});
+
+test('optional story playback pauses and resumes without navigation, and Back is available immediately', () => {
+  const h = fixture({ dismissible: true });
+  const controls = () => h.all().find(node => node.props.className === 'catalog-welcome-controls');
+  nodes(controls()).find(node => node.type === 'button').props.onClick();
+  assert.equal(h.dismissals.length, 1); assert.deepEqual(h.starts, []);
+  h.advance(5000);
+  h.all().find(node => node.props.className === 'catalog-welcome-playback').props.onClick();
+  assert.equal(h.main.props['data-world-paused'], true);
+  assert.equal(h.all().find(node => node.props.className === 'catalog-welcome-playback').props['aria-label'], 'Resume animation');
+  h.all().find(node => node.props.className === 'catalog-welcome-playback').props.onClick();
+  assert.equal(h.main.props['data-world-paused'], false); assert.deepEqual(h.starts, []); h.unmount();
 });
 
 test('stale Start handlers cannot enter before completion or hand off twice', () => {

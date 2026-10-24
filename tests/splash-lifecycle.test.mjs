@@ -85,7 +85,7 @@ function compile(path, imports, globals) {
       '../features/install/useMobileInstall': { useMobileInstallCapture() {} },
       '../presentation/mobile/useMobileResumeSession': { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) },
       '../presentation/mobile/MobileResumeContext': { MobileResumeProvider: 'resume-provider' },
-      '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
+      '../components/auth/ProfessionalEntry': { ProfessionalEntry: 'professional-entry' }, '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
       ...imports,
     };
     globals = { Event: class { constructor(type) { this.type = type; } }, document: { getElementById: () => null }, ...globals,
@@ -647,10 +647,10 @@ test('preboot matches the supplied clip ratio and canvas on MOBILE and WEB', () 
   assert.match(preboot, /<video[^>]*autoplay muted playsinline[^>]*preload="auto"/);
 });
 
-test('ready content loads beneath the bounded intro; navigation and auth retries never replay it', () => {
+test('ready content enters after restoration without requiring an intro; navigation and auth retries remain bounded', () => {
   for (const first of ['auth', 'media']) {
-  // Known WEB accounts retain this media/readiness flow. First guest entry on
-  // both platforms is covered separately by the catalog welcome gate tests.
+  // Screen warming overlaps session restoration. Restored accounts can enter
+  // directly; the immediate guest choices are covered separately below.
   const h = hooks(), auth = { isInitializing: true, isAuthenticated: true }, location = { pathname: '/' };
   const storage = new Map(), warmed = [];
   const { ApplicationBootstrap } = compile('../src/app/ApplicationBootstrap.tsx', {
@@ -679,14 +679,12 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
   auth.isInitializing = false;
   [app, presence] = render();
   assert.equal(app.type, 'app', 'data starts loading before the intro completes');
-  assert.equal(presence.props.children.type, 'splash');
+  assert.equal(presence.props.children, null);
   if (first === 'auth') {
     [app, presence] = render();
     assert.equal(app.type, 'app');
-    assert.equal(presence.props.children.type, 'splash', 'fast authentication cannot truncate playback');
-    assert.equal(presence.props.children.props.stillOnly, false);
+    assert.equal(presence.props.children, null, 'a restored account does not wait for decorative playback');
   }
-  presence.props.children.props.onComplete();
   render(); [app, presence] = render();
   assert.equal(app.type, 'app'); assert.equal(presence.props.children, null);
   location.pathname = '/messages'; [app, presence] = render();
@@ -779,6 +777,23 @@ test('direct shared entry retains public Settings access and the existing guest 
   assert.equal(h.requested.length,0);
 });
 
+test('guest landing exposes the professional entry immediately and wires every action to the existing flow', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = sharedBootstrap({ path: '/', search: '?welcome=1', presentation });
+    h.render(); h.auth.isInitializing = false;
+    const landing = h.render().props.landing;
+    assert.equal(landing.hideMedia, true);
+    assert.equal(landing.content.type, 'professional-entry');
+    assert.equal(landing.content.props.ready, true);
+    landing.content.props.onCreate(); assert.deepEqual(h.requested.at(-1), { view: 'signUp' });
+    assert.equal(h.render().props.hidden, true);
+    h.auth.pendingView = null;
+    h.render().props.landing.content.props.onSignIn(); assert.deepEqual(h.requested.at(-1), { view: 'signIn' });
+    h.auth.pendingView = null;
+    h.render().props.landing.content.props.onGuest(); assert.equal(h.render(), null);
+  }
+});
+
 test('invites open root welcome without a previous shared-profile redirect or account destination', () => {
   const h=sharedBootstrap({path:'/',search:'?welcome=1',storedProfileId:'previous-creator'});
   h.render(); h.auth.isInitializing=false;
@@ -838,7 +853,7 @@ test('invitation marker does not override signed-in, recovery or authentication 
   assert.equal(ordinary.requested.length,0);
 });
 
-test('restored MOBILE sessions bypass the intro while WEB retains its complete ready-screen handoff', () => {
+test('restored MOBILE and WEB sessions bypass the intro and retain ready-screen handoff', () => {
  for (const presentation of ['mobile','web']) {
   const h=sharedBootstrap({path:'/',search:'',presentation}); let splash=h.render();
   assert.equal(splash.props.landing,undefined); assert.equal(splash.props.hidden,false);
@@ -846,8 +861,7 @@ test('restored MOBILE sessions bypass the intro while WEB retains its complete r
   h.auth.isInitializing=false; h.auth.isAuthenticated=true;
   splash=h.render(); splash=h.render();
   assert.equal(h.app.type,'app');
-  if(presentation==='mobile') { assert.equal(splash,null); assert.equal(h.app.props.homeStartupPending,false); }
-  else { assert.equal(splash.type,'splash'); assert.equal(splash.props.stillOnly,false); splash.props.onComplete(); h.render(); assert.equal(h.render(),null); }
+  assert.equal(splash,null); h.render(); assert.equal(h.render(),null); assert.equal(h.app.props.homeStartupPending,false);
   assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
   h.render(); h.location.pathname='/messages'; assert.equal(h.render(),null);
  }
@@ -916,16 +930,13 @@ test('authenticated visitors, recovery and callback URLs never hold the landing'
   }
 });
 
-test('WEB opening Home retains its decoded-content and shell handoff after the full intro', () => {
-  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation:'web',homeReady:false});
-  h.auth.isInitializing=false;
-  let splash=h.render(); assert.equal(h.app.type,'app'); assert.equal(h.app.props.homeStartupPending,true);
-  splash.props.onComplete(); h.app.props.onHomeStartupShellReady(true);
-  assert.equal(h.render().type,'splash','shell and intro cannot expose incomplete Home');
-  assert.equal(h.waiting,false);
-  h.app.props.onHomeStartupReady(false); assert.equal(h.render().type,'splash');
-  h.app.props.onHomeStartupReady(true); h.render(); assert.equal(h.render(),null);
-  h.location.pathname='/messages'; assert.equal(h.render(),null);
+test('WEB opening Home retains decoded-content and shell readiness without requiring a film', () => {
+ const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation:'web',homeReady:false});h.auth.isInitializing=false;
+ assert.equal(h.render(),null);assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,true);
+ h.app.props.onHomeStartupShellReady(true);assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);
+ h.app.props.onHomeStartupReady(false);assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);
+ h.app.props.onHomeStartupReady(true);h.render();assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,false);
+ h.location.pathname='/messages';assert.equal(h.render(),null);
 });
 
 test('returning MOBILE sessions enter unready Home immediately without a startup timeout or later replay', () => {
@@ -946,30 +957,28 @@ test('returning MOBILE sessions enter unready Home immediately without a startup
 test('an opening WEB visit retains Home readiness and retry ownership after rotation to MOBILE', () => {
   const h=sharedBootstrap({path:'/',search:'',presentation:'web',authenticated:true,homeReady:false});
   h.render();h.setPresentation('mobile');h.auth.isInitializing=false;
-  const splash=h.render();assert.equal(splash.props.timedIntro,false);assert.equal(h.app.props.homeStartupPending,true);
-  splash.props.onComplete();assert.equal(h.render().type,'splash');assert.equal(h.homeTimerCount,1);
+  assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);assert.equal(h.homeTimerCount,1);
   h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
-test('ready Home preserves the full WEB intro and MOBILE returning-account bypass', () => {
+test('ready Home enters directly on both WEB and MOBILE', () => {
  for(const presentation of ['mobile','web']) {
   const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation,homeReady:false});h.auth.isInitializing=false;
   h.render(); h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);
   const splash=h.render();
-  if(presentation==='mobile') assert.equal(splash,null);
-  else { assert.equal(splash.type,'splash');splash.props.onComplete();h.render();assert.equal(h.render(),null); }
+  assert.equal(splash,null);h.render();assert.equal(h.render(),null);
  }
 });
 
 test('WEB Home timeout retains Retry and rejects stale account or startup-attempt completions', () => {
  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation:'web',homeReady:false});h.auth.isInitializing=false;
- h.render().props.onComplete(); h.render();
+ h.render(); h.render();
  const old=h.app.props;
  h.timer();assert.equal(h.render(),null);assert.equal(h.homeError.props.children.type,'home-error');
- h.homeError.props.children.props.onRetry();assert.equal(h.render().type,'splash');assert.equal(h.app.props.homeStartupAttempt,1);
- old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render().type,'splash');
+ h.homeError.props.children.props.onRetry();assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupAttempt,1);
+ old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render(),null);
  const retry=h.app.props;h.auth.user={id:'different'};h.auth.session={user:h.auth.user};h.render();
- retry.onHomeStartupReady(true);retry.onHomeStartupShellReady(true);assert.equal(h.render().type,'splash');
+ retry.onHomeStartupReady(true);retry.onHomeStartupShellReady(true);assert.equal(h.render(),null);
  h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
