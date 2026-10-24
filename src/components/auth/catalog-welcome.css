@@ -47,7 +47,7 @@
   top: 0;
   width: calc(var(--catalog-welcome-map-width) * 2);
   height: 100%;
-  background: #0752ff url('/welcome/world-map.svg') left center / var(--catalog-welcome-map-width) auto repeat-x;
+  background: #0752ff url('/welcome/world-map.svg?v=places-1') left center / var(--catalog-welcome-map-width) auto repeat-x;
   transform-origin: center;
   pointer-events: none;
 }
