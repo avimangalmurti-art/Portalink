@@ -174,7 +174,7 @@
         /* Match the visible launch layer even while the app mounts beneath it. */
         html:root:has(#portalink-preboot, [data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']), [data-presentation='mobile'].portalink-startup-wait),
         html:root:has(#portalink-preboot, [data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']), [data-presentation='mobile'].portalink-startup-wait) body {
-          background-color: #fdffff !important;
+          background-color: var(--portalink-welcome-canvas, #fdffff) !important;
         }
         /* Legacy iOS navigator.standalone is marked before the body is parsed. */
         html:root[data-standalone], html:root[data-standalone] body, html:root[data-standalone] #root {

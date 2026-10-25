@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import type { Presentation } from '../usePresentation';
 import { PORTALINK_SPLASH_EXIT_EVENT } from '../../app/splashLifecycle';
 
+const welcomeSelector = '[data-portalink-splash][data-presentation="mobile"]:not([aria-hidden="true"]) .professional-entry';
+
 /** Keep the phone's surrounding canvas in the same appearance as the page. */
 export function useMobileBrowserSurface(presentation: Presentation, appearance: CSSProperties | undefined) {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -23,12 +25,14 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
     }
     const attributes = tags.map(tag => ({ content: tag.getAttribute('data-portalink-theme-original') ?? tag.getAttribute('content'), media: tag.getAttribute('media') }));
 
+    let activeWelcome: HTMLElement | null = null;
     const sync = () => {
       if (!frameRef.current) return;
-      // Use the committed frame, including the public visitor's appearance,
-      // rather than the OS preference or the first-paint document snapshot.
-      const style = getComputedStyle(frameRef.current);
-      const color = style.getPropertyValue('--codex-workspace-bg').trim();
+      // The visible welcome follows System, independently of the app beneath it.
+      // Otherwise retain the committed frame, including public creator branding.
+      activeWelcome = document.querySelector<HTMLElement>(welcomeSelector);
+      const style = getComputedStyle(activeWelcome ?? frameRef.current);
+      const color = activeWelcome ? style.backgroundColor : style.getPropertyValue('--codex-workspace-bg').trim();
       if (!color) return;
       surfaces.forEach(element => element.style.setProperty('background-color', color));
       // App/VisitorApp own the document scheme across presentations. Only the
@@ -41,6 +45,15 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
     const visible = () => { if (document.visibilityState === 'visible') sync(); };
     syncRef.current = sync;
     sync();
+    // Welcome can mount outside this frame without changing its appearance prop.
+    // Only a change of visible surface repaints; ordinary feed mutations do not.
+    const observer = new MutationObserver(() => {
+      if (document.querySelector(welcomeSelector) !== activeWelcome) sync();
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-hidden', 'data-presentation'] });
+    const system = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (system?.addEventListener) system.addEventListener('change', sync);
+    else system?.addListener?.(sync);
     // iOS can restore a stale chrome/snapshot color on resume or sample the
     // startup backdrop. Reassert the same canvas without remounting a screen.
     window.addEventListener(PORTALINK_SPLASH_EXIT_EVENT, sync);
@@ -49,6 +62,9 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
     document.addEventListener('visibilitychange', visible);
     return () => {
       syncRef.current = null;
+      observer.disconnect();
+      if (system?.removeEventListener) system.removeEventListener('change', sync);
+      else system?.removeListener?.(sync);
       window.removeEventListener(PORTALINK_SPLASH_EXIT_EVENT, sync);
       window.removeEventListener('pageshow', sync);
       window.removeEventListener('focus', sync);

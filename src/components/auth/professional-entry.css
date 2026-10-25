@@ -101,6 +101,15 @@
 .professional-entry-company-panel p:last-child { margin-bottom: 0; }
 .professional-entry-company-panel .professional-entry-preview { margin-top: 16px; padding: 16px; }
 @media (max-width: 639px) {
+  html:root:has([data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']) .professional-entry) {
+    --portalink-welcome-canvas: #f2f2f7;
+    background-color: var(--portalink-welcome-canvas) !important;
+    color-scheme: light !important;
+  }
+  html:root:has([data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']) .professional-entry) body {
+    background-color: var(--portalink-welcome-canvas) !important;
+    color-scheme: inherit !important;
+  }
   .professional-entry { --entry-bg: #f2f2f7; }
   .professional-entry-frame { padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
   .professional-entry-main { grid-template-columns: 1fr; align-content: start; gap: 20px; padding: 8px 0 12px; }
@@ -110,11 +119,8 @@
   .professional-entry-avatar > button:focus-visible { border-radius: var(--shape-container); outline-offset: 3px; }
   .professional-entry-company-name { font-size: 1.5rem; }
   .professional-entry-description { margin-top: 4px; font-size: 1rem; }
-  .professional-entry-account-actions { display: block; margin-top: 12px; border-radius: 28px; background: var(--entry-surface); }
-  .professional-entry-account-actions button { --mobile-component-radius: 0; position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) 18px; gap: 12px; width: 100%; min-height: 60px; padding: 14px 18px; border-radius: 0; background: transparent; color: var(--entry-ink); text-align: left; }
-  .professional-entry-account-actions button:first-child { --mobile-component-radius: 28px 28px 0 0; border-radius: var(--mobile-component-radius); }
-  .professional-entry-account-actions button:last-child { --mobile-component-radius: 0 0 28px 28px; border-radius: var(--mobile-component-radius); }
-  .professional-entry-account-actions button:first-child::after { content: ''; position: absolute; bottom: 0; left: 62px; right: 18px; height: 1px; background: var(--entry-rule); }
+  .professional-entry-account-actions { grid-template-columns: 1fr; margin-top: 12px; }
+  .professional-entry-account-actions button { --mobile-component-radius: 28px; display: grid; grid-template-columns: 32px minmax(0, 1fr) 18px; gap: 12px; width: 100%; min-height: 96px; padding: 14px 18px; border-radius: 28px; background: var(--entry-surface); color: var(--entry-ink); text-align: left; }
   .professional-entry-account-actions button:focus-visible { outline-offset: -3px; }
   .professional-entry-company-sections summary { min-height: 60px; padding-block: 14px; }
   .professional-entry-company-sections li:nth-child(7) { margin-top: 16px; }
@@ -123,7 +129,7 @@
   .professional-entry-footer { justify-content: stretch; padding-top: 8px; }
   .professional-entry-footer button { width: 100%; min-height: 56px; justify-content: space-between; }
   @media (max-height: 800px) {
-    .professional-entry-account-actions button, .professional-entry-company-sections summary { min-height: 52px; padding-block: 10px; }
+    .professional-entry-company-sections summary { min-height: 52px; padding-block: 10px; }
   }
 }
 /* The retained account-entry host sets a legacy mobile font; this scene owns its typography. */
@@ -131,6 +137,7 @@
 @media (prefers-color-scheme: dark) {
   .professional-entry { --entry-bg: #111112; --entry-ink: #f3f3f1; --entry-muted: #aaaab0; --entry-card: #f7f7f5; --entry-rule: #343437; --entry-preview: #1c1c1e; --entry-surface: #2c2c2e; color-scheme: dark; }
   @media (max-width: 639px) {
+    html:root:has([data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']) .professional-entry) { --portalink-welcome-canvas: #1c1c1e; color-scheme: dark !important; }
     .professional-entry { --entry-bg: #1c1c1e; --entry-muted: #d1d1d6; }
   }
 }

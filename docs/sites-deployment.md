@@ -1,3 +1,27 @@
+## 2026-10-25 - MOBILE System canvas and separate account pills, publication requested
+
+User requested publishing/deploying the verified local theme fix and separate account pills. Standard publisher opened the existing mirror through hidden stdin. No product changes after local verification.38 focused/emitted checks,typecheck,lint,production build and main/visitor guards pass;the pre-existing older startup-fixture limitation remains recorded below. Packaging/exact-source review,native save/deploy and live checks pending. Existing audience,environment/backend bindings retained;production remains538 until terminal success.
+
+## 2026-10-25 - MOBILE System welcome canvas fix, unpublished
+
+Local index.html/professional-entry.css/useMobileBrowserSurface.ts fix the dark welcome/light document mismatch while retaining the unpublished separate account pills. Visible mobile welcome now supplies its System light/dark canvas and scheme to document backgrounds and browser hints,then restores the underlying app on dismissal. Original launch-media fallback and WEB presentation remain.38 focused/emitted checks,typecheck,lint (0errors/111existing warnings),client/worker build/main+visitor guards and browser opposite-theme/cleanup previews pass. Twelve older startup-fixture cases fail on a pre-existing missing ProfessionalEntry mock;full details/evidence in docs/agent-handoff.md. Real iPhone/Safari native toolbar paint remains unverified.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED;live remains538/source708fd0a20f547d43719f1491353f767928291e17 below. No credential,source synchronization,save/deploy,SQL or backend operation. Current request covers implementation;prior publication receipts and account-pill changes preserved.
+
+## 2026-10-24 - MOBILE separate matching account pills, unpublished
+
+Local professional-entry.css now gives Create account and Sign in separate mobile pills matching the company card:full width,96px minimum height,28px corners and the same light/dark surface,with12px separation and no shared divider. WEB CSS outside the existing mobile query is unchanged. Primary mobile light/dark,short-screen scrolling,account callbacks and desktop preservation pass in the isolated actual-component preview. Details/evidence are in docs/agent-handoff.md.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED; live remains538/source708fd0a20f547d43719f1491353f767928291e17 below. No new credential,source synchronization,save/deploy,SQL or backend operation. No SEO changes implemented. Prior publication receipts preserved;current request covers this CSS implementation.
+
+## 2026-10-24 - MOBILE company avatar and larger controls published 538
+
+Published at https://portalinknetworks.com/ (native https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Exact source708fd0a20f547d43719f1491353f767928291e17 is pushed to GitHub codex/welcome-refinement and the existing Sites mirror; draft PR147 targets main at this head. Saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_e3dcfe2bc8a88191a9747106578b5b1e; deployment appgdep_6add2d2314c881919d1a8715af666d77 succeeded2026-10-24T22:11:59.122007+00:00. Public audience,environment revision2 and backend bindings retained. No main merge,SQL or separate backend operation.
+
+MOBILE now omits the supporting sentence,uses the usual clickable68px squircle avatar/full-image viewer and enlarges rounded controls. WEB styling/geometry remains identical to537.24 focused/emitted tests,typecheck,lint (0errors/111existing warnings),client/worker build/main+visitor guards and exact-source/archive audits pass. All417 public assets and protected worker/hosting/four SQL payloads remain unchanged. Archive47,609,303bytes/SHA2568729e35b136f4a33223207973c65f2b518134f8173023ce95c70a71c3ebc1d73;649members/636files. Frozen build unchanged through publication;standard publisher completed,credential cleared.
+
+Live4/4 mobile/web entry documents and210/210 assets match. Mobile viewer/focus/dismissal,larger row sizes,signup focus/Escape,Sign in/Back,keyboard disclosure and short-screen scrolling pass. Desktop1101x884 matches its prepublication layout exactly;captured warnings/errors empty. No account submission or data mutation. Physical iPhone/Safari/PWA,real safe areas/keyboard and fresh authenticated restoration unverified. Full receipts/evidence and safe handoff are recorded in docs/agent-handoff.md. Only postpublication status docs intentionally dirty;no pending publication/backend work.
+
 ## 2026-10-24 - MOBILE company avatar and larger controls, publication requested
 
 User requested publishing/deploying the verified mobile revision below. Standard publisher opened the existing source mirror successfully via hidden stdin; release packaging/exact-source review,native save/deploy and live checks pending. No product changes after the validated local result. Public audience,environment and existing backend bindings retained. Production remains537 until terminal success.

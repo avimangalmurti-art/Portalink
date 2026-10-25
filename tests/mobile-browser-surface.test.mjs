@@ -25,6 +25,13 @@ function events() {
 }
 function harness(withMetadata = true) {
   const tags = [];
+  const media = events(), observers = [];
+  let welcome = null;
+  class MutationObserver {
+    constructor(callback) { this.callback = callback; this.active = false; observers.push(this); }
+    observe() { this.active = true; }
+    disconnect() { this.active = false; }
+  }
   function meta(attributes = {}) {
     const values = new Map(Object.entries(attributes));
     const tag = { getAttribute: name => values.get(name) ?? null,
@@ -35,15 +42,17 @@ function harness(withMetadata = true) {
   if (withMetadata) tags.push(meta({ content: '#ffffff', media: '(prefers-color-scheme: light)' }),
     meta({ content: '#000000', media: '(prefers-color-scheme: dark)' }));
   const document = { ...events(), visibilityState: 'visible', documentElement: { dataset: {}, style: style() }, body: { style: style() },
+    querySelector: () => welcome,
     querySelectorAll: selector => { assert.equal(selector, 'meta[name="theme-color"]'); return tags; },
     createElement: () => meta(), head: { appendChild: tag => tags.push(tag) } };
-  const window = events(), slots = [], pendingEffects = [], frame = {};
+  const window = { ...events(), matchMedia: () => media }, slots = [], pendingEffects = [], frame = {};
   let token = '#000000', colorScheme = 'dark', cursor = 0;
   const exports = {};
   const source = ts.transpileModule(readFileSync(new URL('../src/presentation/mobile/useMobileBrowserSurface.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText;
-  vm.runInNewContext(source, { exports, document, window, getComputedStyle: element => {
+  vm.runInNewContext(source, { exports, document, window, MutationObserver, getComputedStyle: element => {
+    if (element === welcome) return { backgroundColor: welcome.color, colorScheme: welcome.scheme };
     assert.equal(element, frame);
     return { getPropertyValue: name => { assert.equal(name, '--codex-workspace-bg'); return token; }, colorScheme };
   },
@@ -57,13 +66,53 @@ function harness(withMetadata = true) {
       if (name.endsWith('/splashLifecycle')) return { PORTALINK_SPLASH_EXIT_EVENT: 'portalink:splash-exited' };
       throw new Error(name);
     } });
-  return { document, window, tags, setColor: (color, scheme = color === '#ffffff' ? 'light' : 'dark') => { token = color; colorScheme = scheme; },
+  return { document, window, tags, media, observers,
+    setWelcome(color, scheme = 'dark') { welcome = color ? { color, scheme } : null; },
+    changeWelcome(color, scheme) { welcome.color = color; welcome.scheme = scheme; },
+    mutate: () => observers.filter(observer => observer.active).forEach(observer => observer.callback()),
+    setColor: (color, scheme = color === '#ffffff' ? 'light' : 'dark') => { token = color; colorScheme = scheme; },
     render(presentation, appearance = undefined) {
       cursor = 0;
       exports.useMobileBrowserSurface(presentation, appearance).current = frame;
       pendingEffects.splice(0).forEach(effect => effect());
     }, splashExit: () => window.emit('portalink:splash-exited'), dispose: () => slots.forEach(slot => slot?.cleanup?.()) };
 }
+
+test('visible System welcome owns browser colors over a differently themed app and releases them when closed', () => {
+  const h = harness();
+  h.setColor('#ffffff', 'light');
+  h.render('mobile');
+  h.setWelcome('rgb(28, 28, 30)', 'dark'); h.mutate();
+  assert.equal(h.tags[0].getAttribute('content'), 'rgb(28, 28, 30)');
+  assert.equal(h.document.body.style.colorScheme, 'dark');
+  h.setColor('#123456', 'dark'); h.render('mobile', {});
+  assert.equal(h.tags[0].getAttribute('content'), 'rgb(28, 28, 30)', 'App changes must not repaint over the visible welcome.');
+  const writes = h.document.body.style.writes.length;
+  h.mutate();
+  assert.equal(h.document.body.style.writes.length, writes, 'Ordinary DOM updates do not repaint browser colors.');
+  h.setWelcome(null); h.mutate();
+  assert.equal(h.tags[0].getAttribute('content'), '#123456');
+  assert.equal(h.document.body.style.getPropertyValue('background-color'), '#123456');
+  h.dispose();
+});
+
+test('live OS changes and foregrounding keep welcome colors current and WEB removes every subscription', () => {
+  const h = harness();
+  h.setWelcome('rgb(28, 28, 30)', 'dark'); h.render('mobile');
+  h.changeWelcome('rgb(242, 242, 247)', 'light'); h.media.emit('change');
+  assert.equal(h.document.body.style.colorScheme, 'light');
+  assert.equal(h.tags[0].getAttribute('content'), 'rgb(242, 242, 247)');
+  h.changeWelcome('rgb(28, 28, 30)', 'dark'); h.window.emit('pageshow');
+  assert.equal(h.document.body.style.colorScheme, 'dark');
+  assert.equal(h.tags[0].getAttribute('content'), 'rgb(28, 28, 30)');
+  h.render('web');
+  assert.equal(h.observers.every(observer => !observer.active), true);
+  assert.equal(h.media.listeners.size, 0);
+  const writes = h.document.body.style.writes.length;
+  h.mutate(); h.media.emit('change');
+  assert.equal(h.document.body.style.writes.length, writes);
+  h.dispose();
+});
 
 test('mobile browser chrome follows the actual page surface rather than OS-only metadata', () => {
   const h = harness();
