@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, Info, LayoutGrid, LogIn, Palette, PanelsTopLeft, Route, ShieldCheck, SunMoon, UserPlus, Users } from 'lucide-react';
 import { sourceImages } from '../../data/sourceImages';
 import { usePresentation } from '../../presentation/usePresentation';
@@ -36,10 +36,11 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
   ready?: boolean; onCreate: () => void; onSignIn: () => void; onGuest: () => void;
 }) {
   const presentation = usePresentation(), mobile = presentation === 'mobile';
+  const previewHost = useRef<HTMLElement>(null);
   const appearance = useDeviceAppearance(presentation);
   const { theme, highContrast, reduceTranslucency, systemGray } = appearance;
   const selectedAccent = findNavAccent(appearance.accentColor)[theme];
-  return <main className={`professional-entry professional-entry-company${mobile ? ` theme-${theme}${highContrast ? ' high-contrast' : ''}${reduceTranslucency ? ' reduce-translucency' : ''}` : ''}`}
+  return <main ref={previewHost} data-profile-avatar-host={mobile ? '' : undefined} className={`professional-entry professional-entry-company${mobile ? ` theme-${theme}${highContrast ? ' high-contrast' : ''}${reduceTranslucency ? ' reduce-translucency' : ''}` : ''}`}
     data-entry-theme={mobile ? theme : undefined} data-entry-contrast={mobile ? highContrast : undefined} data-entry-solid={mobile ? reduceTranslucency : undefined}
     style={mobile ? { ...resolveAccentTokens(selectedAccent, theme), ...resolveNavButtonTokens(theme, selectedAccent, highContrast, reduceTranslucency, systemGray) } : undefined}
     aria-labelledby="professional-entry-title">
@@ -48,8 +49,8 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
         <section className="professional-entry-copy" aria-label="Portalink Networks Inc.">
           <div className="professional-entry-company-card">
             <div className="professional-entry-wordmark">
-              {mobile ? <div className="professional-entry-avatar" data-profile-avatar-host="">
-                <ProfileAvatar name="Portalink Networks Inc." avatar="/icons/portalink-app-512-62b9d2e7.png" size="profile" priority inlinePreview />
+              {mobile ? <div className="professional-entry-avatar">
+                <ProfileAvatar name="Portalink Networks Inc." avatar="/icons/portalink-app-512-62b9d2e7.png" size="profile" priority inlinePreview previewHost={previewHost} />
               </div> : <img className="professional-entry-logo squircle" src="/icons/portalink-app-192-62b9d2e7.png" alt="" aria-hidden="true" width={68} height={68} />}
               <div className="professional-entry-brand-copy">
                 <h1 id="professional-entry-title" className="professional-entry-company-name">Portalink Networks Inc.</h1>
@@ -67,6 +68,30 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
           </div>
           {!mobile && <p className="professional-entry-eyebrow">Projects. Process. Portals.</p>}
         </section>
+        {mobile && <ul className="professional-entry-company-sections professional-entry-appearance-sections" aria-label="Appearance options">
+          <li className="professional-entry-appearance-item">
+            <details data-entry-appearance="">
+              <summary>
+                <span className="professional-entry-company-icon" aria-hidden="true"><SunMoon size={20} strokeWidth={1.9} /></span>
+                <span className="professional-entry-company-title">Appearance</span>
+                <ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
+              </summary>
+              <div className="professional-entry-company-panel professional-entry-appearance" role="region" aria-label="Appearance settings">
+                <fieldset><legend>Appearance</legend>
+                  <div className="professional-entry-modes" role="radiogroup" aria-label="Appearance" onKeyDown={handleRadioGroupKeyDown}>
+                    {(['auto', 'light', 'dark'] as const).map(mode => <button key={mode} type="button" role="radio" aria-checked={appearance.mode === mode} tabIndex={appearance.mode === mode ? 0 : -1} onClick={() => appearance.chooseMode(mode)}>{mode === 'auto' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</button>)}
+                  </div>
+                </fieldset>
+                <MobileOnboardingAppearance idPrefix="entry" showPreview={false} theme={theme} systemGray={systemGray}
+                  onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={appearance.accentColor}
+                  onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
+                  onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}
+                  onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })} />
+                {highContrast && <p className="professional-entry-appearance-note" role="status">High contrast keeps controls opaque.</p>}
+              </div>
+            </details>
+          </li>
+        </ul>}
         <ul className="professional-entry-company-sections" aria-label="Explore Portalink and the company">
           {companySections.map(section => <li key={section.id}>
             <details data-company-section={section.id}>
@@ -89,27 +114,7 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
               </div>
             </details>
           </li>)}
-          {mobile && <li className="professional-entry-appearance-item">
-            <details data-entry-appearance="">
-              <summary>
-                <span className="professional-entry-company-icon" aria-hidden="true"><SunMoon size={20} strokeWidth={1.9} /></span>
-                <span className="professional-entry-company-title">Appearance</span>
-                <ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
-              </summary>
-              <div className="professional-entry-company-panel professional-entry-appearance" role="region" aria-label="Appearance settings">
-                <fieldset><legend>Appearance</legend>
-                  <div className="professional-entry-modes" role="radiogroup" aria-label="Appearance" onKeyDown={handleRadioGroupKeyDown}>
-                    {(['auto', 'light', 'dark'] as const).map(mode => <button key={mode} type="button" role="radio" aria-checked={appearance.mode === mode} tabIndex={appearance.mode === mode ? 0 : -1} onClick={() => appearance.chooseMode(mode)}>{mode === 'auto' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</button>)}
-                  </div>
-                </fieldset>
-                <MobileOnboardingAppearance idPrefix="entry" showPreview={false} theme={theme} systemGray={systemGray}
-                  onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={appearance.accentColor}
-                  onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
-                  onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}
-                  onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })} />
-              </div>
-            </details>
-          </li>}
+
         </ul>
       </div>
       <footer className="professional-entry-footer">

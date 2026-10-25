@@ -11,7 +11,7 @@ function fixture(ready = true, presentation = 'web', settings = {}) {
     chooseMode(mode) { appearanceCalls.push({ mode }); appearance.mode = mode; appearance.theme = mode === 'auto' ? 'light' : mode; },
     chooseAppearance(patch) { appearanceCalls.push(patch); Object.assign(appearance, patch); } };
   const { ProfessionalEntry } = sourceModule('src/components/auth/ProfessionalEntry.tsx', {
-    react: React,
+    react: { ...React, useRef: () => ({ current: null }) },
     'lucide-react': { ArrowRight: 'arrow', BriefcaseBusiness: 'briefcase', ChevronRight: 'chevron', Compass: 'compass', Info: 'info', LayoutGrid: 'grid', LogIn: 'login', Palette: 'palette', PanelsTopLeft: 'panels', Route: 'route', ShieldCheck: 'shield', SunMoon: 'sun-moon', UserPlus: 'user-plus', Users: 'users' },
     '../../data/sourceImages': sourceModule('src/data/sourceImages.ts'),
     '../../presentation/usePresentation': { usePresentation: () => presentation },
@@ -60,6 +60,8 @@ test('both presentations expose nine native company disclosures with distinct ic
       assert.equal(avatar.props.avatar, '/icons/portalink-app-512-62b9d2e7.png');
       assert.equal(avatar.props.name, 'Portalink Networks Inc.');
       assert.equal(avatar.props.inlinePreview, true);
+      assert.equal(avatar.props.previewHost, tree.ref, 'The viewer mounts at the unfiltered welcome root');
+      assert.equal(tree.props['data-profile-avatar-host'], '');
       assert.equal(words(tree).includes('Create, organize and share your work.'), false);
     } else {
       const logo = nodes(brand).find(n => n.type === 'img');
@@ -108,12 +110,21 @@ test('mobile home appearance controls share the persisted settings callbacks and
   assert.equal(tree.props.style['--accent-primary'], '#BF5AF2', 'Accent resolves for the selected dark theme');
   assert.equal(tree.props.style['--navigation-blur'], 'none');
   assert.equal(tree.props.style['--navigation-surface'], '#3A3A3C');
+  assert.equal(nodes(tree).some(n => n.props.role === 'status' && words(n) === 'High contrast keeps controls opaque.'), true);
   assert.deepEqual(JSON.parse(JSON.stringify(h.appearanceCalls)), [{ mode: 'dark' }, { accentColor: '#A550D8' }, { highContrast: true }, { reduceTranslucency: true }, { systemGray: 'gray4' }]);
   assert.deepEqual(h.calls, []);
   const web = fixture(true, 'web', h.appearance).render();
   assert.equal(web.props.style, undefined);
   assert.equal(web.props['data-entry-theme'], undefined);
   assert.equal(nodes(web).some(n => n.props['data-entry-appearance'] !== undefined), false);
+});
+
+test('mobile Appearance precedes company information without changing the WEB section order', () => {
+  const mobile = nodes(fixture(true, 'mobile').render());
+  assert.deepEqual(mobile.filter(n => n.type === 'summary').map(words), ['Appearance', 'About Portalink', 'Mission', 'Features', 'How it works', 'Portals', 'For creators', 'Team', 'Careers', 'Privacy & control']);
+  const web = nodes(fixture().render());
+  assert.equal(web.find(n => n.type === 'summary').props.children[1].props.children, 'About Portalink');
+  assert.equal(web.some(n => n.props['data-entry-appearance'] !== undefined), false);
 });
 test('entry controls follow readiness without enabling account actions before restoration completes', () => {
   const h = fixture(false); assert.ok(nodes(h.render()).filter(n => n.type === 'button').every(n => n.props.disabled));

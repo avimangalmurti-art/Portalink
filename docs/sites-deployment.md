@@ -1,3 +1,23 @@
+## 2026-10-25 - MOBILE higher Appearance and image viewer, publication requested
+
+Explicit user request authorizes publishing the verified mobile fix. Standard publisher opened the existing mirror; unchanged reviewed products and all 636 build fingerprints match the passing checks. Reusing the successful final build. Exact source/archive/PR-head audits, native save/deploy and live default-blur verification pending. Public audience and backend retained; live remains 541 until success. Scope/checks/known limits below and in docs/agent-handoff.md.
+
+## 2026-10-25 - MOBILE higher Appearance and image-viewer layering fix, unpublished
+
+Local mobile Appearance now precedes About Portalink in its own grouped card. The welcome's image viewer portals into an unfiltered themed root, escaping the identity card's blur/stacking context so page buttons cannot cover it. Its shared focus/dismissal behavior and normal avatar callers remain. A note clarifies that High Contrast also keeps controls opaque; the existing appearance state/persistence mechanism is retained. Three product files and two existing tests change; WEB, assets and backend remain.
+
+45 distinct focused/emitted cases, typecheck, lint (0 errors / 111 existing warnings), production build/main+visitor guards and WEB boundary comparison pass. Responsive checks cover all colour choices, both themes, eight material/viewer combinations, switch-label interaction, refresh, focus/dismissal, narrow/enlarged text and ordinary WEB avatars. Physical iPhone/Safari/PWA validation remains unverified; full evidence and unchanged older fixture limits are in docs/agent-handoff.md.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED; live remains 541 / source 1495a78d9016bb75e3cd354b9e145b6e526515b7 below. No source synchronization, credential, native save/deploy or SQL operation. Publication awaits an explicit request.
+
+## 2026-10-25 - MOBILE company home appearance controls published 541
+
+Published at https://portalinknetworks.com/ (native https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Source 1495a78d9016bb75e3cd354b9e145b6e526515b7 is pushed to GitHub codex/welcome-refinement and the Sites mirror; draft PR147 targets main at this exact head with updated description. Saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_3e50d85b03a881918ba5b6d22149b426; deployment appgdep_6ade616f5e508191b4a58cdeff11cdeb succeeded 2026-10-25T20:07:23.106589+00:00. Public audience, environment revision 2 and existing backend retained. No main merge or separate SQL/backend operation.
+
+Mobile home now has the squircle image silhouette, bare black/white icons, functional Appearance controls and shared preference synchronization. The passing final build was reused with unchanged inputs. 30 focused tests, 7 emitted checks, typecheck, lint, production build/main+visitor guards and clean source/archive audits pass; the separate unchanged visitor-fixture failure remains documented below. All 417 public assets and worker/hosting/SQL payloads unchanged. Archive 47,610,408 bytes / SHA256 c5ba98a4cc8add89d7dfa80e455fe6b2dba36516a9c8e3f44221f7f883a67419; 649 members / 636 files; frozen build unchanged. Publisher completed, credential cleared.
+
+Live 4/4 mobile/web documents and 210/210 assets match. Responsive live checks cover Light/Dark icons, accent/contrast/material changes, same-document app synchronization, refresh persistence and opaque avatar backdrop/Escape. Starting System/Gray6/Blue/accessibility-off choices restored exactly. Desktop 1536 x 695 matches its previous geometry/styles. Only unrelated extension errors; physical iPhone/Safari/PWA/native toolbar and actual safe-area behavior remain unverified. Full evidence/limits in docs/agent-handoff.md. Only postpublication receipt docs dirty; no pending publication/backend work.
+
 ## 2026-10-25 - MOBILE company home appearance controls, publication requested
 
 User requested publication of the verified mobile home update. Standard publisher opened the existing mirror through hidden stdin. Successful final build and relevant checks remain valid with unchanged product inputs; the unrelated visitor-fixture limit remains documented below. Frozen source/archive audits, exact PR head, native save/deploy and live checks pending. Existing public audience and backend bindings preserved; production remains 540 until success. Full details in docs/agent-handoff.md.

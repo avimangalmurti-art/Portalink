@@ -154,12 +154,9 @@
   .professional-entry-account-actions button:focus-visible { outline-offset: -3px; }
   .professional-entry-company-sections summary { min-height: 60px; padding-block: 14px; }
   .professional-entry-company-sections li:nth-child(7) { margin-top: 16px; }
-  .professional-entry-company-sections li:nth-child(9) { border-radius: 0 0 28px 28px; }
-  .professional-entry-company-sections li:nth-child(9)::after { display: none; }
-  .professional-entry-company-sections li:nth-child(9) details:not([open]) summary { border-radius: 0 0 28px 28px; }
-  .professional-entry-company-sections li.professional-entry-appearance-item { margin-top: 16px; border-radius: 28px; }
-  .professional-entry-appearance-item > details > summary { border-radius: 28px; }
-  .professional-entry-appearance-item > details[open] > summary { border-radius: 28px 28px 0 0; }
+  .professional-entry-company-sections li.professional-entry-appearance-item { margin-top: 0; border-radius: 28px; }
+  .professional-entry-appearance-sections > .professional-entry-appearance-item > details:not([open]) > summary { border-radius: 28px; }
+  .professional-entry-appearance-sections > .professional-entry-appearance-item > details[open] > summary { border-radius: 28px 28px 0 0; }
   .professional-entry-company-panel { padding-inline: 18px; }
   .professional-entry-company-panel .professional-entry-preview { padding: 12px; }
   .professional-entry-footer { justify-content: stretch; padding-top: 8px; }
@@ -177,6 +174,7 @@
   .professional-entry-appearance .mobile-onboarding-swatches button > span { display: grid; place-items: center; width: 100%; max-width: 36px; aspect-ratio: 1; border-radius: 50%; }
   .professional-entry-appearance .mobile-onboarding-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; color: var(--entry-ink); font-size: 1rem; }
   .professional-entry-appearance .appearance-switch { width: 44px; height: 44px; padding: 0; }
+  .professional-entry-appearance .professional-entry-appearance-note { margin: 0; font-size: .875rem; }
   @media (max-width: 359px) {
     .professional-entry-appearance .mobile-onboarding-swatches { grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)); }
   }

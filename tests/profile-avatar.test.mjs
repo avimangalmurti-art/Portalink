@@ -11,6 +11,7 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
   const elements = new Map();
   let current;
   let portalRenders = 0;
+  const previewTargets = [];
   const inlineLayers = [];
   function eventTarget(attributes = {}) {
     const listeners = new Map();
@@ -68,6 +69,7 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
   const dialogViewport = load('../src/hooks/useDialogViewport.ts', {});
   const creator = load('../src/components/profile/CreatorAvatar.tsx', { '../ui/ResponsiveImage': image });
   const { ProfileAvatar } = load('../src/components/profile/ProfileAvatar.tsx', {
+    'react-dom': { createPortal: (children, target) => { previewTargets.push(target); return children; } },
     './CreatorAvatar': creator,
     '../ui/ResponsiveImage': image,
     '../ui/ModalPortal': { ModalPortal: ({ children }) => { portalRenders++; return children; } },
@@ -121,7 +123,7 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
       }
       return tree;
     },
-    document, window, viewport, inlineLayers, portalRenders: () => portalRenders,
+    document, window, viewport, inlineLayers, previewTargets, portalRenders: () => portalRenders,
     find,
   };
 }
@@ -167,6 +169,21 @@ test('uploaded avatars open at full size and failed images fall back to initials
   assert.ok(dialog);
   assert.equal(harness.find(dialog, (node) => node.type === 'img'), null);
   assert.ok(harness.find(dialog, (node) => node.type === 'span' && node.props.children === 'PN'));
+});
+
+test('welcome viewer resolves its root host when opened and keeps the shared focus lifecycle', () => {
+  const previewHost = { current: null }, root = { id: 'welcome-root' };
+  const h = avatarHarness({ name: 'Portalink Networks Inc.', avatar: '/company.png', inlinePreview: true, previewHost }, { presentation: 'mobile' });
+  const button = h.find(h.render(), node => node.type === 'button');
+  previewHost.current = root;
+  button.props.onClick();
+  assert.ok(h.find(h.render(), node => node.props?.role === 'dialog'));
+  assert.equal(h.previewTargets.at(-1), root, 'The filtered identity card is not the preview container');
+  assert.equal(h.portalRenders(), 0, 'The welcome still does not depend on the app-shell portal');
+  assert.equal(h.inlineLayers.length, 1);
+  h.inlineLayers[0].onEscape();
+  assert.equal(h.find(h.render(), node => node.props?.role === 'dialog'), null);
+  assert.equal(h.inlineLayers.length, 0);
 });
 
 test('shared identity can prioritize its avatar while ordinary and opened avatar behavior is preserved', () => {
