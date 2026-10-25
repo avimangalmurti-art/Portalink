@@ -1,3 +1,21 @@
+## 2026-10-25 - MOBILE light/dark page and pill swap, publication requested
+
+User requested publishing the verified mobile palette inversion. Standard publisher opened the existing Sites source mirror through hidden stdin. Source product change is confined to four mobile declarations in professional-entry.css; desktop, layout and account behavior remain. Local actual-component light/dark mobile and settled desktop checks pass. Final production build, emitted checks, exact source/archive audits, native save/deploy and live checks pending. Public audience and existing backend bindings retained; live remains 539 until success. Full details in docs/agent-handoff.md.
+
+## 2026-10-25 - MOBILE light page/pill colours swapped, unpublished
+
+Local professional-entry.css swaps only the mobile light palette:page/document/browser canvas white,pill/card surfaces gray (#f2f2f7). Black text/icons,layout,separate account controls,dark mode and WEB preserved. Local primary mobile/light/dark and desktop previews plus exact two-declaration source comparison/diff check pass. Details/evidence in docs/agent-handoff.md.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED;live remains539/sourceb9e225f13fbd06e89856eb545d071479c2e61414 below. No credential,source synchronization,save/deploy,SQL or backend operation. Prior publication receipts retained.
+
+## 2026-10-25 - MOBILE System canvas and separate account pills published 539
+
+Published at https://portalinknetworks.com/ (native https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Sourceb9e225f13fbd06e89856eb545d071479c2e61414 is pushed to GitHub codex/welcome-refinement and the existing Sites mirror;draft PR147 targets main at this head. Saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_4db40899fb188191af1903a26a0f14eb;deployment appgdep_6addea1ea9848191a11ca735f82b44c4 succeeded2026-10-25T11:38:22.916063+00:00. Public audience,environment revision2 and backend bindings retained. No main merge,SQL or separate backend operation.
+
+Mobile welcome/document/browser colour hints now synchronize with System,then restore the app below on dismissal. Create account and Sign in are separate96px-minimum pills matching the company card. WEB preserved.38 focused/emitted checks,typecheck,lint (0errors/111existing warnings),client/worker build/main+visitor guards and source/archive audits pass.12 pre-existing older startup-fixture failures remain documented below. All417 public assets and worker/hosting/four SQL payloads unchanged. Archive47,608,746bytes/SHA25634c2d90ae5b0f68a0bd78fa12aac6ce5ca4d928ba22d03e4d76104034bad738d;649members/636files;frozen build unchanged. Publisher completed,credential cleared.
+
+Live4/4 mobile/web entry documents and210/210 assets match. The available LIGHT System browser confirms equal html/body/welcome backgrounds and matching hints,three396x96px/radius28px cards,signup focus/return,Sign in/Back,avatar dismissal/focus,keyboard disclosure and Guest reachability. Settled desktop1536x695 metrics match538 exactly. No app console errors;only unrelated Zotero extension errors. Dark-mode coverage is local;physical iPhone/Safari native toolbar paint and real safe areas remain unverified. Full receipts/evidence in docs/agent-handoff.md. Only postpublication receipt docs intentionally dirty;no pending publication/backend work.
+
 ## 2026-10-25 - MOBILE System canvas and separate account pills, publication requested
 
 User requested publishing/deploying the verified local theme fix and separate account pills. Standard publisher opened the existing mirror through hidden stdin. No product changes after local verification.38 focused/emitted checks,typecheck,lint,production build and main/visitor guards pass;the pre-existing older startup-fixture limitation remains recorded below. Packaging/exact-source review,native save/deploy and live checks pending. Existing audience,environment/backend bindings retained;production remains538 until terminal success.

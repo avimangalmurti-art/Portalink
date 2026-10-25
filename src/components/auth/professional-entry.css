@@ -102,7 +102,7 @@
 .professional-entry-company-panel .professional-entry-preview { margin-top: 16px; padding: 16px; }
 @media (max-width: 639px) {
   html:root:has([data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']) .professional-entry) {
-    --portalink-welcome-canvas: #f2f2f7;
+    --portalink-welcome-canvas: #ffffff;
     background-color: var(--portalink-welcome-canvas) !important;
     color-scheme: light !important;
   }
@@ -110,7 +110,7 @@
     background-color: var(--portalink-welcome-canvas) !important;
     color-scheme: inherit !important;
   }
-  .professional-entry { --entry-bg: #f2f2f7; }
+  .professional-entry { --entry-bg: #ffffff; --entry-surface: #f2f2f7; }
   .professional-entry-frame { padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
   .professional-entry-main { grid-template-columns: 1fr; align-content: start; gap: 20px; padding: 8px 0 12px; }
   .professional-entry-wordmark { grid-template-columns: 68px minmax(0, 1fr); gap: 12px; min-height: 0; padding: 14px 16px; }
@@ -137,8 +137,8 @@
 @media (prefers-color-scheme: dark) {
   .professional-entry { --entry-bg: #111112; --entry-ink: #f3f3f1; --entry-muted: #aaaab0; --entry-card: #f7f7f5; --entry-rule: #343437; --entry-preview: #1c1c1e; --entry-surface: #2c2c2e; color-scheme: dark; }
   @media (max-width: 639px) {
-    html:root:has([data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']) .professional-entry) { --portalink-welcome-canvas: #1c1c1e; color-scheme: dark !important; }
-    .professional-entry { --entry-bg: #1c1c1e; --entry-muted: #d1d1d6; }
+    html:root:has([data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']) .professional-entry) { --portalink-welcome-canvas: #2c2c2e; color-scheme: dark !important; }
+    .professional-entry { --entry-bg: #2c2c2e; --entry-surface: #1c1c1e; --entry-muted: #d1d1d6; }
   }
 }
 @media (forced-colors: active) {
