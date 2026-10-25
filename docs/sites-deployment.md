@@ -1,3 +1,23 @@
+## 2026-10-25 - MOBILE company home appearance controls, publication requested
+
+User requested publication of the verified mobile home update. Standard publisher opened the existing mirror through hidden stdin. Successful final build and relevant checks remain valid with unchanged product inputs; the unrelated visitor-fixture limit remains documented below. Frozen source/archive audits, exact PR head, native save/deploy and live checks pending. Existing public audience and backend bindings preserved; production remains 540 until success. Full details in docs/agent-handoff.md.
+
+## 2026-10-25 - MOBILE company home appearance controls, unpublished
+
+Local mobile home now uses the existing device appearance settings: squircle avatar silhouette, bare black/white icons, a native Appearance disclosure, live accent/System grey selection, glass/opaque surfaces and stronger contrast edges, including the avatar viewer backdrop. Scoped same-document preference notifications keep the separately mounted welcome and app synchronized while preserving WEB/public-mobile settings. WEB presentation is unchanged. Six product files and three existing tests change; no backend, dependency, asset or environment changes.
+
+30 focused tests, 7 emitted-entry checks, typecheck, lint (0 errors / 111 existing warnings), production client/worker build/main+visitor guards, WEB boundary and local browser checks pass. An additional 44/45 signup/new-user/visitor cases pass; one unchanged visitor fixture lacks preventDefault on its fake click event and remains documented in docs/agent-handoff.md. Physical iPhone/Safari/PWA and live proof remain unverified.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED; live remains 540 / source c5485672cbe4c69d202d29191efee6720f09b244 below. No source synchronization, credential, native save/deploy or SQL operation. Current request covers implementation; publication awaits an explicit request. Full evidence and safe handoff are in docs/agent-handoff.md.
+
+## 2026-10-25 - MOBILE light/dark page and pill swap published 540
+
+Published at https://portalinknetworks.com/ (native https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Source c5485672cbe4c69d202d29191efee6720f09b244 is pushed to GitHub codex/welcome-refinement and the Sites mirror; draft PR147 retains this exact head against main. Saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_59d5b97298b08191a4e578b3b71e6666; deployment appgdep_6ade5b00ddec8191a9986b1064705497 succeeded 2026-10-25T19:39:54.887086+00:00. Public audience, environment revision 2 and existing backend preserved; no main merge or separate SQL operation.
+
+Four scoped mobile CSS declarations invert page/pill colours in both themes, preserving desktop and account behavior. Fresh production build/main+visitor guards, 7 emitted checks and clean source/archive audits pass. All 417 public assets and worker/hosting/SQL payloads unchanged. Archive 47,609,946 bytes / SHA256 839db91109b75ebe3af0ec4704a1f85757d053c6c1589da50a2e3d215d914065; 649 members / 636 files, unchanged frozen build. Publisher completed and credential cleared.
+
+Live 4/4 mobile/web entry documents and 210/210 assets match. Live LIGHT mobile has white page/document/hints, gray pills, black icons and unchanged 96px account pills; desktop 1536 x 695 matches the previous live styling and geometry exactly. Dark was preview-tested and its deployed CSS verified; physical iPhone/Safari/PWA/native toolbar paint remains unverified. Full receipts, evidence and earlier unrelated fixture limitation are in docs/agent-handoff.md. Only postpublication receipt docs dirty; no pending publication/backend work.
+
 ## 2026-10-25 - MOBILE light/dark page and pill swap, publication requested
 
 User requested publishing the verified mobile palette inversion. Standard publisher opened the existing Sites source mirror through hidden stdin. Source product change is confined to four mobile declarations in professional-entry.css; desktop, layout and account behavior remain. Local actual-component light/dark mobile and settled desktop checks pass. Final production build, emitted checks, exact source/archive audits, native save/deploy and live checks pending. Public audience and existing backend bindings retained; live remains 539 until success. Full details in docs/agent-handoff.md.

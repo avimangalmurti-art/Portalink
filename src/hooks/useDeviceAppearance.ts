@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { interfaceAppearanceKey, readInterfaceAppearance, resolveAppearance, writeInterfaceAppearance, type AppearanceScope, type InterfaceAppearance, type StoredAppearanceMode } from '../utils/appearancePreferences';
+import { INTERFACE_APPEARANCE_EVENT, interfaceAppearanceKey, readInterfaceAppearance, resolveAppearance, writeInterfaceAppearance, type AppearanceScope, type InterfaceAppearance, type StoredAppearanceMode } from '../utils/appearancePreferences';
 import type { Presentation } from '../presentation/usePresentation';
 
 /** Device appearance is independent of a signed-in account's public branding. */
@@ -13,12 +13,22 @@ export function useDeviceAppearance(presentation: Presentation, scope: Appearanc
     try { query = window.matchMedia?.('(prefers-color-scheme: dark)'); } catch { /* Use the light fallback. */ }
     const sync = () => setSystemTheme(resolveAppearance('auto'));
     const visible = () => { if (document.visibilityState === 'visible') sync(); };
-    const stored = (event: StorageEvent) => {
-      for (const target of ['web', 'mobile'] as const) {
-        if (event.key === interfaceAppearanceKey(target, scope) || event.key === null) {
-          setSettings(previous => ({ ...previous, [target]: readInterfaceAppearance(target, scope) }));
+    const syncSettings = (key: string | null, value?: InterfaceAppearance) => {
+      setSettings(previous => {
+        let next = previous;
+        for (const target of ['web', 'mobile'] as const) {
+          if (key !== null && key !== interfaceAppearanceKey(target, scope)) continue;
+          const updated = value ?? readInterfaceAppearance(target, scope);
+          if ((Object.keys(updated) as Array<keyof InterfaceAppearance>).every(name => updated[name] === previous[target][name])) continue;
+          next = { ...next, [target]: updated };
         }
-      }
+        return next;
+      });
+    };
+    const stored = (event: StorageEvent) => syncSettings(event.key);
+    const chosen = (event: Event) => {
+      const { key, value } = (event as CustomEvent<{ key: string; value: InterfaceAppearance }>).detail;
+      syncSettings(key, value);
     };
     if (query?.addEventListener) query.addEventListener('change', sync);
     else query?.addListener?.(sync);
@@ -26,6 +36,7 @@ export function useDeviceAppearance(presentation: Presentation, scope: Appearanc
     window.addEventListener('pageshow', sync);
     window.addEventListener('focus', sync);
     window.addEventListener('storage', stored);
+    window.addEventListener(INTERFACE_APPEARANCE_EVENT, chosen);
     document.addEventListener('visibilitychange', visible);
     sync();
     return () => {
@@ -34,6 +45,7 @@ export function useDeviceAppearance(presentation: Presentation, scope: Appearanc
       window.removeEventListener('pageshow', sync);
       window.removeEventListener('focus', sync);
       window.removeEventListener('storage', stored);
+      window.removeEventListener(INTERFACE_APPEARANCE_EVENT, chosen);
       document.removeEventListener('visibilitychange', visible);
     };
   }, [scope]);

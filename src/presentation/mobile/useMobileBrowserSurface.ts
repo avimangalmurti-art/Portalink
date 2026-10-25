@@ -28,7 +28,7 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
     let activeWelcome: HTMLElement | null = null;
     const sync = () => {
       if (!frameRef.current) return;
-      // The visible welcome follows System, independently of the app beneath it.
+      // The visible welcome owns its canvas, including explicit appearance choices.
       // Otherwise retain the committed frame, including public creator branding.
       activeWelcome = document.querySelector<HTMLElement>(welcomeSelector);
       const style = getComputedStyle(activeWelcome ?? frameRef.current);
@@ -47,10 +47,11 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
     sync();
     // Welcome can mount outside this frame without changing its appearance prop.
     // Only a change of visible surface repaints; ordinary feed mutations do not.
-    const observer = new MutationObserver(() => {
-      if (document.querySelector(welcomeSelector) !== activeWelcome) sync();
+    const observer = new MutationObserver(records => {
+      if (document.querySelector(welcomeSelector) !== activeWelcome
+        || records.some(record => record.target === activeWelcome && record.attributeName === 'data-entry-theme')) sync();
     });
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-hidden', 'data-presentation'] });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-hidden', 'data-presentation', 'data-entry-theme'] });
     const system = window.matchMedia?.('(prefers-color-scheme: dark)');
     if (system?.addEventListener) system.addEventListener('change', sync);
     else system?.addListener?.(sync);

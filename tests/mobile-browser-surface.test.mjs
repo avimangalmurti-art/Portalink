@@ -68,8 +68,8 @@ function harness(withMetadata = true) {
     } });
   return { document, window, tags, media, observers,
     setWelcome(color, scheme = 'dark') { welcome = color ? { color, scheme } : null; },
-    changeWelcome(color, scheme) { welcome.color = color; welcome.scheme = scheme; },
-    mutate: () => observers.filter(observer => observer.active).forEach(observer => observer.callback()),
+    changeWelcome(color, scheme) { welcome.color = color; welcome.scheme = scheme; return welcome; },
+    mutate: (records = []) => observers.filter(observer => observer.active).forEach(observer => observer.callback(records)),
     setColor: (color, scheme = color === '#ffffff' ? 'light' : 'dark') => { token = color; colorScheme = scheme; },
     render(presentation, appearance = undefined) {
       cursor = 0;
@@ -93,6 +93,19 @@ test('visible System welcome owns browser colors over a differently themed app a
   h.setWelcome(null); h.mutate();
   assert.equal(h.tags[0].getAttribute('content'), '#123456');
   assert.equal(h.document.body.style.getPropertyValue('background-color'), '#123456');
+  h.dispose();
+});
+
+test('an explicit welcome appearance choice immediately updates the browser canvas without an app rerender', () => {
+  const h = harness();
+  h.setWelcome('rgb(44, 44, 46)', 'dark'); h.render('mobile');
+  const target = h.changeWelcome('rgb(255, 255, 255)', 'light');
+  h.mutate([{ target, attributeName: 'data-entry-theme' }]);
+  assert.equal(h.document.body.style.colorScheme, 'light');
+  assert.equal(h.tags[0].getAttribute('content'), 'rgb(255, 255, 255)');
+  const writes = h.document.body.style.writes.length;
+  h.mutate([{ target, attributeName: 'aria-expanded' }]);
+  assert.equal(h.document.body.style.writes.length, writes, 'Opening sections must not repaint the canvas');
   h.dispose();
 });
 

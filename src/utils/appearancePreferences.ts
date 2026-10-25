@@ -158,6 +158,7 @@ export type InterfaceAppearance = {
 };
 
 export type AppearanceScope = 'platform' | 'public';
+export const INTERFACE_APPEARANCE_EVENT = 'portalink:interface-appearance';
 export function interfaceAppearanceKey(presentation: Presentation, scope: AppearanceScope = 'platform'): string {
   return `portalinknetworks.${scope === 'public' && presentation === 'mobile' ? 'publicAppearance' : 'interfaceAppearance'}.${presentation}`;
 }
@@ -185,5 +186,12 @@ export function readInterfaceAppearance(presentation: Presentation, scope: Appea
 }
 
 export function writeInterfaceAppearance(presentation: Presentation, value: InterfaceAppearance, scope: AppearanceScope = 'platform'): void {
-  write(interfaceAppearanceKey(presentation, scope), JSON.stringify(value));
+  const key = interfaceAppearanceKey(presentation, scope), encoded = JSON.stringify(value);
+  if (read(key) === encoded) return;
+  write(key, encoded);
+  // Storage events cover other tabs. The welcome and app are mounted together,
+  // so explicit choices also notify this document, including when storage is blocked.
+  if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+    window.dispatchEvent(new window.CustomEvent(INTERFACE_APPEARANCE_EVENT, { detail: { key, value } }));
+  }
 }

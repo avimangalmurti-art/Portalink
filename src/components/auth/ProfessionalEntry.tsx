@@ -1,8 +1,13 @@
 import React from 'react';
-import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, Info, LayoutGrid, LogIn, Palette, PanelsTopLeft, Route, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, Info, LayoutGrid, LogIn, Palette, PanelsTopLeft, Route, ShieldCheck, SunMoon, UserPlus, Users } from 'lucide-react';
 import { sourceImages } from '../../data/sourceImages';
 import { usePresentation } from '../../presentation/usePresentation';
 import { ProfileAvatar } from '../profile/ProfileAvatar';
+import { useDeviceAppearance } from '../../hooks/useDeviceAppearance';
+import { findNavAccent, resolveNavButtonTokens } from '../../data/navButtonTokens';
+import { resolveAccentTokens } from '../../utils/accentTokens';
+import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
+import { MobileOnboardingAppearance } from './MobileOnboarding';
 import './professional-entry.css';
 
 const preview = [
@@ -30,8 +35,14 @@ const companySections = [
 export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }: {
   ready?: boolean; onCreate: () => void; onSignIn: () => void; onGuest: () => void;
 }) {
-  const mobile = usePresentation() === 'mobile';
-  return <main className="professional-entry professional-entry-company" aria-labelledby="professional-entry-title">
+  const presentation = usePresentation(), mobile = presentation === 'mobile';
+  const appearance = useDeviceAppearance(presentation);
+  const { theme, highContrast, reduceTranslucency, systemGray } = appearance;
+  const selectedAccent = findNavAccent(appearance.accentColor)[theme];
+  return <main className={`professional-entry professional-entry-company${mobile ? ` theme-${theme}${highContrast ? ' high-contrast' : ''}${reduceTranslucency ? ' reduce-translucency' : ''}` : ''}`}
+    data-entry-theme={mobile ? theme : undefined} data-entry-contrast={mobile ? highContrast : undefined} data-entry-solid={mobile ? reduceTranslucency : undefined}
+    style={mobile ? { ...resolveAccentTokens(selectedAccent, theme), ...resolveNavButtonTokens(theme, selectedAccent, highContrast, reduceTranslucency, systemGray) } : undefined}
+    aria-labelledby="professional-entry-title">
     <div className="professional-entry-frame">
       <div className="professional-entry-main">
         <section className="professional-entry-copy" aria-label="Portalink Networks Inc.">
@@ -78,6 +89,27 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
               </div>
             </details>
           </li>)}
+          {mobile && <li className="professional-entry-appearance-item">
+            <details data-entry-appearance="">
+              <summary>
+                <span className="professional-entry-company-icon" aria-hidden="true"><SunMoon size={20} strokeWidth={1.9} /></span>
+                <span className="professional-entry-company-title">Appearance</span>
+                <ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
+              </summary>
+              <div className="professional-entry-company-panel professional-entry-appearance" role="region" aria-label="Appearance settings">
+                <fieldset><legend>Appearance</legend>
+                  <div className="professional-entry-modes" role="radiogroup" aria-label="Appearance" onKeyDown={handleRadioGroupKeyDown}>
+                    {(['auto', 'light', 'dark'] as const).map(mode => <button key={mode} type="button" role="radio" aria-checked={appearance.mode === mode} tabIndex={appearance.mode === mode ? 0 : -1} onClick={() => appearance.chooseMode(mode)}>{mode === 'auto' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</button>)}
+                  </div>
+                </fieldset>
+                <MobileOnboardingAppearance idPrefix="entry" showPreview={false} theme={theme} systemGray={systemGray}
+                  onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={appearance.accentColor}
+                  onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
+                  onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}
+                  onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })} />
+              </div>
+            </details>
+          </li>}
         </ul>
       </div>
       <footer className="professional-entry-footer">
