@@ -35,6 +35,12 @@
 .professional-entry-company-card { min-width: 0; border-radius: 28px; background: var(--entry-surface); }
 .professional-entry-wordmark { display: grid; grid-template-columns: 68px minmax(0, 1fr); align-items: center; gap: 18px; min-width: 0; min-height: 148px; padding: 20px 18px; }
 .professional-entry-brand-copy { min-width: 0; }
+.professional-entry-thought { position: relative; margin-top: 6px; }
+.professional-entry-thought-copy { display: grid; margin: 0; color: var(--entry-muted); font-size: .875rem; font-weight: 400; line-height: 1.4; overflow-wrap: anywhere; }
+.professional-entry-thought-copy > span { grid-area: 1 / 1; }
+.professional-entry-thought-space { visibility: hidden; pointer-events: none; user-select: none; }
+.professional-entry button.professional-entry-thought-toggle { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.professional-entry button.professional-entry-thought-toggle:focus-visible { z-index: 1; top: 100%; inset-inline-start: 0; width: auto; height: auto; min-height: 44px; padding: 8px 12px; overflow: visible; clip-path: none; white-space: normal; background: var(--entry-surface); color: var(--entry-ink); }
 .professional-entry-company-name { display: block; margin: 0; font-size: 1.625rem; font-weight: 650; letter-spacing: -.025em; line-height: 1.2; overflow-wrap: anywhere; }
 .professional-entry-logo { display: block; width: 68px; height: 68px; object-fit: contain; background: #fff; }
 .professional-entry button {
@@ -201,6 +207,10 @@
   }
   @media (max-height: 800px) {
     .professional-entry-company-sections summary { min-height: 52px; padding-block: 10px; }
+  }
+  @media (max-height: 600px) {
+    /* Leave room for the controls when the header wraps at larger text sizes. */
+    .professional-entry-mobile-header { position: relative; }
   }
 }
 /* The retained account-entry host sets a legacy mobile font; this scene owns its typography. */

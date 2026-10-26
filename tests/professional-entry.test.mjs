@@ -20,11 +20,12 @@ function fixture(ready = true, presentation = 'web', settings = {}) {
     '../../utils/accentTokens': sourceModule('src/utils/accentTokens.ts'),
     '../../utils/radioGroupKeyboard': { handleRadioGroupKeyDown: () => undefined },
     './MobileOnboarding': { MobileOnboardingAppearance: 'appearance-controls' },
+    './CreativeThought': { CreativeThought: 'creative-thought' },
     './professional-entry.css': {},
   });
   return { calls, appearanceCalls, appearance, render: () => ProfessionalEntry({ ready, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin'), onGuest: () => calls.push('guest') }) };
 }
-test('professional entry immediately exposes create, sign-in and guest actions without a film or timer', () => {
+test('professional entry exposes account actions immediately without waiting for the rotating thought', () => {
   const h = fixture(), tree = h.render(), all = nodes(tree);
   assert.equal(tree.type, 'main');
   assert.equal(all.find(n => n.type === 'h1').props.id, tree.props['aria-labelledby']);
@@ -51,6 +52,7 @@ test('both presentations expose nine native company disclosures with distinct ic
     const h = fixture(true, presentation), tree = h.render(), all = nodes(tree);
     const brand = all.find(n => n.props.className === 'professional-entry-wordmark');
     assert.equal(words(all.find(n => n.props.className === 'professional-entry-company-name')), 'Portalink Networks Inc.');
+    assert.equal(nodes(brand).filter(n => n.type === 'creative-thought').length, 1, 'Each presentation shows one thought directly beneath the company name');
     if (presentation === 'mobile') {
       const avatar = nodes(brand).find(n => n.type === 'profile-avatar');
       assert.equal(avatar.props.avatar, '/icons/portalink-app-512-62b9d2e7.png');
