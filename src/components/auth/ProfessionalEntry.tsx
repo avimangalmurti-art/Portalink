@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
-import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, Info, LayoutGrid, LogIn, Palette, PanelsTopLeft, Route, ShieldCheck, SunMoon, UserPlus, Users } from 'lucide-react';
-import { sourceImages } from '../../data/sourceImages';
+import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, Info, LayoutGrid, LogIn, Palette, PanelsTopLeft, Route, ShieldCheck, SunMoon, UserPlus, UserRound, Users } from 'lucide-react';
 import { usePresentation } from '../../presentation/usePresentation';
 import { ProfileAvatar } from '../profile/ProfileAvatar';
 import { useDeviceAppearance } from '../../hooks/useDeviceAppearance';
@@ -10,25 +9,74 @@ import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import { MobileOnboardingAppearance } from './MobileOnboarding';
 import './professional-entry.css';
 
-const preview = [
-  { image: sourceImages.mechanicalPencil, title: 'Object studies' },
-  { image: sourceImages.alcatrazFacade, title: 'Photography' },
-  { image: sourceImages.typeSpecimen, title: 'Typography' },
-  { image: sourceImages.beamCentreLoad, title: 'Structures' },
-  { image: sourceImages.glitchDoNotTouch, title: 'Poster experiments' },
-  { image: sourceImages.disciplinesVenn, title: 'Research & connections' },
-];
-
 const companySections = [
-  { id: 'about', title: 'About Portalink', icon: Info, paragraphs: ['Portalink is a home for projects, ideas and the process behind them. Build a catalogue that connects what you make with how you make it.'] },
-  { id: 'mission', title: 'Mission', icon: Compass, paragraphs: ['Give people a place to turn the things in their heads into work they can develop, build on and share.'] },
-  { id: 'features', title: 'Features', icon: LayoutGrid, paragraphs: ['Bring images, documents and video into your projects. Add context, organize related work into Portals, and present it through your catalogue and Timeline.'] },
-  { id: 'how-it-works', title: 'How it works', icon: Route, paragraphs: ['Create your catalogue. Add a project and its content. Organize your work into Portals, then choose how you share it. Start with what you have and keep building.'] },
-  { id: 'portals', title: 'Portals', icon: PanelsTopLeft, paragraphs: ['Group related projects by discipline, subject or interest. Give each Portal a title and an icon so people can find their way through your catalogue.'] },
-  { id: 'creators', title: 'For creators', icon: Palette, paragraphs: ['From sketches and experiments to research and finished work: Portalink is for people who want to show both the outcome and the process.'] },
-  { id: 'team', title: 'Team', icon: Users, paragraphs: ['A maker’s approach to building a tool for makers: thoughtful design, careful engineering and attention to the details people use every day.'] },
-  { id: 'careers', title: 'Careers', icon: BriefcaseBusiness, paragraphs: ['Help shape tools for people who create. Portalink’s work brings product, design and engineering together.', 'No roles are listed on this page at present.'] },
-  { id: 'privacy', title: 'Privacy & control', icon: ShieldCheck, paragraphs: ['Choose account visibility and what appears on your profile, including your Timeline and citation connections. Review the available options before sharing your work.'] },
+  { id: 'about', title: 'About Portalink', icon: Info,
+    intro: 'Portalink is a interplanetary technology company best known for its Interplanetary Core Network Command (ICNC).',
+    overview: [
+      { label: 'Core identity', detail: 'Interplanetary Core Network Command (ICNC).' },
+      { label: 'Network', detail: 'People, projects and knowledge connected across worlds.' },
+      { label: 'Platform', detail: 'A professional platform for developing, organizing and sharing projects.' },
+      { label: 'Core mission', detail: 'Give people the tools to create work that changes the world.' },
+    ] },
+  { id: 'mission', title: 'Mission', icon: Compass,
+    intro: 'A place to turn the things in your head into work you can develop, build on and share.',
+    overview: [
+      { label: 'Purpose', detail: 'Give ideas and work a place to develop.' },
+      { label: 'Process', detail: 'Show how a project takes shape alongside its outcome.' },
+      { label: 'Sharing', detail: 'Let people choose how they present their work.' },
+    ] },
+  // Keep Features text-only unless the user explicitly requests images again.
+  { id: 'features', title: 'Features', icon: LayoutGrid,
+    intro: 'Tools for presenting projects and the context behind them.',
+    overview: [
+      { label: 'Projects', detail: 'Bring images, documents and video into your projects.' },
+      { label: 'Context', detail: 'Add descriptions and supporting material to explain your work.' },
+      { label: 'Organization', detail: 'Group related work into Portals.' },
+      { label: 'Presentation', detail: 'Share work through your catalogue and Timeline.' },
+    ] },
+  { id: 'how-it-works', title: 'How it works', icon: Route,
+    intro: 'Build your catalogue one project at a time.',
+    overview: [
+      { label: 'Create', detail: 'Set up your account and profile.' },
+      { label: 'Add', detail: 'Create a project and add its content.' },
+      { label: 'Organize', detail: 'Place related projects in Portals.' },
+      { label: 'Share', detail: 'Choose how your work appears and who can see it.' },
+    ] },
+  { id: 'portals', title: 'Portals', icon: PanelsTopLeft,
+    intro: 'Portals bring related projects together within your catalogue.',
+    overview: [
+      { label: 'Grouping', detail: 'Organize by discipline, subject or interest.' },
+      { label: 'Identity', detail: 'Give each Portal a title and an icon.' },
+      { label: 'Navigation', detail: 'Help visitors find and browse related projects.' },
+    ] },
+  { id: 'creators', title: 'For creators', icon: Palette,
+    intro: 'A place to show both the result and the work behind it.',
+    overview: [
+      { label: 'Work', detail: 'Sketches, experiments, research and finished projects.' },
+      { label: 'Context', detail: 'Present the thinking and process behind your work.' },
+      { label: 'Continuity', detail: 'Keep developing your catalogue as your work grows.' },
+    ] },
+  { id: 'team', title: 'Team', icon: Users,
+    intro: 'A maker’s approach to building a tool for makers.',
+    overview: [
+      { label: 'Focus', detail: 'Product, design and engineering.' },
+      { label: 'Approach', detail: 'Thoughtful design and careful engineering.' },
+      { label: 'Details', detail: 'Attention to the features people use every day.' },
+    ] },
+  { id: 'careers', title: 'Careers', icon: BriefcaseBusiness,
+    intro: 'Help shape tools for people who create.',
+    overview: [
+      { label: 'Areas of work', detail: 'Product, design and engineering.' },
+      { label: 'Current openings', detail: 'No roles are listed on this page at present.' },
+      { label: 'Mission', detail: 'Build useful tools for people who create.' },
+    ] },
+  { id: 'privacy', title: 'Privacy & control', icon: ShieldCheck,
+    intro: 'Choose what appears on your profile before sharing your work.',
+    overview: [
+      { label: 'Visibility', detail: 'Manage your account’s visibility.' },
+      { label: 'Timeline', detail: 'Choose whether to show your Timeline publicly.' },
+      { label: 'Citations', detail: 'Choose whether to show what you cite and who cites you.' },
+    ] },
 ];
 
 /** Company information and immediate account choices. */
@@ -58,6 +106,9 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
     <button type="button" className="professional-entry-signin" disabled={!ready} onClick={onSignIn}>
       {mobile ? <><span className="professional-entry-company-icon" aria-hidden="true"><LogIn size={20} strokeWidth={1.9} /></span><span className="professional-entry-company-title">Sign in</span><ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" /></> : <>Sign in <ArrowRight size={16} aria-hidden="true" /></>}
     </button>
+    {mobile && <button type="button" className="professional-entry-guest" disabled={!ready} onClick={onGuest}>
+      <span className="professional-entry-company-icon" aria-hidden="true"><UserRound size={20} strokeWidth={1.9} /></span><span className="professional-entry-company-title">Continue as guest</span><ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
+    </button>}
   </div>;
   const appearanceSection = mobile ? <ul className="professional-entry-company-sections professional-entry-appearance-sections" aria-label="Appearance options">
     <li className="professional-entry-appearance-item">
@@ -91,16 +142,11 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
         <ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
       </summary>
       <div className="professional-entry-company-panel" role="region" aria-label={section.title}>
-        {section.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
-        {section.id === 'features' && <figure className="professional-entry-preview" aria-label="Catalogue preview of creator work">
-          <figcaption><span>Catalogue preview</span><span>Projects & process</span></figcaption>
-          <div className="professional-entry-grid">
-            {(mobile ? preview.slice(0, 3) : preview).map(({ image, title }) => <div className="professional-entry-project" key={image.id}>
-              <div className="professional-entry-image"><img src={image.src} alt={image.alt} draggable={false} decoding="async" loading="lazy" /></div>
-              <span>{title}</span>
-            </div>)}
-          </div>
-        </figure>}
+        <p>{section.intro}</p>
+        <h2 className="professional-entry-overview-title">Key Overview</h2>
+        <ul className="professional-entry-company-points">
+          {section.overview.map(point => <li key={point.label}><strong>{point.label}:</strong> {point.detail}</li>)}
+        </ul>
       </div>
     </details>
   </li>);
@@ -124,9 +170,9 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
           <ul className="professional-entry-company-sections professional-entry-company-group" aria-label="Team, careers and privacy">{companyItems.slice(6)}</ul>
         </div> : <ul className="professional-entry-company-sections" aria-label="Explore Portalink and the company">{companyItems}</ul>}
       </div>
-      <footer className="professional-entry-footer">
+      {!mobile && <footer className="professional-entry-footer">
         <button type="button" disabled={!ready} onClick={onGuest}>Continue as guest <ArrowRight size={14} aria-hidden="true" /></button>
-      </footer>
+      </footer>}
     </div>
   </main>;
 }

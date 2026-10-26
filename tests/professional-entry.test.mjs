@@ -12,8 +12,7 @@ function fixture(ready = true, presentation = 'web', settings = {}) {
     chooseAppearance(patch) { appearanceCalls.push(patch); Object.assign(appearance, patch); } };
   const { ProfessionalEntry } = sourceModule('src/components/auth/ProfessionalEntry.tsx', {
     react: { ...React, useRef: () => ({ current: null }) },
-    'lucide-react': { ArrowRight: 'arrow', BriefcaseBusiness: 'briefcase', ChevronRight: 'chevron', Compass: 'compass', Info: 'info', LayoutGrid: 'grid', LogIn: 'login', Palette: 'palette', PanelsTopLeft: 'panels', Route: 'route', ShieldCheck: 'shield', SunMoon: 'sun-moon', UserPlus: 'user-plus', Users: 'users' },
-    '../../data/sourceImages': sourceModule('src/data/sourceImages.ts'),
+    'lucide-react': { ArrowRight: 'arrow', BriefcaseBusiness: 'briefcase', ChevronRight: 'chevron', Compass: 'compass', Info: 'info', LayoutGrid: 'grid', LogIn: 'login', Palette: 'palette', PanelsTopLeft: 'panels', Route: 'route', ShieldCheck: 'shield', SunMoon: 'sun-moon', UserPlus: 'user-plus', UserRound: 'user-round', Users: 'users' },
     '../../presentation/usePresentation': { usePresentation: () => presentation },
     '../profile/ProfileAvatar': { ProfileAvatar: 'profile-avatar' },
     '../../hooks/useDeviceAppearance': { useDeviceAppearance: () => appearance },
@@ -34,9 +33,6 @@ test('professional entry immediately exposes create, sign-in and guest actions w
     const button = all.find(n => n.type === 'button' && words(n).trim() === label.trim());
     assert.ok(button, label); assert.equal(button.props.disabled, false); button.props.onClick(); assert.equal(h.calls.at(-1), action);
   }
-  const images = nodes(all.find(n => n.type === 'figure')).filter(n => n.type === 'img');
-  assert.equal(images.length, 6); assert.equal(new Set(images.map(n => n.props.src)).size, 6);
-  assert.ok(images.every(n => n.props.src.startsWith('/') && n.props.alt));
 });
 test('the landing page has no story action, overlay or character artwork in either presentation', () => {
   for (const presentation of ['mobile', 'web']) {
@@ -72,6 +68,9 @@ test('both presentations expose nine native company disclosures with distinct ic
     }
     const sections = all.filter(n => n.type === 'details' && n.props['data-company-section']);
     assert.equal(sections.length, 9);
+    const features = sections.find(n => n.props['data-company-section'] === 'features');
+    assert.equal(nodes(features).some(n => ['figure', 'img', 'picture', 'video'].includes(n.type)), false, 'Features stays text-only until images are explicitly requested');
+    assert.match(words(features), /Bring images, documents and video into your projects\./);
     assert.ok(sections.every(n => n.props.open === undefined), 'Company sections start collapsed without hiding their native keyboard controls');
     assert.deepEqual(sections.flatMap(nodes).filter(n => n.type === 'summary').map(words), ['About Portalink', 'Mission', 'Features', 'How it works', 'Portals', 'For creators', 'Team', 'Careers', 'Privacy & control']);
     const icons = sections.flatMap(nodes).filter(n => n.props.className === 'professional-entry-company-icon');
@@ -82,7 +81,8 @@ test('both presentations expose nine native company disclosures with distinct ic
     assert.equal(words(tree).includes('Create catalogue'), false);
     assert.equal(nodes(all.find(n => n.props.className === 'professional-entry-company-card')).some(n => n.props.className === 'professional-entry-create' || n.props.className === 'professional-entry-signin'), false, 'Account actions are separate from the company identity card');
     const accountActions = nodes(all.find(n => n.props.className === 'professional-entry-account-actions')).filter(n => n.type === 'button');
-    assert.deepEqual(accountActions.map(button => words(button).trim()), ['Create account', 'Sign in']);
+    assert.deepEqual(accountActions.map(button => words(button).trim()), presentation === 'mobile' ? ['Create account', 'Sign in', 'Continue as guest'] : ['Create account', 'Sign in']);
+    assert.equal(all.filter(n => n.type === 'button' && words(n).trim() === 'Continue as guest').length, 1);
     for (const label of ['Create account', 'Sign in', 'Continue as guest']) {
       all.find(n => n.type === 'button' && words(n).trim() === label).props.onClick();
     }

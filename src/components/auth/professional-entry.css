@@ -79,15 +79,15 @@
 .professional-entry-footer { justify-content: flex-end; padding-top: 16px; color: var(--entry-muted); }
 .professional-entry-footer button { min-height: 52px; padding-inline: 18px; border-radius: 999px; background: var(--entry-surface); font-size: 1.0625rem; font-weight: 400; }
 .professional-entry-company-sections { list-style: none; min-width: 0; margin: 0; padding: 0; }
-.professional-entry-company-sections li { position: relative; min-width: 0; background: var(--entry-surface); }
-.professional-entry-company-sections li:first-child, .professional-entry-company-sections li:nth-child(7) { border-radius: 28px 28px 0 0; }
-.professional-entry-company-sections li:nth-child(6), .professional-entry-company-sections li:last-child { border-radius: 0 0 28px 28px; }
-.professional-entry-company-sections li:nth-child(7) { margin-top: 40px; }
-.professional-entry-company-sections li:not(:nth-child(6)):not(:last-child)::after { content: ''; position: absolute; bottom: 0; left: 62px; right: 18px; height: 1px; background: var(--entry-rule); }
+.professional-entry-company-sections > li { position: relative; min-width: 0; background: var(--entry-surface); }
+.professional-entry-company-sections > li:first-child, .professional-entry-company-sections > li:nth-child(7) { border-radius: 28px 28px 0 0; }
+.professional-entry-company-sections > li:nth-child(6), .professional-entry-company-sections > li:last-child { border-radius: 0 0 28px 28px; }
+.professional-entry-company-sections > li:nth-child(7) { margin-top: 40px; }
+.professional-entry-company-sections > li:not(:nth-child(6)):not(:last-child)::after { content: ''; position: absolute; bottom: 0; left: 62px; right: 18px; height: 1px; background: var(--entry-rule); }
 .professional-entry-company-sections details { min-width: 0; }
 .professional-entry-company-sections summary { display: grid; grid-template-columns: 32px minmax(0, 1fr) 18px; align-items: center; gap: 12px; min-height: 62px; padding: 15px 18px; list-style: none; cursor: pointer; touch-action: manipulation; }
-.professional-entry-company-sections li:first-child summary, .professional-entry-company-sections li:nth-child(7) summary { border-radius: 28px 28px 0 0; }
-.professional-entry-company-sections li:nth-child(6) details:not([open]) summary, .professional-entry-company-sections li:last-child details:not([open]) summary { border-radius: 0 0 28px 28px; }
+.professional-entry-company-sections > li:first-child summary, .professional-entry-company-sections > li:nth-child(7) summary { border-radius: 28px 28px 0 0; }
+.professional-entry-company-sections > li:nth-child(6) details:not([open]) summary, .professional-entry-company-sections > li:last-child details:not([open]) summary { border-radius: 0 0 28px 28px; }
 .professional-entry-company-sections summary::-webkit-details-marker { display: none; }
 .professional-entry-company-sections summary::marker { content: ''; }
 .professional-entry-company-sections summary:focus-visible, .professional-entry button.professional-entry-create:focus-visible { outline: 3px solid #e62b5c; outline-offset: -3px; }
@@ -99,6 +99,11 @@
 .professional-entry-company-panel { padding: 2px 18px 20px 62px; color: var(--entry-muted); font-size: .9375rem; line-height: 1.6; overflow-wrap: anywhere; }
 .professional-entry-company-panel p { margin: 0 0 12px; }
 .professional-entry-company-panel p:last-child { margin-bottom: 0; }
+.professional-entry-overview-title { margin: 16px 0 8px; color: var(--entry-ink); font-size: .9375rem; font-weight: 600; line-height: 1.4; }
+.professional-entry-company-points { margin: 0; padding-inline-start: 20px; list-style: disc; }
+.professional-entry-company-points > li { margin: 0 0 8px; }
+.professional-entry-company-points > li:last-child { margin-bottom: 0; }
+.professional-entry-company-points strong { color: var(--entry-ink); font-weight: 600; }
 .professional-entry-company-panel .professional-entry-preview { margin-top: 16px; padding: 16px; }
 @media (max-width: 639px) {
   html:root:has([data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']) .professional-entry) {
@@ -138,7 +143,7 @@
     box-shadow: inset 0 0 0 2px var(--entry-rule);
   }
   .professional-entry[data-entry-theme] .professional-entry-company-icon { background: transparent; color: var(--entry-icon); border-radius: 0; }
-  .professional-entry[data-entry-theme] .professional-entry-company-chevron { color: var(--entry-icon); }
+  .professional-entry[data-entry-theme] .professional-entry-company-chevron { color: var(--entry-muted); }
   .professional-entry[data-entry-theme] :is(button, summary):focus-visible { outline-color: var(--focus-ring); }
   .professional-entry-frame { padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
   .professional-entry-main { grid-template-columns: 1fr; align-content: start; gap: 20px; padding: 8px 0 12px; }
@@ -160,8 +165,8 @@
   .professional-entry-company-groups { display: grid; gap: 16px; min-width: 0; }
   .professional-entry-company-group { border-radius: 28px; background: var(--entry-surface); }
   .professional-entry-company-group > li { background: transparent; }
-  .professional-entry-company-sections li:nth-child(7) { margin-top: 16px; }
-  .professional-entry-company-sections li.professional-entry-appearance-item { margin-top: 0; border-radius: 0 0 28px 28px; background: transparent; }
+  .professional-entry-company-sections > li:nth-child(7) { margin-top: 16px; }
+  .professional-entry-company-sections > li.professional-entry-appearance-item { margin-top: 0; border-radius: 0 0 28px 28px; background: transparent; }
   .professional-entry-appearance-sections > .professional-entry-appearance-item > details:not([open]) > summary { border-radius: 0 0 28px 28px; }
   .professional-entry-appearance-sections > .professional-entry-appearance-item > details[open] > summary { border-radius: 0; }
   .professional-entry-company-panel { padding-inline: 18px; }
@@ -205,7 +210,7 @@
 }
 @media (forced-colors: active) {
   .professional-entry button.professional-entry-create { border: 1px solid ButtonText; }
-  .professional-entry-company-card, .professional-entry-company-sections li { border: 1px solid CanvasText; }
+  .professional-entry-company-card, .professional-entry-company-sections > li { border: 1px solid CanvasText; }
   .professional-entry-company-icon { background: Canvas; color: CanvasText; }
 }
 @media (prefers-reduced-motion: reduce) {

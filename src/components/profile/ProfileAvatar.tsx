@@ -12,12 +12,12 @@ import { containModalFocus } from '../../hooks/useModalFocus';
 export function ProfileAvatar({ name, avatar, videoSrc, size = 'compact', priority = false, inlinePreview = false, previewHost }: { name: string; avatar?: string | null; videoSrc?: string; size?: 'compact' | 'profile'; priority?: ImagePriority; inlinePreview?: boolean; previewHost?: React.RefObject<HTMLElement> }) {
   const [isOpen, setIsOpen] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
-  const [motionPaused, setMotionPaused] = useState<boolean | null>(null);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const reducedMotion = useReducedMotion();
-  const paused = motionPaused ?? Boolean(reducedMotion);
-  useEffect(() => { setVideoFailed(false); setMotionPaused(null); }, [videoSrc]);
+  const paused = autoplayBlocked || Boolean(reducedMotion);
+  useEffect(() => { setVideoFailed(false); setAutoplayBlocked(false); }, [videoSrc]);
   const failVideo = useCallback(() => setVideoFailed(true), []);
-  const blockedVideo = useCallback(() => setMotionPaused(true), []);
+  const blockedVideo = useCallback(() => setAutoplayBlocked(true), []);
   const activeVideo = videoFailed ? undefined : videoSrc;
   const thumbnail = activeVideo ? <span aria-hidden="true" className="squircle block h-full w-full overflow-hidden">
     <AvatarLoop src={activeVideo} poster={avatar} paused={paused} onError={failVideo} onBlocked={blockedVideo} />
@@ -27,7 +27,7 @@ export function ProfileAvatar({ name, avatar, videoSrc, size = 'compact', priori
       <button type="button" onClick={() => setIsOpen(true)} aria-haspopup="dialog" aria-expanded={isOpen} aria-label={`View ${name}'s profile ${activeVideo ? 'video' : 'image'}`} className={`${size === 'profile' ? 'profile-identity-avatar shape-squircle' : 'h-10 w-10 shape-squircle-compact'} flex shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
           {thumbnail}
         </button>
-      {isOpen ? <ProfileAvatarPreview name={name} avatar={avatar} videoSrc={activeVideo} paused={paused} onToggleMotion={() => setMotionPaused(!paused)} onVideoError={failVideo} onVideoBlocked={blockedVideo} inlinePreview={inlinePreview} previewHost={previewHost} onClose={() => setIsOpen(false)} /> : null}
+      {isOpen ? <ProfileAvatarPreview name={name} avatar={avatar} videoSrc={activeVideo} paused={paused} onVideoError={failVideo} onVideoBlocked={blockedVideo} inlinePreview={inlinePreview} previewHost={previewHost} onClose={() => setIsOpen(false)} /> : null}
     </>;
 }
 
@@ -45,7 +45,7 @@ function AvatarLoop({ src, poster, paused, onError, onBlocked }: { src: string; 
   return <video ref={ref} src={src} poster={poster || undefined} autoPlay={!paused} loop muted playsInline preload="auto" aria-hidden="true" onError={onError} className="block h-full w-full object-contain" style={{ background: '#fff' }} />;
 }
 
-function ProfileAvatarPreview({ name, avatar, videoSrc, paused, onToggleMotion, onVideoError, onVideoBlocked, onClose, inlinePreview, previewHost }: { name: string; avatar?: string | null; videoSrc?: string; paused: boolean; onToggleMotion: () => void; onVideoError: () => void; onVideoBlocked: () => void; onClose: () => void; inlinePreview: boolean; previewHost?: React.RefObject<HTMLElement> }) {
+function ProfileAvatarPreview({ name, avatar, videoSrc, paused, onVideoError, onVideoBlocked, onClose, inlinePreview, previewHost }: { name: string; avatar?: string | null; videoSrc?: string; paused: boolean; onVideoError: () => void; onVideoBlocked: () => void; onClose: () => void; inlinePreview: boolean; previewHost?: React.RefObject<HTMLElement> }) {
   const presentation = usePresentation();
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [avatar]);
@@ -81,7 +81,6 @@ function ProfileAvatarPreview({ name, avatar, videoSrc, paused, onToggleMotion, 
           {videoSrc ? <AvatarLoop src={videoSrc} poster={avatar} paused={paused} onError={onVideoError} onBlocked={onVideoBlocked} /> : avatar && !imageFailed ? <ResponsiveImage src={avatar} alt={`${name} profile image`} onError={() => setImageFailed(true)} priority width={840} height={840} sizes="(min-width: 800px) 420px, 64vw" className="block h-full w-full object-cover" /> : <CreatorAvatar name={name} shape="squircle" className="h-full w-full text-[160px]" />}
         </div>
         <figcaption id={titleId} className="mt-4 break-words px-2 pb-1 text-center font-sans text-large font-medium leading-tight tracking-[-0.02em] text-[var(--text-primary)]" style={{ maxWidth: 'min(84vw, 520px)' }}>{name}</figcaption>
-        {videoSrc && <button type="button" className="mt-3 min-h-11" style={{ padding: '8px 16px', border: '1px solid var(--hairline)', borderRadius: '999px' }} onClick={event => { event.stopPropagation(); onToggleMotion(); }}>{paused ? 'Play animation' : 'Pause animation'}</button>}
       </figure>
     </div></>;
   // A welcome card can create a containing block through its glass material.

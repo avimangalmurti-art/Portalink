@@ -1,3 +1,49 @@
+## 2026-10-26 - Complete pending home update, publication requested
+
+Explicit user authorization covers all pending home refinements, including present-tense ICNC/company overviews and earlier guest/avatar/neutral-chevron/image-free Features updates. Source mirror opened successfully; reviewed hashes match and the existing public audience/backend are retained. Fresh checks/build/source/archive/PR-head/native/live verification pending; live remains544 until deployment succeeds. No additional product or backend/SQL changes.
+
+## 2026-10-26 - ALL ICNC present-tense copy, unpublished
+
+Local About copy removes Long-term vision/Product today/future framing, using Network, Platform and a present-tense mission. Literal ICNC introduction remains.6 focused tests and actual mobile/web copy/overflow checks pass; Features remains image-free. This is a text revision without new connectivity/backend functionality. Latest combined fingerprints/proof in docs/agent-handoff.md and ignored logs/icnc-present-verification.json.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED from eb79fdcd87ad26f3be72749c363bed54068ba371; live/dist remain544. No type/lint/build rerun for three text entries, credentials/source push, Sites publication, assets/dependencies or backend/SQL operation. A later authorized release requires fresh production/emitted/artifact checks.
+
+## 2026-10-25 - ALL About Portalink ICNC brand copy, unpublished
+
+Local About Portalink now uses the user's literal interplanetary/ICNC introduction. Four professional overview bullets distinguish the long-term beyond-Earth network vision from today's project platform and mission. All prior pending changes and the no-images Features rule remain.6 focused tests and actual420/320/1536px text-wrap checks pass, with no captured app errors or horizontal overflow. This is copy only; no network/backend functionality added. Latest combined fingerprints/proof in docs/agent-handoff.md and ignored logs/icnc-branding-verification.json.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED from eb79fdcd87ad26f3be72749c363bed54068ba371; live/dist remain544. No type/lint/build rerun for five strings; prior overview checks retained. No credential/source push, Sites save/deploy, assets/dependencies or backend/SQL action. A later authorized release needs a fresh production build and emitted/artifact checks.
+
+## 2026-10-25 - ALL company Key Overview format, unpublished
+
+Local second/third information groups retain their nine dropdowns, now with one introduction, Key Overview and bold-label native bullets in each (30 bullets total). Portalink's existing product/introductory copy supplies the content; no Google or unconfirmed company-history facts included. Features remains image-free. Shared styles explicitly separate top-level card rows from nested bullet list items.6 focused tests, typecheck, targeted lint and actual mobile/light/dark/narrow/desktop/keyboard checks pass. Details and current combined fingerprints are in docs/agent-handoff.md and ignored logs/company-overview-verification.json.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED from eb79fdcd87ad26f3be72749c363bed54068ba371 on codex/welcome-refinement; live and dist remain544. All prior pending startup refinements remain. No build, credential/source push, Sites publication, assets/dependencies or backend/SQL operation. A later authorized release must rebuild and audit the current shared overview styling intentionally changed for both presentations.
+
+## 2026-10-25 - ALL Features text-only, unpublished
+
+Local landing-page Features now contains only its unchanged descriptive paragraph on MOBILE and WEB. Its sample-image gallery/captions and unused preview data/import are removed. User's persistent constraint: do not add images to this section until they explicitly ask. Company avatar/other images and all earlier pending refinements remain.6 focused tests, typecheck, targeted lint and actual mobile/web expanded-panel checks pass, with0 media elements and no empty preview/background image. Details/evidence and current combined fingerprints are in docs/agent-handoff.md and ignored logs/features-text-only-verification.json.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED from eb79fdcd87ad26f3be72749c363bed54068ba371; production and dist remain544. No build, credential/source push, native publication, assets/dependencies or backend/SQL action. Fresh production/emitted/artifact checks are required for a later explicitly authorized release.
+
+## 2026-10-25 - Startup controls refinements, unpublished
+
+Local avatar preview no longer has Play/Pause controls; silent inline looping, automatic Reduced Motion/autoplay fallback and existing dismissal/focus remain. Mobile home chevrons use neutral system text tokens rather than the accent; leading icons retain accent. Published Create account Back was reverified returning mobile/web visitors to startup without another auth/navigation change. Earlier unpublished top-group guest entry remains included.25 focused tests, typecheck, targeted lint and actual responsive Chrome Back/video/keyboard/theme-accent/WEB-preservation checks pass; physical iPhone/Safari/PWA unverified. Details/evidence in docs/agent-handoff.md.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED from eb79fdcd87ad26f3be72749c363bed54068ba371 on codex/welcome-refinement. Live and dist remain544. Three product files, two existing tests and receipt docs dirty. No build, credential/source push, Sites publication, assets/dependencies or backend/SQL action. A later explicit release needs fresh production/emitted/artifact verification.
+
+## 2026-10-25 - MOBILE top-group guest entry, unpublished
+
+Local Continue as guest now follows Sign in and precedes Appearance inside the top rounded group. The existing action/readiness/shared styles are reused; its footer remains only on WEB. Company information text/groups and WEB metrics/styles stay unchanged.6 focused tests, typecheck, targeted lint and actual responsive Chrome keyboard/guest-entry/desktop-preservation checks pass; physical-phone behavior unverified. Details/evidence in docs/agent-handoff.md.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED on codex/welcome-refinement from eb79fdcd87ad26f3be72749c363bed54068ba371; live remains544 and dist remains that prior build. One component, its existing test and receipt docs dirty. No new production build, credential, source push, Sites save/deploy, asset/dependency or backend/SQL action. A later explicit publication requires fresh production/emitted/artifact checks.
+
+## 2026-10-25 - ALL create-account Back button published 544
+
+Live at https://portalinknetworks.com/ from source eb79fdcd87ad26f3be72749c363bed54068ba371 on GitHub codex/welcome-refinement and the Sites mirror, draft PR147 against main. Saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_b6836e95f98481919d0e8b77e6aa8999; deployment appgdep_6aded51e602481918e9da1892d78d859 succeeded2026-10-26T04:20:55.826448+00:00. Existing public audience/environment revision2/backend bindings retained. Helper completed/credential cleared; no main merge or backend/SQL/authentication/asset/dependency change.
+
+37 focused cases, typecheck/targeted lint, full lint(0 errors/111 existing warnings), fresh production client/worker/configuration guards and6 emitted cases pass. Source/archive audits GO;418 public assets and worker/hosting/four SQL payloads match543. Archive47,809,823bytes/SHA2560d454ac85344d57c26f0ac33b4d4ad35ce2fe15e20ad89071013bf8f44f2d835;652members/638files. Native tar82,524,160bytes/sha256:d0e1bbd1744787c44a947ef304e6593baf3dcf5ff56bb0dc4fcc914a558b5e84. Live4/4 entry documents and212/212 assets match. Mobile/desktop Back controls are visible44px targets and return to accessible landing; keyboard focus/Enter works. No captured warnings/errors or account/content/preference mutations. Physical iPhone/Safari/PWA and full-suite coverage not claimed. Local dirty/narrow/in-flight checks, proof/receipt paths and safe handoff are in docs/agent-handoff.md. Only postpublication receipt docs dirty; no pending publication/backend work.
+
 ## 2026-10-25 - ALL create-account Back button, publication requested
 
 Explicit user request authorizes publication. Existing mirror opened successfully; reviewed product/test fingerprints match passing focused/type/local browser checks. Fresh production/full-lint/configuration/artifact/source/PR checks and native/live verification pending; audience/backend retained. Live remains543 until terminal deployment success. No further implementation, assets, dependencies or SQL/backend operation.

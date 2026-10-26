@@ -137,7 +137,7 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
   };
 }
 
-test('video avatars loop silently and share pause/resume with their existing preview', () => {
+test('video avatars loop silently in their thumbnail and preview without playback controls', () => {
   const h = avatarHarness({ name: 'Portalink', avatar: '/poster.png', videoSrc: '/avatar.mp4', inlinePreview: true }, { presentation: 'mobile' });
   let tree = h.render();
   let video = h.find(tree, n => n.type === 'video');
@@ -151,19 +151,10 @@ test('video avatars loop silently and share pause/resume with their existing pre
   tree = h.render();
   let dialog = h.find(tree, n => n.props?.role === 'dialog');
   assert.equal(h.find(dialog, n => n.type === 'video').props.src, '/avatar.mp4');
-  const toggle = h.find(dialog, n => n.type === 'button');
-  assert.equal(toggle.props.children, 'Pause animation');
-  let stopped = false;
-  toggle.props.onClick({ stopPropagation() { stopped = true; } });
-  tree = h.render(); dialog = h.find(tree, n => n.props?.role === 'dialog');
-  assert.ok(stopped && dialog, 'Pausing must not dismiss the viewer');
-  assert.equal(h.find(tree, n => n.type === 'video').element.paused, true);
-  assert.equal(h.find(dialog, n => n.type === 'video').element.paused, true);
-  assert.equal(h.find(dialog, n => n.type === 'button').props.children, 'Play animation');
-  h.find(dialog, n => n.type === 'button').props.onClick({ stopPropagation() {} });
-  tree = h.render(); dialog = h.find(tree, n => n.props?.role === 'dialog');
+  assert.equal(h.find(dialog, n => n.type === 'button'), null);
   assert.equal(h.find(tree, n => n.type === 'video').element.paused, false);
   assert.equal(h.find(dialog, n => n.type === 'video').element.paused, false);
+  assert.equal(h.find(dialog, n => n.type === 'video').props.loop, true);
   h.inlineLayers[0].onEscape();
   assert.equal(h.find(h.render(), n => n.props?.role === 'dialog'), null);
 });
