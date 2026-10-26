@@ -85,15 +85,22 @@ export type AppRoute = {
 };
 
 /**
- * Destinations that genuinely require an account, as opposed to ones that merely
- * belong to a creator. Reading a public profile, category, or project is open to
- * guests; these are the account itself and the creator's own tools.
+ * Guest browsing stays in the bounded Home preview. Explicit shared-link routes
+ * remain public; the ordinary app directory, readers and tools require an account.
  */
-export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['messages', 'saved', 'notifications', 'insights', 'profileEditor']);
+export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['messages', 'saved', 'notifications', 'insights', 'profileEditor', 'search', 'portalink', 'profile', 'category', 'project', 'activity', 'collaboration', 'item', 'portals', 'studio']);
 
 /** What the person was reaching for, for the auth gate's wording. */
 export function describeRoute(route: AppRoute): string {
   switch (route.kind) {
+    case 'search':
+      return 'search accounts';
+    case 'portalink':
+      return 'explore Portalink';
+    case 'profile': case 'category': case 'activity': case 'collaboration':
+      return 'explore this creator';
+    case 'project': case 'item':
+      return 'open this project';
     case 'profileEditor':
       return 'edit your profile';
     case 'studio':

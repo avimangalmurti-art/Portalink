@@ -16,7 +16,7 @@ const textOf = node => React.isValidElement(node) ? React.Children.toArray(node.
 function fixture(searchAccounts, initial = {}) {
   const slots = [], timers = new Map(), frames = new Map(), hosts = new Map(), events = new Map(), mediaEvents = new Map(), animations = [], focusCalls = [], scrollWrites = [], observers = [];
   let cursor = 0, dirty = true, tree, effects = [], layout = [], mounted = true, active = true, lateStateWrites = 0, timerId = 0, frameId = 0, mode = initial.mode ?? 'mobile', reduced = initial.reduced ?? false, appReduced = false;
-  let auth = { user: { id: 'account-a' }, viewerProfileId: 'profile-a' };
+  let auth = { user: { id: 'account-a' }, viewerProfileId: 'profile-a', isAuthenticated: true };
   const requests = [], visits = [], props = { query: '', onQueryChange(value) { props.query = value; dirty = true; }, onOpenCreator: id => visits.push(id) };
   const add = (map, type, callback) => { if (!map.has(type)) map.set(type, new Set()); map.get(type).add(callback); };
   const emit = (map, type, event = {}) => { for (const callback of [...(map.get(type) ?? [])]) callback({ type, ...event }); };
@@ -89,7 +89,7 @@ function fixture(searchAccounts, initial = {}) {
     get field() { return hostFor(find(node => node.type === 'textarea' || node.type === 'input')); },
     find, hostFor,
     query(value) { props.query = value; dirty = true; render(); },
-    owner(id) { auth = { user: { id }, viewerProfileId: `profile-${id}` }; dirty = true; render(); },
+    owner(id) { auth = { user: id ? { id } : null, viewerProfileId: id ? `profile-${id}` : null, isAuthenticated: Boolean(id) }; dirty = true; render(); },
     mode(value) { mode = value; dirty = true; render(); },
     active(value) { active = value; main.inert = !value; dirty = true; render(); },
     runTimers() { for (const [id, callback] of [...timers]) { timers.delete(id); callback(); } render(); },
@@ -208,4 +208,20 @@ test('WEB retains its top pagination loader and restart-from-first-page Retry be
   const page = deferred(); let retry = false; const h = await loaded((query, offset = 0) => offset && !retry ? page.promise : Promise.resolve(people(offset)), { mode: 'web' });
   h.clickMore(); assert.ok(h.loader); assert.equal(h.rows.length, 30); assert.equal(textOf(h.footer), 'Show more accounts'); page.reject(Error('offline')); await h.flush(); assert.ok(h.error);
   retry = true; h.retry(); assert.equal(h.rows.length, 0); h.runTimers(); await h.flush(); assert.equal(h.rows.length, 30); assert.equal(h.requests.at(-1)[1] ?? 0, 0); assert.equal(h.animations.length, 0); h.unmount();
+});
+
+
+test('signing out immediately removes directory fields and ignores an outstanding account search', async () => {
+  const pending = deferred();
+  const h = fixture(() => pending.promise);
+  h.query('Creator'); h.runTimers();
+  assert.equal(h.requests.length, 1);
+  h.owner(null);
+  assert.equal(h.field, undefined);
+  assert.deepEqual(h.rows, []);
+  pending.resolve(people()); await h.flush();
+  assert.deepEqual(h.rows, []);
+  h.query('Someone else'); h.runTimers();
+  assert.equal(h.requests.length, 1);
+  h.unmount();
 });

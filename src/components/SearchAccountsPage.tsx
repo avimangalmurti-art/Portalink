@@ -23,9 +23,9 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
   const activeRef = useRef(active);
   activeRef.current = active;
   const [, refreshRecent] = useState(0);
-  const recent = readRecentAccounts(auth.user?.id);
+  const recent = auth.isAuthenticated ? readRecentAccounts(auth.user?.id) : EMPTY_ACCOUNTS;
   const term = query.trim();
-  const account = mobile ? auth.user?.id ?? null : undefined;
+  const account = auth.isAuthenticated ? auth.user?.id ?? null : null;
   const scope = useMemo(() => ({ term, discovery, mobile, account }), [term, discovery, mobile, account]);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
@@ -51,7 +51,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
     busy.current = false;
     setPage(null);
     setResult({ scope, term, people: [], status: term ? 'loading' : 'ready', more: false });
-    if (!term) return;
+    if (!term || !auth.isAuthenticated) return;
     const timer = window.setTimeout(() => {
       void (discovery.searchAccounts ? discovery.searchAccounts(term) : Promise.reject(new Error('Search unavailable'))).then(people => {
         if (request.current === version && scopeRef.current === scope) setResult({ scope, term, people, status: 'ready', more: people.length === 30 });
@@ -60,7 +60,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
       });
     }, 220);
     return () => { window.clearTimeout(timer); request.current++; };
-  }, [term, discovery, attempt, scope]);
+  }, [term, discovery, attempt, scope, auth.isAuthenticated]);
   const current = result.term === term && result.scope === scope;
   const people = current ? result.people : EMPTY_ACCOUNTS;
   const loading = Boolean(term) && (!current || result.status === 'loading');
@@ -115,7 +115,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
   }
 
   async function loadMore() {
-    if (!current || busy.current || !result.more || !discovery.searchAccounts || (mobile && !activeRef.current)) return;
+    if (!auth.isAuthenticated || !current || busy.current || !result.more || !discovery.searchAccounts || (mobile && !activeRef.current)) return;
     const version = request.current;
     const offset = currentPage?.status === 'error' ? currentPage.offset : people.length;
     const visibleFooterHeight = mobile ? footer.current?.getBoundingClientRect().height : undefined;
@@ -143,8 +143,9 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
       }
     } finally { if (request.current === version && scopeRef.current === scope) busy.current = false; }
   }
+  if (!auth.isAuthenticated) return <section className="px-5 py-8" aria-label="Search accounts"><EmptyState title="Find people on Portalink" description="Create an account or sign in to search profiles." action={{ label: 'Create account', onClick: () => auth.requestAuthenticatedDestination({ kind: 'route', path: '/search', label: 'search accounts' }, 'signUp') }} secondaryAction={onBack ? { label: 'Back to Home', onClick: onBack } : undefined} /></section>;
   return <section ref={section} data-account-search className="flex h-full min-h-0 flex-col px-5 py-5" aria-label="Search">
-    <header className="account-search-header contents">
+    <header className="account-search-header shrink-0">
     {onBack ? <ScreenBack visibleOnMobile action={onBack}><button type="button" aria-label="Back" className="account-search-back mb-3 flex h-11 w-11 shrink-0 items-center justify-center self-start" onClick={onBack}><ArrowLeftIcon aria-hidden="true" size={24} /></button></ScreenBack> : null}
     <h1 className="mb-4 text-xl font-semibold">Search</h1>
     <label className="mb-4 block"><span className="sr-only">Search accounts</span><SearchField data-ui-shape="field" {...(mobile ? { rows: 1, wrap: 'off', role: 'searchbox' } : { type: 'search' })} name="account-search-query" autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} enterKeyHint="search" value={query} onChange={(event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onQueryChange(mobile ? event.target.value.replace(/[\r\n]+/g, ' ') : event.target.value)} onKeyDown={event => { if (mobile && event.key === 'Enter' && !event.nativeEvent.isComposing) event.preventDefault(); }} placeholder={mobile ? 'Search accounts' : 'Search by name or handle'} className={`min-h-11 w-full rounded-xl border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 py-2 text-base text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]${mobile ? ' block h-11 resize-none overflow-x-auto whitespace-nowrap' : ''}`} maxLength={80} /></label>

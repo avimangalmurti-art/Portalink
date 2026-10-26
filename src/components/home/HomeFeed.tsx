@@ -26,6 +26,7 @@ import { useProjectManagement } from '../../features/projects/useProjectManageme
 import { DeferredDialog } from '../ui/DeferredDialog';
 import { useHomeStartupReadiness } from './useHomeStartupReadiness';
 import { useMobileFeedResume } from '../../presentation/mobile/useMobileFeedResume';
+import { GuestHomePreview } from './GuestHomePreview';
 
 const ProjectEditorDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.ProjectEditorDialog })));
 const DeleteProjectDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.DeleteProjectDialog })));
@@ -109,7 +110,8 @@ export function HomeFeed({
   const routeLocation = useLocation();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile });
-  const { viewerProfileId, isAuthenticated, user } = useAuth();
+  const { viewerProfileId, isAuthenticated, user, requestAuth } = useAuth();
+  const isGuestPreview = !isAuthenticated && !locationId;
   const management = useProjectManagement(isAuthenticated ? viewerProfileId : null);
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
   const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId), 'home');
@@ -155,10 +157,10 @@ export function HomeFeed({
     const ordered = feed.featured ? [feed.featured, ...feed.projects] : feed.projects;
     return Array.from(new Map(ordered.map((view) => [view.project.id, view])).values());
   }, [feed.featured, feed.projects]);
-  const documentProjects = useMemo(() => new Set(projects.filter(view => view.project.cover && view.project.coverKind === 'document' && !view.project.coverThumbnail).map(view => view.project.id)), [projects]);
+  const documentProjects = useMemo(() => new Set(projects.filter(view => !isGuestPreview && view.project.cover && view.project.coverKind === 'document' && !view.project.coverThumbnail).map(view => view.project.id)), [projects, isGuestPreview]);
   const projectIds = useMemo(() => projects.map(view => view.project.id), [projects]);
   const feedPath = locationId ? `/portalink/${encodeURIComponent(locationId)}` : '/';
-  const coldResume = useMobileFeedResume({ enabled: isMobile && canOwnScroll && !categoriesOpen && routeLocation.pathname === feedPath && !routeLocation.search && !routeLocation.hash,
+  const coldResume = useMobileFeedResume({ enabled: !isGuestPreview && isMobile && canOwnScroll && !categoriesOpen && routeLocation.pathname === feedPath && !routeLocation.search && !routeLocation.hash,
     accountId: isAuthenticated ? user?.id ?? null : null, path: feedPath, host: autoScrollRef, projectIds, ready: feed.status === 'success' && layoutReady, saveReady: scrollRestored,
     failed: Boolean(feed.error || feed.refreshError || feed.loadMoreError), busy: feed.isLoadingMore || feed.isRefreshing, nextCursor: feed.nextCursor, loadMore: requestMore });
   const firstProjectHome = isMobile && Boolean(firstProjectAction) && projects.length === 0;
@@ -173,7 +175,7 @@ export function HomeFeed({
     enabled: startupPending && !locationId,
     attempt: startupAttempt,
     ref: autoScrollRef,
-    settled: (firstProjectHome && feed.status === 'success') || (feed.status === 'success' && layoutReady && scrollRestored && noteReadiness?.account === account && noteReadiness.attempt === startupAttempt && noteReadiness.settled),
+    settled: (firstProjectHome && feed.status === 'success') || (feed.status === 'success' && layoutReady && scrollRestored && (isGuestPreview || (noteReadiness?.account === account && noteReadiness.attempt === startupAttempt && noteReadiness.settled))),
     terminalError: feed.status === 'error' || (!firstProjectHome && layoutFailed),
     projectCount: firstProjectHome ? 0 : projects.length,
     documentProjects,
@@ -201,7 +203,7 @@ export function HomeFeed({
   // real scroll surface once its cards exist, so Back lands
   // on the work the viewer left instead of quietly returning them to the top.
   useLayoutEffect(() => {
-    if (isMobile && coldResume.handled) {
+    if (!isGuestPreview && isMobile && coldResume.handled) {
       hasRestoredScrollRef.current = !coldResume.restoring;
       setScrollRestored(!coldResume.restoring);
       return;
@@ -215,7 +217,7 @@ export function HomeFeed({
     let attempts = 0;
     let completed = false;
     const restore = () => {
-      const element = isMobile ? document.scrollingElement : autoScrollRef.current;
+      const element = isMobile && !isGuestPreview ? document.scrollingElement : autoScrollRef.current;
       if (!element) return;
       element.scrollTop = target;
       if (Math.abs(element.scrollTop - target) < 2 || attempts >= 30) { completed = true; setScrollRestored(true); return; }
@@ -224,10 +226,10 @@ export function HomeFeed({
     };
     frame = requestAnimationFrame(restore);
     return () => { cancelAnimationFrame(frame); if (!completed) hasRestoredScrollRef.current = false; };
-  }, [feed.status, projects.length, layoutReady, isMobile, canOwnScroll, coldResume.handled, coldResume.restoring]);
+  }, [feed.status, projects.length, layoutReady, isMobile, isGuestPreview, canOwnScroll, coldResume.handled, coldResume.restoring]);
 
   useLayoutEffect(() => {
-    if (!isMobile || !canOwnScroll) return;
+    if (!isMobile || isGuestPreview || !canOwnScroll) return;
     const remember = () => {
       if (!hasRestoredScrollRef.current || autoScrollRef.current?.closest('.screen-exit')) return;
       latestScrollTopRef.current = window.scrollY;
@@ -235,7 +237,7 @@ export function HomeFeed({
     };
     window.addEventListener('scroll', remember, { passive: true });
     return () => window.removeEventListener('scroll', remember);
-  }, [isMobile, scrollMemoryKey, canOwnScroll]);
+  }, [isMobile, isGuestPreview, scrollMemoryKey, canOwnScroll]);
 
   const rememberScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     if (!canOwnScroll) return;
@@ -254,9 +256,13 @@ export function HomeFeed({
 
   const {isRefreshing,status:feedStatus}=feed;
   const refreshHome=useCallback(()=>{if(isRefreshing||feedStatus==='loading')return;setHasReloaded(true);retryFeed();},[isRefreshing,feedStatus,retryFeed]);
-  const pullEnabled = showMobileSearch && screenActive && !categoriesOpen && !(firstProjectAction && projects.length === 0);
+  const pullEnabled = !isGuestPreview && showMobileSearch && screenActive && !categoriesOpen && !(firstProjectAction && projects.length === 0);
   const refreshMotion = useHomeRefreshMotion({ enabled: pullEnabled, refreshing: feed.isRefreshing, scope: recoveryIdentity });
   const pullLabel=useHomePullRefresh(autoScrollRef,pullEnabled,feed.isRefreshing||feed.status==='loading',refreshHome,refreshMotion.onPull);
+  if (isGuestPreview) return <GuestHomePreview projects={projects} loading={feed.status === 'idle' || feed.status === 'loading'} error={feed.error}
+    onRetry={retryFeed} onCreate={() => requestAuth('signUp')} onSignIn={() => requestAuth('signIn')}
+    onOpenProject={({ project, creator }) => onOpenProject(project.id, { profileId: creator.id, categoryId: project.categoryId })}
+    scrollRef={autoScrollRef} onScroll={rememberScroll} />;
   if(isMobile && categoriesOpen)return <ExploreCategories onBack={()=>setCategoriesOpen(false)}/>;
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">

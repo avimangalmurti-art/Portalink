@@ -14,7 +14,6 @@ import { useProjectGridDensity } from '../features/profile/useProjectGridDensity
 import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { usePresentation } from '../presentation/usePresentation';
-import { useMobileHeaderMaterial } from '../presentation/mobile/useMobileHeaderMaterial';
 import { useSearchParams } from 'react-router-dom';
 import '../components/profile/profile-header.css';
 
@@ -39,7 +38,6 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   // React 18 does not forward the boolean inert attribute; use the DOM property.
   useLayoutEffect(() => { if (profilePageRef.current) profilePageRef.current.inert = !active; }, [active]);
   const [timelineToolbarHost, setTimelineToolbarHost] = useState<HTMLDivElement | null>(null);
-  useMobileHeaderMaterial(!isMobile && isJourney, profile.id, profilePageRef, true);
   const category = profile.categories.find(item => item.id === categoryId);
   const density = useProjectGridDensity(profile, false);
   const projects = useMemo(() => categoryId ? profile.projects.filter(project => project.categoryId === categoryId) : profile.projects, [profile.projects, categoryId]);

@@ -25,7 +25,6 @@ import { useMenuFocus } from '../hooks/useMenuFocus';
 import { SavedChangeNotice } from './ui/SavedChangeNotice';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePresentation } from '../presentation/usePresentation';
-import { useMobileHeaderMaterial } from '../presentation/mobile/useMobileHeaderMaterial';
 import { useMobilePortalPopupSize } from '../presentation/mobile/useMobilePortalPopupSize';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildPath } from '../app/routes';
@@ -462,8 +461,7 @@ export function UserProfilePage({
   const projectManagement = useProjectManagement(showsOwnerTools ? profile.id : null);
   const [isReorderingProjects, setIsReorderingProjects] = useState(false);
   const profilePageRef = useRef<HTMLDivElement>(null);
-  // Reuse the existing material observer only within the desktop Journey.
-  useMobileHeaderMaterial(!isMobile && isJourney, profile.id, profilePageRef, true);
+  // AppPresentation owns the shared header material in both presentations.
   const mobileWallScroll = useRef({ profileId: profile.id, top: 0 });
   if (mobileWallScroll.current.profileId !== profile.id) mobileWallScroll.current = { profileId: profile.id, top: 0 };
   const finishingReorder = useRef(false);

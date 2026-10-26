@@ -34,7 +34,7 @@ function harness() {
     mobileRecoveryDraft: null, mobileRecoveryError: '',
     setMobileRecoveryDraft: value => { context.mobileRecoveryDraft = value; },
     setMobileRecoveryError: value => { context.mobileRecoveryError = value; },
-    React, result: null, projectSetupMetadata:undefined, projectSetupAccountId:null, setOptionalSetupAccount() {}, setProjectSetupAccountId:value=>context.projectSetupAccountId=value, setProjectSetupMetadata:value=>context.projectSetupMetadata=value, presentation: 'web', journeyMadeIn: null, firstProjectPublisher: false, isFirstProjectPublish: false, setFirstProjectPublisher: value => { context.firstProjectPublisher=value; }, setJourneyMadeIn: value => { context.journeyMadeIn=value; }, setIsFirstProjectPublish: value => { context.isFirstProjectPublish=value; }, require(name) { assert.equal(name, './features/publishing/firstProjectDraft'); return drafts; }, setGlobalCreateError() {}, defaultCategoryRequest: {current:null}, createFirstProjectCategory:async(label,icon)=>{calls.push(['createPortal',label,icon]);return{id:'work',label};}, auth: { phase: 'unauthenticated', isAuthenticated: false, viewerProfileId: null, user: null,
+    React, result: null, setPostPublishIdea() {}, setPublishConfirmation() {}, projectSetupMetadata:undefined, projectSetupAccountId:null, setOptionalSetupAccount() {}, setProjectSetupAccountId:value=>context.projectSetupAccountId=value, setProjectSetupMetadata:value=>context.projectSetupMetadata=value, presentation: 'web', journeyMadeIn: null, firstProjectPublisher: false, isFirstProjectPublish: false, setFirstProjectPublisher: value => { context.firstProjectPublisher=value; }, setJourneyMadeIn: value => { context.journeyMadeIn=value; }, setIsFirstProjectPublish: value => { context.isFirstProjectPublish=value; }, require(name) { assert.equal(name, './features/publishing/firstProjectDraft'); return drafts; }, setGlobalCreateError() {}, defaultCategoryRequest: {current:null}, createFirstProjectCategory:async(label,icon)=>{calls.push(['createPortal',label,icon]);return{id:'work',label};}, auth: { phase: 'unauthenticated', isAuthenticated: false, viewerProfileId: null, user: null,
       requestAuthenticatedDestination(intent) { pendingIntent = intent; calls.push(['auth', plain(intent)]); },
       consumePendingIntent() { const intent = pendingIntent; pendingIntent = null; return intent; },
     },
@@ -238,7 +238,7 @@ function homeHarness(presentation, feed, props) {
     if (name.endsWith('/useFeed')) return { useFeed: () => feed };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null, close() {} }, deletion: { projectId: null, cancel() {} } }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
-    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: null }) };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: null, isAuthenticated: true }) };
     if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ layout: null }) };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => ({ columns: 3 }) };
     if (name.endsWith('/StateViews')) return stateViews;
@@ -258,7 +258,7 @@ test('Home renders working publish and browse controls only in its empty state o
     const controls = nodes(empty.stateViews.EmptyState(state.props)).filter(node => typeof node.props.onClick === 'function');
     assert.equal(controls.length, 2); controls[0].props.onClick(); controls[1].props.onClick();
     assert.deepEqual(h.calls, [['auth', { kind: 'create-project' }], ['world']]);
-    const populated = homeHarness(presentation, { status: 'success', featured: null, projects: [{ project: { id: 'existing' } }], isEmpty: false }, props);
+    const populated = homeHarness(presentation, { status: 'success', featured: null, projects: [{ project: { id: 'existing' }, creator: { id: 'creator' } }], isEmpty: false }, props);
     assert.equal(nodes(populated.tree).some(node => node.type === populated.stateViews.EmptyState), false);
     const grid = nodes(populated.tree).find(node => node.type === (presentation === 'mobile' ? 'JustifiedImageWall' : 'BentoFeedGrid'));
     assert.equal(grid.props.items.length, 1); assert.equal(grid.props.items[0].key, 'existing');

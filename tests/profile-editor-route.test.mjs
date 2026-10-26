@@ -135,13 +135,13 @@ test('existing mp_screen links still translate their stored presets without revi
   assert.equal(routing.screenPresetPath(useScreenInit()), null);
 });
 
-test('collaboration has dedicated creator URLs and stays readable without an account', () => {
+test('collaboration has dedicated creator URLs and only explicit shared links stay public', () => {
   for (const [shared, kind, prefix] of [[false, 'collaboration', '/p'], [true, 'sharedCollaboration', '/share']]) {
     const path = `${prefix}/creator/collaboration`;
     const h = harness(path);
     assert.equal(routes.buildPath(kind, { profileId: 'creator' }), path);
     assert.deepEqual(plain(h.routing.useAppRoute()), { kind, profileId: 'creator' });
-    assert.equal(h.routing.PROTECTED_ROUTE_KINDS.has(kind), false);
+    assert.equal(h.routing.PROTECTED_ROUTE_KINDS.has(kind), !shared);
     h.nav().closeCollaboration('creator', shared);
     assert.deepEqual(plain(h.calls), [[`${prefix}/creator`, { replace: true }]]);
   }
@@ -182,7 +182,7 @@ function findNode(predicate) {
 }
 function evaluate(expression, values) {
   const code = ts.transpileModule(`result = (${expression});`, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const context = { React, ...values, result: null };
+  const context = { React, nav: { home() {} }, isSharedRoute: false, ...values, result: null };
   vm.runInNewContext(code, context);
   return context.result;
 }

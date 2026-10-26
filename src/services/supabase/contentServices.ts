@@ -48,6 +48,8 @@ import {
 } from '../../domain/discovery/ranking';
 import { creatorLocationMatches } from '../../domain/contentPlacement';
 import { requireSupabase } from './client';
+import { requireDirectoryAccount } from './requireDirectoryAccount';
+import { GUEST_HOME_PROJECT_LIMIT } from '../../features/discovery/guestPreview';
 import { refreshProjectCoverThumbnail, removePrivateCoverThumbnails, removeProfilePublicCovers } from './coverThumbnails';
 import { validateHandle } from '../../features/profile/validation';
 import { createProfileHandle } from '../../utils/profileHandle';
@@ -796,19 +798,22 @@ async function feedViews(rows: FeedRow[], withCovers: boolean): Promise<ProjectV
 
 async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: ProjectFeedCursor) {
   const client = requireSupabase();
-  const { data: authData } = await client.auth.getSession();
-  const accountId = authData.session?.user.id ?? null;
+  const { data: authData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw new Error('Your session could not be checked. Please try again.');
+  const accountId = authData.session?.user.is_anonymous ? null : authData.session?.user.id ?? null;
   if (!accountId) {
-    // Global Search remains public. Home is account-specific and therefore has
-    // no invented fallback content for a guest.
-    const page = scope === 'global' ? await readFeedPage(scope, cursor, 120) : { rows: [], nextCursor: null };
-    const projectIds = !page && scope === 'global' ? await latestProjectIds(120) : [];
-    const availableProjects = page ? await feedViews(page.rows, false) : await projectViewsForIds(projectIds);
+    if (scope !== 'home') throw new Error('Create an account or sign in to explore Portalink.');
+    // One bounded page of real public Home content. Do not enumerate profiles
+    // or fall back to the complete directory when the public feed is unavailable.
+    const page = cursor ? { rows: [], nextCursor: null } : await readFeedPage('global', undefined, GUEST_HOME_PROJECT_LIMIT);
+    if (!page) throw new Error('Home preview is temporarily unavailable. Please try again.');
+    const rows = page.rows.slice(0, GUEST_HOME_PROJECT_LIMIT);
+    const availableProjects = await feedViews(rows, true);
     return {
       availableProjects,
-      feedRows: page?.rows ?? null,
-      nextCursor: page?.nextCursor ?? null,
-      homeMode: guestHomeFeedMode,
+      feedRows: rows,
+      nextCursor: null,
+      homeMode: 'latest' as HomeFeedMode,
       sphere: buildUserContentSphere({
         viewerProfile: null,
         availableProjects,
@@ -932,6 +937,7 @@ export const supabaseDiscoveryService: DiscoveryService = {
     if (error) throw new Error(isMissingDiscoveryTable(error) ? 'Discovery preferences are not available yet.' : error.message);
   },
   async listLocationProjects(locationId) {
+    await requireDirectoryAccount();
     const city = await locationDirectory.resolve(locationId);
     if (!city) return [];
     const profileIds: string[] = [];
@@ -950,6 +956,7 @@ export const supabaseDiscoveryService: DiscoveryService = {
     return projectViewsForIds(projectIds);
   },
   async listAccountsToExplore(): Promise<FeedCreator[]> {
+    await requireDirectoryAccount();
     const { data, error } = await requireSupabase()
       .from('profiles')
       .select('id,name,headline,avatar_url,location')
@@ -961,6 +968,7 @@ export const supabaseDiscoveryService: DiscoveryService = {
       .map((row) => ({ id: row.id, name: row.name, kind: row.headline, avatar: row.avatar_url, location: row.location, isPrivate: false }));
   },
   async searchAccounts(query, offset = 0): Promise<FeedCreator[]> {
+    await requireDirectoryAccount();
     const term = query.trim().replace(/^@/, '').slice(0, 80);
     if (!term) return [];
     const pattern = `%${term.replace(/[\\%_]/g, char => `\\${char}`)}%`;

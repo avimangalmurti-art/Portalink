@@ -549,7 +549,7 @@ test('retained project cards discard body popup state while inactive and ordinar
     return named(name.split('/').at(-1));
   });
   const render = () => h.render(() => ProjectPreviewCard({ project, creator: profile, onOpen() {}, active: state.active }));
-  button(render(), 'Show details for A project').props.onClick({ stopPropagation() {} });
+  button(render(), 'Show details for A project').props.onClick({ preventDefault() {}, stopPropagation() {} });
   assert.ok(one(render(), 'MobileProjectPopup'), 'Existing callers that omit active still open details.');
   state.active = false; assert.equal(one(render(), 'MobileProjectPopup'), undefined);
   state.active = true; assert.equal(one(render(), 'MobileProjectPopup'), undefined, 'Returning cannot resurrect an old body popup.');

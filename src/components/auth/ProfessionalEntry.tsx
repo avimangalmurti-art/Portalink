@@ -10,6 +10,14 @@ import { MobileOnboardingAppearance } from './MobileOnboarding';
 import { CreativeThought } from './CreativeThought';
 import './professional-entry.css';
 
+const teamMembers = [
+  { name: 'aviwashere', image: '/team/aviwashere-299d5a86e64f.jpg', width: 905, height: 1280 },
+  { name: 'kharab', image: '/team/kharab-9a7fa102c121.jpg', width: 1023, height: 1280 },
+  { name: 'ducktor', image: '/team/ducktor-d0ab22eac7a8.jpg', width: 1023, height: 1280 },
+  { name: 'jozi', image: '/team/jozi-630b9e15c22a.jpg', width: 1023, height: 1280 },
+  { name: 'quanda', image: '/team/quanda-40c212fbddcd.jpg', width: 1023, height: 1280 },
+];
+
 const companySections = [
   { id: 'about', title: 'About Portalink', icon: Info,
     intro: 'Portalink is a interplanetary technology company best known for its Interplanetary Core Network Command (ICNC).',
@@ -57,13 +65,7 @@ const companySections = [
       { label: 'Context', detail: 'Present the thinking and process behind your work.' },
       { label: 'Continuity', detail: 'Keep developing your catalogue as your work grows.' },
     ] },
-  { id: 'team', title: 'Team', icon: Users,
-    intro: 'A maker’s approach to building a tool for makers.',
-    overview: [
-      { label: 'Focus', detail: 'Product, design and engineering.' },
-      { label: 'Approach', detail: 'Thoughtful design and careful engineering.' },
-      { label: 'Details', detail: 'Attention to the features people use every day.' },
-    ] },
+  { id: 'team', title: 'Team', icon: Users },
   { id: 'careers', title: 'Careers', icon: BriefcaseBusiness,
     intro: 'Help shape tools for people who create.',
     overview: [
@@ -78,7 +80,7 @@ const companySections = [
       { label: 'Timeline', detail: 'Choose whether to show your Timeline publicly.' },
       { label: 'Citations', detail: 'Choose whether to show what you cite and who cites you.' },
     ] },
-];
+] as const;
 
 /** Company information and immediate account choices. */
 export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }: {
@@ -143,11 +145,22 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
         <ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
       </summary>
       <div className="professional-entry-company-panel" role="region" aria-label={section.title}>
-        <p>{section.intro}</p>
-        <h2 className="professional-entry-overview-title">Key Overview</h2>
-        <ul className="professional-entry-company-points">
-          {section.overview.map(point => <li key={point.label}><strong>{point.label}:</strong> {point.detail}</li>)}
-        </ul>
+        {section.id === 'team' ? <ul className="professional-entry-team" aria-label="Team members">
+          {teamMembers.map(member => <li key={member.name}>
+            <figure>
+              <div className="professional-entry-team-image">
+                <img src={member.image} alt="" width={member.width} height={member.height} loading="lazy" decoding="async" />
+              </div>
+              <figcaption>{member.name}</figcaption>
+            </figure>
+          </li>)}
+        </ul> : <>
+          <p>{section.intro}</p>
+          <h2 className="professional-entry-overview-title">Key Overview</h2>
+          <ul className="professional-entry-company-points">
+            {section.overview.map(point => <li key={point.label}><strong>{point.label}:</strong> {point.detail}</li>)}
+          </ul>
+        </>}
       </div>
     </details>
   </li>);

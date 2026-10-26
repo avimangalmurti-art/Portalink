@@ -457,7 +457,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
    * whichever record a fallback would have handed back.
    */
   const { fetchProfile, invalidateProfiles } = useProfileData();
-  const ordinaryProfileQuery = useProfileProjectQuery(isSharedRoute ? null : viewedProfileId, route.kind === 'project' ? route.projectId : null, routeCategoryId);
+  const ordinaryProfileQuery = useProfileProjectQuery(isSharedRoute || !auth.isAuthenticated ? null : viewedProfileId, route.kind === 'project' ? route.projectId : null, routeCategoryId);
   const sharedProfileQuery = useSharedProfileQuery(isSharedRoute ? viewedProfileId : null,
     route.kind === 'sharedProject' ? route.projectId : null, routeCategoryId);
   const viewedProfileQuery = isSharedRoute ? sharedProfileQuery : ordinaryProfileQuery;
@@ -477,11 +477,12 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   // Warm the same canonical profile query the destination consumes so the
   // click does not start a duplicate request or flash an avoidable empty state.
   const warmCreator = useCallback((creatorId: Id) => {
+    if (!auth.isAuthenticated) return;
     void fetchProfile(creatorId, 'overview').catch(() => {
       // Prefetch is deliberately silent. If navigation follows, the route owns
       // the truthful error and retry presentation; if it does not, nothing nags.
     });
-  }, [fetchProfile]);
+  }, [fetchProfile, auth.isAuthenticated]);
   useEffect(() => {
     const warm = (event: Event) => {
       const control = event.target instanceof Element ? event.target.closest('a,button') : null;
@@ -534,7 +535,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   // Follow state and its request lifecycle live in the feature hook, resolved for
   // the profile currently being viewed. Keying it to that profile is what stops a
   // pending or failed request following the viewer to the next creator.
-  const follows = useFollows(viewedProfileId);
+  const follows = useFollows(auth.isAuthenticated || isSharedRoute ? viewedProfileId : null);
   // An account can exist without a profile; creator surfaces onboard instead.
   const onboardingStatus = useProfileOnboardingStatus();
   useEffect(() => {
@@ -904,10 +905,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   // than quietly replaced with another category.
   const isCategoryRouteMissing = isProfileRouteReady && activeCategoryId !== null && activeCategory === null;
   /**
-   * Whether an account is required to be HERE. Reading a public profile, category,
-   * or project never is; the account's own surfaces and the creator's own tools
-   * are. This decides what the interface offers — it is not authorization, which
-   * remains the service's decision.
+   * Guest app browsing is limited to Home. Explicit shared-link routes keep
+   * their public read-only behavior. Backend RLS remains the data authority.
    */
   const isRouteBlocked = isProtectedRoute && !auth.isInitializing && !auth.isAuthenticated;
   /**
@@ -1270,7 +1269,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     view: FeatureCardApp;
   } | null>(null);
   useEffect(() => {
-    if (!routeItemId) {
+    if (!routeItemId || !auth.isAuthenticated) {
       setResolvedItem(null);
       return;
     }
@@ -1281,7 +1280,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       projectId: routeItemId,
       view: toDetailView(view)
     }));
-  }, [routeItemId, resolvedItem, resolveProject]);
+  }, [routeItemId, resolvedItem, resolveProject, auth.isAuthenticated]);
   const selectedApp = routeItemId && resolvedItem?.projectId === routeItemId ? resolvedItem.view : null;
   const routeItemResolution = routeItemId && projectNavigation.resolution?.projectId === routeItemId ? projectNavigation.resolution : null;
   /**
@@ -1302,6 +1301,10 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     location?: ProjectLocation,
     options: { openEngagement?: boolean } = {}
   ) {
+    if (!auth.isAuthenticated && !isSharedRoute) {
+      auth.requestAuthenticatedDestination({ kind: 'route', path: location ? buildPath('project', { profileId: location.profileId, categoryId: location.categoryId, projectId }) : buildPath('home'), label: 'open this project' }, 'signUp');
+      return;
+    }
     // Where the viewer was when they chose this work, so the portal can offer a
     // way back to it. Transient by design: it is the current session's path, not
     // a stored preference, and it is recorded ONLY on this route — opening a
@@ -1345,6 +1348,10 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
    * display name.
    */
   function openFeedCreator(creatorId: Id) {
+    if (!auth.isAuthenticated) {
+      auth.requestAuthenticatedDestination({ kind: 'view-profile', profileId: creatorId }, 'signUp');
+      return;
+    }
     if (route.kind === 'search') {
       const returnPath = searchQuery ? `/search?q=${encodeURIComponent(searchQuery)}` : '/search';
       nav.to(`${buildPath('profile', { profileId: creatorId })}?fromSearch=${encodeURIComponent(returnPath)}`);
@@ -1366,7 +1373,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
    * nothing produces a not-found rather than somebody else's work.
    */
   const openingProjectId = route.kind === 'project' || route.kind === 'sharedProject' ? route.projectId : activeProjectId;
-  const routeStateView = isProfileEditorRoute && (auth.isInitializing || auth.phase === 'authenticating' || auth.phase === 'signing-out') ? <LoadingState label="Opening profile editor…" /> : isRouteBlocked ? <EmptyState title="Sign in required" description={`Sign in to ${describeRoute(route)}. This page will reopen after sign-in.`} action={{
+  const routeStateView = isProfileEditorRoute && (auth.isInitializing || auth.phase === 'authenticating' || auth.phase === 'signing-out') ? <LoadingState label="Opening profile editor…" /> : isRouteBlocked ? <EmptyState title="Sign in required" description={`Sign in to ${describeRoute(route)}. This page will reopen after sign-in.`} secondaryAction={{ label: "Back to Home", onClick: nav.home }} action={{
     label: 'Sign in',
     onClick: () => auth.requestAuth('signIn')
   }} /> : isProfileEditorRoute && !auth.viewerProfileId ? <EmptyState title="Create your profile first" description={auth.user?.isEmailVerified ? 'Create your profile before editing its details.' : 'Confirm your email address before creating your profile.'} action={{
@@ -1474,7 +1481,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           <ActivityCollectionPage key={`${auth.user?.id}:${viewedProfile.id}:${routeActivityKind}`} kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
         </div> : isCollaborationOpen && isProfileRouteReady && viewedProfile ? <CollaborationPage profile={viewedProfile} onBack={() => nav.closeCollaboration(viewedProfile.id, isSharedRoute)} /> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage} projectSelected={activeProjectId !== null}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed startupPending={homeStartupPending && route.kind === 'home'} startupAttempt={homeStartupAttempt} onStartupReady={onHomeStartupReady} emptyAction={{ label: auth.isAuthenticated ? 'Publish a project' : 'Create your catalogue', onClick: requestGlobalPublish }} emptySecondaryAction={{ label: 'Explore the world', onClick: openPortalink }} isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onExploreWorld={openPortalink} onSearchUsers={() => nav.search('')} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true
-      })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} scrollMemoryKey="home" />}
+      })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} scrollMemoryKey={auth.isAuthenticated ? "home" : "guest-home-preview"} />}
       </React.Suspense></DeferredSurfaceBoundary>
     </div>;
   const rootTokenStyle = useMemo(() => ({
@@ -1500,7 +1507,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
    * inverting with `.theme-dark` on this same element.
    */
   return <AppPresentation showFloatingActions={!(routeStateView?.type === RouteError)} data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
-      {isSharedRoute ? <SharedContextActions title={viewedProfile?.name} /> : presentation === 'mobile' && ((route.kind === 'portalink' && !route.locationId) || (route.kind === 'profile' && !isOwnerMode) || (route.kind === 'home' && !isSearchOpen && !isMessagesOpen && !isMobileStudioOpen && !activeProjectId)) ? null : <MobileScreenActions model={contextActions(isSearchOpen ? 'explore' : isMessagesOpen ? 'messages' : isMobileStudioOpen ? 'studio' : activeProjectId ? 'project' : route.kind === 'profile' || route.kind === 'category' ? 'profile' : route.kind === 'home' ? 'home' : 'settings', { signedIn: auth.isAuthenticated, owner: isOwnerMode }, { handlers: {
+      {isSharedRoute ? <SharedContextActions title={viewedProfile?.name} /> : !auth.isAuthenticated ? null : presentation === 'mobile' && ((route.kind === 'portalink' && !route.locationId) || (route.kind === 'profile' && !isOwnerMode) || (route.kind === 'home' && !isSearchOpen && !isMessagesOpen && !isMobileStudioOpen && !activeProjectId)) ? null : <MobileScreenActions model={contextActions(isSearchOpen ? 'explore' : isMessagesOpen ? 'messages' : isMobileStudioOpen ? 'studio' : activeProjectId ? 'project' : route.kind === 'profile' || route.kind === 'category' ? 'profile' : route.kind === 'home' ? 'home' : 'settings', { signedIn: auth.isAuthenticated, owner: isOwnerMode }, { handlers: {
         bookmarks: () => nav.to('/saved'),
         search: () => nav.search(''), explore: openPortalink, newProject: requestMobilePublish,
         ...(route.kind === 'home' ? { viewProfile: openOwnProfile } : {}),
@@ -1508,7 +1515,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         ...(liveShow ? { leaveLive: live.leave } : {}),
       } })} />}
       <MobileBackProvider onBack={isProfileEditorRoute ? closeProfileEditor : isCollaborationOpen && viewedProfileId ? () => nav.closeCollaboration(viewedProfileId, isSharedRoute) : nav.back}>
-      {!isProfileEditorRoute && !(routeStateView?.type === RouteError && !auth.isAuthenticated) && (isSharedRoute ? viewedProfile && canReadViewedProfile ? <SharedProfileSidebar mobileNavigationEnabled={routeStateView?.type !== RouteError} profile={viewedProfile} activeCategoryId={activeCategoryId} theme={interfaceTheme} onThemeChange={chooseTheme} onOpenCategory={(categoryId) => nav.sharedCategory(viewedProfile.id, categoryId)} onSettingsOpen={nav.controlCenter} /> : <aside aria-label="Shared Portalink" className="shared-profile-sidebar sidebar-starfield h-full w-[208px] shrink-0 lg:w-[216px] 2xl:w-[224px]" /> : <Sidebar liveShow={liveShow} onLeaveShow={live.leave} isHomeActive={route.kind === 'home'} isSearchActive={route.kind === 'search'} onSearchOpen={() => nav.search('')} isPortalinkActive={route.kind === 'portalink'} isProfileActive={route.kind === 'profile' && route.profileId === auth.viewerProfileId} accentColor={accentColor} onControlCenterOpen={() => nav.controlCenter()} isAuthenticated={auth.isAuthenticated} isAuthActionPending={auth.phase === 'authenticating' || auth.phase === 'signing-out'} accountName={auth.user?.displayName} accountAvatar={viewedProfile?.id === auth.viewerProfileId ? viewedProfile.avatar : null} onSignIn={() => auth.requestAuth('signIn')} onSignOut={auth.signOut} management={management} onChangeCategoryIcon={setIconPickerCategoryId} isCollapsed={isSidebarCollapsed || isSignInExperienceOpen} onCollapsedChange={setIsSidebarCollapsed} onNavigate={navigateTo} onPortalinkOpen={openPortalink} addCategoryRequest={addCategoryRequest} onProfileOpen={openOwnProfile} profileHref={auth.viewerProfileId ? buildPath('profile', { profileId: auth.viewerProfileId }) : undefined} onMessagesOpen={openMessages} theme={theme} onThemeChange={chooseTheme} isMessagesActive={isMessagesOpen} isInsightsActive={isInsightsOpen} isActivityActive={isActivityOpen} isSavedActive={isSavedOpen} viewedProfile={viewedProfile} activeCategoryId={activeCategoryId} onCategorySelect={selectProfileCategory} isOwnerMode={isOwnerMode} />)}
+      {!isProfileEditorRoute && (isSharedRoute || auth.isAuthenticated) && !(routeStateView?.type === RouteError && !auth.isAuthenticated) && (isSharedRoute ? viewedProfile && canReadViewedProfile ? <SharedProfileSidebar mobileNavigationEnabled={routeStateView?.type !== RouteError} profile={viewedProfile} activeCategoryId={activeCategoryId} theme={interfaceTheme} onThemeChange={chooseTheme} onOpenCategory={(categoryId) => nav.sharedCategory(viewedProfile.id, categoryId)} onSettingsOpen={nav.controlCenter} /> : <aside aria-label="Shared Portalink" className="shared-profile-sidebar sidebar-starfield h-full w-[208px] shrink-0 lg:w-[216px] 2xl:w-[224px]" /> : <Sidebar liveShow={liveShow} onLeaveShow={live.leave} isHomeActive={route.kind === 'home'} isSearchActive={route.kind === 'search'} onSearchOpen={() => nav.search('')} isPortalinkActive={route.kind === 'portalink'} isProfileActive={route.kind === 'profile' && route.profileId === auth.viewerProfileId} accentColor={accentColor} onControlCenterOpen={() => nav.controlCenter()} isAuthenticated={auth.isAuthenticated} isAuthActionPending={auth.phase === 'authenticating' || auth.phase === 'signing-out'} accountName={auth.user?.displayName} accountAvatar={viewedProfile?.id === auth.viewerProfileId ? viewedProfile.avatar : null} onSignIn={() => auth.requestAuth('signIn')} onSignOut={auth.signOut} management={management} onChangeCategoryIcon={setIconPickerCategoryId} isCollapsed={isSidebarCollapsed || isSignInExperienceOpen} onCollapsedChange={setIsSidebarCollapsed} onNavigate={navigateTo} onPortalinkOpen={openPortalink} addCategoryRequest={addCategoryRequest} onProfileOpen={openOwnProfile} profileHref={auth.viewerProfileId ? buildPath('profile', { profileId: auth.viewerProfileId }) : undefined} onMessagesOpen={openMessages} theme={theme} onThemeChange={chooseTheme} isMessagesActive={isMessagesOpen} isInsightsActive={isInsightsOpen} isActivityActive={isActivityOpen} isSavedActive={isSavedOpen} viewedProfile={viewedProfile} activeCategoryId={activeCategoryId} onCategorySelect={selectProfileCategory} isOwnerMode={isOwnerMode} />)}
 
       {/* Every surface renders in the interface face. Creator typography is
            carried by individual projects, not by the page around them, so the

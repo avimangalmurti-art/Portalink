@@ -143,7 +143,7 @@ test('a failed Home refresh exposes its real error immediately, preserves cards 
   h.pull();assert.equal(h.reloads,2,'A failed request leaves the existing pull retry available');
 });
 
-test('guests can choose every Profile density while keeping changes local',()=>{for(const mode of ['mobile','web']){const h=harness(mode,{},false);const grid=()=>nodes(h.render()).find(n=>n.type===(mode==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));for(const count of [1,2,3,5,13]){grid().props.onColumnsChange(count);assert.equal(grid().props.columns,count);assert.equal(grid().props.fitColumns,undefined);}}});
+test('guests receive the bounded Home preview without account search or density controls',()=>{for(const mode of ['mobile','web']){const h=harness(mode,{},false);const tree=h.render();assert.equal(tree.type,'GuestHomePreview');assert.equal(nodes(tree).some(n=>n.props.label==='Home content per row'||n.props['aria-label']==='Search accounts'),false);h.pull();assert.equal(h.reloads,0);}});
 test('header categories entry opens a separate page without refreshing and restores Explore on Back',()=>{
  const h=harness();const button=label=>nodes(h.render()).find(n=>n.type==='button'&&n.props['aria-label']===label);
  assert.equal(button('Reload Home content'),undefined);
