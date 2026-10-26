@@ -12,7 +12,7 @@ function fixture(ready = true, presentation = 'web', settings = {}) {
     chooseAppearance(patch) { appearanceCalls.push(patch); Object.assign(appearance, patch); } };
   const { ProfessionalEntry } = sourceModule('src/components/auth/ProfessionalEntry.tsx', {
     react: { ...React, useRef: () => ({ current: null }) },
-    'lucide-react': { ArrowRight: 'arrow', BriefcaseBusiness: 'briefcase', ChevronRight: 'chevron', Compass: 'compass', Info: 'info', LayoutGrid: 'grid', LogIn: 'login', Palette: 'palette', PanelsTopLeft: 'panels', Route: 'route', ShieldCheck: 'shield', SunMoon: 'sun-moon', UserPlus: 'user-plus', UserRound: 'user-round', Users: 'users' },
+    'lucide-react': { ArrowRight: 'arrow', BriefcaseBusiness: 'briefcase', ChevronRight: 'chevron', Compass: 'compass', DoorOpen: 'door-open', Info: 'info', LayoutGrid: 'grid', LogIn: 'login', Palette: 'palette', Route: 'route', ShieldCheck: 'shield', SunMoon: 'sun-moon', UserPlus: 'user-plus', UserRound: 'user-round', Users: 'users' },
     '../../presentation/usePresentation': { usePresentation: () => presentation },
     '../profile/ProfileAvatar': { ProfileAvatar: 'profile-avatar' },
     '../../hooks/useDeviceAppearance': { useDeviceAppearance: () => appearance },

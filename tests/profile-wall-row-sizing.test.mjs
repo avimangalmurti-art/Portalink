@@ -23,7 +23,7 @@ test('an inherited final-row height is capped before it can overflow', () => {
 });
 
 const compiled = new Map();
-function wallHarness(presentation, reorderMode, { width = 390, columns = 3, selectedColumns, items = [{ key: 'a', ratio: 1, content: 'A' }, { key: 'b', ratio: 1, content: 'B' }], onColumnsChange } = {}) {
+function wallHarness(presentation, reorderMode, { width = 390, columns = 3, selectedColumns, items = [{ key: 'a', ratio: 1, content: 'A' }, { key: 'b', ratio: 1, content: 'B' }], onColumnsChange, allowZoom } = {}) {
   let starts = 0, zoomEnabled;
   const imports = [], modules = new Map();
   const placeholder = new Proxy({}, { get: (_, key) => key });
@@ -49,7 +49,7 @@ function wallHarness(presentation, reorderMode, { width = 390, columns = 3, sele
     } });
     return exports;
   }
-  const rawTree = load('JustifiedImageWall').JustifiedImageWall({ columns, onColumnsChange, label: 'Projects', items, reorderMode });
+  const rawTree = load('JustifiedImageWall').JustifiedImageWall({ columns, onColumnsChange, label: 'Projects', items, reorderMode, allowZoom });
   function renderLayouts(node) {
     if (!node || typeof node !== 'object') return node;
     if (Array.isArray(node)) return node.map(renderLayouts);
@@ -62,6 +62,15 @@ function wallHarness(presentation, reorderMode, { width = 390, columns = 3, sele
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
   return { context: nodes(tree).find(node => node.type === 'DndContext'), card: nodes(tree).find(node => /^(Sortable|Static)WallCard$/.test(node.type?.name)), list: nodes(tree).find(node => node.props['data-profile-wall-columns']), nodes, starts: () => starts, zoomEnabled, imports, rawTree, renderLayouts };
 }
+
+test('a fixed guest wall disables density gestures while normal walls retain them', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const fixed = wallHarness(presentation, undefined, { columns: 4, allowZoom: false });
+    assert.equal(fixed.zoomEnabled, false);
+    assert.equal(fixed.list.props['data-profile-wall-columns'], 4);
+    assert.equal(wallHarness(presentation).zoomEnabled, true);
+  }
+});
 
 test('sensor dependencies stay stable across WEB, mobile browsing, holding, dragging and saving', () => {
   for (const presentation of ['web', 'mobile']) for (const reorderMode of [undefined, { enabled: false, onStart() {} }, { enabled: true }, { enabled: true, disabled: true }]) {

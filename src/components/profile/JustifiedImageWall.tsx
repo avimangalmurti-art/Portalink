@@ -81,7 +81,7 @@ function packRows(items: WallItem[], width: number, columns: number, trailingRow
   return rows;
 }
 
-export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode, allowLayoutControls = true, showDensityControl = true, fitColumns }: {
+export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode, allowLayoutControls = true, showDensityControl = true, allowZoom = true, fitColumns }: {
   items: WallItem[];
   /** Exact card count for every complete row. */
   columns: number;
@@ -94,6 +94,8 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   allowLayoutControls?: boolean;
   /** A profile header can host density selection while keeping zoom feedback. */
   showDensityControl?: boolean;
+  /** Fixed guest previews retain native browser zoom without changing density. */
+  allowZoom?: boolean;
 }) {
   const { ref, width: measuredWidth } = useElementSize<HTMLDivElement>();
   const isMobile = usePresentation() === 'mobile';
@@ -104,7 +106,7 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   else if (measuredWidth > 0) retainedWidth.current = measuredWidth;
   const width = measuredWidth || (isMobile ? retainedWidth.current : 0);
   // Measurement and pinch selection survive loading/entering/exiting reorder.
-  const view = useContentZoom<HTMLDivElement>(columns, !reorderMode?.enabled, columns, onColumnsChange, fitColumns ? value => fitColumns(value,width) : undefined);
+  const view = useContentZoom<HTMLDivElement>(columns, allowZoom && !reorderMode?.enabled, columns, onColumnsChange, fitColumns ? value => fitColumns(value,width) : undefined);
   const effectiveColumns = view.columns;
   const rows = useMemo(() => {
     if (width === 0) return [];

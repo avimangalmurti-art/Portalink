@@ -1,21 +1,22 @@
 .guest-home-preview { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; color: var(--text-primary); background: var(--surface-canvas, var(--codex-workspace-bg)); }
 .guest-home-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px)); }
-.guest-home-header a { display: inline-flex; align-items: center; min-height: 44px; font-size: 1.375rem; font-weight: 650; color: inherit; text-decoration: none; }
+.guest-home-header a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-size: 1rem; font-weight: 600; color: inherit; text-decoration: none; }
+.guest-home-brand { font-size: 1.375rem; font-weight: 650; }
 .guest-home-header button { min-height: 44px; padding: 8px 16px; border-radius: 999px; color: var(--accent-text); font: inherit; font-weight: 600; }
-.guest-home-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior-y: contain; padding-bottom: 64px; }
-.guest-home-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; max-width: 1000px; margin-inline: auto; }
-.guest-home-grid > div { min-width: 0; }
-.guest-home-project { display: block; position: relative; width: 100%; aspect-ratio: 4 / 5; padding: 0; border: 0; border-radius: 0; overflow: hidden; background: var(--surface-sunken, #f2f2f7); cursor: pointer; }
-.guest-home-project > * { width: 100%; height: 100%; }
-.guest-home-project > .project-preview-artwork { display: block; }
-.guest-home-invitation { position: relative; z-index: 3; flex-shrink: 0; margin-top: -64px; padding: 64px max(20px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); background: linear-gradient(transparent, rgba(0, 0, 0, .88) 42%, #000); color: #fff; pointer-events: none; }
-.guest-home-invitation > div { max-width: 440px; margin-inline: auto; text-align: center; pointer-events: auto; }
+.guest-home-scroll { min-height: 0; flex: 0 1 auto; overflow-y: auto; overscroll-behavior-y: contain; }
+.guest-home-grid { width: 100%; min-width: 0; max-width: 1000px; margin-inline: auto; padding-inline: 8px; }
+.guest-home-project { display: block; position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: inherit; overflow: hidden; background: var(--surface-sunken, #f2f2f7); cursor: pointer; }
+.guest-home-invitation { --guest-invitation-fade: clamp(80px, 14dvh, 128px); position: relative; z-index: 3; isolation: isolate; display: flex; flex-direction: column; justify-content: flex-end; flex: 1 0 auto; margin-top: calc(-1 * var(--guest-invitation-fade)); padding: var(--guest-invitation-fade) max(20px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); color: #fff; pointer-events: none; }
+/* Fade the material over the end of the artwork; keep the actions sharp. */
+.guest-home-invitation::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .4) calc(var(--guest-invitation-fade) * .4), rgba(0, 0, 0, .88) calc(var(--guest-invitation-fade) * .72), #000 var(--guest-invitation-fade)); -webkit-backdrop-filter: var(--navigation-blur, blur(22px)); backdrop-filter: var(--navigation-blur, blur(22px)); -webkit-mask-image: linear-gradient(to bottom, transparent, #000 calc(var(--guest-invitation-fade) * .8)); mask-image: linear-gradient(to bottom, transparent, #000 calc(var(--guest-invitation-fade) * .8)); }
+.guest-home-invitation > div { width: 100%; max-width: 440px; margin-inline: auto; text-align: center; pointer-events: auto; }
 .guest-home-invitation h2 { margin: 0 0 14px; font-size: 1.375rem; font-weight: 650; line-height: 1.3; }
 .guest-home-invitation button { display: block; width: 100%; min-height: 48px; font: inherit; cursor: pointer; }
 .guest-home-invitation .guest-home-create { --mobile-component-radius: 999px; min-height: 56px; border: 0; border-radius: 999px; background: #fff; color: #000; font-weight: 650; }
 .guest-home-invitation .guest-home-signin { margin-top: 4px; border: 0; background: transparent; color: #fff; text-decoration: underline; text-underline-offset: 3px; }
 .guest-home-preview :is(a, button):focus-visible { outline: 3px solid var(--focus-ring, #ff2d55); outline-offset: -3px; }
 @media (max-width: 639px) { .guest-home-preview { height: var(--dialog-viewport-height, 100dvh); } }
-@media (prefers-reduced-transparency: reduce) { .guest-home-invitation { margin-top: 0; padding-top: 20px; background: #000; } }
+@media (max-height: 600px) { .guest-home-invitation { --guest-invitation-fade: clamp(48px, 12dvh, 80px); } .guest-home-invitation h2 { margin-bottom: 8px; font-size: 1.125rem; } }
+@media (prefers-reduced-transparency: reduce) { .guest-home-invitation { margin-top: 0; padding-top: 20px; background: #000; } .guest-home-invitation::before { display: none; } }
 .reduce-translucency .guest-home-invitation, .high-contrast .guest-home-invitation { margin-top: 0; padding-top: 20px; background: #000; }
-@media (max-height: 600px) { .guest-home-invitation { margin-top: -24px; padding-top: 24px; } .guest-home-invitation h2 { margin-bottom: 8px; font-size: 1.125rem; } }
+.reduce-translucency .guest-home-invitation::before, .high-contrast .guest-home-invitation::before { display: none; }

@@ -73,7 +73,7 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
         }}><span className="mobile-context-handle" aria-hidden="true" /></button>}
         <div className="mobile-context-heading">{!mobile && model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" data-ui-control={layout === 'files' ? 'button' : 'icon'} data-control-size={onboardingFiles ? 'sm' : 'md'} data-control-variant="secondary" onClick={dismiss} aria-label={layout === 'files' ? 'Done reordering files' : 'Close actions'}>{layout === 'files' ? 'Done' : <InterfaceIcon icon={XIcon}/>}</button></div>
       </header>
-      <div className="mobile-context-body">
+      <div className={`mobile-context-body${mobile ? ' overflow-y-auto' : ''}`}>
         {beforeActions}
         {model.primary.length>0&&<div className="mobile-context-primary" style={{gridTemplateColumns:`repeat(${model.primary.length}, minmax(0, 1fr))`}}>{model.primary.map(action=><button type="button" key={action.id} onClick={event=>motion.close(()=>onAction(action),event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><InterfaceIcon icon={action.icon}/><span>{action.label}</span></button>)}</div>}
         {model.groups.map((group,i)=><div className="mobile-context-group" key={i}>{group.map(action=><button type="button" key={action.id} data-destructive={action.destructive||undefined} data-keep-color={action.destructive?'':undefined} onClick={event=>motion.close(()=>onAction(action),event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><span>{action.label}</span><InterfaceIcon icon={action.icon}/></button>)}</div>)}

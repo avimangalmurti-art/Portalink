@@ -59,7 +59,7 @@ test('directory service requests reject signed-out, anonymous and failed identit
 function guestFeed({ cursor, scope = 'home', missing = false, sessionError = null } = {}) {
   const tree = ast('src/services/supabase/contentServices.ts'), fn = find(tree, 'discoveryContext'), calls = [];
   const { run } = compile(fn.getText(tree) + '\nexports.run=discoveryContext;', {
-    GUEST_HOME_PROJECT_LIMIT: 12,
+    GUEST_HOME_PROJECT_LIMIT: preview.GUEST_HOME_PROJECT_LIMIT,
     requireSupabase: () => ({ auth: { getSession: async () => ({ data: { session: null }, error: sessionError }) }, from: () => assert.fail('Guest preview must not enumerate profiles') }),
     readFeedPage: async (...args) => { calls.push(args); return missing ? null : { rows: Array.from({ length: 30 }, (_, id) => ({ project: { id: String(id) } })), nextCursor: { id: 'more' } }; },
     feedViews: async (rows, covers) => { assert.equal(covers, true); return rows; }, buildUserContentSphere: input => input,
@@ -67,10 +67,10 @@ function guestFeed({ cursor, scope = 'home', missing = false, sessionError = nul
   return { calls, result: run(scope, cursor) };
 }
 
-test('guest Home returns only twelve real public covers and no next page', async () => {
+test('guest Home returns only twenty-four real public covers and no next page', async () => {
   const h = guestFeed(), result = await h.result;
-  assert.equal(h.calls.length, 1); assert.equal(h.calls[0][0], 'global'); assert.equal(h.calls[0][2], 12);
-  assert.equal(result.availableProjects.length, 12); assert.equal(result.feedRows.length, 12); assert.equal(result.nextCursor, null);
+  assert.equal(h.calls.length, 1); assert.equal(h.calls[0][0], 'global'); assert.equal(h.calls[0][2], 24);
+  assert.equal(result.availableProjects.length, 24); assert.equal(result.feedRows.length, 24); assert.equal(result.nextCursor, null);
   const next = guestFeed({ cursor: { id: 'more' } }); assert.equal((await next.result).availableProjects.length, 0); assert.equal(next.calls.length, 0);
 });
 
@@ -80,21 +80,32 @@ test('guest discovery, missing RPC and session failures never expand into a dire
   const failed = guestFeed({ sessionError: { message: 'offline' } }); await assert.rejects(failed.result, /session could not be checked/); assert.equal(failed.calls.length, 0);
 });
 
-test('preview uses twelve unique static cover controls and retains account actions for empty/error states', () => {
+test('preview uses twenty-four unique static cover controls and retains account actions for empty/error states', () => {
   const { GuestHomePreview } = sourceModule('src/components/home/GuestHomePreview.tsx', {
-    react: React, '../media/ProjectCover': { ProjectCover: 'project-cover' }, '../../utils/projectPresentation': { getProjectCoverPreview: () => undefined },
+    react: React, '../media/ProjectCover': { ProjectCover: 'project-cover' }, '../../utils/projectPresentation': { getProjectCoverPreview: () => undefined, getProjectAspectRatio: project => project.coverAspectRatio },
+    '../profile/JustifiedImageWall': { JustifiedImageWall: 'justified-wall' },
+    'lucide-react': { ChevronLeftIcon: 'chevron-left' }, '../ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
     '../../features/discovery/guestPreview': preview, '../ui/StateViews': { EmptyState: 'empty', ErrorState: 'error', LoadingState: 'loading' }, './guest-home-preview.css': {},
   });
-  const calls = [], projects = Array.from({ length: 30 }, (_, id) => ({ project: { id: String(id), title: 'Project ' + id, cover: 'cover-' + id, coverKind: 'image' }, creator: { id: 'creator' } }));
+  const calls = [], projects = Array.from({ length: 30 }, (_, id) => ({ project: { id: String(id), title: 'Project ' + id, cover: 'cover-' + id, coverKind: 'image', coverAspectRatio: [.5, 1, 1.5][id % 3] }, creator: { id: 'creator' } }));
   const props = { projects: [...projects, projects[0]], loading: false, onRetry() {}, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin'), onOpenProject: view => calls.push(view.project.id), scrollRef: { current: null }, onScroll() {} };
-  const nodes = elements(GuestHomePreview(props));
-  assert.equal(nodes.filter(node => node.props.role === 'listitem').length, 12);
-  const covers = nodes.filter(node => node.type === 'project-cover'); assert.equal(covers.length, 12);
+  const render = options => {
+    const shell = elements(GuestHomePreview(options)), wall = shell.find(node => node.type === 'justified-wall');
+    return { wall, nodes: [...shell, ...wall.props.items.flatMap(item => elements(item.content))] };
+  };
+  const { nodes, wall } = render(props);
+  assert.equal(wall.props.items.length, 24);
+  assert.equal(wall.props.columns, 4);
+  assert.equal(wall.props.allowZoom, false, 'Guest scrolling and browser zoom must not change the four-card density');
+  assert.equal(wall.props.allowLayoutControls, false);
+  assert.deepEqual(Array.from(wall.props.items, item => item.key), projects.slice(0, 24).map(view => view.project.id));
+  assert.deepEqual(Array.from(wall.props.items, item => item.ratio), projects.slice(0, 24).map(view => view.project.coverAspectRatio));
+  const covers = nodes.filter(node => node.type === 'project-cover'); assert.equal(covers.length, 24);
   assert.ok(covers.every(node => node.props.allowPdfFallback === false && node.props.allowVideoFallback === false));
-  nodes.find(node => node.props.className === 'guest-home-project').props.onClick(); assert.equal(calls.at(-1), '0');
+  nodes.find(node => node.props.className?.split(' ').includes('guest-home-project')).props.onClick(); assert.equal(calls.at(-1), '0');
   for (const extra of [{ projects: [], loading: true }, { projects: [], error: 'offline' }, { projects: [] }]) {
-    const view = elements(GuestHomePreview({ ...props, ...extra }));
+    const view = render({ ...props, ...extra }).nodes;
     view.find(node => node.props.className === 'guest-home-create').props.onClick(); assert.equal(calls.at(-1), 'create');
-    assert.equal(view.some(node => node.props.className === 'guest-home-project'), false);
+    assert.equal(view.some(node => node.props.className?.split(' ').includes('guest-home-project')), false);
   }
 });

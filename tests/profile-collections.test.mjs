@@ -1283,7 +1283,7 @@ test('WEB header density previews and commits the existing wall value without du
     assert.equal(wall(h.render()).props.columns, 13);
     const { DensitySeparator } = compile('../src/components/ui/DensitySeparator.tsx', name => name === 'react'
       ? { ...React, useRef: current => ({ current }), useEffect() {} }
-      : name.endsWith('/projectGridDensity') ? gridDensity : {});
+      : name.endsWith('/projectGridDensity') ? gridDensity : name.endsWith('/usePresentation') ? { usePresentation: () => 'web' } : {});
     const range = DensitySeparator(sliders()[0].props);
     assert.equal(range.type, 'input');
     assert.equal(range.props.type, 'range');

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, Info, LayoutGrid, LogIn, Palette, PanelsTopLeft, Route, ShieldCheck, SunMoon, UserPlus, UserRound, Users } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, ChevronRight, Compass, DoorOpen, Info, LayoutGrid, LogIn, Palette, Route, ShieldCheck, SunMoon, UserPlus, UserRound, Users } from 'lucide-react';
 import { usePresentation } from '../../presentation/usePresentation';
 import { ProfileAvatar } from '../profile/ProfileAvatar';
 import { useDeviceAppearance } from '../../hooks/useDeviceAppearance';
@@ -51,7 +51,7 @@ const companySections = [
       { label: 'Organize', detail: 'Place related projects in Portals.' },
       { label: 'Share', detail: 'Choose how your work appears and who can see it.' },
     ] },
-  { id: 'portals', title: 'Portals', icon: PanelsTopLeft,
+  { id: 'portals', title: 'Portals', icon: DoorOpen,
     intro: 'Portals bring related projects together within your catalogue.',
     overview: [
       { label: 'Grouping', detail: 'Organize by discipline, subject or interest.' },

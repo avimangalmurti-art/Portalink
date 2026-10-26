@@ -3384,11 +3384,25 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { --sheet-rest-y: 0px; }
 /* Layout settles once; gestures and expansion move the same panel with transform. */
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-sheet-dragging] { padding-bottom: max(16px, var(--safe-area-bottom)); }
-#root .codex-shell[data-presentation='mobile'].reduce-translucency .mobile-context-sheet { background: var(--surface-raised) !important; }
+#root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) .mobile-context-sheet { background: var(--surface-raised) !important; }
 @media (prefers-reduced-transparency: reduce) {
   #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet { background: var(--surface-raised) !important; }
 }
 [data-presentation='mobile'] .mobile-context-sheet header { flex: none; padding: 0 20px 16px; touch-action: none; user-select: none; }
+/* The sheet already owns its glass tint. Its pinned title blurs scrolling
+   actions without adding an opaque rectangle or a second surface colour. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] .mobile-context-sheet > header[data-mobile-header-underlap]::before {
+    inset: 0 0 -16px !important;
+    background: transparent !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] .mobile-context-sheet > header[data-mobile-header-underlap='false']::before {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
 [data-presentation='mobile'] .mobile-context-resize { display: grid; place-items: center; width: 72px; height: 44px; margin: 0 auto; border-radius: 999px; cursor: ns-resize; }
 [data-presentation='mobile'] .mobile-context-handle { width: 36px; height: 4px; border-radius: 8px; background: var(--text-tertiary); }
 [data-presentation='mobile'] .mobile-context-heading { display: flex; align-items: center; gap: 12px; }
@@ -5893,6 +5907,14 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   background-repeat: no-repeat !important;
 }
 #root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills::after { content: none; }
+/* These collection controls already have an 8px inset of their own. Keep one
+   16px gap below the tabs instead of stacking the page divider clearances. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills:has(> :is([data-studio-pill='activity'], [data-studio-pill='bookmarks'], [data-studio-pill='references'])[aria-pressed='true']) {
+  padding-bottom: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills:has(> :is([data-studio-pill='activity'], [data-studio-pill='bookmarks'], [data-studio-pill='references'])[aria-pressed='true']) + * {
+  padding-top: 0;
+}
 #root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-inline-toolbar, .studio-drafts-inline-controls) {
   display: flex;
   align-items: center;
