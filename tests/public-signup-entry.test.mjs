@@ -14,7 +14,7 @@ function signupParent(presentation,initialSignupStep){
  const states=[];let cursor=0;
  const exports={};
  vm.runInNewContext(ts.transpileModule(block,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,{
-  exports,React,hasEnteredCatalogWelcome:()=>true,CatalogWelcome:'catalog-welcome',useAuth:()=>({pendingView:'signUp',closeAuth(){},requestAuth(){}}),usePresentation:()=>presentation,
+  exports,React,ChevronLeftIcon:'chevron-left',hasEnteredCatalogWelcome:()=>true,CatalogWelcome:'catalog-welcome',useAuth:()=>({pendingView:'signUp',closeAuth(){},requestAuth(){}}),usePresentation:()=>presentation,
   useState:initial=>{const index=cursor++;if(!(index in states))states[index]=typeof initial==='function'?initial():initial;return[states[index],next=>{states[index]=typeof next==='function'?next(states[index]):next;}];},
   useRef:()=>({current:null}),useEffect:()=>{},PortalinkSplashLoader:'welcome',EntryChoices:'choices',SignUpForm:'signup',
  });
@@ -27,7 +27,7 @@ test('both presentations open one inline account form instead of required appear
   let closed=0;
   const exports={};
   vm.runInNewContext(ts.transpileModule(block,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,{
-   exports,React,hasEnteredCatalogWelcome:()=>true,CatalogWelcome:'catalog-welcome',useAuth:()=>({pendingView:'signUp',closeAuth:()=>closed++,requestAuth:()=>{}}),usePresentation:()=>presentation,
+   exports,React,ChevronLeftIcon:'chevron-left',hasEnteredCatalogWelcome:()=>true,CatalogWelcome:'catalog-welcome',useAuth:()=>({pendingView:'signUp',closeAuth:()=>closed++,requestAuth:()=>{}}),usePresentation:()=>presentation,
    useState:initial=>[typeof initial==='function'?initial():initial,()=>{}],useRef:()=>({current:null}),useEffect:()=>{},PortalinkSplashLoader:'welcome',EntryChoices:'choices',SignUpForm:'signup',
   });
   const fragment=exports.AuthDialog({});
@@ -81,7 +81,7 @@ function catalogAuthParent({ presentation = 'mobile', view = 'signUp', search = 
  const auth={pendingView:view,isAuthenticated:authenticated,isInitializing:false,phase:authenticated?'authenticated':'guest',session:recovery?{isPasswordRecovery:true}:null,closeAuth:()=>calls.push(['close']),requestAuth:next=>calls.push(['request',next])};
  const exports={};
  vm.runInNewContext(ts.transpileModule(block,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,{
-  exports,React,window:{location:{search,hash}},...state,CatalogWelcome:'catalog-welcome',useAuth:()=>auth,usePresentation:()=>presentation,
+  exports,React,ChevronLeftIcon:'chevron-left',ConfirmationDialog:'confirm',window:{location:{search,hash}},...state,CatalogWelcome:'catalog-welcome',useAuth:()=>auth,usePresentation:()=>presentation,
   useState(initial){const index=cursor++;slots[index]??={value:typeof initial==='function'?initial():initial};return[slots[index].value,next=>{slots[index].value=typeof next==='function'?next(slots[index].value):next;}];},
   useRef:initial=>({current:initial}),useEffect(){},PortalinkSplashLoader:'welcome',EntryChoices:'choices',SignUpForm:'signup',SignInForm:'signin',ForgotPasswordForm:'forgot',ResetPasswordForm:'reset',AccountWelcomeSurface:'surface',
   titles:{signIn:'Sign in',signUp:'Create your account',forgotPassword:'Reset your password',resetPassword:'Set a new password'},mobileSignupTitles:{appearance:'Choose appearance',account:'Create account',profile:'Create your profile',verification:'Check your email'},
@@ -108,4 +108,38 @@ test('auth recovery, callbacks and signed-in forms bypass the catalog gate witho
 test('form cancellation retains the original close action independently of optional film state',()=>{
  const first=catalogAuthParent({view:'signIn'}),entry=first.render();assert.equal(entry.type,'surface');entry.props.onDismiss();assert.deepEqual(first.calls,[['close']]);
  first.state.rememberCatalogWelcomeEntry();const second=catalogAuthParent({view:'signUp',state:first.state});assert.notEqual(second.render().type,'catalog-welcome');assert.deepEqual(second.calls,[]);
+});
+
+const accountEntryNodes = tree => nodes(nodes(tree).find(n=>n.type==='welcome')?.props.landing.content);
+
+test('signup Back closes the account flow on both presentations without submitting or switching auth views',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=catalogAuthParent({presentation}),back=accountEntryNodes(h.render()).find(n=>n.props['aria-label']==='Back to Portalink');
+  assert.ok(back);assert.equal(back.type,'button');assert.equal(back.props.type,'button');assert.equal(back.props.disabled,false);
+  back.props.onClick();assert.deepEqual(h.calls,[['close']]);
+ }
+});
+
+test('signup Back preserves unsaved details until the existing discard confirmation is accepted',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=catalogAuthParent({presentation});
+  accountEntryNodes(h.render()).find(n=>n.type==='signup').props.onDirtyChange(true);
+  accountEntryNodes(h.render()).find(n=>n.props['aria-label']==='Back to Portalink').props.onClick();
+  let dialog=nodes(h.render()).find(n=>n.type==='confirm');
+  assert.ok(dialog);assert.deepEqual(h.calls,[]);
+  dialog.props.onCancel();assert.equal(nodes(h.render()).some(n=>n.type==='confirm'),false);assert.deepEqual(h.calls,[]);
+  accountEntryNodes(h.render()).find(n=>n.props['aria-label']==='Back to Portalink').props.onClick();
+  dialog=nodes(h.render()).find(n=>n.type==='confirm');dialog.props.onConfirm();
+  assert.deepEqual(h.calls,[['close']]);
+ }
+});
+
+test('signup Back cannot interrupt an in-flight account request',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=catalogAuthParent({presentation});
+  accountEntryNodes(h.render()).find(n=>n.type==='signup').props.onBusyChange(true);
+  const back=accountEntryNodes(h.render()).find(n=>n.props['aria-label']==='Back to Portalink');
+  assert.equal(back.props.disabled,true);back.props.onClick();assert.deepEqual(h.calls,[]);
+  assert.equal(nodes(h.render()).some(n=>n.type==='confirm'),false);
+ }
 });

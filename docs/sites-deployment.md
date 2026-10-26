@@ -1,3 +1,21 @@
+## 2026-10-25 - ALL create-account Back button, publication requested
+
+Explicit user request authorizes publication. Existing mirror opened successfully; reviewed product/test fingerprints match passing focused/type/local browser checks. Fresh production/full-lint/configuration/artifact/source/PR checks and native/live verification pending; audience/backend retained. Live remains543 until terminal deployment success. No further implementation, assets, dependencies or SQL/backend operation.
+
+## 2026-10-25 - ALL create-account Back button, unpublished
+
+Local AuthDialog adds a visible44px Back control above account creation on MOBILE and WEB, reusing guarded close/unsaved-details behavior. Landing-origin visitors return to the existing company home.37 focused tests, typecheck, targeted lint and actual responsive Chrome keyboard/clean/dirty/narrow/desktop flows pass; physical iPhone/Safari unverified. No account submission or backend changes. Details/evidence in docs/agent-handoff.md.
+
+LOCAL/UNCOMMITTED/UNPUBLISHED on codex/welcome-refinement from bf5b868df1511f4a3bfe4f854a88b038bf6e8b69; production remains543. Two product files, one test and receipt docs dirty. Existing dist still belongs to543 and needs a fresh production build/emitted checks before any later explicitly authorized release. No credential, source push, Sites save/deploy or SQL/backend operation.
+
+## 2026-10-25 - Complete home/appearance/video update published 543
+
+Live at https://portalinknetworks.com/ (native https://portalinknetworksinc.avimangalmurti566055.chatgpt.site), source bf5b868df1511f4a3bfe4f854a88b038bf6e8b69 on GitHub codex/welcome-refinement and the Sites mirror, draft PR147 against main. Saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_fb98d012ed348191b90f93f88e6b34ac; deployment appgdep_6ade9c3674548191ab0160f4ce4d6035 succeeded2026-10-26T00:18:09.262565+00:00. Public audience/environment revision2/backend bindings retained. Source/archive audits GO; four reviewed products, approved video and638 frozen build hashes unchanged. No main merge or separate SQL/backend/env/dependency change; publisher completed/credential cleared.
+
+Includes grouped MOBILE account/Appearance controls, pinned identity, neutral text/accent icons, clean whole-group contrast/translucency, supplied looping video avatar with shared Play/Pause/reduced-motion/fallback behavior and shared fresh Pink default that preserves saved colours. WEB presentation and normal image avatars remain. All417 old public assets retained, one approved MP4 added. Archive47,783,527bytes / SHA2560c7f95f7405fc6aab6598e87fcfe6d8387f59cf5184ea2a85eab03ba64a43c49;652members/638files. Native tar82,524,160bytes / sha256:451dc5981992840319a4f94c81519ce6504be4c8a1ec6a5ff0f3630c49e00b13.
+
+Live4/4 entry documents and212/212 assets match after one timeout retry; approved video is exact with video/mp4. Responsive Chrome confirms all eight theme/material states, neutral text as accents change, grouped cards/pinned header, continuous muted inline looping and popup Pause/Play/Escape/focus return. Original preferences restored exactly and retained after refresh; WEB1536x695 geometry/styles match predeployment. Build/type/lint/focused and emitted checks/local narrow/reduced-motion proof below pass; no full-suite/physical-phone claim. Additional Range probe returns full200 rather than206, so partial-range/Safari playback remain unverified; no hosting workaround applied. No production account/content mutations. Detailed receipts, proof, existing fixture limits and safe writer handoff in docs/agent-handoff.md. Only postpublication receipt docs dirty; no pending publication/backend work.
+
 ## 2026-10-25 - Complete mobile home/appearance/video update, publication requested
 
 Explicit user request authorizes publication of the verified current update. Reviewed products, approved video and all638 build fingerprints match successful checks. Source/archive/PR-head verification, native save/deploy and live checks pending; existing public audience/backend retained. Production remains542 until successful deployment. Full scope and verification limits below/in docs/agent-handoff.md.

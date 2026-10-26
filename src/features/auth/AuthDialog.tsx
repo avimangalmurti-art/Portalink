@@ -2,7 +2,7 @@ import { useEntryAgreements } from '../../components/auth/EntryAgreements';
 import { useServices } from '../../contexts/ServicesContext';
 import { createProfileHandle, prepareProfileHandle } from '../../utils/profileHandle';
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, CheckCircle2Icon, Loader2Icon } from 'lucide-react';
+import { AlertCircleIcon, CheckCircle2Icon, ChevronLeftIcon, Loader2Icon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import type { AuthView } from '../../contexts/AuthContext';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
@@ -59,7 +59,9 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
     onContinue: () => leaveEntry(auth.closeAuth),
     continueLabel: 'Continue as guest',
     content: <EntryChoices hideProviders onDisagree={() => setEntryStage('welcome')} onEmail={entryStage === 'welcome' ? () => setEntryStage('email') : undefined} ready={!busy} returnPath={props.registrationReturnPath} onSignIn={() => leaveEntry(() => auth.requestAuth('signIn'))} onGuest={() => leaveEntry(auth.closeAuth)}>
-      {entryStage === 'email' && <div className="entry-inline-form"><h1>Create your account</h1>
+      {entryStage === 'email' && <div className="entry-inline-form">
+        <button type="button" className="entry-back" aria-label="Back to Portalink" disabled={busy} onClick={() => leaveEntry(auth.closeAuth)}><ChevronLeftIcon size={20} aria-hidden="true" />Back</button>
+        <h1>Create your account</h1>
         <SignUpForm {...props} {...formProps} compactEntry step="account" onStepChange={setSignupStep} onViewChange={view => leaveEntry(() => auth.requestAuth(view))} />
       </div>}
     </EntryChoices>,

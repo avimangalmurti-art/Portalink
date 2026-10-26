@@ -18,6 +18,7 @@
 [data-presentation='mobile'].portalink-splash[data-share-landing][data-entry-form][data-entry-editing] { justify-content:flex-start; }
 [data-presentation='mobile'].portalink-splash[data-share-landing][data-entry-form][data-entry-editing] .mobile-share-landing-actions { margin-top:var(--entry-editing-inset, 0px); }
 .entry-inline-form { --text-primary:#071326; --text-secondary:#535d6b; --text-tertiary:#535d6b; --accent-text:#071326; --surface-sunken:#fdffff; --hairline-strong:#929aa4; --status-danger:#b42318; --focus-ring:#071326; display:flex; flex-direction:column; gap:12px; }
+.one-screen-entry .entry-back { align-self:flex-start; display:inline-flex; align-items:center; gap:6px; min-width:44px; min-height:44px; color:var(--text-primary); background:transparent; }
 .entry-inline-form input { min-height:44px; padding-inline:12px; border:1px solid #929aa4; border-radius:10px; color:#071326; background:#fdffff; }
 .entry-inline-form input[aria-invalid='true'] { border-color:var(--status-danger); }
 #root .codex-shell .entry-inline-form :is(.text-control, .text-control-shell) { background:#fdffff !important; color:#071326 !important; border-color:#929aa4 !important; }
