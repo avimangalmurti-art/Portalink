@@ -167,7 +167,7 @@ export function interfaceAppearanceKey(presentation: Presentation, scope: Appear
 export function readInterfaceAppearance(presentation: Presentation, scope: AppearanceScope = 'platform'): InterfaceAppearance {
   const fallback: InterfaceAppearance = scope === 'public' && presentation === 'mobile' ? readInterfaceAppearance(presentation) : {
     mode: readDeviceAppearanceMode(),
-    accentColor: readAccentColor('#0A84FF'),
+    accentColor: readAccentColor('#FF375F'),
     systemGray: readNavSystemGray('gray6'),
     highContrast: readHighContrast(false),
     reduceTranslucency: readReduceTranslucency(false),

@@ -78,6 +78,31 @@ function harness({ dark = false, legacy = false, storage = new Map(), blockedSto
   };
 }
 
+test('fresh device accents start Pink while saved and legacy colour choices remain intact', () => {
+  for (const dark of [false, true]) {
+    const h = harness({ dark });
+    for (const presentation of ['web', 'mobile']) {
+      assert.equal(h.render(presentation).accentColor, '#FF375F');
+      assert.equal(h.render(presentation).theme, dark ? 'dark' : 'light');
+    }
+    h.dispose();
+  }
+  for (const [entries, web, mobile] of [
+    [[['portalinknetworks.accentColor', '#007AFF']], '#007AFF', '#007AFF'],
+    [[[scopedKey('mobile'), JSON.stringify({ accentColor: '#0A84FF' })]], '#FF375F', '#0A84FF'],
+    [[[scopedKey('web'), JSON.stringify({ accentColor: '#BF5AF2' })]], '#BF5AF2', '#FF375F'],
+  ]) {
+    const storage = new Map(entries), h = harness({ storage });
+    assert.equal(h.render('web').accentColor, web);
+    assert.equal(h.render('mobile').accentColor, mobile);
+    h.dispose();
+    const returning = harness({ storage });
+    assert.equal(returning.render('web').accentColor, web);
+    assert.equal(returning.render('mobile').accentColor, mobile);
+    returning.dispose();
+  }
+});
+
 test('device defaults follow the OS rather than legacy account mode; explicit device overrides remain available', () => {
   for (const dark of [false, true]) {
     const h = harness({ dark, storage: new Map([['portalinknetworks.appearanceMode', dark ? 'light' : 'dark']]) });

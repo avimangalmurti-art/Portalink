@@ -1,3 +1,41 @@
+## 2026-10-25 - Complete mobile home/appearance/video update, publication requested
+
+Explicit user request authorizes publication of the verified current update. Reviewed products, approved video and all638 build fingerprints match successful checks. Source/archive/PR-head verification, native save/deploy and live checks pending; existing public audience/backend retained. Production remains542 until successful deployment. Full scope and verification limits below/in docs/agent-handoff.md.
+
+## 2026-10-25 - MOBILE neutral text and looping company video avatar, unpublished
+
+Local mobile home text remains neutral as accents change, and its squircle company avatar loops the supplied video silently. Existing viewer supports shared Play/Pause, keyboard/focus, Reduced Motion and image fallback. WEB logo/layout and normal image avatars remain. Prior unpublished grouped controls/header/Pink/icon/material work is included.
+
+New public/company/avatar-loop-098c2e5d5e1e.mp4:172,682bytes / SHA256098c2e5d5e1e54b0014265a435d40d6a9d6f28abe36e6fdf2263159e7ff90329. Public asset inventory is418, including this one approved addition. Application dependencies unchanged; conversion tooling/raw MOV are ignored and not shipped.15 focused +7 emitted cases, typecheck, full lint (0 errors /111 existing warnings), fresh production build/main+visitor guards and browser checks pass. Physical iPhone/Safari/PWA remains unverified; details and known older fixture limits in docs/agent-handoff.md.
+
+UNCOMMITTED/UNPUBLISHED; live remains542 / source316f7f3a91ff963bde81823d4713c109a118120d. No credential, native publish or backend action. Fresh638-file dist now matches this complete local source and supersedes earlier stale-build notes. Current product/asset/build fingerprints are in ignored logs/avatar-video-verification.json; verify unchanged inputs before later authorized publication.
+
+## 2026-10-25 - MOBILE grouped contrast/translucency materials, unpublished
+
+Local mobile company cards now own their material/High Contrast outline once per group. Transparent rows keep thin inset separators, eliminating doubled full-width edges and per-row translucent fills. Existing contents/order, grouped account controls, pinned identity and Pink accent changes remain; WEB presentation unchanged.
+
+20 focused tests, typecheck, targeted lint, WEB CSS guard and all eight settled local material/theme combinations pass, with expanded-section/keyboard/photo, narrow200%-text and desktop-preservation checks. Physical iPhone/Safari/PWA unverified. Details/evidence in docs/agent-handoff.md. UNCOMMITTED/UNPUBLISHED; production remains542 / source316f7f3a91ff963bde81823d4713c109a118120d. No credential, native publication or backend action. Existing dist is still542; rebuild before later explicit publication.
+
+## 2026-10-25 - Accent-following home icons and Pink default, unpublished
+
+Local mobile home icons/chevrons now follow the selected contrast-aware accent. The shared fresh interface default is Pink instead of Blue; explicit saved/legacy colours and account branding remain. This includes the previous unpublished grouped account/Appearance card and pinned identity header. 42 focused tests, typecheck, targeted lint, WEB CSS guard and all 24 local palette/theme cases pass; fresh mobile/web defaults and desktop-layout preservation verified. Physical-device limits/details in docs/agent-handoff.md.
+
+UNCOMMITTED/UNPUBLISHED; live remains542 / source316f7f3a91ff963bde81823d4713c109a118120d. No credential/native publish/backend action. Current dist still belongs to542; fresh production build/emitted checks are needed before a later authorized publication. Three product files plus one existing regression-test file and status notes are dirty.
+
+## 2026-10-25 - MOBILE grouped account/Appearance card and pinned identity, unpublished
+
+Local mobile home groups Create account, Sign in and Appearance in one rounded surface and keeps the avatar/company name pinned while the page scrolls. Existing controls/photo preview and WEB presentation remain. Final 13 focused entry/avatar tests, typecheck, targeted lint, WEB CSS comparison and responsive component previews pass; details/physical-device limits are in docs/agent-handoff.md.
+
+UNCOMMITTED/UNPUBLISHED; live remains542 / source316f7f3a91ff963bde81823d4713c109a118120d. No credential, native publication or backend operation. Production build was not rerun for this visual task; the current dist is still542 and must be rebuilt before a separately authorized publication. Source scope: ProfessionalEntry.tsx and professional-entry.css plus status notes.
+
+## 2026-10-25 - MOBILE higher Appearance and image viewer published 542
+
+Published at https://portalinknetworks.com/ (native https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Source 316f7f3a91ff963bde81823d4713c109a118120d is on GitHub codex/welcome-refinement and the Sites mirror, with draft PR147 against main. Saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_a58c5da4a4608191a77d0f4d71e632dc; deployment appgdep_6ade6ab3ca308191ab844cbfe164a19f succeeded 2026-10-25T20:46:56.060867+00:00. Existing public audience, environment revision 2 and backend bindings retained. One mirror HTTP 500 resolved through standard reconciliation/retry. No main merge or SQL/backend operation; credential cleared.
+
+The verified three-product/636-file build stayed unchanged. 45 distinct focused/emitted cases, typecheck, lint (0 errors / 111 existing warnings), production build/configuration guards, WEB boundary and source/archive audits pass. All 417 public assets and worker/hosting/SQL payloads match 541. Archive 47,609,255 bytes / SHA256 ac836ca1ba4cb0a2c91eef0626ab6584bab3824960c516028aea1c85ca35a644; 649 members / 636 files; native tar 82,350,080 bytes / sha256:58f2d4a8d883e79e9539b9f788cf2098869dfadea18b27c955923babde662991.
+
+Live 4/4 mobile/web documents and 210/210 assets match. Appearance now precedes About Portalink. The mobile viewer covers the full viewport above buttons with default blur still ON, retains Tab/Escape/focus return, and backdrop dismissal cannot activate Sign in. Dark/accent/contrast/reduced-translucency choices persist across refresh; the opacity note explains High Contrast. Starting preferences including raw #007AFF restored exactly. Desktop 1536 x 695 is unchanged; no captured app errors or account/content mutation. Physical iPhone/Safari/PWA/native toolbar/safe-area proof remains unverified; earlier focused/narrow checks and known unrelated fixture limits remain in docs/agent-handoff.md. Only postpublication receipt docs dirty; no pending publication/backend work.
+
 ## 2026-10-25 - MOBILE higher Appearance and image viewer, publication requested
 
 Explicit user request authorizes publishing the verified mobile fix. Standard publisher opened the existing mirror; unchanged reviewed products and all 636 build fingerprints match the passing checks. Reusing the successful final build. Exact source/archive/PR-head audits, native save/deploy and live default-blur verification pending. Public audience and backend retained; live remains 541 until success. Scope/checks/known limits below and in docs/agent-handoff.md.

@@ -114,49 +114,56 @@
     --portalink-welcome-canvas: #2c2c2e;
     color-scheme: dark !important;
   }
-  .professional-entry { --entry-bg: #ffffff; --entry-surface: #f2f2f7; }
+  .professional-entry { --entry-bg: #ffffff; --entry-surface: #f2f2f7; scroll-padding-block-start: calc(max(12px, env(safe-area-inset-top, 0px)) + 9rem); }
   .professional-entry[data-entry-theme] {
     --entry-surface: var(--navigation-surface);
     --entry-ink: var(--navigation-foreground);
     --entry-muted: color-mix(in srgb, var(--navigation-foreground) 85%, var(--nav-button-background));
     --entry-rule: var(--navigation-border);
     --entry-action: var(--navigation-selected-foreground);
+    --entry-icon: var(--entry-action);
     --text-primary: var(--entry-ink);
     --text-secondary: var(--entry-muted);
     --surface-placeholder: var(--nav-button-background-selected);
     --hairline: var(--entry-rule);
   }
-  .professional-entry[data-entry-theme='light'] { --entry-bg: #ffffff; --entry-icon: #000; --entry-preview: #f0f0ec; color-scheme: light; }
-  .professional-entry[data-entry-theme='dark'] { --entry-bg: #2c2c2e; --entry-icon: #fff; --entry-preview: #1c1c1e; color-scheme: dark; }
+  .professional-entry[data-entry-theme='light'] { --entry-bg: #ffffff; --entry-preview: #f0f0ec; color-scheme: light; }
+  .professional-entry[data-entry-theme='dark'] { --entry-bg: #2c2c2e; --entry-preview: #1c1c1e; color-scheme: dark; }
   .professional-entry[data-entry-contrast='true'] { --entry-muted: var(--entry-ink); }
-  .professional-entry[data-entry-theme] :is(.professional-entry-company-card, .professional-entry-account-actions > button, .professional-entry-company-sections > li, .professional-entry-footer > button) {
+  .professional-entry[data-entry-theme] :is(.professional-entry-company-card, .professional-entry-account-settings, .professional-entry-company-group, .professional-entry-footer > button) {
     -webkit-backdrop-filter: var(--navigation-blur);
     backdrop-filter: var(--navigation-blur);
   }
-  .professional-entry[data-entry-contrast='true'] :is(.professional-entry-company-card, .professional-entry-account-actions > button, .professional-entry-company-sections > li, .professional-entry-footer > button) {
+  .professional-entry[data-entry-contrast='true'] :is(.professional-entry-company-card, .professional-entry-account-settings, .professional-entry-company-group, .professional-entry-footer > button) {
     box-shadow: inset 0 0 0 2px var(--entry-rule);
   }
   .professional-entry[data-entry-theme] .professional-entry-company-icon { background: transparent; color: var(--entry-icon); border-radius: 0; }
   .professional-entry[data-entry-theme] .professional-entry-company-chevron { color: var(--entry-icon); }
-  .professional-entry[data-entry-theme] .professional-entry-create .professional-entry-company-title,
-  .professional-entry[data-entry-theme] details[open] > summary .professional-entry-company-title { color: var(--entry-action); }
   .professional-entry[data-entry-theme] :is(button, summary):focus-visible { outline-color: var(--focus-ring); }
   .professional-entry-frame { padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
   .professional-entry-main { grid-template-columns: 1fr; align-content: start; gap: 20px; padding: 8px 0 12px; }
-  .professional-entry-wordmark { grid-template-columns: 68px minmax(0, 1fr); gap: 12px; min-height: 0; padding: 14px 16px; }
-  .professional-entry-avatar { --text-primary: var(--entry-ink); --surface-raised: var(--entry-surface); width: 68px; height: 68px; }
+  .professional-entry-mobile-header { position: sticky; top: 0; z-index: 2; flex-shrink: 0; margin-top: calc(-1 * max(12px, env(safe-area-inset-top, 0px))); margin-bottom: -12px; padding-top: max(12px, env(safe-area-inset-top, 0px)); padding-bottom: 12px; background: var(--entry-bg); }
+  .professional-entry-wordmark { display: flex; flex-wrap: wrap; gap: 12px; min-height: 0; padding: 14px 16px; }
+  .professional-entry-brand-copy { flex: 1 1 10rem; }
+  .professional-entry-avatar { --text-primary: var(--entry-ink); --surface-raised: var(--entry-surface); flex: 0 0 68px; width: 68px; height: 68px; }
   .professional-entry-avatar > button { --mobile-component-radius: 22%; width: 68px; height: 68px; min-height: 68px; padding: 0; border-radius: 22%; background: transparent; }
   .professional-entry-avatar > button:focus-visible { border-radius: var(--shape-container); outline-offset: 3px; }
   .professional-entry-company-name { font-size: 1.5rem; }
   .professional-entry-description { margin-top: 4px; font-size: 1rem; }
-  .professional-entry-account-actions { grid-template-columns: 1fr; margin-top: 12px; }
-  .professional-entry-account-actions button { --mobile-component-radius: 28px; display: grid; grid-template-columns: 32px minmax(0, 1fr) 18px; gap: 12px; width: 100%; min-height: 96px; padding: 14px 18px; border-radius: 28px; background: var(--entry-surface); color: var(--entry-ink); text-align: left; }
-  .professional-entry-account-actions button:focus-visible { outline-offset: -3px; }
+  .professional-entry-account-settings { min-width: 0; margin-top: 12px; border-radius: 28px; background: var(--entry-surface); }
+  .professional-entry-account-actions { grid-template-columns: 1fr; gap: 0; margin-top: 0; }
+  .professional-entry-account-actions > button { --mobile-component-radius: 0px; position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) 18px; gap: 12px; width: 100%; min-height: 60px; padding: 14px 18px; border-radius: 0; background: transparent; color: var(--entry-ink); text-align: left; }
+  .professional-entry-account-actions > button:first-child { --mobile-component-radius: 28px 28px 0 0; border-radius: 28px 28px 0 0; }
+  .professional-entry-account-actions > button::after { content: ''; position: absolute; bottom: 0; left: 62px; right: 18px; height: 1px; background: var(--entry-rule); }
+  .professional-entry-account-actions > button:focus-visible { outline-offset: -3px; }
   .professional-entry-company-sections summary { min-height: 60px; padding-block: 14px; }
+  .professional-entry-company-groups { display: grid; gap: 16px; min-width: 0; }
+  .professional-entry-company-group { border-radius: 28px; background: var(--entry-surface); }
+  .professional-entry-company-group > li { background: transparent; }
   .professional-entry-company-sections li:nth-child(7) { margin-top: 16px; }
-  .professional-entry-company-sections li.professional-entry-appearance-item { margin-top: 0; border-radius: 28px; }
-  .professional-entry-appearance-sections > .professional-entry-appearance-item > details:not([open]) > summary { border-radius: 28px; }
-  .professional-entry-appearance-sections > .professional-entry-appearance-item > details[open] > summary { border-radius: 28px 28px 0 0; }
+  .professional-entry-company-sections li.professional-entry-appearance-item { margin-top: 0; border-radius: 0 0 28px 28px; background: transparent; }
+  .professional-entry-appearance-sections > .professional-entry-appearance-item > details:not([open]) > summary { border-radius: 0 0 28px 28px; }
+  .professional-entry-appearance-sections > .professional-entry-appearance-item > details[open] > summary { border-radius: 0; }
   .professional-entry-company-panel { padding-inline: 18px; }
   .professional-entry-company-panel .professional-entry-preview { padding: 12px; }
   .professional-entry-footer { justify-content: stretch; padding-top: 8px; }
@@ -166,7 +173,7 @@
   .professional-entry-appearance legend { margin-bottom: 8px; color: var(--entry-muted); font-size: .875rem; font-weight: 550; }
   .professional-entry-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 5rem), 1fr)); gap: 6px; }
   .professional-entry-modes button { min-width: 0; min-height: 44px; border: 1px solid var(--entry-rule); border-radius: 999px; font-size: .9375rem; }
-  .professional-entry-modes button[aria-checked='true'] { border-color: var(--entry-action); box-shadow: inset 0 0 0 1px var(--entry-action); color: var(--entry-action); }
+  .professional-entry-modes button[aria-checked='true'] { border-color: var(--entry-action); box-shadow: inset 0 0 0 1px var(--entry-action); color: var(--entry-ink); }
   .professional-entry-appearance .mobile-onboarding-appearance { display: grid; gap: 20px; min-width: 0; }
   .professional-entry-appearance .mobile-onboarding-swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
   .professional-entry-appearance .mobile-onboarding-swatches button { min-width: 0; min-height: 44px; padding: 5px; border: 2px solid transparent; border-radius: 12px; }

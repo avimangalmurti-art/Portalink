@@ -6,7 +6,7 @@ import ts from 'typescript';
 import React from 'react';
 
 /** Render the real components with controlled state and invoke their actual event handlers. */
-function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 0 } = {}) {
+function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 0, reducedMotion = false } = {}) {
   const instances = new Map();
   const elements = new Map();
   let current;
@@ -31,9 +31,17 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
       this.style = { setProperty: (name, value) => styles.set(name, value), getPropertyValue: (name) => styles.get(name) ?? '' };
     }
     focus() { document.activeElement = this; }
+    play() { this.paused = false; return Promise.resolve(); }
+    pause() { this.paused = true; }
   }
   const react = {
     ...React,
+    useCallback(callback, dependencies) {
+      const index = current.cursor++;
+      const previous = current.slots[index];
+      if (!previous || dependencies.some((value, item) => value !== previous.dependencies[item])) current.slots[index] = { value: callback, dependencies };
+      return current.slots[index].value;
+    },
     useState(initial) {
       const index = current.cursor++;
       const slots = current.slots;
@@ -69,6 +77,7 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
   const dialogViewport = load('../src/hooks/useDialogViewport.ts', {});
   const creator = load('../src/components/profile/CreatorAvatar.tsx', { '../ui/ResponsiveImage': image });
   const { ProfileAvatar } = load('../src/components/profile/ProfileAvatar.tsx', {
+    'framer-motion': { useReducedMotion: () => reducedMotion },
     'react-dom': { createPortal: (children, target) => { previewTargets.push(target); return children; } },
     './CreatorAvatar': creator,
     '../ui/ResponsiveImage': image,
@@ -127,6 +136,53 @@ function avatarHarness(props, { presentation = 'web', height = 816, offsetTop = 
     find,
   };
 }
+
+test('video avatars loop silently and share pause/resume with their existing preview', () => {
+  const h = avatarHarness({ name: 'Portalink', avatar: '/poster.png', videoSrc: '/avatar.mp4', inlinePreview: true }, { presentation: 'mobile' });
+  let tree = h.render();
+  let video = h.find(tree, n => n.type === 'video');
+  assert.equal(video.props.src, '/avatar.mp4');
+  assert.equal(video.props.poster, '/poster.png');
+  for (const flag of ['loop', 'muted', 'playsInline', 'autoPlay']) assert.equal(video.props[flag], true);
+  assert.equal(video.element.paused, false);
+  const trigger = h.find(tree, n => n.type === 'button');
+  assert.equal(trigger.props['aria-label'], "View Portalink's profile video");
+  trigger.props.onClick();
+  tree = h.render();
+  let dialog = h.find(tree, n => n.props?.role === 'dialog');
+  assert.equal(h.find(dialog, n => n.type === 'video').props.src, '/avatar.mp4');
+  const toggle = h.find(dialog, n => n.type === 'button');
+  assert.equal(toggle.props.children, 'Pause animation');
+  let stopped = false;
+  toggle.props.onClick({ stopPropagation() { stopped = true; } });
+  tree = h.render(); dialog = h.find(tree, n => n.props?.role === 'dialog');
+  assert.ok(stopped && dialog, 'Pausing must not dismiss the viewer');
+  assert.equal(h.find(tree, n => n.type === 'video').element.paused, true);
+  assert.equal(h.find(dialog, n => n.type === 'video').element.paused, true);
+  assert.equal(h.find(dialog, n => n.type === 'button').props.children, 'Play animation');
+  h.find(dialog, n => n.type === 'button').props.onClick({ stopPropagation() {} });
+  tree = h.render(); dialog = h.find(tree, n => n.props?.role === 'dialog');
+  assert.equal(h.find(tree, n => n.type === 'video').element.paused, false);
+  assert.equal(h.find(dialog, n => n.type === 'video').element.paused, false);
+  h.inlineLayers[0].onEscape();
+  assert.equal(h.find(h.render(), n => n.props?.role === 'dialog'), null);
+});
+
+test('reduced motion starts video avatars paused and decode failure retains the image preview', () => {
+  const h = avatarHarness({ name: 'Portalink', avatar: '/poster.png', videoSrc: '/avatar.mp4' }, { reducedMotion: true });
+  let tree = h.render();
+  const video = h.find(tree, n => n.type === 'video');
+  assert.equal(video.props.autoPlay, false);
+  assert.equal(video.element.paused, true);
+  video.props.onError();
+  tree = h.render();
+  assert.equal(h.find(tree, n => n.type === 'video'), null);
+  const trigger = h.find(tree, n => n.type === 'button');
+  assert.equal(trigger.props['aria-label'], "View Portalink's profile image");
+  trigger.props.onClick();
+  const dialog = h.find(h.render(), n => n.props?.role === 'dialog');
+  assert.equal(h.find(dialog, n => n.type === 'img').props.src, '/poster.png');
+});
 
 test('initials avatars open and dismiss the standard preview even without an uploaded image', () => {
   for (const avatar of [undefined, null, '']) {

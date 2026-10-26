@@ -58,6 +58,7 @@ test('both presentations expose nine native company disclosures with distinct ic
     if (presentation === 'mobile') {
       const avatar = nodes(brand).find(n => n.type === 'profile-avatar');
       assert.equal(avatar.props.avatar, '/icons/portalink-app-512-62b9d2e7.png');
+      assert.match(avatar.props.videoSrc, /^\/company\/avatar-loop-[a-f0-9]{12}\.mp4$/);
       assert.equal(avatar.props.name, 'Portalink Networks Inc.');
       assert.equal(avatar.props.inlinePreview, true);
       assert.equal(avatar.props.previewHost, tree.ref, 'The viewer mounts at the unfiltered welcome root');
