@@ -110,8 +110,11 @@ export function HomeFeed({
   const routeLocation = useLocation();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile });
-  const { viewerProfileId, isAuthenticated, user, requestAuth } = useAuth();
+  const { viewerProfileId, isAuthenticated, user, requestAuth, requestAuthenticatedDestination } = useAuth();
   const isGuestPreview = !isAuthenticated && !locationId;
+  const guestParams = isGuestPreview ? new URLSearchParams(routeLocation.search) : null;
+  const guestSelection = guestParams?.get('guest');
+  const guestView = guestSelection === 'world' || guestSelection === 'search' || guestSelection === 'profile' ? guestSelection : 'home';
   const management = useProjectManagement(isAuthenticated ? viewerProfileId : null);
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
   const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId), 'home');
@@ -177,7 +180,7 @@ export function HomeFeed({
     ref: autoScrollRef,
     settled: (firstProjectHome && feed.status === 'success') || (feed.status === 'success' && layoutReady && scrollRestored && (isGuestPreview || (noteReadiness?.account === account && noteReadiness.attempt === startupAttempt && noteReadiness.settled))),
     terminalError: feed.status === 'error' || (!firstProjectHome && layoutFailed),
-    projectCount: firstProjectHome ? 0 : projects.length,
+    projectCount: firstProjectHome || (isGuestPreview && guestView !== 'home') ? 0 : projects.length,
     documentProjects,
     onReady: onStartupReady,
   });
@@ -259,10 +262,23 @@ export function HomeFeed({
   const pullEnabled = !isGuestPreview && showMobileSearch && screenActive && !categoriesOpen && !(firstProjectAction && projects.length === 0);
   const refreshMotion = useHomeRefreshMotion({ enabled: pullEnabled, refreshing: feed.isRefreshing, scope: recoveryIdentity });
   const pullLabel=useHomePullRefresh(autoScrollRef,pullEnabled,feed.isRefreshing||feed.status==='loading',refreshHome,refreshMotion.onPull);
-  if (isGuestPreview) return <GuestHomePreview projects={projects} loading={feed.status === 'idle' || feed.status === 'loading'} error={feed.error}
-    onRetry={retryFeed} onCreate={() => requestAuth('signUp')} onSignIn={() => requestAuth('signIn')}
-    onOpenProject={({ project, creator }) => onOpenProject(project.id, { profileId: creator.id, categoryId: project.categoryId })}
-    scrollRef={autoScrollRef} onScroll={rememberScroll} />;
+  if (isGuestPreview) {
+    const guestPath = (next: typeof guestView, query?: string) => {
+      const nextParams = new URLSearchParams();
+      if (next !== 'home') nextParams.set('guest', next);
+      if (next === 'search' && query) nextParams.set('q', query.slice(0, 80));
+      const search = nextParams.toString();
+      return buildPath('home') + (search ? `?${search}` : '');
+    };
+    const requireSignIn = (path: string, label: string) => requestAuthenticatedDestination({ kind: 'route', path, label }, 'signIn');
+    return <GuestHomePreview projects={projects} loading={feed.status === 'idle' || feed.status === 'loading'} error={feed.error}
+      onRetry={retryFeed} onCreate={() => requestAuth('signUp')} onSignIn={() => requestAuth('signIn')}
+      onOpenProject={({ project, creator }) => requireSignIn(buildPath('project', { profileId: creator.id, categoryId: project.categoryId, projectId: project.id }), 'open this project')}
+      view={guestView} query={guestParams?.get('q') ?? ''} onViewChange={next => navigate(guestPath(next))}
+      onQueryChange={query => navigate(guestPath('search', query), { replace: true })}
+      onOpenCreator={id => requireSignIn(buildPath('profile', { profileId: id }), 'explore this creator')} onRequireSignIn={requireSignIn}
+      scrollRef={autoScrollRef} onScroll={rememberScroll} />;
+  }
   if(isMobile && categoriesOpen)return <ExploreCategories onBack={()=>setCategoriesOpen(false)}/>;
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">

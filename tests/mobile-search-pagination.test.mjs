@@ -16,8 +16,8 @@ const textOf = node => React.isValidElement(node) ? React.Children.toArray(node.
 function fixture(searchAccounts, initial = {}) {
   const slots = [], timers = new Map(), frames = new Map(), hosts = new Map(), events = new Map(), mediaEvents = new Map(), animations = [], focusCalls = [], scrollWrites = [], observers = [];
   let cursor = 0, dirty = true, tree, effects = [], layout = [], mounted = true, active = true, lateStateWrites = 0, timerId = 0, frameId = 0, mode = initial.mode ?? 'mobile', reduced = initial.reduced ?? false, appReduced = false;
-  let auth = { user: { id: 'account-a' }, viewerProfileId: 'profile-a', isAuthenticated: true };
-  const requests = [], visits = [], props = { query: '', onQueryChange(value) { props.query = value; dirty = true; }, onOpenCreator: id => visits.push(id) };
+  let auth = initial.authenticated === false ? { user: null, viewerProfileId: null, isAuthenticated: false } : { user: { id: 'account-a' }, viewerProfileId: 'profile-a', isAuthenticated: true };
+  const requests = [], visits = [], recentCalls = [], warmed = [], backCalls = [], props = { query: '', guestPreview: initial.guestPreview ?? false, onQueryChange(value) { props.query = value; dirty = true; }, onOpenCreator: id => visits.push(id), onWarmCreator: id => warmed.push(id), onBack: () => backCalls.push('back') };
   const add = (map, type, callback) => { if (!map.has(type)) map.set(type, new Set()); map.get(type).add(callback); };
   const emit = (map, type, event = {}) => { for (const callback of [...(map.get(type) ?? [])]) callback({ type, ...event }); };
   const discovery = { searchAccounts: (...args) => { requests.push(args); return searchAccounts(...args); } };
@@ -61,7 +61,7 @@ function fixture(searchAccounts, initial = {}) {
     useEffect(callback, deps) { effect(effects, callback, deps); }, useLayoutEffect(callback, deps) { effect(layout, callback, deps); } };
   const motion = sourceModule('src/presentation/motion/motion.ts', { 'react-dom': { flushSync: callback => callback() }, '../../utils/projectContinuity': {} }, globals);
   const { SearchAccountsPage } = sourceModule('src/components/SearchAccountsPage.tsx', { react, '../contexts/AuthContext': { useAuth: () => auth }, '../contexts/ServicesContext': { useServices: () => ({ discovery }) },
-    '../features/follows/recentAccounts': { readRecentAccounts: () => [], rememberAccount() {}, forgetAccount() {} }, '../presentation/usePresentation': { usePresentation: () => mode },
+    '../features/follows/recentAccounts': { readRecentAccounts: account => { recentCalls.push(['read',account]); return []; }, rememberAccount: (...args) => recentCalls.push(['write',...args]), forgetAccount() {} }, '../presentation/usePresentation': { usePresentation: () => mode },
     '../presentation/motion/motion': motion, '../presentation/mobile/MobileBackNavigation': { ScreenBack: 'ScreenBack', useMobileScreenActive: () => active },
     './profile/CreatorAvatar': { CreatorAvatar: 'CreatorAvatar' }, './ui/StateViews': { EmptyState: 'EmptyState', ErrorState: 'ErrorState', LoadingState: 'LoadingState' },
     'lucide-react': { ArrowLeftIcon: 'ArrowLeftIcon', XIcon: 'XIcon' } }, globals);
@@ -78,7 +78,7 @@ function fixture(searchAccounts, initial = {}) {
   const find = predicate => nodes(render()).find(predicate);
   const hostFor = element => [...hosts.values()].find(host => host.isConnected && host.props === element?.props);
   render();
-  return { requests, visits, document, main, animations, focusCalls, scrollWrites, frames, render,
+  return { requests, visits, recentCalls, warmed, backCalls, document, main, animations, focusCalls, scrollWrites, frames, render,
     get lateStateWrites() { return lateStateWrites; },
     get rows() { return nodes(render()).filter(node => node.type === 'strong').map(node => textOf(node)); },
     get loader() { return find(node => node.type === 'LoadingState'); },
@@ -89,6 +89,7 @@ function fixture(searchAccounts, initial = {}) {
     get field() { return hostFor(find(node => node.type === 'textarea' || node.type === 'input')); },
     find, hostFor,
     query(value) { props.query = value; dirty = true; render(); },
+    guestPreview(value) { props.guestPreview = value; dirty = true; render(); },
     owner(id) { auth = { user: id ? { id } : null, viewerProfileId: id ? `profile-${id}` : null, isAuthenticated: Boolean(id) }; dirty = true; render(); },
     mode(value) { mode = value; dirty = true; render(); },
     active(value) { active = value; main.inert = !value; dirty = true; render(); },
@@ -224,4 +225,33 @@ test('signing out immediately removes directory fields and ignores an outstandin
   h.query('Someone else'); h.runTimers();
   assert.equal(h.requests.length, 1);
   h.unmount();
+});
+
+test('opted-in MOBILE and WEB guest search loads public accounts without recent-account storage or profile prewarming', async () => {
+  for (const mode of ['mobile','web']) {
+    const h=fixture(() => Promise.resolve(people()),{mode,authenticated:false,guestPreview:true});
+    assert.ok(h.field);assert.equal(h.requests.length,0);assert.deepEqual(h.recentCalls,[]);
+    h.query('Creator');h.runTimers();await h.flush();assert.equal(h.rows.length,30);
+    const result=h.find(node=>node.type==='button'&&nodes(node).some(child=>child.type==='strong'));
+    assert.equal(result.props.onPointerEnter,undefined);assert.equal(result.props.onFocus,undefined);
+    result.props.onClick();assert.deepEqual(h.visits,['Creator-0']);assert.deepEqual(h.warmed,[]);assert.deepEqual(h.recentCalls,[]);
+    h.find(node=>node.type==='button'&&node.props['aria-label']==='Back').props.onClick();assert.deepEqual(h.backCalls,['back']);
+    h.query('');assert.deepEqual(h.rows,[]);assert.deepEqual(h.recentCalls,[]);h.unmount();
+  }
+});
+
+test('opted-in MOBILE guest pagination preserves rows through failure and retries the same public offset', async () => {
+  let fail=true;
+  const h=await loaded((query,offset=0)=>offset&&fail?Promise.reject(Error('offline')):Promise.resolve(people(offset,offset?2:30)),{authenticated:false,guestPreview:true});
+  h.results._top=640;h.clickMore();await h.flush();assert.equal(h.rows.length,30);assert.ok(h.error);assert.equal(h.results.scrollTop,640);
+  fail=false;h.retry();await h.flush();assert.equal(h.rows.length,32);assert.equal(h.error,undefined);assert.deepEqual(h.requests.map(([,offset=0])=>offset),[0,30,30]);
+  assert.deepEqual(h.recentCalls,[]);assert.equal(h.scrollWrites.length,0);h.unmount();
+});
+
+test('guest search opt-in is required and revoking it rejects an outstanding public response', async () => {
+  const pending=deferred(),h=fixture(()=>pending.promise,{authenticated:false});
+  assert.equal(h.field,undefined);h.query('Creator');h.runTimers();assert.equal(h.requests.length,0);
+  h.guestPreview(true);h.runTimers();assert.equal(h.requests.length,1);assert.ok(h.field);
+  h.guestPreview(false);assert.equal(h.field,undefined);pending.resolve(people());await h.flush();assert.deepEqual(h.rows,[]);
+  assert.deepEqual(h.recentCalls,[]);h.unmount();
 });

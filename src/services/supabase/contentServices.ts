@@ -968,12 +968,14 @@ export const supabaseDiscoveryService: DiscoveryService = {
       .map((row) => ({ id: row.id, name: row.name, kind: row.headline, avatar: row.avatar_url, location: row.location, isPrivate: false }));
   },
   async searchAccounts(query, offset = 0): Promise<FeedCreator[]> {
-    await requireDirectoryAccount();
     const term = query.trim().replace(/^@/, '').slice(0, 80);
     if (!term) return [];
+    const client = requireSupabase();
+    const { error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw new Error('Your session could not be checked. Please try again.');
     const pattern = `%${term.replace(/[\\%_]/g, char => `\\${char}`)}%`;
     const quoted = `"${pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-    const { data, error } = await requireSupabase().from('profiles')
+    const { data, error } = await client.from('profiles')
       .select('id,name,handle,headline,avatar_url,location').eq('is_private', false)
       .or(`name.ilike.${quoted},handle.ilike.${quoted}`).order('name').order('id')
       .range(Math.max(0, offset), Math.max(0, offset) + 29);

@@ -17,8 +17,19 @@ test('city feed pages the full public profile corpus with stable keyset order',a
 });
 test('public account search filters before paging and quotes literal punctuation and wildcards',async()=>{
  const calls=[];const q={select(v){calls.push(['select',v]);return q},eq(k,v){calls.push(['eq',k,v]);return q},or(v){calls.push(['or',v]);return q},order(v){calls.push(['order',v]);return q},range(a,b){calls.push(['range',a,b]);return Promise.resolve({data:[{id:'creator',name:'Name',handle:'name',location:'Town'}]})}};
- const service=methods('src/services/supabase/contentServices.ts',['searchAccounts'],{requireSupabase:()=>({from:()=>q}),throwProfileError:e=>{throw e}});
+ const service=methods('src/services/supabase/contentServices.ts',['searchAccounts'],{requireSupabase:()=>({auth:{getSession:async()=>({data:{session:null},error:null})},from:()=>q}),throwProfileError:e=>{throw e}});
  const results=await service.searchAccounts('@name_%",x',30);assert.equal(results[0].kind,'@name');assert.ok(calls.some(c=>c[0]==='eq'&&c[1]==='is_private'&&c[2]===false));assert.deepEqual(calls.find(c=>c[0]==='range'),['range',30,59]);const filter=calls.find(c=>c[0]==='or')[1];assert.ok(filter.includes('\\\\_'));assert.ok(filter.includes('\\\\%'));assert.ok(filter.includes('\\"'));assert.equal(await service.searchAccounts('  ').then(r=>r.length),0);
+});
+test('public account search accepts guest sessions but fails closed on a session-check error',async()=>{
+ for(const identity of [{session:null},{session:{user:{id:'anonymous',is_anonymous:true}}},{session:{user:{id:'account'}}},{session:null,error:{message:'offline'}}]){
+  let queries=0;
+  const client={auth:{getSession:async()=>({data:{session:identity.session},error:identity.error??null})},from(table){
+   queries++;assert.equal(table,'profiles');const query={select:()=>query,eq(column,value){assert.equal(column,'is_private');assert.equal(value,false);return query},or:()=>query,order:()=>query,range:async(start,end)=>{assert.equal(start,0);assert.equal(end,29);return{data:[],error:null}}};return query;
+  }};
+  const service=methods('src/services/supabase/contentServices.ts',['searchAccounts'],{requireSupabase:()=>client,throwProfileError:error=>{throw error}});
+  if(identity.error){await assert.rejects(service.searchAccounts('Creator'),/session could not be checked/);assert.equal(queries,0);}
+  else{assert.equal((await service.searchAccounts('Creator')).length,0);assert.equal(queries,1);}
+ }
 });
 function messageFixture({messageRows=[],identities=()=>[]}={}){
  const calls=[];const service=methods('src/services/supabase/messagingService.ts',['searchConversations','searchRecipients'],{viewerProfileId:async()=> 'viewer',publicMessageError:e=>e,readConversationSummaries:async({conversationIds=[]})=>({conversations:conversationIds.map(id=>({id,lastMessageAt:'2026-10-03'}))}),requireSupabase:()=>({rpc:async(name,args)=>{calls.push({rpc:name,...args});return{data:identities(args)}} ,from(table){let a,b;const q={select(){return q},ilike(k,v){calls.push({table,pattern:v});return q},order(){return q},or(){return q},range(start,end){a=start;b=end;calls.push({table,start,end});return Promise.resolve({data:table==='direct_messages'?messageRows.slice(a,b+1):[]})}};return q}})});return{service,calls};

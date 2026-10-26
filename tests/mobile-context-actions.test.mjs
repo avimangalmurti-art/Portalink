@@ -169,25 +169,39 @@ test('onboarding WEB file manager omits mobile detents and never begins a header
  }
 });
 
-test('owner profile actions open expanded and can collapse and reexpand without losing any action',()=>{
+test('mobile owner profile actions open compact and expand only after an explicit swipe or keyboard activation',()=>{
  const actionIds=['newProject','editProfile','share','viewAsVisitor','thenNow','reorder','insights','bookmarks','copy','settings'];
  const model=contextActions('profile',{signedIn:true,owner:true},{handlers:Object.fromEntries(actionIds.map(id=>[id,()=>id]))});
  const h=sheetHarness({model}),labels=()=>nodes(h.render()).filter(node=>node.type==='button').flatMap(node=>nodes(node).filter(child=>child.type==='span'&&typeof child.props.children==='string').map(child=>child.props.children));
- assert.equal(h.dialog().props['data-expanded'],true);
- assert.equal(h.resizeButton().props['aria-label'],'Collapse actions');assert.equal(h.resizeButton().props['aria-expanded'],true);
+ assert.equal(h.dialog().props['data-expanded'],false);
+ assert.equal(h.resizeButton().props['aria-label'],'Expand actions');assert.equal(h.resizeButton().props['aria-expanded'],false);
  const initialLabels=labels();assert.equal(initialLabels.length,10);assert.equal(initialLabels.at(-1),'Settings');
  assert.ok(initialLabels.includes('New project'));assert.ok(initialLabels.includes('Copy public catalogue link'));
- h.clickResize(0);assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.resizeButton().props['aria-label'],'Expand actions');
+ h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerMove',{clientY:450});h.pointer('onPointerUp',{clientY:450});
+ assert.equal(h.dialog().props['data-expanded'],true);assert.equal(h.resizeButton().props['aria-label'],'Collapse actions');
+ assert.deepEqual(labels(),initialLabels);assert.deepEqual(h.calls,[]);
+ h.clickResize();assert.equal(h.dialog().props['data-expanded'],true,'The swipe-generated handle click cannot undo expansion');
+ h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:690});h.pointer('onPointerUp',{clientY:690});
+ assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.resizeButton().props['aria-label'],'Expand actions');
  assert.deepEqual(labels(),initialLabels);
  h.clickResize(0);assert.equal(h.dialog().props['data-expanded'],true);assert.equal(h.resizeButton().props['aria-expanded'],true);
  assert.deepEqual(labels(),initialLabels);assert.deepEqual(h.calls,[]);
  h.find(node=>node.props['aria-label']==='Close actions').props.onClick();assert.deepEqual(h.calls,['close']);
+ const reopened=sheetHarness({model});assert.equal(reopened.dialog().props['data-expanded'],false);assert.equal(reopened.resizeButton().props['aria-expanded'],false);
+});
+
+test('WEB owner profile actions retain their existing expanded entry state',()=>{
+ const model=contextActions('profile',{signedIn:true,owner:true},{handlers});
+ const h=sheetHarness({model,presentation:'web'});
+ assert.equal(h.dialog().props['data-expanded'],true);assert.equal(h.resizeButton().props['aria-expanded'],true);
 });
 
 test('expanded profile New project and last Settings row delegate the same real context callbacks',()=>{
  for(const actionId of ['newProject','settings']){
   const delegated=[],model=contextActions('profile',{signedIn:true,owner:true},{handlers:{newProject:()=>delegated.push('newProject'),editProfile(){},share(){},viewAsVisitor(){},thenNow(){},reorder(){},insights(){},bookmarks(){},copy(){},settings:()=>delegated.push('settings')}});
   const h=sheetHarness({model}),action=[...model.primary,...model.groups.flat()].find(item=>item.id===actionId);
+  assert.equal(h.dialog().props['data-expanded'],false);
+  h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:450});h.pointer('onPointerUp',{clientY:450});
   assert.equal(h.dialog().props['data-expanded'],true);
   h.find(node=>node.type==='button'&&nodes(node).some(child=>child.type==='span'&&child.props.children===action.label)).props.onClick({currentTarget:{closest:()=>h.viewport}});
   assert.deepEqual(delegated,[actionId]);assert.equal(h.motions.length,1);
@@ -199,7 +213,7 @@ test('owner profile scrim follows the measured visual viewport origin and height
  const model=contextActions('profile',{signedIn:true,owner:true},{handlers});
  for(const viewportHeight of [912,684,600]){
   const h=sheetHarness({model,viewportHeight,safeTop:59});
-  for(const expanded of [true,false,true]){
+  for(const expanded of [false,true,false]){
    assert.equal(h.dialog().props['data-expanded'],expanded);
    const style=h.scrim().props.style;
    assert.equal(style.top,'var(--dialog-viewport-top, 0px)');

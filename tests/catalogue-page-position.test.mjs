@@ -44,20 +44,27 @@ test('session positions normalize invalid ordinals while preserving only valid r
   assert.equal(memory.getCataloguePagePosition(''), undefined); assert.equal(memory.getCataloguePagePosition('invalid'), undefined);
 });
 
-function geometry({ contained = false, hidden = false, cards = [{ id: 'above', top: -180, height: 100 }, { id: 'visible', top: -60, height: 300 }, { id: 'next', top: 244, height: 200 }] } = {}) {
+function geometry({ contained = false, hidden = false, mobile = false, header = null, cards = [{ id: 'above', top: -180, height: 100 }, { id: 'visible', top: -60, height: 300 }, { id: 'next', top: 244, height: 200 }] } = {}) {
   const listeners = new Map(), frames = new Map(); let frameId = 0, documentScroll = 0, ownerScroll = 0;
   const root = {}, body = { parentElement: root };
   const owner = { parentElement: body, scrollHeight: 2400, clientHeight: 400, clientTop: 2, isConnected: true,
-    getBoundingClientRect: () => ({ top: 100, bottom: 504, width: 420, height: 404 }),
+    getBoundingClientRect: () => ({ top: 100, bottom: 504, left: 0, right: 420, width: 420, height: 404 }),
     scrollBy({ top }) { ownerScroll += top; },
   };
+  const headerNode = header ? { isConnected: true,
+    closest: () => header.hidden ? {} : null,
+    getBoundingClientRect: () => ({ top: header.top ?? 0, bottom: header.bottom, left: header.left ?? 0, right: header.right ?? 420,
+      width: (header.right ?? 420) - (header.left ?? 0), height: header.bottom - (header.top ?? 0) }),
+  } : null;
+  const profile = headerNode ? { querySelector: selector => selector === ':scope > .profile-header-region' ? headerNode : null } : null;
+  const presentation = mobile ? {} : null;
   const elements = cards.map(card => ({ dataset: { projectContinuityId: card.id }, isConnected: true,
     closest: () => card.hidden ? {} : null,
-    getBoundingClientRect: () => { const top = card.top - (contained ? ownerScroll : documentScroll); return { top, bottom: top + card.height, width: 420, height: card.height }; },
+    getBoundingClientRect: () => { const top = card.top - (contained ? ownerScroll : documentScroll); return { top, bottom: top + card.height, left: 0, right: 420, width: 420, height: card.height }; },
   }));
   const surface = { parentElement: contained ? owner : body, isConnected: true,
-    closest: () => hidden ? {} : null,
-    getBoundingClientRect: () => ({ width: hidden ? 0 : 420 }),
+    closest: selector => selector === '[data-presentation="mobile"]' ? presentation : selector === '[data-profile-page]' ? profile : hidden ? {} : null,
+    getBoundingClientRect: () => ({ top: 0, bottom: 600, left: 0, right: 420, width: hidden ? 0 : 420, height: 600 }),
     querySelectorAll: () => elements,
   };
   const window = { innerHeight: 600, scrollBy({ top }) { documentScroll += top; },
@@ -66,7 +73,7 @@ function geometry({ contained = false, hidden = false, cards = [{ id: 'above', t
   };
   const module = sourceModule('src/components/profile/ProjectPageBrowsingContext.tsx', { react: React }, {
     window, document: { body, documentElement: root },
-    getComputedStyle: element => ({ overflowY: element === owner ? 'auto' : 'visible' }),
+    getComputedStyle: element => ({ overflowY: element === owner ? 'auto' : 'visible', position: element === headerNode ? header.position ?? 'sticky' : 'static', top: '0px' }),
     requestAnimationFrame(callback) { const id = ++frameId; frames.set(id, callback); return id; },
     cancelAnimationFrame(id) { frames.delete(id); },
   });
@@ -114,6 +121,58 @@ test('when a tall project shrinks, density restoration keeps a usable part of it
   h.cards[0].top = 20; h.cards[0].height = 100;
   h.restoreCatalogueDensityAnchor(h.surface, anchor); h.flush();
   assert.equal(h.elements[0].getBoundingClientRect().bottom, 44);
+});
+
+test('mobile density snapshots skip projects completely covered by the pinned profile header', () => {
+  const h = geometry({ mobile: true, header: { bottom: 249 }, cards: [
+    { id: 'occluded', top: 49, height: 100 }, { id: 'visible', top: 260, height: 100 },
+  ] });
+  const anchor = h.captureCatalogueDensityAnchor(h.surface);
+  assert.equal(anchor.projectId, 'visible', 'A card behind the social-links header cannot own the visible reading position.');
+  assert.equal(anchor.offset, 11);
+  h.cards[1].top = 430;
+  h.restoreCatalogueDensityAnchor(h.surface, anchor); h.flush();
+  assert.equal(h.elements[1].getBoundingClientRect().top, 260);
+});
+
+test('mobile tall-to-short density restoration retains 44 usable pixels below the pinned header', () => {
+  const h = geometry({ mobile: true, header: { bottom: 249 }, cards: [{ id: 'work', top: -60, height: 500 }] });
+  const anchor = h.captureCatalogueDensityAnchor(h.surface);
+  assert.equal(anchor.offset, -309);
+  h.cards[0].top = 400; h.cards[0].height = 100;
+  h.restoreCatalogueDensityAnchor(h.surface, anchor); h.flush();
+  assert.equal(h.elements[0].getBoundingClientRect().bottom, 249 + 44);
+});
+
+test('mobile density restoration measures the current responsive profile-header boundary', () => {
+  const header = { bottom: 249 };
+  const h = geometry({ mobile: true, header, cards: [{ id: 'work', top: 260, height: 100 }] });
+  const anchor = h.captureCatalogueDensityAnchor(h.surface);
+  h.cards[0].top = 500; header.bottom = 310;
+  h.restoreCatalogueDensityAnchor(h.surface, anchor); h.flush();
+  assert.equal(h.elements[0].getBoundingClientRect().top, 321, 'Preserve its 11px visible offset after the header grows.');
+});
+
+test('mobile profile compensation does not expand a contained viewport past its real bottom', () => {
+  const h = geometry({ contained: true, mobile: true, header: { bottom: 249 }, cards: [{ id: 'below-scrollport', top: 520, height: 100 }] });
+  assert.equal(h.captureCatalogueDensityAnchor(h.surface), null);
+});
+
+test('web and mobile catalogues without an occluding pinned profile header retain their existing viewport', () => {
+  for (const options of [
+    { header: { bottom: 249 } },
+    { mobile: true },
+    { mobile: true, header: { bottom: 249, position: 'static' } },
+    { mobile: true, header: { bottom: 249, left: 500, right: 920 } },
+    { mobile: true, header: { top: 200, bottom: 249 } },
+  ]) {
+    const h = geometry({ ...options, cards: [{ id: 'work', top: 49, height: 100 }] });
+    const anchor = h.captureCatalogueDensityAnchor(h.surface);
+    assert.equal(anchor.projectId, 'work'); assert.equal(anchor.offset, 49);
+    h.cards[0].top = 349;
+    h.restoreCatalogueDensityAnchor(h.surface, anchor); h.flush();
+    assert.equal(h.elements[0].getBoundingClientRect().top, 49);
+  }
 });
 
 test('density correction stops on new user intent and ignores hidden or removed catalogue content', () => {

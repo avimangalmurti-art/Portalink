@@ -18,9 +18,8 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   const [interacted,setInteracted]=useState(false);
   const dialogRef = useRef<HTMLDivElement>(null), viewportRef = useDialogViewport(), titleId = useId();
   const ownerProfile = layout === 'actions' && model.kind === 'profile' && Boolean(model.viewer?.owner);
-  // The owner menu has primary tiles plus catalogue/settings actions. Use the
-  // available screen on entry instead of hiding its lower rows at the detent.
-  const [expanded, setExpanded] = useState(ownerProfile);
+  // Phone menus start at the compact detent; expansion is an explicit action.
+  const [expanded, setExpanded] = useState(ownerProfile && !mobile);
   const dismiss = () => motion.close(onClose, viewportRef.current);
   const start = useRef<{x:number;y:number;id:number;rest:number;offset:number} | null>(null);
   const dragged = useRef(false);

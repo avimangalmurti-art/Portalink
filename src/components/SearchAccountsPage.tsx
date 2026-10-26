@@ -12,13 +12,15 @@ import { motionEase, motionMs, reducedMotion } from '../presentation/motion/moti
 
 const EMPTY_ACCOUNTS: FeedCreator[] = [];
 
-export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarmCreator, onBack }: {
+export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarmCreator, onBack, guestPreview = false }: {
   query: string; onQueryChange: (value: string) => void; onOpenCreator: (id: string) => void; onWarmCreator?: (id: string) => void; onBack?: () => void;
+  guestPreview?: boolean;
 }) {
   const mobile = usePresentation() === 'mobile';
   const SearchField = mobile ? 'textarea' : 'input';
   const { discovery } = useServices();
   const auth = useAuth();
+  const canSearch = auth.isAuthenticated || guestPreview;
   const active = useMobileScreenActive();
   const activeRef = useRef(active);
   activeRef.current = active;
@@ -26,7 +28,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
   const recent = auth.isAuthenticated ? readRecentAccounts(auth.user?.id) : EMPTY_ACCOUNTS;
   const term = query.trim();
   const account = auth.isAuthenticated ? auth.user?.id ?? null : null;
-  const scope = useMemo(() => ({ term, discovery, mobile, account }), [term, discovery, mobile, account]);
+  const scope = useMemo(() => ({ term, discovery, mobile, account, canSearch }), [term, discovery, mobile, account, canSearch]);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const request = useRef(0);
@@ -51,7 +53,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
     busy.current = false;
     setPage(null);
     setResult({ scope, term, people: [], status: term ? 'loading' : 'ready', more: false });
-    if (!term || !auth.isAuthenticated) return;
+    if (!term || !canSearch) return;
     const timer = window.setTimeout(() => {
       void (discovery.searchAccounts ? discovery.searchAccounts(term) : Promise.reject(new Error('Search unavailable'))).then(people => {
         if (request.current === version && scopeRef.current === scope) setResult({ scope, term, people, status: 'ready', more: people.length === 30 });
@@ -60,7 +62,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
       });
     }, 220);
     return () => { window.clearTimeout(timer); request.current++; };
-  }, [term, discovery, attempt, scope, auth.isAuthenticated]);
+  }, [term, discovery, attempt, scope, canSearch]);
   const current = result.term === term && result.scope === scope;
   const people = current ? result.people : EMPTY_ACCOUNTS;
   const loading = Boolean(term) && (!current || result.status === 'loading');
@@ -115,7 +117,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
   }
 
   async function loadMore() {
-    if (!auth.isAuthenticated || !current || busy.current || !result.more || !discovery.searchAccounts || (mobile && !activeRef.current)) return;
+    if (!canSearch || !current || busy.current || !result.more || !discovery.searchAccounts || (mobile && !activeRef.current)) return;
     const version = request.current;
     const offset = currentPage?.status === 'error' ? currentPage.offset : people.length;
     const visibleFooterHeight = mobile ? footer.current?.getBoundingClientRect().height : undefined;
@@ -143,7 +145,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
       }
     } finally { if (request.current === version && scopeRef.current === scope) busy.current = false; }
   }
-  if (!auth.isAuthenticated) return <section className="px-5 py-8" aria-label="Search accounts"><EmptyState title="Find people on Portalink" description="Create an account or sign in to search profiles." action={{ label: 'Create account', onClick: () => auth.requestAuthenticatedDestination({ kind: 'route', path: '/search', label: 'search accounts' }, 'signUp') }} secondaryAction={onBack ? { label: 'Back to Home', onClick: onBack } : undefined} /></section>;
+  if (!canSearch) return <section className="px-5 py-8" aria-label="Search accounts"><EmptyState title="Find people on Portalink" description="Create an account or sign in to search profiles." action={{ label: 'Create account', onClick: () => auth.requestAuthenticatedDestination({ kind: 'route', path: '/search', label: 'search accounts' }, 'signUp') }} secondaryAction={onBack ? { label: 'Back to Home', onClick: onBack } : undefined} /></section>;
   return <section ref={section} data-account-search className="flex h-full min-h-0 flex-col px-5 py-5" aria-label="Search">
     <header className="account-search-header shrink-0">
     {onBack ? <ScreenBack visibleOnMobile action={onBack}><button type="button" aria-label="Back" className="account-search-back mb-3 flex h-11 w-11 shrink-0 items-center justify-center self-start" onClick={onBack}><ArrowLeftIcon aria-hidden="true" size={24} /></button></ScreenBack> : null}
@@ -155,7 +157,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
 
       {loading ? <LoadingState label="Searching accounts…" /> : null}
       {current && result.status === 'error' ? <ErrorState title="Accounts could not be searched" description="Check your connection and try again." onRetry={() => { if (mobile) { const control = document.activeElement; if (control instanceof HTMLElement && section.current?.contains(control) && control.matches('button')) preserveRemovedControlFocus(control); } setAttempt(value => value + 1); }} /> : null}
-      <ul ref={list} aria-label={term ? "Search results" : "Recent accounts"} className="inset-row-group inset-row-group-icons account-search-list">{(term ? people : recent).map(person => <li key={person.id} className={mobile ? "flex items-center" : undefined}><button type="button" className={`flex min-h-16 ${mobile ? 'min-w-0 flex-1' : 'w-full'} items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`} onClick={() => { rememberAccount(auth.user?.id, person); onOpenCreator(person.id); }} onPointerEnter={() => onWarmCreator?.(person.id)} onFocus={() => onWarmCreator?.(person.id)}>
+      <ul ref={list} aria-label={term ? "Search results" : "Recent accounts"} className="inset-row-group inset-row-group-icons account-search-list">{(term ? people : recent).map(person => <li key={person.id} className={mobile ? "flex items-center" : undefined}><button type="button" className={`flex min-h-16 ${mobile ? 'min-w-0 flex-1' : 'w-full'} items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`} onClick={() => { if (auth.isAuthenticated) rememberAccount(auth.user?.id, person); onOpenCreator(person.id); }} onPointerEnter={auth.isAuthenticated ? () => onWarmCreator?.(person.id) : undefined} onFocus={auth.isAuthenticated ? () => onWarmCreator?.(person.id) : undefined}>
         <span className="h-11 w-11 shrink-0 overflow-hidden rounded-xl"><CreatorAvatar name={person.name} avatar={person.avatar} className="h-full w-full" /></span>
         <span className="min-w-0"><strong className="block truncate">{person.name}</strong><span className="block truncate text-sm text-[var(--text-secondary)]">{person.kind}</span>{person.location ? <span className="block truncate text-sm text-[var(--text-secondary)]">{person.location}</span> : null}</span>
       </button>{mobile && !term && <button type="button" aria-label={`Remove ${person.name} from recent accounts`} data-ui-control="icon" data-control-size="md" data-control-variant="ghost" className="shrink-0" onClick={() => { forgetAccount(auth.user?.id, person.id); refreshRecent(value => value + 1); }}><XIcon aria-hidden="true" size={20} /></button>}</li>)}</ul>

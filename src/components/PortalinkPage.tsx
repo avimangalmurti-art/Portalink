@@ -17,7 +17,9 @@ type PortalinkPageProps = {
   onBack: () => void;
   onSelectCity: (city: City | DirectoryPlace) => void;
   /** The live-session lifecycle, owned by `useLiveSessions` in the app shell. */
-  live: LiveSessionsState;
+  live?: LiveSessionsState;
+  /** Guest navigation and its invitation own the available frame. */
+  embedded?: boolean;
 };
 // Camera scale bounds. 1 is the whole planet; closer scales let the LOD resolver
 // hand out progressively more geographic detail.
@@ -29,10 +31,11 @@ const MAX_SCALE = 8;
 export function PortalinkPage({
   onBack,
   onSelectCity,
-  live: _live
+  live: _live,
+  embedded = false
 }: PortalinkPageProps) {
   const isMobile = usePresentation() === 'mobile';
-  const searchViewportRef = useDialogViewport(isMobile);
+  const searchViewportRef = useDialogViewport(isMobile && !embedded);
   const [centerLongitude, setCenterLongitude] = useState(-20);
   const [centerLatitude, setCenterLatitude] = useState(18);
   const [scale, setScale] = useState(MIN_SCALE);
@@ -161,7 +164,7 @@ export function PortalinkPage({
     centerLatitude,
     scale
   }), [centerLongitude, centerLatitude, scale]);
-  return <div ref={searchViewportRef} className="portalink-world relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
+  return <div ref={searchViewportRef} data-guest-world={embedded ? '' : undefined} className="portalink-world relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
       {/* The global header contract places this page control on the exact same
           centerline as the adjacent main-navigation header control. */}
       <header className="portalink-world-header relative z-20 shrink-0">

@@ -40,18 +40,18 @@ test('a guest project selection opens signup and preserves the intended project 
   assert.equal(intents[0][0].path, '/p/creator/c/portal/project'); assert.equal(intents[0][1], 'signUp');
 });
 
-test('directory service requests reject signed-out, anonymous and failed identities before profile reads', async () => {
+test('public account search permits guests, stays public and bounded, and rejects session-check failures', async () => {
   const tree = ast('src/services/supabase/contentServices.ts');
   const service = find(tree, 'supabaseDiscoveryService').initializer;
   const search = service.properties.find(node => node.name?.getText(tree) === 'searchAccounts');
   for (const identity of [{ user: null }, { user: { id: 'anon', is_anonymous: true } }, { user: { id: 'old' }, error: { message: 'expired' } }, { user: { id: 'account' } }]) {
     let queries = 0;
-    const client = { auth: { getUser: async () => ({ data: { user: identity.user }, error: identity.error ?? null }) }, from() {
-      queries++; const q = { select: () => q, eq: () => q, or: () => q, order: () => q, range: async () => ({ data: [], error: null }) }; return q;
+    const client = { auth: { getSession: async () => ({ data: { session: identity.user ? { user: identity.user } : null }, error: identity.error ?? null }) }, from() {
+      queries++; const q = { select: fields => { assert.equal(fields, 'id,name,handle,headline,avatar_url,location'); return q; }, eq: (field, value) => { assert.equal(field, 'is_private'); assert.equal(value, false); return q; }, or: () => q, order: () => q, range: async (from, to) => { assert.equal(to - from + 1, 30); return { data: [], error: null }; } }; return q;
     } };
     const { requireDirectoryAccount } = sourceModule('src/services/supabase/requireDirectoryAccount.ts', { './client': { requireSupabase: () => client } });
     const { run } = compile('exports.run=({' + search.getText(tree) + '}).searchAccounts;', { requireDirectoryAccount, requireSupabase: () => client });
-    if (!identity.user || identity.user.is_anonymous || identity.error) { await assert.rejects(run('creator'), /Create an account/); assert.equal(queries, 0); }
+    if (identity.error) { await assert.rejects(run('creator'), /session could not be checked/); assert.equal(queries, 0); }
     else { await run('creator'); assert.equal(queries, 1); }
   }
 });
@@ -84,14 +84,16 @@ test('preview uses twenty-four unique static cover controls and retains account 
   const { GuestHomePreview } = sourceModule('src/components/home/GuestHomePreview.tsx', {
     react: React, '../media/ProjectCover': { ProjectCover: 'project-cover' }, '../../utils/projectPresentation': { getProjectCoverPreview: () => undefined, getProjectAspectRatio: project => project.coverAspectRatio },
     '../profile/JustifiedImageWall': { JustifiedImageWall: 'justified-wall' },
-    'lucide-react': { ChevronLeftIcon: 'chevron-left' }, '../ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
+    'lucide-react': new Proxy({}, { get: (_, key) => key }), '../ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
+    '../../app/routes': { buildPath: (kind, ids) => kind === 'profile' ? '/p/' + ids.profileId : kind === 'location' ? '/portalink/' + ids.locationId : '/' + kind },
+    '../../utils/location': { toLocationId: name => name.toLowerCase() },
     '../../features/discovery/guestPreview': preview, '../ui/StateViews': { EmptyState: 'empty', ErrorState: 'error', LoadingState: 'loading' }, './guest-home-preview.css': {},
   });
   const calls = [], projects = Array.from({ length: 30 }, (_, id) => ({ project: { id: String(id), title: 'Project ' + id, cover: 'cover-' + id, coverKind: 'image', coverAspectRatio: [.5, 1, 1.5][id % 3] }, creator: { id: 'creator' } }));
   const props = { projects: [...projects, projects[0]], loading: false, onRetry() {}, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin'), onOpenProject: view => calls.push(view.project.id), scrollRef: { current: null }, onScroll() {} };
   const render = options => {
     const shell = elements(GuestHomePreview(options)), wall = shell.find(node => node.type === 'justified-wall');
-    return { wall, nodes: [...shell, ...wall.props.items.flatMap(item => elements(item.content))] };
+    return { wall, nodes: [...shell, ...(wall?.props.items ?? []).flatMap(item => elements(item.content))] };
   };
   const { nodes, wall } = render(props);
   assert.equal(wall.props.items.length, 24);
@@ -107,5 +109,21 @@ test('preview uses twenty-four unique static cover controls and retains account 
     const view = render({ ...props, ...extra }).nodes;
     view.find(node => node.props.className === 'guest-home-create').props.onClick(); assert.equal(calls.at(-1), 'create');
     assert.equal(view.some(node => node.props.className?.split(' ').includes('guest-home-project')), false);
+  }
+  const navigation = [], gates = [];
+  for (const view of ['home', 'world', 'search', 'profile']) {
+    const page = render({ ...props, view, onViewChange: next => navigation.push(next), onRequireSignIn: (...args) => gates.push(args) }).nodes;
+    assert.ok(page.some(node => node.props.className === 'guest-home-invitation'), `${view} keeps the account invitation`);
+    page.find(node => node.props['aria-label'] === 'Your profile').props.onClick(); assert.equal(navigation.at(-1), 'profile');
+    page.find(node => node.props['aria-label'] === 'Open globe search').props.onClick(); assert.equal(navigation.at(-1), 'world');
+    page.find(node => node.props['aria-label'] === 'Search accounts').props.onClick(); assert.equal(navigation.at(-1), 'search');
+    for (const label of ['Messages', 'Studio']) { page.find(node => node.props['aria-label'] === label).props.onClick(); assert.equal(gates.at(-1)[0], '/' + label.toLowerCase()); }
+    if (view === 'world') { page.find(node => node.props.embedded).props.onSelectCity({ id: 'city' }); assert.equal(gates.at(-1)[0], '/portalink/city'); }
+    if (view === 'search') { const search = page.find(node => node.props.guestPreview); search.props.onOpenCreator('creator'); assert.equal(gates.at(-1)[0], '/p/creator'); }
+    if (view === 'profile') {
+      assert.equal(page.filter(node => node.type === 'span' && /^0 (projects|portals|followers|following)$/.test(node.props.children)).length, 4);
+      for (const selector of [node => node.props['aria-label'] === 'Profile actions', node => node.props.className === 'guest-profile-first-project', node => node.type === 'button' && node.props.children === 'Timeline']) { page.find(selector).props.onClick(); assert.ok(gates.at(-1)); }
+      assert.equal(page.some(node => node.type === 'project-cover'), false);
+    }
   }
 });
