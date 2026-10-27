@@ -71,7 +71,7 @@ function geometry({ contained = false, hidden = false, mobile = false, header = 
     addEventListener(type, listener) { listeners.set(type, listener); },
     removeEventListener(type, listener) { if (listeners.get(type) === listener) listeners.delete(type); },
   };
-  const module = sourceModule('src/components/profile/ProjectPageBrowsingContext.tsx', { react: React }, {
+  const module = sourceModule('src/components/profile/ProjectPageBrowsingContext.tsx', { react: React, './mobileCatalogueScroll': { repairMobileCatalogueScroll: () => false } }, {
     window, document: { body, documentElement: root },
     getComputedStyle: element => ({ overflowY: element === owner ? 'auto' : 'visible', position: element === headerNode ? header.position ?? 'sticky' : 'static', top: '0px' }),
     requestAnimationFrame(callback) { const id = ++frameId; frames.set(id, callback); return id; },

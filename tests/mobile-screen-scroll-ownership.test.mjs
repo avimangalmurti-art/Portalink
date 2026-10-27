@@ -38,7 +38,7 @@ const profileSource = scrollSource('src/components/UserProfilePage.tsx', 'UserPr
 
 function fixture(kind, { mobile = true, active = true, loading = false, maxScroll = Infinity } = {}) {
   const state = { mobile, active };
-  const frames = new Map(), listeners = new Set(), slots = [], writes = [], saves = [], readiness = [], projectNotes = [], focusAttempts = [];
+  const frames = new Map(), listeners = new Set(), slots = [], writes = [], saves = [], readiness = [], projectNotes = [], focusAttempts = [], layoutRepairs = [];
   let frameId = 0, cursor = 0, pending = [], documentTop = 900, containedTop = 0, target = 640;
   const scheduleEffect = (effect, deps) => {
     const index = cursor++;
@@ -70,6 +70,8 @@ function fixture(kind, { mobile = true, active = true, loading = false, maxScrol
     profile: { id: 'creator' }, profilePageRef: { current: { closest: () => !state.active } },
     noteMobileProfileProject: owner => projectNotes.push(owner),
     focusMobileProjectOrigin: (root, owner) => focusAttempts.push({ root, owner, scrollTop: documentTop }),
+    repairMobileCatalogueScroll: root => layoutRepairs.push(['repair', root]),
+    observeMobileCatalogueScroll: root => { layoutRepairs.push(['observe', root]); return () => layoutRepairs.push(['disconnect', root]); },
     mobileWallScroll: { current: { top: 0 } },
     wallMemoryRef: { current: { read: () => target, save: value => saves.push(['profile', value]) } },
     requestAnimationFrame(callback) { frames.set(++frameId, callback); return frameId; },
@@ -90,7 +92,7 @@ function fixture(kind, { mobile = true, active = true, loading = false, maxScrol
     return handler;
   };
   return {
-    state, context, writes, saves, readiness, frames, listeners, projectNotes, focusAttempts, render,
+    state, context, writes, saves, readiness, frames, listeners, projectNotes, focusAttempts, layoutRepairs, render,
     paint() { const batch = [...frames.values()]; frames.clear(); batch.forEach(callback => callback()); },
     scroll(top) { documentTop = top; for (const callback of [...listeners]) callback(); },
     setTarget(top) { target = top; },
@@ -181,6 +183,18 @@ test('leaving a profile before its restore frame cancels that frame', () => {
   queuedFrame(); // A callback already selected before passive-effect cleanup.
   assert.equal(h.frames.size, 0); assert.deepEqual(h.writes, []);
   h.dispose();
+});
+
+test('only an active mobile wall repairs its restored offset and observes later layout changes', () => {
+  const h = fixture('profile', { active: false });
+  h.render(); assert.equal(h.layoutRepairs.length, 0);
+  h.render({ active: true }); h.paint();
+  assert.deepEqual(h.layoutRepairs.map(([action]) => action), ['observe', 'repair']);
+  h.render({ active: false });
+  assert.deepEqual(h.layoutRepairs.map(([action]) => action), ['observe', 'repair', 'disconnect']);
+  h.dispose();
+  const web = fixture('profile', { mobile: false }); web.render(); web.paint();
+  assert.equal(web.layoutRepairs.length, 0); web.dispose();
 });
 
 test('WEB profiles and mobile nested project views never run the wall document effects', () => {

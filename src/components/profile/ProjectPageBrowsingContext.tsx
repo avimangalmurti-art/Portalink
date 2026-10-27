@@ -1,4 +1,5 @@
 import React, { createContext, useContext, type RefObject } from 'react';
+import { repairMobileCatalogueScroll } from './mobileCatalogueScroll';
 
 const InlineProjectPagesContext = createContext(false);
 export function useInlineProjectPages(): boolean { return useContext(InlineProjectPagesContext); }
@@ -57,6 +58,9 @@ export function restoreCatalogueDensityAnchor(surface: HTMLElement | null, ancho
   };
   const restore = () => {
     if (stopped || !surface?.isConnected || !available(surface) || (anchor.scroller && !anchor.scroller.isConnected)) { stop(); return; }
+    // Once the whole phone catalogue fits, a later-project anchor would hide
+    // its beginning again. Let its document-origin repair own this layout.
+    if (repairMobileCatalogueScroll(surface.closest<HTMLElement>('[data-profile-page]'))) { stop(); return; }
     const card = [...surface.querySelectorAll<HTMLElement>(cardSelector)].find(element => element.dataset.projectContinuityId === anchor.projectId
       && !element.closest('[hidden], [inert], [aria-hidden="true"]'));
     if (!card) { stop(); return; }

@@ -1998,6 +1998,40 @@
   }
 }
 
+/* Home and City match Profile's material through the phone's safe edges; only
+   the lower decorative edge fades. Controls retain their existing safe inset. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
+    inset: calc(0px - var(--safe-area-top, 0px)) calc(0px - var(--safe-area-right, 0px)) -20px calc(0px - var(--safe-area-left, 0px)) !important;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) var(--interface-glass-opacity, 78%), transparent) !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
+  }
+  #root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
+    bottom: 0 !important;
+    background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    #root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
+      bottom: 0 !important;
+      background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+      -webkit-mask-image: none !important;
+      mask-image: none !important;
+    }
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    #root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
+      bottom: 0 !important;
+      background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+      -webkit-mask-image: none !important;
+      mask-image: none !important;
+    }
+  }
+}
+
 #root .codex-shell[data-presentation='mobile'] .profile-header-region > header {
   background: transparent !important;
   -webkit-backdrop-filter: none;
@@ -3218,6 +3252,19 @@
 #root .codex-shell[data-presentation='mobile'] .settings-page { padding-bottom: 0; }
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-profile-wall, .mobile-portals-scroll) {
   padding-bottom: var(--mobile-content-safe-bottom);
+}
+/* A catalogue is document content, not a shrinking pane beside its header.
+   Keep the whole wall in block flow even when dense rows fit one screen. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-page][data-mobile-catalogue-spacing],
+#root .codex-shell[data-presentation='mobile'] [data-profile-page][data-mobile-catalogue-spacing] > #profile-content {
+  display: block;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-page][data-mobile-catalogue-spacing] > #profile-content > .mobile-profile-wall {
+  height: auto;
+  overflow: visible;
 }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar { position: fixed; }
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay {
@@ -4893,8 +4940,20 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
   line-height: 1.2;
 }
 
+/* The city joins Home/Profile's document scroll. Its containing block must grow
+   with the artwork so the sticky title stays pinned through the final row. */
+#root .codex-shell[data-presentation='mobile'] :is([data-city-page], [data-city-feed], [data-city-feed] > .feed-starfield) {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  flex-basis: auto;
+}
+
 /* Equal side slots center the location in the screen, not the leftover row. */
 #root .codex-shell[data-presentation='mobile'] [data-city-header] {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   gap: 8px;

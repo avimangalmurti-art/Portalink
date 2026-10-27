@@ -8,6 +8,7 @@ import { resolveAccentTokens } from '../../utils/accentTokens';
 import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import { MobileOnboardingAppearance } from './MobileOnboarding';
 import { CreativeThought } from './CreativeThought';
+import { CityClock } from './CityClock';
 import './professional-entry.css';
 
 const teamMembers = [
@@ -98,7 +99,7 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
       </div> : <img className="professional-entry-logo squircle" src="/icons/portalink-app-192-62b9d2e7.png" alt="" aria-hidden="true" width={68} height={68} />}
       <div className="professional-entry-brand-copy">
         <h1 id="professional-entry-title" className="professional-entry-company-name">Portalink Networks Inc.</h1>
-        <CreativeThought />
+        {mobile ? <CityClock /> : <CreativeThought />}
       </div>
     </div>
   </div>;

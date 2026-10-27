@@ -169,12 +169,23 @@
     height: max(12px, env(safe-area-inset-top, 0px));
     background: var(--entry-bg); pointer-events: none;
   }
+  /* Hide passing pill edges in the rounded top cutouts, preserving the card's glass. */
+  .professional-entry-mobile-header::after {
+    content: ''; position: absolute;
+    top: max(12px, env(safe-area-inset-top, 0px)); inset-inline: 0;
+    height: 28px; pointer-events: none;
+    background:
+      radial-gradient(circle at right bottom, transparent 28px, var(--entry-bg) 28px) left top / 28px 28px no-repeat,
+      radial-gradient(circle at left bottom, transparent 28px, var(--entry-bg) 28px) right top / 28px 28px no-repeat;
+  }
   .professional-entry-wordmark { display: flex; flex-wrap: wrap; gap: 12px; min-height: 0; padding: 14px 16px; }
   .professional-entry-brand-copy { flex: 1 1 10rem; }
   .professional-entry-avatar { --text-primary: var(--entry-ink); --surface-raised: var(--entry-surface); flex: 0 0 68px; width: 68px; height: 68px; }
   .professional-entry-avatar > button { --mobile-component-radius: 22%; width: 68px; height: 68px; min-height: 68px; padding: 0; border-radius: 22%; background: transparent; }
   .professional-entry-avatar > button:focus-visible { border-radius: var(--shape-container); outline-offset: 3px; }
-  .professional-entry-company-name { font-size: 1.5rem; }
+  .professional-entry-company-name { font-size: clamp(16px, calc(8.4vw - 11px), 1.5rem); white-space: nowrap; overflow-wrap: normal; }
+  .professional-entry-city-clock { font-variant-numeric: tabular-nums; }
+  .professional-entry-clock-time { white-space: nowrap; }
   .professional-entry-description { margin-top: 4px; font-size: 1rem; }
   .professional-entry-account-settings { min-width: 0; margin-top: 12px; border-radius: 28px; background: var(--entry-surface); }
   .professional-entry-account-actions { grid-template-columns: 1fr; gap: 0; margin-top: 0; }

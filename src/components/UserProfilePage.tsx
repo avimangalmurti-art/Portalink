@@ -6,6 +6,7 @@ import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview
 import { DeferredSurface } from './ui/DeferredDialog';
 import { ScreenBack, useMobileScreenActive } from '../presentation/mobile/MobileBackNavigation';
 import { focusMobileProjectOrigin, noteMobileProfileProject } from '../utils/projectContinuity';
+import { observeMobileCatalogueScroll, repairMobileCatalogueScroll } from './profile/mobileCatalogueScroll';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { useAuth } from '../contexts/AuthContext';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
@@ -699,15 +700,17 @@ export function UserProfilePage({
     const frame = requestAnimationFrame(() => {
       if (!profilePageRef.current || profilePageRef.current.closest('.screen-exit')) return;
       window.scrollTo({ top: wallMemoryRef.current?.read() ?? mobileWallScroll.current.top, behavior: 'auto' });
+      repairMobileCatalogueScroll(profilePageRef.current);
       focusMobileProjectOrigin(profilePageRef.current, profile.id);
     });
+    const stopLayoutRepair = observeMobileCatalogueScroll(profilePageRef.current);
     const remember = () => {
       if (profilePageRef.current?.closest('.screen-exit')) return;
       mobileWallScroll.current.top = window.scrollY;
       wallMemoryRef.current?.save(window.scrollY);
     };
     window.addEventListener('scroll', remember, { passive: true });
-    return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', remember); };
+    return () => { cancelAnimationFrame(frame); stopLayoutRepair(); window.removeEventListener('scroll', remember); };
   }, [isMobileWall, profile.id, screenActive, isMobile, mobileProjectSelected]);
 
   const isWebWorkspace = !isMobile && Boolean(mobileContent);

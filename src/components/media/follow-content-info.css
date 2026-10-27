@@ -16,6 +16,14 @@
   animation: follow-info-panel-in var(--m-base) var(--m-enter) both;
 }
 [data-follow-info-layer] .follow-info-header { display: flex; align-items: center; gap: 12px; flex: none; }
+/* The popup already owns the surface; an idle author row needs no second tint. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] [data-follow-info-layer] .follow-info-header[data-mobile-header-underlap='false']::before {
+    background: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
 [data-follow-info-layer] .project-popup-creator { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 0; margin: 0; border: 0; font-weight: 600; text-align: left; }
 [data-follow-info-layer] .project-popup-creator > span { overflow-wrap: anywhere; }
 [data-follow-info-layer] .follow-info-options { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
