@@ -7,6 +7,11 @@
 /* The sidebar's destination buttons stay below its company header. Only the
    portal list scrolls, so neither its outer body nor its list needs underlap. */
 @layer portalink-header-material {
+  /* The sidebar already paints its navigation surface; its header shares it. */
+  #root .codex-shell[data-presentation='web'] .sidebar-surface > .global-control-header[data-mobile-header-underlap]::before {
+    content: none !important;
+  }
+
   #root .codex-shell[data-presentation='web'] .sidebar-surface > [aria-label='Navigation and work'][data-fixed-header-underlap] {
     margin-top: var(--fixed-header-margin) !important;
   }

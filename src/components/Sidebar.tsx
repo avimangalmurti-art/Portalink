@@ -181,12 +181,12 @@ function PortalNetworkTile() {
     </button>;
 }
 
-/** Personal utilities occupy the same slots in the expanded and collapsed rail. */
-function PersonalFooterLinks({ collapsed, activityActive, insightsActive }: {collapsed: boolean;activityActive: boolean;insightsActive: boolean;}) {
-  return <>{([
-    ['Activity', 'notifications', BellIcon, activityActive],
-    ['Insights', 'insights', ChartNoAxesColumnIcon, insightsActive],
-  ] as const).map(([label, route, icon, active]) => <Link key={route} to={buildPath(route)} aria-label={`Open ${label}`} title={label} aria-current={active ? 'page' : undefined} className={`${collapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control mx-auto'} nav-button shape-compact flex shrink-0 items-center justify-center transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${active ? 'bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}><InterfaceIcon icon={icon} size="sm" weight="medium" /></Link>)}</>;
+/** Personal destinations keep their routes and selected states in either rail. */
+function PersonalNavigationTile({ destination, collapsed = false, active }: {destination: 'notifications' | 'insights';collapsed?: boolean;active: boolean;}) {
+  const label = destination === 'notifications' ? 'Activity' : 'Insights';
+  const Icon = destination === 'notifications' ? BellIcon : ChartNoAxesColumnIcon;
+  if (!collapsed) return <NavTile label={label} icon={Icon} isActive={active} activeClassName="" href={buildPath(destination)} ariaLabel={`Open ${label}`} title={label} />;
+  return <Link to={buildPath(destination)} aria-label={`Open ${label}`} title={label} aria-current={active ? 'page' : undefined} className={`sidebar-rail-slot nav-button shape-compact flex shrink-0 items-center justify-center transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${active ? 'bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}><InterfaceIcon icon={Icon} size="sm" weight="medium" /></Link>;
 }
 
 function SettingsTrigger({ collapsed, onOpen }: { collapsed: boolean; onOpen: () => void }) {
@@ -667,9 +667,9 @@ export function Sidebar({
               {/* One stacked group on one axis: identical squares, one shared
                gap, no per-item margins or padding. */}
               <nav className="scrollbar-hidden sidebar-rail sidebar-group min-h-0 flex-1 overflow-y-auto" aria-label="Compact main destinations">
-                <button type="button" disabled aria-label="Portals unavailable" title="Portals is not available yet" className="nav-button reserved-network-control shape-compact sidebar-rail-slot focus:outline-none">
+                {isAuthenticated ? <PersonalNavigationTile destination="insights" collapsed active={isInsightsActive} /> : <button type="button" disabled aria-label="Portals unavailable" title="Portals is not available yet" className="nav-button reserved-network-control shape-compact sidebar-rail-slot focus:outline-none">
                   <InterfaceIcon icon={PortalRingIcon} weight="medium" />
-                </button>
+                </button>}
                 <Link to={buildPath('saved')} aria-label="Open Saved" title="Saved" aria-current={isSavedActive ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot flex items-center justify-center transition-colors focus:outline-none">
                   <InterfaceIcon icon={BookmarkIcon} weight="medium" />
                 </Link>
@@ -680,9 +680,9 @@ export function Sidebar({
               const Icon = item.icon;
               return <button key={item.label} type="button" onClick={() => handleNavigate(item.label)} aria-label={`Open ${item.displayLabel}`} title={item.displayLabel} aria-current={activeTarget === 'home' ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none"><InterfaceIcon icon={Icon} weight="medium" /></button>;
             })}
-                <button type="button" disabled aria-label="Studio unavailable" title="Studio is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
+                {isAuthenticated ? <PersonalNavigationTile destination="notifications" collapsed active={isActivityActive} /> : <button type="button" disabled aria-label="Studio unavailable" title="Studio is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
                   <InterfaceIcon icon={WarehouseIcon} weight="medium" />
-                </button>
+                </button>}
                 <button type="button" onClick={onSearchOpen} aria-label="Search accounts" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
                   <InterfaceIcon icon={UserSearchIcon} weight="medium" />
                 </button>
@@ -700,13 +700,13 @@ export function Sidebar({
             <nav className="ps-nav-grid side-panel-control-stack shrink-0" aria-label="Main destinations">
               <div className="sidebar-network-grid w-full">
                 <div role="group" aria-label="Main navigation row one" className="contents">
-                  <PortalNetworkTile />
+                  {isAuthenticated ? <PersonalNavigationTile destination="insights" active={isInsightsActive} /> : <PortalNetworkTile />}
                   <NavTile label="Saved" icon={BookmarkIcon} isActive={isSavedActive} activeClassName="" ariaLabel="Open Saved" title="Saved" href={buildPath('saved')} />
                   <NavTile label="Portalink connection" icon={SatelliteDishIcon} isActive={activeTarget === 'portalink'} activeClassName="" onSelect={onPortalinkOpen} ariaLabel="Open Portalink world view" />
                   {primaryNav.map((item) => <NavTile key={item.label} label={item.displayLabel} icon={item.icon} isActive={activeTarget === 'home'} activeClassName="" onSelect={() => handleNavigate(item.label)} ariaLabel={`Open ${item.displayLabel}`} />)}
                 </div>
                 <div role="group" aria-label="Main navigation row two" className="contents">
-                  <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />
+                  {isAuthenticated ? <PersonalNavigationTile destination="notifications" active={isActivityActive} /> : <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />}
                   <NavTile label="Search" icon={UserSearchIcon} isActive={activeTarget === 'search'} activeClassName="" ariaLabel="Search accounts" onSelect={onSearchOpen} />
                   <NavTile label="Messages" icon={MessageCircleIcon} isActive={activeTarget === 'messages'} activeClassName="" onSelect={() => onMessagesOpen()} ariaLabel="Open messages" isProfileTile />
                   <NavTile label="Profile" icon={CircleUserRoundIcon} isActive={activeTarget === 'profile'} activeClassName="" onSelect={handleProfileOpen} href={profileHref} ariaLabel="Open your profile" isProfileTile />
@@ -791,18 +791,28 @@ export function Sidebar({
 
           </>}
 
-          {/* Settings leads the footer row, followed by Activity, Insights,
-              and Appearance. The same order is preserved in the collapsed rail. */}
+          {/* Personal destinations occupy the main grid; the inactive Studio
+              and Portals markers take their old footer slots in either rail. */}
           <div className={`sidebar-account-footer mt-auto shrink-0 border-t border-[var(--hairline)] ${isSidebarCollapsed ? 'sidebar-rail' : 'pt-2'}`}>
             {isSidebarCollapsed ? <>
               <SettingsTrigger collapsed onOpen={onControlCenterOpen} />
-              {isAuthenticated && <PersonalFooterLinks collapsed activityActive={isActivityActive} insightsActive={isInsightsActive} />}
+              {isAuthenticated && <>
+                <button type="button" disabled aria-label="Studio unavailable" title="Studio is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
+                  <InterfaceIcon icon={WarehouseIcon} weight="medium" />
+                </button>
+                <button type="button" disabled aria-label="Portals unavailable" title="Portals is not available yet" className="nav-button reserved-network-control shape-compact sidebar-rail-slot focus:outline-none">
+                  <InterfaceIcon icon={PortalRingIcon} weight="medium" />
+                </button>
+              </>}
               <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
               </button>
             </> : <div className="sidebar-network-grid h-12 w-full min-w-0 items-center">
                 <SettingsTrigger collapsed={false} onOpen={onControlCenterOpen} />
-                {isAuthenticated && <PersonalFooterLinks collapsed={false} activityActive={isActivityActive} insightsActive={isInsightsActive} />}
+                {isAuthenticated && <>
+                  <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />
+                  <PortalNetworkTile />
+                </>}
                 <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
                 </button>

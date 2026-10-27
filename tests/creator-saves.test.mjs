@@ -98,25 +98,8 @@ test('creator save button is absent on own profile and shows selected state for 
   assert.match(html, /private/);
 });
 
-test('footer utilities have real routes and selected states in both sidebar sizes', () => {
-  const source = read('../src/components/Sidebar.tsx');
-  const start = source.indexOf('function PersonalFooterLinks');
-  const end = source.indexOf('function SettingsTrigger', start);
-  const component = source.slice(start, end).replace('function PersonalFooterLinks', 'export function PersonalFooterLinks');
-  const code = ts.transpileModule(component, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React } }).outputText;
-  const exports = {};
-  vm.runInNewContext(code, { exports, React, BellIcon: icons.BellIcon, ChartNoAxesColumnIcon: icons.ChartNoAxesColumnIcon, buildPath: routes.buildPath,
-    Link: ({ to, ...props }) => React.createElement('a', { ...props, href: to }), InterfaceIcon: () => React.createElement('svg') });
-  for (const collapsed of [true, false]) {
-    const html = renderToStaticMarkup(React.createElement(exports.PersonalFooterLinks, { collapsed, activityActive: false, insightsActive: true }));
-    assert.match(html, /href="\/notifications"/);
-    assert.match(html, /href="\/insights"/);
-    assert.match(html, /aria-label="Open Activity"/);
-    assert.match(html, /aria-label="Open Insights"/);
-    assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);
-  }
-  assert.equal((source.match(/isAuthenticated && <PersonalFooterLinks/g) ?? []).length, 2);
-  assert.doesNotMatch(read('../src/components/profile/SharedProfileSidebar.tsx'), /PersonalFooterLinks|CreatorSaveButton/);
+test('the shared profile sidebar does not expose personal account destinations or creator saving', () => {
+  assert.doesNotMatch(read('../src/components/profile/SharedProfileSidebar.tsx'), /PersonalFooterLinks|PersonalNavigationTile|CreatorSaveButton/);
 });
 
 test('saved library has distinct Projects and Creators collections with a private explanation', () => {

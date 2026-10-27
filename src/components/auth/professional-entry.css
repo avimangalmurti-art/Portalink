@@ -248,12 +248,18 @@
   }
 @media (min-width: 640px) {
   .professional-entry {
+    display: flex;
+    flex-direction: column;
     --entry-sticky-inset: max(24px, env(safe-area-inset-top, 0px));
     --entry-frame-inset-start: max(24px, env(safe-area-inset-left, 0px));
     --entry-frame-inset-end: max(24px, env(safe-area-inset-right, 0px));
   }
   .professional-entry-frame {
+    flex-shrink: 0;
+    width: 100%;
+    min-height: 0;
     max-width: 560px;
+    margin-block: auto;
     padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
   }
   .professional-entry-company-name { font-size: 1.5rem; white-space: normal; }
