@@ -1537,6 +1537,16 @@ Published Sites280 at 23:52:49 UTC from `1299880c35459cc144838300d272d598d96b8ab
 
 116 focused tests, typecheck, full lint (0 errors /90 existing warnings), production client+worker build and archive checks passed. Live MOBILE420 and WEB1280 checks passed for the affected profile/navigation and shared entry. See the current [handoff](agent-handoff.md) for precise evidence and limits; ignored `logs/ui-release-20260930/receipt.json` records the saved version and successful deployment. Physical-iPhone and installed-PWA checks remain device-only verification.
 
+## 2026-10-27 - WEB three-column publication authorized
+
+User requests publication of the WEB-only wide-screen three-column landing layout. Existing public Site/live551, backend/domain/environment bindings and main-review separation retained. Independent3path review GO; prior implementation/browser evidence and unchanged-JavaScript551typecheck/lint remain applicable. Fresh focused checks, production build, exact-source/artifact audits, native save/deploy and live receipts pending. No SQL/provider/dependency/account/environment/independent-worker operation. Full scope/evidence in current handoff.
+
+## 2026-10-27 - Shared catalogue/landing published 551
+
+Published https://portalinknetworks.com/ from sourcefb8bf27dae991521e3227b3498a822afc2ec1abd on the existing Sites mirror and GitHub codex/welcome-refinement/draft PR147; main remains unmerged. Saved appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_001feb1a3f7c819192fe80086a0051a1; deployment appgdep_6ae0df6d759c8191a8dcacf3a8da2b07 succeeded2026-10-27T17:29:30.660813+00:00. Public catalogue engagement hiding and WEB/MOBILE landing parity are live, with public audience/domains/envrevision2/backend bindings retained. No SQL/provider/dependency/account/environment/independent-worker/main operation.
+
+132focused/typecheck/full lint0errors111existing/build/main+visitor guards pass. Independent source/archive GO;646frozen files/9fingerprints exact,423public assets and worker/hosting/four SQL payloads unchanged. Archive48,867,979bytes/SHA256a53a3ffa8d55cee54ead75ba4d50cd7f0ee10df0bf136989961653bae6215441; native tar metadata separately recorded. Standard publisher succeeded without approval rejection and cleared its credential. Live4/4entries/220assets exact; WEB1280x900/fresh MOBILE420x912 confirm matching landing, public tile information and MOBILE/WEB readers without engagement controls, retaining reading/navigation. No captured errors. GitHub CI did not start due billing limits; physical phone and live signed-in interaction checks remain unverified. Receipts: logs/shared-entry-publication/release-551.json and current handoff. Only receipt docs dirty; no further deployment needed.
+
 ## 2026-10-27 - Shared catalogue/landing publication authorized
 
 User requests publication of pending public-catalogue engagement removal and WEB landing parity with MOBILE. Existing public Site/live550, domains, environment revision2 and backend bindings retained; main integration is separate. Independent11path review GO; earlier feature/browser checks pass. Fresh release checks, exact-source production build, immutable source/archive review, native save/deploy and live receipts pending. No SQL, provider, dependency, account/environment or independent-worker operation. Full scope/evidence in current handoff.

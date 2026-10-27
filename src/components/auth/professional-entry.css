@@ -258,6 +258,25 @@
   }
   .professional-entry-company-name { font-size: 1.5rem; white-space: normal; }
 }
+/* Wide WEB keeps identity/accounts together beside the two company groups. */
+@media (min-width: 1180px) {
+  .professional-entry-frame {
+    display: grid;
+    max-width: 1320px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: min-content 1fr;
+    align-items: start;
+    gap: 8px 20px;
+  }
+  .professional-entry-main,
+  .professional-entry-company-groups { display: contents; }
+  .professional-entry-mobile-header { grid-column: 1; grid-row: 1; }
+  .professional-entry-mobile-header::before { right: 0; }
+  .professional-entry-copy { grid-column: 1; grid-row: 2; }
+  .professional-entry-company-group { grid-row: 1 / span 2; }
+  .professional-entry-company-group:first-child { grid-column: 2; }
+  .professional-entry-company-group:last-child { grid-column: 3; }
+}
 /* The retained account-entry host sets a legacy mobile font; this scene owns its typography. */
 .portalink-splash[data-share-landing] .mobile-share-landing-actions .professional-entry .professional-entry-frame button { font-family: inherit !important; }
 @media (prefers-color-scheme: dark) {
