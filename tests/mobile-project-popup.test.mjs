@@ -4,14 +4,16 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { sourceModule } from './helpers/source-module.mjs';
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
-function render(shared=false, owner=false, props={}) {
+const { isPublicSharePath }=sourceModule('src/features/sharing/shareModel.ts',{'../../components/text/textFormatting':{plainFormattedText:value=>value}});
+function render(shared=false, owner=false, props={}, authenticated=!shared) {
  const calls=[]; const exports={};
  const engagement={};
  const react={...React,useEffect(){},useState(){return [undefined,()=>{}];}};
- const mocks={react,'../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},'react-router-dom':{useNavigate:()=>path=>calls.push(['navigate',path]),useLocation:()=>({pathname:shared?'/share/creator':'/home',search:''})},
+ const mocks={react,'../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},'react-router-dom':{useNavigate:()=>path=>calls.push(['navigate',path]),useLocation:()=>({pathname:typeof shared==='string'?shared:shared?'/share/creator':'/home',search:''})},
  '../../contexts/ServicesContext':{useServices:()=>({profiles:{getProfile:()=>{throw Error('Supplied creator must not be fetched');}}})},
- '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:!shared,viewerProfileId:owner?'creator':undefined,requestAuthenticatedDestination:(...args)=>calls.push(['account',...args])})},
+ '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:authenticated,viewerProfileId:owner?'creator':undefined,requestAuthenticatedDestination:(...args)=>calls.push(['account',...args])})},
  '../../features/engagement/useProjectEngagement':{useProjectEngagement:id=>{calls.push(['engagement',id]);return engagement;}},
  './ProjectPopupEngagement':{ProjectPopupEngagement:'engagement'},'../profile/CreatorAvatar':{CreatorAvatar:'avatar'},
  './FollowContentInfoPopup':{FollowContentInfoPopup:'dialog'},
@@ -19,7 +21,7 @@ function render(shared=false, owner=false, props={}) {
  '../../presentation/mobile/MobileContextActions':{useMobileActions:()=>({open(){calls.push(['obsolete-options-sheet']);}})},
  '../../presentation/mobile/contextActions':{contextActions:(kind,viewer,target)=>({primary:Object.entries(target.handlers).filter(([,run])=>run).map(([id,run])=>({id,run})),groups:[]})},
  '../../app/routes':{buildPath:(kind,ids)=>kind==='sharedProject'?`/share/${ids.profileId}/c/${ids.categoryId}/${ids.projectId}`:'/'+kind+'/'+ids.profileId},
- '../../features/sharing/shareModel':{isPublicSharePath:()=>shared}};
+ '../../features/sharing/shareModel':{isPublicSharePath}};
  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/MobileProjectPopup.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>mocks[n]??{},window:{location:{origin:'https://example.com'}},URL});
  const tree=exports.MobileProjectPopup({project:{id:'work',categoryId:'portal',title:'Work',summary:'Description'},creator:{id:'creator',name:'Artist',avatar:'avatar.png'},onClose:()=>calls.push(['close']),onOpenComments:()=>calls.push(['comments']),...props});
  return {tree,calls,engagement, OwnerActions: exports.ProjectPopupOwnerActions};
@@ -30,13 +32,22 @@ test('project popup preserves description, canonical engagement and creator orde
  const identity=nodes(tree.props.creatorHeader);const creator=identity.find(n=>n.props.className==='project-popup-creator');
  assert.equal(bar.props.engagement,engagement);assert.equal(bar.props.projectId,'work');
  assert.equal(bar.props.url,'https://portalinknetworks.com/share/creator/c/portal/work');
+ assert.equal(tree.props.showEngagement,true);assert.deepEqual(calls.filter(call=>call[0]==='engagement'),[['engagement','work']]);
  assert.ok(creator);assert.equal(identity.find(n=>n.type==='avatar').props.shape,'squircle');assert.equal(tree.props.title,'Work');
  bar.props.onOpenComments();assert.deepEqual(calls.slice(-2),[['close'],['comments']]);
  creator.props.onClick();assert.deepEqual(calls.slice(-2),[['close'],['navigate','/profile/creator']]);
 });
-test('shared project popup gates guest engagement without inventing counts',()=>{
- const {tree,calls}=render(true);const bar=nodes(tree.props.engagementContent).find(n=>n.type==='engagement');
- bar.props.onRequireAccount();assert.equal(calls.at(-1)[0],'account');assert.equal(bar.props.projectId,'work');
+test('public catalogue and Timeline details omit engagement for guests and signed-in readers while preserving information',()=>{
+ for(const path of ['/share/creator','/share/creator/c/portal/work','/portalite','/portalite/c/portal/work']) for(const authenticated of [false,true]) {
+  const {tree,calls}=render(path,true,{},authenticated);
+  assert.equal(tree.props.showEngagement,false);assert.equal(tree.props.engagementContent,undefined);
+  assert.deepEqual(calls.filter(call=>call[0]==='engagement'),[['engagement',null]],'Public information does not resolve an engagement record.');
+  assert.equal(tree.props.title,'Work');assert.equal(tree.props.description,'Description');assert.equal(tree.props.optionsContent,undefined);
+  const identity=nodes(tree.props.creatorHeader);assert.ok(identity.some(node=>node.type==='avatar'));
+  identity.find(node=>node.props.className==='project-popup-creator').props.onClick();
+  assert.deepEqual(calls.slice(-2),[['close'],['navigate','/sharedProfile/creator']]);
+  assert.equal(calls.some(call=>call[0]==='account'),false);
+ }
 });
 
 test('owner actions invoke the existing editor and confirmation callbacks after dismissing the popup', () => {

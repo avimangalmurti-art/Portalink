@@ -177,15 +177,18 @@ test('video scrolling remembers its attachment before canonical navigation and o
     assert.equal(target.key, opening.key, 'Cross-project navigation retains the same sequence identity');
     assert.equal(target.props.activeId, 'target:target-video');
     assert.equal(target.props.creator, creator, 'Canonical project navigation retains the source creator');
-    assert.deepEqual(h.serviceIds.slice(-2), ['target', 'target']);
+    assert.deepEqual(h.serviceIds.slice(-2), readOnlyShare ? [null, null] : ['target', 'target']);
     const playing = target.props.renderVideo(entries[1], true);
     assert.equal(playing.props.projectId, 'target');
     assert.equal(playing.props.attachment.id, 'target-video');
     assert.equal(playing.props.projectTitle, 'Target project');
     assert.equal(playing.props.videoActive, true);
+    assert.equal(playing.props.showMediaInteractions, !readOnlyShare);
     assert.equal(target.props.renderVideo(entries[0], false).props.projectTitle, 'Work',
       'Neighboring clips retain their own project titles after the active project changes');
     assert.equal(target.props.renderVideo(entries[0], false).props.videoActive, false);
+    assert.equal(target.props.renderVideo(entries[0], false).props.showMediaInteractions, !readOnlyShare,
+      'Neighboring clips follow the same shared-reader engagement boundary');
 
     target.props.onSelect(entries[2]);
     assert.deepEqual(navigations, ['target'], 'Changing videos inside one project does not navigate again');
@@ -212,6 +215,7 @@ test('single mobile videos use their project title and source creator with or wi
       assert.notEqual(frames[0].props.sourceTitle, attachment.displayName);
       assert.equal(frames[0].props.children.type, AttachmentRenderer);
       assert.equal(frames[0].props.children.props.attachment, attachment);
+      assert.equal(frames[0].props.children.props.showMediaInteractions, !readOnlyShare);
       assert.equal(nodes(tree).some(node => node.type === MobileVideoSequence), false);
     }
   }
@@ -330,9 +334,12 @@ test('the mobile action opens project information without changing WEB rail pref
   for (const readOnlyShare of [false,true]) {
     const h=harness({readOnlyShare});
     const props={onRailOpenChange:()=>assert.fail('Information must not resize the WEB rail')};
-    button(h.render(props),'Show project engagement').props.onClick();
+    const opening = h.render(props);
+    if (readOnlyShare) h.screenActions.at(-1).onOpen();
+    else button(opening,'Show project engagement').props.onClick();
     const tree=h.render(props),sheet=nodes(tree).find(node=>node.type===FollowContentInfoPopup);
     assert.equal(sheet.props.projectId,'project');
+    assert.equal(sheet.props.showEngagement,!readOnlyShare);
     assert.equal(withProp(tree,'data-mobile-engagement-content').props.hidden,true);
     sheet.props.onClose();
     assert.equal(nodes(h.render(props)).some(node=>node.type===FollowContentInfoPopup),false);
@@ -378,53 +385,112 @@ test('empty mobile projects keep their project-list access; WEB keeps its existi
   assert.equal(button(web, 'Show project list'), undefined);
 });
 
-test('shared mobile projects retain public details and permission-gated visitor actions without owner editing', () => {
-  const h = harness({ readOnlyShare: true });
-  let tree = h.render({ isOwner: true, descriptionEditor: { editable: true } });
-  const media = nodes(tree).find(node => node.type === AttachmentRenderer);
-  assert.equal(media.props.showMediaInteractions, true);
-  assert.equal(media.props.isOwner, false);
-  button(tree, 'Show project description').props.onClick();
-  tree = h.render({ isOwner: true, descriptionEditor: { editable: true } });
-  const sheet = nodes(tree).find(node => node.type === FollowContentInfoPopup);
-  assert.equal(sheet.props.projectId, 'project'); assert.equal(sheet.props.editor, undefined);
-  assert.ok(button(tree, 'Show comments'));
-  assert.ok(nodes(tree).some(node => node.type === EngagementBar));
-  assert.ok(h.serviceIds.every(id => id === 'project'));
-  button(tree, 'Show comments').props.onClick();
-  const comments = nodes(h.render({ isOwner: true })).find(node => node.type === CommentThreadView);
-  assert.ok(comments); assert.equal(comments.props.isOwner, false);
+test('shared readers hide project and media engagement for signed-in and guest visitors on MOBILE and WEB', () => {
+  for (const mobile of [true, false]) for (const signedIn of [true, false]) for (const mediaKind of ['document', 'image', 'video']) {
+    const h = harness({ mobile, signedIn, mediaKind, readOnlyShare: true });
+    const props = { isRailOpen: true, isOwner: true, descriptionEditor: { open() { assert.fail('Public readers cannot edit'); } },
+      onDeleteProject() { assert.fail('Public readers cannot delete'); } };
+    let tree = h.render(props);
+    const media = nodes(tree).find(node => node.type === AttachmentRenderer);
+    assert.equal(media.props.showMediaInteractions, false, `${mobile ? 'MOBILE' : 'WEB'} ${mediaKind} hides per-media engagement`);
+    assert.equal(media.props.isOwner, false);
+    assert.equal(media.props.memoryScope, 'shared');
+    if (mobile && mediaKind === 'document') {
+      const counter = nodes(tree).find(node => node.type === MobileProjectPageCounter);
+      counter.props.onPositionChange({ scope: counter.props.scope, current: 2, total: 4, ready: true });
+      tree = h.render(props);
+      assert.equal(nodes(tree).find(node => node.type === 'mobile-page-context').props.value.pageIndex, 1,
+        'The document has an active page, so its missing interaction bar is intentional');
+    }
+    for (const component of [EngagementBar, EngagementFeedback, CommentThreadView, MediaCommentsPopover, 'media-interaction-bar']) {
+      assert.equal(nodes(tree).some(node => node.type === component), false, 'No shared engagement or comments surface is mounted');
+    }
+    for (const label of ['Show comments', 'Show project engagement', 'Hide project engagement', 'Review engagement error']) {
+      assert.equal(button(tree, label), undefined, `Public readers omit ${label}`);
+    }
+    assert.equal(nodes(tree).some(node => node.type === 'button' && node.props.children === 'Show comments'), false,
+      'The expanded WEB rail does not retain its text-only comments toggle');
+    const actions = h.screenActions.at(-1).model;
+    assert.equal([...actions.primary, ...actions.groups.flat()].some(action => ['saveProject', 'savePage', 'comment'].includes(action.id)), false);
+    assert.equal(actions.target.handlers.saveProject, undefined, 'A shell action merge cannot reintroduce public saving');
+    assert.ok(h.serviceIds.length >= 2);
+    assert.ok(h.serviceIds.every(id => id === null), 'Public readers disable engagement and comments queries');
+    assert.deepEqual(h.gates, []);
+    assert.ok(withProp(tree, 'data-project-response-rail'), 'Public details and navigation retain their existing rail');
+  }
 });
 
-test('shared mobile guest comments and engagement open Create account without revealing comment UI', () => {
-  const h = harness({ signedIn: false, readOnlyShare: true });
-  let tree = h.render();
-  button(tree, 'Show comments').props.onClick();
-  button(tree, 'Show project engagement').props.onClick();
-  tree = h.render();
-  assert.equal(h.gates.length, 1);
-  const info = nodes(tree).find(node => node.type === FollowContentInfoPopup);
-  assert.ok(info);
-  info.props.onRequireAccount();
-  assert.equal(nodes(h.render()).some(node => node.type === FollowContentInfoPopup), false);
-  nodes(tree).find(node => node.type === EngagementBar).props.onRequireAccount();
-  tree = h.render();
-  assert.equal(h.gates.length, 3);
-  assert.ok(h.gates.every(call => call.view === 'signUp' && call.intent.kind === 'route'));
-  assert.equal(nodes(tree).some(node => node.type === CommentThreadView), false);
-  assert.equal(button(tree, 'Show project engagement').props['aria-expanded'], false);
+test('shared readers do not expose engagement recovery controls even when the disabled hook has stale errors', () => {
+  for (const mobile of [true, false]) for (const signedIn of [true, false]) {
+    const h = harness({ mobile, signedIn, readOnlyShare: true,
+      engagement: { resolveError: 'A stale engagement failure', failure: 'A stale update failure' } });
+    const tree = h.render({ isRailOpen: true });
+    assert.equal(button(tree, 'Review engagement error'), undefined);
+    assert.equal(nodes(tree).some(node => node.type === EngagementFeedback || node.type === MediaCommentsPopover), false);
+  }
 });
 
-test('shared WEB exposes visitor engagement and comments while keeping its project-information entry', () => {
-  const h = harness({ mobile: false, readOnlyShare: true });
-  let tree = h.render({ isRailOpen: true, isOwner: true });
-  assert.ok(button(tree, 'Show project information'));
-  assert.ok(nodes(tree).some(node => node.type === EngagementBar));
-  assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.isOwner, false);
-  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Show comments').props.onClick();
-  tree = h.render({ isRailOpen: true, isOwner: true });
-  const comments = nodes(tree).find(node => node.type === CommentThreadView);
-  assert.ok(comments); assert.equal(comments.props.isOwner, false);
+test('shared MOBILE information remains readable and dismissible without engagement or account prompts', () => {
+  for (const signedIn of [true, false]) {
+    const h = harness({ signedIn, readOnlyShare: true });
+    const props = { isOwner: true, descriptionEditor: { open() { assert.fail('Public readers cannot edit'); } },
+      onDeleteProject() { assert.fail('Public readers cannot delete'); } };
+    button(h.render(props), 'second, Video').props.onClick();
+    h.render(props);
+    h.screenActions.at(-1).onOpen();
+    const tree = h.render(props), info = nodes(tree).find(node => node.type === FollowContentInfoPopup);
+    assert.ok(info);
+    assert.equal(info.props.projectId, 'project');
+    assert.equal(info.props.showEngagement, false);
+    assert.equal(info.props.onComments, undefined);
+    assert.equal(info.props.onRequireAccount, undefined);
+    assert.equal(info.props.optionsContent, undefined);
+    info.props.onClose();
+    const closed = h.render(props);
+    assert.equal(nodes(closed).some(node => node.type === FollowContentInfoPopup), false);
+    assert.equal(nodes(closed).find(node => node.type === AttachmentRenderer).props.attachment.id, 'second');
+    assert.deepEqual(h.gates, [], 'Reading and dismissing public information does not ask for an account');
+  }
+});
+
+test('shared WEB retains project information and verification with its engagement controls removed', () => {
+  for (const signedIn of [true, false]) {
+    const h = harness({ mobile: false, signedIn, readOnlyShare: true });
+    let tree = h.render({ isRailOpen: true });
+    button(tree, 'Show project information').props.onClick();
+    tree = h.render({ isRailOpen: true });
+    assert.equal(button(tree, 'Show project information').props['aria-pressed'], true);
+    button(tree, 'Show AI verification services').props.onClick();
+    tree = h.render({ isRailOpen: true });
+    assert.equal(button(tree, 'Show AI verification services').props['aria-pressed'], true);
+    assert.equal(nodes(tree).some(node => node.type === EngagementBar || node.type === CommentThreadView), false);
+    assert.ok(button(tree, 'Hide project details'));
+  }
+});
+
+test('ordinary readers retain project engagement, information actions and media interactions', () => {
+  for (const mobile of [true, false]) for (const mediaKind of ['document', 'image', 'video']) {
+    const h = harness({ mobile, mediaKind });
+    let tree = h.render({ isRailOpen: true });
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.showMediaInteractions, true);
+    assert.ok(nodes(tree).some(node => node.type === EngagementBar));
+    assert.ok(h.serviceIds.every(id => id === 'project'));
+    assert.equal(typeof h.screenActions.at(-1).model.target.handlers.saveProject, 'function');
+    assert.ok(h.screenActions.at(-1).model.primary.some(action => action.id === 'saveProject'));
+    if (mobile) {
+      assert.ok(button(tree, 'Show comments'));
+      if (mediaKind === 'document') {
+        const counter = nodes(tree).find(node => node.type === MobileProjectPageCounter);
+        counter.props.onPositionChange({ scope: counter.props.scope, current: 2, total: 4, ready: true });
+        tree = h.render({ isRailOpen: true });
+        assert.ok(nodes(tree).some(node => node.type === 'media-interaction-bar'), 'Ordinary document pages retain their interaction bar');
+      }
+      h.screenActions.at(-1).onOpen();
+      const info = nodes(h.render({ isRailOpen: true })).find(node => node.type === FollowContentInfoPopup);
+      assert.equal(info.props.showEngagement, true);
+      assert.equal(typeof info.props.onComments, 'function');
+    }
+  }
 });
 
 test('WEB does not receive the combined mobile controls or change its response layout', () => {
@@ -908,15 +974,15 @@ test('public mobile image progress follows the image page context and preserves 
 });
 
 
-test('mobile content bar orders portal, actions, engagement and creator, with canonical profile navigation', () => {
-  for (const readOnlyShare of [false, true]) {
-    const h = harness({readOnlyShare});
+test('mobile content bar retains portal, information and creator navigation for ordinary and shared readers', () => {
+  for (const readOnlyShare of [false, true]) for (const signedIn of [true, false]) {
+    const h = harness({readOnlyShare,signedIn});
     const tree = h.render({creator:{id:'creator-id',name:'Creator',avatar:''}});
     const bar = nodes(tree).find(node => node.props.className === 'mobile-content-action-bar');
     const controls = React.Children.toArray(bar.props.children);
     assert.equal(controls[0].props['aria-label'], 'Open portal');
     assert.equal(controls.length, 3);
-    assert.equal(controls[1].props['aria-label'], 'Show project engagement');
+    assert.equal(controls[1].props['aria-label'], readOnlyShare ? 'Show project information' : 'Show project engagement');
     assert.equal(controls[2].props['aria-label'], 'View Creator profile');
     controls[0].props.onClick();
     assert.equal(withProp(h.render(), 'data-mobile-combined-rail').props['data-mobile-combined-rail'], '');

@@ -49,9 +49,9 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
  const creator = suppliedCreator ?? loadedCreator;
 
- const engagement = useProjectEngagement(project.id);
-
  const shared = isPublicSharePath(location.pathname);
+
+ const engagement = useProjectEngagement(shared ? null : project.id);
 
  useEffect(() => {
 
@@ -74,7 +74,7 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
  const editDescription = onEditDescription ?? contextHandlers?.edit ?? onOptions;
  const hasOwnerActions = owner && Boolean(onOptions || editTitle || editDescription || contextHandlers?.delete);
 
- return <FollowContentInfoPopup projectId={project.id} title={project.title} description={project.summary} optionsContent={hasOwnerActions ? <ProjectPopupOwnerActions onOptions={onOptions} onEditTitle={editTitle} onEditDescription={editDescription} onDelete={contextHandlers?.delete} onClose={onClose} /> : undefined} onComments={() => { onClose(); onOpenComments?.(); }} engagement={engagement} onRequireAccount={requireAccount} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} engagementContent={<>
+ return <FollowContentInfoPopup projectId={project.id} title={project.title} description={project.summary} showEngagement={!shared} optionsContent={hasOwnerActions ? <ProjectPopupOwnerActions onOptions={onOptions} onEditTitle={editTitle} onEditDescription={editDescription} onDelete={contextHandlers?.delete} onClose={onClose} /> : undefined} onComments={() => { onClose(); onOpenComments?.(); }} engagement={engagement} onRequireAccount={requireAccount} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} engagementContent={shared ? undefined : <>
 
   <ProjectPopupEngagement projectId={project.id} projectTitle={project.title} url={url} engagement={engagement} onRequireAccount={requireAccount} onOpenComments={onOpenComments ? () => { onClose(); onOpenComments(); } : undefined} />
 

@@ -13,17 +13,17 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import './follow-content-info.css';
 
 /** Reading-only presentation: the existing viewer retains page, zoom and scroll state. */
-export function FollowContentInfoPopup({ projectId, title, description, creatorHeader, engagement, onOptions, onComments, onRequireAccount, onClose, engagementContent, optionsContent }: {
+export function FollowContentInfoPopup({ projectId, title, description, creatorHeader, engagement, onOptions, onComments, onRequireAccount, onClose, engagementContent, optionsContent, showEngagement = true }: {
   projectId: string; title: string; description?: string; creatorHeader: React.ReactNode;
-  engagement: ProjectEngagementLifecycle; onOptions?: () => void; onComments: () => void;
-  onRequireAccount?: () => void; onClose: () => void; engagementContent?: React.ReactNode; optionsContent?: React.ReactNode;
+  engagement: ProjectEngagementLifecycle; onOptions?: () => void; onComments?: () => void;
+  onRequireAccount?: () => void; onClose: () => void; engagementContent?: React.ReactNode; optionsContent?: React.ReactNode; showEngagement?: boolean;
 }) {
   const viewport = useDialogViewport();
   const panel = useRef<HTMLElement>(null);
   const motion = useSheetMotion(onClose, 'base');
   const closing = motion.closing;
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const comments = useProjectComments(engagementContent ? null : projectId);
+  const comments = useProjectComments(!showEngagement || engagementContent ? null : projectId);
   const dismiss = () => {
     if (closing) return;
     // A close during entrance starts at the currently painted opacity/position.
@@ -58,7 +58,7 @@ export function FollowContentInfoPopup({ projectId, title, description, creatorH
         <header className="follow-info-header">{creatorHeader}{(optionsContent || onOptions) && <button type="button" aria-label="Content options" data-ui-control="icon" data-control-size="md" data-control-variant="secondary" className="follow-info-options" aria-expanded={optionsContent ? optionsOpen : undefined} onClick={() => optionsContent ? setOptionsOpen(open => !open) : onOptions?.()}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}{optionsContent && optionsOpen && <div className="follow-info-owner-menu">{optionsContent}</div>}</header>
         <h2 id="follow-info-title">{title}</h2>
         <div className="follow-info-description scrollbar-overlay" tabIndex={0} aria-label="Content description"><FormattedText text={description || 'This project has no description.'} /></div>
-        <footer className="follow-info-engagement">
+        {showEngagement && <footer className="follow-info-engagement">
           {engagementContent ?? <><div role="group" aria-label={`Engagement for ${title}`}>
             <button type="button" data-ui-shape="action" aria-label={`Comments: ${title}`} onClick={onComments}><InterfaceIcon icon={MessageCircleIcon} />{comments.phase === 'ready' && <span>{comments.totalCount}</span>}</button>
             {(['save', 'repost'] as const).map(kind => <button key={kind} type="button" data-ui-shape="action" aria-label={`${kind === 'save' ? 'Bookmark' : 'Repost'}: ${title}`} aria-pressed={engagement.isEngaged(kind)}
@@ -67,7 +67,7 @@ export function FollowContentInfoPopup({ projectId, title, description, creatorH
             </button>)}
           </div>
           <EngagementFeedback engagement={engagement} /></>}
-        </footer>
+        </footer>}
       </section>
     </div>
   </div>, host);

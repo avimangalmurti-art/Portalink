@@ -6,7 +6,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 const nodes = tree => React.isValidElement(tree) ? [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 const words = tree => React.isValidElement(tree) ? React.Children.toArray(tree.props.children).map(words).join('') : tree == null ? '' : String(tree);
 function fixture(ready = true, presentation = 'web', settings = {}) {
-  const calls = [], appearanceCalls = [];
+  const calls = [], appearanceCalls = [], presentationCalls = [];
   const appearance = { mode: 'auto', theme: 'light', accentColor: '#0A84FF', systemGray: 'gray6', highContrast: false, reduceTranslucency: false, ...settings,
     chooseMode(mode) { appearanceCalls.push({ mode }); appearance.mode = mode; appearance.theme = mode === 'auto' ? 'light' : mode; },
     chooseAppearance(patch) { appearanceCalls.push(patch); Object.assign(appearance, patch); } };
@@ -15,25 +15,36 @@ function fixture(ready = true, presentation = 'web', settings = {}) {
     'lucide-react': { ArrowRight: 'arrow', BriefcaseBusiness: 'briefcase', ChevronRight: 'chevron', Compass: 'compass', DoorOpen: 'door-open', Info: 'info', LayoutGrid: 'grid', LogIn: 'login', Palette: 'palette', Route: 'route', ShieldCheck: 'shield', SunMoon: 'sun-moon', UserPlus: 'user-plus', UserRound: 'user-round', Users: 'users' },
     '../../presentation/usePresentation': { usePresentation: () => presentation },
     '../profile/ProfileAvatar': { ProfileAvatar: 'profile-avatar' },
-    '../../hooks/useDeviceAppearance': { useDeviceAppearance: () => appearance },
+    '../../hooks/useDeviceAppearance': { useDeviceAppearance: mode => { presentationCalls.push(mode); return appearance; } },
     '../../data/navButtonTokens': sourceModule('src/data/navButtonTokens.ts'),
     '../../utils/accentTokens': sourceModule('src/utils/accentTokens.ts'),
     '../../utils/radioGroupKeyboard': { handleRadioGroupKeyDown: () => undefined },
     './MobileOnboarding': { MobileOnboardingAppearance: 'appearance-controls' },
-    './CreativeThought': { CreativeThought: 'creative-thought' },
     './CityClock': { CityClock: 'city-clock' },
     './professional-entry.css': {},
   });
-  return { calls, appearanceCalls, appearance, render: () => ProfessionalEntry({ ready, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin'), onGuest: () => calls.push('guest') }) };
+  return { calls, appearanceCalls, presentationCalls, appearance, render: () => ProfessionalEntry({ ready, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin'), onGuest: () => calls.push('guest') }) };
 }
-test('professional entry exposes account actions immediately without waiting for the rotating thought', () => {
-  const h = fixture(), tree = h.render(), all = nodes(tree);
-  assert.equal(tree.type, 'main');
-  assert.equal(all.find(n => n.type === 'h1').props.id, tree.props['aria-labelledby']);
-  assert.equal(all.some(n => n.type === 'optional-story'), false);
-  for (const [label, action] of [['Create account', 'create'], ['Sign in ', 'signin'], ['Continue as guest ', 'guest']]) {
-    const button = all.find(n => n.type === 'button' && words(n).trim() === label.trim());
-    assert.ok(button, label); assert.equal(button.props.disabled, false); button.props.onClick(); assert.equal(h.calls.at(-1), action);
+test('both entry presentations expose the same three account callbacks immediately alongside the live city clock', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = fixture(true, presentation), tree = h.render(), all = nodes(tree);
+    assert.equal(tree.type, 'main');
+    assert.equal(all.find(n => n.type === 'h1').props.id, tree.props['aria-labelledby']);
+    assert.equal(all.filter(n => n.type === 'city-clock').length, 1);
+    const accountGroup = all.find(n => n.props.className === 'professional-entry-account-actions');
+    assert.equal(accountGroup.props.role, 'group');
+    assert.equal(accountGroup.props['aria-label'], 'Account options');
+    const buttons = nodes(accountGroup).filter(n => n.type === 'button');
+    assert.deepEqual(buttons.map(words), ['Create account', 'Sign in', 'Continue as guest']);
+    for (const [index, action] of ['create', 'signin', 'guest'].entries()) {
+      const button = buttons[index];
+      assert.equal(button.props.disabled, false);
+      assert.ok(nodes(button).some(n => n.props.className === 'professional-entry-company-icon'));
+      assert.ok(nodes(button).some(n => n.props.className === 'professional-entry-company-chevron'));
+      button.props.onClick();
+      assert.equal(h.calls.at(-1), action);
+    }
+    assert.deepEqual(h.presentationCalls, [presentation], 'Device appearance retains the actual presentation context');
   }
 });
 test('the landing page has no story action, overlay or character artwork in either presentation', () => {
@@ -42,7 +53,10 @@ test('the landing page has no story action, overlay or character artwork in eith
     assert.equal(words(tree).includes('Watch our story'), false);
     assert.equal(all.some(n => n.type === 'optional-story'), false);
     assert.equal(tree.props['aria-hidden'], undefined);
-    assert.equal(tree.props.style === undefined, presentation === 'web');
+    assert.equal(typeof tree.props.style, 'object');
+    assert.equal(tree.props['data-entry-theme'], 'light');
+    assert.equal(all.some(n => n.type === 'footer'), false);
+    assert.equal(all.some(n => n.props.className === 'professional-entry-eyebrow'), false);
     assert.ok(all.filter(n => n.type === 'img').every(n => !n.props.src.includes('/onboarding/')));
     assert.deepEqual(h.calls, []);
   }
@@ -53,23 +67,17 @@ test('both presentations expose nine native company disclosures with distinct ic
     const h = fixture(true, presentation), tree = h.render(), all = nodes(tree);
     const brand = all.find(n => n.props.className === 'professional-entry-wordmark');
     assert.equal(words(all.find(n => n.props.className === 'professional-entry-company-name')), 'Portalink Networks Inc.');
-    assert.equal(nodes(brand).filter(n => n.type === (presentation === 'mobile' ? 'city-clock' : 'creative-thought')).length, 1, 'The mobile city clock and retained WEB thought sit directly beneath the company name');
-    assert.equal(nodes(brand).filter(n => n.type === (presentation === 'mobile' ? 'creative-thought' : 'city-clock')).length, 0);
-    if (presentation === 'mobile') {
-      const avatar = nodes(brand).find(n => n.type === 'profile-avatar');
-      assert.equal(avatar.props.avatar, '/icons/portalink-app-512-62b9d2e7.png');
-      assert.match(avatar.props.videoSrc, /^\/company\/avatar-loop-[a-f0-9]{12}\.mp4$/);
-      assert.equal(avatar.props.name, 'Portalink Networks Inc.');
-      assert.equal(avatar.props.inlinePreview, true);
-      assert.equal(avatar.props.previewHost, tree.ref, 'The viewer mounts at the unfiltered welcome root');
-      assert.equal(tree.props['data-profile-avatar-host'], '');
-      assert.equal(words(tree).includes('Create, organize and share your work.'), false);
-    } else {
-      const logo = nodes(brand).find(n => n.type === 'img');
-      assert.equal(logo.props.src, '/icons/portalink-app-192-62b9d2e7.png');
-      assert.ok(logo.props.className.includes('squircle'));
-      assert.equal(logo.props.alt, '');
-    }
+    assert.equal(nodes(brand).filter(n => n.type === 'city-clock').length, 1, 'Both presentations place the same live clock beneath the company name');
+    assert.equal(nodes(brand).filter(n => n.type === 'creative-thought').length, 0);
+    const avatar = nodes(brand).find(n => n.type === 'profile-avatar');
+    assert.equal(avatar.props.avatar, '/icons/portalink-app-512-62b9d2e7.png');
+    assert.equal(avatar.props.videoSrc, '/company/avatar-loop-098c2e5d5e1e.mp4');
+    assert.equal(avatar.props.name, 'Portalink Networks Inc.');
+    assert.equal(avatar.props.inlinePreview, true);
+    assert.equal(avatar.props.previewHost, tree.ref, 'The viewer mounts at the unfiltered welcome root');
+    assert.equal(tree.props['data-profile-avatar-host'], '');
+    assert.equal(words(tree).includes('Create, organize and share your work.'), false);
+    assert.equal(nodes(brand).some(n => n.type === 'img'), false, 'The company uses its video avatar on both presentations');
     const sections = all.filter(n => n.type === 'details' && n.props['data-company-section']);
     assert.equal(sections.length, 9);
     const features = sections.find(n => n.props['data-company-section'] === 'features');
@@ -85,7 +93,7 @@ test('both presentations expose nine native company disclosures with distinct ic
     assert.equal(words(tree).includes('Create catalogue'), false);
     assert.equal(nodes(all.find(n => n.props.className === 'professional-entry-company-card')).some(n => n.props.className === 'professional-entry-create' || n.props.className === 'professional-entry-signin'), false, 'Account actions are separate from the company identity card');
     const accountActions = nodes(all.find(n => n.props.className === 'professional-entry-account-actions')).filter(n => n.type === 'button');
-    assert.deepEqual(accountActions.map(button => words(button).trim()), presentation === 'mobile' ? ['Create account', 'Sign in', 'Continue as guest'] : ['Create account', 'Sign in']);
+    assert.deepEqual(accountActions.map(button => words(button).trim()), ['Create account', 'Sign in', 'Continue as guest']);
     assert.equal(all.filter(n => n.type === 'button' && words(n).trim() === 'Continue as guest').length, 1);
     for (const label of ['Create account', 'Sign in', 'Continue as guest']) {
       all.find(n => n.type === 'button' && words(n).trim() === label).props.onClick();
@@ -94,8 +102,9 @@ test('both presentations expose nine native company disclosures with distinct ic
   }
 });
 
-test('mobile home appearance controls share the persisted settings callbacks and keep WEB unchanged', () => {
-  const h = fixture(true, 'mobile'), first = h.render();
+test('both entry presentations apply appearance tokens through the same persisted settings callbacks', () => {
+ for (const presentation of ['mobile', 'web']) {
+  const h = fixture(true, presentation), first = h.render();
   assert.equal(first.props['data-entry-theme'], 'light');
   const modes = nodes(first).find(n => n.props.role === 'radiogroup' && n.props['aria-label'] === 'Appearance');
   assert.ok(modes);
@@ -118,21 +127,66 @@ test('mobile home appearance controls share the persisted settings callbacks and
   assert.equal(nodes(tree).some(n => n.props.role === 'status' && words(n) === 'High contrast keeps controls opaque.'), true);
   assert.deepEqual(JSON.parse(JSON.stringify(h.appearanceCalls)), [{ mode: 'dark' }, { accentColor: '#A550D8' }, { highContrast: true }, { reduceTranslucency: true }, { systemGray: 'gray4' }]);
   assert.deepEqual(h.calls, []);
-  const web = fixture(true, 'web', h.appearance).render();
-  assert.equal(web.props.style, undefined);
-  assert.equal(web.props['data-entry-theme'], undefined);
-  assert.equal(nodes(web).some(n => n.props['data-entry-appearance'] !== undefined), false);
+  assert.ok(h.presentationCalls.every(mode => mode === presentation));
+ }
 });
 
-test('mobile Appearance precedes company information without changing the WEB section order', () => {
-  const mobile = nodes(fixture(true, 'mobile').render());
-  assert.deepEqual(mobile.filter(n => n.type === 'summary').map(words), ['Appearance', 'About Portalink', 'Mission', 'Features', 'How it works', 'Portals', 'For creators', 'Team', 'Careers', 'Privacy & control']);
-  const web = nodes(fixture().render());
-  assert.equal(web.find(n => n.type === 'summary').props.children[1].props.children, 'About Portalink');
-  assert.equal(web.some(n => n.props['data-entry-appearance'] !== undefined), false);
+test('both presentations group Appearance with account actions and retain the same six-plus-three company sections', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const all = nodes(fixture(true, presentation).render());
+    assert.deepEqual(all.filter(n => n.type === 'summary').map(words), ['Appearance', 'About Portalink', 'Mission', 'Features', 'How it works', 'Portals', 'For creators', 'Team', 'Careers', 'Privacy & control']);
+    const settings = all.find(n => n.props.className === 'professional-entry-account-settings');
+    assert.equal(settings.props['aria-label'], 'Account and appearance options');
+    assert.equal(nodes(settings).filter(n => n.props['data-entry-appearance'] !== undefined).length, 1);
+    assert.equal(nodes(settings).filter(n => n.props.className === 'professional-entry-account-actions').length, 1);
+    const groups = all.filter(n => n.props.className?.split(' ').includes('professional-entry-company-group'));
+    assert.deepEqual(groups.map(group => nodes(group).filter(n => n.type === 'details').map(n => n.props['data-company-section'])), [
+      ['about', 'mission', 'features', 'how-it-works', 'portals', 'creators'], ['team', 'careers', 'privacy'],
+    ]);
+  }
 });
 test('entry controls follow readiness without enabling account actions before restoration completes', () => {
-  const h = fixture(false); assert.ok(nodes(h.render()).filter(n => n.type === 'button').every(n => n.props.disabled));
-  assert.equal(nodes(h.render()).filter(n => n.type === 'summary').length, 9, 'Company information remains available while account restoration is pending');
-  assert.deepEqual(h.calls, []);
+  for (const presentation of ['mobile', 'web']) {
+    const h = fixture(false, presentation), all = nodes(h.render());
+    const accountGroup = all.find(n => n.props.className === 'professional-entry-account-actions');
+    const accountButtons = nodes(accountGroup).filter(n => n.type === 'button');
+    assert.equal(accountButtons.length, 3);
+    assert.ok(accountButtons.every(n => n.props.disabled === true));
+    assert.equal(all.filter(n => n.type === 'summary').length, 10, 'Appearance and company information remain available while account restoration is pending');
+    const modes = all.find(n => n.props.role === 'radiogroup' && n.props['aria-label'] === 'Appearance');
+    assert.ok(nodes(modes).filter(n => n.type === 'button').every(n => !n.props.disabled));
+    assert.deepEqual(h.calls, []);
+  }
+});
+
+test('Team preserves all five original photographs, dimensions and captions on both presentations', () => {
+  const expected = [
+    ['aviwashere', '/team/aviwashere-299d5a86e64f.jpg', 905, 1280],
+    ['kharab', '/team/kharab-9a7fa102c121.jpg', 1023, 1280],
+    ['ducktor', '/team/ducktor-d0ab22eac7a8.jpg', 1023, 1280],
+    ['jozi', '/team/jozi-630b9e15c22a.jpg', 1023, 1280],
+    ['quanda', '/team/quanda-40c212fbddcd.jpg', 1023, 1280],
+  ];
+  for (const presentation of ['mobile', 'web']) {
+    const team = nodes(fixture(true, presentation).render()).find(n => n.props['data-company-section'] === 'team');
+    const figures = nodes(team).filter(n => n.type === 'figure');
+    assert.deepEqual(figures.map(figure => {
+      const photo = nodes(figure).find(n => n.type === 'img');
+      assert.equal(photo.props.alt, '');
+      assert.equal(photo.props.loading, 'lazy');
+      assert.equal(photo.props.decoding, 'async');
+      return [words(nodes(figure).find(n => n.type === 'figcaption')), photo.props.src, photo.props.width, photo.props.height];
+    }), expected);
+  }
+});
+
+test('WEB and MOBILE render identical entry content and controls from the shared markup', () => {
+  const shape = tree => !React.isValidElement(tree) ? tree : {
+    type: tree.type,
+    props: Object.fromEntries(Object.entries(tree.props).filter(([name, value]) => !['children', 'ref', 'previewHost'].includes(name) && typeof value !== 'function')),
+    children: React.Children.toArray(tree.props.children).map(shape),
+  };
+  const mobile = fixture(true, 'mobile', { theme: 'dark', highContrast: true, reduceTranslucency: true }).render();
+  const web = fixture(true, 'web', { theme: 'dark', highContrast: true, reduceTranslucency: true }).render();
+  assert.deepEqual(JSON.parse(JSON.stringify(shape(web))), JSON.parse(JSON.stringify(shape(mobile))));
 });

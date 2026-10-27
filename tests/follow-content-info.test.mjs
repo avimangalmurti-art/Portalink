@@ -6,7 +6,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 const nodes = node => React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 
 /** Actual popup, sheet-motion and modal-focus hooks with controlled commit/effect lifecycles. */
-function fixture({ guest = false, reduce = false, appReduce = false, hasOptions = true, readerInert = false } = {}) {
+function fixture({ guest = false, reduce = false, appReduce = false, hasOptions = true, readerInert = false, showEngagement = true } = {}) {
   const slots = [], timers = new Map(), listeners = new Map(), windowListeners = new Map(), dom = new Map(), calls = [];
   let cursor = 0, now = 0, timerId = 0, mounted = false, dirty = false, tree, layout = [], effects = [];
   const same = (a, b) => a?.length === b?.length && a.every((value, index) => Object.is(value, b[index]));
@@ -54,10 +54,10 @@ function fixture({ guest = false, reduce = false, appReduce = false, hasOptions 
     react, 'react-dom': { createPortal: node => node }, 'lucide-react': {},
     '../../hooks/useDialogViewport': { useDialogViewport: () => react.useRef(null) }, '../../hooks/useModalFocus': modal,
     '../../presentation/motion/useSheetMotion': sheet, '../../presentation/motion/motion': motion,
-    '../../features/comments/useProjectComments': { useProjectComments: id => { assert.equal(id, 'actual-id'); return { phase: 'ready', totalCount: 7 }; } },
+    '../../features/comments/useProjectComments': { useProjectComments: id => { assert.equal(id, showEngagement ? 'actual-id' : null); return { phase: 'ready', totalCount: 7 }; } },
     '../../features/engagement/EngagementBar': { EngagementFeedback: 'feedback' }, '../text/FormattedText': { FormattedText: 'formatted' }, '../ui/InterfaceIcon': { InterfaceIcon: 'icon' }, './follow-content-info.css': {},
   }, globals);
-  const props = { projectId: 'actual-id', title: 'Real title', description: 'First paragraph\n\nSecond paragraph', creatorHeader: React.createElement('button', null, 'Real creator'),
+  const props = { projectId: 'actual-id', title: 'Real title', description: 'First paragraph\n\nSecond paragraph', creatorHeader: React.createElement('button', null, 'Real creator'), showEngagement,
     engagement: { count: kind => kind === 'save' ? 12 : 4, isEngaged: kind => kind === 'save', isPending: () => false, isResolving: false, resolveError: null, toggle: kind => calls.push(kind) },
     onOptions: hasOptions ? () => calls.push('options') : undefined, onComments: () => calls.push('comments'), onRequireAccount: guest ? () => calls.push('signup') : undefined,
     onClose: () => { calls.push('close'); unmount(); } };
@@ -97,6 +97,17 @@ test('Follow popup uses real content and exactly comments/bookmark/repost, with 
   assert.equal(buttons.length, 3); assert.deepEqual(buttons.map(button => nodes(button).find(node => node.type === 'span').props.children), [7, 12, 4]); assert.equal(buttons[1].props['aria-pressed'], true);
   buttons.forEach(button => button.props.onClick()); all.find(node => node.props['aria-label'] === 'Content options').props.onClick();
   assert.deepEqual(h.calls, ['comments', 'save', 'repost', 'options']); assert.equal(h.timers.size, 0); assert.equal(all.some(node => /close/i.test(node.props['aria-label'] ?? '')), false); h.unmount();
+});
+
+test('reading-only information has no engagement footer or comment read for guests and signed-in viewers', () => {
+  for (const guest of [false, true]) {
+    const h = fixture({ guest, showEngagement: false }), all = nodes(h.tree);
+    assert.equal(all.some(node => node.type === 'footer' || node.type === 'feedback' || node.props.role === 'group'), false);
+    assert.equal(all.find(node => node.type === 'h2').props.children, 'Real title');
+    assert.equal(all.find(node => node.type === 'formatted').props.text, 'First paragraph\n\nSecond paragraph');
+    assert.ok(all.some(node => node.type === 'button' && node.props.children === 'Real creator'));
+    h.outside(); h.advance(180); assert.deepEqual(h.calls, ['close']); h.unmount();
+  }
 });
 
 test('outside dismissal leaves only180ms decorative fade while releasing focus and the mounted reader immediately', () => {
