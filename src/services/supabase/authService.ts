@@ -91,7 +91,7 @@ async function profileIdentity(accountId: string, generation: number): Promise<{
 }
 
 function toAuthSession(session: Session | null): Promise<AuthSession | null> {
-  if (!session) {
+  if (!session || session.user.is_anonymous) {
     observeSessionAccount(null);
     return Promise.resolve(null);
   }

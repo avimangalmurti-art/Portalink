@@ -24,6 +24,7 @@ import { ActivityPage, SavedPage, InsightsPage } from './features/library/Person
 import type { NavigationDestination } from './components/navigation';
 import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, useRouteNavigator } from './app/useAppRoute';
 import { useMobilePortalCollectionReturn } from './presentation/mobile/useMobilePortalCollectionReturn';
+import { AccountEntryBoundary } from './app/AccountEntryBoundary';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { EmptyState, LoadingState, LoadingSkeleton } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
@@ -146,10 +147,10 @@ function toDetailView(view: ProjectView): FeatureCardApp {
 // opens no profile page at all, rather than a page assembled from a display name
 // and sample content.
 export function App(props: HomeStartupProps = {}) {
-  return <AppPresentationProvider><AppContent {...props} /></AppPresentationProvider>;
+  return <AppPresentationProvider><AccountEntryBoundary>{accountEntrySignIn => <AppContent {...props} accountEntrySignIn={accountEntrySignIn} />}</AccountEntryBoundary></AppPresentationProvider>;
 }
 
-function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHomeStartupReady, onHomeStartupShellReady }: HomeStartupProps) {
+function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHomeStartupReady, onHomeStartupShellReady, accountEntrySignIn = false }: HomeStartupProps & { accountEntrySignIn?: boolean }) {
   useWeeklyReadSignal();
   const presentation = usePresentation();
   /**
@@ -751,10 +752,10 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   }
   // True once an authenticated identity has been observed during this mount.
   const wasAuthenticatedRef = useRef(false);
-  // Restoring a persisted session is not a sign-in action. Only the explicit
-  // authenticating phase earns the post-sign-in landing behavior below; this is
-  // what lets refreshes and pasted deep links remain at their requested URL.
-  const interactiveSignInRef = useRef(false);
+  // Account entry forwards an interactive sign-in because this content first
+  // mounts after authentication. A restored session with no pending intent
+  // keeps its requested URL, including pasted deep links and refreshes.
+  const interactiveSignInRef = useRef(accountEntrySignIn || Boolean(auth.peekPendingIntent()));
   /**
    * A destination that outlived the sign-in because the account still had to
    * create a profile first. Onboarding interrupts the journey; it does not
@@ -1497,7 +1498,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           <ActivityCollectionPage key={`${auth.user?.id}:${viewedProfile.id}:${routeActivityKind}`} kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
         </div> : isCollaborationOpen && isProfileRouteReady && viewedProfile ? <CollaborationPage profile={viewedProfile} onBack={() => nav.closeCollaboration(viewedProfile.id, isSharedRoute)} /> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage} projectSelected={activeProjectId !== null}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed startupPending={homeStartupPending && route.kind === 'home'} startupAttempt={homeStartupAttempt} onStartupReady={onHomeStartupReady} emptyAction={{ label: auth.isAuthenticated ? 'Publish a project' : 'Create your catalogue', onClick: requestGlobalPublish }} emptySecondaryAction={{ label: 'Explore the world', onClick: openPortalink }} isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onExploreWorld={openPortalink} onSearchUsers={() => nav.search('')} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true
-      })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} scrollMemoryKey={auth.isAuthenticated ? "home" : "guest-home-preview"} />}
+      })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} scrollMemoryKey="home" />}
       </React.Suspense></DeferredSurfaceBoundary>
     </div>;
   const rootTokenStyle = useMemo(() => ({

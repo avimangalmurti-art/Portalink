@@ -1,7 +1,7 @@
 import { useLayoutEffect, type RefObject } from 'react';
 import { applyHeaderScrollUnderlaps, headerScrollUnderlaps } from '../headerScrollUnderlap';
 
-const STATIONARY = '.profile-header-region, .mobile-home-search-header, .portalink-world-header, [data-inbox-controls], [data-mobile-safe-header], .global-control-header, .studio-mobile-shell-header, .studio-citation-pills, .settings-page-header, .profile-editor-header, .guest-home-header, .account-search-header, [data-icon-create-header], .new-portal-pinned-controls, [data-link-icon-pinned], .profile-link-icon-picker-pinned, .journey-month-calendar-toolbar';
+const STATIONARY = '.profile-header-region, .mobile-home-search-header, .portalink-world-header, [data-inbox-controls], [data-mobile-safe-header], .global-control-header, .studio-mobile-shell-header, .studio-citation-pills, .settings-page-header, .profile-editor-header, .account-search-header, [data-icon-create-header], .new-portal-pinned-controls, [data-link-icon-pinned], .profile-link-icon-picker-pinned, .journey-month-calendar-toolbar';
 const HEADERS = `header, ${STATIONARY}, .journey-calendar-header, .visitor-preview-bar, .account-welcome-heading`;
 const SCROLLERS = '[data-screen-scroll], [class*="scroll"], [class*="overflow-y"], [data-mobile-scroll-end], [data-mobile-screen-underlay], [data-profile-pulling]';
 const SCREEN = '[role="dialog"], [data-profile-page], [data-messages-page], .studio-citation-shell, [data-mobile-home-search], .app-screen-layer, [data-screen-scroll]';

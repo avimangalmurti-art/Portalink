@@ -63,7 +63,7 @@ function fixture(kind, { mobile = true, active = true, loading = false, maxScrol
     feed: { status: loading ? 'loading' : 'success' }, projects: loading ? [] : [{ id: 'work' }], layoutReady: true,
     hasRestoredScrollRef: { current: false }, latestScrollTopRef: { current: target }, persistFrameRef: { current: 0 },
     setScrollRestored: value => readiness.push(value), scrollMemoryKey: 'home',
-    coldResume: { restoring: false, handled: false }, isGuestPreview: false,
+    coldResume: { restoring: false, handled: false },
     writeFeedScroll: (key, value) => saves.push([key, value]),
     autoScrollRef: { current: containedScroll }, document: { scrollingElement: documentScroll },
     isJourney: false, activeView: 'projects', mobilePortalOverlay: null, nestedMobileContent: null, mobileProjectSelected: false,

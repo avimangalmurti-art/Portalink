@@ -49,7 +49,6 @@ import {
 import { creatorLocationMatches } from '../../domain/contentPlacement';
 import { requireSupabase } from './client';
 import { requireDirectoryAccount } from './requireDirectoryAccount';
-import { GUEST_HOME_PROJECT_LIMIT } from '../../features/discovery/guestPreview';
 import { refreshProjectCoverThumbnail, removePrivateCoverThumbnails, removeProfilePublicCovers } from './coverThumbnails';
 import { validateHandle } from '../../features/profile/validation';
 import { createProfileHandle } from '../../utils/profileHandle';
@@ -755,7 +754,7 @@ function isMissingDiscoveryTable(error: { code?: string; message?: string } | nu
 }
 
 const HOME_FEED_MODES: HomeFeedMode[] = ['balanced', 'following', 'nearby', 'latest'];
-let guestHomeFeedMode: HomeFeedMode = 'balanced';
+let fallbackHomeFeedMode: HomeFeedMode = 'balanced';
 
 function asHomeFeedMode(value: unknown): HomeFeedMode {
   return typeof value === 'string' && HOME_FEED_MODES.includes(value as HomeFeedMode) ? value as HomeFeedMode : 'balanced';
@@ -801,28 +800,7 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
   const { data: authData, error: sessionError } = await client.auth.getSession();
   if (sessionError) throw new Error('Your session could not be checked. Please try again.');
   const accountId = authData.session?.user.is_anonymous ? null : authData.session?.user.id ?? null;
-  if (!accountId) {
-    if (scope !== 'home') throw new Error('Create an account or sign in to explore Portalink.');
-    // One bounded page of real public Home content. Do not enumerate profiles
-    // or fall back to the complete directory when the public feed is unavailable.
-    const page = cursor ? { rows: [], nextCursor: null } : await readFeedPage('global', undefined, GUEST_HOME_PROJECT_LIMIT);
-    if (!page) throw new Error('Home preview is temporarily unavailable. Please try again.');
-    const rows = page.rows.slice(0, GUEST_HOME_PROJECT_LIMIT);
-    const availableProjects = await feedViews(rows, true);
-    return {
-      availableProjects,
-      feedRows: rows,
-      nextCursor: null,
-      homeMode: 'latest' as HomeFeedMode,
-      sphere: buildUserContentSphere({
-        viewerProfile: null,
-        availableProjects,
-        followedCreatorIds: [],
-        engagement: [],
-        explicitSignals: [],
-      }),
-    };
-  }
+  if (!accountId) throw new Error('Create an account or sign in to explore Portalink.');
 
   const pageRequest = readFeedPage('global', cursor, scope === 'home' ? 30 : 120);
   // Home covers can prepare as soon as their public page arrives, while the
@@ -873,7 +851,7 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
     availableProjects,
     feedRows: page?.rows ?? null,
     nextCursor: page?.nextCursor ?? null,
-    homeMode: preferenceResult.error ? guestHomeFeedMode : asHomeFeedMode((preferenceResult.data as unknown as { home_mode?: string } | null)?.home_mode),
+    homeMode: preferenceResult.error ? fallbackHomeFeedMode : asHomeFeedMode((preferenceResult.data as unknown as { home_mode?: string } | null)?.home_mode),
     sphere: buildUserContentSphere({
       viewerProfile,
       availableProjects,
@@ -895,17 +873,15 @@ export const supabaseDiscoveryService: DiscoveryService = {
   },
   async setHomeFeedMode(mode) {
     const client = requireSupabase();
-    const { data } = await client.auth.getSession();
-    if (!data.session?.user) {
-      guestHomeFeedMode = mode;
-    } else {
-      const { error } = await client.from('discovery_preferences').upsert({
-        account_id: data.session.user.id,
-        home_mode: mode,
-      }, { onConflict: 'account_id' });
-      if (error && !isMissingDiscoveryTable(error)) throw new Error(error.message);
-      if (error) guestHomeFeedMode = mode;
-    }
+    const { data, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw new Error('Your session could not be checked. Please try again.');
+    if (!data.session?.user || data.session.user.is_anonymous) throw new Error('Create an account or sign in to explore Portalink.');
+    const { error } = await client.from('discovery_preferences').upsert({
+      account_id: data.session.user.id,
+      home_mode: mode,
+    }, { onConflict: 'account_id' });
+    if (error && !isMissingDiscoveryTable(error)) throw new Error(error.message);
+    if (error) fallbackHomeFeedMode = mode;
     const context = await discoveryContext('home');
     return { ...rankHomeProjects(context.availableProjects, context.sphere, new Date(), mode), nextCursor: context.nextCursor };
   },
@@ -968,11 +944,10 @@ export const supabaseDiscoveryService: DiscoveryService = {
       .map((row) => ({ id: row.id, name: row.name, kind: row.headline, avatar: row.avatar_url, location: row.location, isPrivate: false }));
   },
   async searchAccounts(query, offset = 0): Promise<FeedCreator[]> {
+    await requireDirectoryAccount();
     const term = query.trim().replace(/^@/, '').slice(0, 80);
     if (!term) return [];
     const client = requireSupabase();
-    const { error: sessionError } = await client.auth.getSession();
-    if (sessionError) throw new Error('Your session could not be checked. Please try again.');
     const pattern = `%${term.replace(/[\\%_]/g, char => `\\${char}`)}%`;
     const quoted = `"${pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
     const { data, error } = await client.from('profiles')

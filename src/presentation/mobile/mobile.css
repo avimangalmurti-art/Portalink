@@ -5766,8 +5766,8 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 }
 
 /* World search is one stationary canvas; only its city list scrolls. */
-html:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world:not([data-guest-world])),
-body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world:not([data-guest-world])) {
+html:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world),
+body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world) {
   height: 100%;
   overflow: hidden;
   overscroll-behavior-y: none;

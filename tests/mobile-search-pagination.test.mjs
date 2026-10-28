@@ -227,31 +227,35 @@ test('signing out immediately removes directory fields and ignores an outstandin
   h.unmount();
 });
 
-test('opted-in MOBILE and WEB guest search loads public accounts without recent-account storage or profile prewarming', async () => {
+test('signed-in MOBILE and WEB search retains account history, creator prewarming and Back', async () => {
   for (const mode of ['mobile','web']) {
-    const h=fixture(() => Promise.resolve(people()),{mode,authenticated:false,guestPreview:true});
-    assert.ok(h.field);assert.equal(h.requests.length,0);assert.deepEqual(h.recentCalls,[]);
+    const h=fixture(() => Promise.resolve(people()),{mode});
+    assert.ok(h.field);assert.equal(h.requests.length,0);assert.ok(h.recentCalls.every(([kind,account])=>kind==='read'&&account==='account-a'));
     h.query('Creator');h.runTimers();await h.flush();assert.equal(h.rows.length,30);
     const result=h.find(node=>node.type==='button'&&nodes(node).some(child=>child.type==='strong'));
-    assert.equal(result.props.onPointerEnter,undefined);assert.equal(result.props.onFocus,undefined);
-    result.props.onClick();assert.deepEqual(h.visits,['Creator-0']);assert.deepEqual(h.warmed,[]);assert.deepEqual(h.recentCalls,[]);
+    result.props.onPointerEnter();result.props.onFocus();assert.deepEqual(h.warmed,['Creator-0','Creator-0']);
+    result.props.onClick();assert.deepEqual(h.visits,['Creator-0']);assert.deepEqual(h.recentCalls.filter(([kind])=>kind==='write').map(([kind,account,person])=>[kind,account,person.id]),[['write','account-a','Creator-0']]);
     h.find(node=>node.type==='button'&&node.props['aria-label']==='Back').props.onClick();assert.deepEqual(h.backCalls,['back']);
-    h.query('');assert.deepEqual(h.rows,[]);assert.deepEqual(h.recentCalls,[]);h.unmount();
+    h.query('');assert.deepEqual(h.rows,[]);h.unmount();
   }
 });
 
-test('opted-in MOBILE guest pagination preserves rows through failure and retries the same public offset', async () => {
+test('signed-in MOBILE pagination preserves rows through failure and retries the same account-search offset', async () => {
   let fail=true;
-  const h=await loaded((query,offset=0)=>offset&&fail?Promise.reject(Error('offline')):Promise.resolve(people(offset,offset?2:30)),{authenticated:false,guestPreview:true});
+  const h=await loaded((query,offset=0)=>offset&&fail?Promise.reject(Error('offline')):Promise.resolve(people(offset,offset?2:30)));
   h.results._top=640;h.clickMore();await h.flush();assert.equal(h.rows.length,30);assert.ok(h.error);assert.equal(h.results.scrollTop,640);
   fail=false;h.retry();await h.flush();assert.equal(h.rows.length,32);assert.equal(h.error,undefined);assert.deepEqual(h.requests.map(([,offset=0])=>offset),[0,30,30]);
-  assert.deepEqual(h.recentCalls,[]);assert.equal(h.scrollWrites.length,0);h.unmount();
+  assert.ok(h.recentCalls.every(([kind,account])=>kind==='read'&&account==='account-a'));assert.equal(h.scrollWrites.length,0);h.unmount();
 });
 
-test('guest search opt-in is required and revoking it rejects an outstanding public response', async () => {
-  const pending=deferred(),h=fixture(()=>pending.promise,{authenticated:false});
-  assert.equal(h.field,undefined);h.query('Creator');h.runTimers();assert.equal(h.requests.length,0);
-  h.guestPreview(true);h.runTimers();assert.equal(h.requests.length,1);assert.ok(h.field);
-  h.guestPreview(false);assert.equal(h.field,undefined);pending.resolve(people());await h.flush();assert.deepEqual(h.rows,[]);
-  assert.deepEqual(h.recentCalls,[]);h.unmount();
+test('stale guest opt-in cannot grant MOBILE or WEB search or retain a response after sign-out', async () => {
+  for(const mode of ['mobile','web']){
+    const pending=deferred(),h=fixture(()=>pending.promise,{mode,authenticated:false,guestPreview:true});
+    assert.equal(h.field,undefined);h.query('Creator');h.runTimers();assert.equal(h.requests.length,0);assert.deepEqual(h.recentCalls,[]);
+    h.guestPreview(false);h.guestPreview(true);h.runTimers();assert.equal(h.requests.length,0);assert.equal(h.field,undefined);
+    h.owner('account-a');h.runTimers();assert.equal(h.requests.length,1);assert.ok(h.field);
+    h.owner(null);assert.equal(h.field,undefined);const recentCount=h.recentCalls.length;
+    pending.resolve(people());await h.flush();assert.deepEqual(h.rows,[]);assert.equal(h.recentCalls.length,recentCount);
+    h.query('Someone else');h.runTimers();assert.equal(h.requests.length,1);assert.deepEqual(h.visits,[]);assert.deepEqual(h.warmed,[]);h.unmount();
+  }
 });

@@ -12,10 +12,10 @@ function nodes(node) {
   return [node, ...React.Children.toArray(node.props.children).flatMap(nodes)];
 }
 
-function harness(presentation = 'mobile', props = {}, signedIn = true) {
+function harness(presentation = 'mobile', props = {}) {
   const slots = []; let cursor = 0;
   let layoutEffects = []; let actions=null; let refreshGesture=null; let readiness=null; let refreshMotion=null;
-  const feedArguments = [], navigation = [], authRequests = [];
+  const feedArguments = [], navigation = [];
   let reloads = 0;
   let worldVisits = 0;
   let userSearchVisits = 0;
@@ -48,9 +48,9 @@ function harness(presentation = 'mobile', props = {}, signedIn = true) {
     if (name.endsWith('/useMobileFeedResume')) return { useMobileFeedResume: () => ({ restoring: false, handled: false }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
-    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: signedIn ? 'owner' : null,isAuthenticated:signedIn, requestAuthenticatedDestination: (...args) => authRequests.push(args) }) };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: 'owner', isAuthenticated: true, user: { id: 'account' } }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null, close() {} }, deletion: { projectId: null, cancel() {} } }) };
-    if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ ...ownerProfile, layout: signedIn ? ownerProfile.profile : null }) };
+    if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ ...ownerProfile, layout: ownerProfile.profile }) };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
     if (name.endsWith('/useFeed')) return { useFeed(locationId) {
       feedArguments.push(locationId);
@@ -63,7 +63,7 @@ function harness(presentation = 'mobile', props = {}, signedIn = true) {
     cursor = 0; layoutEffects = [];
     return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onExploreWorld() { worldVisits++; }, onSearchUsers() { userSearchVisits++; }, onOpenProject() {}, onOpenCreator() { throw new Error("Account search must not open the viewer profile"); }, ...props });
   };
-  return { navigation, authRequests, feedArguments, feed, density, ownerProfile, get readiness(){return readiness;}, get refreshMotion(){return refreshMotion;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
+  return { navigation, feedArguments, feed, density, ownerProfile, get readiness(){return readiness;}, get refreshMotion(){return refreshMotion;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
     restoreScroll(){const tree=render();nodes(tree).find(node=>typeof node.props.onScroll==='function').ref.current={scrollTop:0};layoutEffects.slice(0,3).forEach(effect=>effect());},
     measureLocation(width) {
       const scroller = nodes(render()).find(node => typeof node.props.onScroll === 'function');
@@ -89,6 +89,9 @@ test('only startup Home waits for readiness and prioritizes its visible artwork;
     assert.equal(grid.props.items[0].content.props.priority,false,'Visibility priority waits for the saved scroll position.');
     h.restoreScroll();tree=h.render();grid=nodes(tree).find(node=>node.type===(presentation==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));
     assert.equal(grid.props.items[0].content.props.priority,'viewport');
+    assert.equal(h.readiness.settled,false,'Startup still waits for the account’s Weekly Read note after scroll restores.');
+    nodes(tree).find(node=>node.type==='WeeklyReadNote').props.onStartupSettled(true);h.render();
+    assert.equal(h.readiness.settled,true,'The original feed and note readiness handoff remains available.');
     h.ownerProfile.profile=null;h.ownerProfile.status='error';h.feed.status='loading';h.feed.projects=[];
     tree=h.render();assert.equal(h.readiness.terminalError,true);
     assert.equal(nodes(tree).some(node=>node.type==='ErrorState'),true);
@@ -144,16 +147,17 @@ test('a failed Home refresh exposes its real error immediately, preserves cards 
   h.pull();assert.equal(h.reloads,2,'A failed request leaves the existing pull retry available');
 });
 
-test('guests retain the bounded preview, navigate allowed views by URL, and sign in for content',()=>{for(const mode of ['mobile','web']){
- const h=harness(mode,{},false),tree=h.render();assert.equal(tree.type,'GuestHomePreview');assert.equal(tree.props.view,'home');
- tree.props.onViewChange('profile');assert.equal(h.navigation.at(-1)[0],'/?guest=profile');
- tree.props.onViewChange('world');assert.equal(h.navigation.at(-1)[0],'/?guest=world');
- tree.props.onQueryChange('Portal');assert.equal(h.navigation.at(-1)[0],'/?guest=search&q=Portal');assert.equal(h.navigation.at(-1)[1].replace,true);
- tree.props.onOpenCreator('creator');assert.equal(h.authRequests.at(-1)[0].path,'/p/creator');assert.equal(h.authRequests.at(-1)[1],'signIn');
- tree.props.onOpenProject({project:{id:'work',categoryId:'portal'},creator:{id:'creator'}});assert.equal(h.authRequests.at(-1)[0].path,'/p/creator/c/portal/work');assert.equal(h.authRequests.at(-1)[1],'signIn');
- h.pull();assert.equal(h.reloads,0);
- for(const view of ['profile','world','search']){const scoped=harness(mode,{search:'?guest='+view,startupPending:true},false);assert.equal(scoped.render().props.view,view);assert.equal(scoped.readiness.projectCount,0,'Guest auxiliary screens do not wait for hidden Home artwork');}
-}});
+test('obsolete guest view parameters cannot select a preview or bypass signed-in Home readiness',()=>{
+ for(const mode of ['mobile','web'])for(const search of ['?guest=home','?guest=profile','?guest=world','?guest=search&q=Portal']){
+  const h=harness(mode,{search,startupPending:true}),tree=h.render(),all=nodes(tree);
+  assert.equal(tree.type,'div');assert.equal(all.some(node=>node.type==='GuestHomePreview'||'data-guest-home' in node.props),false);
+  const grid=all.find(node=>node.type===(mode==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));
+  assert.deepEqual(Array.from(grid.props.items,item=>item.key),['first','second']);
+  assert.equal(h.readiness.projectCount,2);assert.equal(h.readiness.settled,false);
+  assert.equal(tree.props.onViewChange,undefined);assert.equal(tree.props.onQueryChange,undefined);
+  assert.deepEqual(h.navigation,[],'Rendering the account feed cannot generate a guest destination.');
+ }
+});
 test('header categories entry opens a separate page without refreshing and restores Explore on Back',()=>{
  const h=harness();const button=label=>nodes(h.render()).find(n=>n.type==='button'&&n.props['aria-label']===label);
  assert.equal(button('Reload Home content'),undefined);

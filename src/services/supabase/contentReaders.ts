@@ -11,6 +11,7 @@ import { multipartSource, readMultipartSpec } from './multipartMedia';
 import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
 import { deriveProjectRelevance } from '../../domain/discovery/ranking';
 import { requireSupabase } from './client';
+import { requireDirectoryAccount } from './requireDirectoryAccount';
 import { signedMediaUrls } from './mediaUrlCache';
 import { coverThumbnailWithUrls, readCoverThumbnail } from './coverThumbnailReads';
 import { readSharedProfileBundle } from './sharedProfileBundle';
@@ -565,7 +566,8 @@ async getProfileForAccount(accountId) {
     return row ? this.getProfile(row.id) : null;
   },
 
-listProfiles() {
+async listProfiles() {
+    await requireDirectoryAccount();
     return loadProfiles();
   }
 };

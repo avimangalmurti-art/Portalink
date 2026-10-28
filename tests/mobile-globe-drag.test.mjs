@@ -32,16 +32,17 @@ test('desktop drag retains immediate updates',()=>{
  assert.deepEqual(h.updates,[-27,18]);assert.equal(h.frames.size,0);
 });
 
-test('embedded globe leaves the guest frame in charge while city selection retains the real destination',()=>{
+test('a stale guest embedding prop cannot disable the normal viewport while city selection and drag remain available',()=>{
  for(const mode of ['mobile','web']){
-  const normal=harness(mode),guest=harness(mode,true);
+  const normal=harness(mode),stale=harness(mode,true);
   assert.equal(normal.tree.props['data-guest-world'],undefined);
-  assert.equal(guest.tree.props['data-guest-world'],'');
+  assert.equal(stale.tree.props['data-guest-world'],undefined);
+  assert.equal(stale.tree.props.className,normal.tree.props.className);
   assert.deepEqual(normal.viewportModes,[mode==='mobile']);
-  assert.deepEqual(guest.viewportModes,[false]);
+  assert.deepEqual(stale.viewportModes,[mode==='mobile']);
   const city={id:'gn-5391959',kind:'city',name:'San Francisco',latitude:37.7749,longitude:-122.4194};
-  nodes(guest.tree).find(n=>n.type==='location-search').props.onSelect(city);
-  assert.deepEqual(guest.selections,[city]);
+  nodes(stale.tree).find(n=>n.type==='location-search').props.onSelect(city);
+  assert.deepEqual(stale.selections,[city]);
  }
  const h=harness('mobile',true);h.globe.props.onPointerDown(h.event(0));h.updates.length=0;
  h.globe.props.onPointerMove(h.event(20));assert.equal(h.frames.size,1);

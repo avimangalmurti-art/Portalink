@@ -12,15 +12,14 @@ import { motionEase, motionMs, reducedMotion } from '../presentation/motion/moti
 
 const EMPTY_ACCOUNTS: FeedCreator[] = [];
 
-export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarmCreator, onBack, guestPreview = false }: {
+export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarmCreator, onBack }: {
   query: string; onQueryChange: (value: string) => void; onOpenCreator: (id: string) => void; onWarmCreator?: (id: string) => void; onBack?: () => void;
-  guestPreview?: boolean;
 }) {
   const mobile = usePresentation() === 'mobile';
   const SearchField = mobile ? 'textarea' : 'input';
   const { discovery } = useServices();
   const auth = useAuth();
-  const canSearch = auth.isAuthenticated || guestPreview;
+  const canSearch = auth.isAuthenticated;
   const active = useMobileScreenActive();
   const activeRef = useRef(active);
   activeRef.current = active;

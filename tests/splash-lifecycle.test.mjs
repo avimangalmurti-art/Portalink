@@ -853,9 +853,8 @@ test('invitation marker does not override signed-in, recovery or authentication 
     if (options.recovery || options.hash || options.search) assert.equal(h.storage.get('portalink.sharedViewerProfileId'),'previous-creator');
   }
   const ordinary=sharedBootstrap({path:'/',search:'',storedProfileId:'previous-creator'}); ordinary.auth.isInitializing=false;
-  assert.equal(ordinary.render().props.landing,undefined,'retained public context cannot open the ordinary welcome');
-  assert.equal(ordinary.app.type,'redirect','ordinary guest navigation keeps its existing shared-profile boundary');
-  assert.equal(ordinary.app.props.to,'/share/previous-creator');
+  assert.equal(ordinary.render().props.landing.ready,true,'stale shared context cannot bypass ordinary account entry');
+  assert.equal(ordinary.app.type,'app','the account boundary owns the ordinary root, without redirecting to another creator');
   assert.equal(ordinary.storage.get('portalink.sharedViewerProfileId'),'previous-creator');
   assert.equal(ordinary.requested.length,0);
 });
@@ -930,11 +929,13 @@ test('ordinary MOBILE visitors see Hello World and account entry before successf
   }
 });
 
-test('authenticated visitors, recovery and callback URLs never hold the landing', () => {
-  for(const options of [{authenticated:true},{recovery:true},{search:'?auth=signIn'},{search:'?code=private'},{hash:'#type=recovery'},{path:'/messages'}]) {
+test('authenticated visitors, recovery and callbacks bypass account entry until a session ends or recovery closes', () => {
+  for(const options of [{authenticated:true},{recovery:true},{search:'?auth=signIn'},{search:'?code=private'},{hash:'#type=recovery'}]) {
     const h=sharedBootstrap({path:'/',search:'',...options}); let splash=h.render(); assert.equal(splash.props.landing,undefined);
     splash.props.onComplete(); h.auth.isInitializing=false; h.render(); h.render(); assert.equal(h.render(),null);
-    h.auth.isAuthenticated=false; h.auth.pendingView=null; assert.equal(h.render(),null);
+    h.auth.isAuthenticated=false; h.auth.pendingView=null;
+    if(options.authenticated||options.recovery) assert.equal(h.render().props.landing.ready,true);
+    else assert.equal(h.render(),null,'authentication callbacks retain their original handoff');
   }
 });
 
@@ -1190,15 +1191,15 @@ test('mobile welcome delegates readiness to the shared entry controls',()=>{
   h.unmount();
 });
 
-test('successful sign in or registration ends an explicit welcome permanently across presentation changes', () => {
+test('successful account entry releases the app and signing out restores account choices across presentations', () => {
   for(const action of ['onSignIn','onCreateAccount']) {
     const h=sharedBootstrap({path:'/',search:'?welcome=1'});h.auth.isInitializing=false;h.render().props.onComplete();
     const splash=h.render();
     splash.props.landing[action]();h.authenticate();
     const handoff=h.render();assert.equal(handoff.props.welcomeHandoff,true);
     assert.equal(h.render(),null);
-    h.auth.isAuthenticated=false;h.setPresentation('web');assert.equal(h.render(),null);
-    h.setPresentation('mobile');assert.equal(h.render(),null);
+    h.auth.isAuthenticated=false;h.setPresentation('web');assert.equal(h.render().props.landing.ready,true);
+    h.setPresentation('mobile');assert.equal(h.render().props.landing.ready,true);
   }
 });
 
@@ -1212,8 +1213,21 @@ test('shared visitors can open Settings while the public-view boundary remains i
   }
   const h=sharedBootstrap({path:'/',search:'',storedProfileId:'creator'});
   h.auth.isInitializing=false;h.render();
-  assert.equal(h.app.type,'redirect');
-  assert.equal(h.app.props.to,'/share/creator');
+  assert.equal(h.app.type,'app');
+  assert.equal(h.render().props.landing.ready,true,'a stale shared-reader key never bypasses the root company entry');
+});
+
+test('signed-out direct routes and legacy guest query modes always retain account entry', () => {
+  for(const presentation of ['mobile','web']) for(const [path,search] of [['/','?guest=home'],['/','?guest=world'],['/','?guest=search&q=creator'],['/','?guest=profile'],['/messages',''],['/portalink/city',''],['/search','?q=creator'],['/p/creator','?view=portals']]) {
+    const h=sharedBootstrap({presentation,path,search,hash:'#requested'});h.auth.isInitializing=false;
+    const entry=h.render();assert.equal(entry.props.landing.ready,true,`${presentation}/${path}${search}`);
+    assert.equal(entry.props.landing.onDismiss,undefined);assert.equal(h.homeTimerCount,0);
+    entry.props.landing.onSignIn();
+    if(path==='/') assert.deepEqual(h.requested.at(-1),{view:'signIn'});
+    else assert.deepEqual(JSON.parse(JSON.stringify(h.requested.at(-1))),{intent:{kind:'route',path:path+search+'#requested',label:'continue'},view:'signIn'});
+    assert.equal(h.render().props.hidden,true);
+    h.auth.pendingView=null;assert.equal(h.render().props.hidden,false);
+  }
 });
 
 test('splash and Hello World exit fades stay within the base token on both layouts without changing fixed mobile handoff',()=>{

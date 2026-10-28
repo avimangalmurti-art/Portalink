@@ -43,7 +43,7 @@ function readSharedViewerProfileId(): string | null {
 
 /**
  * Restore the session alongside startup. Returning MOBILE accounts enter as
- * soon as authentication is ready; guests see immediate account choices.
+ * soon as authentication is ready; signed-out visitors see account choices.
  * WEB keeps its existing Home readiness checks without a required intro.
  */
 export function ApplicationBootstrap() {
@@ -51,6 +51,7 @@ export function ApplicationBootstrap() {
   const { pathname, search = '', hash = '', key: locationKey } = useLocation();
   const isHandleView = Boolean(handleFromPath(pathname));
   const isSharedView = isHandleView || /^\/share(?:\/|$)/i.test(pathname);
+  const isPublicSettings = pathname.replace(/\/+$/, '') === routes.controlCenter.path || pathname.replace(/\/+$/, '') === '/appearance';
   const presentation = useViewportPresentation();
   useMobileInstallCapture(presentation === 'mobile');
   // MOBILE public links own their entry and design even when opened from the
@@ -58,7 +59,7 @@ export function ApplicationBootstrap() {
   const usePublicEntry = isHandleView || (presentation === 'mobile' && isSharedView);
   // Code has no account data: overlap the requested destination's download
   // with session restoration, while the normal auth gate still owns rendering.
-  useEffect(() => { if (!usePublicEntry) void warmScreenForPath(pathname); }, [usePublicEntry, pathname]);
+  useEffect(() => { if (!usePublicEntry && (auth.isAuthenticated || isSharedView || isPublicSettings)) void warmScreenForPath(pathname); }, [usePublicEntry, pathname, auth.isAuthenticated, isSharedView, isPublicSettings]);
   useEffect(() => { if (usePublicEntry) window.location.replace(pathname + search + hash); }, [usePublicEntry, pathname, search, hash]);
   const [openingPresentation] = useState(presentation);
   const [openingPath] = useState(pathname);
@@ -95,7 +96,9 @@ export function ApplicationBootstrap() {
   const sessionSharedProfileId = isWelcomeInvite ? null : readSharedViewerProfileId();
   // A newly opened public URL is authoritative, even after visiting another creator.
   const lockedSharedProfileId = auth.isAuthenticated ? null : routeSharedProfileId ?? sessionSharedProfileId;
-  const holdLanding = Boolean(!isSharedView && landingPath && !hasLeftLanding && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
+  // Account entry also covers direct/legacy URLs and a session that signs out
+  // after the initial welcome has completed. No ordinary guest screen exists.
+  const holdLanding = Boolean(!isSharedView && !isPublicSettings && !isAuthCallback && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
   const [homeAttempt, setHomeAttempt] = useState(0);
   const homeScope = useMemo(() => ({ session: auth.session, account: auth.user?.id ?? null, attempt: homeAttempt }), [auth.session, auth.user?.id, homeAttempt]);
   const currentHomeScope = useRef(homeScope);
@@ -112,9 +115,8 @@ export function ApplicationBootstrap() {
   const reportHomeContent = useCallback((ready: boolean) => reportHomeReady('content', ready), [reportHomeReady]);
   const reportHomeShell = useCallback((ready: boolean) => reportHomeReady('shell', ready), [reportHomeReady]);
   const homeReady = homeReadiness?.scope === homeScope && homeReadiness.content && homeReadiness.shell;
-  const isPublicSettings = pathname.replace(/\/+$/, '') === routes.controlCenter.path || pathname.replace(/\/+$/, '') === '/appearance';
-  const shouldRedirect = !isHandleView && !isPublicSettings && !auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId;
-  const homeStartupTarget = openingPresentation !== 'mobile' && openingPath === '/' && pathname === '/' && !isSharedView && !usePublicEntry && !shouldRedirect && !isRecovery && !auth.isSessionUnavailable;
+  const shouldRedirect = pathname !== '/' && !isHandleView && !isPublicSettings && !auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId;
+  const homeStartupTarget = auth.isAuthenticated && openingPresentation !== 'mobile' && openingPath === '/' && pathname === '/' && !isSharedView && !usePublicEntry && !shouldRedirect && !isRecovery && !auth.isSessionUnavailable;
   const waitingForHome = homeStartupTarget && !hasStartupCompleted && !homeReady;
   useEffect(() => {
     if (!waitingForHome || auth.isInitializing || holdLanding || auth.pendingView) return;
@@ -154,7 +156,9 @@ export function ApplicationBootstrap() {
   }, [auth.isInitializing, hasSplashCompleted, hasPresentedLanding, holdLanding, homeStartupTarget, homeReady, returningAccountReady]);
 
   const startAccount = (view: 'signIn' | 'signUp' | 'forgotPassword') => {
-    auth.requestAuth(view);
+    if (pathname !== '/' && !isSharedView && !isPublicSettings) {
+      auth.requestAuthenticatedDestination({ kind: 'route', path: pathname + search + hash, label: 'continue' }, view);
+    } else auth.requestAuth(view);
   };
 
   useEffect(() => {
@@ -183,10 +187,10 @@ export function ApplicationBootstrap() {
         // splash fade on the compositor instead of competing with globe work.
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
-        {!isSharedView && (!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry ? <PortalinkSplashLoader key={holdLanding || hasPresentedLanding ? 'portalink-account-entry' : 'portalink-splash'} onComplete={completeSplash} stillOnly={startupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
+        {!isSharedView && (holdLanding || ((!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry)) ? <PortalinkSplashLoader key={holdLanding || hasPresentedLanding ? 'portalink-account-entry' : 'portalink-splash'} onComplete={completeSplash} stillOnly={startupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery}
           welcomeHandoff={hasPresentedLanding && !holdLanding}
-          hidden={Boolean(landingPath && ((!auth.isAuthenticated && auth.pendingView) || isRecovery))}
+          hidden={Boolean((!auth.isAuthenticated && auth.pendingView) || isRecovery)}
           landing={holdLanding ? {
             ready: !auth.isInitializing,
             hideMedia: true,
