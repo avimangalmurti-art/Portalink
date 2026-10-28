@@ -1,3 +1,4 @@
+import { supabaseTimelinePairService } from './timelinePairsService';
 import { validContactEmail } from '../../features/employer/employer';
 import { profileSharing } from './profileSharing';
 import { mergeProjectDesign, saveProjectCreationDetails, saveProjectJourneyDetails } from './projectCreationDetails';
@@ -47,6 +48,7 @@ import {
 } from '../../domain/discovery/ranking';
 import { creatorLocationMatches } from '../../domain/contentPlacement';
 import { requireSupabase } from './client';
+import { requireDirectoryAccount } from './requireDirectoryAccount';
 import { refreshProjectCoverThumbnail, removePrivateCoverThumbnails, removeProfilePublicCovers } from './coverThumbnails';
 import { validateHandle } from '../../features/profile/validation';
 import { createProfileHandle } from '../../utils/profileHandle';
@@ -94,6 +96,7 @@ async function uploadAvatar(accountId: string, input: CreateProfileInput['avatar
 
 export const supabaseProfileService: ProfileService = {
   ...supabaseProfileReadService,
+  ...supabaseTimelinePairService,
   ...profileSharing,
 
   async updateProjectGridLayout(profileId, columns) {
@@ -198,8 +201,8 @@ export const supabaseProfileService: ProfileService = {
     if (input.avatar) update.avatar_url = await uploadAvatar(authData.session.user.id, input.avatar);
     if (Object.keys(update).length === 0) return this.getProfile(profileId);
     const { error } = await requireSupabase().from('profiles').update(update).eq('id', profileId).eq('account_id', authData.session.user.id).select('id').single();
-    if (error && ['42703','PGRST204'].includes(error.code) && /portfolio_headline|school|availability|contact_email|allow_pdf_download|start_here_project_id/.test(error.message)) throw new Error('These portfolio settings are not enabled yet. Your changes have not been saved.');
-    if (error && ['42703', 'PGRST204'].includes(error.code) && /show_journey|then_now/.test(error.message)) throw new Error('Journey sharing and pairs are not enabled yet. Your changes have not been saved.');
+    if (error && ['42703','PGRST204'].includes(error.code) && /portfolio_headline|school|availability|contact_email|allow_pdf_download|start_here_project_id/.test(error.message)) throw new Error('These catalogue settings are not enabled yet. Your changes have not been saved.');
+    if (error && ['42703', 'PGRST204'].includes(error.code) && /show_journey|then_now/.test(error.message)) throw new Error('Timeline sharing and pairs are not enabled yet. Your changes have not been saved.');
     if (error) throwProfileError(error, 'Your profile changes could not be saved.');
     return this.getProfile(profileId);
   },
@@ -322,7 +325,7 @@ export const supabaseProfileService: ProfileService = {
         }
       : {
           isAvailable: true,
-          removes: ['This category and its position in your portfolio.'],
+          removes: ['This category and its position in your catalogue.'],
           blockingProjectCount: 0,
         };
   },
@@ -530,7 +533,7 @@ export const supabaseProjectService: ProjectService = {
       throw new PublishServiceError('invalid_media', 'Upload at least one file before publishing.');
     }
     const categoryResult = await requireSupabase().from('portfolio_categories').select('label').eq('id', input.categoryId).eq('profile_id', input.profileId).single();
-    if (categoryResult.error) throw new PublishServiceError('category_not_found', 'That portfolio category could not be found.');
+    if (categoryResult.error) throw new PublishServiceError('category_not_found', 'That catalogue category could not be found.');
     const relevance = withProjectLocation(input.relevance ?? projectRelevanceForPersistence(input.metadata, String((categoryResult.data as { label?: string }).label ?? '')), input.location);
     const extended = await requireSupabase().rpc('publish_project_citation_fields', {
       p_made_on: input.metadata.madeOn || null,
@@ -593,8 +596,8 @@ export const supabaseProjectService: ProjectService = {
   },
 
   async updateProject(input: UpdateProjectInput): Promise<UpdateProjectResult> {
-    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
-      throw new ProjectMutationError('invalid_metadata', 'A title and description are required.');
+    if (!input.metadata.title.trim()) {
+      throw new ProjectMutationError('invalid_metadata', 'A title is required.');
     }
     const { data, error } = await requireSupabase().rpc('update_project_citation_fields', {
       p_made_on: input.metadata.madeOn ?? null,
@@ -751,7 +754,7 @@ function isMissingDiscoveryTable(error: { code?: string; message?: string } | nu
 }
 
 const HOME_FEED_MODES: HomeFeedMode[] = ['balanced', 'following', 'nearby', 'latest'];
-let guestHomeFeedMode: HomeFeedMode = 'balanced';
+let fallbackHomeFeedMode: HomeFeedMode = 'balanced';
 
 function asHomeFeedMode(value: unknown): HomeFeedMode {
   return typeof value === 'string' && HOME_FEED_MODES.includes(value as HomeFeedMode) ? value as HomeFeedMode : 'balanced';
@@ -794,36 +797,25 @@ async function feedViews(rows: FeedRow[], withCovers: boolean): Promise<ProjectV
 
 async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: ProjectFeedCursor) {
   const client = requireSupabase();
-  const { data: authData } = await client.auth.getSession();
-  const accountId = authData.session?.user.id ?? null;
-  if (!accountId) {
-    // Global Search remains public. Home is account-specific and therefore has
-    // no invented fallback content for a guest.
-    const page = scope === 'global' ? await readFeedPage(scope, cursor, 120) : { rows: [], nextCursor: null };
-    const projectIds = !page && scope === 'global' ? await latestProjectIds(120) : [];
-    const availableProjects = page ? await feedViews(page.rows, false) : await projectViewsForIds(projectIds);
-    return {
-      availableProjects,
-      feedRows: page?.rows ?? null,
-      nextCursor: page?.nextCursor ?? null,
-      homeMode: guestHomeFeedMode,
-      sphere: buildUserContentSphere({
-        viewerProfile: null,
-        availableProjects,
-        followedCreatorIds: [],
-        engagement: [],
-        explicitSignals: [],
-      }),
-    };
-  }
+  const { data: authData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw new Error('Your session could not be checked. Please try again.');
+  const accountId = authData.session?.user.is_anonymous ? null : authData.session?.user.id ?? null;
+  if (!accountId) throw new Error('Create an account or sign in to explore Portalink.');
 
+  const pageRequest = readFeedPage('global', cursor, scope === 'home' ? 30 : 120);
+  // Home covers can prepare as soon as their public page arrives, while the
+  // account's independent ranking reads are still travelling. Capture failures
+  // now; the usual account checks still run before the prepared page is consumed.
+  const preparedHomeRequest = scope === 'home' ? pageRequest
+    .then(page => page ? feedViews(page.rows, true) : null)
+    .then(views => ({ views }), (error: unknown) => ({ error })) : null;
   const [viewerRow, followResult, engagementResult, signalResult, preferenceResult, page] = await Promise.all([
     client.from('profiles').select('id,location').eq('account_id', accountId).maybeSingle(),
     client.from('profile_follows').select('target_profile_id').eq('follower_account_id', accountId).eq('status', 'following'),
     client.from('project_engagement').select('project_id,kind,created_at').eq('account_id', accountId),
     client.from('discovery_signals').select('topic_key,interest_weight,curiosity_weight,last_interest_at,last_curiosity_at').eq('account_id', accountId),
     client.from('discovery_preferences').select('home_mode').eq('account_id', accountId).maybeSingle(),
-    readFeedPage('global', cursor, scope === 'home' ? 30 : 120),
+    pageRequest,
   ]);
   if (viewerRow.error) throw new Error(viewerRow.error.message);
   if (followResult.error) throw new Error(followResult.error.message);
@@ -837,7 +829,9 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
   const projectIds = page ? [] : scope === 'home'
     ? await allPublicProjectIds()
     : await latestProjectIds(120);
-  const availableProjects = page ? await feedViews(page.rows, scope === 'home') : await projectViewsForIds(projectIds);
+  const preparedHome = preparedHomeRequest ? await preparedHomeRequest : null;
+  if (preparedHome && 'error' in preparedHome) throw preparedHome.error;
+  const availableProjects = page ? preparedHome?.views ?? await feedViews(page.rows, scope === 'home') : await projectViewsForIds(projectIds);
   // Ranking only needs identity and location. Reloading the complete portfolio
   // here would repeat projects, attachments and signing after the feed is ready.
   const explicitSignals: DiscoverySignal[] = signalResult.error ? [] : ((signalResult.data ?? []) as unknown as Array<{
@@ -857,7 +851,7 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
     availableProjects,
     feedRows: page?.rows ?? null,
     nextCursor: page?.nextCursor ?? null,
-    homeMode: preferenceResult.error ? guestHomeFeedMode : asHomeFeedMode((preferenceResult.data as unknown as { home_mode?: string } | null)?.home_mode),
+    homeMode: preferenceResult.error ? fallbackHomeFeedMode : asHomeFeedMode((preferenceResult.data as unknown as { home_mode?: string } | null)?.home_mode),
     sphere: buildUserContentSphere({
       viewerProfile,
       availableProjects,
@@ -879,17 +873,15 @@ export const supabaseDiscoveryService: DiscoveryService = {
   },
   async setHomeFeedMode(mode) {
     const client = requireSupabase();
-    const { data } = await client.auth.getSession();
-    if (!data.session?.user) {
-      guestHomeFeedMode = mode;
-    } else {
-      const { error } = await client.from('discovery_preferences').upsert({
-        account_id: data.session.user.id,
-        home_mode: mode,
-      }, { onConflict: 'account_id' });
-      if (error && !isMissingDiscoveryTable(error)) throw new Error(error.message);
-      if (error) guestHomeFeedMode = mode;
-    }
+    const { data, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw new Error('Your session could not be checked. Please try again.');
+    if (!data.session?.user || data.session.user.is_anonymous) throw new Error('Create an account or sign in to explore Portalink.');
+    const { error } = await client.from('discovery_preferences').upsert({
+      account_id: data.session.user.id,
+      home_mode: mode,
+    }, { onConflict: 'account_id' });
+    if (error && !isMissingDiscoveryTable(error)) throw new Error(error.message);
+    if (error) fallbackHomeFeedMode = mode;
     const context = await discoveryContext('home');
     return { ...rankHomeProjects(context.availableProjects, context.sphere, new Date(), mode), nextCursor: context.nextCursor };
   },
@@ -921,6 +913,7 @@ export const supabaseDiscoveryService: DiscoveryService = {
     if (error) throw new Error(isMissingDiscoveryTable(error) ? 'Discovery preferences are not available yet.' : error.message);
   },
   async listLocationProjects(locationId) {
+    await requireDirectoryAccount();
     const city = await locationDirectory.resolve(locationId);
     if (!city) return [];
     const profileIds: string[] = [];
@@ -939,6 +932,7 @@ export const supabaseDiscoveryService: DiscoveryService = {
     return projectViewsForIds(projectIds);
   },
   async listAccountsToExplore(): Promise<FeedCreator[]> {
+    await requireDirectoryAccount();
     const { data, error } = await requireSupabase()
       .from('profiles')
       .select('id,name,headline,avatar_url,location')
@@ -950,11 +944,13 @@ export const supabaseDiscoveryService: DiscoveryService = {
       .map((row) => ({ id: row.id, name: row.name, kind: row.headline, avatar: row.avatar_url, location: row.location, isPrivate: false }));
   },
   async searchAccounts(query, offset = 0): Promise<FeedCreator[]> {
+    await requireDirectoryAccount();
     const term = query.trim().replace(/^@/, '').slice(0, 80);
     if (!term) return [];
+    const client = requireSupabase();
     const pattern = `%${term.replace(/[\\%_]/g, char => `\\${char}`)}%`;
     const quoted = `"${pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-    const { data, error } = await requireSupabase().from('profiles')
+    const { data, error } = await client.from('profiles')
       .select('id,name,handle,headline,avatar_url,location').eq('is_private', false)
       .or(`name.ilike.${quoted},handle.ilike.${quoted}`).order('name').order('id')
       .range(Math.max(0, offset), Math.max(0, offset) + 29);

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { authReturnOriginFixture } from './helpers/auth-return-origin-fixture.mjs';
 
 function load(path, imports = {}, globals = {}) {
   const exports = {};
@@ -11,6 +12,11 @@ function load(path, imports = {}, globals = {}) {
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, URL, Error, ...globals, require(name) {
+    if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
+    if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
+    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
+    if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
+
     assert.ok(Object.hasOwn(imports, name), `Unexpected import: ${name}`);
     return imports[name];
   } });
@@ -58,7 +64,7 @@ function serviceHarness() {
   const state = {
     current: session(), callback: null, reads: [], signIns: [], signUps: [], getSessionReads: 0,
     writes: [], refreshes: 0, signOuts: 0, freshUserReads: 0, localDraftReads: 0,
-    signInError: null, emitOnSignIn: false, readUser: null,
+    signInError: null, sessionError: null, emitOnSignIn: false, readUser: null,
     read: accountId => ({ data: profile(accountId), error: null }),
   };
   const forbidWrite = operation => () => {
@@ -84,7 +90,7 @@ function serviceHarness() {
     },
     storage: { from: forbidWrite('storage access') },
     auth: {
-      async getSession() { state.getSessionReads++; return { data: { session: state.current }, error: null }; },
+      async getSession() { state.getSessionReads++; return { data: { session: state.current }, error: state.sessionError }; },
       async getUser() {
         state.freshUserReads++;
         return state.readUser ? state.readUser() : { data: { user: state.current?.user }, error: null };
@@ -114,6 +120,7 @@ function serviceHarness() {
     './client': { requireSupabase: () => client, passwordRecovery: { read: () => null },
       recoveryCallbackFailed: false, accountDeletionEnabled: false },
     '../../utils/passwordRecoveryReturn': {},
+    '../../utils/authReturnOrigin': authReturnOriginFixture,
   }, { window: { location: { origin: 'https://portalink.example.test' }, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout } }).supabaseAuthService;
   return { auth, state, clock,
     emit(event, next = state.current) { state.current = next; assert.ok(state.callback, 'Subscribe before emitting provider events'); state.callback(event, next); },
@@ -145,6 +152,52 @@ function providerHarness(auth) {
   }, { window: { location: { href: 'https://portalink.example.test/' } }, document: { activeElement: null }, HTMLElement: class {} });
   return { render: () => hooks.render(() => AuthProvider({ children: null })).props.value, unmount: hooks.unmount };
 }
+
+test('null and anonymous sessions never map a profile or read account metadata', async () => {
+  const anonymous = session('anonymous');
+  anonymous.user.is_anonymous = true;
+  for (const current of [null, anonymous]) {
+    const h = serviceHarness();
+    h.state.current = current;
+    assert.equal(await h.auth.getSession(), null);
+    assert.deepEqual(h.state.reads, []);
+    assert.equal(h.state.freshUserReads, 0);
+    assert.equal(h.state.localDraftReads, 0);
+    h.assertReadOnly();
+  }
+});
+
+test('real account sessions retain their profile identity and session errors fail before mapping', async () => {
+  const h = serviceHarness();
+  const restored = await h.auth.getSession();
+  assert.equal(restored.user.id, 'account-a');
+  assert.equal(restored.user.profileId, 'profile-account-a');
+  assert.equal(restored.user.displayName, 'Creator account-a');
+  assert.equal(h.state.reads.length, 1);
+  h.state.sessionError = { message: 'Session could not be checked' };
+  await assert.rejects(h.auth.getSession(), { code: 'reauthentication_required', message: 'Sign in again before continuing.' });
+  assert.equal(h.state.reads.length, 1);
+  h.assertReadOnly();
+});
+
+test('an anonymous auth event clears a mapped account and cannot complete an earlier account read', async () => {
+  const h = serviceHarness(), events = [];
+  await h.auth.getSession();
+  const unsubscribe = h.auth.onAuthStateChange((...args) => events.push(args));
+  h.state.read = () => ({ data: null, error: futureJwt() });
+  const pending = outcome(h.auth.getSession());
+  await tick();
+  assert.equal(h.state.reads.length, 2);
+  const anonymous = session('anonymous');
+  anonymous.user.is_anonymous = true;
+  h.emit('SIGNED_IN', anonymous);
+  await h.clock.advance(500);
+  assert.equal((await pending).error.code, 'reauthentication_required');
+  assert.deepEqual(events, [[null]]);
+  assert.equal(h.state.reads.length, 2);
+  assert.equal(h.state.freshUserReads, 0);
+  unsubscribe(); h.assertReadOnly();
+});
 
 test('only future-issued JWT errors become the actionable temporary sign-in message', () => {
   for (const message of ['JWT issued at future', 'JWT issued in the future', '{"code":"PGRST301","message":"JWT issued at future"}', 'JWT ISSUED AT FUTURE']) {

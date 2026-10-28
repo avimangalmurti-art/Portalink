@@ -13,6 +13,15 @@ function load(path, imports, globals = {}) {
   vm.runInNewContext(ts.transpileModule(read(path), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, URL, URLSearchParams, ...globals, require(name) {
+    if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
+    if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
+    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
+    if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
+    if (name.endsWith('/CatalogWelcome') && !(name in imports)) return { CatalogWelcome: 'catalog-welcome' };
+    if (name.endsWith('/catalogWelcomeState') && !(name in imports)) return { hasEnteredCatalogWelcome: () => true, canOfferCatalogWelcome: () => false };
+    if (name === 'lucide-react' && !(name in imports)) return new Proxy({}, { get: (_object, key) => key });
+    if (name.endsWith('/InterfaceIcon') && !(name in imports)) return { InterfaceIcon: 'icon' };
+
     if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
     if(name==='../../utils/profileHandle')return sourceModule('src/utils/profileHandle.ts',{'../features/sharing/shareModel':shareModel});
     assert.ok(name in imports, `Missing test import: ${name}`);
@@ -79,7 +88,7 @@ test('public sign-in bar offers optional account actions only for a verified gue
   const buttons = nodes(tree).filter(node => node.type === 'button');
   assert.equal(buttons.length, 3); assert.equal(buttons[0].props.children, 'Sign in');
   assert.equal(buttons[1].props.children, 'Create account'); assert.equal(buttons[2].props['aria-label'], 'Dismiss sign-in bar');
-  assert.ok(nodes(tree).some(node => node.props.className === 'shared-sign-in-identity' && React.Children.toArray(node.props.children).join('') === "Viewing Creator Name's portfolio"));
+  assert.ok(nodes(tree).some(node => node.props.className === 'shared-sign-in-identity' && React.Children.toArray(node.props.children).join('') === "Viewing Creator Name's catalogue"));
   assert.equal(visitor.requested.length, 0);
   for (const options of [{ name: '' }, { name: null }, { initializing: true }, { signedIn: true }, { initializing: true, signedIn: true }, { path: '/' }, { path: '/studio' }, { path: '/profile/creator' }, { path: '/share' }, { path: '/shared/creator' }]) {
     const h = signInBar(options);
@@ -154,7 +163,7 @@ function accountSurface(presentation) {
     '../ui/Button': { Button: 'button' }, '../ui/AppearanceSwitch': { AppearanceSwitch: 'button' },
     '../ui/ConfirmationDialog': { ConfirmationDialog: 'discard-confirmation' },
     '../../presentation/usePresentation': { usePresentation: () => presentation },
-    '../ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'welcome-media' }, './helloWorldSignIn.css': {},
+    '../ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'welcome-media' }, './helloWorldSignIn.css': {}, './profile-setup.css': {},
   }).AccountWelcomeSurface;
 }
 
@@ -177,10 +186,11 @@ test('shared sign-in explicitly suppresses welcome media but preserves its acces
 
 test('shared-entry media preference reaches the existing auth surface only when an auth view was requested', () => {
   for (const presentation of ['mobile', 'web']) {
-    const auth = { pendingView: null, phase: 'anonymous', closeAuth() {} };
+    const actions = [];
+    const auth = { pendingView: null, phase: 'anonymous', closeAuth() { actions.push('close'); }, requestAuth(view) { actions.push(view); } };
     const { AuthDialog } = load('../src/features/auth/AuthDialog.tsx', {
-      react: inertReact, 'lucide-react': {}, '../../contexts/AuthContext': { useAuth: () => auth },
-      '../../components/auth/AuthField': {}, '../../components/ui/Button': {}, '../../components/ui/InterfaceIcon': {},
+      react: inertReact, 'lucide-react': { ChevronLeftIcon: 'svg' }, '../../contexts/AuthContext': { useAuth: () => auth },
+      '../../components/auth/AuthField': {}, '../../components/ui/Button': {}, '../../components/ui/InterfaceIcon': {}, '../../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'hello-world' },
       '../../components/profile/AvatarPicker': {}, '../../components/profile/ProfileField': {}, '../../components/profile/ProfileVisibilityField': {},
       '../../components/profile/ProfileLocationPicker': {}, '../profile/useProfileOnboarding': {}, '../profile/validation': {},
       '../../components/auth/AccountWelcomeSurface': { AccountWelcomeSurface: 'account-surface' },
@@ -190,7 +200,31 @@ test('shared-entry media preference reaches the existing auth surface only when 
     assert.equal(AuthDialog({ showWelcomeMedia: false }), null);
     auth.pendingView = 'signIn';
     const requested = AuthDialog({ showWelcomeMedia: false });
+    for (const view of ['signUp']) {
+      auth.pendingView = view;
+      const fragment = AuthDialog({ welcomeBeforeSignup: true });
+      const siblings = React.Children.toArray(fragment.props.children);
+      const welcome = siblings.find(node => node.type === 'hello-world');
+      assert.equal(welcome.type, 'hello-world');
+      const backdrops = siblings.filter(node => node.props.className === 'portalink-signup-backdrop');
+      assert.equal(backdrops.length, presentation === 'mobile' ? 1 : 0);
+      if (presentation === 'mobile') {
+        assert.equal(siblings[0], backdrops[0]); assert.equal(siblings[1], welcome, 'The loader paints after its independent backing');
+        assert.equal(backdrops[0].props['data-presentation'], 'mobile');
+        assert.equal(backdrops[0].props['aria-hidden'], 'true');
+      }
+      assert.equal(welcome.props.landing.continueLabel, undefined);
+      assert.equal(welcome.props.landing.onContinue, undefined);
+      assert.equal(typeof welcome.props.landing.onDismiss, 'function');
+      assert.equal(welcome.props.landing.content.props.onGuest, undefined);
+      welcome.props.landing.onCreateAccount();
+      welcome.props.landing.onSignIn();
+      welcome.props.landing.onForgotPassword();
+      welcome.props.landing.onDismiss();
+      assert.deepEqual(actions.splice(0), ['signIn', 'forgotPassword', 'close']);
+    }
     assert.equal(requested.type, 'account-surface'); assert.equal(requested.props.showWelcomeMedia, false); assert.equal(requested.props.title, 'Sign in');
+    assert.equal(nodes(requested).some(node => node.props.className === 'portalink-signup-backdrop'), false);
   }
 });
 

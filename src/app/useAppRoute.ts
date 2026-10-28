@@ -6,6 +6,7 @@ import type { EngagementKind } from '../types/engagement';
 import type { NavigationDestination } from '../components/navigation';
 import type { Id } from '../types/domain';
 import { beginProjectContinuity } from '../utils/projectContinuity';
+import { withCataloguePageTarget } from '../features/profile/cataloguePageNavigation';
 
 /**
  * The URL, read as a destination.
@@ -84,15 +85,22 @@ export type AppRoute = {
 };
 
 /**
- * Destinations that genuinely require an account, as opposed to ones that merely
- * belong to a creator. Reading a public profile, category, or project is open to
- * guests; these are the account itself and the creator's own tools.
+ * Explicit shared-link routes and browser preferences remain public. Every
+ * ordinary app destination, including Home, requires an account.
  */
-export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['messages', 'saved', 'notifications', 'insights', 'profileEditor']);
+export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['home', 'messages', 'saved', 'notifications', 'insights', 'profileEditor', 'search', 'portalink', 'profile', 'category', 'project', 'activity', 'collaboration', 'item', 'portals', 'studio']);
 
 /** What the person was reaching for, for the auth gate's wording. */
 export function describeRoute(route: AppRoute): string {
   switch (route.kind) {
+    case 'search':
+      return 'search accounts';
+    case 'portalink':
+      return 'explore Portalink';
+    case 'profile': case 'category': case 'activity': case 'collaboration':
+      return 'explore this creator';
+    case 'project': case 'item':
+      return 'open this project';
     case 'profileEditor':
       return 'edit your profile';
     case 'studio':
@@ -337,11 +345,11 @@ export function useRouteNavigator() {
     })),
     sharedProject: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
       const viewTransition = !replace && beginProjectContinuity(projectId);
-      navigate(buildPath('sharedProject', {
+      navigate(withCataloguePageTarget(buildPath('sharedProject', {
         profileId,
         categoryId,
         projectId
-      }), {
+      }), projectId), {
         replace,
         viewTransition
       });
@@ -357,11 +365,11 @@ export function useRouteNavigator() {
      */
     project: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
       const viewTransition = !replace && beginProjectContinuity(projectId);
-      navigate(buildPath('project', {
+      navigate(withCataloguePageTarget(buildPath('project', {
         profileId,
         categoryId,
         projectId
-      }), {
+      }), projectId), {
         replace,
         viewTransition
       });
@@ -377,11 +385,12 @@ export function useRouteNavigator() {
     portals: () => navigate(routes.portals.path),
     insights: () => navigate(routes.insights.path),
     studio: () => navigate(routes.studio.path),
-    messages: (conversationId?: Id, replace = false, recipientId?: Id) => {
+    messages: (conversationId?: Id, replace = false, recipientId?: Id, state?: Record<string, unknown>) => {
       const params = new URLSearchParams();
       if (conversationId) params.set('conversation', conversationId);
       if (recipientId) params.set('recipient', recipientId);
-      navigate(`${routes.messages.path}${params.size ? `?${params.toString()}` : ''}`, { replace });
+      const entryState = state ?? (locationRef.current.pathname === routes.messages.path ? locationRef.current.state : undefined);
+      navigate(`${routes.messages.path}${params.size ? `?${params.toString()}` : ''}`, { replace, ...(entryState ? { state: entryState } : {}) });
     },
     controlCenter: () => {
       const current = locationRef.current;

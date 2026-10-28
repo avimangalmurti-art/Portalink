@@ -1,0 +1,17 @@
+.entry-agreements-overlay { position:fixed; inset-inline:0; z-index:10030; background:rgb(0 0 0 / 40%); backdrop-filter:blur(12px); display:flex; align-items:flex-end; justify-content:center; padding-top:max(16px, env(safe-area-inset-top, 0px)); }
+.entry-agreements-sheet { --agreement-bg:var(--surface-raised, #111); color:var(--text-primary, #fff); background:var(--agreement-bg); width:100%; max-width:520px; max-height:100%; height:min(820px, 94%); display:flex; flex-direction:column; border-radius:32px 32px 0 0; outline:none; box-shadow:0 -12px 50px rgb(0 0 0 / 20%); }
+.entry-agreements-sheet header { padding:24px 24px 16px; }
+.entry-agreements-sheet h1 { font-size:21px; font-weight:650; text-align:center; outline:none; }
+.entry-agreements-sheet header button { min-height:44px; color:var(--accent-text); text-align:left; margin-bottom:8px; }
+.entry-agreements-scroll { min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 20px 20px; display:flex; flex-direction:column; gap:16px; }
+.entry-agreements-card { border-radius:24px; background:var(--surface-sunken); padding:20px; font-size:15px; line-height:1.6; }
+.entry-agreements-card p { margin-top:12px; }
+.entry-agreements-card nav { margin-top:18px; }
+.entry-agreements-card nav button { min-height:56px; width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--hairline-strong); padding:14px 0; text-align:left; color:var(--accent-text); font-weight:600; }
+.entry-agreements-sheet footer { flex-shrink:0; display:grid; gap:10px; padding:12px 20px max(20px, env(safe-area-inset-bottom, 0px)); background:var(--agreement-bg); }
+.entry-agreements-sheet footer button { min-height:52px; border-radius:999px; border:1px solid var(--hairline-strong); font-weight:600; text-decoration:underline; }
+.entry-agreements-sheet footer .entry-agree { color:var(--surface-canvas); background:var(--text-primary); }
+.entry-agreements-sheet button:focus-visible { outline:2px solid var(--focus-ring); outline-offset:3px; }
+.one-screen-entry .entry-legal { font-size:12px; line-height:1.5; color:#535d6b; }
+.one-screen-entry .entry-legal button { min-height:44px; padding:0 3px; text-decoration:underline; color:inherit; }
+@media (min-width:640px) { .entry-agreements-overlay { align-items:center; padding:24px; } .entry-agreements-sheet { border-radius:32px; } }

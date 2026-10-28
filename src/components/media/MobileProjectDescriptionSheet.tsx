@@ -3,7 +3,8 @@ import { TextFormattingToolbar } from '../text/TextFormattingToolbar';
 import { FormattedText } from '../text/FormattedText';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreHorizontalIcon, XIcon } from 'lucide-react';
+import { MoreHorizontalIcon, PencilIcon, XIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useDescriptionSheetScrollBoundary } from '../../hooks/useDescriptionSheetScrollBoundary';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -32,11 +33,12 @@ type Props = {
   emptyMessage?: string;
   fullScreenEditor?: boolean;
   directEditAction?: boolean;
+  centeredOwnerMenu?: boolean;
   onClose: () => void;
 };
 
 /** A mobile reading sheet. Authoring still belongs to the existing project boundary. */
-export function MobileProjectDescriptionSheet({ projectId, projectTitle, description, typeface, details, ownerActions, creatorHeader, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, directEditAction = false, onClose }: Props) {
+export function MobileProjectDescriptionSheet({ projectId, projectTitle, description, typeface, details, ownerActions, creatorHeader, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, directEditAction = false, centeredOwnerMenu = false, onClose }: Props) {
   const viewportRef = useDialogViewport();
   useDescriptionSheetScrollBoundary(viewportRef);
   const panelRef = useRef<HTMLElement>(null);
@@ -98,13 +100,13 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
   const writingScreen = (fullScreenEditor || contentLabel === 'Description') && editing && !saved;
   const topEditorActions = writingScreen && (directEditAction || contentLabel === 'Description');
   const host = document.fullscreenElement ?? document.querySelector('.app-shell') ?? document.body;
-  return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-project-description-overlay="" data-centered-project={contentLabel === 'Description' || undefined}
+  return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-project-description-overlay="" data-centered-owner-menu={centeredOwnerMenu || undefined} data-centered-project={contentLabel === 'Description' || undefined}
     style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
     onPointerDown={event => { stop(event); if (event.target === event.currentTarget) dismiss(); }}
     onPointerUp={stop} onClick={event => { stop(event); if (menuOpen) setMenuOpen(false); }}
     onDoubleClick={stop} onTouchMove={stop} onWheel={stop} onKeyDown={stop}>
     <section ref={panelRef} id="mobile-project-popup" role="dialog" aria-modal="true" aria-labelledby={contentLabel !== 'Description' || projectTitle ? 'project-description-title' : undefined} aria-label={contentLabel === 'Description' && !projectTitle ? 'Project information' : undefined}
-      tabIndex={-1} data-media-interaction="" data-writing-screen={writingScreen || undefined} data-top-editor-actions={topEditorActions || undefined} data-expanded={expanded || undefined} className="mobile-project-description-sheet">
+      tabIndex={-1} data-ui-surface={writingScreen ? undefined : contentLabel === 'Description' ? 'popup' : 'sheet'} data-media-interaction="" data-writing-screen={writingScreen || undefined} data-top-editor-actions={topEditorActions || undefined} data-expanded={expanded || undefined} className="mobile-project-description-sheet">
       {contentLabel !== 'Description' && !writingScreen && <button type="button" className="project-description-grabber" aria-label={expanded ? `Reduce ${label} sheet` : `Expand ${label} sheet`} aria-expanded={expanded}
         onClick={() => { if (!moved.current) setExpanded(value => !value); moved.current = false; }}
         onPointerDown={event => {
@@ -136,7 +138,7 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
           }
           resetDrag();
         }} onPointerCancel={() => { moved.current = false; resetDrag(); }} onLostPointerCapture={() => { if (drag.current) { moved.current = false; resetDrag(); } }}><span /></button>}
-      {creatorHeader && !editing && <div className="project-popup-identity">{creatorHeader}<button type="button" className="project-popup-close" aria-label={`Close ${label}`} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button></div>}
+      {creatorHeader && !editing && <div className="project-popup-identity">{creatorHeader}<button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="secondary" className="project-popup-close" aria-label={`Close ${label}`} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button></div>}
       <header className="project-description-heading">
         {(contentLabel !== 'Description' || projectTitle) && <h2 id="project-description-title" style={{ fontFamily: typeface }}>{contentLabel === 'Description' ? projectTitle : contentLabel}</h2>}
         {writingScreen && phase !== 'load-failed' && <TextFormattingToolbar variant="dropdown" inputRef={textareaRef} value={activeEditor.value} onChange={activeEditor.onChange} disabled={busy || phase === 'loading'} maxLength={activeEditor.maxLength} />}
@@ -145,7 +147,7 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
           : <button type="button" className="project-description-top-save" disabled={busy || !activeEditor.isDirty || phase === 'loading'} aria-busy={busy} onClick={() => { void activeEditor.save(); }}>{busy ? 'Saving…' : 'Save'}</button>)}
         {(canEdit || ownerActions) && !editing && <div className="project-description-menu">
           <button ref={optionsRef} type="button" aria-label={directEditAction ? `Edit ${label}` : `${contentLabel} options`} aria-expanded={directEditAction ? undefined : menuOpen} aria-controls={directEditAction ? undefined : "project-description-actions"}
-            onClick={event => { stop(event); if (directEditAction) { setExpanded(true); activeEditor?.open(); } else setMenuOpen(value => !value); }}><MoreHorizontalIcon aria-hidden="true" /></button>
+            onClick={event => { stop(event); if (directEditAction) { setExpanded(true); activeEditor?.open(); } else setMenuOpen(value => !value); }}><InterfaceIcon icon={directEditAction ? PencilIcon : MoreHorizontalIcon} size="lg" /></button>
           {menuOpen && <div id="project-description-actions">
             {ownerActions ?? <>
             <button ref={editRef} type="button" onClick={() => { setMenuOpen(false); setExpanded(true); activeEditor?.open(); }}>{`Edit ${label}`}</button>

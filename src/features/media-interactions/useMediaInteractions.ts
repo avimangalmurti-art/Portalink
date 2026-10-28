@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { mediaInteractionRequest as apiRequest } from './mediaInteractionRequest';
 import { readMediaInteraction } from './mediaInteractionBatch';
 import { readSharedReturnPath } from '../auth/registration';
+import { PUBLIC_ORIGIN } from '../citations/publicOrigin';
 
 export type MediaEngagementKind = 'like' | 'save' | 'repost';
 
@@ -49,7 +50,11 @@ function targetKey(target: MediaInteractionTarget): string {
 }
 
 export function mediaDeepLink(target: MediaInteractionTarget): URL {
-  const url = new URL(window.location.href);
+  const current = new URL(window.location.href);
+  const url = new URL(PUBLIC_ORIGIN);
+  url.pathname = current.pathname;
+  const safePath = readSharedReturnPath(current.pathname + current.search);
+  if (safePath) url.search = new URL(safePath, PUBLIC_ORIGIN).search;
   url.searchParams.set('media', target.attachmentId);
   url.searchParams.set('page', String(target.pageIndex + 1));
   return url;
@@ -91,6 +96,16 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
   const [commentResumeToken, setCommentResumeToken] = useState(0);
   const [shareState, setShareState] = useState<'idle' | 'shared'>('idle');
   const loadTokenRef = useRef(0);
+  const confirmedSaves = useRef({ scope: actionScope, generation: 0, active: true, flights: new Map<string, { generation: number; promise: Promise<boolean> }>() });
+  if (confirmedSaves.current.scope !== actionScope) {
+    confirmedSaves.current.scope = actionScope;
+    confirmedSaves.current.generation += 1;
+  }
+  const saveGeneration = confirmedSaves.current.generation;
+  useEffect(() => {
+    const state = confirmedSaves.current; state.active = true;
+    return () => { state.active = false; state.generation += 1; };
+  }, []);
 
   const load = useCallback(async () => {
     const token = loadTokenRef.current + 1;
@@ -131,7 +146,8 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     });
   }, [auth, key, target]);
 
-  const setEngagement = useCallback(async (kind: MediaEngagementKind, engaged: boolean, replayed = false) => {
+  const setEngagement = useCallback(async (kind: MediaEngagementKind, engaged: boolean, replayed = false, isCurrent?: () => boolean) => {
+    if (isCurrent && !isCurrent()) return false;
     if (kind === 'like' && !likesCapability) return false;
     if (!auth.isAuthenticated && !replayed) {
       gateGuest(kind);
@@ -153,19 +169,37 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
         method: 'POST',
         body: JSON.stringify({ ...target, kind, engaged, ...(kind === 'save' && engaged ? {shareWithCreator:false} : {}), pageHeading:readPageHeading(target.attachmentId,target.pageIndex) })
       }, true, auth.user?.id ?? null);
-      if (activeScopeRef.current !== actionScope) return false;
+      if (activeScopeRef.current !== actionScope || (isCurrent && !isCurrent())) return false;
       setRecord(next);
       setHasLoaded(true);
       return true;
     } catch (error) {
-      if (activeScopeRef.current !== actionScope) return false;
+      if (activeScopeRef.current !== actionScope || (isCurrent && !isCurrent())) return false;
       setRecord(before);
       setFailure(error instanceof Error ? error.message : 'That action could not be completed.');
       return false;
     } finally {
-      if (activeScopeRef.current === actionScope) { setPendingKind(null); setIsLoading(false); }
+      if (activeScopeRef.current === actionScope && (!isCurrent || isCurrent())) { setPendingKind(null); setIsLoading(false); }
     }
   }, [auth.isAuthenticated, auth.user?.id, actionScope, gateGuest, hasLoaded, record, target]);
+
+  // Explicit saves await the existing private write rather than toggling an
+  // optimistic bookmark back off on Retry. Legacy toggle callers are unchanged.
+  const saveWithCreator = useCallback(() => {
+    const state = confirmedSaves.current, generation = saveGeneration;
+    const current = () => state.active && state.scope === actionScope && state.generation === generation;
+    if (!current()) return Promise.resolve(false);
+    const existing = state.flights.get(actionScope);
+    if (existing) return existing.generation === generation ? existing.promise : Promise.resolve(false);
+    const flight: { generation: number; promise: Promise<boolean> } = {
+      generation,
+      promise: setEngagement('save', true, false, current).then(saved => saved === true).finally(() => {
+        if (state.flights.get(actionScope) === flight) state.flights.delete(actionScope);
+      })
+    };
+    state.flights.set(actionScope, flight);
+    return flight.promise;
+  }, [actionScope, saveGeneration, setEngagement]);
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
@@ -248,7 +282,7 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     failure,
     retry: load,
     dismissFailure: () => setFailure(null),
-    saveWithCreator: () => setEngagement('save',true),
+    saveWithCreator,
     toggle: (kind: MediaEngagementKind) => void setEngagement(kind, !record.engaged[kind]),
     postComment,
     deleteComment,

@@ -65,7 +65,7 @@ export function MobilePageThumbnails({ id, current, total, surfaceRef, previewSo
     list.scrollTop += selected.getBoundingClientRect().top - list.getBoundingClientRect().top - 12;
     selected.focus({ preventScroll: true });
   }, []);
-  return <nav id={id} ref={listRef} data-mobile-page-thumbnails="" className="mobile-page-thumbnails" aria-label="Project pages">
+  return <nav id={id} ref={listRef} data-mobile-page-thumbnails="" data-ui-shape="popup" className="mobile-page-thumbnails" aria-label="Project pages">
     {Array.from({ length: total }, (_, index) => <button key={index + 1} type="button"
       aria-label={`Go to page ${index + 1}`} aria-current={current === index + 1 ? 'page' : undefined}
       onClick={() => onSelectPage ? onSelectPage(index + 1) : jumpToProjectPage(surfaceRef.current, index + 1)} className="mobile-page-thumbnail">
