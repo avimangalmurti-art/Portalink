@@ -189,7 +189,7 @@ test('shared-entry media preference reaches the existing auth surface only when 
     const actions = [];
     const auth = { pendingView: null, phase: 'anonymous', closeAuth() { actions.push('close'); }, requestAuth(view) { actions.push(view); } };
     const { AuthDialog } = load('../src/features/auth/AuthDialog.tsx', {
-      react: inertReact, 'lucide-react': {}, '../../contexts/AuthContext': { useAuth: () => auth },
+      react: inertReact, 'lucide-react': { ChevronLeftIcon: 'svg' }, '../../contexts/AuthContext': { useAuth: () => auth },
       '../../components/auth/AuthField': {}, '../../components/ui/Button': {}, '../../components/ui/InterfaceIcon': {}, '../../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'hello-world' },
       '../../components/profile/AvatarPicker': {}, '../../components/profile/ProfileField': {}, '../../components/profile/ProfileVisibilityField': {},
       '../../components/profile/ProfileLocationPicker': {}, '../profile/useProfileOnboarding': {}, '../profile/validation': {},
@@ -203,8 +203,16 @@ test('shared-entry media preference reaches the existing auth surface only when 
     for (const view of ['signUp']) {
       auth.pendingView = view;
       const fragment = AuthDialog({ welcomeBeforeSignup: true });
-      const welcome = React.Children.toArray(fragment.props.children)[0];
+      const siblings = React.Children.toArray(fragment.props.children);
+      const welcome = siblings.find(node => node.type === 'hello-world');
       assert.equal(welcome.type, 'hello-world');
+      const backdrops = siblings.filter(node => node.props.className === 'portalink-signup-backdrop');
+      assert.equal(backdrops.length, presentation === 'mobile' ? 1 : 0);
+      if (presentation === 'mobile') {
+        assert.equal(siblings[0], backdrops[0]); assert.equal(siblings[1], welcome, 'The loader paints after its independent backing');
+        assert.equal(backdrops[0].props['data-presentation'], 'mobile');
+        assert.equal(backdrops[0].props['aria-hidden'], 'true');
+      }
       assert.equal(welcome.props.landing.continueLabel, undefined);
       assert.equal(welcome.props.landing.onContinue, undefined);
       assert.equal(typeof welcome.props.landing.onDismiss, 'function');
@@ -216,6 +224,7 @@ test('shared-entry media preference reaches the existing auth surface only when 
       assert.deepEqual(actions.splice(0), ['signIn', 'forgotPassword', 'close']);
     }
     assert.equal(requested.type, 'account-surface'); assert.equal(requested.props.showWelcomeMedia, false); assert.equal(requested.props.title, 'Sign in');
+    assert.equal(nodes(requested).some(node => node.props.className === 'portalink-signup-backdrop'), false);
   }
 });
 

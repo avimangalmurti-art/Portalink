@@ -70,6 +70,24 @@ export class MobilePortalCollectionHistory {
     }
     return false;
   }
+
+  /** Closing a profile's chooser returns to its observed opener, not a new profile entry. */
+  closeProfileCollection(scope: string | null, location: RouteEntry, browser: BrowserEntry, profilePath: string, go: (delta: number) => void): boolean {
+    if (!scope || scope !== this.scope) return false;
+    const entry = committedEntry(location, browser);
+    if (this.returningKey === location.key) return true;
+    if (!entry) return this.current?.key === location.key;
+    if (this.current?.key !== entry.key || this.current.index !== entry.index || path(entry.pathname) !== path(profilePath)) return false;
+    const query = new URLSearchParams(entry.search);
+    if (query.getAll('view').length !== 1 || query.get('view') !== 'portals') return false;
+    const previous = this.entries.get(entry.index - 1);
+    if (!previous || path(previous.pathname) !== path(profilePath)) return false;
+    const previousQuery = new URLSearchParams(previous.search);
+    if (previousQuery.getAll('view').length > 1 || (previousQuery.get('view') ?? 'projects') !== 'projects') return false;
+    this.returningKey = entry.key;
+    go(-1);
+    return true;
+  }
 }
 
 const browserEntry = (): BrowserEntry => ({ state: window.history.state, pathname: window.location.pathname, search: window.location.search, hash: window.location.hash });
@@ -81,5 +99,8 @@ export function useMobilePortalCollectionReturn(scope: string | null, location: 
   useLayoutEffect(() => {
     history.current.observe(scope, location, action, browserEntry());
   }, [scope, location, action]);
-  return (collection: Collection) => history.current.returnToCollection(scope, location, browserEntry(), collection, delta => navigate(delta));
+  return {
+    returnToCollection: (collection: Collection) => history.current.returnToCollection(scope, location, browserEntry(), collection, delta => navigate(delta)),
+    closeProfileCollection: (profilePath: string) => history.current.closeProfileCollection(scope, location, browserEntry(), profilePath, delta => navigate(delta)),
+  };
 }

@@ -49,7 +49,7 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
   const signIn = auth.pendingView === 'signIn';
   if (!auth.pendingView) return null;
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
-  if (auth.pendingView === 'signUp') return <><PortalinkSplashLoader landing={{
+  if (auth.pendingView === 'signUp') return <>{isMobile && <div data-presentation="mobile" className="portalink-signup-backdrop" aria-hidden="true" />}<PortalinkSplashLoader landing={{
     ready: !busy && !auth.isInitializing,
     hideMedia: entryStage === 'email',
     suspendFocus: Boolean(pendingLeave),

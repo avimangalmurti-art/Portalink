@@ -955,6 +955,16 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     nav.category(viewedProfileId, categoryId);
   }
   function returnFromPortalCollection() {
+    const profilePath = viewedProfileId ? buildPath(isSharedRoute ? 'sharedProfile' : 'profile', { profileId: viewedProfileId }) : null;
+    const query = new URLSearchParams(search);
+    if (presentation === 'mobile' && profilePath === pathname && query.get('view') === 'portals') {
+      if (closeMobileProfilePortals(profilePath)) return;
+      // A direct link has no observed profile opener. Close just its chooser.
+      query.delete('view');
+      const remaining = query.toString();
+      nav.to(`${profilePath}${remaining ? `?${remaining}` : ''}${screenLocation.hash}`, true);
+      return;
+    }
     if (Number.isInteger(window.history.state?.idx) && window.history.state.idx > 0) { nav.back(); return; }
     nav.to(viewedProfileId ? buildPath(isSharedRoute ? 'sharedProfile' : 'profile', { profileId: viewedProfileId }) : buildPath('home'), true);
   }
@@ -970,7 +980,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       : viewedProfileId ? buildPath('profile', { profileId: viewedProfileId }) : buildPath('home');
     nav.to(fallback, true);
   }
-  const returnToMobilePortalCollection = useMobilePortalCollectionReturn(
+  const { returnToCollection: returnToMobilePortalCollection, closeProfileCollection: closeMobileProfilePortals } = useMobilePortalCollectionReturn(
     presentation === 'mobile' && !auth.isInitializing && auth.phase !== 'authenticating' && auth.phase !== 'signing-out'
       ? `${auth.user?.id ?? 'guest'}:${isSharedRoute}` : null,
     screenLocation,
@@ -1423,8 +1433,14 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     save: top => { scrollPositionsRef.current.set(mobileWallScrollKey, top); }
   }} onMobileViewChange={(view) => {
         const path = buildPath(isSharedRoute ? 'sharedProfile' : 'profile', { profileId: viewedProfile.id });
-        const target = view === 'projects' ? path : `${path}?view=${view}`;
-        if (target !== `${pathname}${search}`) nav.to(target);
+        const query = new URLSearchParams(pathname === path ? search : '');
+        if (view === 'projects' && pathname === path && query.get('view') === 'portals') { returnFromPortalCollection(); return; }
+        if (view === 'projects') query.delete('view');
+        else query.set('view', view);
+        const remaining = query.toString();
+        const hash = pathname === path ? screenLocation.hash : '';
+        const target = `${path}${remaining ? `?${remaining}` : ''}${hash}`;
+        if (target !== `${pathname}${search}${screenLocation.hash}`) nav.to(target);
       }} viewerRole={viewerRole} isSharedView={isSharedRoute} onBeforeShare={creatorAppearance.flush} shareUrl={isOwnerMode ? `${PUBLIC_ORIGIN}${buildPath('sharedProfile', {
         profileId: viewedProfile.id
       })}` : undefined} follow={isSharedRoute && auth.viewerProfileId === viewedProfile.id ? undefined : {

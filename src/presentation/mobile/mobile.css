@@ -1943,6 +1943,27 @@
   background: transparent;
 }
 
+/* The floating chooser owns its inset and glass; full-page header spacing and
+   cross-profile underlap offsets must not move its toolbar into the panel. */
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page {
+  --mobile-content-safe-top: 0px;
+}
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > [data-mobile-safe-header] {
+    top: 0 !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > [data-mobile-safe-header][data-mobile-header-underlap]::before {
+    content: none !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > .mobile-portals-scroll[data-fixed-header-underlap] {
+    margin-top: var(--fixed-header-margin, 0px) !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > .mobile-portals-scroll[data-fixed-header-content] {
+    padding-top: var(--fixed-header-padding, 0px) !important;
+    scroll-padding-top: var(--fixed-header-scroll-padding, 0px) !important;
+  }
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > .mobile-portals-scroll {
   padding: 0 0 8px;
   scroll-padding-bottom: 8px;

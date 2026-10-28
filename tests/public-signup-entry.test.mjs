@@ -31,14 +31,15 @@ test('both presentations open one inline account form instead of required appear
    useState:initial=>[typeof initial==='function'?initial():initial,()=>{}],useRef:()=>({current:null}),useEffect:()=>{},PortalinkSplashLoader:'welcome',EntryChoices:'choices',SignUpForm:'signup',
   });
   const fragment=exports.AuthDialog({});
-  const welcome=React.Children.toArray(fragment.props.children)[0];
+  const welcome=React.Children.toArray(fragment.props.children).find(node=>node.type==='welcome');
   assert.equal(welcome.type,'welcome');
   const content=welcome.props.landing.content;
   assert.equal(welcome.props.landing.hideMedia,true,'The email form has no Hello World header');
   assert.equal(content.props.hideProviders,true,'The email form has no provider strip');
   const form=React.Children.toArray(content.props.children.props.children).find(node=>node.type==='signup');
   assert.equal(form.props.compactEntry,true); assert.equal(form.props.step,'account');
-  welcome.props.landing.onContinue();assert.equal(closed,1);
+  assert.equal(welcome.props.landing.onContinue,undefined);
+  welcome.props.landing.onDismiss();assert.equal(closed,1);
  }
 });
 
@@ -89,6 +90,27 @@ function catalogAuthParent({ presentation = 'mobile', view = 'signUp', search = 
  const props={registrationReturnPath:'/share/creator/c/work/project?page=2',showWelcomeMedia:false,accentColor:'#ff2d55'};
  return {state,auth,calls,props,render(){cursor=0;return exports.AuthDialog(props);}};
 }
+
+test('only MOBILE signup mounts an inert backdrop immediately before its keyboard-responsive loader',()=>{
+ for(const presentation of ['mobile','web'])for(const view of [null,'signUp','signIn','forgotPassword','resetPassword']){
+  const h=catalogAuthParent({presentation,view}),tree=h.render();
+  const backdrops=nodes(tree).filter(node=>node.props.className==='portalink-signup-backdrop');
+  assert.equal(backdrops.length,presentation==='mobile'&&view==='signUp'?1:0,`${presentation}/${view}`);
+  assert.deepEqual(h.calls,[],'Rendering decorative backing does not perform an account action');
+  if(view===null){assert.equal(tree,null);continue;}
+  if(view!=='signUp'){assert.equal(tree.type,'surface');continue;}
+  const siblings=React.Children.toArray(tree.props.children),welcome=siblings.find(node=>node.type==='welcome');
+  assert.ok(welcome);assert.equal(welcome.props.landing.hideMedia,true);
+  assert.equal(welcome.props.landing.content.props.returnPath,h.props.registrationReturnPath);
+  assert.deepEqual(siblings.map(node=>node.type),presentation==='mobile'?['div','welcome']:['welcome']);
+  if(presentation==='mobile'){
+   const backdrop=siblings[0];assert.equal(backdrop.props.className,'portalink-signup-backdrop');assert.equal(siblings[1],welcome);
+   assert.equal(backdrop.props['data-presentation'],'mobile');assert.equal(backdrop.props['aria-hidden'],'true');
+   assert.equal(backdrop.props.children,undefined);assert.equal(backdrop.props.role,undefined);
+   assert.equal(backdrop.props.tabIndex,undefined);assert.equal(backdrop.props.onClick,undefined);
+  }
+ }
+});
 
 test('direct sign-in and signup mount their original forms immediately on both presentations',()=>{
  for(const presentation of ['mobile','web'])for(const view of ['signIn','signUp']){
@@ -141,5 +163,27 @@ test('signup Back cannot interrupt an in-flight account request',()=>{
   const back=accountEntryNodes(h.render()).find(n=>n.props['aria-label']==='Back to Portalink');
   assert.equal(back.props.disabled,true);back.props.onClick();assert.deepEqual(h.calls,[]);
   assert.equal(nodes(h.render()).some(n=>n.type==='confirm'),false);
+ }
+});
+
+test('signup modal dismissal keeps busy and dirty guards while MOBILE backing remains behind the discard dialog',()=>{
+ for(const presentation of ['mobile','web']){
+  const h=catalogAuthParent({presentation});
+  accountEntryNodes(h.render()).find(node=>node.type==='signup').props.onBusyChange(true);
+  nodes(h.render()).find(node=>node.type==='welcome').props.landing.onDismiss();
+  assert.deepEqual(h.calls,[]);assert.equal(nodes(h.render()).some(node=>node.type==='confirm'),false);
+  accountEntryNodes(h.render()).find(node=>node.type==='signup').props.onBusyChange(false);
+  accountEntryNodes(h.render()).find(node=>node.type==='signup').props.onDirtyChange(true);
+  nodes(h.render()).find(node=>node.type==='welcome').props.landing.onDismiss();
+  let tree=h.render(),dialog=nodes(tree).find(node=>node.type==='confirm');
+  assert.ok(dialog);assert.deepEqual(h.calls,[]);
+  assert.equal(nodes(tree).find(node=>node.type==='welcome').props.landing.suspendFocus,true);
+  const siblings=React.Children.toArray(tree.props.children);
+  assert.deepEqual(siblings.map(node=>node.type),presentation==='mobile'?['div','welcome','confirm']:['welcome','confirm']);
+  if(presentation==='mobile')assert.equal(siblings[0].props.className,'portalink-signup-backdrop');
+  dialog.props.onCancel();assert.equal(nodes(h.render()).some(node=>node.type==='confirm'),false);assert.deepEqual(h.calls,[]);
+  nodes(h.render()).find(node=>node.type==='welcome').props.landing.onDismiss();
+  dialog=nodes(h.render()).find(node=>node.type==='confirm');dialog.props.onConfirm();
+  assert.deepEqual(h.calls,[['close']]);
  }
 });

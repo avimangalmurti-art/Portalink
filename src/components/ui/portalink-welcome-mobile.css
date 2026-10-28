@@ -31,6 +31,18 @@
   }
 }
 
+/* Safari's translucent keyboard/browser controls can show paint outside the
+   visual viewport. Keep signup opaque there while its form follows the keyboard. */
+[data-presentation='mobile'].portalink-signup-backdrop {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 100vh;
+  height: max(100%, 100lvh);
+  z-index: 1000;
+  pointer-events: none;
+  background: #fdffff;
+}
+
 /* A looping welcome above reachable account actions, on the same surface. */
 [data-presentation='mobile'].portalink-splash[data-share-landing] {
   outline: none;

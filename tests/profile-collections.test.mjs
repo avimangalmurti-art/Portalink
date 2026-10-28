@@ -210,6 +210,7 @@ function profileHarness(search = '', options = {}) {
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
     if (name.endsWith('/MobileBackNavigation')) return { ScreenBack: 'ScreenBack', useMobileScreenActive: () => options.screenActive ?? true };
     if (name.endsWith('/projectContinuity')) return { focusMobileProjectOrigin: root => options.onProjectOriginFocus?.(root) };
+    if (name.endsWith('/mobileCatalogueScroll')) return { repairMobileCatalogueScroll() {}, observeMobileCatalogueScroll: () => () => {} };
     if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
     if (name.endsWith('/copyPublicLink')) return { copyPublicLink: async value => options.onCopy?.(value) };
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
@@ -625,17 +626,39 @@ test('mobile profile count navigation always targets the viewed profile', () => 
   for (const isSharedRoute of [false, true]) {
     const destinations = [];
     const navigate = vm.runInNewContext(`view => {${body}}`, {
-      isSharedRoute, viewedProfile: { id: 'viewed-creator' }, buildPath: routes.buildPath, pathname: '/start', search: '',
+      isSharedRoute, viewedProfile: { id: 'viewed-creator' }, buildPath: routes.buildPath, pathname: '/start', search: '', URLSearchParams, screenLocation: { hash: '' },
       nav: { to: path => destinations.push(path) },
     });
     for (const view of ['portals', 'projects', 'followers', 'following']) navigate(view);
     const base = `${isSharedRoute ? '/share' : '/p'}/viewed-creator`;
     assert.deepEqual(destinations, [`${base}?view=portals`, base, `${base}?view=followers`, `${base}?view=following`]);
     const noChange = vm.runInNewContext(`view => {${body}}`, {
-      isSharedRoute, viewedProfile: { id: 'viewed-creator' }, buildPath: routes.buildPath, pathname: base, search: '?view=portals',
+      isSharedRoute, viewedProfile: { id: 'viewed-creator' }, buildPath: routes.buildPath, pathname: base, search: '?view=portals', URLSearchParams, screenLocation: { hash: '' },
       nav: { to: () => assert.fail('An active count must not add duplicate history entries') },
     });
     noChange('portals');
+  }
+});
+
+test('MOBILE count navigation retains the profile URL and closes Portals through its paired history return', () => {
+  const source = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  const body = source.match(/onMobileViewChange=\{\(view\) => \{([\s\S]*?)\}\} viewerRole/)[1];
+  for (const isSharedRoute of [false, true]) {
+    const path = `${isSharedRoute ? '/share' : '/p'}/viewed-creator`;
+    const calls = [];
+    const context = {
+      isSharedRoute, viewedProfile: { id: 'viewed-creator' }, buildPath: routes.buildPath, URLSearchParams,
+      pathname: path, search: '?fromSearch=%2Fsearch%3Fq%3Ddesign&keep=value', screenLocation: { hash: '#catalogue' },
+      nav: { to: (...args) => calls.push(['to', ...args]) }, returnFromPortalCollection: () => calls.push(['close']),
+    };
+    const select = vm.runInNewContext(`view => {${body}}`, context);
+    select('portals');
+    assert.deepEqual(calls.splice(0), [['to', `${path}?fromSearch=%2Fsearch%3Fq%3Ddesign&keep=value&view=portals#catalogue`]]);
+    context.search += '&view=portals';
+    select('projects');
+    assert.deepEqual(calls.splice(0), [['close']], 'Outside tap and Close must not push another profile entry');
+    select('portals');
+    assert.deepEqual(calls, [], 'The selected count leaves native history unchanged');
   }
 });
 
