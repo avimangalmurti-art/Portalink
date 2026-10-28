@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { BriefcaseBusiness, ChevronRight, Compass, DoorOpen, Info, LayoutGrid, LogIn, Palette, Route, ShieldCheck, SunMoon, UserPlus, UserRound, Users } from 'lucide-react';
+import { BriefcaseBusiness, ChevronRight, Compass, DoorOpen, Info, LayoutGrid, LogIn, Palette, Route, ShieldCheck, SunMoon, UserPlus, Users } from 'lucide-react';
 import { usePresentation } from '../../presentation/usePresentation';
 import { ProfileAvatar } from '../profile/ProfileAvatar';
 import { useDeviceAppearance } from '../../hooks/useDeviceAppearance';
@@ -83,8 +83,8 @@ const companySections = [
 ] as const;
 
 /** Company information and immediate account choices. */
-export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }: {
-  ready?: boolean; onCreate: () => void; onSignIn: () => void; onGuest: () => void;
+export function ProfessionalEntry({ ready = true, onCreate, onSignIn }: {
+  ready?: boolean; onCreate: () => void; onSignIn: () => void;
 }) {
   const presentation = usePresentation();
   const previewHost = useRef<HTMLElement>(null);
@@ -108,9 +108,6 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn, onGuest }:
     </button>
     <button type="button" className="professional-entry-signin" disabled={!ready} onClick={onSignIn}>
       <span className="professional-entry-company-icon" aria-hidden="true"><LogIn size={20} strokeWidth={1.9} /></span><span className="professional-entry-company-title">Sign in</span><ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
-    </button>
-    <button type="button" className="professional-entry-guest" disabled={!ready} onClick={onGuest}>
-      <span className="professional-entry-company-icon" aria-hidden="true"><UserRound size={20} strokeWidth={1.9} /></span><span className="professional-entry-company-title">Continue as guest</span><ChevronRight className="professional-entry-company-chevron" size={18} aria-hidden="true" />
     </button>
   </div>;
   const appearanceSection = <ul className="professional-entry-company-sections professional-entry-appearance-sections" aria-label="Appearance options">

@@ -70,7 +70,7 @@ export function ApplicationBootstrap() {
   const resumeBlocked = isAuthCallback || isRecovery || isWelcomeInvite || Boolean(auth.pendingView) || auth.isSessionUnavailable || auth.phase === 'authenticating' || auth.phase === 'signing-out';
   const resume = useMobileResumeSession({ mobile: presentation === 'mobile', accountId: auth.isAuthenticated ? auth.user?.id ?? null : null,
     authReady: !auth.isInitializing && !auth.isSessionUnavailable, pathname, search, hash, locationKey, blocked: resumeBlocked });
-  // Guests choose how to enter after the welcome. A prior public-view
+  // Signed-out visitors choose an account action. A prior public-view
   // context keeps its destination unless this is an explicit invitation.
   const [landingPath] = useState(() => (isWelcomeInvite || !readSharedViewerProfileId())
     && !isAuthCallback && !isRecovery && pathname === '/' ? '/' : null);
@@ -190,12 +190,10 @@ export function ApplicationBootstrap() {
           landing={holdLanding ? {
             ready: !auth.isInitializing,
             hideMedia: true,
-            content: <PresentationContext.Provider value={presentation}><ProfessionalEntry ready={!auth.isInitializing} onCreate={() => startAccount('signUp')} onSignIn={() => startAccount('signIn')} onGuest={() => { setHasLeftLanding(true); if (!auth.isInitializing && (!homeStartupTarget || homeReady)) setHasStartupCompleted(true); }} /></PresentationContext.Provider>,
+            content: <PresentationContext.Provider value={presentation}><ProfessionalEntry ready={!auth.isInitializing} onCreate={() => startAccount('signUp')} onSignIn={() => startAccount('signIn')} /></PresentationContext.Provider>,
             onCreateAccount: () => startAccount('signUp'),
             onSignIn: () => startAccount('signIn'),
             onForgotPassword: () => startAccount('forgotPassword'),
-            onContinue: () => { setHasLeftLanding(true); if (!auth.isInitializing && (!homeStartupTarget || homeReady)) setHasStartupCompleted(true); },
-            continueLabel: 'Continue as guest',
           } : undefined} /> : null}
       </AnimatePresence>
       {(isSharedView || timedIntroEnded) && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><LoadingState label={isSharedView ? 'Opening shared content…' : 'Opening Portalink…'} /></div>}

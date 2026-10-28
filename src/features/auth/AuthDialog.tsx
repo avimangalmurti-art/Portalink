@@ -56,9 +56,8 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
     onCreateAccount: () => undefined,
     onSignIn: () => leaveEntry(() => auth.requestAuth('signIn')),
     onForgotPassword: () => auth.requestAuth('forgotPassword'),
-    onContinue: () => leaveEntry(auth.closeAuth),
-    continueLabel: 'Continue as guest',
-    content: <EntryChoices hideProviders onDisagree={() => setEntryStage('welcome')} onEmail={entryStage === 'welcome' ? () => setEntryStage('email') : undefined} ready={!busy} returnPath={props.registrationReturnPath} onSignIn={() => leaveEntry(() => auth.requestAuth('signIn'))} onGuest={() => leaveEntry(auth.closeAuth)}>
+    onDismiss: () => leaveEntry(auth.closeAuth),
+    content: <EntryChoices hideProviders onDisagree={() => setEntryStage('welcome')} onEmail={entryStage === 'welcome' ? () => setEntryStage('email') : undefined} ready={!busy} returnPath={props.registrationReturnPath} onSignIn={() => leaveEntry(() => auth.requestAuth('signIn'))}>
       {entryStage === 'email' && <div className="entry-inline-form">
         <button type="button" className="entry-back" aria-label="Back to Portalink" disabled={busy} onClick={() => leaveEntry(auth.closeAuth)}><ChevronLeftIcon size={20} aria-hidden="true" />Back</button>
         <h1>Create your account</h1>

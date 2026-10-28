@@ -113,7 +113,7 @@ function compile(path, imports, globals) {
 function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false, bootVideo = undefined, findBootVideo = undefined } = {}) {
   const h = hooks();
   let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false, renderedMediaRef;
-  const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [], viewportCalls = [], entryViewportCalls = [];
+  const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [], modalDismissals = [], viewportCalls = [], entryViewportCalls = [];
   h.window.addEventListener=(name,fn)=>windowListeners.set(name,fn);
   h.window.removeEventListener=(name,fn)=>{if(windowListeners.get(name)===fn)windowListeners.delete(name);};
   let frameId = 0;
@@ -165,7 +165,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
   const { PortalinkSplashLoader } = compile('../src/components/ui/PortalinkSplashLoader.tsx', {
     react: h.react, 'framer-motion': { motion: { div: 'div' }, useReducedMotion: () => reduced },
     '../../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
-    '../../hooks/useModalFocus': { useModalFocus(open) { modalCalls.push(open); } },
+    '../../hooks/useModalFocus': { useModalFocus(open, _ref, onDismiss) { modalCalls.push(open); modalDismissals.push(onDismiss); } },
     '../../hooks/useDialogViewport': { useDialogViewport(enabled=true) { const ref=h.react.useRef(null);viewportCalls.push({enabled,ref});return ref; } },
     '../auth/useEntryFieldViewport': { useEntryFieldViewport(ref, enabled) { entryViewportCalls.push({ref,enabled}); } },
     './splashPoster': { SPLASH_POSTER_DATA_URL: 'data:image/webp;base64,inline-poster-fixture' },
@@ -197,7 +197,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     setHandoff(value) { welcomeHandoff = value; },
     setLanding(value) { landing = value; },
     timer(delay) { const entry = [...h.timers.entries()].find(([, timer]) => timer.delay === delay); assert.ok(entry, `missing timer ${delay}`); h.timers.delete(entry[0]); entry[1].fn(); },
-    listeners, docListeners, windowListeners, frames, modalCalls, viewportCalls, entryViewportCalls,
+    listeners, docListeners, windowListeners, frames, modalCalls, modalDismissals, viewportCalls, entryViewportCalls,
     restore() { windowListeners.get('pageshow')?.(); },
     leave() { windowListeners.get('pagehide')?.(); },
     gesture() { docListeners.get('pointerup')?.(); },
@@ -612,7 +612,7 @@ test('a completed intro stillOnly prop cannot freeze active guest or embedded we
   }
 });
 
-test('guest Continue preserves the remembered looping scene while Home waits and the welcome fades',()=>{
+test('authenticated handoff preserves the remembered looping scene while Home waits and welcome fades',()=>{
   for(const presentation of ['mobile','web']) {
     const h=loader({presentation,landing:welcome});const first=h.render();h.start();h.paint();
     h.setLanding(undefined);h.setHandoff(true);h.setStillOnly(true);const handoff=h.render();
@@ -726,7 +726,7 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
     }, {window:{...h.window,location:{replace:path=>redirects.push(path)},sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}}});
-  return {auth,requested,redirects,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},get homeError(){return rendered.props.children[3];},get homeTimerCount(){return [...h.timers.values()].filter(timer=>timer.delay===12000).length;},timer(){const entry=[...h.timers.values()].find(timer=>timer.delay===12000);assert.ok(entry);entry.fn();},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();const app=rendered.props.children[0];if(homeReady&&app?.type==='app'){app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);}return rendered.props.children[1].props.children;}};
+  return {auth,requested,redirects,location,storage,authenticate(){auth.isAuthenticated=true;auth.pendingView=null;auth.phase='authenticated';auth.user={id:'account'};auth.session={user:auth.user};},get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},get homeError(){return rendered.props.children[3];},get homeTimerCount(){return [...h.timers.values()].filter(timer=>timer.delay===12000).length;},timer(){const entry=[...h.timers.values()].find(timer=>timer.delay===12000);assert.ok(entry);entry.fn();},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();const app=rendered.props.children[0];if(homeReady&&app?.type==='app'){app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);}return rendered.props.children[1].props.children;}};
 }
 
 test('shared entry bypasses every intro on both platforms while respecting session readiness', () => {
@@ -778,7 +778,7 @@ test('direct shared entry retains public Settings access and the existing guest 
   assert.equal(h.requested.length,0);
 });
 
-test('guest landing exposes the professional entry immediately and wires every action to the existing flow', () => {
+test('account-only landing exposes professional entry immediately and wires account actions to the existing flow', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = sharedBootstrap({ path: '/', search: '?welcome=1', presentation });
     h.render(); h.auth.isInitializing = false;
@@ -788,12 +788,15 @@ test('guest landing exposes the professional entry immediately and wires every a
     assert.equal(landing.content.props.value, presentation, 'The pre-shell entry receives the existing presentation choice');
     assert.equal(landing.content.props.children.type, 'professional-entry');
     assert.equal(landing.content.props.children.props.ready, true);
+    assert.equal(landing.content.props.children.props.onGuest, undefined);
+    assert.equal(landing.onContinue, undefined); assert.equal(landing.continueLabel, undefined); assert.equal(landing.onDismiss, undefined);
     landing.content.props.children.props.onCreate(); assert.deepEqual(h.requested.at(-1), { view: 'signUp' });
     assert.equal(h.render().props.hidden, true);
     h.auth.pendingView = null;
     h.render().props.landing.content.props.children.props.onSignIn(); assert.deepEqual(h.requested.at(-1), { view: 'signIn' });
     h.auth.pendingView = null;
-    h.render().props.landing.content.props.children.props.onGuest(); assert.equal(h.render(), null);
+    assert.equal(h.render().props.hidden, false, 'Cancel returns to the account-only entry');
+    h.authenticate(); h.render(); h.render(); assert.equal(h.render(), null);
   }
 });
 
@@ -802,21 +805,21 @@ test('invites open root welcome without a previous shared-profile redirect or ac
   h.render(); h.auth.isInitializing=false;
   let splash=h.render(); assert.equal(h.app.type,'app');
   assert.equal(h.storage.has('portalink.sharedViewerProfileId'),false);
-  assert.equal(splash.props.landing.continueLabel,'Continue as guest');
+  assert.equal(splash.props.landing.continueLabel,undefined); assert.equal(splash.props.landing.onContinue,undefined); assert.equal(splash.props.landing.onDismiss,undefined);
   for (const [action,view] of [['onCreateAccount','signUp'],['onSignIn','signIn'],['onForgotPassword','forgotPassword']]) {
     splash.props.landing[action](); assert.deepEqual(h.requested.at(-1),{view});
     assert.equal(h.render().props.hidden,true);
     h.auth.pendingView=null; splash=h.render(); assert.equal(splash.props.hidden,false);
   }
-  splash.props.landing.onContinue(); assert.equal(h.render(),null);
-  assert.equal(h.render(),null,'the welcome marker cannot reopen a dismissed landing');
+  h.authenticate(); h.render(); h.render(); assert.equal(h.render(),null);
+  assert.equal(h.render(),null,'the welcome marker cannot reopen entry after successful authentication');
   const desktop=sharedBootstrap({path:'/',search:'?welcome=1',presentation:'web'}); desktop.auth.isInitializing=false;
   assert.equal(desktop.render().props.landing.ready,true);
   const reopened=sharedBootstrap({path:'/',search:'?welcome=1'}); reopened.auth.isInitializing=false;
   assert.equal(reopened.render().props.landing.ready,true,'opening a new invitation shows welcome again');
 });
 
-test('MOBILE guest readiness hands off once to the account-entry host, then retains it through auth and guest choices', () => {
+test('MOBILE visitor readiness hands off once to account entry, retaining it through cancellation until authentication', () => {
   for(const entry of [{search:''},{search:'?welcome=1'},{search:'?entry=oauth',hash:'#error=access_denied'}]) {
     const h=sharedBootstrap({path:'/',homeReady:false,...entry});
     const initial=h.render();assert.equal(initial.type,'splash');assert.equal(initial.key,'portalink-splash');
@@ -836,7 +839,8 @@ test('MOBILE guest readiness hands off once to the account-entry host, then reta
     const account=h.render();assert.equal(account.key,welcome.key);assert.equal(account.props.hidden,true);
     h.auth.pendingView=null;
     const returned=h.render();assert.equal(returned.key,welcome.key);assert.equal(returned.props.hidden,false);
-    returned.props.landing.onContinue();assert.equal(h.render(),null);assert.equal(h.app.type,'app');
+    assert.equal(returned.props.landing.onDismiss,undefined); assert.equal(returned.props.landing.onContinue,undefined);
+    h.authenticate();h.render();assert.equal(h.render(),null);assert.equal(h.app.type,'app');
     assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
   }
 });
@@ -897,7 +901,7 @@ test('an opening MOBILE visit keeps its one-shot handoff after rotation even whi
   h.setPresentation('mobile');assert.equal(h.render(),null);assert.equal(h.homeError,false);
 });
 
-test('ordinary MOBILE guests see Hello World before choosing guest Home without waiting for its content', () => {
+test('ordinary MOBILE visitors see Hello World and account entry before successful authentication releases Home', () => {
   for (const first of ['media','auth']) {
     const h=sharedBootstrap({path:'/',search:'',homeReady:false}); const initial=h.render();let splash=initial;
     assert.equal(splash.props.landing,undefined);
@@ -916,7 +920,8 @@ test('ordinary MOBILE guests see Hello World before choosing guest Home without 
     splash=h.render();assert.equal(splash.key,'portalink-account-entry');assert.equal(splash.props.landing.ready,true);
     assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,false);assert.equal(h.waiting,false);assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
     assert.equal(h.requested.length,0,'Hello World precedes any requested signup or sign-in form');
-    splash.props.landing.onContinue();assert.equal(h.render(),null);h.render();assert.equal(h.render(),null);
+    assert.equal(splash.props.landing.onDismiss,undefined);assert.equal(splash.props.landing.onContinue,undefined);
+    h.authenticate();h.render();assert.equal(h.render(),null);h.render();assert.equal(h.render(),null);
     h.location.pathname='/messages';assert.equal(h.render(),null);
     h.auth.isInitializing=true;assert.equal(h.render(),null);assert.equal(h.app,null);
     assert.equal(h.waiting.props.children.props.label,'Opening Portalink…');
@@ -985,17 +990,17 @@ test('WEB Home timeout retains Retry and rejects stale account or startup-attemp
  h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
-test('explicit WEB welcome Continue retains the Home readiness handoff without reopening entry actions', () => {
+test('successful WEB welcome authentication retains the Home readiness handoff without reopening entry actions', () => {
  const h=sharedBootstrap({path:'/',search:'?welcome=1',presentation:'web',homeReady:false});h.auth.isInitializing=false;
- const splash=h.render();splash.props.landing.onContinue();
+ const splash=h.render();assert.equal(splash.props.landing.onDismiss,undefined);h.authenticate();
  const waiting=h.render();assert.equal(waiting.type,'splash');assert.equal(waiting.props.landing,undefined);assert.equal(waiting.props.welcomeHandoff,true);
  h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
-test('explicit MOBILE welcome Continue enters the app immediately even while Home remains unready', () => {
+test('successful MOBILE welcome authentication enters immediately even while Home remains unready', () => {
  const h=sharedBootstrap({path:'/',search:'?welcome=1',homeReady:false});h.auth.isInitializing=false;
- const splash=h.render();assert.equal(splash.props.landing.ready,true);splash.props.landing.onContinue();
- assert.equal(h.render(),null);assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,false);
+ const splash=h.render();assert.equal(splash.props.landing.ready,true);h.authenticate();
+ h.render();assert.equal(h.render(),null);assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,false);
  assert.equal(h.homeTimerCount,0);assert.equal(h.homeError,false);
 });
 
@@ -1018,7 +1023,8 @@ test('ordinary root and invitation fragments retain welcome unless authenticatio
     const h=sharedBootstrap({path:'/',search:'',hash}); h.auth.isInitializing=false;
     const splash=h.render();assert.equal(splash.props.landing.ready,true);assert.equal(splash.props.timedIntro,true);
     splash.props.onComplete();assert.equal(h.render().props.landing.ready,true);
-    splash.props.landing.onContinue();assert.equal(h.render(),null);assert.equal(h.app.type,'app');
+    assert.equal(splash.props.landing.onContinue,undefined);assert.equal(splash.props.landing.onDismiss,undefined);
+    h.authenticate();h.render();assert.equal(h.render(),null);assert.equal(h.app.type,'app');
     const invite=sharedBootstrap({path:'/',search:'?welcome=1',hash});invite.auth.isInitializing=false;
     assert.equal(invite.render().props.landing.ready,true);
   }
@@ -1028,7 +1034,48 @@ test('ordinary root and invitation fragments retain welcome unless authenticatio
   }
 });
 
-const welcome = {ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'View shared content'};
+const welcome = {ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onDismiss(){}};
+
+test('Escape and system Back cannot dismiss main account entry but still cancel a dismissible auth landing', async () => {
+  for (const presentation of ['mobile', 'web']) for (const dismissible of [false, true]) {
+    const startup = sharedBootstrap({ path: '/', search: '', presentation }); startup.auth.isInitializing = false;
+    const mainLanding = startup.render().props.landing;
+    let cancellations = 0;
+    const h = loader({ presentation, landing: dismissible ? { ...mainLanding, onDismiss: () => cancellations++ } : mainLanding });
+    h.render(); assert.equal(h.modalCalls.at(-1), true); const completedBeforeDismissal = h.completed;
+    const listeners = new Map();
+    const document = { activeElement: null, addEventListener: (name, callback) => listeners.set(name, callback), removeEventListener: name => listeners.delete(name) };
+    class Element {
+      isConnected = true;
+      getClientRects() { return [{}]; }
+      closest() { return null; }
+      contains(target) { return target === this; }
+      querySelectorAll() { return []; }
+      matches() { return false; }
+      focus() { document.activeElement = this; }
+    }
+    const focus = sourceModule('src/hooks/useModalFocus.ts', { react: React }, { document, HTMLElement: Element, getComputedStyle: () => ({ visibility: 'visible' }) });
+    const dialog = new Element();
+    const cleanup = focus.containModalFocus(dialog, h.modalDismissals.at(-1), true);
+    let prevented = false;
+    listeners.get('keydown')({ key: 'Escape', target: dialog, defaultPrevented: false, preventDefault() { prevented = true; }, stopPropagation() {} });
+    assert.equal(prevented, true);
+    await focus.dismissTopModal();
+    assert.equal(cancellations, dismissible ? 2 : 0);
+    assert.equal(h.completed, completedBeforeDismissal, 'Neither dismissal path can advance startup completion');
+    assert.equal(startup.render().props.landing.ready, true); assert.equal(startup.requested.length, 0);
+    cleanup(); assert.equal(focus.dismissTopModal(), false); h.unmount();
+  }
+});
+
+test('fallback entry choices expose account actions without a guest callback on both presentations', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = loader({ presentation, landing: welcome });
+    const choices = h.render().tree.props.children[1].props.children[0];
+    assert.equal(choices.type, 'EntryChoices'); assert.equal(choices.props.onGuest, undefined);
+    assert.equal(choices.props.onEmail, welcome.onCreateAccount); assert.equal(choices.props.onSignIn, welcome.onSignIn); h.unmount();
+  }
+});
 
 test('only the visible MOBILE inline account form enables the field viewport hook',()=>{
  for(const presentation of ['mobile','web']){
@@ -1143,13 +1190,12 @@ test('mobile welcome delegates readiness to the shared entry controls',()=>{
   h.unmount();
 });
 
-test('sign in or guest continuation ends an explicit welcome permanently across presentation changes', () => {
-  for(const action of ['signin','guest']) {
+test('successful sign in or registration ends an explicit welcome permanently across presentation changes', () => {
+  for(const action of ['onSignIn','onCreateAccount']) {
     const h=sharedBootstrap({path:'/',search:'?welcome=1'});h.auth.isInitializing=false;h.render().props.onComplete();
     const splash=h.render();
-    if(action==='signin'){splash.props.landing.onSignIn();h.auth.isAuthenticated=true;h.auth.pendingView=null;}
-    else splash.props.landing.onContinue();
-    const handoff=h.render();if(action==='signin')assert.equal(handoff.props.welcomeHandoff,true);else assert.equal(handoff,null);
+    splash.props.landing[action]();h.authenticate();
+    const handoff=h.render();assert.equal(handoff.props.welcomeHandoff,true);
     assert.equal(h.render(),null);
     h.auth.isAuthenticated=false;h.setPresentation('web');assert.equal(h.render(),null);
     h.setPresentation('mobile');assert.equal(h.render(),null);
@@ -1171,7 +1217,7 @@ test('shared visitors can open Settings while the public-view boundary remains i
 });
 
 test('splash and Hello World exit fades stay within the base token on both layouts without changing fixed mobile handoff',()=>{
- const welcome={ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'Continue as guest'};
+ const welcome={ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onDismiss(){}};
  for(const presentation of ['mobile','web']){
   for(const state of [{},{landing:welcome},{welcomeHandoff:true}]){
    const h=loader({presentation,...state}),view=h.render();

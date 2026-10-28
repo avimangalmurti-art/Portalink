@@ -6,8 +6,8 @@ import './oneScreenEntry.css';
 import { EntryAgreements, EntryLegal } from './EntryAgreements';
 import { usePresentation, type Presentation } from '../../presentation/usePresentation';
 
-export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, children, returnPath, onDisagree, presentation, hideProviders = true }: {
-  ready?: boolean; onEmail?: () => void; onSignIn: () => void; onGuest: () => void;
+export function EntryChoices({ ready = true, onEmail, onSignIn, children, returnPath, onDisagree, presentation, hideProviders = true }: {
+  ready?: boolean; onEmail?: () => void; onSignIn: () => void;
   children?: React.ReactNode; returnPath?: string; onDisagree?: () => void; presentation?: Presentation; hideProviders?: boolean;
 }) {
   const contextualPresentation = usePresentation();
@@ -62,7 +62,6 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, childre
     {children}
     <div className="entry-links">
       <button type="button" disabled={!ready || busy} onClick={onSignIn}>Already have an account? Sign in</button>
-      <button type="button" disabled={!ready || busy} onClick={onGuest}>Continue as guest</button>
     </div>
     <EntryLegal />
   </div>}</EntryAgreements>;

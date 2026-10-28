@@ -205,11 +205,14 @@ test('shared-entry media preference reaches the existing auth surface only when 
       const fragment = AuthDialog({ welcomeBeforeSignup: true });
       const welcome = React.Children.toArray(fragment.props.children)[0];
       assert.equal(welcome.type, 'hello-world');
-      assert.equal(welcome.props.landing.continueLabel, 'Continue as guest');
+      assert.equal(welcome.props.landing.continueLabel, undefined);
+      assert.equal(welcome.props.landing.onContinue, undefined);
+      assert.equal(typeof welcome.props.landing.onDismiss, 'function');
+      assert.equal(welcome.props.landing.content.props.onGuest, undefined);
       welcome.props.landing.onCreateAccount();
       welcome.props.landing.onSignIn();
       welcome.props.landing.onForgotPassword();
-      welcome.props.landing.onContinue();
+      welcome.props.landing.onDismiss();
       assert.deepEqual(actions.splice(0), ['signIn', 'forgotPassword', 'close']);
     }
     assert.equal(requested.type, 'account-surface'); assert.equal(requested.props.showWelcomeMedia, false); assert.equal(requested.props.title, 'Sign in');

@@ -23,9 +23,9 @@ function fixture(ready = true, presentation = 'web', settings = {}) {
     './CityClock': { CityClock: 'city-clock' },
     './professional-entry.css': {},
   });
-  return { calls, appearanceCalls, presentationCalls, appearance, render: () => ProfessionalEntry({ ready, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin'), onGuest: () => calls.push('guest') }) };
+  return { calls, appearanceCalls, presentationCalls, appearance, render: () => ProfessionalEntry({ ready, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin') }) };
 }
-test('both entry presentations expose the same three account callbacks immediately alongside the live city clock', () => {
+test('both entry presentations expose only Create account and Sign in immediately alongside the live city clock', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = fixture(true, presentation), tree = h.render(), all = nodes(tree);
     assert.equal(tree.type, 'main');
@@ -35,8 +35,10 @@ test('both entry presentations expose the same three account callbacks immediate
     assert.equal(accountGroup.props.role, 'group');
     assert.equal(accountGroup.props['aria-label'], 'Account options');
     const buttons = nodes(accountGroup).filter(n => n.type === 'button');
-    assert.deepEqual(buttons.map(words), ['Create account', 'Sign in', 'Continue as guest']);
-    for (const [index, action] of ['create', 'signin', 'guest'].entries()) {
+    assert.deepEqual(buttons.map(words), ['Create account', 'Sign in']);
+    assert.equal(/guest/i.test(words(tree)), false, 'The entry does not offer guest access anywhere in its content');
+    assert.equal(all.some(n => n.props.className === 'professional-entry-guest' || 'onGuest' in n.props), false);
+    for (const [index, action] of ['create', 'signin'].entries()) {
       const button = buttons[index];
       assert.equal(button.props.disabled, false);
       assert.ok(nodes(button).some(n => n.props.className === 'professional-entry-company-icon'));
@@ -93,12 +95,12 @@ test('both presentations expose nine native company disclosures with distinct ic
     assert.equal(words(tree).includes('Create catalogue'), false);
     assert.equal(nodes(all.find(n => n.props.className === 'professional-entry-company-card')).some(n => n.props.className === 'professional-entry-create' || n.props.className === 'professional-entry-signin'), false, 'Account actions are separate from the company identity card');
     const accountActions = nodes(all.find(n => n.props.className === 'professional-entry-account-actions')).filter(n => n.type === 'button');
-    assert.deepEqual(accountActions.map(button => words(button).trim()), ['Create account', 'Sign in', 'Continue as guest']);
-    assert.equal(all.filter(n => n.type === 'button' && words(n).trim() === 'Continue as guest').length, 1);
-    for (const label of ['Create account', 'Sign in', 'Continue as guest']) {
+    assert.deepEqual(accountActions.map(button => words(button).trim()), ['Create account', 'Sign in']);
+    assert.equal(all.filter(n => n.type === 'button' && /guest/i.test(words(n))).length, 0);
+    for (const label of ['Create account', 'Sign in']) {
       all.find(n => n.type === 'button' && words(n).trim() === label).props.onClick();
     }
-    assert.deepEqual(h.calls, ['create', 'signin', 'guest']);
+    assert.deepEqual(h.calls, ['create', 'signin']);
   }
 });
 
@@ -150,7 +152,7 @@ test('entry controls follow readiness without enabling account actions before re
     const h = fixture(false, presentation), all = nodes(h.render());
     const accountGroup = all.find(n => n.props.className === 'professional-entry-account-actions');
     const accountButtons = nodes(accountGroup).filter(n => n.type === 'button');
-    assert.equal(accountButtons.length, 3);
+    assert.deepEqual(accountButtons.map(words), ['Create account', 'Sign in']);
     assert.ok(accountButtons.every(n => n.props.disabled === true));
     assert.equal(all.filter(n => n.type === 'summary').length, 10, 'Appearance and company information remain available while account restoration is pending');
     const modes = all.find(n => n.props.role === 'radiogroup' && n.props['aria-label'] === 'Appearance');

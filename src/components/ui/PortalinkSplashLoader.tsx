@@ -24,7 +24,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   welcomeMedia?: boolean;
   /** Leaving the white welcome scene for the app, including a completed sign-in. */
   welcomeHandoff?: boolean;
-  landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string; content?: React.ReactNode; suspendFocus?: boolean; hideMedia?: boolean };
+  landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onDismiss?: () => void; content?: React.ReactNode; suspendFocus?: boolean; hideMedia?: boolean };
 }) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
   // rather than mounting another app host or introducing device detection.
@@ -73,7 +73,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const sceneLanding = introPending ? undefined : landing ?? (welcomeHandoff ? lastLanding.current : undefined);
   const landingRef = useDialogViewport<HTMLDivElement>(presentation === 'mobile' && Boolean(sceneLanding) && !hidden);
   useEntryFieldViewport(landingRef, presentation === 'mobile' && Boolean(sceneLanding?.hideMedia) && !hidden);
-  useModalFocus(Boolean(landing && sceneLanding) && !hidden && !landing?.suspendFocus, landingRef, () => landing?.onContinue(), true);
+  useModalFocus(Boolean(landing && sceneLanding) && !hidden && !landing?.suspendFocus, landingRef, () => landing?.onDismiss?.(), true);
   const complete = useCallback(() => {
     if (reported.current) return;
     reported.current = true;
@@ -408,7 +408,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
         </div>
       </div>}
       {sceneLanding && <div className="mobile-share-landing-actions" aria-busy={!sceneLanding.ready}>
-        {sceneLanding.content ?? <EntryChoices presentation={presentation} ready={sceneLanding.ready} onEmail={sceneLanding.onCreateAccount} onSignIn={sceneLanding.onSignIn} onGuest={sceneLanding.onContinue} />}
+        {sceneLanding.content ?? <EntryChoices presentation={presentation} ready={sceneLanding.ready} onEmail={sceneLanding.onCreateAccount} onSignIn={sceneLanding.onSignIn} />}
         {!sceneLanding.ready && <span role="status" className="sr-only">Opening Portalink…</span>}
       </div>}
     </motion.div>
