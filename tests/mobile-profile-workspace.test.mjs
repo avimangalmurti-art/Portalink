@@ -88,7 +88,7 @@ function appInitializer(name) {
   assert.ok(result, `Expected App rendering boundary ${name}`);
   return ts.transpileModule(`result = (${result});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React } }).outputText;
 }
-const appBoundaries = ['isCollaborationOpen', 'isOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'mobileProfileKey'];
+const appBoundaries = ['isCollaborationOpen', 'isSoCalOpen', 'isOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'mobileProfileKey'];
 const appExpressions = Object.fromEntries(appBoundaries.map(name => [name, appInitializer(name)]));
 function profileRender(overrides = {}) {
   const profile = { id: 'owner', name: 'Owner', projectGridColumns: 2 };

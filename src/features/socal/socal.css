@@ -1,0 +1,77 @@
+.socal-page {
+  --socal-inset: 16px;
+  width: 100%;
+  max-width: 680px;
+  min-width: 0;
+  margin-inline: auto;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  color: var(--text-primary);
+}
+.socal-page .socal-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px var(--socal-inset);
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-canvas);
+}
+.socal-page .socal-back,
+.socal-page .socal-calendar-arrow {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.socal-page .socal-heading { min-width: 0; flex: 1; }
+.socal-page .socal-heading h1 { margin: 0; font-size: 20px; line-height: 1.25; font-weight: 600; }
+.socal-page .socal-heading p { margin: 4px 0 0; font-size: 12px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.socal-page .socal-private { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; color: var(--text-secondary); font-size: 12px; }
+.socal-page .socal-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 12px var(--socal-inset) 0; }
+.socal-page .socal-tabs button { display: flex; justify-content: center; align-items: center; gap: 7px; min-width: 0; min-height: 44px; padding: 8px 4px; border: 1px solid var(--hairline); border-radius: var(--ui-action-radius, 12px); background: transparent; color: var(--text-secondary); font-size: 13px; }
+.socal-page .socal-tabs button[aria-selected='true'] { background: var(--surface-sunken); color: var(--text-primary); border-color: var(--text-tertiary); }
+.socal-page .socal-body { padding: 24px var(--socal-inset); }
+.socal-page h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.3; font-weight: 600; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.socal-page h3 { margin: 0 0 8px; font-size: 15px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
+.socal-page p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-secondary); overflow-wrap: anywhere; }
+.socal-page .socal-intro { margin-bottom: 24px; }
+.socal-page .socal-calendar { margin-block: 20px 24px; padding: 10px 8px 16px; border: 1px solid var(--hairline); border-radius: var(--ui-panel-radius, 16px); background: var(--surface-raised); }
+.socal-page .socal-month-controls { display: flex; align-items: center; gap: 4px; }
+.socal-page .socal-month-controls h3 { flex: 1; min-width: 0; margin: 0; text-align: center; }
+.socal-page .socal-calendar-caption { display: flex; justify-content: space-between; align-items: center; padding-inline: 6px; color: var(--text-secondary); font-size: 12px; }
+.socal-page .socal-calendar-caption button { min-height: 44px; }
+.socal-page .socal-calendar-dates { max-width: 100%; overflow-x: auto; }
+.socal-page .socal-calendar-grid { width: 100%; min-width: 308px; table-layout: fixed; border-collapse: collapse; }
+.socal-page .socal-calendar-grid th { height: 36px; padding: 0; color: var(--text-secondary); font-size: 11px; font-weight: 400; text-align: center; }
+.socal-page .socal-calendar-grid abbr { text-decoration: none; }
+.socal-page .socal-calendar-grid td { height: 48px; padding: 0; text-align: center; }
+.socal-page .socal-calendar-grid button { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; padding: 4px; border: 1px solid transparent; border-radius: 50%; background: transparent; color: var(--text-primary); font-size: 14px; }
+.socal-page .socal-calendar-grid button[aria-current='date'] { border-color: var(--hairline); font-weight: 650; }
+.socal-page .socal-calendar-grid button[aria-pressed='true'] { background: var(--accent-primary); color: var(--accent-foreground); border-color: var(--accent-primary); }
+.socal-page .socal-setup { display: flex; align-items: flex-start; gap: 12px; padding: 18px 0; border-top: 1px solid var(--hairline); }
+.socal-page .socal-setup > div { min-width: 0; }
+.socal-page .socal-section-icon { display: inline-flex; flex-shrink: 0; color: var(--icon-secondary, var(--text-secondary)); margin-top: 2px; }
+.socal-page .socal-setup .socal-setup-label { margin: 0 0 6px; font-size: 12px; font-weight: 500; }
+.socal-page .socal-setup-roomy { padding-block: 22px; border-bottom: 1px solid var(--hairline); }
+.socal-page .socal-explanation { margin-block: 28px; }
+.socal-page .socal-privacy { display: flex; align-items: flex-start; gap: 8px; margin-top: 24px; font-size: 12px; }
+.socal-page .socal-privacy > span { min-width: 0; }
+.socal-page .socal-privacy > span:first-child { flex-shrink: 0; }
+.socal-page .socal-rule-list { margin: 0; }
+.socal-page .socal-rule-list > div { padding: 19px 0; border-top: 1px solid var(--hairline); }
+.socal-page .socal-rule-list dt { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+.socal-page .socal-rule-list dd { margin: 8px 0 0 30px; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+.socal-page .socal-visitor-section { padding: 22px 0; border-top: 1px solid var(--hairline); }
+.socal-page .socal-message-section { padding: 22px 0 0; border-top: 1px solid var(--hairline); }
+.socal-page .socal-message-section button { min-height: 44px; height: auto; margin-top: 16px; white-space: normal; overflow-wrap: anywhere; }
+.socal-page button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (max-width: 359px) {
+  .socal-page { --socal-inset: 12px; }
+  .socal-page .socal-header { gap: 8px; }
+  .socal-page .socal-private { font-size: 11px; }
+  .socal-page .socal-tabs button { gap: 4px; font-size: 12px; }
+  .socal-page .socal-calendar { margin-inline: -12px; padding-inline: 6px; border-inline: 0; border-radius: 0; }
+}

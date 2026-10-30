@@ -11,6 +11,7 @@ export const loadSettingsPage = screenLoader(() => import('../components/Control
 export const loadProfilePage = screenLoader(() => import('../components/UserProfilePage').then(module => ({ default: module.UserProfilePage })));
 export const loadCategoryPage = screenLoader(() => import('../components/profile/ProfileCategoryPage').then(module => ({ default: module.ProfileCategoryPage })));
 export const loadProfileEditorPage = screenLoader(() => import('../features/profile/ProfileEditorDialog').then(module => ({ default: module.ProfileEditorPage })));
+export const loadSoCalPage = screenLoader(() => import('../features/socal/SoCalPage').then(module => ({ default: module.SoCalPage })));
 export const loadVisitorProjectPage = screenLoader(() => import('../visitor/VisitorProjectPage').then(module => ({ default: module.VisitorProjectPage })));
 
 export function warmScreenForPath(path: string) {
@@ -19,6 +20,7 @@ export function warmScreenForPath(path: string) {
   if (path === '/settings' || path === '/control-center' || path === '/appearance') return Promise.allSettled([loadSettingsPage()]);
   if (/^\/(search|discover|portalink)(?:\/|$)/.test(path)) return Promise.allSettled([loadSearchPage()]);
   if (path === '/profile/edit') return Promise.allSettled([loadProfileEditorPage()]);
+  if (/^\/p\/[^/]+\/socal\/?(?:[?#]|$)/.test(path)) return Promise.allSettled([loadSoCalPage()]);
   if (/^\/(p|share)\//.test(path)) return Promise.allSettled([loadProfilePage(), ...(/\/c\//.test(path) ? [loadCategoryPage()] : [])]);
   return Promise.resolve([]);
 }

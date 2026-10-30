@@ -118,6 +118,7 @@ type UserProfilePageProps = {
   onAddJourneyProject?: (year?: number) => void;
   /** Existing Messages entry point, with its normal account gate. */
   onCollaboration?: () => void;
+  onSoCal?: () => void;
   onMessage?: () => void;
   /** Stable read-only URL intended for people who do not have an account. */
   shareUrl?: string;
@@ -408,6 +409,7 @@ export function UserProfilePage({
   onPublishProject,
   onAddJourneyProject,
   onCollaboration,
+  onSoCal,
   onMessage,
   shareUrl,
   onBeforeShare,
@@ -790,7 +792,7 @@ export function UserProfilePage({
                 </div>}
             </div>}
           {!isJourney && <div data-mobile-profile-links="" className="w-full min-w-0 basis-full">
-            <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onCollaboration={onCollaboration} onMessage={onMessage} />
+            <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onCollaboration={onCollaboration} onSoCal={isMobile && !isSharedView ? onSoCal : undefined} onMessage={onMessage} />
           </div>}
           {/* Mobile owner actions are available in the main navigation's action popup. */}
           {!isSharedView && (!isMobile || !showsOwnerTools) && <div data-profile-owner-actions={showsOwnerTools ? '' : undefined} data-profile-visitor-actions={!showsOwnerTools ? '' : undefined} className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">

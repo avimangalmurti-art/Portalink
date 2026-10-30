@@ -32,7 +32,7 @@ export type AppRoute = {
   kind: 'profile';
   profileId: Id;
 } | {
-  kind: 'collaboration' | 'sharedCollaboration';
+  kind: 'collaboration' | 'sharedCollaboration' | 'socal';
   profileId: Id;
 } | {
   kind: 'category';
@@ -88,7 +88,7 @@ export type AppRoute = {
  * Explicit shared-link routes and browser preferences remain public. Every
  * ordinary app destination, including Home, requires an account.
  */
-export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['home', 'messages', 'saved', 'notifications', 'insights', 'profileEditor', 'search', 'portalink', 'profile', 'category', 'project', 'activity', 'collaboration', 'item', 'portals', 'studio']);
+export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['home', 'messages', 'saved', 'notifications', 'insights', 'profileEditor', 'search', 'portalink', 'profile', 'category', 'project', 'activity', 'collaboration', 'socal', 'item', 'portals', 'studio']);
 
 /** What the person was reaching for, for the auth gate's wording. */
 export function describeRoute(route: AppRoute): string {
@@ -97,6 +97,8 @@ export function describeRoute(route: AppRoute): string {
       return 'search accounts';
     case 'portalink':
       return 'explore Portalink';
+    case 'socal':
+      return 'open SoCal';
     case 'profile': case 'category': case 'activity': case 'collaboration':
       return 'explore this creator';
     case 'project': case 'item':
@@ -119,7 +121,7 @@ export function describeRoute(route: AppRoute): string {
 }
 function parse(pathname: string, search: string): AppRoute {
   if (matchPath(routes.profileEditor.path, pathname)) return { kind: 'profileEditor' };
-  for (const kind of ['collaboration', 'sharedCollaboration'] as const) {
+  for (const kind of ['collaboration', 'sharedCollaboration', 'socal'] as const) {
     const match = matchPath(routes[kind].path, pathname);
     if (match?.params.profileId) return { kind, profileId: match.params.profileId };
   }
@@ -311,6 +313,22 @@ export function useRouteNavigator() {
       const fallback = buildPath(shared ? 'sharedProfile' : 'profile', { profileId });
       // Only a recorded entry from this creator's profile earns browser Back.
       // A pasted URL returns to the profile without leaving the application.
+      if (typeof returnPath === 'string' && returnPath.split(/[?#]/)[0].replace(/\/$/, '') === fallback && window.history.state?.idx > 0) {
+        navigate(-1);
+      } else {
+        navigate(fallback, { replace: true });
+      }
+    },
+    socal: (profileId: Id) => {
+      const current = locationRef.current;
+      navigate(buildPath('socal', { profileId }), {
+        state: { socalReturn: `${current.pathname}${current.search}${current.hash}` }
+      });
+    },
+    closeSoCal: (profileId: Id) => {
+      const state: unknown = locationRef.current.state;
+      const returnPath = state && typeof state === 'object' && 'socalReturn' in state ? state.socalReturn : null;
+      const fallback = buildPath('profile', { profileId });
       if (typeof returnPath === 'string' && returnPath.split(/[?#]/)[0].replace(/\/$/, '') === fallback && window.history.state?.idx > 0) {
         navigate(-1);
       } else {
