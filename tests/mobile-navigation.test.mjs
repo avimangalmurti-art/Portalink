@@ -7,37 +7,63 @@ import ts from 'typescript';
 import postcss from 'postcss';
 const read=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 const nodes=tree=>React.isValidElement(tree)?[tree,...React.Children.toArray(tree.props.children).flatMap(nodes)]:[];
-test('dock orders Explore, Messages, Studio and Profile, with no rail or separate compose',()=>{
- const exports={}; const calls=[];
+function dockHarness(pathname='/studio') {
+ const exports={}; const calls=[], destinations=[];
  vm.runInNewContext(ts.transpileModule(read('../src/presentation/mobile/MobileNavigation.tsx'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require(name){
   if(name==='react')return {...React,useRef:()=>({current:null})};
-  if(name==='react-router-dom')return {Link:'link',useLocation:()=>({pathname:'/studio'})};
+  if(name==='react-router-dom')return {Link:'link',useLocation:()=>({pathname})};
   if(name.endsWith('/routes'))return{buildPath:kind=>kind==='home'?'/':`/${kind}`};
   if(name==='./MobileContextActions')return {MobileContextButton:'context-button',useMobileActions:()=>({opened:false})};
   if(name==='./useMobileDockScroll')return{useMobileDockScroll:(...args)=>calls.push(args)};
   return new Proxy({},{get:(_o,key)=>key});
  }});
- const destinations=[];
- const tree=exports.MobileNavigation({onMessages(...args){destinations.push(['messages',args]);},onProfile(...args){destinations.push(['profile',args]);},isProfileActive:false});
+ return { calls, destinations, render: (props={})=>exports.MobileNavigation({onMessages(...args){destinations.push(['messages',args]);},onSoCal(...args){destinations.push(['socal',args]);},onProfile(...args){destinations.push(['profile',args]);},isSoCalActive:false,isProfileActive:false,...props}) };
+}
+
+test('dock orders Explore, Messages, SoCal, Studio and Profile, with no rail or separate compose',()=>{
+ const fixture=dockHarness();
+ const tree=fixture.render();
  const dock=nodes(tree).find(n=>n.props.className==='mobile-navigation-dock');
- assert.deepEqual(React.Children.toArray(dock.props.children).map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Explore','Messages','Studio','Profile']);
- assert.equal(nodes(tree).some(n=>n.type==='aside'),false);assert.equal(calls[0][0],true);
- for(const label of ['Messages','Profile']){
+ const items=React.Children.toArray(dock.props.children);
+ assert.deepEqual(items.map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Explore','Messages','SoCal','Studio','Profile']);
+ const center=items[2].type(items[2].props);
+ assert.equal(center.type,'button');assert.equal(center.props.type,'button');
+ assert.equal(center.props['aria-label'],'SoCal');assert.equal(center.props.title,'SoCal');
+ assert.equal(center.props.children.props.icon,'CalendarDaysIcon');
+ assert.equal(center.props.children.props.weight,'medium');
+ assert.equal(nodes(tree).some(n=>n.type==='aside'),false);assert.equal(fixture.calls[0][0],true);
+ for(const label of ['Messages','SoCal','Profile']){
   const destination=nodes(tree).find(n=>n.props.item?.label===label);
   destination.type(destination.props).props.onClick({type:'click',target:{}});
  }
- assert.deepEqual(destinations,[['messages',[true]],['profile',[]]],'Navigation taps must not become recipient/profile arguments');
- const linkedTree=exports.MobileNavigation({onMessages(){},onProfile(){},profileHref:'/p/me',isProfileActive:true});
+ assert.deepEqual(fixture.destinations,[['messages',[true]],['socal',[]],['profile',[]]],'Navigation taps must not become recipient/profile/SoCal arguments');
+ const linkedTree=fixture.render({profileHref:'/p/me',isProfileActive:true});
  const linkedProfile=nodes(linkedTree).find(n=>n.props.item?.label==='Profile');
  assert.equal(linkedProfile.type(linkedProfile.props).props.state.profileFromDock,true,'Dock profile navigation identifies its root destination');
+ assert.equal(linkedProfile.type(linkedProfile.props).props.state.dockEntry,'profile');
+ const linkedStudio=nodes(linkedTree).find(n=>n.props.item?.label==='Studio');
+ assert.equal(linkedStudio.type(linkedStudio.props).props.state.dockEntry,'studio');
  const linkedHome=nodes(linkedTree).find(n=>n.props.item?.label==='Explore');
  assert.equal(linkedHome.type(linkedHome.props).props.state,undefined);
  const source=read('../src/presentation/mobile/MobileNavigation.tsx');assert.doesNotMatch(source,/useNavigationSwipe|useNavigationOutsideTap|onCreateProject|mobile-navigation-opener|Videos|appearance/);
 });
-test('dock width reserves four touch targets and public mobile navigation stays separate',()=>{
+test('SoCal uses its explicit active flag without selecting Profile and preserves every existing destination',()=>{
+ for(const [pathname,selected] of [['/','Explore'],['/messages','Messages'],['/studio','Studio'],['/saved','Studio'],['/p/me','Profile'],['/p/me/socal','SoCal'],['/p/other/socal',null]]){
+  const fixture=dockHarness(pathname);
+  const tree=fixture.render({profileHref:'/p/me',isProfileActive:selected==='Profile',isSoCalActive:selected==='SoCal'});
+  const items=nodes(tree).filter(node=>node.props.item).map(node=>node.type(node.props));
+  assert.deepEqual(items.filter(node=>node.props['aria-current']==='page').map(node=>node.props['aria-label']),selected?[selected]:[],pathname);
+  assert.equal(items.find(node=>node.props['aria-label']==='Explore').props.to,'/');
+  assert.equal(items.find(node=>node.props['aria-label']==='Studio').props.to,'/studio');
+  assert.equal(items.find(node=>node.props['aria-label']==='Profile').props.to,'/p/me');
+  assert.equal(fixture.calls.at(-1)[1],pathname,'SoCal retains the existing route-scoped dock scrolling owner');
+ }
+});
+
+test('dock width reserves five columns and public mobile navigation stays separate',()=>{
  const css=read('../src/presentation/mobile/mobile.css');
- assert.match(css,/repeat\(4, minmax\(var\(--mobile-control-target\), 1fr\)\)/);
- assert.match(css,/min-width: calc\(4 \* var\(--mobile-control-target\)/);
+ assert.match(css,/repeat\(5, minmax\(var\(--mobile-control-target\), 1fr\)\)/);
+ assert.match(css,/min-width: calc\(5 \* var\(--mobile-control-target\) \+ 4 \* var\(--mobile-control-gap\) \+ 2 \* var\(--mobile-control-inset\)\)/);
  assert.doesNotMatch(css,/\.mobile-navigation-scroll|\.mobile-navigation\s*\{|\.mobile-shared-drawer/);
  assert.match(read('../src/components/profile/SharedProfileSidebar.tsx'),/isMobile \? <PublicProfileDrawer/);
  assert.equal(fs.existsSync(new URL('../src/presentation/mobile/MobileSharedProfileDrawer.tsx',import.meta.url)),false);

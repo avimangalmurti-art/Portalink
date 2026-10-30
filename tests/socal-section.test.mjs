@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
 import { matchPath } from 'react-router-dom';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -19,11 +22,13 @@ function routeHarness(path = '/p/creator', state = null, index = 0) {
     return { pathname: url.pathname, search: url.search, hash: url.hash, state: nextState };
   };
   let location = parseLocation(path, state), locationRef;
+  const entries = new Map([[index, location]]);
   const navigate = (target, options) => {
     calls.push([target, options]);
-    if (typeof target === 'number') { history.state.idx += target; return; }
+    if (typeof target === 'number') { history.state.idx += target; location = entries.get(history.state.idx) ?? location; return; }
     location = parseLocation(target, options?.state ?? null);
     if (!options?.replace) history.state.idx += 1;
+    entries.set(history.state.idx, location);
   };
   const routing = sourceModule('src/app/useAppRoute.ts', {
     react: { useEffect() {}, useMemo: create => create(), useRef: value => locationRef ??= { current: value } },
@@ -66,6 +71,117 @@ test('direct, copied, unrelated, and external SoCal return contexts safely repla
   const copied = routeHarness('/p/creator/socal', { socalReturn: '/p/creator?view=portals#work' }, 0);
   copied.nav().closeSoCal('creator');
   assert.deepEqual(plain(copied.calls), [['/p/creator', { replace: true }]]);
+});
+
+test('the SoCal dock records its exact known source and Back restores its URL and state without growing history', () => {
+  for (const from of ['/', '/?tab=following#latest', '/messages?conversation=thread#latest', '/studio?collection=drafts#saved', '/search?q=Portal#people', '/p/another-person?view=portals#work']) {
+    const sourceState = { source: 'existing-state', position: 420 };
+    const h = routeHarness(from, sourceState, 3);
+    for (let cycle = 0; cycle < 3; cycle++) {
+      h.nav().socal('owner', true);
+      assert.equal(h.location().pathname, '/p/owner/socal');
+      assert.deepEqual(plain(h.location().state), { socalReturn: from, dockEntry: 'socal', socalFromDock: true, socalReturnIndex: 3 });
+      assert.equal(h.history.state.idx, 4);
+      h.nav().closeSoCal('owner');
+      assert.equal(h.history.state.idx, 3);
+      const returned = h.location();
+      assert.equal(returned.pathname + returned.search + returned.hash, from);
+      assert.equal(returned.state, sourceState, 'POP preserves the original source state');
+      assert.deepEqual(h.calls.at(-1), [-1, undefined]);
+    }
+  }
+});
+
+test('repeated selection of the current own SoCal does not replace its source or push another history entry', () => {
+  const state = { socalReturn: '/messages?conversation=thread', dockEntry: 'socal', socalFromDock: true, socalReturnIndex: 3 };
+  const h = routeHarness('/p/owner/socal?tab=calendar#selected', state, 4);
+  h.nav().socal('owner', true); h.nav().socal('owner', true);
+  assert.deepEqual(h.calls, []);
+  assert.equal(h.location().state, state);
+  assert.equal(h.history.state.idx, 4);
+});
+
+test('refresh or Forward to the marked SoCal entry still permits exactly its captured predecessor', () => {
+  const h = routeHarness('/messages?conversation=thread#latest', null, 3);
+  h.nav().socal('owner', true);
+  for (const entry of ['refreshed', 'forward']) {
+    const returned = routeHarness('/p/owner/socal', plain(h.location().state), 4);
+    returned.nav().closeSoCal('owner');
+    assert.deepEqual(returned.calls, [[-1, undefined]], entry);
+  }
+  const stale = routeHarness('/p/owner/socal', plain(h.location().state), 7);
+  stale.nav().closeSoCal('owner');
+  assert.deepEqual(plain(stale.calls), [['/p/owner', { replace: true }]]);
+});
+
+test('marked dock Back rejects external, unknown, self, control and malformed sources', () => {
+  for (const from of [undefined, null, 7, '//elsewhere.test', 'https://elsewhere.test', '/unknown-page', '/p/owner/socal', '/p/owner/socal/?tab=calendar', '/search?q=bad\ninput', '/search?q=bad\\input', '/search?q=%00bad', '/p/person%5C/socal', '/search?q=%']) {
+    const h = routeHarness('/p/owner/socal', { socalReturn: from, dockEntry: 'socal', socalFromDock: true, socalReturnIndex: 3 }, 4);
+    h.nav().closeSoCal('owner');
+    assert.deepEqual(plain(h.calls), [['/p/owner', { replace: true }]], String(from));
+  }
+});
+
+test('invalid or incomplete dock state cannot borrow the legacy same-profile Back path', () => {
+  const valid = { socalReturn: '/p/owner', dockEntry: 'socal', socalFromDock: true, socalReturnIndex: 3 };
+  for (const patch of [
+    { socalReturnIndex: undefined }, { socalReturnIndex: null }, { socalReturnIndex: -1 }, { socalReturnIndex: 2.5 },
+    { socalReturnIndex: '3' }, { socalReturnIndex: Number.MAX_SAFE_INTEGER + 1 },
+    { socalFromDock: false }, { socalFromDock: 'true' }, { dockEntry: 'profile' },
+  ]) {
+    const h = routeHarness('/p/owner/socal', { ...valid, ...patch }, 4);
+    h.nav().closeSoCal('owner');
+    assert.deepEqual(plain(h.calls), [['/p/owner', { replace: true }]]);
+  }
+  for (const index of [undefined, null, -1, 0, 2.5, '4', Number.MAX_SAFE_INTEGER + 1]) {
+    const h = routeHarness('/p/owner/socal', valid, index);
+    h.history.state.idx = index;
+    h.nav().closeSoCal('owner');
+    assert.deepEqual(plain(h.calls), [['/p/owner', { replace: true }]], String(index));
+  }
+  for (const state of [{ dockEntry: 'socal' }, { socalFromDock: true }, { socalReturnIndex: 3 }]) {
+    const h = routeHarness('/p/owner/socal', { socalReturn: '/p/owner', ...state }, 4);
+    h.nav().closeSoCal('owner');
+    assert.deepEqual(plain(h.calls), [['/p/owner', { replace: true }]]);
+  }
+});
+
+test('dock entry never records an invalid browser index as return authority', () => {
+  for (const index of [undefined, null, -1, 2.5, '3', Number.MAX_SAFE_INTEGER + 1]) {
+    const h = routeHarness('/messages', null, index);
+    h.history.state.idx = index;
+    h.nav().socal('owner', true);
+    const state = h.location().state;
+    assert.equal(Object.hasOwn(state, 'socalReturnIndex'), false);
+    assert.equal(state.socalFromDock, true);
+    assert.equal(state.dockEntry, 'socal');
+  }
+});
+
+test('the dock opens the authenticated own SoCal and delegates missing-account/profile setup to the existing profile gate', () => {
+  const app = ts.createSourceFile('App.tsx', readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let opener;
+  const visit = node => { if (ts.isFunctionDeclaration(node) && node.name?.text === 'openOwnSoCal') opener = node; ts.forEachChild(node, visit); };
+  visit(app); assert.ok(opener, 'Exercise the actual App dock handler');
+  for (const [options, expected] of [
+    [{ route: { kind: 'profile', profileId: 'another-person' } }, [['socal', 'owner', true]]],
+    [{ route: { kind: 'socal', profileId: 'another-person' } }, [['socal', 'owner', true]]],
+    [{ route: { kind: 'socal', profileId: 'owner' } }, []],
+    [{ isAuthenticated: false }, [['profile-gate']]],
+    [{ onboardingStatus: 'required' }, [['profile-gate']]],
+    [{ viewerProfileId: null }, [['profile-gate']]],
+  ]) {
+    const calls = [], exports = {};
+    vm.runInNewContext(ts.transpileModule(`${opener.getText(app)}\nexports.open = openOwnSoCal;`, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+    }).outputText, {
+      exports, auth: { isAuthenticated: options.isAuthenticated ?? true, viewerProfileId: Object.hasOwn(options, 'viewerProfileId') ? options.viewerProfileId : 'owner' },
+      onboardingStatus: options.onboardingStatus ?? 'ready', route: options.route ?? { kind: 'home' },
+      viewedProfileId: 'another-person', openOwnProfile: () => calls.push(['profile-gate']),
+      nav: { socal: (...args) => calls.push(['socal', ...args]) },
+    });
+    exports.open(); assert.deepEqual(calls, expected);
+  }
 });
 
 test('the optional SoCal action follows Collaboration without changing default or shared profile actions', () => {
@@ -212,4 +328,17 @@ test('visitor messaging and Back use existing explicit callbacks without fabrica
   assert.equal(h.nodes.some(node => node.type === 'button' && /send invitation|accept plan/i.test(text(node))), false);
   const noMessaging = sectionHarness({ isOwner: false });
   assert.equal(noMessaging.button('Message Creator'), undefined);
+});
+
+test('a dock Back label changes only its accessible label/title and keeps the same explicit callback', () => {
+  let backs = 0;
+  const h = sectionHarness({ backLabel: 'Go back', onBack: () => backs++ });
+  const back = h.button('Go back');
+  assert.ok(back);
+  assert.equal(back.props.title, 'Go back');
+  assert.equal(h.button('Back to profile'), undefined);
+  back.props.onClick(); assert.equal(backs, 1);
+  h.update({ backLabel: undefined });
+  assert.equal(h.button('Back to profile').props.title, 'Back to profile');
+  assert.equal(h.button('Go back'), undefined);
 });

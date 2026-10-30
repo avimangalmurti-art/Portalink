@@ -1,10 +1,13 @@
 /** Reconcile a document-owned catalogue after its first layout or a size change. */
 export function repairMobileCatalogueScroll(profile: HTMLElement | null): boolean {
-  if (!profile?.hasAttribute('data-mobile-catalogue-spacing') || !profile.closest('[data-presentation="mobile"]')
+  const publicCatalogue = profile?.hasAttribute('data-public-image-catalogue');
+  if (!profile || (!profile.hasAttribute('data-mobile-catalogue-spacing') && !publicCatalogue) || !profile.closest('[data-presentation="mobile"]')
     || profile.closest('[hidden], [inert], [aria-hidden="true"], .screen-exit')) return false;
   const documentScroller = document.scrollingElement;
   const wall = profile.querySelector<HTMLElement>(':scope > #profile-content > .mobile-profile-wall:not([hidden])');
-  const first = wall?.querySelector<HTMLElement>('[data-preview-open][data-project-continuity-id]');
+  const first = publicCatalogue
+    ? profile.querySelector<HTMLElement>('[data-profile-wall-columns] [data-preview-open][data-project-continuity-id]')
+    : wall?.querySelector<HTMLElement>('[data-preview-open][data-project-continuity-id]');
   const header = profile.querySelector<HTMLElement>(':scope > .profile-header-region');
   if (!documentScroller || !first || !header || Math.abs((window.visualViewport?.scale ?? 1) - 1) > 0.01) return false;
   const bounds = profile.getBoundingClientRect(), card = first.getBoundingClientRect();
@@ -31,6 +34,14 @@ export function observeMobileCatalogueScroll(profile: HTMLElement | null): () =>
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => { if (!stopped) repairMobileCatalogueScroll(profile); });
   });
-  if (profile) observer.observe(profile);
+  if (profile) {
+    observer.observe(profile);
+    // A short public wall can finish measuring without changing its parent's
+    // viewport-sized minimum height. Its own rows still need reconciliation.
+    if (profile.hasAttribute('data-public-image-catalogue')) {
+      const wall = profile.querySelector<HTMLElement>('[data-profile-wall-columns]');
+      if (wall) observer.observe(wall);
+    }
+  }
   return () => { stopped = true; cancelAnimationFrame(frame); observer.disconnect(); };
 }

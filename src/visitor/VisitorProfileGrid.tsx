@@ -15,6 +15,7 @@ import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { usePresentation } from '../presentation/usePresentation';
 import { useSearchParams } from 'react-router-dom';
+import { observeMobileCatalogueScroll, repairMobileCatalogueScroll } from '../components/profile/mobileCatalogueScroll';
 import '../components/profile/profile-header.css';
 
 const JourneyView = lazy(() => import('../features/journey/JourneyView').then(m => ({ default: m.JourneyView })));
@@ -35,8 +36,14 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const portalsView = !categoryId && search.get('view') === 'portals';
   const isJourney = profile.showJourney === true && journey.view === 'journey' && !categoryId && !portalsView;
   const profilePageRef = useRef<HTMLDivElement>(null);
+  const mobileImageCatalogue = isMobile && active && !isJourney && !portalsView;
   // React 18 does not forward the boolean inert attribute; use the DOM property.
   useLayoutEffect(() => { if (profilePageRef.current) profilePageRef.current.inert = !active; }, [active]);
+  useLayoutEffect(() => {
+    if (!mobileImageCatalogue) return;
+    repairMobileCatalogueScroll(profilePageRef.current);
+    return observeMobileCatalogueScroll(profilePageRef.current);
+  }, [mobileImageCatalogue, profile.id, categoryId]);
   const [timelineToolbarHost, setTimelineToolbarHost] = useState<HTMLDivElement | null>(null);
   const category = profile.categories.find(item => item.id === categoryId);
   const density = useProjectGridDensity(profile, false);
@@ -48,7 +55,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       priority="viewport" allowPdfFallback={false} allowVideoFallback={true} sharedCoverFallback /> }));
   return <div ref={profilePageRef} hidden={!active} aria-hidden={!active || undefined}
     style={!active ? { display: 'none' } : undefined} onClickCapture={isMobile && active ? onCaptureOpener : undefined}
-    data-profile-journey={isJourney ? '' : undefined} data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
+    data-profile-journey={isJourney ? '' : undefined} data-public-image-catalogue={mobileImageCatalogue ? '' : undefined} data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
     <div data-profile-header="" className="profile-header-region contents">
       <header className="profile-compact-header" data-expanded>
         <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">

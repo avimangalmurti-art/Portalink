@@ -12,16 +12,25 @@ const metricButtons = tree => nodes(tree).filter(node => node.type === 'button' 
 const headline = tree => nodes(tree).find(node => node.props.className === 'insights-headline');
 const chartButtons = chart => React.Children.toArray(chart.props.children).filter(node => React.isValidElement(node) && node.type === 'button');
 const totals = tree => nodes(nodes(tree).find(node => node.props['aria-label'] === 'Metric totals')).filter(node => node.type === 'dd').map(node => node.props['aria-label'] ?? text(node));
-function load(rows, { error, loading = false, fetchedAt, initialPeriod } = {}) {
-  const states = []; let cursor = 0, queryCursor = 0, refreshes = 0; const periods = [];
+function load(rows, { error, loading = false, refreshing = false, coverLoading = false, coverRefreshing = false, fetchedAt, initialPeriod, presentation = 'web', active = true, pullLabel = '' } = {}) {
+  const states = []; let cursor = 0, queryCursor = 0; const periods = [];
+  const environment = { presentation, active, pullLabel };
+  const queryState = { error, loading, refreshing, coverLoading, coverRefreshing };
+  const refreshCounts = { reads: 0, covers: 0, saves: 0 };
+  const surfaceRef = { current: null };
+  const pullCalls = [];
+  const defaultSaves = { data: { creatorSaves: 9, projectSaves: 7, followers: 3 }, loading: false, retry() { refreshCounts.saves++; } };
   const navigations = [];
   const exports = {};
   const code = ts.transpileModule(readFileSync(new URL('../src/features/library/MobileInsights.tsx', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   vm.runInNewContext(code, { exports, require(name) {
-    if (name === 'react') return { ...React, useCallback: fn => fn, useState: initial => { const index = cursor++; if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value; }]; } };
+    if (name === 'react') return { ...React, useRef: () => surfaceRef, useCallback: fn => fn, useState: initial => { const index = cursor++; if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial; return [states[index], value => { states[index] = typeof value === 'function' ? value(states[index]) : value; }]; } };
     if (name === 'react-router-dom') return { useNavigate: () => path => navigations.push(path) };
     if (name.endsWith('/ServicesContext')) return { useServices: () => ({ reads: { list(period) { periods.push(period); return Promise.resolve(rows); } }, projects: { listProjects: async () => [] } }) };
-    if (name.endsWith('/useAccountQuery')) return { useAccountQuery: query => { const index = queryCursor++; if(index===0) query(); return { data: index===0 ? rows : [{ id: 'b', cover: '/cover.jpg', coverAlt: 'B artwork' }], error: index===0 ? error : undefined, loading: index===0 && loading, fetchedAt: index===0 ? fetchedAt : undefined, retry: () => refreshes++ }; } };
+    if (name.endsWith('/useAccountQuery')) return { useAccountQuery: query => { const index = queryCursor++; if(index===0) query(); return { data: index===0 ? rows : [{ id: 'b', cover: '/cover.jpg', coverAlt: 'B artwork' }], error: index===0 ? queryState.error : undefined, loading: index===0 ? queryState.loading : queryState.coverLoading, refreshing: index===0 ? queryState.refreshing : queryState.coverRefreshing, fetchedAt: index===0 ? fetchedAt : undefined, retry: () => refreshCounts[index===0 ? 'reads' : 'covers']++ }; } };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => environment.presentation };
+    if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => environment.active };
+    if (name.endsWith('/useHomePullRefresh')) return { useHomePullRefresh: (ref, enabled, busy, refresh, onPull, scrollTop) => { pullCalls.push({ ref, enabled, busy, refresh, onPull, scrollTop }); return enabled ? environment.pullLabel : ''; } };
     if (name.endsWith('/readSignal')) return { READ_PERIODS: [{key:'today',label:'Today'},{key:'7d',label:'7 days'},{key:'30d',label:'30 days'},{key:'12m',label:'12 months'},{key:'all',label:'All time'}] };
     if (name.endsWith('/ProjectCover')) return { ProjectCover: 'ProjectCover' };
     if (name.endsWith('/projectPresentation')) return { getProjectCoverPreview: () => undefined };
@@ -32,7 +41,7 @@ function load(rows, { error, loading = false, fetchedAt, initialPeriod } = {}) {
     if (name === 'lucide-react') return new Proxy({}, { get: (_target, key) => key });
     throw new Error(name);
   } });
-  return { render(saves = { data: { creatorSaves: 9, projectSaves: 7, followers: 3 }, loading: false, retry() {} }) { cursor = queryCursor = 0; return exports.MobileInsights({ saves, initialPeriod }); }, navigations, periods, refreshes: () => refreshes };
+  return { render(saves = defaultSaves) { cursor = queryCursor = 0; return exports.MobileInsights({ saves, initialPeriod }); }, navigations, periods, environment, queryState, refreshCounts, surfaceRef, pull: () => pullCalls.at(-1), refreshes: () => refreshCounts.reads + refreshCounts.covers };
 }
 const rows = [
   { projectId: 'a', title: 'A', opened: 2, finished: 1, saved: 4, refs: { messages: 2 } },
@@ -258,5 +267,158 @@ test('updated time appears only from an actual successful query timestamp', () =
   assert.equal(text(time), new Date(fetchedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
   for (const state of [{ loading: true }, { error: 'Unavailable' }]) {
     assert.equal(nodes(load(undefined, { ...state, fetchedAt }).render()).some(node => node.type === 'time'), false);
+  }
+});
+
+test('mobile groups the three metrics beside an icon-only native period picker while web retains Refresh', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const fixture = load(rows, { presentation });
+    let tree = fixture.render();
+    let top = nodes(tree).find(node => node.props.className === 'insights-period');
+    let group = nodes(tree).find(node => node.props['aria-label'] === 'Insight metric');
+    let picker = nodes(top).find(node => node.props['aria-label'] === 'Insights period');
+    assert.equal(nodes(tree).filter(node => node.props['aria-label'] === 'Insight metric').length, 1);
+    assert.equal(group.props.role, 'group');
+    assert.equal(group.props['data-ui-shape'], 'capsule');
+    assert.deepEqual(metricButtons(group).map(text), ['Opens', 'Completed', 'Page saves']);
+    assert.deepEqual(metricButtons(group).map(node => node.props['aria-pressed']), [true, false, false]);
+    assert.equal(nodes(top).some(node => node.props['aria-label'] === 'Insight metric'), presentation === 'mobile');
+    assert.equal(picker.type, 'select');
+    assert.equal(picker.props.value, '7d');
+    assert.deepEqual(nodes(picker).filter(node => node.type === 'option').map(node => [node.props.value, text(node)]), [
+      ['today', 'Today'], ['7d', '7 days'], ['30d', '30 days'], ['12m', '12 months'], ['all', 'All time'],
+    ]);
+    assert.equal(nodes(top).filter(node => node.type === 'button' && text(node) === 'Refresh').length, presentation === 'web' ? 1 : 0);
+    const label = nodes(top).find(node => node.props.className === 'insights-period-picker');
+    if (presentation === 'mobile') {
+      assert.equal(label.type, 'label');
+      assert.deepEqual(React.Children.toArray(label.props.children).map(node => node.type), ['icon', 'select']);
+      assert.equal(nodes(label).find(node => node.type === 'icon').props.icon, 'CalendarDaysIcon');
+      assert.equal(label.props.title, 'Insights period: 7 days');
+      assert.equal(picker.props.title, 'Insights period: 7 days');
+    } else {
+      assert.equal(label, undefined);
+      assert.equal(nodes(tree).some(node => node.props.role === 'status'), false);
+    }
+    picker.props.onChange({ target: { value: '30d' } });
+    metricButtons(group)[1].props.onClick();
+    tree = fixture.render();
+    top = nodes(tree).find(node => node.props.className === 'insights-period');
+    group = nodes(tree).find(node => node.props['aria-label'] === 'Insight metric');
+    picker = nodes(top).find(node => node.props['aria-label'] === 'Insights period');
+    assert.equal(picker.props.value, '30d');
+    assert.equal(fixture.periods.at(-1), '30d');
+    assert.deepEqual(metricButtons(group).map(node => node.props['aria-pressed']), [false, true, false]);
+    assert.equal(accessibleText(headline(tree)), '8completed reads');
+    if (presentation === 'mobile') assert.equal(picker.props.title, 'Insights period: 30 days');
+  }
+});
+
+test('pull refresh is enabled only for active mobile Insights and reads its own live scroll container', () => {
+  for (const [presentation, active, enabled] of [['web', true, false], ['mobile', false, false], ['mobile', true, true]]) {
+    const fixture = load(rows, { presentation, active, pullLabel: 'Release to refresh' });
+    const tree = fixture.render();
+    const pull = fixture.pull();
+    assert.equal(pull.enabled, enabled);
+    assert.equal(pull.busy, false);
+    assert.equal(pull.ref, fixture.surfaceRef);
+    assert.equal(pull.scrollTop(), Infinity, 'a missing mounted surface cannot be treated as the top');
+    const owner = { scrollTop: 127 };
+    const selectors = [];
+    fixture.surfaceRef.current = { closest(selector) { selectors.push(selector); return owner; } };
+    assert.equal(pull.scrollTop(), 127, 'the nested scroller wins even when the document is at zero');
+    owner.scrollTop = 0;
+    assert.equal(pull.scrollTop(), 0, 'the top check reads current scroll position on every gesture event');
+    assert.deepEqual(selectors, ['.mobile-insights-scroll', '.mobile-insights-scroll']);
+    fixture.surfaceRef.current = { closest: () => null };
+    assert.equal(pull.scrollTop(), Infinity, 'a detached or unrelated surface cannot refresh');
+    const status = nodes(tree).find(node => node.props.role === 'status');
+    if (presentation === 'mobile') assert.equal(text(status), enabled ? 'Release to refresh' : '');
+    else assert.equal(status, undefined);
+  }
+  const fixture = load(rows, { presentation: 'mobile' });
+  fixture.render();
+  assert.equal(fixture.pull().enabled, true);
+  fixture.environment.active = false;
+  fixture.render();
+  assert.equal(fixture.pull().enabled, false, 'retaining an inactive Insights screen disables its gesture');
+  fixture.environment.active = true;
+  fixture.environment.presentation = 'web';
+  fixture.render();
+  assert.equal(fixture.pull().enabled, false, 'switching presentation relinquishes the mobile gesture');
+});
+
+test('mobile pull feedback refreshes all three queries once while retaining the selected metric and period', () => {
+  const fixture = load(rows, { presentation: 'mobile', pullLabel: 'Pull to refresh' });
+  let tree = fixture.render();
+  nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.onChange({ target: { value: '12m' } });
+  metricButtons(tree)[2].props.onClick();
+  tree = fixture.render();
+  let status = nodes(tree).find(node => node.props.role === 'status');
+  assert.equal(status.props['aria-live'], 'polite');
+  assert.equal(text(status), 'Pull to refresh');
+  fixture.environment.pullLabel = 'Release to refresh';
+  tree = fixture.render();
+  assert.equal(text(nodes(tree).find(node => node.props.role === 'status')), 'Release to refresh');
+  fixture.pull().refresh();
+  assert.deepEqual(fixture.refreshCounts, { reads: 1, covers: 1, saves: 1 });
+  fixture.environment.pullLabel = '';
+  fixture.queryState.refreshing = true;
+  tree = fixture.render();
+  assert.equal(fixture.pull().busy, true);
+  assert.equal(tree.props['aria-busy'], true);
+  assert.equal(text(nodes(tree).find(node => node.props.role === 'status')), 'Refreshing insights…');
+  assert.equal(nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.value, '12m');
+  assert.equal(tree.props['data-insights-metric'], 'saved');
+  assert.equal(accessibleText(headline(tree)), '5current page saves');
+  const projects = nodes(tree).find(node => node.props['aria-label'] === 'Top projects');
+  nodes(projects).find(node => node.type === 'li').props.children.props.onClick();
+  assert.equal(fixture.navigations.at(-1), '/insights?project=a&period=12m');
+  fixture.queryState.refreshing = false;
+  tree = fixture.render();
+  assert.equal(fixture.pull().busy, false);
+  assert.equal(tree.props['aria-busy'], undefined);
+  assert.equal(text(nodes(tree).find(node => node.props.role === 'status')), '');
+  assert.deepEqual(fixture.refreshCounts, { reads: 1, covers: 1, saves: 1 });
+});
+
+test('every pending reads, artwork or audience query fences the mobile pull refresh', () => {
+  for (const key of ['loading', 'refreshing', 'coverLoading', 'coverRefreshing', 'savesLoading', 'savesRefreshing']) {
+    const fixture = load(rows, { presentation: 'mobile', ...(key.startsWith('saves') ? {} : { [key]: true }) });
+    const saves = { data: { creatorSaves: 9, projectSaves: 7, followers: 3 }, loading: key === 'savesLoading', refreshing: key === 'savesRefreshing', retry() {} };
+    const tree = fixture.render(saves);
+    assert.equal(fixture.pull().busy, true, `${key} must fence another pull`);
+    assert.equal(tree.props['aria-busy'], true);
+    assert.equal(metricButtons(tree).length, key === 'loading' ? 0 : 3);
+    assert.equal(text(nodes(tree).find(node => node.props.role === 'status')), key === 'loading' || key === 'savesLoading' ? '' : 'Refreshing insights…');
+    assert.equal(nodes(tree).some(node => node.type === 'button' && text(node) === 'Refresh'), false);
+  }
+});
+
+test('mobile initial reads loading and errors retain the period picker without presenting fabricated metrics', () => {
+  for (const state of [{ loading: true }, { error: 'Reads unavailable' }]) {
+    const fixture = load(undefined, { presentation: 'mobile', ...state });
+    let tree = fixture.render();
+    assert.equal(nodes(tree).find(node => node.props['aria-label'] === 'Insights period').type, 'select');
+    assert.equal(metricButtons(tree).length, 0);
+    assert.equal(headline(tree), undefined);
+    assert.equal(nodes(tree).some(node => node.props['aria-label'] === 'Metric totals'), false);
+    assert.equal(nodes(tree).some(node => node.type === 'button' && text(node) === 'Refresh'), false);
+    const view = nodes(tree).find(node => node.type === (state.loading ? 'loading' : 'error'));
+    assert.ok(view);
+    if (state.error) {
+      assert.equal(view.props.description, state.error);
+      assert.equal(fixture.pull().busy, false, 'a failed query is no longer an in-flight refresh');
+      assert.equal(text(nodes(tree).find(node => node.props.role === 'status')), '');
+      view.props.onRetry();
+      assert.deepEqual(fixture.refreshCounts, { reads: 1, covers: 0, saves: 0 });
+    }
+    fixture.queryState.loading = false;
+    fixture.queryState.error = undefined;
+    tree = fixture.render();
+    assert.equal(metricButtons(tree).length, 3);
+    assert.match(text(tree), /No project reads yet/);
+    assert.deepEqual(totals(tree), ['0', '0', '0']);
+    assert.equal(text(nodes(tree).find(node => node.props.role === 'status')), '');
   }
 });

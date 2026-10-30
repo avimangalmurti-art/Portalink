@@ -319,17 +319,38 @@ export function useRouteNavigator() {
         navigate(fallback, { replace: true });
       }
     },
-    socal: (profileId: Id) => {
+    socal: (profileId: Id, fromDock = false) => {
       const current = locationRef.current;
-      navigate(buildPath('socal', { profileId }), {
-        state: { socalReturn: `${current.pathname}${current.search}${current.hash}` }
+      const target = buildPath('socal', { profileId });
+      if (fromDock && current.pathname === target) return;
+      const index: unknown = fromDock ? window.history.state?.idx : null;
+      navigate(target, {
+        state: { socalReturn: `${current.pathname}${current.search}${current.hash}`,
+          ...(fromDock ? { dockEntry: 'socal', socalFromDock: true,
+            ...(typeof index === 'number' && Number.isSafeInteger(index) && index >= 0 ? { socalReturnIndex: index } : {}) } : {}) }
       });
     },
     closeSoCal: (profileId: Id) => {
       const state: unknown = locationRef.current.state;
       const returnPath = state && typeof state === 'object' && 'socalReturn' in state ? state.socalReturn : null;
       const fallback = buildPath('profile', { profileId });
-      if (typeof returnPath === 'string' && returnPath.split(/[?#]/)[0].replace(/\/$/, '') === fallback && window.history.state?.idx > 0) {
+      const index: unknown = window.history.state?.idx;
+      const dockContext = state && typeof state === 'object' && ('socalFromDock' in state || 'socalReturnIndex' in state || ('dockEntry' in state && state.dockEntry === 'socal'));
+      let dockReturn = false;
+      if (state && typeof state === 'object' && dockContext && 'dockEntry' in state && state.dockEntry === 'socal' && 'socalFromDock' in state && state.socalFromDock === true
+        && 'socalReturnIndex' in state && typeof state.socalReturnIndex === 'number' && Number.isSafeInteger(state.socalReturnIndex) && state.socalReturnIndex >= 0
+        && typeof index === 'number' && Number.isSafeInteger(index) && index > 0 && index === state.socalReturnIndex + 1
+        && typeof returnPath === 'string' && returnPath.startsWith('/') && !returnPath.startsWith('//')) {
+        const path = returnPath.split(/[?#]/)[0];
+        try {
+          const decodedReturnPath = decodeURI(returnPath);
+          dockReturn = !Array.from(decodedReturnPath).some(character => character === '\\' || character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+            && parse(path, '').kind !== 'unknown'
+            && path.replace(/\/+$/, '') !== buildPath('socal', { profileId });
+        } catch { /* A malformed encoded return is not a known local source. */ }
+      }
+      const profileReturn = !dockContext && typeof returnPath === 'string' && returnPath.split(/[?#]/)[0].replace(/\/$/, '') === fallback && window.history.state?.idx > 0;
+      if (profileReturn || dockReturn) {
         navigate(-1);
       } else {
         navigate(fallback, { replace: true });

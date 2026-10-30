@@ -149,8 +149,8 @@ test('mobile Studio uses its tabs without a duplicate heading row and preserves 
  const props={onBack(){backs.push('back');},onOpenProject(){}};
  let tree=nodes(StudioPage(props));
  const pills=tree.filter(n=>n.props['data-studio-pill']);
- assert.deepEqual(pills.map(n=>n.props['aria-label']),['Insights','Drafts','Bookmarks','References','Cited','Activity']);
- assert.deepEqual(pills.map(textOf),['Insights','Drafts','Bookmarks','References','Cited','Activity']);
+ assert.deepEqual(pills.map(n=>n.props['aria-label']),['Activity','Insights','Drafts','Bookmarks','References','Cited']);
+ assert.deepEqual(pills.map(textOf),['Activity','Insights','Drafts','Bookmarks','References','Cited']);
  assert.equal(new Set(pills.map(n=>nodes(n).find(child=>child.type==='interface-icon')?.props.icon)).size,6,'Every collection has its own existing icon.');
  for(const pill of pills) {
   assert.equal(pill.type,'button');
@@ -161,7 +161,7 @@ test('mobile Studio uses its tabs without a duplicate heading row and preserves 
  const pillKeys=pills.map(n=>n.key);
  assert.equal(pills.some(n=>n.props['data-studio-pill']==='published'),false);
  assert.equal(pills.some(n=>n.props['data-studio-pill']==='all'),false);
- assert.equal(pills[0].props['aria-pressed'],true);
+ assert.equal(pills.find(n=>n.props['data-studio-pill']==='overview').props['aria-pressed'],true);
  assert.ok(tree.some(n=>n.type==='insights'));
  assert.equal(tree.find(n=>n.type==='insights').props.studio,true);
  assert.equal(tree.some(n=>n.type==='overview'),false);

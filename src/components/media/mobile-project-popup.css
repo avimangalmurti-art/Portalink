@@ -50,6 +50,17 @@
  #root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) { background: var(--surface-raised) !important; backdrop-filter: none; }
 }
 
+/* The floating portal owns its raised material. An idle toolbar shares that
+   surface; rows scrolling underneath use the same canvas instead of page black. */
+@layer portalink-header-material {
+ #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel] > .mobile-portal-index-toolbar {
+  --fixed-header-canvas: var(--surface-raised);
+ }
+ #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel] > .mobile-portal-index-toolbar[data-mobile-header-underlap='false']::before {
+  content: none !important;
+ }
+}
+
 [data-presentation='mobile'] [data-centered-project] [data-engagement-action] { min-height: 64px; color: var(--text-primary); background: var(--surface-sunken); border-radius: 12px; }
 [data-presentation='mobile'] [data-centered-project] [data-engagement-action] > span { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 [data-presentation='mobile'] .project-popup-owner-actions { display: grid; gap: 8px; margin-top: 16px; }

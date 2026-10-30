@@ -12,6 +12,7 @@ export type SoCalPageProps = {
   profile: Profile;
   isOwner: boolean;
   onBack: () => void;
+  backLabel?: string;
   onMessage?: () => void;
 };
 
@@ -33,7 +34,7 @@ const weekdays = Array.from({ length: 7 }, (_, index) => {
 });
 
 /** SoCal's first release exposes the section without inventing connected data. */
-export function SoCalPage({ profile, isOwner, onBack, onMessage }: SoCalPageProps) {
+export function SoCalPage({ profile, isOwner, onBack, onMessage, backLabel = 'Back to profile' }: SoCalPageProps) {
   const presentation = usePresentation();
   const id = useId();
   const [tab, setTab] = useState<SoCalTab>('calendar');
@@ -58,7 +59,7 @@ export function SoCalPage({ profile, isOwner, onBack, onMessage }: SoCalPageProp
   return <section className="socal-page" data-socal-section="" data-socal-owner={isOwner ? 'true' : 'false'} data-presentation={presentation} aria-labelledby={`${id}-title`}>
     <header className="socal-header" data-mobile-safe-header={presentation === 'mobile' ? '' : undefined}>
       <ScreenBack action={onBack} visibleOnMobile>
-        <Button variant="ghost" className="socal-back" onClick={onBack} aria-label="Back to profile" title="Back to profile">
+        <Button variant="ghost" className="socal-back" onClick={onBack} aria-label={backLabel} title={backLabel}>
           <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
         </Button>
       </ScreenBack>

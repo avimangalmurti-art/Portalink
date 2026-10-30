@@ -177,7 +177,7 @@ function hooks() {
     }
     throw new Error('Component did not settle');
   }
-  return { react, render };
+  return { react, render, dispose: () => effects.forEach(effect => effect?.cleanup?.()) };
 }
 function appHarness({ firstVisit = false } = {}) {
   const h = hooks(), assigned = [], replaced = [], navigations = [], queryCalls = [], requests = [];
@@ -198,6 +198,8 @@ function appHarness({ firstVisit = false } = {}) {
   const projectReturn = load('visitor/useMobileProjectReturn.ts', name => {
     if (name === 'react') return h.react;
     if (name.endsWith('/projectContinuity')) return { beginProjectContinuity() {} };
+    // These route/privacy cases do not model a fitting catalogue's geometry.
+    if (name.endsWith('/mobileCatalogueScroll')) return { repairMobileCatalogueScroll: () => false };
     throw new Error(name);
   }, browser);
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
@@ -434,11 +436,15 @@ test('shared links start on Portfolio and keep Journey one tap away', () => {
 });
 
 function visitorProfileHarness({ presentation = 'web', showJourney = false } = {}) {
-  const h = hooks(), followed = [], state = { own: true, signedIn: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio', active: true };
+  const h = hooks(), followed = [], layoutRepair = [], state = { own: true, signedIn: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio', active: true };
   const profileDom = { inert: false };
   const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London', showJourney };
   const { VisitorProfileGrid } = load('visitor/VisitorProfileGrid.tsx', name => {
     if (name.endsWith('/useMobileHeaderMaterial')) return { useMobileHeaderMaterial() {} };
+    if (name.endsWith('/mobileCatalogueScroll')) return {
+      repairMobileCatalogueScroll: root => { layoutRepair.push(['repair', root]); return false; },
+      observeMobileCatalogueScroll: root => { layoutRepair.push(['observe', root]); return () => layoutRepair.push(['disconnect', root]); },
+    };
     if(name.endsWith('/StateViews'))return {LoadingSkeleton:'loading'};
     if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
@@ -461,8 +467,44 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
     tree.ref.current = profileDom; // React attaches the host before layout effects run.
     return tree;
   });
-  return { render, state, followed, bioProfile, profileDom };
+  return { render, state, followed, bioProfile, profileDom, layoutRepair, dispose: h.dispose };
 }
+
+test('public image catalogue repair owns only the active MOBILE grid and releases Timeline, portal, hidden and unmounted views', () => {
+  const h = visitorProfileHarness({ presentation: 'mobile', showJourney: true });
+  const actions = () => h.layoutRepair.map(([action]) => action);
+  assert.equal(h.render().props['data-public-image-catalogue'], '');
+  assert.deepEqual(actions(), ['repair', 'observe']);
+  assert.ok(h.layoutRepair.every(([, root]) => root === h.profileDom), 'The committed public host reaches the repair helper.');
+  h.render(); assert.deepEqual(actions(), ['repair', 'observe'], 'An ordinary render cannot replay correction.');
+
+  h.state.view = 'journey';
+  assert.equal(h.render().props['data-public-image-catalogue'], undefined);
+  assert.deepEqual(actions(), ['repair', 'observe', 'disconnect']);
+  assert.ok(one(h.render(), 'lazy:../features/journey/JourneyView'));
+
+  h.state.view = 'portfolio'; h.render();
+  assert.deepEqual(actions().slice(-2), ['repair', 'observe']);
+  h.state.active = false;
+  assert.equal(h.render().props['data-public-image-catalogue'], undefined);
+  assert.equal(actions().at(-1), 'disconnect');
+  const hiddenCount = h.layoutRepair.length;
+  h.render(); assert.equal(h.layoutRepair.length, hiddenCount);
+  h.state.active = true; h.render();
+  assert.deepEqual(actions().slice(-2), ['repair', 'observe']);
+
+  h.state.search.set('view', 'portals');
+  assert.equal(h.render().props['data-public-image-catalogue'], undefined);
+  assert.equal(actions().at(-1), 'disconnect');
+  h.state.categoryId = 'portal';
+  assert.equal(h.render().props['data-public-image-catalogue'], '');
+  assert.deepEqual(actions().slice(-2), ['repair', 'observe'], 'A category containing project images remains an ordinary image catalogue.');
+  h.dispose(); assert.equal(actions().at(-1), 'disconnect');
+
+  const web = visitorProfileHarness({ presentation: 'web', showJourney: true });
+  assert.equal(web.render().props['data-public-image-catalogue'], undefined);
+  assert.deepEqual(web.layoutRepair, []); web.dispose();
+});
 
 test('public profile is always expanded without an action button and preserves Bio and portal views', () => {
   const { render, state, followed, bioProfile } = visitorProfileHarness();

@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState,type RefObject} from 'react';
-/** Home alone owns this gesture. Pinch, horizontal drags and scrolled content stay native. */
-export function useHomePullRefresh(ref:RefObject<HTMLElement>,enabled:boolean,busy:boolean,refresh:()=>void,onPull?:(distance:number|null,willRefresh?:boolean)=>void) {
- const latest=useRef({busy,refresh,onPull,enabled});latest.current={busy,refresh,onPull,enabled};
+/** Uses the supplied scroll owner or Home's document. Pinch and horizontal drags stay native. */
+export function useHomePullRefresh(ref:RefObject<HTMLElement>,enabled:boolean,busy:boolean,refresh:()=>void,onPull?:(distance:number|null,willRefresh?:boolean)=>void,getScrollTop?:()=>number) {
+ const latest=useRef({busy,refresh,onPull,enabled,getScrollTop});latest.current={busy,refresh,onPull,enabled,getScrollTop};
  const [label,setLabel]=useState('');
  const labelOwner=useRef<typeof onPull|null>(onPull);
  useEffect(()=>{
@@ -11,7 +11,7 @@ export function useHomePullRefresh(ref:RefObject<HTMLElement>,enabled:boolean,bu
   const ownsGesture=()=>latest.current.enabled&&latest.current.onPull===onPull;
   const reset=(willRefresh=false)=>{start=null;ready=false;if(!ownsGesture())return;labelOwner.current=onPull;setLabel('');onPull?.(null,willRefresh);};
   reset();
-  const atTop=()=> (document.scrollingElement?.scrollTop??window.scrollY) <= 0 && !document.querySelector('[role="dialog"][aria-modal="true"]');
+  const atTop=()=> (latest.current.getScrollTop?.()??document.scrollingElement?.scrollTop??window.scrollY) <= 0 && !document.querySelector('[role="dialog"][aria-modal="true"]');
   const begin=(event:TouchEvent)=>{
    if(!ownsGesture())return;
    reset();

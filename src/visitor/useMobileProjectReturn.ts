@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo } from 'react';
 import type React from 'react';
 import type { Location, NavigateFunction } from 'react-router-dom';
 import { beginProjectContinuity } from '../utils/projectContinuity';
+import { repairMobileCatalogueScroll } from '../components/profile/mobileCatalogueScroll';
 
 type CatalogueOrigin = {
   key: string; path: string; index: number; x: number; y: number;
@@ -44,6 +45,9 @@ export function restoreVisitorCatalogue(origin: CatalogueOrigin, root: HTMLEleme
   };
   const restore = () => {
     if (stopped || !root.isConnected) { stop(); return; }
+    // A fitted wall has no later reading offset. Do not restore an old project
+    // anchor behind its pinned header after the wall has become shorter.
+    if (repairMobileCatalogueScroll(root)) { focus(); stop(); return; }
     const anchor = origin.anchor?.isConnected ? origin.anchor : source();
     const rect = anchor?.isConnected && root.contains(anchor) ? anchor.getBoundingClientRect() : null;
     const y = rect && rect.height > 0 ? window.scrollY + rect.top - origin.anchorTop : origin.y;
@@ -69,6 +73,14 @@ export function useMobileProjectReturn({ enabled, scope, location, projectId, ca
     opener: null as HTMLElement | null, busy: false, restored: '', entered: '', fromReader: false, fromOther: false,
     positions: new Map<string, { x: number; y: number; pathname: string }>() }), [enabled, scope]);
   const entry = location.key + location.pathname + location.search + location.hash;
+  useLayoutEffect(() => {
+    if (!enabled || !('scrollRestoration' in window.history)) return;
+    const previous = window.history.scrollRestoration;
+    // This reader owns route restoration. A late native reload/Back restore
+    // must not overwrite its first-entry reset or trusted project return.
+    window.history.scrollRestoration = 'manual';
+    return () => { window.history.scrollRestoration = previous; };
+  }, [enabled]);
   useLayoutEffect(() => {
     if (!enabled) return;
     memory.busy = false;

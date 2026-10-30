@@ -1,5 +1,5 @@
-import React, { lazy, Suspense, useCallback, useState } from 'react';
-import { ArrowUpRightIcon, BookmarkIcon, CheckIcon, EyeIcon, FileTextIcon } from 'lucide-react';
+import React, { lazy, Suspense, useCallback, useRef, useState } from 'react';
+import { ArrowUpRightIcon, BookmarkIcon, CalendarDaysIcon, CheckIcon, EyeIcon, FileTextIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useServices } from '../../contexts/ServicesContext';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
@@ -10,6 +10,9 @@ import { useAccountQuery } from './useAccountQuery';
 import { READ_PERIODS, type ReadPeriod } from '../reads/readSignal';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { getProjectCoverPreview } from '../../utils/projectPresentation';
+import { usePresentation } from '../../presentation/usePresentation';
+import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
+import { useHomePullRefresh } from '../../components/home/useHomePullRefresh';
 import './insights.css';
 
 const LoadTimingInsights = lazy(() => import('./LoadTimingInsights'));
@@ -25,6 +28,9 @@ const compactCount = (value: number) => value >= 10_000 ? value.toLocaleString(u
 
 /** Both frames use the same private data presentation and retain their initial periods. */
 export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesState; initialPeriod?: ReadPeriod }) {
+  const isMobile = usePresentation() === 'mobile';
+  const screenActive = useMobileScreenActive();
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const { reads, projects } = useServices();
   const navigate = useNavigate();
   const [period, setPeriod] = useState<ReadPeriod>(initialPeriod);
@@ -49,15 +55,25 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
   const refMaximum = Math.max(1, ...refRows.map(row => row.count));
   const openProject = (id: string) => navigate(`/insights?project=${encodeURIComponent(id)}&period=${period}`);
   const refresh = () => { state.retry(); covers.retry(); saves.retry(); };
-  return <div className="creator-insights" data-insights-metric={metric}>
+  const busy = Boolean(state.loading || state.refreshing || covers.loading || covers.refreshing || saves.loading || saves.refreshing);
+  const pullLabel = useHomePullRefresh(surfaceRef, isMobile && screenActive, busy, refresh, undefined,
+    () => surfaceRef.current?.closest<HTMLElement>('.mobile-insights-scroll')?.scrollTop ?? Infinity);
+  const metricControls = !state.loading && !state.error ? <div className="insights-metrics" data-ui-shape="capsule" role="group" aria-label="Insight metric">
+    {metrics.map(item => <button data-ui-shape="action" data-system-color="" data-insights-series={item.key} type="button" key={item.key} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" /><span>{item.label}</span></button>)}
+  </div> : null;
+  return <div ref={surfaceRef} className="creator-insights" data-insights-metric={metric} aria-busy={isMobile && busy || undefined}>
     <div className="insights-period">
-      <select data-ui-shape="action" aria-label="Insights period" value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
-      <button data-ui-shape="action" type="button" onClick={refresh} disabled={state.loading || state.refreshing || saves.loading || saves.refreshing}>Refresh</button>
+      {isMobile ? <><label className="insights-period-picker" title={`Insights period: ${periodLabel}`}>
+        <InterfaceIcon icon={CalendarDaysIcon} size="sm" />
+        <select aria-label="Insights period" title={`Insights period: ${periodLabel}`} value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
+      </label>{metricControls}</> : <>
+        <select data-ui-shape="action" aria-label="Insights period" value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
+        <button data-ui-shape="action" type="button" onClick={refresh} disabled={state.loading || state.refreshing || saves.loading || saves.refreshing}>Refresh</button>
+      </>}
     </div>
+    {isMobile && <div className="insights-refresh-status" role="status" aria-live="polite">{pullLabel || (busy && !state.loading && !saves.loading ? 'Refreshing insights…' : '')}</div>}
     {state.loading ? <LoadingState kind="insights" label="Loading insights" /> : state.error ? <ErrorState title="Unable to load reads" description={state.error} onRetry={state.retry} /> : <>
-      <div className="insights-metrics" data-ui-shape="capsule" role="group" aria-label="Insight metric">
-        {metrics.map(item => <button data-ui-shape="action" data-system-color="" data-insights-series={item.key} type="button" key={item.key} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" /><span>{item.label}</span></button>)}
-      </div>
+      {!isMobile && metricControls}
       <section className="insights-activity" aria-label="Project activity">
         <h2 className="insights-section-title">Project activity</h2>
         <div className="insights-data-surface">

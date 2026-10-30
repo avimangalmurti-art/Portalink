@@ -40,7 +40,7 @@ function harness({ collapsed = false, authenticated = true, presentation = 'web'
   });
   const props = {
     isHomeActive: false, isSearchActive: false, isPortalinkActive: false, isMessagesActive: false,
-    isInsightsActive: false, isActivityActive: false, isSavedActive: false, isProfileActive: false,
+    isInsightsActive: false, isActivityActive: false, isSavedActive: false, isProfileActive: false, isSoCalActive: false,
     accentColor: '#007aff', isAuthenticated: authenticated, isAuthActionPending: false,
     onSearchOpen: () => calls.push('search'), onControlCenterOpen: () => calls.push('settings'),
     onSignIn: () => calls.push('signIn'), onSignOut: async () => false, onPortalinkOpen: () => calls.push('world'),
@@ -48,6 +48,7 @@ function harness({ collapsed = false, authenticated = true, presentation = 'web'
     management: { arrangement: { categoryOrder: [], hiddenCategoryIds: [] }, categoryIcons: {}, pending: null },
     onChangeCategoryIcon() {}, isCollapsed: collapsed, onCollapsedChange: value => { props.isCollapsed = value; calls.push(['collapsed', value]); },
     onNavigate: destination => calls.push(['navigate', destination]), onProfileOpen: () => calls.push('profile'), profileHref: '/p/owner',
+    onSoCalOpen: (...args) => calls.push(['socal', ...args]),
     onMessagesOpen: (...args) => calls.push(['messages', ...args]), theme, onThemeChange: value => calls.push(['theme', value]),
     viewedProfile: null, activeCategoryId: null, onCategorySelect() {}, isOwnerMode: false,
   };
@@ -136,19 +137,51 @@ test('the WEB swap preserves collapse and existing Home, world, search, messages
   assert.deepEqual(h.calls, [['collapsed', true], ['collapsed', false], ['navigate', 'Today'], 'world', 'search', ['messages'], 'profile']);
 });
 
-test('MOBILE still renders its actual four-destination dock without WEB personal links or footer controls', () => {
+test('MOBILE renders its actual five-destination dock without WEB personal links or footer controls', () => {
   for (const authenticated of [true, false]) for (const collapsed of [true, false]) {
     const h = harness({ presentation: 'mobile', authenticated, collapsed });
     const tree = h.render({ isInsightsActive: true, isActivityActive: true, isProfileActive: true });
     const items = controls(tree);
-    assert.deepEqual(items.map(label), ['Explore', 'Messages', 'Studio', 'Profile']);
-    assert.equal(items[0].props.href, '/'); assert.equal(items[2].props.href, '/studio'); assert.equal(items[3].props.href, '/p/owner');
-    assert.equal(items[3].props['aria-current'], 'page');
+    assert.deepEqual(items.map(label), ['Explore', 'Messages', 'SoCal', 'Studio', 'Profile']);
+    assert.equal(items[0].props.href, '/'); assert.equal(items[3].props.href, '/studio'); assert.equal(items[4].props.href, '/p/owner');
+    assert.equal(items[4].props['aria-current'], 'page');
+    assert.equal(items[2].type, 'button'); assert.equal(items[2].props.title, 'SoCal');
+    const icon = nodes(items[2]).find(node => node.type === 'interface-icon');
+    assert.equal(icon.props.icon, icons.CalendarDaysIcon); assert.equal(icon.props.weight, 'medium');
     assert.equal(footer(tree), undefined); assert.equal(nodes(tree).some(node => node.type === 'aside'), false);
     items[1].props.onClick();
     assert.deepEqual(h.calls, [['messages', undefined, true]], 'The dock retains its existing fromDock context');
     const profileControl = named(h.render({ profileHref: undefined }), 'Profile'); profileControl.props.onClick();
     assert.equal(h.calls.at(-1), 'profile');
     assert.equal(h.dockCalls.at(-1)[0], true);
+  }
+});
+
+test('MOBILE forwards the explicit SoCal action without an event and selects only the SoCal destination', () => {
+  for (const collapsed of [true, false]) {
+    const h = harness({ presentation: 'mobile', collapsed });
+    const tree = h.render({ isSoCalActive: true, isProfileActive: false });
+    const items = controls(tree);
+    assert.deepEqual(items.filter(node => node.props['aria-current'] === 'page').map(label), ['SoCal']);
+    assert.equal(named(tree, 'Profile').props.href, '/p/owner');
+    named(tree, 'SoCal').props.onClick({ type: 'click', target: { accountId: 'unrelated' } });
+    assert.deepEqual(h.calls, [['socal']], 'The action chooses its own account in App instead of receiving the click event');
+    assert.equal(footer(tree), undefined);
+  }
+});
+
+test('optional SoCal callers use the existing profile fallback while WEB exposes no new destination', () => {
+  const mobile = harness({ presentation: 'mobile' });
+  const tree = mobile.render({ onSoCalOpen: undefined });
+  assert.equal(named(tree, 'SoCal').props['aria-current'], undefined);
+  named(tree, 'SoCal').props.onClick({ type: 'click' });
+  assert.deepEqual(mobile.calls, ['profile']);
+  for (const collapsed of [true, false]) {
+    const web = harness({ presentation: 'web', collapsed });
+    const webTree = web.render({ isSoCalActive: true });
+    assert.equal(named(webTree, 'SoCal'), undefined);
+    assert.deepEqual(controls(main(webTree, collapsed)).map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Activity', 'Search accounts', 'Open messages', 'Open your profile']);
+    assert.deepEqual(controls(footer(webTree)).map(label), ['Open settings', 'Studio unavailable', 'Portals unavailable', 'Switch to dark appearance']);
+    assert.deepEqual(web.calls, []);
   }
 });

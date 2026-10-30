@@ -129,6 +129,32 @@
 [data-presentation='mobile'] .creator-insights .insights-metrics button { min-height: 44px; }
 [data-presentation='mobile'] .creator-insights .insights-metrics { margin-bottom: 28px; }
 [data-presentation='mobile'] .creator-insights .insights-metrics button { padding: 8px 4px; gap: 5px; font-size: 13px; }
+[data-presentation='mobile'] .creator-insights .insights-period { gap: 8px; margin-bottom: 20px; }
+[data-presentation='mobile'] .creator-insights .insights-period > .insights-metrics {
+  flex: 1; min-width: 0; max-width: none; margin: 0;
+  border: 1px solid var(--hairline); border-radius: 999px;
+}
+[data-presentation='mobile'] .creator-insights .insights-period-picker {
+  position: relative; display: grid; place-items: center; flex: 0 0 44px;
+  width: 44px; height: 44px; border: 1px solid var(--hairline); border-radius: 50%;
+  background: var(--surface-raised); color: var(--text-primary);
+}
+[data-presentation='mobile'] .creator-insights .insights-period-picker select {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0;
+  padding: 0; border: 0; cursor: pointer; font-size: 16px;
+}
+[data-presentation='mobile'] .creator-insights .insights-period-picker:focus-within {
+  outline: 2px solid var(--focus-ring); outline-offset: 2px;
+}
+[data-presentation='mobile'] .creator-insights .insights-refresh-status {
+  margin: -8px 0 12px; text-align: center; color: var(--text-secondary); font-size: 13px;
+}
+[data-presentation='mobile'] .creator-insights .insights-refresh-status:empty { display: none; }
+@media (max-width: 359px) {
+  [data-presentation='mobile'] .creator-insights .insights-period .insights-metrics button {
+    flex-direction: column; gap: 2px; padding: 6px 2px; font-size: 12px; line-height: 16px;
+  }
+}
 [data-presentation='mobile'] .creator-insights .insights-data-surface { padding: 22px 18px; }
 [data-presentation='mobile'] .creator-insights .insights-ranked-surface { padding: 6px 16px; }
 [data-presentation='mobile'] .creator-insights .insights-section-title { font-size: 21px; }

@@ -5,13 +5,15 @@ import { sourceModule } from './helpers/source-module.mjs';
 
 // Executes the real public-reader return hook with committed route entries and
 // document geometry. Native history traversal/layout still need browser QA.
-function harness({ enabled = true, index = 4, initialProject = null } = {}) {
-  const slots = [], frames = new Map(), listeners = new Map(), documentListeners = new Map(), navigations = [], continuity = [], writes = [], focus = [];
-  let cursor = 0, pending = [], passive = [], frameId = 0, result, maximum = Infinity, cards = [];
+function harness({ enabled = true, index = 4, initialProject = null, initialScroll = 0, restoration = 'auto', repair = () => false } = {}) {
+  const slots = [], frames = new Map(), listeners = new Map(), documentListeners = new Map(), navigations = [], continuity = [], writes = [], focus = [], restorationWrites = [], nativeAttempts = [], repairCalls = [];
+  let cursor = 0, pending = [], passive = [], frameId = 0, result, maximum = Infinity, cards = [], restorationMode = restoration;
   const state = { enabled, scope: 'creator:guest', projectId: initialProject, catalogueReady: !initialProject, otherScreen: false,
     location: { key: initialProject ? 'direct' : 'catalogue', pathname: initialProject ? '/creator/c/art/work' : '/creator', search: '?view=projects', hash: '#work', state: null } };
   const window = {
-    scrollX: 0, scrollY: 0, innerWidth: 420, innerHeight: 912, history: { state: { idx: index } },
+    scrollX: 0, scrollY: initialScroll, innerWidth: 420, innerHeight: 912, history: { state: { idx: index },
+      get scrollRestoration() { return restorationMode; },
+      set scrollRestoration(value) { restorationMode = value; restorationWrites.push(value); } },
     getComputedStyle: element => ({ display: 'block', visibility: 'visible', opacity: '1', ...element.computed }),
     scrollTo(value) { writes.push(value); this.scrollX = value.left ?? this.scrollX; this.scrollY = Math.min(maximum, value.top ?? this.scrollY); },
     addEventListener(type, listener) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(listener); },
@@ -61,6 +63,7 @@ function harness({ enabled = true, index = 4, initialProject = null } = {}) {
   };
   const { useMobileProjectReturn, restoreVisitorCatalogue } = sourceModule('src/visitor/useMobileProjectReturn.ts', {
     react, '../utils/projectContinuity': { beginProjectContinuity: id => continuity.push(id) },
+    '../components/profile/mobileCatalogueScroll': { repairMobileCatalogueScroll: element => { repairCalls.push(element); return repair(element, window); } },
   }, { window, document, Element, HTMLElement: Element,
     requestAnimationFrame: callback => { frames.set(++frameId, callback); return frameId; },
     cancelAnimationFrame: id => frames.delete(id) });
@@ -73,9 +76,11 @@ function harness({ enabled = true, index = 4, initialProject = null } = {}) {
   const paint = () => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback()); };
   const settle = () => { for (let i = 0; i < 40 && frames.size; i++) paint(); };
   render();
-  return { state, window, document, root, main, heading, opener, child, alternate, unrelated, frames, listeners, documentListeners, navigations, continuity, writes, focus,
+  return { state, window, document, root, main, heading, opener, child, alternate, unrelated, frames, listeners, documentListeners, navigations, continuity, writes, focus, restorationWrites, nativeAttempts, repairCalls,
     render, commit, paint, settle, restoreVisitorCatalogue, get api() { return result; },
     scroll(y, x = 0) { window.scrollY = y; window.scrollX = x; }, maximum(value) { maximum = value; },
+    // Model the browser's documented automatic-history gate, not Safari paint.
+    nativeRestore(top) { const applies = window.history.scrollRestoration === 'auto'; nativeAttempts.push({ top, applies }); if (applies) window.scrollTo({ top }); return applies; },
     recreateCard(id, top = 980) { const card = new Element(`recreated:${id}`, root, top); card.dataset.projectContinuityId = id; card.isButton = true; cards.push(card); return card; },
     emit(type) { [...listeners.get(type) ?? []].forEach(listener => listener({ type })); },
     beforeNavigation() { [...documentListeners.get('portalink-before-navigation') ?? []].forEach(listener => listener({ type: 'portalink-before-navigation' })); },
@@ -86,6 +91,63 @@ function harness({ enabled = true, index = 4, initialProject = null } = {}) {
   };
 }
 const plain = value => JSON.parse(JSON.stringify(value));
+
+test('MOBILE manual history ownership prevents a delayed automatic reload restore from overriding catalogue entry', () => {
+  const h = harness({ initialScroll: 620 });
+  assert.equal(h.window.history.scrollRestoration, 'manual');
+  assert.equal(h.window.scrollY, 0, 'The ready catalogue owns its first entry position.');
+  assert.equal(h.nativeRestore(620), false, 'A later native automatic restoration must be disabled.');
+  assert.equal(h.window.scrollY, 0);
+  h.scroll(180); h.render(); h.paint();
+  assert.equal(h.nativeRestore(620), false);
+  assert.equal(h.window.scrollY, 180, 'Ordinary renders and suppressed browser restoration preserve the new reading position.');
+  h.dispose(); assert.equal(h.window.history.scrollRestoration, 'auto');
+  assert.equal(h.nativeRestore(620), true, 'The model permits native restoration again after ownership is released.');
+  assert.equal(h.window.scrollY, 620);
+});
+
+test('MOBILE history ownership restores the exact previous auto or manual setting on disable and unmount', () => {
+  for (const previous of ['auto', 'manual']) {
+    const h = harness({ restoration: previous });
+    assert.deepEqual(h.restorationWrites, ['manual']);
+    h.render(); h.state.scope = 'other:guest'; h.render();
+    assert.deepEqual(h.restorationWrites, ['manual'], 'Ordinary renders and creator changes do not reacquire history ownership.');
+    h.state.enabled = false; h.render();
+    assert.equal(h.window.history.scrollRestoration, previous);
+    assert.deepEqual(h.restorationWrites, ['manual', previous]);
+    h.state.enabled = true; h.render();
+    assert.equal(h.window.history.scrollRestoration, 'manual');
+    h.dispose(); assert.equal(h.window.history.scrollRestoration, previous);
+    assert.deepEqual(h.restorationWrites, ['manual', previous, 'manual', previous]);
+  }
+});
+
+test('WEB preserves native automatic or manual history behavior without taking scroll ownership', () => {
+  for (const previous of ['auto', 'manual']) {
+    const h = harness({ enabled: false, restoration: previous, initialScroll: 260 });
+    assert.equal(h.window.history.scrollRestoration, previous); assert.deepEqual(h.restorationWrites, []);
+    assert.equal(h.window.scrollY, 260); assert.deepEqual(h.writes, []);
+    assert.equal(h.nativeRestore(620), previous === 'auto');
+    assert.equal(h.window.scrollY, previous === 'auto' ? 620 : 260);
+    h.dispose(); assert.equal(h.window.history.scrollRestoration, previous); assert.deepEqual(h.restorationWrites, []);
+  }
+});
+
+test('a fitting public catalogue repair takes precedence over its trusted later-project return anchor', () => {
+  let fits = false;
+  const h = harness({ repair: (_root, window) => { if (!fits) return false; window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); return true; } });
+  h.scroll(720); h.open(); h.commit('work', 5);
+  fits = true;
+  const before = h.writes.length;
+  h.commit(null, 4); h.settle();
+  assert.equal(h.window.scrollY, 0, 'The fitting wall must reveal its beginning instead of restoring the old hidden anchor.');
+  assert.deepEqual(h.writes.slice(before).map(value => value.top), [0]);
+  assert.ok(h.repairCalls.length > 0); assert.ok(h.repairCalls.every(root => root === h.root));
+  assert.equal(h.frames.size, 0); assert.equal(h.transientListeners(), 0);
+  fits = false; h.scroll(180); const count = h.writes.length; h.render(); h.paint();
+  assert.equal(h.window.scrollY, 180); assert.equal(h.writes.length, count, 'The completed return cannot keep correcting subsequent reading.');
+  h.dispose();
+});
 
 test('MOBILE Close traverses exactly once to a captured catalogue entry and restores its anchor and opener focus', () => {
   const h = harness(); h.scroll(720, 2); h.open();
@@ -266,6 +328,8 @@ test('a shifted retained source anchors the return instead of relying only on an
   const h = harness(); h.scroll(720); h.open(); h.commit('work', 5); h.opener.top += 160;
   h.commit(null, 4); h.settle();
   assert.equal(h.window.scrollY, 880); assert.equal(h.opener.getBoundingClientRect().top, 260);
+  assert.ok(h.repairCalls.length > 0, 'The active catalogue is checked before preserving its long-wall anchor.');
+  assert.ok(h.repairCalls.every(root => root === h.root));
   assert.equal(h.document.activeElement, h.opener); h.dispose();
 });
 

@@ -1,6 +1,11 @@
 .entry-agreements-overlay { position:fixed; inset-inline:0; z-index:10030; background:rgb(0 0 0 / 40%); backdrop-filter:blur(12px); display:flex; align-items:flex-end; justify-content:center; padding-top:max(16px, env(safe-area-inset-top, 0px)); }
 .entry-agreements-sheet { --agreement-bg:var(--surface-raised, #111); color:var(--text-primary, #fff); background:var(--agreement-bg); width:100%; max-width:520px; max-height:100%; height:min(820px, 94%); display:flex; flex-direction:column; border-radius:32px 32px 0 0; outline:none; box-shadow:0 -12px 50px rgb(0 0 0 / 20%); }
-.entry-agreements-sheet header { padding:24px 24px 16px; }
+.entry-agreements-sheet > header {
+  --fixed-header-canvas: var(--agreement-bg);
+  padding:24px 24px 16px;
+  border-top-left-radius:inherit;
+  border-top-right-radius:inherit;
+}
 .entry-agreements-sheet h1 { font-size:21px; font-weight:650; text-align:center; outline:none; }
 .entry-agreements-sheet header button { min-height:44px; color:var(--accent-text); text-align:left; margin-bottom:8px; }
 .entry-agreements-scroll { min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 20px 20px; display:flex; flex-direction:column; gap:16px; }
