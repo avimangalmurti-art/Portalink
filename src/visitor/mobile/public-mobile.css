@@ -2503,6 +2503,11 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-public-portfolio-grid] #profile-content {
   padding-top: 28px;
 }
+/* The document owns catalogue scrolling. A flex column lets hidden card
+   description scrollers pull the entire wall under the sticky identity. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-public-portfolio-grid][data-public-image-catalogue] {
+  display: block;
+}
 /* Touch focus adds no coloured ring; keyboard focus stays discoverable. */
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-project-density:focus-within {
   outline: none;
