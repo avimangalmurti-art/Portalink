@@ -534,6 +534,10 @@ test('public profile is always expanded without an action button and preserves B
 test('shared mobile Journey switch stays in every profile header and exits portal views', () => {
   const {render,state}=visitorProfileHarness({presentation:'mobile',showJourney:true});
   assert.ok(one(render(),'JourneyToggle'));
+  assert.equal(render().props['data-web-profile-header'],undefined);
+  const identity=nodes(render()).find(node=>node.props?.className?.includes('profile-identity-copy'));
+  assert.ok(one(identity,'JourneyToggle'),'The existing MOBILE tabs remain in the identity');
+  assert.equal(nodes(render()).filter(node=>node.type==='JourneyToggle').length,1);
   assert.equal(button(render(), 'Profile options'), undefined);
   const tools=nodes(render()).find(node=>node.props?.id==='profile-navigation-tools');
   assert.equal(one(tools,'JourneyToggle'),undefined);
@@ -657,7 +661,7 @@ test('public catalogue, portal views and denied Timeline never mount a mobile to
  assert.equal(host(tree),undefined);assert.equal(timeline.props.toolbarHost??null,null);assert.equal(timeline.props.owner,false);assert.equal(timeline.props.showPopular,false);
 });
 
-test('shared Journey permission and WEB switch placement are unchanged', () => {
+test('shared Journey permission still excludes disabled Timeline on both presentations', () => {
   for (const presentation of ['mobile', 'web']) {
     const denied = visitorProfileHarness({ presentation, showJourney: false });
     denied.state.view = 'journey';
@@ -667,15 +671,61 @@ test('shared Journey permission and WEB switch placement are unchanged', () => {
       assert.equal(one(denied.render(), 'lazy:../features/journey/JourneyView'), undefined);
     }
   }
+});
+
+test('WEB public Catalogue and Timeline share one compact identity toggle without a standalone pill', () => {
   const web = visitorProfileHarness({ presentation: 'web', showJourney: true });
-  for (const expanded of [true]) {
-    assert.equal(expanded, true);
+  for (const view of ['portfolio', 'journey', 'portfolio']) {
+    const previous = one(web.render(), 'JourneyToggle');
+    previous.props.onChange(view);
     const tree = web.render(), direct = React.Children.toArray(tree.props.children);
+    assert.equal(tree.props['data-web-profile-header'], '', 'WEB opts into the existing compact identity styling');
+    assert.equal(tree.props['data-public-image-catalogue'], undefined, 'The MOBILE catalogue boundary stays separate');
     assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
-    const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
-    assert.equal(one(tools, 'JourneyToggle'), undefined);
-    assert.ok(direct.findIndex(node => node.type === 'JourneyToggle') > direct.findIndex(node => node.type === 'EmployerOverview'));
+    assert.equal(direct.some(node => node.type === 'JourneyToggle'), false, 'No toggle remains below the links or employer overview');
+    const header = nodes(tree).find(node => node.props?.className?.includes('profile-header-region'));
+    assert.equal(React.Children.toArray(header.props.children).some(node => node.type === 'JourneyToggle'), false, 'Timeline has no second standalone header toggle');
+    const identity = nodes(header).find(node => node.props?.className?.includes('profile-identity-copy'));
+    const viewRow = nodes(identity).find(node => node.props?.className === 'profile-identity-view');
+    const toggle = one(viewRow, 'JourneyToggle');
+    assert.ok(toggle, 'The single switch is inside the name/location identity column');
+    assert.equal(toggle.props.view, view);
+    assert.equal(web.state.view, view);
+    assert.equal(one(nodes(tree).find(node => node.props?.id === 'profile-navigation-tools'), 'JourneyToggle'), undefined);
+    if (view === 'journey') {
+      const journey = one(tree, 'lazy:../features/journey/JourneyView');
+      assert.ok(journey); assert.equal(journey.props.owner, false); assert.equal(journey.props.toolbarHost, null);
+      assert.equal(one(tree, 'JustifiedImageWall'), undefined);
+    } else {
+      assert.ok(one(tree, 'JustifiedImageWall'));
+      assert.equal(one(tree, 'lazy:../features/journey/JourneyView'), undefined);
+    }
   }
+  web.dispose();
+});
+
+test('WEB category and Portals views retain their existing content without gaining identity tabs', () => {
+  const web = visitorProfileHarness({ presentation: 'web', showJourney: true });
+  for (const view of ['portfolio', 'journey']) {
+    web.state.view = view;
+    web.state.categoryId = 'portal';
+    let tree = web.render();
+    assert.equal(tree.props['data-web-profile-header'], '');
+    assert.equal(one(tree, 'JourneyToggle'), undefined);
+    assert.equal(one(tree, 'lazy:../features/journey/JourneyView'), undefined);
+    assert.equal(one(tree, 'h2').props.children, 'Photography');
+    assert.ok(button(tree, 'Back to profile'));
+    assert.ok(one(tree, 'JustifiedImageWall'));
+    web.state.categoryId = null;
+    web.state.search.set('view', 'portals');
+    tree = web.render();
+    assert.equal(one(tree, 'JourneyToggle'), undefined);
+    assert.equal(one(tree, 'lazy:../features/journey/JourneyView'), undefined);
+    const collection = one(tree, 'lazy:../components/profile/ProfileCollectionGrid');
+    assert.equal(collection.props.shared, true); assert.equal(collection.props.kind, 'portals');
+    web.state.search.delete('view');
+  }
+  web.dispose();
 });
 
 

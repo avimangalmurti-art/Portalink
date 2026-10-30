@@ -2508,6 +2508,16 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-public-portfolio-grid][data-public-image-catalogue] {
   display: block;
 }
+/* The viewer's density control shares the catalogue's existing divider. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-public-image-catalogue] > .profile-header-region:has(> .density-separator) #profile-navigation-tools {
+  padding-bottom: 28px;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-public-image-catalogue] > .profile-header-region:has(> .density-separator)::after {
+  content: ''; position: absolute; inset-inline: 16px; bottom: 0; height: 1px; background: var(--hairline); pointer-events: none;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-public-image-catalogue] > .profile-header-region:has(> .density-separator) #profile-navigation-tools::after {
+  content: none;
+}
 /* Touch focus adds no coloured ring; keyboard focus stays discoverable. */
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-project-density:focus-within {
   outline: none;
@@ -2581,6 +2591,15 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 }
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals {height:100%;min-height:0;background:transparent;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .global-control-header {flex:none;background:transparent!important;}
+/* The chooser owns the raised glass; its idle header shares that surface. */
+@layer portalink-header-material {
+  #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] > .shared-mobile-portals > .global-control-header {
+    --fixed-header-canvas: var(--surface-raised);
+  }
+  #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] > .shared-mobile-portals > .global-control-header[data-mobile-header-underlap='false']::before {
+    content: none !important;
+  }
+}
 /* Keep scrolling row dividers clear of the footer's single hairline. The
    matching bottom padding keeps the final row fully visible at scroll end. */
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portals-scroll {flex:1;min-height:0;overflow-y:auto;padding:0 0 8px;scroll-padding-bottom:8px;clip-path:inset(0 0 8px);}

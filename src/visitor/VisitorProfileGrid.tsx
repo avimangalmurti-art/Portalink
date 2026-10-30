@@ -1,4 +1,5 @@
 import { LoadingSkeleton } from '../components/ui/StateViews';
+import { DensitySeparator } from '../components/ui/DensitySeparator';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
@@ -55,7 +56,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       priority="viewport" allowPdfFallback={false} allowVideoFallback={true} sharedCoverFallback /> }));
   return <div ref={profilePageRef} hidden={!active} aria-hidden={!active || undefined}
     style={!active ? { display: 'none' } : undefined} onClickCapture={isMobile && active ? onCaptureOpener : undefined}
-    data-profile-journey={isJourney ? '' : undefined} data-public-image-catalogue={mobileImageCatalogue ? '' : undefined} data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
+    data-web-profile-header={!isMobile ? '' : undefined} data-profile-journey={isJourney ? '' : undefined} data-public-image-catalogue={mobileImageCatalogue ? '' : undefined} data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
     <div data-profile-header="" className="profile-header-region contents">
       <header className="profile-compact-header" data-expanded>
         <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
@@ -64,7 +65,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             <div className="profile-identity-copy flex min-w-0 flex-col justify-center">
               <h1 tabIndex={isMobile ? -1 : undefined} className="cdx-panel-title min-w-0 truncate font-semibold" title={profile.name}>{profile.name}</h1>
               {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]">{profile.location}</p>}
-              {isMobile && profile.showJourney === true && <div className="profile-identity-view"><JourneyToggle view={!categoryId && !portalsView ? journey.view : 'portfolio'} onChange={view => {
+              {profile.showJourney === true && (isMobile || (!categoryId && !portalsView)) && <div className="profile-identity-view"><JourneyToggle view={!categoryId && !portalsView ? journey.view : 'portfolio'} onChange={view => {
                 journey.select(view);
                 if (categoryId) onBack?.();
                 else if (portalsView) setSearch(previous => { const next = new URLSearchParams(previous); next.delete('view'); return next; });
@@ -80,12 +81,11 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             onMessage={onMessage} /></div>
         </div>
       </header>}
-      {!isMobile && isJourney && <JourneyToggle view="journey" onChange={journey.select} />}
       {isMobile && isJourney && <div className="timeline-header-controls" ref={setTimelineToolbarHost} />}
+      {mobileImageCatalogue && <DensitySeparator columns={density.columns} onChange={density.setColumns} onPreview={density.previewColumns} label="Projects per row" />}
     </div>
     {active && bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
-    {!isMobile && profile.showJourney === true && !categoryId && !portalsView && !isJourney && <JourneyToggle view="portfolio" onChange={journey.select} />}
     <div id="profile-content" className="min-w-0 w-full px-[var(--content-gutter)] pb-4">
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
       {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView active={active} toolbarHost={isMobile ? timelineToolbarHost : null} profile={profile} owner={false} showPopular={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>

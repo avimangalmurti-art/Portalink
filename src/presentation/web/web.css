@@ -20,6 +20,24 @@
     padding-top: var(--fixed-header-padding) !important;
     scroll-padding-top: var(--fixed-header-scroll-padding) !important;
   }
+
+  /* Public navigation uses the same single rail surface and bounded list. */
+  #root .codex-shell.shared-portalink-shell[data-presentation='web'] .shared-profile-sidebar > [data-shared-navigation-header][data-mobile-header-underlap]::before {
+    content: none !important;
+  }
+  #root .codex-shell.shared-portalink-shell[data-presentation='web'] .shared-profile-sidebar > #shared-profile-portals[data-fixed-header-underlap] {
+    margin-top: var(--fixed-header-margin) !important;
+  }
+  #root .codex-shell.shared-portalink-shell[data-presentation='web'] .shared-profile-sidebar > #shared-profile-portals[data-fixed-header-content] {
+    padding-top: var(--fixed-header-padding) !important;
+    scroll-padding-top: var(--fixed-header-scroll-padding) !important;
+  }
+}
+
+/* The creator name is a header link, while portal rows keep their selection. */
+#root .codex-shell.shared-portalink-shell[data-presentation='web'] .shared-profile-sidebar > [data-shared-navigation-header] [data-shared-profile-home] {
+  --navigation-selected-surface: transparent;
+  --navigation-selected-foreground: var(--navigation-foreground);
 }
 
 .codex-shell:where([data-presentation='web']) .codex-workspace {
