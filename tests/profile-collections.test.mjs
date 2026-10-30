@@ -218,6 +218,7 @@ function profileHarness(search = '', options = {}) {
     if (name === 'react') return react;
     if (name.endsWith('/lazyWithMobileRecovery')) return { lazyWithMobileRecovery: loader => react.lazy(loader) };
     if (name.endsWith('/DeferredSurfaceOwner')) return { DeferredSurfaceOwnerContext: surfaceOwner };
+    if (name === 'react-dom') return { flushSync: callback => callback() };
     if (name === 'react-router-dom') return { useLocation: () => ({ state: null }), useNavigate: () => (target, options) => navigation.push({ target, options }), useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
@@ -245,9 +246,9 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/profileLinks')) return { ...linkHelpers, resolveProfileLinks: () => linkHelpers.resolveProfileLinks(options.links ?? [], {}) };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
-  }, { URL, URLSearchParams, requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: options.window ? Object.assign(options.window, { location: { origin: 'https://portalink.test' } }) : { location: { origin: 'https://portalink.test' }, scrollTo() {}, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
-  const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [], showJourney: options.showJourney };
-  return { navigation, projectOrder, density, surfaceOwner, isMobile: options.presentation === 'mobile', isOwner: (options.viewerRole ?? 'owner') === 'owner' && !options.isSharedView, get mobileActions() { return mobileActions; }, get mobilePressModel() { return mobilePressModel; }, action: id => [...(mobileActions?.primary ?? []), ...(mobileActions?.groups.flat() ?? [])].find(action => action.id === id), flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
+  }, { URL, URLSearchParams, Error, requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: options.window ? Object.assign(options.window, { location: { origin: 'https://portalink.test' } }) : { location: { origin: 'https://portalink.test' }, scrollTo() {}, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
+  const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [], showJourney: options.showJourney, isPrivate: options.isPrivate ?? false };
+  return { navigation, projectOrder, density, surfaceOwner, profile, isMobile: options.presentation === 'mobile', isOwner: (options.viewerRole ?? 'owner') === 'owner' && !options.isSharedView, get mobileActions() { return mobileActions; }, get mobilePressModel() { return mobilePressModel; }, action: id => [...(mobileActions?.primary ?? []), ...(mobileActions?.groups.flat() ?? [])].find(action => action.id === id), flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
     return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props, ...updates });
   } };
@@ -321,7 +322,8 @@ test('WEB header exposes all four count destinations before opening Profile opti
   const h = profileHarness('keep=value', { presentation: 'web', projects: reorderProjects });
   let tree = h.render();
   assert.equal(nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props['aria-expanded'], false);
-  assert.equal(nodes(tree).some(node => node.props?.id === 'profile-navigation-tools'), false);
+  assert.ok(nodes(tree).find(node => node.type === 'PlatformGrid'), 'Owner Bio and social links remain available before opening the action sheet');
+  assert.equal(nodes(tree).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);
   for (const view of ['portals', 'followers', 'following', 'projects']) {
     const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
     assert.equal(stats.props.expanded, true);
@@ -595,7 +597,7 @@ test('opening mobile project navigation restores the same profile identity witho
     const h = profileHarness('', { presentation });
     for (const mobileProjectIndexOpen of [false, true, false]) {
       const tree = h.render({ mobileContent: child, mobileProjectSelected: true, mobileProjectIndexOpen });
-      const header = React.Children.toArray(tree.props.children)[0];
+      const header = nodes(tree).find(node => node.props?.['data-profile-header'] !== undefined);
       const visible = presentation === 'mobile' && mobileProjectIndexOpen;
       assert.equal(header.props.className, visible ? 'profile-header-region contents' : 'hidden');
       assert.equal(header.props['data-mobile-project-header-preview'], visible ? '' : undefined);
@@ -699,10 +701,10 @@ test('workspace keeps one child position and only MOBILE displays the profile fr
   assert.equal(web.props.className, 'contents');
   assert.equal(web.props['data-profile-page'], undefined);
   assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props['data-mobile-project-selected'], undefined);
-  assert.equal(React.Children.toArray(web.props.children)[0].props.className, 'hidden');
+  assert.equal(nodes(web).find(node => node.props?.['data-profile-header'] !== undefined).props.className, 'hidden');
   for (const tree of [web, mobile]) {
     assert.equal(workspaceViewer(tree), child);
-    assert.equal(React.Children.toArray(tree.props.children).findIndex(node => node.props.id === 'profile-content'), 1);
+    assert.equal(React.Children.toArray(tree.props.children).filter(React.isValidElement).findIndex(node => node.props.id === 'profile-content'), 1);
   }
   assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.className, 'contents');
 });
@@ -807,9 +809,9 @@ test('mobile other-creator profiles omit options and hold actions while preservi
   assert.notEqual(nodes(webTree).find(node => node.type === 'CreatorSaveButton').props.registerScreenActions, false);
 });
 
-test('WEB retains disclosure while MOBILE shared links are immediately available with correct privacy context', () => {
+test('WEB visitor/shared profiles retain disclosure while MOBILE shared links are immediately available with correct privacy context', () => {
   const links = [{ label:'Website',href:'https://example.com',iconName:'globe' }];
-  for (const options of [{presentation:'web'}, {presentation:'mobile',isSharedView:true}, {presentation:'web',isSharedView:true}]) {
+  for (const options of [{presentation:'web',viewerRole:'visitor'}, {presentation:'mobile',isSharedView:true}, {presentation:'web',isSharedView:true}]) {
     const h = profileHarness('', {...options,links});
     assert.equal(nodes(h.render()).some(node => node.type === 'PlatformGrid'), options.presentation === 'mobile');
     const tree = openProfileOptions(h), grid = nodes(tree).find(node => node.type === 'PlatformGrid');
@@ -821,6 +823,16 @@ test('WEB retains disclosure while MOBILE shared links are immediately available
 });
 
 const reorderControl = tree => nodes(tree).find(node => node.props?.['data-profile-reorder-start'] !== undefined);
+const profileActionSheet = tree => nodes(tree).find(node => node.type === 'MobileActionSheet');
+const modelAction = (model, id) => [...model.primary, ...model.groups.flat()].find(action => action.id === id);
+function chooseWebProfileAction(h, id) {
+  const sheet = profileActionSheet(openProfileOptions(h));
+  assert.ok(sheet, 'WEB owner options use the shared action sheet');
+  const action = modelAction(sheet.props.model, id);
+  assert.ok(action, `The existing profile model offers ${id}`);
+  sheet.props.onAction(action);
+  return h.render();
+}
 function openProfileOptions(h) {
   const tree = h.render();
   const toggle = nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options');
@@ -874,7 +886,7 @@ test('mobile owner reorder is available through the action popup with no passive
   }
   const web = profileHarness('', { presentation: 'web', projects: reorderProjects });
   assert.equal(reorderControl(web.render()), undefined);
-  reorderControl(openProfileOptions(web)).props.onClick();
+  chooseWebProfileAction(web, 'reorder');
   assert.equal(wall(web.render()).props.reorderMode.enabled, true);
 });
 
@@ -919,6 +931,152 @@ test('mobile owner header keeps Bio and links while Edit and Share work through 
   h.action('share').run();
   assert.equal(new URLSearchParams(h.search()).get('share'), 'portfolio');
   assert.equal(nodes(h.render()).some(node => node.type === 'PlatformGrid'), false, 'Sharing owns its own mobile screen');
+});
+
+test('WEB owner options use the shared action sheet while Bio and social links stay visible', () => {
+  const calls = [];
+  const links = [{ label: 'Website', href: 'https://example.com', iconName: 'globe' }];
+  const options = { presentation: 'web', projects: reorderProjects, links, props: { onEditProfile: () => calls.push('old edit') } };
+  const h = profileHarness('', options);
+  let tree = h.render();
+  const toggle = () => nodes(h.render()).find(node => node.props?.['aria-label'] === 'Profile options');
+  const assertLinks = current => {
+    const grid = nodes(current).find(node => node.type === 'PlatformGrid');
+    assert.ok(grid);
+    assert.deepEqual(JSON.parse(JSON.stringify(grid.props.links.filter(link => !link.action))), links);
+    assert.equal(nodes(current).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);
+    assert.equal(nodes(current).some(node => node.type === 'ProfileShareMenu' || node.props?.['aria-label'] === 'Edit profile'), false);
+    assert.equal(reorderControl(current), undefined);
+  };
+  assertLinks(tree);
+  assert.equal(profileActionSheet(tree), undefined);
+  assert.equal(toggle().props['aria-haspopup'], 'dialog');
+  assert.equal(toggle().props['aria-expanded'], false);
+  assert.equal(toggle().props['aria-controls'], undefined);
+  tree = openProfileOptions(h);
+  let sheet = profileActionSheet(tree);
+  assert.ok(sheet); assert.equal(sheet.props.model, h.mobileActions);
+  assert.equal(sheet.props.model.kind, 'profile'); assert.equal(sheet.props.model.viewer.owner, true);
+  assert.equal(toggle().props['aria-expanded'], true);
+  assertLinks(tree);
+  const selected = modelAction(sheet.props.model, 'editProfile');
+  assert.ok(selected); assert.equal(modelAction(sheet.props.model, 'share').label, 'Share link');
+  assert.ok(modelAction(sheet.props.model, 'reorder'));
+  options.props.onEditProfile = () => calls.push(['latest edit', Boolean(profileActionSheet(h.render()))]);
+  sheet = profileActionSheet(h.render());
+  sheet.props.onAction(selected);
+  assert.deepEqual(calls, [['latest edit', false]], 'The current model handler runs only after the sheet has closed');
+  assert.equal(toggle().props['aria-expanded'], false);
+  assertLinks(h.render());
+  nodes(h.render()).find(node => node.type === 'PlatformGrid').props.onOpenBio();
+  const bio = nodes(h.render()).find(node => node.type === 'ProfileBioSheet');
+  assert.ok(bio); assert.equal(bio.props.canEdit, true); bio.props.onClose();
+  sheet = profileActionSheet(openProfileOptions(h));
+  sheet.props.onClose();
+  assert.equal(profileActionSheet(h.render()), undefined);
+  assert.equal(toggle().props['aria-expanded'], false);
+  assertLinks(h.render());
+});
+
+test('WEB owner Share keeps its existing dialog and private profiles cannot dispatch a removed share action', () => {
+  const options = { presentation: 'web', projects: reorderProjects, props: { shareUrl: 'https://portalinknetworks.com/share/owner' } };
+  const h = profileHarness('keep=value', options);
+  let tree = chooseWebProfileAction(h, 'share');
+  assert.equal(profileActionSheet(tree), undefined);
+  const shareOwner = nodes(tree).find(node => node.type === h.surfaceOwner.Provider);
+  assert.ok(shareOwner);
+  const dialog = shareOwner.props.children.props.children;
+  assert.equal(dialog.props.profile.id, 'owner'); assert.equal(dialog.props.owner, true);
+  assert.equal(shareOwner.props.value.onClose, dialog.props.onClose);
+  assert.equal(h.search(), 'keep=value', 'WEB sharing keeps its established dialog instead of adding a mobile share route');
+  dialog.props.onClose();
+  assert.equal(nodes(h.render()).some(node => node.type === h.surfaceOwner.Provider), false);
+  let sheet = profileActionSheet(openProfileOptions(h));
+  const previouslyOffered = modelAction(sheet.props.model, 'share');
+  options.props.profile = { ...h.profile, isPrivate: true };
+  sheet = profileActionSheet(h.render());
+  assert.equal(modelAction(sheet.props.model, 'share'), undefined);
+  assert.equal(modelAction(sheet.props.model, 'copy'), undefined);
+  sheet.props.onAction({ ...previouslyOffered, run() { assert.fail('A previously offered share cannot bypass the current private-profile guard'); } });
+  tree = h.render();
+  assert.equal(profileActionSheet(tree), undefined);
+  assert.equal(nodes(tree).some(node => node.type === h.surfaceOwner.Provider), false);
+  const privateOwner = profileHarness('', { presentation: 'web', isPrivate: true, projects: reorderProjects });
+  const privateModel = profileActionSheet(openProfileOptions(privateOwner)).props.model;
+  assert.equal(modelAction(privateModel, 'share'), undefined); assert.equal(modelAction(privateModel, 'copy'), undefined);
+  assert.ok(modelAction(privateModel, 'reorder'), 'Privacy does not remove the owner’s existing arrangement capability');
+});
+
+test('WEB owner sheet enters existing project reorder and retains Done, Cancel and density behavior', async () => {
+  for (const finish of ['Done', 'Cancel']) {
+    let saved = 0;
+    const h = profileHarness('', { presentation: 'web', projects: reorderProjects, columns: 5,
+      projectOrder: { reset() { h.projectOrder.order = ['a', 'b']; }, move() { h.projectOrder.order = ['b', 'a']; }, async commit() { saved++; return true; } },
+    });
+    let tree = chooseWebProfileAction(h, 'reorder');
+    assert.equal(profileActionSheet(tree), undefined);
+    assert.equal(wall(tree).props.reorderMode.enabled, true);
+    assert.equal(wall(tree).props.columns, 5);
+    wall(tree).props.reorderMode.onMove('b', 'a');
+    tree = h.render();
+    const controls = nodes(tree).find(node => node.props?.['aria-label'] === 'Reorder projects');
+    assert.ok(controls);
+    const button = nodes(controls).find(node => node.type === 'button' && React.Children.toArray(node.props.children).includes(finish));
+    assert.ok(button); await button.props.onClick();
+    tree = h.render();
+    assert.equal(wall(tree).props.reorderMode, undefined);
+    assert.equal(wall(tree).props.columns, 5);
+    assert.equal(saved, finish === 'Done' ? 1 : 0);
+    assert.deepEqual(h.projectOrder.order, finish === 'Done' ? ['b', 'a'] : ['a', 'b']);
+  }
+  for (const options of [{ editorProjectId: 'a' }, { projects: reorderProjects.slice(0, 1) }, { projectOrder: { isSaving: true } }]) {
+    const h = profileHarness('', { presentation: 'web', projects: reorderProjects, ...options });
+    const sheet = profileActionSheet(openProfileOptions(h));
+    assert.equal(modelAction(sheet.props.model, 'reorder'), undefined);
+    assert.equal(wall(h.render()).props.reorderMode, undefined);
+  }
+});
+
+test('WEB visitor/shared disclosure and MOBILE action ownership never mount the new local owner sheet', () => {
+  for (const options of [
+    { presentation: 'web', viewerRole: 'visitor' }, { presentation: 'web', viewerRole: 'guest' },
+    { presentation: 'web', viewerRole: 'owner', isSharedView: true },
+    { presentation: 'mobile', viewerRole: 'owner' }, { presentation: 'mobile', viewerRole: 'visitor' },
+  ]) {
+    const h = profileHarness('', { projects: reorderProjects, ...options });
+    assert.equal(profileActionSheet(h.render()), undefined);
+    const tree = openProfileOptions(h);
+    assert.equal(profileActionSheet(tree), undefined);
+    assert.equal(nodes(tree).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);
+    if (options.presentation === 'web') {
+      const toggle = nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options');
+      assert.equal(toggle.props['aria-haspopup'], undefined);
+      assert.equal(toggle.props['aria-controls'], 'profile-navigation-tools');
+      assert.equal(toggle.props['aria-expanded'], true);
+      assert.ok(nodes(tree).find(node => node.type === 'PlatformGrid'));
+    } else if (options.viewerRole === 'owner') {
+      assert.equal(h.mobileActions.kind, 'profile'); assert.equal(h.mobileActions.viewer.owner, true);
+      assert.ok(h.action('reorder'), 'MOBILE retains the existing global profile action model');
+    }
+  }
+});
+
+test('WEB owner action failures remain dismissible and cannot leave the options sheet open', async () => {
+  for (const asynchronous of [false, true]) {
+    const h = profileHarness('', { presentation: 'web', props: { onEditProfile: () => {
+      if (asynchronous) return Promise.reject(new Error('Unable to open editor'));
+      throw new Error('Unable to open editor');
+    } } });
+    chooseWebProfileAction(h, 'editProfile');
+    await flush();
+    let tree = h.render();
+    assert.equal(profileActionSheet(tree), undefined);
+    const error = nodes(tree).find(node => node.props?.role === 'alert');
+    assert.ok(error); assert.equal(error.props.children, 'Unable to open editor');
+    tree = openProfileOptions(h);
+    assert.ok(profileActionSheet(tree));
+    assert.equal(nodes(tree).some(node => node.props?.role === 'alert'), false, 'Reopening clears the previous action failure');
+  }
 });
 
 async function failedOptionalModuleClose(owner) {
@@ -1330,7 +1488,7 @@ test('WEB header density stays out of shared, nested reader, collection, Timelin
     assert.equal(hasSlider(profileHarness(`view=${view}`, { presentation: 'web', projects: reorderProjects }).render()), false);
   }
   const h = profileHarness('', { presentation: 'web', projects: reorderProjects });
-  reorderControl(openProfileOptions(h)).props.onClick();
+  chooseWebProfileAction(h, 'reorder');
   const reordering = h.render();
   assert.equal(wall(reordering).props.reorderMode.enabled, true);
   assert.equal(hasSlider(reordering), false);

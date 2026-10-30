@@ -61,22 +61,25 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
   const metricControls = !state.loading && !state.error ? <div className="insights-metrics" data-ui-shape="capsule" role="group" aria-label="Insight metric">
     {metrics.map(item => <button data-ui-shape="action" data-system-color="" data-insights-series={item.key} type="button" key={item.key} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" /><span>{item.label}</span></button>)}
   </div> : null;
+  const mobileFilters = <div className="insights-period">
+    <label className="insights-period-picker" title={`Insights period: ${periodLabel}`}>
+      <InterfaceIcon icon={CalendarDaysIcon} size="sm" />
+      <select aria-label="Insights period" title={`Insights period: ${periodLabel}`} value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
+    </label>{metricControls}
+  </div>;
+  const readStatus = state.loading ? <LoadingState kind="insights" label="Loading insights" /> : state.error ? <ErrorState title="Unable to load reads" description={state.error} onRetry={state.retry} /> : null;
   return <div ref={surfaceRef} className="creator-insights" data-insights-metric={metric} aria-busy={isMobile && busy || undefined}>
-    <div className="insights-period">
-      {isMobile ? <><label className="insights-period-picker" title={`Insights period: ${periodLabel}`}>
-        <InterfaceIcon icon={CalendarDaysIcon} size="sm" />
-        <select aria-label="Insights period" title={`Insights period: ${periodLabel}`} value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
-      </label>{metricControls}</> : <>
+    {!isMobile && <div className="insights-period">
         <select data-ui-shape="action" aria-label="Insights period" value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
         <button data-ui-shape="action" type="button" onClick={refresh} disabled={state.loading || state.refreshing || saves.loading || saves.refreshing}>Refresh</button>
-      </>}
-    </div>
+    </div>}
     {isMobile && <div className="insights-refresh-status" role="status" aria-live="polite">{pullLabel || (busy && !state.loading && !saves.loading ? 'Refreshing insights…' : '')}</div>}
-    {state.loading ? <LoadingState kind="insights" label="Loading insights" /> : state.error ? <ErrorState title="Unable to load reads" description={state.error} onRetry={state.retry} /> : <>
+    {readStatus ? isMobile ? <div className="insights-data-surface">{mobileFilters}{readStatus}</div> : readStatus : <>
       {!isMobile && metricControls}
       <section className="insights-activity" aria-label="Project activity">
-        <h2 className="insights-section-title">Project activity</h2>
+        {!isMobile && <h2 className="insights-section-title">Project activity</h2>}
         <div className="insights-data-surface">
+          {isMobile && mobileFilters}
           <p className="insights-eyebrow">{metric === 'saved' ? 'Current totals' : periodLabel}</p>
           {/* Alternatives reserve the same summary height for every metric, including large totals. */}
           <h3 className="insights-headline">{metrics.map(item => <span key={item.key} aria-hidden={metric !== item.key || undefined}><strong>{totals[item.key].toLocaleString()}</strong><span>{item.unit}</span></span>)}</h3>

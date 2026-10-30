@@ -27,14 +27,14 @@
 
 .reads-weekly-character { display: none; }
 [data-presentation='mobile'] .reads-weekly-metrics { list-style: disc; padding-inline-start: 24px; margin: 8px 0; font-size: 22px; font-weight: 650; }
-[data-presentation='mobile'] .reads-weekly > div { align-items: flex-end; gap: 10px; }
+[data-presentation='mobile'] .reads-weekly > div { align-items: center; gap: 10px; margin-top: 10px; }
 [data-presentation='mobile'] .reads-weekly > div > button { flex-shrink: 0; }
 [data-presentation='mobile'] .reads-weekly-character {
   display: block;
-  flex: 0 1 96px;
-  width: 96px;
+  flex: 0 1 72px;
+  width: 72px;
   min-width: 0;
-  height: 112px;
+  height: 72px;
   margin-inline-start: auto;
   object-fit: contain;
   object-position: center bottom;

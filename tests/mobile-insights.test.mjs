@@ -12,6 +12,9 @@ const metricButtons = tree => nodes(tree).filter(node => node.type === 'button' 
 const headline = tree => nodes(tree).find(node => node.props.className === 'insights-headline');
 const chartButtons = chart => React.Children.toArray(chart.props.children).filter(node => React.isValidElement(node) && node.type === 'button');
 const totals = tree => nodes(nodes(tree).find(node => node.props['aria-label'] === 'Metric totals')).filter(node => node.type === 'dd').map(node => node.props['aria-label'] ?? text(node));
+const hasClass = (node, name) => node.props.className?.split(' ').includes(name);
+const activitySection = tree => nodes(tree).find(node => node.type === 'section' && node.props['aria-label'] === 'Project activity');
+const activityCard = tree => nodes(activitySection(tree)).find(node => hasClass(node, 'insights-data-surface'));
 function load(rows, { error, loading = false, refreshing = false, coverLoading = false, coverRefreshing = false, fetchedAt, initialPeriod, presentation = 'web', active = true, pullLabel = '' } = {}) {
   const states = []; let cursor = 0, queryCursor = 0; const periods = [];
   const environment = { presentation, active, pullLabel };
@@ -270,13 +273,26 @@ test('updated time appears only from an actual successful query timestamp', () =
   }
 });
 
-test('mobile groups the three metrics beside an icon-only native period picker while web retains Refresh', () => {
+test('mobile keeps filters inside the graph card without a visible activity heading while web retains its external controls', () => {
   for (const presentation of ['mobile', 'web']) {
     const fixture = load(rows, { presentation });
     let tree = fixture.render();
     let top = nodes(tree).find(node => node.props.className === 'insights-period');
     let group = nodes(tree).find(node => node.props['aria-label'] === 'Insight metric');
     let picker = nodes(top).find(node => node.props['aria-label'] === 'Insights period');
+    const section = activitySection(tree), card = activityCard(tree);
+    assert.ok(section, 'Project activity keeps its accessible section name');
+    assert.ok(card);
+    assert.ok(nodes(card).some(node => node.props['aria-label'] === 'Opens by project'));
+    assert.ok(nodes(card).some(node => node.props['aria-label'] === 'Metric totals'));
+    assert.equal(nodes(section).filter(node => node.type === 'h2' && text(node) === 'Project activity').length, presentation === 'mobile' ? 0 : 1);
+    assert.equal(nodes(card).filter(node => node.props['aria-label'] === 'Insights period').length, presentation === 'mobile' ? 1 : 0);
+    assert.equal(metricButtons(card).length, presentation === 'mobile' ? 3 : 0);
+    assert.equal(React.Children.toArray(tree.props.children).some(node => React.isValidElement(node) && hasClass(node, 'insights-period')), presentation === 'web');
+    if (presentation === 'mobile') {
+      const contents = nodes(card);
+      assert.ok(contents.findIndex(node => hasClass(node, 'insights-period')) < contents.findIndex(node => hasClass(node, 'insights-headline')), 'Filters precede the graph summary within the same raised card');
+    }
     assert.equal(nodes(tree).filter(node => node.props['aria-label'] === 'Insight metric').length, 1);
     assert.equal(group.props.role, 'group');
     assert.equal(group.props['data-ui-shape'], 'capsule');
@@ -399,7 +415,14 @@ test('mobile initial reads loading and errors retain the period picker without p
   for (const state of [{ loading: true }, { error: 'Reads unavailable' }]) {
     const fixture = load(undefined, { presentation: 'mobile', ...state });
     let tree = fixture.render();
-    assert.equal(nodes(tree).find(node => node.props['aria-label'] === 'Insights period').type, 'select');
+    const picker = nodes(tree).find(node => node.props['aria-label'] === 'Insights period');
+    assert.equal(picker.type, 'select');
+    assert.equal(nodes(tree).filter(node => node.props['aria-label'] === 'Insights period').length, 1);
+    const fallbackCard = nodes(tree).find(node => hasClass(node, 'insights-data-surface') && nodes(node).some(child => child.props['aria-label'] === 'Insights period'));
+    assert.ok(fallbackCard, 'Initial loading and errors keep the period control in their own raised card');
+    assert.ok(nodes(fallbackCard).some(node => node.type === (state.loading ? 'loading' : 'error')), 'The real loading/error view stays with its period control');
+    assert.equal(metricButtons(fallbackCard).length, 0);
+    assert.equal(nodes(tree).some(node => node.type === 'h2' && text(node) === 'Project activity'), false);
     assert.equal(metricButtons(tree).length, 0);
     assert.equal(headline(tree), undefined);
     assert.equal(nodes(tree).some(node => node.props['aria-label'] === 'Metric totals'), false);
@@ -413,6 +436,11 @@ test('mobile initial reads loading and errors retain the period picker without p
       view.props.onRetry();
       assert.deepEqual(fixture.refreshCounts, { reads: 1, covers: 0, saves: 0 });
     }
+    picker.props.onChange({ target: { value: '30d' } });
+    tree = fixture.render();
+    assert.equal(nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.value, '30d');
+    assert.equal(fixture.periods.at(-1), '30d', 'The fallback picker remains usable before read data is available');
+    assert.equal(metricButtons(tree).length, 0);
     fixture.queryState.loading = false;
     fixture.queryState.error = undefined;
     tree = fixture.render();
@@ -420,5 +448,8 @@ test('mobile initial reads loading and errors retain the period picker without p
     assert.match(text(tree), /No project reads yet/);
     assert.deepEqual(totals(tree), ['0', '0', '0']);
     assert.equal(text(nodes(tree).find(node => node.props.role === 'status')), '');
+    assert.ok(activitySection(tree));
+    assert.equal(metricButtons(activityCard(tree)).length, 3);
+    assert.equal(nodes(activityCard(tree)).find(node => node.props['aria-label'] === 'Insights period').props.value, '30d');
   }
 });

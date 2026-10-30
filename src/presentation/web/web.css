@@ -32,6 +32,22 @@
     padding-top: var(--fixed-header-padding) !important;
     scroll-padding-top: var(--fixed-header-scroll-padding) !important;
   }
+
+  /* The profile popup shares the mobile sheet's single glass surface. */
+  #root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-owner-profile-actions] > header[data-mobile-header-underlap]::before {
+    inset: 0 0 -16px !important;
+    background: transparent !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+  }
+  #root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-owner-profile-actions] > header[data-mobile-header-underlap='false']::before {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+#root .codex-shell[data-presentation='web']:is(.reduce-translucency, .high-contrast) .mobile-context-sheet[data-owner-profile-actions] {
+  background: var(--surface-raised) !important;
 }
 
 /* The creator name is a header link, while portal rows keep their selection. */
