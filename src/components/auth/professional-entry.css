@@ -293,3 +293,30 @@
 @media (prefers-reduced-motion: reduce) {
   .professional-entry-company-chevron { transition: none; }
 }
+
+/* Reuse company entry inside Settings without covering its header or Back. */
+.professional-entry[data-entry-embedded] {
+  --entry-sticky-inset: 0px;
+  position: relative;
+  inset: auto;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  border-radius: 12px;
+}
+.professional-entry[data-entry-embedded] .professional-entry-frame {
+  min-height: 0;
+  margin-block: 0;
+  padding: 16px;
+}
+.professional-entry[data-entry-embedded] .professional-entry-mobile-header {
+  position: relative;
+  top: auto;
+  z-index: auto;
+  margin: 0;
+  padding: 0;
+}
+.professional-entry[data-entry-embedded] .professional-entry-mobile-header::before,
+.professional-entry[data-entry-embedded] .professional-entry-mobile-header::after {
+  display: none;
+}

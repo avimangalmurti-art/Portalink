@@ -19,6 +19,7 @@ const routes = load('app/routes.ts', () => ({ navigationDestinations: [] }));
 const shareModel = load('features/sharing/shareModel.ts', () => ({}));
 const registration = load('features/auth/registration.ts', () => shareModel);
 const intents = load('features/auth/interactionIntent.ts', () => registration);
+const sharedSettings = load('features/sharing/sharedSettings.ts', name => name === '../auth/registration' ? registration : shareModel);
 const panels = load('utils/projectPanelLayout.ts');
 const employer = load('features/employer/employer.ts');
 const profileId = '11111111-1111-4111-8111-111111111111';
@@ -226,6 +227,7 @@ function appHarness({ firstVisit = false, catalogueOrigin = null } = {}) {
     if (name === '../hooks/useDeviceAppearance') return { useDeviceAppearance: () => appearance };
     if (name === '../presentation/usePresentation') return { usePresentation: () => state.presentation };
     if (name === '../features/auth/registration') return registration;
+    if (name === '../features/sharing/sharedSettings') return sharedSettings;
     if (name === '../features/auth/interactionIntent') return intents;
     if (name === '../utils/accentTokens') return { resolveAccentTokens: () => ({}) };
     if (name === '../utils/macTokens') return { resolveMacTokens: () => ({}) };
@@ -315,15 +317,39 @@ test('an authenticated reader without a profile returns to their intended recipi
 test('shared Settings retains its portfolio query, appearance handlers and Back destination', () => {
   const h = appHarness();
   one(h.render(), 'SharedProfileSidebar', 'SharedContextActions').props.onSettingsOpen();
-  assert.deepEqual(json(h.navigations.at(-1)), ['/settings', { state: { settingsReturn: `/share/${profileId}` } }]);
+  assert.deepEqual(json(h.navigations.at(-1)), [`/share/${profileId}?settings=1`, null]);
   h.state.route = { kind: 'controlCenter' }; h.state.location = { pathname: '/settings', search: '', hash: '', state: { settingsReturn: `/share/${profileId}` } };
   const settings = one(h.render(), 'lazy:../components/ControlCenterPage');
+  assert.equal(settings.props.sharedReadOnly, true);
+  assert.deepEqual(json(h.navigations.at(-1)), [`/share/${profileId}?settings=1`, { replace: true }]);
   assert.equal(h.replaced.length, 0);
   assert.equal(typeof settings.props.onAppearanceModeChange, 'function');
   settings.props.onAppearanceModeChange('dark');
   assert.equal(one(h.render(),'lazy:../components/ControlCenterPage').props.theme,'dark');
   assert.equal(h.queryCalls.at(-1)[0], profileId);
   settings.props.onBack(); assert.equal(h.navigations.at(-1)[0], -1);
+});
+
+test('cold public Settings remains read-only for owners, other accounts and signed-out viewers on both presentations', () => {
+  for (const presentation of ['web', 'mobile']) for (const account of ['guest', 'owner', 'other']) {
+    for (const [kind, suffix] of [['sharedProfile', ''], ['sharedCategory', '/c/portal'], ['sharedProject', '/c/portal/work']]) {
+      const h = appHarness(); h.state.presentation = presentation;
+      if (account !== 'guest') h.signedIn({ viewerProfileId: account === 'owner' ? profileId : 'other' });
+      h.state.route = { kind, profileId, ...(kind !== 'sharedProfile' ? { categoryId: 'portal' } : {}), ...(kind === 'sharedProject' ? { projectId: 'work' } : {}) };
+      h.state.location = { pathname: `/share/${profileId}${suffix}`, search: '?settings=1&section=account&security=1', hash: '', state: null };
+      h.window.history.state.idx = 0;
+      const tree = h.render(), page = one(tree, 'lazy:../components/ControlCenterPage');
+      assert.ok(page, `${presentation}/${account}/${kind}`);
+      assert.equal(page.props.sharedReadOnly, true);
+      assert.ok(one(tree, 'SharedProfileSidebar'));
+      assert.equal(one(tree, 'VisitorProjectPage'), undefined);
+      assert.equal(one(tree, 'SharedPortalPopup'), undefined, 'MOBILE category entry cannot replace public Settings with its chooser.');
+      assert.equal(one(tree, 'AppPresentation').props.showFloatingActions, false);
+      assert.equal(h.assigned.length + h.replaced.length + h.navigations.length + h.requests.length, 0, 'Rendering public Settings does not open a private destination or authenticate.');
+      page.props.onBack();
+      assert.deepEqual(json(h.navigations.at(-1)), [`/share/${profileId}${suffix}`, { replace: true }]);
+    }
+  }
 });
 
 test('invalid shared URLs render not-found without reads, retries or an HTML reload loop; platform routes hand off', () => {
@@ -822,7 +848,7 @@ test('WEB portal automatic selection waits for the current public creator and re
   h.state.route = { kind: 'controlCenter' };
   h.state.location = { ...h.state.location, pathname: '/control-center', state: { settingsReturn: `/share/${profileId}/c/portal` } };
   assert.ok(one(h.render(), 'lazy:../components/ControlCenterPage'));
-  assert.equal(h.navigations.length, 0, 'Remembered shared context behind Settings cannot select a portal project.');
+  assert.deepEqual(json(h.navigations), [[`/share/${profileId}/c/portal?settings=1`, { replace: true }]], 'Legacy Settings canonicalizes to public Settings without selecting a portal project.');
 });
 
 test('uncached WEB selection keeps its confirmed portal reader mounted without showing previous media while loading', async () => {

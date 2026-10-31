@@ -1,3 +1,14 @@
+## 2026-10-30 - WEB workspace changes published 567
+
+Published https://portalinknetworks.com/ from `2ae2d633a89659c09c14002e3d7fe68c071f883c` on owned codex/socal-release, GitHub and existing Sites mirror. Open draft PR148 base main matches exact source; main remains unmerged. Release includes WEB sidebar Portal search/Notifications swap, desktop project-only density sliders across platform/shared portfolios, and shared portal index/first-public-project reader with preserved search during loading, empty states and safe Back. MOBILE behavior and shared-view read-only permissions retained.
+
+Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_fee296c0ecb08191aa8fc55ec5b428ed`; deployment `appgdep_6ae575718d888191b5283761f2db57f6` succeeded `2026-10-31T04:58:35.670582+00:00`. Public audience/domains/runtime revision2/Supabase/worker+D1 preserved. No approval rejection or duplicate deployment. GitHub connector succeeded for exact-source PR metadata; no fallback needed.
+
+Fresh135focused tests, typecheck, full lint(0errors/111existing warnings), configured production client+worker build/main+visitor host-key guards, independent source review, diff check and exact source/archive audit pass. Prior real-component WEB1280/640 and MOBILE420 browser evidence applies, including actual public query deferred loading and canonical sample media reader. No physical-phone, connected-authenticated, full production-flow or CI claim.
+
+Archive audits14source paths/648payloads(647byte-exact plus semantic hosting normalization), unchanged423assets/fourSQL/serverworker, no private/QA payloads. Compressed archive48,903,750bytes/SHA256 `bbe1fadad706101cdd89d929beee167800d0ffe935ea11b5601a1b030fcfc350`; native tar83,681,280bytes/SHA256 `3db26408090f0a74fe4a92126c099a68f1f976ce75619958504015d51d65d6e8` is separate serialization. Custom-domain main/visitor entry reference sets and all215frozenJS/CSS assets match,0failures.
+
+Receipts ignored logs/web-workspace-release{,-pr,-archive-audit,-live}.json, source/dist freezes and check logs; prior browser proof external shared-desktop-portal-reader.png/proof plus slider evidence. Helper completed and credential/site-bearer stores cleared. No preview/viewport/browser started for publication. Only postpublication receipt docs dirty; no further deployment needed. No SQL/backend/Auth/provider/account/environment/dependency/independent-worker/main operation. SAFE WRITER HANDOFF.
 ## 2026-10-30 - Larger six-column WEB portals published 566
 
 Live https://portalinknetworks.com/ from `8982e751566e178fd27968c0b66131d2c3487a6b` on codex/socal-release/GitHub/Sites mirror; open draft PR148 main-base matches source, main unmerged. WEB gains112px squircle tiles/36px glyphs on wide screens and adaptive up-to-six columns; MOBILE4/80/24 preserved. Creator badges/names/accents retained.

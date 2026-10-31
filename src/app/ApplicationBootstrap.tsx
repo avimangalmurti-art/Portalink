@@ -1,4 +1,5 @@
 import { handleFromPath } from '../features/sharing/shareModel';
+import { sharedSettingsPath } from '../features/sharing/sharedSettings';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
@@ -48,19 +49,23 @@ function readSharedViewerProfileId(): string | null {
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
-  const { pathname, search = '', hash = '', key: locationKey } = useLocation();
+  const { pathname, search = '', hash = '', key: locationKey, state: locationState } = useLocation();
   const isHandleView = Boolean(handleFromPath(pathname));
   const isSharedView = isHandleView || /^\/share(?:\/|$)/i.test(pathname);
   const isPublicSettings = pathname.replace(/\/+$/, '') === routes.controlCenter.path || pathname.replace(/\/+$/, '') === '/appearance';
   const presentation = useViewportPresentation();
   useMobileInstallCapture(presentation === 'mobile');
-  // MOBILE public links own their entry and design even when opened from the
-  // platform router. The worker/dev server selects share.html on this request.
-  const usePublicEntry = isHandleView || (presentation === 'mobile' && isSharedView);
+  // Public links own their entry on both presentations. Legacy Settings history
+  // must rejoin that durable public address before the platform can mount.
+  const legacyPublicSettings = isPublicSettings && locationState && typeof locationState === 'object'
+    && 'settingsReturn' in locationState && typeof locationState.settingsReturn === 'string'
+    ? sharedSettingsPath(locationState.settingsReturn, search) : undefined;
+  const publicEntryPath = isSharedView ? pathname + search + hash : legacyPublicSettings;
+  const usePublicEntry = Boolean(publicEntryPath);
   // Code has no account data: overlap the requested destination's download
   // with session restoration, while the normal auth gate still owns rendering.
   useEffect(() => { if (!usePublicEntry && (auth.isAuthenticated || isSharedView || isPublicSettings)) void warmScreenForPath(pathname); }, [usePublicEntry, pathname, auth.isAuthenticated, isSharedView, isPublicSettings]);
-  useEffect(() => { if (usePublicEntry) window.location.replace(pathname + search + hash); }, [usePublicEntry, pathname, search, hash]);
+  useEffect(() => { if (publicEntryPath) window.location.replace(publicEntryPath); }, [publicEntryPath]);
   const [openingPresentation] = useState(presentation);
   const [openingPath] = useState(pathname);
   const oauthFailed = new URLSearchParams(search).get('entry') === 'oauth'

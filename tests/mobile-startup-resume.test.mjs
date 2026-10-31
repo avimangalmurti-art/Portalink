@@ -5,6 +5,11 @@ import { matchPath } from 'react-router-dom';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const shareModel = sourceModule('src/features/sharing/shareModel.ts');
+const registration = sourceModule('src/features/auth/registration.ts', {
+  '../sharing/shareModel': shareModel,
+  '../profile/validation': sourceModule('src/features/profile/validation.ts', { '../sharing/shareModel': shareModel }),
+});
+const sharedSettings = sourceModule('src/features/sharing/sharedSettings.ts', { '../auth/registration': registration, './shareModel': shareModel });
 const routes = {
   sharedCollaboration: { path: '/share/:profileId/collaboration' }, sharedProject: { path: '/share/:profileId/c/:categoryId/:projectId' },
   sharedProfileCategory: { path: '/share/:profileId/c/:categoryId' }, sharedProfile: { path: '/share/:profileId' }, controlCenter: { path: '/settings' },
@@ -20,7 +25,7 @@ function events() {
 }
 
 /** Real bootstrap and real resume hook/state; only browser, Auth and child rendering are controlled. */
-function fixture({ presentation = 'mobile', authenticated = true, initializing = true, path = '/', search = '', hash = '', savedPath = '/p/creator/c/work/project', pendingView = null, phase = authenticated ? 'authenticated' : 'guest', sessionUnavailable = false, enteredWelcome = true, welcomeState } = {}) {
+function fixture({ presentation = 'mobile', authenticated = true, initializing = true, path = '/', search = '', hash = '', state = null, savedPath = '/p/creator/c/work/project', pendingView = null, phase = authenticated ? 'authenticated' : 'guest', sessionUnavailable = false, enteredWelcome = true, welcomeState } = {}) {
   const slots = [], timers = new Map(), captures = [], trace = [], storage = new Map(), sessionStorage = new Map();
   let cursor = 0, effects = [], dirty = true, rendered, timerId = 0;
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => Object.is(item, b[index]));
@@ -51,7 +56,7 @@ function fixture({ presentation = 'mobile', authenticated = true, initializing =
   const auth = { isInitializing: initializing, isAuthenticated: authenticated, isSessionUnavailable: sessionUnavailable, pendingView, phase,
     user: authenticated ? { id: 'account' } : null, session: authenticated ? { user: { id: 'account' } } : null,
     requestAuth(view) { trace.push(['request-auth', view]); auth.pendingView = view; } };
-  const location = { pathname: path, search, hash, key: 'default' };
+  const location = { pathname: path, search, hash, state, key: 'default' };
   const { ApplicationBootstrap } = sourceModule('src/app/ApplicationBootstrap.tsx', {
     react, 'framer-motion': { AnimatePresence: 'presence' }, 'react-router-dom': { Navigate: 'navigate', matchPath, useLocation: () => location },
     '../App': { App: 'app' }, '../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'splash' },
@@ -60,7 +65,7 @@ function fixture({ presentation = 'mobile', authenticated = true, initializing =
     '../components/ui/StateViews': { LoadingState: 'loading', ErrorState: 'error' }, '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes, buildPath: (_name, params) => `/share/${params.profileId}` }, './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
     './screenModules': { warmScreenForPath: value => { trace.push(['warm', value]); return Promise.resolve(); } }, './homeStartup': { HOME_STARTUP_TIMEOUT_MS: 12000 },
-    '../features/sharing/shareModel': shareModel, '../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
+    '../features/sharing/shareModel': shareModel, '../features/sharing/sharedSettings': sharedSettings, '../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
     '../features/install/useMobileInstall': { useMobileInstallCapture: enabled => captures.push(enabled) },
     '../presentation/mobile/useMobileResumeSession': resumeHook, '../presentation/mobile/MobileResumeContext': { MobileResumeProvider: 'resume-provider' },
   }, globals);
@@ -127,6 +132,57 @@ test('explicit projects, city pages and Settings/security links stay authoritati
     const h = fixture({ initializing: false, path, search, hash }); h.render(); h.settle();
     assert.equal(h.destination.type, 'resume-provider'); assert.equal(h.app.type, 'app');
     assert.equal(h.location.pathname + h.location.search + h.location.hash, path + search + hash); assert.equal(h.destination.props.record, null); h.dispose();
+  }
+});
+
+test('every WEB and MOBILE shared address hands off to the public entry before the main app can mount', () => {
+  const profileId = '11111111-1111-4111-8111-111111111111';
+  for (const presentation of ['web', 'mobile']) for (const authenticated of [false, true]) {
+    for (const path of [`/share/${profileId}`, `/share/${profileId}/c/portal`, `/share/${profileId}/c/portal/project`, `/share/${profileId}/collaboration`, '/creator', '/creator/c/portal/project', '/share/invalid-profile']) {
+      const h = fixture({ presentation, authenticated, initializing: true, path, search: '?via=friend&page=2&media=paper', hash: '#reading' });
+      h.render(); h.settle();
+      assert.equal(h.app, null, `${presentation}/${authenticated}/${path}`);
+      assert.deepEqual(h.trace.filter(item => item[0] === 'replace'), [['replace', `${path}?via=friend&page=2&media=paper#reading`]]);
+      assert.equal(h.trace.some(item => item[0] === 'warm'), false, 'Public routes do not download ordinary account destinations.');
+      h.auth.isInitializing = false; h.rerender(); h.settle();
+      assert.equal(h.app, null, 'Restored ownership cannot turn a public address into the signed-in platform.');
+      assert.equal(h.trace.filter(item => item[0] === 'replace').length, 1); h.dispose();
+    }
+  }
+});
+
+test('legacy public Settings hand off to durable public Settings before rendering the account workspace', () => {
+  const profileId = '11111111-1111-4111-8111-111111111111';
+  for (const presentation of ['web', 'mobile']) for (const authenticated of [false, true]) for (const path of ['/settings', '/appearance']) {
+    const h = fixture({ presentation, authenticated, initializing: false, path,
+      search: '?section=account&security=1&panel=appearance&redirect=https%3A%2F%2Fevil.test',
+      state: { settingsReturn: `/share/${profileId}/c/portal/project?media=paper&page=3&visitorPreview=1` } });
+    h.render(); h.settle();
+    assert.equal(h.app, null, `${presentation}/${authenticated}/${path}`);
+    assert.deepEqual(h.trace.filter(item => item[0] === 'replace'), [['replace', `/share/${profileId}/c/portal/project?page=3&media=paper&visitorPreview=1&settings=1&section=account&panel=appearance&security=1`]]);
+    assert.equal(h.trace.some(item => item[0] === 'warm'), false);
+    assert.equal(h.trace.some(item => item[0] === 'request-auth'), false); h.dispose();
+  }
+  const handle = fixture({ presentation: 'web', initializing: true, path: '/settings/', search: '?section=appearance&panel=system-grey', state: { settingsReturn: '/creator?view=projects' } });
+  handle.render(); handle.settle();
+  assert.equal(handle.app, null);
+  assert.deepEqual(handle.trace.filter(item => item[0] === 'replace'), [['replace', '/creator?view=projects&settings=1&section=appearance&panel=system-grey']]); handle.dispose();
+});
+
+test('ordinary Settings and untrusted legacy return state retain the standard authenticated platform', () => {
+  const invalidReturns = [undefined, '/studio', '/p/owner', '/cite/public-project', '//external.test/creator', 'https://external.test/creator', 'javascript:alert(1)', '/share/creator/../../settings', 123];
+  for (const presentation of ['web', 'mobile']) for (const settingsReturn of invalidReturns) {
+    const h = fixture({ presentation, initializing: false, path: '/settings', search: '?section=account&security=1', state: { settingsReturn } });
+    h.render(); h.settle();
+    assert.equal(h.app.type, 'app', `${presentation}/${String(settingsReturn)}`);
+    assert.equal(h.trace.some(item => item[0] === 'replace'), false);
+    assert.equal(h.location.search, '?section=account&security=1'); h.dispose();
+  }
+  for (const options of [{ search: '?code=callback' }, { hash: '#access_token=callback' }, { pendingView: 'resetPassword' }]) {
+    const h = fixture({ initializing: false, savedPath: null, state: { settingsReturn: '/creator' }, ...options });
+    h.render(); h.settle();
+    assert.equal(h.app.type, 'app'); assert.equal(h.trace.some(item => item[0] === 'replace'), false);
+    assert.equal(h.destination.props.enabled, false); h.dispose();
   }
 });
 

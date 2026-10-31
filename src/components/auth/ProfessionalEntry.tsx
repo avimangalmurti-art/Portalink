@@ -83,9 +83,11 @@ const companySections = [
 ] as const;
 
 /** Company information and immediate account choices. */
-export function ProfessionalEntry({ ready = true, onCreate, onSignIn }: {
-  ready?: boolean; onCreate: () => void; onSignIn: () => void;
+export function ProfessionalEntry({ ready = true, embedded = false, onCreate, onSignIn }: {
+  ready?: boolean; embedded?: boolean; onCreate: () => void; onSignIn: () => void;
 }) {
+  const Container = embedded ? 'section' : 'main';
+  const CompanyHeading = embedded ? 'h2' : 'h1';
   const presentation = usePresentation();
   const previewHost = useRef<HTMLElement>(null);
   const appearance = useDeviceAppearance(presentation);
@@ -97,7 +99,7 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn }: {
         <ProfileAvatar name="Portalink Networks Inc." avatar="/icons/portalink-app-512-62b9d2e7.png" videoSrc="/company/avatar-loop-098c2e5d5e1e.mp4" size="profile" priority inlinePreview previewHost={previewHost} />
       </div>
       <div className="professional-entry-brand-copy">
-        <h1 id="professional-entry-title" className="professional-entry-company-name">Portalink Networks Inc.</h1>
+        <CompanyHeading id="professional-entry-title" className="professional-entry-company-name">Portalink Networks Inc.</CompanyHeading>
         <CityClock />
       </div>
     </div>
@@ -161,7 +163,7 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn }: {
       </div>
     </details>
   </li>);
-  return <main ref={previewHost} data-profile-avatar-host="" className={`professional-entry professional-entry-company theme-${theme}${highContrast ? ' high-contrast' : ''}${reduceTranslucency ? ' reduce-translucency' : ''}`}
+  return <Container ref={previewHost} data-profile-avatar-host="" data-entry-embedded={embedded || undefined} className={`professional-entry professional-entry-company theme-${theme}${highContrast ? ' high-contrast' : ''}${reduceTranslucency ? ' reduce-translucency' : ''}`}
     data-entry-theme={theme} data-entry-contrast={highContrast} data-entry-solid={reduceTranslucency}
     style={{ ...resolveAccentTokens(selectedAccent, theme), ...resolveNavButtonTokens(theme, selectedAccent, highContrast, reduceTranslucency, systemGray) }}
     aria-labelledby="professional-entry-title">
@@ -180,5 +182,5 @@ export function ProfessionalEntry({ ready = true, onCreate, onSignIn }: {
         </div>
       </div>
     </div>
-  </main>;
+  </Container>;
 }

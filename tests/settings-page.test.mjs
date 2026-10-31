@@ -4,14 +4,14 @@ import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {sourceModule} from './helpers/source-module.mjs';
 const sections=sourceModule('src/components/settings/settingsSections.ts');
-const props={theme:'dark',appearanceMode:'dark',systemGray:'gray',accentColor:'#0a84ff',highContrast:false,reduceTranslucency:false,onBack(){},onOpenProfile(){}};
+const props={theme:'dark',appearanceMode:'dark',systemGray:'gray',accentColor:'#0a84ff',highContrast:false,reduceTranslucency:false,onBack(){/* Navigation is supplied by the relevant test. */},onOpenProfile(){/* Profile actions are supplied by the relevant test. */}};
 const all=node=>React.isValidElement(node)?[node,...React.Children.toArray(node.props.children).flatMap(all)]:[];
 function expand(node){if(!React.isValidElement(node))return node;if(node.type.name==='SettingsSection')return expand(node.type(node.props));return React.cloneElement(node,{},...React.Children.toArray(node.props.children).map(expand));}
 const action=(tree,label)=>all(tree).find(n=>n.type==='button'&&typeof n.props.onClick==='function'&&(n.props['aria-label']===label||all(n).some(c=>c.props.children===label)));
-function harness(auth={},query='',routeState=null,presentation='web'){let params=new URLSearchParams(query),state=routeState,cursor=0,idx=1;const slots=[],calls=[],stack=[];const location={pathname:'/settings',search:query?'?'+query:'',state};
+function harness(auth={},query='',routeState=null,presentation='web',pathname='/settings'){let params=new URLSearchParams(query),state=routeState,cursor=0,idx=1;const slots=[],calls=[],stack=[];const location={pathname,search:query?'?'+query:'',state};
  const react={...React,useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return[slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}];}};
  const nav={back:()=>calls.push(['back']),to:path=>calls.push(['to',path]),profileEditor:()=>calls.push(['edit'])};
- const {ControlCenterPage}=sourceModule('src/components/ControlCenterPage.tsx',{react,'lucide-react':{ArrowLeftIcon:'back',ChevronRightIcon:'right'},'react-router-dom':{useLocation:()=>location,useNavigate:()=>value=>{calls.push(['navigate',value]);if(value===-1){const prev=stack.pop();params=prev.params;location.search=prev.search;state=location.state=prev.state;idx--; }},useSearchParams:()=>[params,(next,options={})=>{calls.push(['params',next.toString(),options]);if(!options.replace){stack.push({params,search:location.search,state});idx++;}params=next;location.search=next.toString()?'?'+next:'';state=location.state=options.state;}]},'./settings/settingsSections':sections,'./settings/NavigationButtonsPanel':{NavigationButtonsPanel:'appearance-panel'},'./ui/InterfaceIcon':{InterfaceIcon:()=>null},'./ui/Button':{Button:'button'},'../contexts/AuthContext':{useAuth:()=>auth},'../app/useAppRoute':{useRouteNavigator:()=>nav},'../app/routes':{buildPath:name=>'/'+name},'../features/auth/AccountSecurityPage':{AccountSecurityPage:'security-page'},'../features/auth/DeleteAccountDialog':{DeleteAccountDialog:'delete-dialog'},'../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.test'},'../presentation/usePresentation':{usePresentation:()=>presentation},'../features/install/MobileHomeScreenInstall':{MobileHomeScreenInstall:'install-guidance'},'./settings/settings-page.css':{}},{window:{history:{get state(){return{idx};}}},DOMException});
+ const {ControlCenterPage}=sourceModule('src/components/ControlCenterPage.tsx',{react,'lucide-react':{ArrowLeftIcon:'back',ChevronRightIcon:'right'},'react-router-dom':{useLocation:()=>location,useNavigate:()=>value=>{calls.push(['navigate',value]);if(value===-1){const prev=stack.pop();params=prev.params;location.search=prev.search;state=location.state=prev.state;idx--; }},useSearchParams:()=>[params,(next,options={})=>{calls.push(['params',next.toString(),options]);if(!options.replace){stack.push({params,search:location.search,state});idx++;}params=next;location.search=next.toString()?'?'+next:'';state=location.state=options.state;}]},'./settings/settingsSections':sections,'./settings/NavigationButtonsPanel':{NavigationButtonsPanel:'appearance-panel'},'./auth/ProfessionalEntry':{ProfessionalEntry:'professional-entry'},'./ui/InterfaceIcon':{InterfaceIcon:()=>null},'./ui/Button':{Button:'button'},'../contexts/AuthContext':{useAuth:()=>auth},'../app/useAppRoute':{useRouteNavigator:()=>nav},'../app/routes':{buildPath:name=>'/'+name},'../features/auth/AccountSecurityPage':{AccountSecurityPage:'security-page'},'../features/auth/DeleteAccountDialog':{DeleteAccountDialog:'delete-dialog'},'../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.test'},'../presentation/usePresentation':{usePresentation:()=>presentation},'../features/install/MobileHomeScreenInstall':{MobileHomeScreenInstall:'install-guidance'},'./settings/settings-page.css':{}},{window:{history:{get state(){return{idx};}}},DOMException});
  return{calls,location,render(overrides={}){cursor=0;return expand(ControlCenterPage({...props,...overrides}));},get section(){return params.get('section');}};
 }
 test('Settings starts with seven navigation rows and right chevrons, never accordions',()=>{
@@ -42,4 +42,92 @@ test('Home Screen guidance mounts only within MOBILE About, leaving WEB and the 
   const tree=harness({},query,null,presentation).render();
   assert.equal(all(tree).some(node=>node.type==='install-guidance'),presentation==='mobile'&&query==='section=about');
  }
+});
+
+const sharedProps={sharedReadOnly:true};
+const privateActions=['View profile','Edit profile','Account security','Log out','Delete account…','Account visibility','Open messages','View notifications'];
+function sharedAuth(role='guest'){
+ const calls=[];const auth={isAuthenticated:role!=='guest',isInitializing:false,viewerProfileId:role==='guest'?null:role,user:role==='guest'?null:{id:`account-${role}`},
+  requestAuth:view=>calls.push(['auth',view]),requestAuthenticatedDestination:(...args)=>calls.push(['gate',...args]),signOut:()=>{calls.push(['signOut']);return Promise.resolve(true);}};
+ return{auth,calls};
+}
+const companyEntry=tree=>all(tree).find(node=>node.type==='professional-entry');
+function assertPublicOnly(tree){
+ for(const label of privateActions)assert.equal(action(tree,label),undefined,label);
+ assert.equal(all(tree).some(node=>node.type==='security-page'||node.type==='delete-dialog'),false);
+}
+
+test('shared Settings offers only public sections for guests, owners and other signed-in accounts on both presentations',()=>{
+ for(const presentation of ['web','mobile'])for(const role of ['guest','owner','other']){
+  const a=sharedAuth(role),h=harness(a.auth,'settings=1',null,presentation,'/creator'),tree=h.render(sharedProps);
+  const rows=all(tree).filter(node=>node.type==='button'&&node.props.className==='settings-section-trigger');
+  assert.deepEqual(rows.map(row=>all(row).find(node=>node.props.className==='settings-section-title').props.children),['Appearance','Invite a friend','Language','About']);
+  assertPublicOnly(tree);assert.equal(companyEntry(tree),undefined);
+  assert.deepEqual(a.calls,[]);assert.deepEqual(h.calls,[]);
+  assert.equal(a.auth.isAuthenticated,role!=='guest');
+ }
+});
+
+test('shared About and private/security query links reuse company entry independently of the restored account',()=>{
+ for(const presentation of ['web','mobile'])for(const role of ['guest','owner','other'])for(const query of [
+  'section=about','section=account','section=privacy','section=notifications','security=1','section=account&security=1','section=appearance&panel=system-grey&security=1',
+ ]){
+  const a=sharedAuth(role),session=a.auth.user,h=harness(a.auth,`settings=1&${query}`,{settingsReturn:'/creator'},presentation,'/creator');
+  const tree=h.render({...sharedProps,onOpenProfile:()=>a.calls.push(['profile'])}),entry=companyEntry(tree);
+  assert.ok(entry,`${presentation}/${role}/${query}`);assert.equal(entry.props.ready,true);
+  assert.equal(all(tree).find(node=>node.type==='h1').props.children,'About Portalink');
+  assertPublicOnly(tree);assert.deepEqual(a.calls,[]);assert.deepEqual(h.calls,[]);
+  entry.props.onSignIn();entry.props.onCreate();
+  assert.deepEqual(a.calls,[['auth','signIn'],['auth','signUp']], 'Only explicit account choices request forms; no workspace intent or logout is introduced');
+  assert.deepEqual(h.calls,[]);assert.equal(a.auth.user,session);assert.equal(a.auth.isAuthenticated,role!=='guest');
+ }
+});
+
+test('shared legacy security Back clears private routing and panels without reopening the same landing',()=>{
+ for(const presentation of ['web','mobile'])for(const query of ['section=account','section=privacy','section=notifications','security=1','section=account&security=1','section=appearance&panel=system-grey&security=1']){
+  const a=sharedAuth('owner'),h=harness(a.auth,`settings=1&via=link&${query}`,{settingsReturn:'/creator',settingsSectionFrom:'/creator?settings=1&via=link',accountSecurityReturn:true},presentation,'/creator');
+  let returned=0;
+  action(h.render({...sharedProps,onBack:()=>returned++}),'Back to Settings').props.onClick();
+  assert.equal(h.location.search,'?settings=1&via=link');assert.equal(h.section,null);
+  assert.equal(h.calls.at(-1)[0],'params');assert.equal(h.calls.at(-1)[2].replace,true);
+  assert.equal(h.location.state.settingsReturn,'/creator');assert.equal(returned,0);
+  const index=h.render({...sharedProps,onBack:()=>returned++});
+  assert.equal(companyEntry(index),undefined);assertPublicOnly(index);
+  action(index,'Back').props.onClick();assert.equal(returned,1);
+  assert.deepEqual(a.calls,[]);
+ }
+});
+
+test('opening shared About from Settings retains its native Back destination and public query',()=>{
+ for(const presentation of ['web','mobile']){
+  const a=sharedAuth('owner'),h=harness(a.auth,'settings=1&via=link',{settingsReturn:'/creator'},presentation,'/creator');
+  action(h.render(sharedProps),'About').props.onClick();
+  assert.equal(h.section,'about');assert.ok(companyEntry(h.render(sharedProps)));
+  action(h.render(sharedProps),'Back to Settings').props.onClick();
+  assert.equal(h.location.search,'?settings=1&via=link');assert.equal(h.calls.at(-1)[0],'navigate');assert.equal(h.calls.at(-1)[1],-1);
+  assert.equal(h.location.state.settingsReturn,'/creator');assert.equal(companyEntry(h.render(sharedProps)),undefined);
+  assert.deepEqual(a.calls,[]);
+ }
+});
+
+test('shared public sections retain appearance callbacks and ordinary public content without private actions',()=>{
+ for(const presentation of ['web','mobile']){
+  const a=sharedAuth('owner'),h=harness(a.auth,'settings=1&section=appearance',null,presentation,'/creator'),changes=[];
+  let tree=h.render({...sharedProps,onAccentColorChange:value=>changes.push(value)});
+  all(tree).find(node=>node.type==='appearance-panel').props.onAccentColorChange('#123456');assert.deepEqual(changes,['#123456']);
+  assertPublicOnly(tree);assert.equal(companyEntry(tree),undefined);
+  tree=harness(a.auth,'settings=1&section=language',null,presentation,'/creator').render(sharedProps);
+  assert.match(renderToStaticMarkup(tree),/currently available in English/);assertPublicOnly(tree);
+  tree=harness(a.auth,'settings=1&section=invite',null,presentation,'/creator').render(sharedProps);
+  assert.ok(action(tree,'Share invite link'));assert.ok(action(tree,'Copy invite link'));assertPublicOnly(tree);
+  assert.deepEqual(a.calls,[]);
+ }
+});
+
+test('shared company entry waits for session restoration and never retains a previously open delete dialog',()=>{
+ const a=sharedAuth('owner');a.auth.isInitializing=true;
+ const h=harness(a.auth,'section=account');
+ action(h.render(),'Delete account…').props.onClick();assert.ok(all(h.render()).some(node=>node.type==='delete-dialog'));
+ const tree=h.render(sharedProps);assert.equal(companyEntry(tree).props.ready,false);assertPublicOnly(tree);
+ assert.deepEqual(a.calls,[]);assert.deepEqual(h.calls,[]);
 });

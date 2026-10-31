@@ -4,6 +4,7 @@ import { SharedPortalPopup } from './mobile/SharedPortalPopup';
 import { VisitorPreviewBar } from '../features/profile/VisitorPreviewBar';
 import { isOwnVisitorPreview, visitorPreviewReturn } from '../features/profile/visitorPreview';
 import { handleFromPath, isPublicSharePath, portfolioPath, portfolioProjectPath } from '../features/sharing/shareModel';
+import { sharedSettingsPath, sharedSettingsReturnPath } from '../features/sharing/sharedSettings';
 import { useHandleRoute } from './useHandleRoute';
 import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -55,8 +56,10 @@ export function VisitorApp() {
   const sharedShell = isPublicSharePath(location.pathname);
   const lastSharedRoute = useRef<SharedRoute | null>(null);
   if (shared) lastSharedRoute.current = route as SharedRoute;
-  const settingsReturn = readSharedReturnPath(location.state?.settingsReturn);
-  const settings = route.kind === 'controlCenter' && Boolean(settingsReturn && lastSharedRoute.current);
+  const publicSettingsReturn = shared && isProfileId((route as SharedRoute).profileId)
+    ? sharedSettingsReturnPath(location.pathname + location.search + location.hash) : undefined;
+  const settingsReturn = publicSettingsReturn ?? readSharedReturnPath(location.state?.settingsReturn);
+  const settings = Boolean(publicSettingsReturn) || route.kind === 'controlCenter' && Boolean(settingsReturn && lastSharedRoute.current);
   const readingRoute = shared ? route as SharedRoute : settings ? lastSharedRoute.current : null;
   const profileId = readingRoute?.profileId ?? null;
   const previewOwner = useRef<string | null>(null);
@@ -65,6 +68,11 @@ export function VisitorApp() {
   const previewSuffix = visitorPreview ? '?visitorPreview=1' : '';
   const categoryId = readingRoute?.kind === 'sharedCategory' || readingRoute?.kind === 'sharedProject' ? readingRoute.categoryId : null;
   const projectId = readingRoute?.kind === 'sharedProject' ? readingRoute.projectId : null;
+  useEffect(() => {
+    if (!settings || publicSettingsReturn || !settingsReturn) return;
+    const path = sharedSettingsPath(settingsReturn, location.search);
+    if (path) navigate(path, { replace: true });
+  }, [settings, publicSettingsReturn, settingsReturn, location.search, navigate]);
   useEffect(() => { if (projectId) void loadVisitorProjectPage().catch(() => undefined); }, [projectId]);
   const sharedPath = readSharedReturnPath(shared ? location.pathname + location.search : settingsReturn);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -162,12 +170,12 @@ export function VisitorApp() {
       presentation === 'web' && readerRoute ? { replace: true } : undefined);
   };
   useEffect(() => {
-    if (presentation === 'mobile' && route.kind === 'sharedCategory' && profileId) {
+    if (!settings && presentation === 'mobile' && route.kind === 'sharedCategory' && profileId) {
       if (categoryId) setPortalPopup(current => current?.profileId === profileId && current.categoryId === categoryId
         ? current : { profileId, categoryId });
       navigate(buildPath('sharedProfile', { profileId }), { replace: true });
     }
-  }, [presentation, route.kind, profileId, categoryId, navigate]);
+  }, [settings, presentation, route.kind, profileId, categoryId, navigate]);
   useEffect(() => {
     if (!sharedShell && !settings) window.location.replace(location.pathname + location.search + location.hash);
   }, [sharedShell, settings, location.pathname, location.search, location.hash]);
@@ -250,14 +258,17 @@ export function VisitorApp() {
     onComplete={id => { setOnboardingOpen(false); const intent = deferredIntent.current; deferredIntent.current = null;
       if (intent?.kind === 'my-profile') window.location.assign(buildPath('profile', { profileId: id })); else fulfilIntent(intent);
     }} />;
-  return <AppPresentation showFloatingActions={!projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
+  return <AppPresentation showFloatingActions={!settings && !projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode}
         onOpenCategory={id => { if (presentation === 'mobile') setPortalPopup({ profileId: profile.id, categoryId: id }); else {
           desktopCatalogueOrigin.current = null;
           navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}` + previewSuffix);
         } }}
-        onSettingsOpen={() => { if (!settings && sharedPath) navigate(buildPath('controlCenter'), { state: { settingsReturn: sharedPath } }); }} />}
+        onSettingsOpen={() => { if (!settings && sharedPath) {
+          const path = sharedSettingsPath(location.pathname + location.search + location.hash);
+          if (path) navigate(path);
+        } }} />}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
         {visitorPreview && profileId && <VisitorPreviewBar onDone={() => window.location.assign(visitorPreviewReturn(profileId))} />}
         <div id="app-viewport">
@@ -273,7 +284,7 @@ export function VisitorApp() {
                 </DeferredSurfaceBoundary>}
                 <DeferredSurfaceBoundary active onClose={back} resetKey={location.pathname}>
                   <Suspense fallback={pending}>
-                    {settings ? <ControlCenterPage theme={theme} appearanceMode={appearance.mode} onAppearanceModeChange={choosePublicMode}
+                    {settings ? <ControlCenterPage sharedReadOnly theme={theme} appearanceMode={appearance.mode} onAppearanceModeChange={choosePublicMode}
                       systemGray={systemGray} onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })}
                       accentColor={accentColor} onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })}
                       highContrast={highContrast} onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })}

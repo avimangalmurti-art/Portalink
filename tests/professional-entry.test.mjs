@@ -23,8 +23,16 @@ function fixture(ready = true, presentation = 'web', settings = {}) {
     './CityClock': { CityClock: 'city-clock' },
     './professional-entry.css': {},
   });
-  return { calls, appearanceCalls, presentationCalls, appearance, render: () => ProfessionalEntry({ ready, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin') }) };
+  return { calls, appearanceCalls, presentationCalls, appearance, render: (embedded = false) => ProfessionalEntry({ ready, embedded, onCreate: () => calls.push('create'), onSignIn: () => calls.push('signin') }) };
 }
+test('embedded company entry keeps a single outer main landmark and page heading', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const tree = fixture(true, presentation).render(true), all = nodes(tree);
+    assert.equal(tree.type, 'section');
+    assert.equal(all.some(node => node.type === 'main' || node.type === 'h1'), false);
+    assert.equal(all.find(node => node.type === 'h2').props.id, tree.props['aria-labelledby']);
+  }
+});
 test('both entry presentations expose only Create account and Sign in immediately alongside the live city clock', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = fixture(true, presentation), tree = h.render(), all = nodes(tree);

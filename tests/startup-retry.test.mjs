@@ -28,7 +28,9 @@ function bootstrap(presentation, authenticated = true) {
     },
   };
   const user = { id: 'account' };
-  const auth = { isInitializing: false, isAuthenticated: authenticated, isSessionUnavailable: false, user: authenticated ? user : null, session: authenticated ? { user } : null, pendingView: null };
+  const requested = [];
+  const auth = { isInitializing: false, isAuthenticated: authenticated, isSessionUnavailable: false, user: authenticated ? user : null, session: authenticated ? { user } : null, pendingView: null,
+    requestAuth(view) { requested.push(view); auth.pendingView = view; } };
   const { ApplicationBootstrap } = sourceModule('src/app/ApplicationBootstrap.tsx', {
     react, 'framer-motion': { AnimatePresence: 'presence' },
     'react-router-dom': { Navigate: 'navigate', matchPath: () => null, useLocation: () => ({ pathname: '/', search: authenticated ? '' : '?welcome=1', hash: '' }) },
@@ -41,6 +43,7 @@ function bootstrap(presentation, authenticated = true) {
     './screenModules': { warmScreenForPath: () => Promise.resolve() },
     './homeStartup': { HOME_STARTUP_TIMEOUT_MS: 12000 },
     '../features/sharing/shareModel': { handleFromPath: () => null },
+    '../features/sharing/sharedSettings': { sharedSettingsPath: () => undefined },
     '../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
     '../presentation/usePresentation': { PresentationContext: { Provider: 'presentation-provider' } },
     '../features/install/useMobileInstall': { useMobileInstallCapture() {} },
@@ -52,6 +55,8 @@ function bootstrap(presentation, authenticated = true) {
     clearTimeout(id) { timers.delete(id); },
   } });
   return {
+    requested,
+    authenticate() { auth.isAuthenticated = true; auth.user = user; auth.session = { user }; auth.pendingView = null; },
     render() { cursor = 0; effects = []; const tree = ApplicationBootstrap(); effects.forEach(effect => effect()); return tree.props.children.map(child => child?.type === 'resume-provider' ? child.props.children : child); },
     timeout() { const pending = [...timers.values()].find(item => item.delay === 12000); assert.ok(pending); pending.callback(); },
   };
@@ -70,7 +75,7 @@ test('restored WEB retains its loading state without requiring an introductory a
  app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render()[0].props.homeStartupPending,false);
 });
 
-test('explicit welcome Continue enters MOBILE immediately and preserves WEB Home-wait handoff', () => {
+test('welcome sign-in enters MOBILE immediately and preserves the WEB Home-readiness handoff', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = bootstrap(presentation, false);
     let [app, presence] = h.render();
@@ -78,16 +83,21 @@ test('explicit welcome Continue enters MOBILE immediately and preserves WEB Home
     presence.props.children.props.onComplete();
     [app, presence] = h.render();
     assert.equal(presence.props.children.props.stillOnly, false);
-    presence.props.children.props.landing.onContinue();
+    const landing = presence.props.children.props.landing;
+    assert.equal(landing.onContinue, undefined); assert.equal(landing.onDismiss, undefined);
+    landing.onSignIn(); assert.deepEqual(h.requested, ['signIn']);
+    assert.equal(h.render()[1].props.children.props.hidden, true, 'The existing account form owns focus during sign-in');
+    h.authenticate();
     [app, presence] = h.render();
     if (presentation === 'mobile') {
-      assert.equal(presence.props.children, null, 'MOBILE guest enters the app without waiting for Home');
+      [app, presence] = h.render();
+      assert.equal(presence.props.children, null, 'An authenticated MOBILE account enters without the WEB Home wait');
       assert.equal(app.props.homeStartupPending, false);
       continue;
     }
     assert.equal(presence.props.children.props.landing, undefined);
     assert.equal(presence.props.children.props.welcomeHandoff, true);
-    assert.equal(presence.props.children.props.stillOnly, false, 'The existing guest animation continues until Home is ready');
+    assert.equal(presence.props.children.props.stillOnly, false, 'The existing workspace handoff remains until real Home readiness');
     app.props.onHomeStartupReady(true); app.props.onHomeStartupShellReady(true);
     h.render(); assert.equal(h.render()[1].props.children, null);
   }

@@ -274,10 +274,12 @@ function bootstrapFixture({ pathname = '/', search = '', hash = '', mobile = tru
   const resume = r.load('src/presentation/mobile/useMobileResumeSession.ts', { './mobileResumeState': core, './mobileMessageDrafts': messageDrafts });
   const routes = { controlCenter: { path: '/settings' }, sharedProfile: { path: '/share/:profileId' }, sharedCollaboration: { path: '/share/:profileId/collaboration' }, sharedProject: { path: '/share/:profileId/c/:categoryId/:projectId' }, sharedProfileCategory: { path: '/share/:profileId/c/:categoryId' } };
   const { ApplicationBootstrap } = r.load('src/app/ApplicationBootstrap.tsx', {
-    '../features/sharing/shareModel': { handleFromPath: () => null }, 'framer-motion': { AnimatePresence: 'animate-presence' },
+    '../features/sharing/shareModel': { handleFromPath: () => null }, '../features/sharing/sharedSettings': { sharedSettingsPath: () => undefined }, 'framer-motion': { AnimatePresence: 'animate-presence' },
     'react-router-dom': { Navigate: 'navigate', useLocation: () => route, matchPath: () => null }, '../App': { App: 'app-boundary' },
     '../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'splash' }, '../components/ui/StateViews': { ErrorState: 'error', LoadingState: 'loading' },
     '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
+    '../components/auth/ProfessionalEntry': { ProfessionalEntry: 'professional-entry' },
+    '../presentation/usePresentation': { PresentationContext: { Provider: 'presentation-provider' } },
     '../contexts/AuthContext': { useAuth: () => auth }, './routes': { routes, buildPath: () => '/share/profile' }, './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exit' },
     '../presentation/useViewportPresentation': { useViewportPresentation: () => mobile ? 'mobile' : 'web' }, './screenModules': { warmScreenForPath: () => Promise.resolve() },
     './homeStartup': { HOME_STARTUP_TIMEOUT_MS: 1000 }, '../features/install/useMobileInstall': { useMobileInstallCapture() {} },

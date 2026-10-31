@@ -1,5 +1,7 @@
 import {motionFixture} from './helpers/motion-fixture.mjs';
 const shareModel = sourceModule('src/features/sharing/shareModel.ts');
+const registration = sourceModule('src/features/auth/registration.ts', { '../sharing/shareModel': shareModel, '../profile/validation': {} });
+const sharedSettings = sourceModule('src/features/sharing/sharedSettings.ts', { '../auth/registration': registration, './shareModel': shareModel });
 import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -82,6 +84,7 @@ function compile(path, imports, globals) {
   const bootstrap = path.endsWith('/ApplicationBootstrap.tsx');
   if (bootstrap) {
     imports = {
+      '../features/sharing/sharedSettings': sharedSettings,
       '../features/install/useMobileInstall': { useMobileInstallCapture() {} },
       '../presentation/mobile/useMobileResumeSession': { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) },
       '../presentation/mobile/MobileResumeContext': { MobileResumeProvider: 'resume-provider' },
@@ -781,8 +784,8 @@ test('shared entry bypasses every intro on both platforms while respecting sessi
     assert.equal(h.waiting.props.children.props.label,'Opening shared content…');
     h.auth.isInitializing=false;
     assert.equal(h.render(),null);
-    assert.equal(h.app?.type ?? null,presentation === 'mobile' ? null : 'app');
-    assert.deepEqual(h.redirects,presentation === 'mobile' ? ['/share/a/c/b/c?page=2'] : []);
+    assert.equal(h.app,null,'Every shared address remains in the public application on either presentation');
+    assert.deepEqual(h.redirects,['/share/a/c/b/c?page=2']);
     assert.equal(h.waiting,false);
     assert.equal(h.requested.length,0,'opening a public link never opens authentication');
     h.setPresentation(presentation==='mobile'?'web':'mobile');
@@ -791,7 +794,7 @@ test('shared entry bypasses every intro on both platforms while respecting sessi
     assert.equal(h.render(),null,'a session refresh keeps shared entry free of branded media');
     assert.equal(h.waiting.props.children.type,'loading');
     h.auth.isInitializing=false;
-    assert.equal(h.render(),null); assert.equal(h.app?.type ?? null,presentation === 'mobile' ? 'app' : null);
+    assert.equal(h.render(),null); assert.equal(h.app,null);
   }
 });
 
