@@ -9,6 +9,7 @@ import { MobileProjectPopup } from '../../components/media/MobileProjectPopup';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { Profile, Project } from '../../types/domain';
 import { ProjectCover } from '../../components/media/ProjectCover';
+import { getProjectCoverPreview } from '../../utils/projectPresentation';
 import { journeyProjects, projectMonth } from './journey';
 import { calendarDay } from './calendar';
 import { DeferredDialog } from '../../components/ui/DeferredDialog';
@@ -19,7 +20,7 @@ import { useTimelineSection } from './useTimelineSection';
 const PortalProjectPopup = React.lazy(() => import('../../components/profile/PortalProjectPopup').then(module => ({ default: module.PortalProjectPopup })));
 
 export function JourneyCover({ project, sizes = '92px' }: { project: Project; sizes?: string }) {
-  return <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} kind={project.coverKind}
+  return <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} kind={project.coverKind} previewSource={getProjectCoverPreview(project)}
     alt={project.coverAlt || project.title} sizes={sizes} priority="viewport" fit="contain"
     allowPdfFallback={false} allowVideoFallback={false} fallbackAttachments={project.attachments} />;
 }

@@ -24,7 +24,7 @@ export function PlatformGrid({
   onSoCal?: () => void;
   onMessage?: () => void;
 }) {
-  return <ul aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
+  return <ul role="list" aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
       {links.map((link, index) => {
         if (isProfileLinkAction(link.action)) {
           if (link.hidden || (isSharedView && (link.action === 'collaboration' || link.action === 'message'))) return null;

@@ -3365,7 +3365,11 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 
 /* The opening loader fills the phone, not just the future page rectangle.
    Keep the page's layout reservation; paint below the fixed controls. Once any
-   page is ready, later lazy pages and retries must never cover readable work. */
+   page is ready, later lazy pages and retries must never cover readable work.
+   Its single indicator replaces the page glyph only while this mask is active. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view])) .premium-media-loading-mark {
+  visibility: hidden;
+}
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::before {
   --opening-loader-fill: color-mix(in srgb, var(--surface-sunken) 86%, var(--surface-raised));
   content: '';
@@ -4518,28 +4522,40 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 #root .codex-shell[data-presentation='mobile'] .studio-section-title > #studio-attention {
   margin: 0;
 }
-/* Reserve the visitor actions' column; added links wrap within the left column. */
+/* Reserve Follow/Save only beside the primary icons; later links use a full row. */
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools > .side-panel-control-row:has(> [data-profile-visitor-actions]) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: start;
-  column-gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  column-gap: 0;
+  row-gap: 0;
 }
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) [data-mobile-profile-links] {
-  width: 100%;
-  min-width: 0;
-  grid-column: 1;
+  display: contents;
 }
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools [data-profile-visitor-actions] {
-  grid-column: 2;
-  grid-row: 1;
-  align-self: start;
+  order: 1;
+  min-height: 44px;
+  align-items: center;
   flex-wrap: nowrap;
   margin: 0;
+  margin-inline-start: auto;
 }
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) .profile-link-icons {
-  width: 100%;
-  max-width: 100%;
+  display: contents;
+}
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) .profile-link-icons > li {
+  flex: 0 0 44px;
+  order: 0;
+}
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) .profile-link-icons::after {
+  content: '';
+  flex: 0 0 100%;
+  height: 0;
+  order: 2;
+}
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) .profile-link-icons > li:nth-child(n + 4) {
+  order: 3;
+  margin-top: 8px;
 }
 /* Resolve the reader's top anchor once, before descendant safe-area overrides. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] {
@@ -5752,7 +5768,8 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 #root .codex-shell[data-presentation='mobile'] .profile-return-back {
   position: fixed;
   top: var(--safe-area-top, env(safe-area-inset-top, 0px));
-  inset-inline-start: var(--mobile-navigation-inset-start);
+  inset-inline-start: auto;
+  inset-inline-end: var(--mobile-navigation-inset-end);
   z-index: 55;
   display: grid;
   place-items: center;
@@ -5814,11 +5831,15 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   min-height: 44px;
   padding: 0;
   border: 0;
-  border-radius: 14px;
   background: var(--navigation-surface, var(--nav-button-background));
   color: var(--navigation-foreground, var(--nav-button-text));
   box-shadow: var(--navigation-shadow, none);
   text-decoration: none;
+}
+@layer portalink-interface-shapes {
+  #root .codex-shell[data-presentation='mobile'] .portalink-world-header .world-view-back {
+    border-radius: 14px !important;
+  }
 }
 #root .codex-shell[data-presentation='mobile'] .portalink-world-header .world-view-back:focus-visible {
   outline: 2px solid var(--navigation-focus-ring, var(--focus-ring));

@@ -99,7 +99,7 @@ test('the portal directory keeps one visible Back control and registers its acti
   assert.equal(h.back, 1); back[0].props.onClick(); assert.equal(h.back, 2); h.dispose();
 });
 
-test('public portal grid uses each chosen icon, creator avatar, both names and canonical category link', async () => {
+test('public portal grid uses each chosen icon, creator avatar, portal name and canonical category link', async () => {
   const h = harness();
   assert.equal(nodes(h.tree).some(node => node.type === 'loading'), true);
   h.runTimers(); assert.equal(h.calls.length, 1); assert.equal(h.calls[0].offset, 0);
@@ -140,6 +140,7 @@ test('MOBILE uses centered overflow labels while portal icons, creator badges, a
     const tree = await h.flush(); const link = links(tree)[0];
     assert.equal(link.props.to, '/p/creator-b/c/long');
     assert.equal(link.props.title, `${item.label} — ${item.creator.name}`);
+    assert.equal(link.props['aria-label'], `${item.label} — ${item.creator.name}`);
     assert.equal(nodes(link).filter(node => node.props.className === 'profile-collection-tile squircle').length, 1);
     const glyph = nodes(link).find(node => node.type === 'interface-icon' && node.props.icon === 'chosen:camera');
     assert.equal(glyph.props.keepColor, true); assert.equal(glyph.props.style.color, '#8a44bb');
@@ -147,26 +148,25 @@ test('MOBILE uses centered overflow labels while portal icons, creator badges, a
     assert.equal(avatar.props.name, item.creator.name); assert.equal(avatar.props.avatar, '/creator-b.jpg');
     const labels = nodes(link).filter(node => node.type === 'preview-creator-name');
     const creatorLabel = nodes(link).find(node => node.props.className?.split(' ').includes('public-portal-creator-name'));
+    assert.equal(creatorLabel, undefined);
     if (presentation === 'mobile') {
-      assert.deepEqual(labels.map(node => node.props.name), [item.label, item.creator.name]);
+      assert.deepEqual(labels.map(node => node.props.name), [item.label]);
       assert.ok(labels.every(node => node.props.centered === true && node.props.active === true));
-      assert.equal(creatorLabel.props.className, 'profile-collection-name public-portal-creator-name');
     } else {
       assert.equal(labels.length, 0);
       assert.equal(nodes(link).find(node => node.props.className === 'profile-collection-name').props.children, item.label);
-      assert.equal(creatorLabel.props.children, item.creator.name); assert.equal(creatorLabel.props.className, 'public-portal-creator-name');
     }
     h.dispose();
   }
 });
 
-test('an outgoing MOBILE directory pauses both name revealers without removing its portal identities or rereading data', async () => {
+test('an outgoing MOBILE directory pauses its portal label without removing its identity or rereading data', async () => {
   const h = harness('', 'account-a', { presentation: 'mobile' }); h.tree; h.runTimers();
   h.calls[0].response.resolve({ items: [portal('a')], nextOffset: null }); await h.flush();
   h.environment.active = false;
   const inactive = h.rerender();
   const labels = nodes(inactive).filter(node => node.type === 'preview-creator-name');
-  assert.equal(labels.length, 2); assert.ok(labels.every(node => node.props.active === false));
+  assert.equal(labels.length, 1); assert.ok(labels.every(node => node.props.active === false));
   assert.equal(links(inactive).length, 1); assert.equal(h.calls.length, 1);
   h.environment.active = true;
   assert.ok(nodes(h.rerender()).filter(node => node.type === 'preview-creator-name').every(node => node.props.active === true));

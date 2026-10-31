@@ -7,6 +7,9 @@
 /* Scrolling lends Back's slot to the current page, without moving artwork or
    the header's progress/density controls. Idle restores the exact rest layout. */
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back:not(.mobile-project-portal-preview) {
+  /* The custom surface owns paint instead of Safari's native button finish. */
+  -webkit-appearance: none;
+  appearance: none;
   --navigation-control-transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast);
   transition: var(--navigation-control-transition);
 }

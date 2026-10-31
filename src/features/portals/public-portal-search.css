@@ -36,6 +36,11 @@
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-back { width: 44px; height: 44px; }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-field { width: 100%; }
+/* The rounded wrapper owns focus; the inner text field adds no second ring. */
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-field input:is(:focus, :focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-scroll {
   padding-inline: 16px;
   padding-bottom: calc(24px + var(--mobile-content-safe-bottom, 104px));

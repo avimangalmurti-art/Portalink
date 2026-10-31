@@ -42,6 +42,7 @@ function componentHarness(file, name, initial, overrides = {}) {
     '../../components/ui/DeferredDialog': { DeferredDialog: 'dialog' },
     '../../components/media/MobileProjectPopup': { MobileProjectPopup: 'project-popup' },
     '../../components/media/ProjectCover': { ProjectCover: 'project-cover' },
+    '../../utils/projectPresentation': sourceModule('src/utils/projectPresentation.ts'),
     '../../components/profile/PortalProjectPopup': { PortalProjectPopup: 'portal-project-popup' },
     '../../presentation/usePresentation': { usePresentation: () => props.presentation ?? 'mobile' },
     '../citations/useJourneyCitations': { useJourneyCitations: () => props.events ?? [] },

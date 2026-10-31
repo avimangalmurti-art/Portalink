@@ -164,7 +164,7 @@ test('the fourth Explore button opens the real portal-search route without refre
  assert.equal(button('Reload Home content'),undefined);
  button('Open globe search').props.onClick();button('Search accounts').props.onClick();
  const portalButton=button('Search public portals');assert.ok(portalButton);
- assert.equal(nodes(portalButton).find(node=>node.type==='InterfaceIcon').props.icon,'LayoutGridIcon');
+ assert.equal(nodes(portalButton).find(node=>node.type==='InterfaceIcon').props.icon,'PortalRingIcon');
  portalButton.props.onClick();assert.deepEqual(h.navigation,[['/portal-search']]);
  assert.equal(h.reloads,0);assert.equal(h.actions,null);
  assert.equal(nodes(h.render()).filter(node=>node.props.className==='mobile-home-header-button').length,4);

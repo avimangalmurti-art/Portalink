@@ -123,13 +123,12 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
           {hasResults && <div className="profile-collection">
             <ul className="profile-collection-grid" aria-label="Public portals" aria-busy={directory.loadingMore}>
               {directory.items.map(portal => <li key={`${portal.profileId}:${portal.id}`}>
-                <Link to={buildPath('profileCategory', { profileId: portal.profileId, categoryId: portal.id })} className="profile-collection-link public-portal-link" title={`${portal.label} — ${portal.creator.name}`}>
+                <Link to={buildPath('profileCategory', { profileId: portal.profileId, categoryId: portal.id })} className="profile-collection-link public-portal-link" title={`${portal.label} — ${portal.creator.name}`} aria-label={`${portal.label} — ${portal.creator.name}`}>
                   <span className="public-portal-mark" aria-hidden="true">
                     <span className="profile-collection-tile squircle"><InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor={Boolean(portal.creator.accentColor)} style={portal.creator.accentColor ? { color: portal.creator.accentColor } : undefined} /></span>
                     <span className="public-portal-avatar"><CreatorAvatar name={portal.creator.name} avatar={portal.creator.avatar} className="h-full w-full text-[12px]" /></span>
                   </span>
                   <span className="profile-collection-name">{isMobile ? <PreviewCreatorName name={portal.label} active={active} centered /> : portal.label}</span>
-                  <span className={isMobile ? 'profile-collection-name public-portal-creator-name' : 'public-portal-creator-name'}>{isMobile ? <PreviewCreatorName name={portal.creator.name} active={active} centered /> : portal.creator.name}</span>
                 </Link>
               </li>)}
             </ul>
