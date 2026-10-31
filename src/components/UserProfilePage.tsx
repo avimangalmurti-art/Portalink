@@ -733,7 +733,7 @@ export function UserProfilePage({
 
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;
-  const mobileCatalogueSpacing = isMobile && !isSharedView && !mobileContent && !mobileProjectSelected && activeView === 'projects' && !isJourney && !isReorderingProjects;
+  const mobileCatalogueSpacing = isMobile && !isSharedView && !mobileContent && !mobileProjectSelected && activeView === 'projects' && !isJourney;
   const showsWebDensity = webProfileHeader && activeView === 'projects' && !isJourney && !isReorderingProjects;
   const projectWall = isMobile && showsOwnerTools && profile.projects.length === 0 ? <div className="first-project-empty-grid"><button type="button" className="first-project-empty-tile" onClick={onPublishProject}><span aria-hidden="true">+</span><span>Publish your first project</span></button></div> : imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Add a project to start building your catalogue and share your work.' : `${displayName} has not published any work yet.`} action={showsOwnerTools && onPublishProject ? { label: 'Add a project', onClick: onPublishProject } : undefined} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
     <JustifiedImageWall key={profile.id} label={`${displayName} — profile imagery`} columns={columnsPerRow} onColumnsChange={density.setColumns} allowLayoutControls={!isSharedView} showDensityControl={!webProfileHeader} items={imageryCells} reorderMode={isReorderingProjects ? {

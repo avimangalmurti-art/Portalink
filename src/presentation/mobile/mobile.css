@@ -5936,13 +5936,14 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 #root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .profile-compact-header {
   display: block;
   min-height: 0;
-  height: calc(var(--mobile-screen-action-top) + 56px);
+  height: 56px;
   padding: 0;
 }
 #root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions {
-  position: fixed;
-  top: var(--mobile-screen-action-top);
-  inset-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
+  position: relative;
+  top: auto;
+  inset-inline: auto;
+  margin-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
   z-index: 60;
   display: flex;
   flex-direction: row-reverse;
@@ -5965,6 +5966,16 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 }
 #root .codex-shell[data-presentation='mobile']:has(.app-screen-layer.screen-active [data-profile-reordering]) .mobile-context-floating {
   display: none;
+}
+/* The artwork already owns the high-contrast edge. A second ring beneath it
+   would show through transparent covers while opaque covers hide it. */
+#root .codex-shell[data-presentation='mobile'].high-contrast .profile-project-reorder-card {
+  --tw-ring-color: transparent;
+}
+@media (prefers-contrast: more) {
+  #root .codex-shell[data-presentation='mobile'] .profile-project-reorder-card {
+    --tw-ring-color: transparent;
+  }
 }
 
 /* Studio dividers share the content inset instead of spanning the viewport. */
