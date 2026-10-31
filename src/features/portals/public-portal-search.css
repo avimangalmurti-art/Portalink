@@ -19,6 +19,16 @@
 .public-portal-avatar { position: absolute; inset-inline-end: -6px; bottom: -6px; width: 28px; height: 28px; border: 2px solid var(--surface-canvas); border-radius: 26%; background: var(--surface-canvas); }
 .public-portal-creator-name { display: block; max-width: 100%; color: var(--text-secondary); font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
 .public-portal-pagination { display: block; width: fit-content; margin: 16px auto 0; text-align: center; }
+#root .codex-shell[data-presentation='web'] [data-public-portal-search] .profile-collection-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 128px), 1fr));
+  max-width: 960px;
+  margin-inline: auto;
+  gap: 20px 12px;
+}
+#root .codex-shell[data-presentation='web'] [data-public-portal-search] .public-portal-mark {
+  width: min(100%, 112px);
+  --interface-icon-xl: clamp(24px, 3vw, 36px);
+}
 /* This nested page owns its phone safe edges; the outer page adds no padding. */
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-header {
   padding-top: calc(16px + var(--mobile-content-safe-top, var(--safe-area-top, env(safe-area-inset-top, 0px))));

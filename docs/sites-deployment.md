@@ -1,3 +1,15 @@
+## 2026-10-30 - Larger six-column WEB portal publication authorized
+
+Explicit request covers pending WEB112px portal tiles/36px glyphs on wide panes and adaptive up-to-six columns in a960px group. MOBILE4/80/24 preserved. Owned codex/socal-release78b3ff8/live565; exact3paths1CSS2docs. Fresh configured client+worker build/main+visitor guards, independent review and prior exact-source WEB1280/1920/640 +MOBILE420 evidence pass. JS retains prior164focused/type/lint evidence without broad rerun. Exact main-base PR148/source/frozen build/archive/native publish/live checks follow. Retain public audience/domains/runtime2/Supabase/worker+D1/423assets/fourSQL; no JS/service/Auth/backend/config/dependency/main operation. Final receipt follows above.
+
+## 2026-10-30 - WEB portal grid published 565
+
+Live https://portalinknetworks.com/ from `78b3ff82b81d1522cdd30bf7cee33adb1d00de1b` on codex/socal-release/GitHub/Sites mirror; open draft PR148 main-base matches source, main unmerged. Desktop now shares MOBILE's four-column squircle grid/card spacing with centered names, creator avatar badges and creator accent colours; MOBILE geometry preserved. One production CSS change.
+
+Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_af7d1a20a3388191b7395a46efa96867`; deployment `appgdep_6ae5468599308191aaa7ff9d2164ae93` succeeded `2026-10-31T01:38:24.401738+00:00`. Public audience/domains/runtime2/Supabase/worker+D1 preserved. No approval rejection, duplicate publish, JS/service/Auth/backend/config/dependency/main operation.
+
+Fresh configured build/main+visitor guards/source+archive review pass; prior exact-source WEB/MOBILE browser proof applies and unchanged JS retains preceding164focused/type/lint evidence without rerun.3source paths/648payloads(647byte-exact plus hosting normalization),423assets/fourSQL/server unchanged. Archive48,903,167bytes/SHA256 `11fa2526a27c766e4126cd3504f3701454bda9ab4134d7fcb376c150f711a7e5`; native83,681,280bytes/SHA256 `85ae9cb67bf0e915b467efdc452554a6c18c946a1d06c6fa55ccd8da6c4d5da9`. Both live entry sets/all215JS/CSS assets match,0failures. Physical phone/connected authenticated UI/CI unverified. Receipts logs/web-portal-release*.json; only postpublication docs dirty, no further deployment required.
+
 ## 2026-10-30 - WEB portal grid publication authorized
 
 Explicit publication request covers the pending WEB four-column portal grid/card-spacing parity edit. Owned codex/socal-release d225a34/live564; exact3paths=1CSS2docs. MOBILE geometry preserved. Fresh configured client+worker build/main+visitor guards/independent review/diff-check pass; prior actual-component WEB1280light/dark/640 and MOBILE420 proof applies. Unchanged JS retains prior164focused/type/lint evidence; no broad rerun/physical-device/connected-authenticated/CI claim. Exact main-base PR148 source/frozen build/archive/native publication/live checks follow. Retain public audience/domains/runtime2/Supabase/worker+D1/423assets/fourSQL; no JS/service/Auth/backend/config/dependency/main operation. Final receipt follows above.
