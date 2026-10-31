@@ -600,7 +600,7 @@
   pointer-events: none;
   touch-action: pan-y;
   opacity: 1;
-  transition: none;
+  transition: opacity var(--m-fast) var(--m-enter), visibility 0s;
 }
 
 /* Keep the installed capsule low without extending its containing layer past

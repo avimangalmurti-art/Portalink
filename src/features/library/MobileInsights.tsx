@@ -58,7 +58,7 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
   const pullLabel = useHomePullRefresh(surfaceRef, isMobile && screenActive, busy, refresh, undefined,
     () => surfaceRef.current?.closest<HTMLElement>('.mobile-insights-scroll')?.scrollTop ?? Infinity);
   const metricControls = !state.loading && !state.error ? <div className="insights-metrics" data-ui-shape="capsule" role="group" aria-label="Insight metric">
-    {metrics.map(item => <button data-ui-shape="action" data-system-color="" data-insights-series={item.key} type="button" key={item.key} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" /><span>{item.label}</span></button>)}
+    {metrics.map(item => <button data-ui-shape="action" data-system-color="" data-insights-series={item.key} type="button" key={item.key} aria-label={isMobile ? item.label : undefined} title={isMobile ? item.label : undefined} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" />{(!isMobile || metric === item.key) && <span>{item.label}</span>}</button>)}
   </div> : null;
   const mobileFilters = <div className="insights-period">
     <label className="insights-period-picker" title={`Insights period: ${periodLabel}`}>

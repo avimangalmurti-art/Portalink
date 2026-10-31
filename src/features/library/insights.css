@@ -126,13 +126,14 @@
 [data-presentation='mobile'] .creator-insights .insights-period :is(button, select),
 [data-presentation='mobile'] .creator-insights .insights-metrics button { min-height: 44px; }
 [data-presentation='mobile'] .creator-insights .insights-metrics { margin-bottom: 28px; }
-[data-presentation='mobile'] .creator-insights .insights-metrics button { padding: 8px 4px; gap: 5px; font-size: 13px; }
+[data-presentation='mobile'] .creator-insights .insights-metrics button { flex: 0 0 44px; padding: 8px 4px; gap: 5px; font-size: 13px; }
+[data-presentation='mobile'] .creator-insights .insights-metrics button[aria-pressed='true'] { flex: 1 1 auto; }
 [data-presentation='mobile'] .creator-insights .insights-period { gap: 8px; margin-bottom: 20px; }
 [data-presentation='mobile'] .creator-insights .insights-period > .insights-metrics {
-  flex: 1; min-width: 0; max-width: none; margin: 0;
+  display: flex; flex: 1; min-width: 0; max-width: none; margin: 0;
   border: 1px solid var(--hairline); border-radius: 999px;
 }
-[data-presentation='mobile'] .creator-insights .insights-data-surface > .insights-period .insights-metrics button { flex-direction: column; gap: 2px; }
+[data-presentation='mobile'] .creator-insights .insights-data-surface > .insights-period .insights-metrics button { flex-direction: row; gap: 5px; white-space: nowrap; }
 [data-presentation='mobile'] .creator-insights .insights-period-picker {
   position: relative; display: grid; place-items: center; flex: 0 0 44px;
   width: 44px; height: 44px; border: 1px solid var(--hairline); border-radius: 50%;
@@ -153,7 +154,7 @@
   [data-presentation='mobile'] .creator-insights .insights-data-surface > .insights-period { flex-wrap: wrap; }
   [data-presentation='mobile'] .creator-insights .insights-data-surface > .insights-period > .insights-metrics { flex-basis: 100%; }
   [data-presentation='mobile'] .creator-insights .insights-period .insights-metrics button {
-    flex-direction: column; gap: 2px; padding: 6px 2px; font-size: 12px; line-height: 16px;
+    flex-direction: row; gap: 5px; padding: 6px 2px; font-size: 12px; line-height: 16px;
   }
 }
 [data-presentation='mobile'] .creator-insights .insights-data-surface { padding: 22px 18px; }

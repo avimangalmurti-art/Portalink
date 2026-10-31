@@ -321,7 +321,9 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.equal(nodes(tree).filter(node => node.props['aria-label'] === 'Insight metric').length, 1);
     assert.equal(group.props.role, 'group');
     assert.equal(group.props['data-ui-shape'], 'capsule');
-    assert.deepEqual(metricButtons(group).map(text), ['Opens', 'Completed', 'Page saves']);
+    assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['Opens', '', ''] : ['Opens', 'Completed', 'Page saves']);
+    assert.deepEqual(metricButtons(group).map(node => node.props['aria-label']), presentation === 'mobile' ? ['Opens', 'Completed', 'Page saves'] : [undefined, undefined, undefined]);
+    assert.equal(nodes(group).filter(node => node.type === 'icon').length, 3);
     assert.deepEqual(metricButtons(group).map(node => node.props['aria-pressed']), [true, false, false]);
     assert.equal(nodes(top).some(node => node.props['aria-label'] === 'Insight metric'), presentation === 'mobile');
     assert.equal(picker.type, 'select');
@@ -350,8 +352,15 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.equal(picker.props.value, '30d');
     assert.equal(fixture.periods.at(-1), '30d');
     assert.deepEqual(metricButtons(group).map(node => node.props['aria-pressed']), [false, true, false]);
+    assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', 'Completed', ''] : ['Opens', 'Completed', 'Page saves']);
     assert.equal(accessibleText(headline(tree)), '8completed reads');
     if (presentation === 'mobile') assert.equal(picker.props.title, 'Insights period: 30 days');
+    metricButtons(group)[2].props.onClick();
+    tree = fixture.render();
+    group = nodes(tree).find(node => node.props['aria-label'] === 'Insight metric');
+    assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', '', 'Page saves'] : ['Opens', 'Completed', 'Page saves']);
+    assert.deepEqual(metricButtons(group).map(node => node.props['aria-label']), presentation === 'mobile' ? ['Opens', 'Completed', 'Page saves'] : [undefined, undefined, undefined]);
+    assert.equal(accessibleText(headline(tree)), '5current page saves');
   }
 });
 

@@ -32,7 +32,7 @@ export type AppRoute = {
   kind: 'profile';
   profileId: Id;
 } | {
-  kind: 'collaboration' | 'sharedCollaboration' | 'socal';
+  kind: 'collaboration' | 'sharedCollaboration';
   profileId: Id;
 } | {
   kind: 'category';
@@ -90,7 +90,9 @@ export type AppRoute = {
  * Explicit shared-link routes and browser preferences remain public. Every
  * ordinary app destination, including Home, requires an account.
  */
-export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['home', 'messages', 'saved', 'notifications', 'insights', 'profileEditor', 'search', 'portalSearch', 'portalink', 'profile', 'category', 'project', 'activity', 'collaboration', 'socal', 'item', 'portals', 'studio']);
+export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['home', 'messages', 'saved', 'notifications', 'insights', 'profileEditor', 'search', 'portalSearch', 'portalink', 'profile', 'category', 'project', 'activity', 'collaboration', 'item', 'portals', 'studio']);
+
+const retiredCalendarPath = '/p/:profileId/socal';
 
 /** What the person was reaching for, for the auth gate's wording. */
 export function describeRoute(route: AppRoute): string {
@@ -101,8 +103,6 @@ export function describeRoute(route: AppRoute): string {
       return 'search public portals';
     case 'portalink':
       return 'explore Portalink';
-    case 'socal':
-      return 'open SoCal';
     case 'profile': case 'category': case 'activity': case 'collaboration':
       return 'explore this creator';
     case 'project': case 'item':
@@ -125,7 +125,8 @@ export function describeRoute(route: AppRoute): string {
 }
 function parse(pathname: string, search: string): AppRoute {
   if (matchPath(routes.profileEditor.path, pathname)) return { kind: 'profileEditor' };
-  for (const kind of ['collaboration', 'sharedCollaboration', 'socal'] as const) {
+  if (matchPath(retiredCalendarPath, pathname)) return { kind: 'portalSearch' };
+  for (const kind of ['collaboration', 'sharedCollaboration'] as const) {
     const match = matchPath(routes[kind].path, pathname);
     if (match?.params.profileId) return { kind, profileId: match.params.profileId };
   }
@@ -274,7 +275,9 @@ export function useAppRoute(): AppRoute {
   // `/discover` is retained as a compatibility address for the old discovery
   // surface. Global discovery now has the explicit `/search` address.
   useEffect(() => {
-    if (matchPath(routes.discovery.path, pathname)) {
+    if (matchPath(retiredCalendarPath, pathname)) {
+      navigate(routes.portalSearch.path, { replace: true });
+    } else if (matchPath(routes.discovery.path, pathname)) {
       navigate(routes.search.path, { replace: true });
     }
   }, [navigate, pathname]);
@@ -319,43 +322,6 @@ export function useRouteNavigator() {
       // Only a recorded entry from this creator's profile earns browser Back.
       // A pasted URL returns to the profile without leaving the application.
       if (typeof returnPath === 'string' && returnPath.split(/[?#]/)[0].replace(/\/$/, '') === fallback && window.history.state?.idx > 0) {
-        navigate(-1);
-      } else {
-        navigate(fallback, { replace: true });
-      }
-    },
-    socal: (profileId: Id, fromDock = false) => {
-      const current = locationRef.current;
-      const target = buildPath('socal', { profileId });
-      if (fromDock && current.pathname === target) return;
-      const index: unknown = fromDock ? window.history.state?.idx : null;
-      navigate(target, {
-        state: { socalReturn: `${current.pathname}${current.search}${current.hash}`,
-          ...(fromDock ? { dockEntry: 'socal', socalFromDock: true,
-            ...(typeof index === 'number' && Number.isSafeInteger(index) && index >= 0 ? { socalReturnIndex: index } : {}) } : {}) }
-      });
-    },
-    closeSoCal: (profileId: Id) => {
-      const state: unknown = locationRef.current.state;
-      const returnPath = state && typeof state === 'object' && 'socalReturn' in state ? state.socalReturn : null;
-      const fallback = buildPath('profile', { profileId });
-      const index: unknown = window.history.state?.idx;
-      const dockContext = state && typeof state === 'object' && ('socalFromDock' in state || 'socalReturnIndex' in state || ('dockEntry' in state && state.dockEntry === 'socal'));
-      let dockReturn = false;
-      if (state && typeof state === 'object' && dockContext && 'dockEntry' in state && state.dockEntry === 'socal' && 'socalFromDock' in state && state.socalFromDock === true
-        && 'socalReturnIndex' in state && typeof state.socalReturnIndex === 'number' && Number.isSafeInteger(state.socalReturnIndex) && state.socalReturnIndex >= 0
-        && typeof index === 'number' && Number.isSafeInteger(index) && index > 0 && index === state.socalReturnIndex + 1
-        && typeof returnPath === 'string' && returnPath.startsWith('/') && !returnPath.startsWith('//')) {
-        const path = returnPath.split(/[?#]/)[0];
-        try {
-          const decodedReturnPath = decodeURI(returnPath);
-          dockReturn = !Array.from(decodedReturnPath).some(character => character === '\\' || character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
-            && parse(path, '').kind !== 'unknown'
-            && path.replace(/\/+$/, '') !== buildPath('socal', { profileId });
-        } catch { /* A malformed encoded return is not a known local source. */ }
-      }
-      const profileReturn = !dockContext && typeof returnPath === 'string' && returnPath.split(/[?#]/)[0].replace(/\/$/, '') === fallback && window.history.state?.idx > 0;
-      if (profileReturn || dockReturn) {
         navigate(-1);
       } else {
         navigate(fallback, { replace: true });

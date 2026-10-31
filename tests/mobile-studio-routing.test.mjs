@@ -33,7 +33,7 @@ function renderRoute(presentation, kind, overrides = {}) {
     React, StudioPage: 'studio', SavedPage: 'saved', FeatureInDesignPage: 'placeholder', LoadingState: 'loading',
     presentation, route: { kind }, pathname: `/${kind}`, auth: { isAuthenticated: true, isInitializing: false, phase: 'authenticated', user: { id: 'account-a' } },
     PROTECTED_ROUTE_KINDS: routeModel.PROTECTED_ROUTE_KINDS,
-    isSoCalOpen: false, isSharedRoute: false, isProfileEditorRoute: false, activeCategory: null, isSearchOpen: false, isMessagesOpen: false,
+    isSharedRoute: false, isProfileEditorRoute: false, activeCategory: null, isSearchOpen: false, isMessagesOpen: false,
     routeStateView: null, isControlCenterOpen: false, iconPickerCategoryId: null,
     routeActivityKind: null, viewedProfileId: null, activeCategoryId: null, activeDestination: 'Today',
     nav: { back: () => calls.push('back') }, openProjectById: (...args) => calls.push(['project', ...args]), requestGlobalPublish: () => calls.push('create'), requestMobilePublish: () => calls.push('create'),

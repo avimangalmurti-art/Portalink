@@ -29,6 +29,9 @@
   width: min(100%, 112px);
   --interface-icon-xl: clamp(24px, 3vw, 36px);
 }
+/* Creator accents fill the tile; the viewer's mode determines its glyph. */
+#root .codex-shell [data-public-portal-search] { --public-portal-icon-ink: #000; }
+#root .codex-shell.theme-dark [data-public-portal-search] { --public-portal-icon-ink: #fff; }
 /* This nested page owns its phone safe edges; the outer page adds no padding. */
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-header {
   padding-top: calc(16px + var(--mobile-content-safe-top, var(--safe-area-top, env(safe-area-inset-top, 0px))));

@@ -1,344 +1,85 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import React from 'react';
 import { matchPath } from 'react-router-dom';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
-import ts from 'typescript';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value));
-const nodes = tree => Array.isArray(tree) ? tree.flatMap(nodes) : React.isValidElement(tree) ? [tree, ...nodes(tree.props.children)] : [];
-const text = tree => Array.isArray(tree) ? tree.map(text).join('') : React.isValidElement(tree) ? text(tree.props.children) : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : '';
-const button = (tree, name) => nodes(tree).find(node => node.type === 'button' && (node.props['aria-label'] === name || text(node).trim() === name));
-const navigation = sourceModule('src/components/navigation.ts');
-const routes = sourceModule('src/app/routes.ts', { '../components/navigation': navigation });
-
-function routeHarness(path = '/p/creator', state = null, index = 0) {
-  const calls = [];
-  const history = { state: { idx: index } };
+const routes = sourceModule('src/app/routes.ts', { '../components/navigation': sourceModule('src/components/navigation.ts') });
+function routeHarness(path = '/', state = null, index = 0) {
+  const calls = [], effects = [], history = { state: { idx: index } };
   const parseLocation = (address, nextState) => {
     const url = new URL(address, 'https://portalink.example.test');
     return { pathname: url.pathname, search: url.search, hash: url.hash, state: nextState };
   };
   let location = parseLocation(path, state), locationRef;
-  const entries = new Map([[index, location]]);
   const navigate = (target, options) => {
     calls.push([target, options]);
-    if (typeof target === 'number') { history.state.idx += target; location = entries.get(history.state.idx) ?? location; return; }
+    if (typeof target === 'number') return;
     location = parseLocation(target, options?.state ?? null);
-    if (!options?.replace) history.state.idx += 1;
-    entries.set(history.state.idx, location);
+    if (!options?.replace) history.state.idx++;
   };
   const routing = sourceModule('src/app/useAppRoute.ts', {
-    react: { useEffect() {}, useMemo: create => create(), useRef: value => locationRef ??= { current: value } },
-    'react-router-dom': { matchPath, useLocation: () => location, useNavigate: () => navigate },
-    './routes': routes,
-    '../types/engagement': { activityKindFromSlug: value => ({ likes: 'like', saved: 'save', reposts: 'repost' })[value] },
+    react: { useEffect: effect => effects.push(effect), useMemo: create => create(), useRef: value => locationRef ??= { current: value } },
+    'react-router-dom': { matchPath, useLocation: () => location, useNavigate: () => navigate }, './routes': routes,
+    '../types/engagement': sourceModule('src/types/engagement.ts'),
     '../utils/projectContinuity': { beginProjectContinuity: () => false },
     '../features/profile/cataloguePageNavigation': { withCataloguePageTarget: value => value },
   }, { window: { history } });
-  return { routing, calls, history, nav: () => routing.useRouteNavigator(), location: () => location };
+  return { routing, calls, history, nav: () => routing.useRouteNavigator(), location: () => location,
+    flushEffects() { effects.splice(0).forEach(effect => effect()); } };
 }
 
-test('SoCal addresses the profile in one account-protected URL without adding a public route', () => {
-  const h = routeHarness('/p/creator/socal?profileId=someone-else');
-  assert.equal(routes.buildPath('socal', { profileId: 'creator' }), '/p/creator/socal');
-  assert.deepEqual(plain(h.routing.useAppRoute()), { kind: 'socal', profileId: 'creator' });
-  assert.ok(h.routing.PROTECTED_ROUTE_KINDS.has('socal'));
-  assert.deepEqual(plain(routeHarness('/share/creator/socal').routing.useAppRoute()), { kind: 'unknown' });
-  assert.deepEqual(plain(routeHarness('/p/creator').routing.useAppRoute()), { kind: 'profile', profileId: 'creator' });
-  assert.deepEqual(plain(routeHarness('/share/creator').routing.useAppRoute()), { kind: 'sharedProfile', profileId: 'creator' });
-});
-
-test('SoCal Back restores the exact profile tab through recorded history, including refresh', () => {
-  const from = '/p/creator?view=portals#selected-work';
-  const h = routeHarness(from, null, 3);
-  h.nav().socal('creator');
-  assert.deepEqual(plain(h.calls), [['/p/creator/socal', { state: { socalReturn: from } }]]);
-  const refreshed = routeHarness('/p/creator/socal', plain(h.location().state), h.history.state.idx);
-  refreshed.nav().closeSoCal('creator');
-  assert.deepEqual(refreshed.calls, [[-1, undefined]]);
-});
-
-test('direct, copied, unrelated, and external SoCal return contexts safely replace the matching profile', () => {
-  const unsafeReturns = [undefined, null, 2, '//elsewhere.test', 'https://elsewhere.test/p/creator', '/messages', '/p/another-person', '/share/creator', '/p/creator/socal'];
-  for (const index of [0, 5]) for (const socalReturn of unsafeReturns) {
-    const h = routeHarness('/p/creator/socal', { socalReturn }, index);
-    h.nav().closeSoCal('creator');
-    assert.deepEqual(plain(h.calls), [['/p/creator', { replace: true }]], `${String(socalReturn)} at history ${index}`);
+test('retired private calendar addresses resolve only to protected portal search without a profile selection', () => {
+  for (const path of ['/p/creator/socal', '/p/another-person/socal/', '/p/creator/socal?profileId=someone-else&tab=rules#calendar']) {
+    const h = routeHarness(path);
+    assert.deepEqual(plain(h.routing.useAppRoute()), { kind: 'portalSearch' });
+    assert.ok(h.routing.PROTECTED_ROUTE_KINDS.has('portalSearch'));
+    assert.equal(h.routing.describeRoute(h.routing.useAppRoute()), 'search public portals');
+    assert.equal(h.routing.useAppRoute().profileId, undefined, 'The retired URL cannot request creator or calendar data');
   }
-  const copied = routeHarness('/p/creator/socal', { socalReturn: '/p/creator?view=portals#work' }, 0);
-  copied.nav().closeSoCal('creator');
-  assert.deepEqual(plain(copied.calls), [['/p/creator', { replace: true }]]);
+  assert.equal(Object.hasOwn(routes.routes, 'socal'), false);
+  assert.equal(Object.hasOwn(routeHarness().nav(), 'socal'), false);
+  assert.equal(Object.hasOwn(routeHarness().nav(), 'closeSoCal'), false);
 });
 
-test('the SoCal dock records its exact known source and Back restores its URL and state without growing history', () => {
-  for (const from of ['/', '/?tab=following#latest', '/messages?conversation=thread#latest', '/studio?collection=drafts#saved', '/search?q=Portal#people', '/p/another-person?view=portals#work']) {
-    const sourceState = { source: 'existing-state', position: 420 };
-    const h = routeHarness(from, sourceState, 3);
-    for (let cycle = 0; cycle < 3; cycle++) {
-      h.nav().socal('owner', true);
-      assert.equal(h.location().pathname, '/p/owner/socal');
-      assert.deepEqual(plain(h.location().state), { socalReturn: from, dockEntry: 'socal', socalFromDock: true, socalReturnIndex: 3 });
-      assert.equal(h.history.state.idx, 4);
-      h.nav().closeSoCal('owner');
-      assert.equal(h.history.state.idx, 3);
-      const returned = h.location();
-      assert.equal(returned.pathname + returned.search + returned.hash, from);
-      assert.equal(returned.state, sourceState, 'POP preserves the original source state');
-      assert.deepEqual(h.calls.at(-1), [-1, undefined]);
-    }
+test('legacy calendar replacement discards retired state without growing history or reopening the old screen', () => {
+  for (const index of [0, 4]) {
+    const h = routeHarness('/p/creator/socal?tab=rules&date=2026-10-31#selected', {
+      dockEntry: 'socal', socalFromDock: true, socalReturn: 'https://outside.example/', socalReturnIndex: 3,
+    }, index);
+    h.routing.useAppRoute(); h.flushEffects();
+    assert.deepEqual(plain(h.calls), [['/portal-search', { replace: true }]]);
+    assert.equal(h.history.state.idx, index);
+    assert.deepEqual(plain(h.location()), { pathname: '/portal-search', search: '', hash: '', state: null });
+    assert.deepEqual(plain(h.routing.useAppRoute()), { kind: 'portalSearch' }); h.flushEffects();
+    assert.equal(h.calls.length, 1);
   }
 });
 
-test('repeated selection of the current own SoCal does not replace its source or push another history entry', () => {
-  const state = { socalReturn: '/messages?conversation=thread', dockEntry: 'socal', socalFromDock: true, socalReturnIndex: 3 };
-  const h = routeHarness('/p/owner/socal?tab=calendar#selected', state, 4);
-  h.nav().socal('owner', true); h.nav().socal('owner', true);
-  assert.deepEqual(h.calls, []);
-  assert.equal(h.location().state, state);
-  assert.equal(h.history.state.idx, 4);
+test('shared calendar URLs stay unavailable while ordinary profile and collaboration routes are preserved', () => {
+  for (const path of ['/share/creator/socal', '/share/creator/socal/extra', '/p/creator/socal/extra']) {
+    const h = routeHarness(path);
+    assert.deepEqual(plain(h.routing.useAppRoute()), { kind: 'unknown' }); h.flushEffects(); assert.deepEqual(h.calls, []);
+  }
+  for (const [path, kind] of [['/p/creator', 'profile'], ['/share/creator', 'sharedProfile'], ['/p/creator/collaboration', 'collaboration'], ['/share/creator/collaboration', 'sharedCollaboration']]) {
+    const h = routeHarness(path);
+    assert.deepEqual(plain(h.routing.useAppRoute()), { kind, profileId: 'creator' }); h.flushEffects(); assert.deepEqual(h.calls, []);
+  }
+  const h = routeHarness('/p/creator?view=portals#work', null, 3);
+  h.nav().collaboration('creator');
+  assert.deepEqual(plain(h.calls.at(-1)), ['/p/creator/collaboration', { state: { collaborationReturn: '/p/creator?view=portals#work' } }]);
+  h.nav().closeCollaboration('creator'); assert.deepEqual(h.calls.at(-1), [-1, undefined]);
+  h.nav().portalSearch(); assert.deepEqual(h.calls.at(-1), ['/portal-search', undefined]);
 });
 
-test('refresh or Forward to the marked SoCal entry still permits exactly its captured predecessor', () => {
-  const h = routeHarness('/messages?conversation=thread#latest', null, 3);
-  h.nav().socal('owner', true);
-  for (const entry of ['refreshed', 'forward']) {
-    const returned = routeHarness('/p/owner/socal', plain(h.location().state), 4);
-    returned.nav().closeSoCal('owner');
-    assert.deepEqual(returned.calls, [[-1, undefined]], entry);
-  }
-  const stale = routeHarness('/p/owner/socal', plain(h.location().state), 7);
-  stale.nav().closeSoCal('owner');
-  assert.deepEqual(plain(stale.calls), [['/p/owner', { replace: true }]]);
-});
-
-test('marked dock Back rejects external, unknown, self, control and malformed sources', () => {
-  for (const from of [undefined, null, 7, '//elsewhere.test', 'https://elsewhere.test', '/unknown-page', '/p/owner/socal', '/p/owner/socal/?tab=calendar', '/search?q=bad\ninput', '/search?q=bad\\input', '/search?q=%00bad', '/p/person%5C/socal', '/search?q=%']) {
-    const h = routeHarness('/p/owner/socal', { socalReturn: from, dockEntry: 'socal', socalFromDock: true, socalReturnIndex: 3 }, 4);
-    h.nav().closeSoCal('owner');
-    assert.deepEqual(plain(h.calls), [['/p/owner', { replace: true }]], String(from));
-  }
-});
-
-test('invalid or incomplete dock state cannot borrow the legacy same-profile Back path', () => {
-  const valid = { socalReturn: '/p/owner', dockEntry: 'socal', socalFromDock: true, socalReturnIndex: 3 };
-  for (const patch of [
-    { socalReturnIndex: undefined }, { socalReturnIndex: null }, { socalReturnIndex: -1 }, { socalReturnIndex: 2.5 },
-    { socalReturnIndex: '3' }, { socalReturnIndex: Number.MAX_SAFE_INTEGER + 1 },
-    { socalFromDock: false }, { socalFromDock: 'true' }, { dockEntry: 'profile' },
-  ]) {
-    const h = routeHarness('/p/owner/socal', { ...valid, ...patch }, 4);
-    h.nav().closeSoCal('owner');
-    assert.deepEqual(plain(h.calls), [['/p/owner', { replace: true }]]);
-  }
-  for (const index of [undefined, null, -1, 0, 2.5, '4', Number.MAX_SAFE_INTEGER + 1]) {
-    const h = routeHarness('/p/owner/socal', valid, index);
-    h.history.state.idx = index;
-    h.nav().closeSoCal('owner');
-    assert.deepEqual(plain(h.calls), [['/p/owner', { replace: true }]], String(index));
-  }
-  for (const state of [{ dockEntry: 'socal' }, { socalFromDock: true }, { socalReturnIndex: 3 }]) {
-    const h = routeHarness('/p/owner/socal', { socalReturn: '/p/owner', ...state }, 4);
-    h.nav().closeSoCal('owner');
-    assert.deepEqual(plain(h.calls), [['/p/owner', { replace: true }]]);
-  }
-});
-
-test('dock entry never records an invalid browser index as return authority', () => {
-  for (const index of [undefined, null, -1, 2.5, '3', Number.MAX_SAFE_INTEGER + 1]) {
-    const h = routeHarness('/messages', null, index);
-    h.history.state.idx = index;
-    h.nav().socal('owner', true);
-    const state = h.location().state;
-    assert.equal(Object.hasOwn(state, 'socalReturnIndex'), false);
-    assert.equal(state.socalFromDock, true);
-    assert.equal(state.dockEntry, 'socal');
-  }
-});
-
-test('the dock opens the authenticated own SoCal and delegates missing-account/profile setup to the existing profile gate', () => {
-  const app = ts.createSourceFile('App.tsx', readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let opener;
-  const visit = node => { if (ts.isFunctionDeclaration(node) && node.name?.text === 'openOwnSoCal') opener = node; ts.forEachChild(node, visit); };
-  visit(app); assert.ok(opener, 'Exercise the actual App dock handler');
-  for (const [options, expected] of [
-    [{ route: { kind: 'profile', profileId: 'another-person' } }, [['socal', 'owner', true]]],
-    [{ route: { kind: 'socal', profileId: 'another-person' } }, [['socal', 'owner', true]]],
-    [{ route: { kind: 'socal', profileId: 'owner' } }, []],
-    [{ isAuthenticated: false }, [['profile-gate']]],
-    [{ onboardingStatus: 'required' }, [['profile-gate']]],
-    [{ viewerProfileId: null }, [['profile-gate']]],
-  ]) {
-    const calls = [], exports = {};
-    vm.runInNewContext(ts.transpileModule(`${opener.getText(app)}\nexports.open = openOwnSoCal;`, {
-      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-    }).outputText, {
-      exports, auth: { isAuthenticated: options.isAuthenticated ?? true, viewerProfileId: Object.hasOwn(options, 'viewerProfileId') ? options.viewerProfileId : 'owner' },
-      onboardingStatus: options.onboardingStatus ?? 'ready', route: options.route ?? { kind: 'home' },
-      viewedProfileId: 'another-person', openOwnProfile: () => calls.push(['profile-gate']),
-      nav: { socal: (...args) => calls.push(['socal', ...args]) },
-    });
-    exports.open(); assert.deepEqual(calls, expected);
-  }
-});
-
-test('the optional SoCal action follows Collaboration without changing default or shared profile actions', () => {
-  const fixed = Object.freeze([
-    Object.freeze({ action: 'bio', label: 'Mission', href: '' }),
-    Object.freeze({ action: 'collaboration', label: 'Collaboration', href: '' }),
-    Object.freeze({ action: 'message', label: 'Message', href: '' }),
-    Object.freeze({ label: 'Website', href: 'https://example.test', iconName: 'globe' }),
-  ]);
-  const { PlatformGrid } = sourceModule('src/components/profile/PlatformGrid.tsx', {
-    react: React,
-    'lucide-react': new Proxy({}, { get: (_target, name) => String(name) }),
-    '../../features/profile/profileLinks': { isProfileLinkAction: value => ['bio', 'collaboration', 'message'].includes(value), profileLinkHref: value => value },
-    './categoryIcons': { getCategoryIcon: () => 'external-link-icon' },
+test('retired calendar warming downloads only the existing portal directory and exposes no calendar loader', async () => {
+  const reads = [];
+  const modules = sourceModule('src/app/screenModules.ts', {
+    '../features/portals/PublicPortalSearchPage': { get PublicPortalSearchPage() { reads.push('portal-search'); return 'portal-search'; } },
   });
-  const props = { links: fixed, profileName: 'Creator', onOpenBio() {}, onCollaboration() {}, onMessage() {} };
-  const actionNames = tree => nodes(tree).filter(node => node.type === 'button').map(node => node.props['aria-label']);
-  assert.deepEqual(actionNames(PlatformGrid(props)), ['Mission', 'Collaboration', 'Message']);
-  let opened = 0;
-  const extended = PlatformGrid({ ...props, onSoCal: () => opened++ });
-  assert.deepEqual(actionNames(extended), ['Mission', 'Collaboration', 'SoCal', 'Message']);
-  button(extended, 'SoCal').props.onClick();
-  assert.equal(opened, 1);
-  assert.equal(nodes(extended).find(node => node.type === 'a').props.href, 'https://example.test');
-  assert.equal(button(PlatformGrid({ ...props, isSharedView: true, onSoCal: () => opened++ }), 'SoCal'), undefined);
-  assert.equal(fixed.length, 4, 'The optional entry never persists or mutates fixed profile links.');
-});
-
-const calendar = sourceModule('src/features/journey/calendar.ts', {}, { Date });
-const today = '2026-10-30';
-const profile = Object.freeze({ id: 'creator', name: 'Creator', categories: [], projects: [] });
-
-/** Execute the real section with its hooks; private storage and network access fail the test. */
-function sectionHarness(initial = {}) {
-  const slots = [];
-  let cursor = 0, dirty = true, tree, effects = [], props = { profile, isOwner: true, onBack() {}, ...initial };
-  const equal = (left, right) => left && right && left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
-  const react = { ...React,
-    useState(initialValue) { const index = cursor++; slots[index] ??= { value: typeof initialValue === 'function' ? initialValue() : initialValue }; return [slots[index].value, value => { const next = typeof value === 'function' ? value(slots[index].value) : value; if (!Object.is(next, slots[index].value)) { slots[index].value = next; dirty = true; } }]; },
-    useRef(initialValue) { const index = cursor++; slots[index] ??= { current: initialValue }; return slots[index]; },
-    useMemo(create, dependencies) { const index = cursor++; if (!equal(slots[index]?.dependencies, dependencies)) slots[index] = { dependencies, value: create() }; return slots[index].value; },
-    useEffect(effect, dependencies) { const index = cursor++; if (!equal(slots[index]?.dependencies, dependencies)) { const previous = slots[index]; slots[index] = { dependencies }; effects.push(() => { previous?.cleanup?.(); slots[index].cleanup = effect(); }); } },
-    useId() { const index = cursor++; return slots[index] ??= `socal-test-${index}`; },
-  };
-  react.useCallback = (callback, dependencies) => react.useMemo(() => callback, dependencies);
-  const noStorage = new Proxy({}, { get() { throw new Error('SoCal setup must not simulate account data with local storage.'); } });
-  const { SoCalPage } = sourceModule('src/features/socal/SoCalPage.tsx', {
-    react,
-    'lucide-react': new Proxy({}, { get: (_target, name) => String(name) }),
-    '../../components/ui/Button': { Button: 'button' },
-    '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
-    '../../presentation/mobile/MobileBackNavigation': { ScreenBack: 'screen-back' },
-    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
-    '../journey/calendar': { ...calendar, localToday: () => today },
-    './socal.css': {},
-    './SoCalPage.css': {},
-  }, { Date, Intl, localStorage: noStorage, sessionStorage: noStorage, window: { localStorage: noStorage, sessionStorage: noStorage }, fetch() { throw new Error('An unconfigured SoCal section must not perform network actions.'); } });
-  function render() {
-    let attempts = 0;
-    while (dirty) {
-      assert.ok(++attempts < 20, 'The section settles without a render loop.');
-      cursor = 0; dirty = false; effects = [];
-      tree = SoCalPage(props);
-      effects.forEach(effect => effect());
-    }
-    return tree;
-  }
-  return {
-    get tree() { return render(); },
-    get nodes() { return nodes(render()); },
-    button: label => button(render(), label),
-    update(next) { props = { ...props, ...next }; dirty = true; return render(); },
-  };
-}
-
-test('the owner calendar browses real dates and Today restores the current local day', () => {
-  const h = sectionHarness();
-  const selected = () => h.nodes.find(node => node.type === 'button' && node.props['data-socal-date'] && node.props['aria-pressed']);
-  assert.equal(selected().props['data-socal-date'], today);
-  const chosen = h.nodes.find(node => node.props['data-socal-date'] === '2026-10-11');
-  assert.ok(chosen);
-  chosen.props.onClick();
-  assert.equal(selected().props['data-socal-date'], '2026-10-11');
-  h.button('Next month').props.onClick();
-  assert.ok(h.nodes.some(node => node.props['data-socal-date'] === '2026-11-01'));
-  assert.equal(h.nodes.some(node => node.props['data-socal-date'] === '2026-10-11'), false);
-  h.button('Today').props.onClick();
-  assert.equal(selected().props['data-socal-date'], today);
-});
-
-test('unconfigured owner tabs do not claim running AI, existing plans, or saved planning rules', () => {
-  const h = sectionHarness();
-  const tabs = () => h.nodes.filter(node => node.type === 'button' && node.props.role === 'tab');
-  assert.deepEqual(tabs().map(node => text(node).trim()), ['Calendar', 'Your AI', 'Rules']);
-  for (const name of ['Calendar', 'Your AI', 'Rules']) {
-    h.button(name).props.onClick();
-    const output = text(h.tree);
-    assert.match(output, /not (?:connected|active|available)|setup|set up|isn’t (?:connected|active|available)|aren’t (?:connected|active|available)/i, `${name} explains the unavailable capability.`);
-    assert.doesNotMatch(output, /coffee with (?:Maya|Eli)|invitation sent|AI is active|automatically confirmed/i, 'The published section must not inherit the earlier concept’s simulated activity.');
-    assert.equal(h.nodes.some(node => node.type === 'button' && /confirm|send invitation|save rules|auto.plan/i.test(text(node)) && !node.props.disabled), false);
-  }
-});
-
-test('owner tab keyboard navigation updates selection and focuses its destination', () => {
-  const h = sectionHarness(), focused = [];
-  const tabs = () => h.nodes.filter(node => node.type === 'button' && node.props.role === 'tab');
-  tabs().forEach((tab, index) => tab.ref({ focus() { focused.push(index); } }));
-  let prevented = 0;
-  tabs()[0].props.onKeyDown({ key: 'ArrowRight', preventDefault() { prevented++; } });
-  assert.equal(text(tabs().find(tab => tab.props['aria-selected'])), 'Your AI');
-  tabs()[1].props.onKeyDown({ key: 'End', preventDefault() { prevented++; } });
-  assert.equal(text(tabs().find(tab => tab.props['aria-selected'])), 'Rules');
-  tabs()[2].props.onKeyDown({ key: 'ArrowRight', preventDefault() { prevented++; } });
-  const selected = tabs().find(tab => tab.props['aria-selected']);
-  assert.equal(text(selected), 'Calendar');
-  assert.equal(selected.props.tabIndex, 0);
-  assert.equal(tabs().filter(tab => tab.props.tabIndex === 0).length, 1);
-  const panel = h.nodes.find(node => node.props.role === 'tabpanel');
-  assert.equal(selected.props['aria-controls'], panel.props.id);
-  assert.equal(panel.props['aria-labelledby'], selected.props.id);
-  assert.deepEqual(focused, [1, 2, 0]);
-  assert.equal(prevented, 3);
-});
-
-test('a visitor never renders owner calendar, AI, or rules, including after an owner-tab transition', () => {
-  const h = sectionHarness();
-  h.button('Rules').props.onClick();
-  h.update({ isOwner: false });
-  assert.equal(h.nodes.some(node => node.props.role === 'tab'), false);
-  assert.equal(h.nodes.some(node => node.props['data-socal-date']), false);
-  assert.equal(h.button('Your AI'), undefined);
-  assert.equal(h.button('Rules'), undefined);
-  assert.match(text(h.tree), /Shared activities/);
-  assert.match(text(h.tree), /Shared availability/);
-});
-
-test('visitor messaging and Back use existing explicit callbacks without fabricating a social invitation', () => {
-  let messages = 0, backs = 0;
-  const h = sectionHarness({ isOwner: false, onBack: () => backs++, onMessage: () => messages++ });
-  h.button('Message Creator').props.onClick();
-  assert.equal(messages, 1);
-  h.button('Back to profile').props.onClick();
-  assert.equal(backs, 1);
-  assert.equal(h.nodes.some(node => node.type === 'button' && /send invitation|accept plan/i.test(text(node))), false);
-  const noMessaging = sectionHarness({ isOwner: false });
-  assert.equal(noMessaging.button('Message Creator'), undefined);
-});
-
-test('a dock Back label changes only its accessible label/title and keeps the same explicit callback', () => {
-  let backs = 0;
-  const h = sectionHarness({ backLabel: 'Go back', onBack: () => backs++ });
-  const back = h.button('Go back');
-  assert.ok(back);
-  assert.equal(back.props.title, 'Go back');
-  assert.equal(h.button('Back to profile'), undefined);
-  back.props.onClick(); assert.equal(backs, 1);
-  h.update({ backLabel: undefined });
-  assert.equal(h.button('Back to profile').props.title, 'Back to profile');
-  assert.equal(h.button('Go back'), undefined);
+  assert.equal(Object.hasOwn(modules, 'loadSoCalPage'), false);
+  const warmed = await modules.warmScreenForPath('/p/creator/socal?tab=calendar');
+  assert.equal(warmed[0].status, 'fulfilled'); assert.deepEqual(plain(warmed[0].value), { default: 'portal-search' });
+  await modules.warmScreenForPath('/portal-search');
+  assert.deepEqual(reads, ['portal-search'], 'Legacy and canonical addresses share one existing download');
 });

@@ -15,28 +15,30 @@ function dockHarness(pathname='/studio') {
   if(name.endsWith('/routes'))return{buildPath:kind=>kind==='home'?'/':kind==='portalSearch'?'/portal-search':`/${kind}`};
   if(name==='./MobileContextActions')return {MobileContextButton:'context-button',useMobileActions:()=>({opened:false})};
   if(name==='./useMobileDockScroll')return{useMobileDockScroll:(...args)=>calls.push(args)};
+  if(name.endsWith('/PortalRingIcon'))return{PortalRingIcon:'portal-ring-icon'};
   return new Proxy({},{get:(_o,key)=>key});
  }});
- return { calls, destinations, render: (props={})=>exports.MobileNavigation({onMessages(...args){destinations.push(['messages',args]);},onSoCal(...args){destinations.push(['socal',args]);},onProfile(...args){destinations.push(['profile',args]);},isSoCalActive:false,isProfileActive:false,...props}) };
+ return { calls, destinations, render: (props={})=>exports.MobileNavigation({onMessages(...args){destinations.push(['messages',args]);},onProfile(...args){destinations.push(['profile',args]);},isProfileActive:false,...props}) };
 }
 
-test('dock orders Explore, Messages, SoCal, Studio and Profile, with no rail or separate compose',()=>{
+test('dock orders Explore, Messages, Portal search, Studio and Profile, with no rail or separate compose',()=>{
  const fixture=dockHarness();
  const tree=fixture.render();
  const dock=nodes(tree).find(n=>n.props.className==='mobile-navigation-dock');
  const items=React.Children.toArray(dock.props.children);
- assert.deepEqual(items.map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Explore','Messages','SoCal','Studio','Profile']);
+ assert.deepEqual(items.map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Explore','Messages','Portal search','Studio','Profile']);
  const center=items[2].type(items[2].props);
- assert.equal(center.type,'button');assert.equal(center.props.type,'button');
- assert.equal(center.props['aria-label'],'SoCal');assert.equal(center.props.title,'SoCal');
- assert.equal(center.props.children.props.icon,'CalendarDaysIcon');
+ assert.equal(center.type,'link');assert.equal(center.props.to,'/portal-search');
+ assert.equal(center.props['aria-label'],'Portal search');assert.equal(center.props.title,'Portal search');
+ assert.equal(center.props.children.props.icon,'portal-ring-icon');
  assert.equal(center.props.children.props.weight,'medium');
+ assert.equal(center.props.onClick,undefined);assert.equal(center.props.state,undefined,'Portal search retains ordinary Router history and modified-click behavior');
  assert.equal(nodes(tree).some(n=>n.type==='aside'),false);assert.equal(fixture.calls[0][0],true);
- for(const label of ['Messages','SoCal','Profile']){
+ for(const label of ['Messages','Profile']){
   const destination=nodes(tree).find(n=>n.props.item?.label===label);
   destination.type(destination.props).props.onClick({type:'click',target:{}});
  }
- assert.deepEqual(fixture.destinations,[['messages',[true]],['socal',[]],['profile',[]]],'Navigation taps must not become recipient/profile/SoCal arguments');
+ assert.deepEqual(fixture.destinations,[['messages',[true]],['profile',[]]],'Navigation taps must not become recipient or profile arguments');
  const linkedTree=fixture.render({profileHref:'/p/me',isProfileActive:true});
  const linkedProfile=nodes(linkedTree).find(n=>n.props.item?.label==='Profile');
  assert.equal(linkedProfile.type(linkedProfile.props).props.state.profileFromDock,true,'Dock profile navigation identifies its root destination');
@@ -47,17 +49,18 @@ test('dock orders Explore, Messages, SoCal, Studio and Profile, with no rail or 
  assert.equal(linkedHome.type(linkedHome.props).props.state,undefined);
  const source=read('../src/presentation/mobile/MobileNavigation.tsx');assert.doesNotMatch(source,/useNavigationSwipe|useNavigationOutsideTap|onCreateProject|mobile-navigation-opener|Videos|appearance/);
 });
-test('SoCal uses its explicit active flag without selecting Profile and preserves every existing destination',()=>{
- for(const [pathname,selected] of [['/','Explore'],['/portal-search','Explore'],['/messages','Messages'],['/studio','Studio'],['/saved','Studio'],['/p/me','Profile'],['/p/me/socal','SoCal'],['/p/other/socal',null]]){
+test('Portal search owns the center selection without also selecting Explore and preserves other destinations',()=>{
+ for(const [pathname,selected] of [['/','Explore'],['/portal-search','Portal search'],['/messages','Messages'],['/studio','Studio'],['/saved','Studio'],['/p/me','Profile'],['/p/other',null]]){
   const fixture=dockHarness(pathname);
-  const tree=fixture.render({profileHref:'/p/me',isProfileActive:selected==='Profile',isSoCalActive:selected==='SoCal'});
+  const tree=fixture.render({profileHref:'/p/me',isProfileActive:selected==='Profile'});
   const items=nodes(tree).filter(node=>node.props.item).map(node=>node.type(node.props));
-  assert.equal(items.length,5,'Portal search belongs to Explore without adding another dock destination');
+  assert.equal(items.length,5,'Portal search occupies the existing center destination');
   assert.deepEqual(items.filter(node=>node.props['aria-current']==='page').map(node=>node.props['aria-label']),selected?[selected]:[],pathname);
   assert.equal(items.find(node=>node.props['aria-label']==='Explore').props.to,'/');
+  assert.equal(items.find(node=>node.props['aria-label']==='Portal search').props.to,'/portal-search');
   assert.equal(items.find(node=>node.props['aria-label']==='Studio').props.to,'/studio');
   assert.equal(items.find(node=>node.props['aria-label']==='Profile').props.to,'/p/me');
-  assert.equal(fixture.calls.at(-1)[1],pathname,'SoCal retains the existing route-scoped dock scrolling owner');
+  assert.equal(fixture.calls.at(-1)[1],pathname,'Every destination retains the existing route-scoped dock scrolling owner');
  }
 });
 

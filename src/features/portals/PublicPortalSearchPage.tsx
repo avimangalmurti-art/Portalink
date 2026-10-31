@@ -125,7 +125,7 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
               {directory.items.map(portal => <li key={`${portal.profileId}:${portal.id}`}>
                 <Link to={buildPath('profileCategory', { profileId: portal.profileId, categoryId: portal.id })} className="profile-collection-link public-portal-link" title={`${portal.label} — ${portal.creator.name}`} aria-label={`${portal.label} — ${portal.creator.name}`}>
                   <span className="public-portal-mark" aria-hidden="true">
-                    <span className="profile-collection-tile squircle"><InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor={Boolean(portal.creator.accentColor)} style={portal.creator.accentColor ? { color: portal.creator.accentColor } : undefined} /></span>
+                    <span className="profile-collection-tile squircle" style={portal.creator.accentColor ? { backgroundColor: portal.creator.accentColor } : undefined}><InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor style={{ color: 'var(--public-portal-icon-ink)' }} /></span>
                     <span className="public-portal-avatar"><CreatorAvatar name={portal.creator.name} avatar={portal.creator.avatar} className="h-full w-full text-[12px]" /></span>
                   </span>
                   <span className="profile-collection-name">{isMobile ? <PreviewCreatorName name={portal.label} active={active} centered /> : portal.label}</span>

@@ -73,9 +73,6 @@ type SidebarProps = {
   onCollapsedChange: (isCollapsed: boolean) => void;
   onNavigate: (destination: NavigationDestination) => void;
   onProfileOpen: () => void;
-  /** The MOBILE dock opens the signed-in account's own social calendar. */
-  onSoCalOpen?: () => void;
-  isSoCalActive?: boolean;
   /** Canonical profile address; when present, profile access works before hydration. */
   profileHref?: string;
   /** Contextual MOBILE compose action beside the navigation capsule. */
@@ -412,8 +409,6 @@ export function Sidebar({
   onCollapsedChange,
   onNavigate,
   onProfileOpen,
-  onSoCalOpen = onProfileOpen,
-  isSoCalActive = false,
   profileHref,
   onMessagesOpen,
   theme,
@@ -629,7 +624,7 @@ export function Sidebar({
       <InterfaceIcon icon={isSidebarCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
     </button>;
   if (isMobile) return <MobileNavigation onMessages={fromDock=>onMessagesOpen(undefined,fromDock)}
-    onSoCal={onSoCalOpen} isSoCalActive={isSoCalActive} onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} />;
+    onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} />;
   return <>
       {/* Collapsed, the rail is the whole width: the aside's own side padding was
          insetting the surface by 10px on each side while the divider sat inside

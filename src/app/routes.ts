@@ -11,7 +11,7 @@ import type { NavigationDestination } from '../components/navigation';
  * a pasted URL resolves the same record for everyone.
  */
 
-export type RouteId = 'home' | 'discovery' | 'search' | 'portalSearch' | 'profile' | 'profileEditor' | 'collaboration' | 'sharedCollaboration' | 'socal' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
+export type RouteId = 'home' | 'discovery' | 'search' | 'portalSearch' | 'profile' | 'profileEditor' | 'collaboration' | 'sharedCollaboration' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
 export type RouteDefinition = {
   id: RouteId;
   path: string;
@@ -55,12 +55,6 @@ export const routes: Record<RouteId, RouteDefinition> = {
     path: '/share/:profileId/collaboration',
     params: ['profileId'],
     description: 'The collaboration screen within a public shared profile.'
-  },
-  socal: {
-    id: 'socal',
-    path: '/p/:profileId/socal',
-    params: ['profileId'],
-    description: 'Account-only social calendar and private planning setup for a creator.'
   },
   profileEditor: {
     id: 'profileEditor',

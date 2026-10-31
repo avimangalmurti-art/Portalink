@@ -115,35 +115,41 @@ test('public portal grid uses each chosen icon, creator avatar, portal name and 
   h.dispose();
 });
 
-test('each portal glyph keeps its creator accent without recoloring labels, avatars or the viewer interface', async () => {
+test('each portal tile uses its creator accent without recoloring labels, avatars or the viewer interface', async () => {
   const h = harness(); h.tree; h.runTimers();
   const first = portal('a'), second = portal('b', 'creator-b'), legacy = portal('c', 'creator-c');
   first.creator.accentColor = '#AF1e55'; second.creator.accentColor = '#007a31';
   h.calls[0].response.resolve({ items: [first, second, legacy], nextOffset: null });
   const tree = await h.flush();
+  const tiles = nodes(tree).filter(node => node.props.className === 'profile-collection-tile squircle');
+  assert.deepEqual(tiles.map(node => node.props.style?.backgroundColor), ['#AF1e55', '#007a31', undefined]);
   const glyphs = nodes(tree).filter(node => node.type === 'interface-icon' && node.props.icon === 'chosen:camera');
-  assert.deepEqual(glyphs.map(node => node.props.style?.color), ['#AF1e55', '#007a31', undefined]);
-  assert.deepEqual(glyphs.map(node => node.props.keepColor), [true, true, false]);
+  assert.deepEqual(glyphs.map(node => node.props.style?.color), Array(3).fill('var(--public-portal-icon-ink)'));
+  assert.deepEqual(glyphs.map(node => node.props.keepColor), [true, true, true]);
   assert.ok(links(tree).every(node => node.props.style === undefined));
   assert.ok(nodes(tree).filter(node => node.type === 'creator-avatar' || node.props.className === 'profile-collection-name' || node.props.className === 'public-portal-creator-name').every(node => node.props.style === undefined));
   assert.equal(tree.props.style, undefined);
   h.dispose();
 });
 
-test('MOBILE uses centered overflow labels while portal icons, creator badges, accents and links stay identical to WEB', async () => {
+test('MOBILE and WEB use creator-coloured tiles and viewer-theme icons while keeping their existing labels and avatars', async () => {
   const item = portal('long', 'creator-b', 'A long structural engineering portal name');
+  const legacy = portal('legacy', 'creator-c', 'Legacy portal');
   item.creator.name = 'A creator with a longer public name';
   item.creator.accentColor = '#8a44bb';
   for (const presentation of ['mobile', 'web']) {
     const h = harness('', 'account-a', { presentation }); h.tree; h.runTimers();
-    h.calls[0].response.resolve({ items: [item], nextOffset: null });
+    h.calls[0].response.resolve({ items: [item, legacy], nextOffset: null });
     const tree = await h.flush(); const link = links(tree)[0];
     assert.equal(link.props.to, '/p/creator-b/c/long');
     assert.equal(link.props.title, `${item.label} — ${item.creator.name}`);
     assert.equal(link.props['aria-label'], `${item.label} — ${item.creator.name}`);
     assert.equal(nodes(link).filter(node => node.props.className === 'profile-collection-tile squircle').length, 1);
+    const tile = nodes(link).find(node => node.props.className === 'profile-collection-tile squircle');
+    assert.equal(tile.props.style?.backgroundColor, item.creator.accentColor);
     const glyph = nodes(link).find(node => node.type === 'interface-icon' && node.props.icon === 'chosen:camera');
-    assert.equal(glyph.props.keepColor, true); assert.equal(glyph.props.style.color, '#8a44bb');
+    assert.equal(glyph.props.keepColor, true);
+    assert.equal(glyph.props.style.color, 'var(--public-portal-icon-ink)');
     const avatar = nodes(link).find(node => node.type === 'creator-avatar');
     assert.equal(avatar.props.name, item.creator.name); assert.equal(avatar.props.avatar, '/creator-b.jpg');
     const labels = nodes(link).filter(node => node.type === 'preview-creator-name');
@@ -156,6 +162,14 @@ test('MOBILE uses centered overflow labels while portal icons, creator badges, a
       assert.equal(labels.length, 0);
       assert.equal(nodes(link).find(node => node.props.className === 'profile-collection-name').props.children, item.label);
     }
+    const legacyLink = links(tree)[1];
+    assert.equal(legacyLink.props.to, '/p/creator-c/c/legacy');
+    const legacyTile = nodes(legacyLink).find(node => node.props.className === 'profile-collection-tile squircle');
+    assert.equal(legacyTile.props.style, undefined, 'A missing creator accent keeps the neutral tile instead of borrowing a viewer accent.');
+    const legacyGlyph = nodes(legacyLink).find(node => node.type === 'interface-icon' && node.props.icon === 'chosen:camera');
+    assert.equal(legacyGlyph.props.keepColor, true);
+    assert.equal(legacyGlyph.props.style?.color, 'var(--public-portal-icon-ink)');
+    assert.equal(nodes(legacyLink).find(node => node.type === 'creator-avatar').props.avatar, legacy.creator.avatar);
     h.dispose();
   }
 });

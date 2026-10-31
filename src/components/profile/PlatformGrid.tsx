@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDaysIcon, HandshakeIcon, InfoIcon, MessagesSquareIcon } from 'lucide-react';
+import { HandshakeIcon, InfoIcon, MessagesSquareIcon } from 'lucide-react';
 import type { ProfileLink } from '../../types/domain';
 import { isProfileLinkAction, profileLinkHref } from '../../features/profile/profileLinks';
 import { getCategoryIcon } from './categoryIcons';
@@ -13,7 +13,6 @@ export function PlatformGrid({
   isSharedView = false,
   onOpenBio,
   onCollaboration,
-  onSoCal,
   onMessage,
 }: {
   links: ProfileLink[];
@@ -21,7 +20,6 @@ export function PlatformGrid({
   isSharedView?: boolean;
   onOpenBio?: () => void;
   onCollaboration?: () => void;
-  onSoCal?: () => void;
   onMessage?: () => void;
 }) {
   return <ul role="list" aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
@@ -34,12 +32,7 @@ export function PlatformGrid({
             className={`${TILE_CLASS} rounded-[10px] transition-colors duration-[var(--m-fast)] hover:text-[var(--accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45`}>
             <Icon aria-hidden="true" className="h-[22px] w-[22px]" />
           </button></li>;
-          return link.action === 'collaboration' && onSoCal && !isSharedView
-            ? <React.Fragment key={link.action}>{control}<li className="list-none"><button type="button" onClick={onSoCal} aria-label="SoCal" title="SoCal — social calendar"
-              className={`${TILE_CLASS} rounded-[10px] transition-colors duration-[var(--m-fast)] hover:text-[var(--accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]`}>
-              <CalendarDaysIcon aria-hidden="true" className="h-[22px] w-[22px]" />
-            </button></li></React.Fragment>
-            : control;
+          return control;
         }
         const Icon = getCategoryIcon(link.iconName ?? 'globe');
         const href = profileLinkHref(link.href);
