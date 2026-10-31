@@ -87,3 +87,15 @@
     backdrop-filter: none;
   }
 }
+
+/* The phone popup owns one material; its list scrolls below the clear title. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] .portal-project-popup-layer > .shared-portal-popup > .mobile-portal-index-toolbar[data-mobile-header-underlap]::before {
+    content: none !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] .portal-project-popup-layer > .shared-portal-popup > nav[data-fixed-header-underlap] {
+    margin-top: var(--fixed-header-margin, 0px) !important;
+    padding-top: var(--fixed-header-padding, 0px) !important;
+    scroll-padding-top: var(--fixed-header-scroll-padding, 0px) !important;
+  }
+}

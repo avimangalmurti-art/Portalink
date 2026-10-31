@@ -3737,7 +3737,6 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 [data-presentation='mobile'] .mobile-insights-audience > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--hairline); }
 [data-presentation='mobile'] .mobile-insights-audience dt { font-size: 15px; }
 [data-presentation='mobile'] .mobile-insights-audience dd { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
-[data-presentation='mobile'] .mobile-insights-map { width: 100%; height: auto; margin-top: 24px; fill: var(--text-tertiary); opacity: .35; }
 
 /* Share Portfolio replaces the profile canvas on phones. */
 [data-presentation='mobile'] .portfolio-share-page { display: flex; width: 100%; height: var(--dialog-viewport-height, 100dvh); padding-top: var(--mobile-content-safe-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--surface-canvas); }
@@ -5092,6 +5091,14 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
   padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
   background: var(--surface-canvas); overflow-x: auto; overflow-y: hidden;
 }
+/* Studio's top rail keeps a clear canvas instead of a glass blur. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills[data-mobile-header-underlap]::before {
+    background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
 #root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-workbench > .studio-workbench-header:has(.studio-hub-heading) {
   display: none;
 }
@@ -5757,13 +5764,10 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   padding-block: 0;
 }
 
-/* Profile return starts at the safe edge; visitors have no separate options row. */
-#root .codex-shell[data-presentation='mobile'] .profile-header-region:has(> .profile-return-navigation) {
-  padding-top: var(--safe-area-top, env(safe-area-inset-top, 0px));
-}
+/* Profile return shares the identity band without reserving a separate row. */
 #root .codex-shell[data-presentation='mobile'] .profile-return-navigation {
   flex: none;
-  height: 44px;
+  height: 0;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-return-back {
   position: fixed;

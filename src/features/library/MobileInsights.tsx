@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useServices } from '../../contexts/ServicesContext';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
-import { worldOutline } from '../../data/worldOutline';
 import type { SaveInsights } from '../../types/creatorSaves';
 import { useAccountQuery } from './useAccountQuery';
 import { READ_PERIODS, type ReadPeriod } from '../reads/readSignal';
@@ -131,7 +130,6 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
       </div>
       <p className="insights-note">Only you can see these insights. Reader and saver identities remain private. Saves recognise interest without requiring a follow. Removing a save reduces the current total; saving again never adds a duplicate.</p>
     </section>
-    <section className="insights-section insights-locations" aria-label="Top locations"><header><h2 className="insights-section-title">Top locations</h2></header><svg className="insights-map" viewBox="0 0 360 160" aria-hidden="true">{worldOutline.map((ring, index) => <polygon key={index} points={ring.map(([longitude, latitude]) => `${longitude + 180},${80 - latitude}`).join(' ')} />)}</svg><p className="insights-note">Location insights are not available. This map does not show reader activity.</p></section>
     <p className="insights-note">Today uses UTC. All time includes available history; older daily data is retained for about 13 months.</p><Suspense fallback={null}><LoadTimingInsights /></Suspense>
   </div>;
 }

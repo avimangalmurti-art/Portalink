@@ -37,7 +37,6 @@ function load(rows, { error, loading = false, refreshing = false, coverLoading =
     if (name.endsWith('/readSignal')) return { READ_PERIODS: [{key:'today',label:'Today'},{key:'7d',label:'7 days'},{key:'30d',label:'30 days'},{key:'12m',label:'12 months'},{key:'all',label:'All time'}] };
     if (name.endsWith('/ProjectCover')) return { ProjectCover: 'ProjectCover' };
     if (name.endsWith('/projectPresentation')) return { getProjectCoverPreview: () => undefined };
-    if (name.endsWith('/worldOutline')) return { worldOutline: [] };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: 'icon' };
     if (name.endsWith('/StateViews')) return { LoadingState: 'loading', ErrorState: 'error' };
     if (name.endsWith('.css')) return {};
@@ -73,7 +72,7 @@ test('shared insights ranks actual reads, switches metrics, expands projects and
   assert.equal(accessibleText(headline(tree)), '5current page saves');
   assert.match(text(tree), /not saves made during this period/);
   assert.match(text(tree), /Reader and saver identities remain private/);
-  assert.match(text(tree), /Location insights are not available/);
+  assert.doesNotMatch(text(tree), /Top locations|Location insights are not available/);
   nodes(tree).find(node => node.type === 'button' && text(node) === 'Refresh').props.onClick();
   assert.equal(fixture.refreshes(), 2);
 });
@@ -121,6 +120,7 @@ test('successful empty mobile insights keeps the graph for every metric and peri
       assert.match(text(nodes(tree).find(node => node.props.className === 'insights-chart-caption')), /0 projects/);
       assert.match(accessibleText(tree), /No project reads yet/);
       assert.deepEqual(totals(tree), ['0', '0', '0']);
+      assert.doesNotMatch(accessibleText(tree), /Top locations|Location insights are not available/);
     }
   }
   assert.deepEqual(fixture.navigations, []);

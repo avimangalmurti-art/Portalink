@@ -7,3 +7,17 @@
 .export-recovery button { justify-self:start; min-height:44px; }
 
 #root .codex-shell .reference-sheet[aria-labelledby='export-heading'] { background:var(--surface-raised); color:var(--text-primary); padding:var(--ui-surface-inset,24px); padding-bottom:max(var(--ui-surface-inset,24px),env(safe-area-inset-bottom)); }
+
+/* Keep the phone reference controls readable on the themed sheet. */
+#root .codex-shell[data-presentation='mobile'] .reference-sheet[aria-labelledby='reference-heading'] > header > button,
+#root .codex-shell[data-presentation='mobile'] .reference-sheet[aria-labelledby='reference-heading'] > button {
+  background: var(--control-rest-surface, var(--surface-sunken));
+  color: var(--control-text, var(--text-primary));
+  border-color: var(--control-border, var(--hairline));
+}
+#root .codex-shell[data-presentation='mobile'] .reference-sheet[aria-labelledby='reference-heading'] > header > button:disabled,
+#root .codex-shell[data-presentation='mobile'] .reference-sheet[aria-labelledby='reference-heading'] > button:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  opacity: 1;
+}
