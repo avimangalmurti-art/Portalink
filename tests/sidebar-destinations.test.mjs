@@ -66,12 +66,14 @@ const main = (tree, collapsed) => nodes(tree).find(node => node.type === 'nav' &
 const footer = tree => nodes(tree).find(node => node.props.className?.split(' ').includes('sidebar-account-footer'));
 const named = (tree, name) => controls(tree).find(node => label(node) === name);
 
-test('authenticated WEB destinations place Insights first and Activity fifth in expanded and collapsed navigation', () => {
+test('authenticated WEB destinations place Insights first and Portal search fifth in expanded and collapsed navigation', () => {
   for (const collapsed of [false, true]) {
     const tree = harness({ collapsed }).render(), nav = main(tree, collapsed), items = controls(nav);
-    assert.deepEqual(items.map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Activity', 'Search accounts', 'Open messages', 'Open your profile']);
+    assert.deepEqual(items.map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Portal search', 'Search accounts', 'Open messages', 'Open your profile']);
     assert.equal(items[0].type, 'a'); assert.equal(items[0].props.href, '/insights'); assert.equal(items[0].props.title, 'Insights');
-    assert.equal(items[4].type, 'a'); assert.equal(items[4].props.href, '/notifications'); assert.equal(items[4].props.title, 'Activity');
+    assert.equal(items[4].type, 'a'); assert.equal(items[4].props.href, '/portal-search'); assert.equal(items[4].props.title, 'Portal search');
+    assert.ok(nodes(items[4]).some(node => node.type === 'interface-icon' && node.props.icon === 'portal-ring-icon'));
+    assert.equal(items[4].props.onClick, undefined, 'Portal search retains native Router link activation');
     assert.equal(items[1].props.href, '/saved'); assert.equal(items[7].props.href, '/p/owner');
     assert.equal(items.some(node => node.props.disabled), false, 'Both former inactive slots now hold usable links');
     assert.ok(items.every(node => node.props['aria-current'] === undefined));
@@ -80,13 +82,14 @@ test('authenticated WEB destinations place Insights first and Activity fifth in 
       assert.deepEqual(rows.map(row => controls(row).map(label)), [items.slice(0, 4).map(label), items.slice(4).map(label)]);
     }
     assert.equal(controls(tree).filter(node => label(node) === 'Open Insights').length, 1);
+    assert.equal(controls(tree).filter(node => label(node) === 'Open Portal search').length, 1);
     assert.equal(controls(tree).filter(node => label(node) === 'Open Activity').length, 1);
   }
 });
 
 test('personal links retain their own active flags and canonical routes in both WEB rail sizes', () => {
   for (const collapsed of [false, true]) for (const [flag, selected, path] of [
-    ['isInsightsActive', 'Open Insights', '/insights'], ['isActivityActive', 'Open Activity', '/notifications'],
+    ['isInsightsActive', 'Open Insights', '/insights'], ['isPortalSearchActive', 'Open Portal search', '/portal-search'],
   ]) {
     const tree = harness({ collapsed }).render({ [flag]: true });
     const selectedItems = controls(main(tree, collapsed)).filter(node => node.props['aria-current'] === 'page');
@@ -98,11 +101,11 @@ test('personal links retain their own active flags and canonical routes in both 
   }
 });
 
-test('authenticated WEB footer activates Studio and Portal search while preserving Settings and Appearance order', () => {
+test('authenticated WEB footer places Activity after Studio while preserving Settings and Appearance order', () => {
   for (const collapsed of [false, true]) for (const theme of ['light', 'dark']) {
     const h = harness({ collapsed, theme }), tree = h.render(), items = controls(footer(tree));
-    assert.deepEqual(items.map(label), ['Open settings', 'Open Studio', 'Open Portal search', `Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`]);
-    for (const [index, href, title, icon] of [[1, '/studio', 'Studio', icons.WarehouseIcon], [2, '/portal-search', 'Portal search', 'portal-ring-icon']]) {
+    assert.deepEqual(items.map(label), ['Open settings', 'Open Studio', 'Open Activity', `Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`]);
+    for (const [index, href, title, icon] of [[1, '/studio', 'Studio', icons.WarehouseIcon], [2, '/notifications', 'Activity', icons.BellIcon]]) {
       const destination = items[index];
       assert.equal(destination.type, 'a'); assert.equal(destination.props.disabled, undefined);
       assert.equal(destination.props.href, href); assert.equal(destination.props.title, title);
@@ -124,6 +127,7 @@ test('signed-out WEB preserves upper inactive Portals and Studio without exposin
     assert.equal(items[0].props.disabled, true); assert.equal(items[4].props.disabled, true);
     assert.equal(items[0].props.onClick, undefined); assert.equal(items[4].props.onClick, undefined);
     assert.equal(named(tree, 'Open Insights'), undefined); assert.equal(named(tree, 'Open Activity'), undefined);
+    assert.equal(named(tree, 'Open Studio'), undefined); assert.equal(named(tree, 'Open Portal search'), undefined);
     assert.deepEqual(controls(footer(tree)).map(label), ['Open settings', 'Switch to dark appearance']);
     assert.equal(controls(tree).filter(node => label(node) === 'Portals unavailable').length, 1);
     assert.equal(controls(tree).filter(node => label(node) === 'Studio unavailable').length, 1);
@@ -184,8 +188,8 @@ test('optional SoCal callers use the existing profile fallback while WEB exposes
     const web = harness({ presentation: 'web', collapsed });
     const webTree = web.render({ isSoCalActive: true });
     assert.equal(named(webTree, 'SoCal'), undefined);
-    assert.deepEqual(controls(main(webTree, collapsed)).map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Activity', 'Search accounts', 'Open messages', 'Open your profile']);
-    assert.deepEqual(controls(footer(webTree)).map(label), ['Open settings', 'Open Studio', 'Open Portal search', 'Switch to dark appearance']);
+    assert.deepEqual(controls(main(webTree, collapsed)).map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Portal search', 'Search accounts', 'Open messages', 'Open your profile']);
+    assert.deepEqual(controls(footer(webTree)).map(label), ['Open settings', 'Open Studio', 'Open Activity', 'Switch to dark appearance']);
     assert.deepEqual(web.calls, []);
   }
 });
@@ -193,7 +197,7 @@ test('optional SoCal callers use the existing profile fallback while WEB exposes
 
 test('WEB footer destinations use only their own active flags in either sidebar size', () => {
   for (const collapsed of [false, true]) for (const [flag, selected, href] of [
-    ['isStudioActive', 'Open Studio', '/studio'], ['isPortalSearchActive', 'Open Portal search', '/portal-search'],
+    ['isStudioActive', 'Open Studio', '/studio'], ['isActivityActive', 'Open Activity', '/notifications'],
   ]) {
     const tree = harness({ collapsed }).render({ [flag]: true });
     const selectedItems = controls(footer(tree)).filter(node => node.props['aria-current'] === 'page');

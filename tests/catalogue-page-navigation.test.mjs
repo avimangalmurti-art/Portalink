@@ -135,14 +135,14 @@ test('public catalogue entry uses the selected page while preserving preview suf
 test('public WEB Back returns to its captured catalogue only within the same creator/account scope', () => {
   const calls = [];
   const context = { settings: false, settingsReturn: null, presentation: 'web', profileId: 'creator', projectId: 'project', categoryId: 'art',
-    invalidShared: false, handleError: null, profile: { id: 'creator' }, catalogueScope: 'creator:account',
+    invalidShared: false, handleError: null, profile: { id: 'creator' }, catalogueScope: 'creator:account', readerRoute: true,
     desktopCatalogueOrigin: { current: { scope: 'creator:account', origin: { path: '/portalite?view=projects#work' } } },
     navigate: (...args) => calls.push(args), projectReturn: { close: () => false }, location: { pathname: '/portalite/c/art/project' }, previewSuffix: '',
     portfolioPath: () => '/portalite', handleFromPath: () => 'portalite', window: { history: { state: { idx: 4 } } },
   };
   visitorCallback('back', context)(); assert.deepEqual(plain(calls.at(-1)), ['/portalite?view=projects#work']);
   context.catalogueScope = 'creator:other-account'; visitorCallback('back', context)();
-  assert.deepEqual(plain(calls.at(-1)), ['/portalite/c/art'], 'Unrelated account scope keeps the original fallback.');
+  assert.deepEqual(plain(calls.at(-1)), ['/portalite', { replace: true }], 'Unrelated account scope returns to the creator without reopening an auto-selected portal.');
 });
 
 test('public WEB return waits for ready exact-origin composition, restores once and invalidates on scope/presentation changes', () => {

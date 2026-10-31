@@ -37,7 +37,8 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const portalsView = !categoryId && search.get('view') === 'portals';
   const isJourney = profile.showJourney === true && journey.view === 'journey' && !categoryId && !portalsView;
   const profilePageRef = useRef<HTMLDivElement>(null);
-  const mobileImageCatalogue = isMobile && active && !isJourney && !portalsView;
+  const imageCatalogue = active && !isJourney && !portalsView;
+  const mobileImageCatalogue = isMobile && imageCatalogue;
   // React 18 does not forward the boolean inert attribute; use the DOM property.
   useLayoutEffect(() => { if (profilePageRef.current) profilePageRef.current.inert = !active; }, [active]);
   useLayoutEffect(() => {
@@ -82,7 +83,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
         </div>
       </header>}
       {isMobile && isJourney && <div className="timeline-header-controls" ref={setTimelineToolbarHost} />}
-      {mobileImageCatalogue && <DensitySeparator columns={density.columns} onChange={density.setColumns} onPreview={density.previewColumns} label="Projects per row" />}
+      {imageCatalogue && <DensitySeparator columns={density.columns} onChange={density.setColumns} onPreview={density.previewColumns} label="Projects per row" />}
     </div>
     {active && bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}

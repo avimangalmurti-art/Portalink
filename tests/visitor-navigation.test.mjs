@@ -179,10 +179,11 @@ function hooks() {
   }
   return { react, render, dispose: () => effects.forEach(effect => effect?.cleanup?.()) };
 }
-function appHarness({ firstVisit = false } = {}) {
+function appHarness({ firstVisit = false, catalogueOrigin = null } = {}) {
   const h = hooks(), assigned = [], replaced = [], navigations = [], queryCalls = [], requests = [];
+  const navigate = (path, options) => navigations.push([path, options]);
   let pendingIntent = null;
-  const state = { route: { kind: 'sharedProfile', profileId }, location: { pathname: `/share/${profileId}`, search: '', hash: '', state: null }, presentation: 'mobile',
+  const state = { route: { kind: 'sharedProfile', profileId }, location: { pathname: `/share/${profileId}`, search: '', hash: '', state: null }, presentation: 'mobile', handlePending: false, handleError: '',
     query: { status: 'ready', profile, error: null, retry() {} },
     auth: { phase: 'unauthenticated', isAuthenticated: false, isInitializing: false, viewerProfileId: null, user: null, session: null, needsProfileSetup: false, pendingView: null,
       peekPendingIntent: () => pendingIntent,
@@ -203,7 +204,7 @@ function appHarness({ firstVisit = false } = {}) {
     throw new Error(name);
   }, browser);
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
-    if (name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href, captureCatalogueReaderOrigin: () => null, restoreCatalogueReaderOrigin: () => () => {} };
+    if (name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href, captureCatalogueReaderOrigin: () => catalogueOrigin, restoreCatalogueReaderOrigin: () => () => {} };
     if (name === './useMobileProjectReturn') return projectReturn;
     if (name === '../app/screenModules') return { loadVisitorProjectPage: () => Promise.resolve({ default: 'VisitorProjectPage' }) };
     if(name.endsWith('/StateViews'))return {LoadingSkeleton:'loading'};
@@ -214,10 +215,10 @@ function appHarness({ firstVisit = false } = {}) {
     if (name === '../features/sharing/shareModel') return shareModel;
     if (name === '../features/profile/visitorPreview') return load('features/profile/visitorPreview.ts', () => routes);
     if (name === '../features/profile/VisitorPreviewBar') return named('VisitorPreviewBar');
-    if (name === './useHandleRoute') return {useHandleRoute:route=>({route,pending:false,error:'',retry(){}})};
+    if (name === './useHandleRoute') return {useHandleRoute:route=>({route,pending:state.handlePending,error:state.handleError,retry(){}})};
     if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
-    if (name === 'react-router-dom') return { useLocation: () => state.location, useNavigate: () => (path, options) => navigations.push([path, options]) };
+    if (name === 'react-router-dom') return { useLocation: () => state.location, useNavigate: () => navigate };
     if (name === '../app/useAppRoute') return { useAppRoute: () => state.route };
     if (name === '../app/routes') return routes;
     if (name === '../contexts/AuthContext') return { useAuth: () => state.auth };
@@ -357,6 +358,7 @@ function readerHarness(presentation = 'mobile', width = 390) {
     if (name === '../components/ui/InterfaceIcon') return named('InterfaceIcon');
     if (name === '../components/profile/ProjectIndexList') return named('ProjectIndexList');
     if (name === '../components/profile/MobilePortalProjectToolbar') return named('MobilePortalProjectToolbar');
+    if (name === '../components/ui/StateViews') return { LoadingSkeleton: 'LoadingSkeleton' };
     throw new Error(name);
   }, { requestAnimationFrame: fn => fn() });
   return { state, statuses, selected, render: () => h.render(() => VisitorProjectPage({ profile, project: state.project, onBack: () => selected.push('back'), onBackToProfile: () => selected.push('profile'), onSelect: id => selected.push(id) })) };
@@ -745,6 +747,200 @@ test('public portfolio has no follow action or follow lookup for guests, members
   }
 });
 
+test('WEB portal entry replaces its first displayed public project and preserves the addressed query and hash', () => {
+  for (const root of [`/share/${profileId}`, '/creator']) {
+    const h = appHarness(); h.state.presentation = 'web';
+    h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+    h.state.location = { ...h.state.location, pathname: `${root}/c/portal`, search: '?via=friend&media=paper&page=3', hash: '#chapter' };
+    h.state.query = { ...h.state.query, profile: { ...profile, projects: [
+      { id: 'private', categoryId: 'portal', isPinned: true, isPubliclyVisible: false },
+      { id: 'other', categoryId: 'different', isPinned: true }, ...profile.projects,
+    ] } };
+    let tree = h.render();
+    assert.deepEqual(json(h.navigations), [[`${root}/c/portal/next?via=friend&media=paper&page=3#chapter`, { replace: true }]]);
+    assert.equal(one(tree, 'VisitorProfileGrid'), undefined, 'Portal entry does not flash a second project grid before the reader.');
+    assert.equal(one(tree, 'loading').props.kind, 'reader');
+    assert.ok(one(tree, 'main').props.className.includes('overflow-hidden'));
+    const scroll = nodes(tree).find(node => node.props?.['data-screen-scroll']);
+    assert.equal(scroll.props['data-screen-scroll'], 'nested'); assert.ok(scroll.props.className.includes('h-full'));
+    h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'next' };
+    h.state.location.pathname = `${root}/c/portal/next`;
+    tree = h.render();
+    const reader = nodes(tree).find(node => node.props?.project?.id === 'next' && node.props?.onBack);
+    assert.ok(reader); assert.equal(reader.key, `${profileId}/portal`);
+    h.render(); assert.equal(h.navigations.length, 1, 'An explicitly selected project is never redirected to the portal default.');
+    h.state.route = { ...h.state.route, projectId: 'work' }; h.state.location.pathname = `${root}/c/portal/work`;
+    const nextReader = nodes(h.render()).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
+    assert.equal(nextReader.key, reader.key, 'Selecting within one WEB portal retains the mounted index.');
+    reader.props.onBack();
+    assert.deepEqual(json(h.navigations.at(-1)), [root, { replace: true }]);
+  }
+});
+
+test('WEB portal entry uses first public bundle order when unpinned, and empty portals keep the reader frame', () => {
+  const h = appHarness(); h.state.presentation = 'web';
+  h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+  h.state.location.pathname = `/share/${profileId}/c/portal`;
+  h.state.query = { ...h.state.query, profile: { ...profile, projects: [
+    { id: 'excluded', categoryId: 'portal', isPubliclyVisible: false },
+    { id: 'first', categoryId: 'portal' }, { id: 'second', categoryId: 'portal' },
+  ] } };
+  h.render(); assert.deepEqual(json(h.navigations), [[`/share/${profileId}/c/portal/first`, { replace: true }]]);
+  const empty = appHarness(); empty.state.presentation = 'web';
+  empty.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+  empty.state.location.pathname = `/share/${profileId}/c/portal`;
+  empty.state.query = { ...empty.state.query, profile: { ...profile, projects: [{ id: 'other', categoryId: 'different' }] } };
+  const tree = empty.render();
+  const reader = nodes(tree).find(node => node.props?.project === null && node.props?.categoryId === 'portal');
+  assert.ok(reader); assert.equal(reader.key, `${profileId}/portal`);
+  assert.equal(one(tree, 'VisitorProfileGrid'), undefined); assert.equal(one(tree, 'loading'), undefined);
+  assert.equal(nodes(tree).find(node => node.props?.['data-screen-scroll']).props['data-screen-scroll'], 'nested');
+  assert.equal(empty.navigations.length, 0);
+  reader.props.onBack(); assert.deepEqual(json(empty.navigations.at(-1)), [`/share/${profileId}`, { replace: true }]);
+});
+
+test('WEB portal automatic selection waits for the current public creator and resolved ready route', () => {
+  const cases = [
+    ['loading', h => { h.state.query = { ...h.state.query, status: 'loading', profile: null }; }],
+    ['failed', h => { h.state.query = { ...h.state.query, status: 'error', profile: null, error: 'offline' }; }],
+    ['missing', h => { h.state.query = { ...h.state.query, status: 'not-found', profile: null }; }],
+    ['pending handle', h => { h.state.handlePending = true; }],
+    ['failed handle', h => { h.state.handleError = 'offline'; }],
+    ['stale creator', h => { h.state.query = { ...h.state.query, profile: { ...profile, id: '22222222-2222-4222-8222-222222222222' } }; }],
+    ['private creator', h => { h.state.query = { ...h.state.query, profile: { ...profile, isPrivate: true } }; }],
+    ['missing portal', h => { h.state.route = { ...h.state.route, categoryId: 'missing' }; }],
+    ['invalid creator id', h => { h.state.route = { ...h.state.route, profileId: 'not-a-profile' }; }],
+  ];
+  for (const [label, configure] of cases) {
+    const h = appHarness(); h.state.presentation = 'web';
+    h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+    h.state.location.pathname = `/share/${profileId}/c/portal`;
+    configure(h); h.render();
+    assert.equal(h.navigations.length, 0, label);
+  }
+  const h = appHarness(); h.state.presentation = 'web'; h.render();
+  h.state.route = { kind: 'controlCenter' };
+  h.state.location = { ...h.state.location, pathname: '/control-center', state: { settingsReturn: `/share/${profileId}/c/portal` } };
+  assert.ok(one(h.render(), 'lazy:../components/ControlCenterPage'));
+  assert.equal(h.navigations.length, 0, 'Remembered shared context behind Settings cannot select a portal project.');
+});
+
+test('uncached WEB selection keeps its confirmed portal reader mounted without showing previous media while loading', async () => {
+  const h = appHarness(); h.state.presentation = 'web';
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  h.state.location.pathname = `/share/${profileId}/c/portal/work`;
+  const selectedReader = tree => nodes(tree).find(node => node.props?.onSelect && node.props?.onBack && Object.hasOwn(node.props, 'project'));
+  const initial = selectedReader(h.render());
+  assert.equal(initial.props.project.id, 'work'); assert.equal(initial.props.loading, false);
+  initial.props.onSelect('next');
+  assert.equal(h.navigations.at(-1)[0], `/share/${profileId}/c/portal/next`);
+  let finishRead;
+  const read = new Promise(resolve => { finishRead = resolve; });
+  h.state.route = { ...h.state.route, projectId: 'next' };
+  h.state.location.pathname = `/share/${profileId}/c/portal/next`;
+  h.state.query = { ...h.state.query, status: 'loading', profile: null };
+  let tree = h.render(), pendingReader = selectedReader(tree);
+  assert.ok(pendingReader, 'The actual shared query null/loading state does not replace the category reader with a global skeleton.');
+  assert.equal(pendingReader.type, initial.type); assert.equal(pendingReader.key, initial.key);
+  assert.equal(pendingReader.props.profile, initial.props.profile);
+  assert.equal(one(tree, 'SharedProfileSidebar').props.profile, initial.props.profile);
+  assert.equal(pendingReader.props.project, null); assert.equal(pendingReader.props.categoryId, 'portal');
+  assert.equal(pendingReader.props.loading, true); assert.equal(one(tree, 'loading'), undefined);
+  assert.equal(nodes(tree).some(node => node.props?.project?.id === 'work'), false, 'Old selected originals are never passed to a loading reader.');
+  assert.equal(selectedReader(h.render()).key, initial.key);
+  assert.equal(h.navigations.length, 1, 'Loading cannot trigger another automatic selection.');
+  finishRead({ ...profile, projects: profile.projects.map(item => item.id === 'next' ? { ...item, attachments: [{ id: 'next-public-file', kind: 'document' }] } : item) });
+  h.state.query = { ...h.state.query, status: 'ready', profile: await read };
+  const completed = selectedReader(h.render());
+  assert.equal(completed.type, initial.type); assert.equal(completed.key, initial.key);
+  assert.equal(completed.props.project.id, 'next'); assert.equal(completed.props.loading, false);
+  assert.equal(completed.props.project.attachments[0].id, 'next-public-file');
+});
+
+test('WEB retained reader loading never crosses an account, creator, portal, handle, error or Settings boundary', () => {
+  const cases = [
+    ['account', h => { h.state.auth = { ...h.state.auth, user: { id: 'another-account' } }; }],
+    ['creator', h => { h.state.route = { ...h.state.route, profileId: '22222222-2222-4222-8222-222222222222' }; }],
+    ['portal', h => { h.state.route = { ...h.state.route, categoryId: 'another-portal' }; }],
+    ['handle pending', h => { h.state.handlePending = true; }],
+    ['handle error', h => { h.state.handleError = 'offline'; }],
+    ['invalid creator', h => { h.state.route = { ...h.state.route, profileId: 'invalid' }; }],
+    ['Settings', h => { h.state.route = { kind: 'controlCenter' }; h.state.location.state = { settingsReturn: `/share/${profileId}/c/portal/work` }; }],
+    ['MOBILE', h => { h.state.presentation = 'mobile'; }],
+    ['read error', h => { h.state.query.status = 'error'; h.state.query.error = 'offline'; }],
+    ['not found', h => { h.state.query.status = 'not-found'; }],
+  ];
+  for (const [label, changeScope] of cases) {
+    const h = appHarness(); h.state.presentation = 'web';
+    h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+    h.state.location.pathname = `/share/${profileId}/c/portal/work`;
+    h.render();
+    h.state.route = { ...h.state.route, projectId: 'next' };
+    h.state.query = { ...h.state.query, status: 'loading', profile: null };
+    changeScope(h);
+    const tree = h.render();
+    assert.equal(nodes(tree).some(node => Object.hasOwn(node.props ?? {}, 'project') && node.props?.onSelect), false, label);
+    assert.equal(one(tree, 'SharedProfileSidebar'), undefined, label);
+  }
+  const direct = appHarness(); direct.state.presentation = 'web';
+  direct.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  direct.state.query = { ...direct.state.query, status: 'loading', profile: null };
+  assert.equal(one(direct.render(), 'loading').props.kind, 'reader', 'A direct reader has no fabricated prior public index.');
+  const failed = appHarness(); failed.state.presentation = 'web';
+  failed.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' }; failed.render();
+  failed.state.query = { ...failed.state.query, status: 'error', profile: null, error: 'offline' };
+  assert.ok(one(failed.render(), 'RouteError'));
+  failed.state.query = { ...failed.state.query, status: 'loading', error: null };
+  assert.ok(one(failed.render(), 'loading'), 'An error clears the confirmed index before retry.');
+});
+
+test('explicit WEB project addresses retain selection and missing-project errors without portal fallback', () => {
+  for (const projectId of ['work', 'missing']) {
+    const h = appHarness(); h.state.presentation = 'web';
+    h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId };
+    h.state.location.pathname = `/share/${profileId}/c/portal/${projectId}`;
+    const tree = h.render();
+    assert.equal(h.navigations.length, 0);
+    if (projectId === 'work') assert.ok(nodes(tree).find(node => node.props?.project?.id === 'work'));
+    else assert.equal(one(tree, 'RouteError').props.kind, 'not-found');
+  }
+});
+
+test('WEB portal navigation clears prior catalogue origin while ordinary card Back preserves its exact origin', () => {
+  const origin = { profileId, path: '/creator?sort=oldest#last-row', projectId: 'work', top: 300, left: 0, anchorTop: 40 };
+  const h = appHarness({ catalogueOrigin: origin }); h.state.presentation = 'web';
+  h.state.location = { ...h.state.location, pathname: '/creator', search: '?sort=oldest', hash: '#last-row' };
+  one(h.render(), 'VisitorProfileGrid').props.onOpen('portal', 'work');
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  h.state.location = { ...h.state.location, pathname: '/creator/c/portal/work', search: '', hash: '' };
+  let tree = h.render();
+  nodes(tree).find(node => node.props?.project?.id === 'work').props.onBack();
+  assert.deepEqual(json(h.navigations.at(-1)), [origin.path, null]);
+  one(tree, 'SharedProfileSidebar').props.onOpenCategory('portal');
+  assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal', null]);
+  h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+  h.state.location.pathname = '/creator/c/portal'; h.render();
+  assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal/next', { replace: true }]);
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'next' };
+  h.state.location.pathname = '/creator/c/portal/next'; tree = h.render();
+  nodes(tree).find(node => node.props?.project?.id === 'next').props.onBack();
+  assert.deepEqual(json(h.navigations.at(-1)), ['/creator', { replace: true }], 'A new sidebar portal must not restore an unrelated old catalogue location.');
+});
+
+test('WEB owner visitor-preview survives sidebar portal entry, automatic selection and reader Back', () => {
+  const h = appHarness(); h.state.presentation = 'web'; h.signedIn({ viewerProfileId: profileId });
+  h.state.location = { ...h.state.location, pathname: '/creator', search: '?visitorPreview=1' };
+  one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
+  assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal?visitorPreview=1', null]);
+  h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+  h.state.location = { ...h.state.location, pathname: '/creator/c/portal', search: '?visitorPreview=1&via=friend', hash: '#entry' };
+  h.render(); assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal/next?visitorPreview=1&via=friend#entry', { replace: true }]);
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'next' };
+  h.state.location.pathname = '/creator/c/portal/next';
+  const reader = nodes(h.render()).find(node => node.props?.project?.id === 'next');
+  reader.props.onBack(); assert.deepEqual(json(h.navigations.at(-1)), ['/creator?visitorPreview=1', { replace: true }]);
+});
+
 test('MOBILE public portal links open the chooser while explicit project links still open the reader', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = appHarness();
@@ -754,10 +950,11 @@ test('MOBILE public portal links open the chooser while explicit project links s
     const tree = h.render();
     const project = nodes(tree).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
     assert.ok(project);
+    assert.equal(project.key, presentation === 'mobile' ? 'work' : `${profileId}/portal`);
     assert.equal(one(tree, 'SharedPortalPopup'), undefined);
     assert.equal(h.navigations.length, 0, 'Explicit project links are not replaced by a chooser');
     project.props.onBack();
-    assert.equal(h.navigations.at(-1)[0], presentation === 'mobile' ? `/share/${profileId}` : `/share/${profileId}/c/portal`);
+    assert.deepEqual(json(h.navigations.at(-1)), [`/share/${profileId}`, { replace: true }]);
     h.state.route = {kind:'sharedCategory',profileId,categoryId:'portal'};
     h.state.location.pathname = `/share/${profileId}/c/portal`;
     h.navigations.length = 0;
@@ -775,7 +972,11 @@ test('MOBILE public portal links open the chooser while explicit project links s
       assert.equal(h.navigations.length, 0, 'No project opens until a row is selected');
       popup.props.onSelect('portal', 'next');
       assert.equal(h.navigations.at(-1)[0], `/share/${profileId}/c/portal/next`);
-    } else assert.equal(h.navigations.length, 0);
+    } else {
+      assert.deepEqual(json(h.navigations), [[`/share/${profileId}/c/portal/next`, { replace: true }]]);
+      assert.equal(one(categoryTree, 'SharedPortalPopup'), undefined);
+      assert.equal(one(categoryTree, 'VisitorProfileGrid'), undefined);
+    }
   }
 });
 
@@ -817,7 +1018,7 @@ test('public MOBILE project opens retain the catalogue composition and Close use
   assert.equal(one(tree, 'VisitorProfileGrid').props.active, true);
 });
 
-test('direct mobile reader Close replaces the catalogue, while WEB retains its category PUSH destination', () => {
+test('direct reader Close replaces the creator catalogue on MOBILE and WEB without reopening its portal', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = appHarness(); h.state.presentation = presentation;
     h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
@@ -825,7 +1026,7 @@ test('direct mobile reader Close replaces the catalogue, while WEB retains its c
     const tree = h.render();
     const reader = nodes(tree).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
     reader.props.onBack();
-    assert.deepEqual(json(h.navigations.at(-1)), presentation === 'mobile' ? [`/share/${profileId}`, { replace: true }] : [`/share/${profileId}/c/portal`, null]);
+    assert.deepEqual(json(h.navigations.at(-1)), [`/share/${profileId}`, { replace: true }]);
     assert.equal(one(tree, 'VisitorProfileGrid'), undefined, 'A direct reader cannot fabricate a prior retained catalogue.');
   }
 });

@@ -73,7 +73,26 @@ export function VisitorApp() {
   const interactiveSignIn = useRef(false), resumedRegistration = useRef<string | null>(null);
   const invalidShared = !settings && sharedShell && (!shared || !profileId || !isProfileId(profileId));
   const query = useSharedProfileQuery(invalidShared ? null : profileId, projectId, categoryId);
-  const profile = query.profile;
+  const confirmedWebReader = useRef<{ scope: string; profile: Profile } | null>(null);
+  const webReaderScope = presentation === 'web' && !settings && !handlePending && !handleError && !invalidShared
+    && (route.kind === 'sharedCategory' || route.kind === 'sharedProject') && profileId && categoryId
+    ? JSON.stringify([auth.user?.id ?? null, profileId, categoryId]) : null;
+  if (!webReaderScope || confirmedWebReader.current?.scope !== webReaderScope || query.status === 'error' || query.status === 'not-found') {
+    confirmedWebReader.current = null;
+  }
+  if (webReaderScope && query.status === 'ready') {
+    const readyProfile = query.profile;
+    const confirmed = readyProfile && readyProfile.id === profileId && !readyProfile.isPrivate
+      && readyProfile.categories.some(item => item.id === categoryId)
+      && (!projectId || readyProfile.projects.some(item => item.id === projectId && item.categoryId === categoryId && item.isPubliclyVisible !== false));
+    confirmedWebReader.current = confirmed ? { scope: webReaderScope, profile: readyProfile } : null;
+  }
+  // Keep the confirmed public index through same-portal media reads, while the
+  // pending selection renders no previous project's files.
+  const retainedReaderProfile = webReaderScope && route.kind === 'sharedProject' && query.status === 'loading'
+    && confirmedWebReader.current?.scope === webReaderScope ? confirmedWebReader.current.profile : null;
+  const retainedWebReaderLoading = Boolean(retainedReaderProfile);
+  const profile = retainedReaderProfile ?? query.profile;
   const portalPopupId = portalPopup?.profileId === profileId && profile?.categories.some(item => item.id === portalPopup.categoryId)
     ? portalPopup.categoryId : null;
   const publicStyle = profile?.publicAppearance;
@@ -81,7 +100,19 @@ export function VisitorApp() {
   const choosePublicMode = useCallback((mode:'auto' | 'light' | 'dark') => { setVisitorOverride({id:profileId,mode}); appearance.chooseMode(mode); },[profileId,appearance.chooseMode]);
   const accentColor = publicStyle?.accentColor ?? appearance.accentColor;
   const systemGray = publicStyle?.systemGray ?? appearance.systemGray;
-  const project = profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
+  const project = retainedWebReaderLoading ? undefined : profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
+  const webCategoryRoute = presentation === 'web' && !settings && route.kind === 'sharedCategory';
+  const readerRoute = !settings && (Boolean(projectId) || webCategoryRoute);
+  const webCategoryReady = webCategoryRoute && !handlePending && !handleError && !invalidShared && query.status === 'ready'
+    && profile?.id === profileId && !profile?.isPrivate && Boolean(profile?.categories.some(item => item.id === categoryId));
+  const publicCategoryProjects = webCategoryReady && profile ? profile.projects.filter(item => item.categoryId === categoryId && item.isPubliclyVisible !== false) : [];
+  const firstCategoryProjectId = (publicCategoryProjects.find(item => item.isPinned) ?? publicCategoryProjects[0])?.id;
+  useEffect(() => {
+    if (!webCategoryReady || !profileId || !categoryId || !firstCategoryProjectId) return;
+    const search = visitorPreview && !new URLSearchParams(location.search).has('visitorPreview')
+      ? `${location.search}${location.search ? '&' : '?'}visitorPreview=1` : location.search;
+    navigate(portfolioProjectPath(profileId, categoryId, firstCategoryProjectId, handleFromPath(location.pathname)) + search + location.hash, { replace: true });
+  }, [webCategoryReady, profileId, categoryId, firstCategoryProjectId, visitorPreview, location.pathname, location.search, location.hash, navigate]);
   const catalogueRoute = !settings && (route.kind === 'sharedProfile' || route.kind === 'sharedCategory');
   const catalogueReady = catalogueRoute && !handlePending && !handleError && !invalidShared && query.status === 'ready' && Boolean(profile);
   // Canonical handle replacement can briefly be unresolved; keep this trusted
@@ -127,7 +158,8 @@ export function VisitorApp() {
     }
     if (profileId && !invalidShared && projectReturn.close(portfolioPath(profileId, handleFromPath(location.pathname)) + previewSuffix)) return;
     if (!profileId || !profile || invalidShared || handleError) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else window.location.assign('/'); return; }
-    if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + (projectId && presentation !== 'mobile' && categoryId ? `/c/${encodeURIComponent(categoryId)}` : '') + previewSuffix);
+    if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + previewSuffix,
+      presentation === 'web' && readerRoute ? { replace: true } : undefined);
   };
   useEffect(() => {
     if (presentation === 'mobile' && route.kind === 'sharedCategory' && profileId) {
@@ -207,7 +239,7 @@ export function VisitorApp() {
     }
     projectReturn.open(withCataloguePageTarget(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix, id), id);
   } };
-  const pending = <LoadingSkeleton kind={projectId ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…"/>;
+  const pending = <LoadingSkeleton kind={projectId || webCategoryRoute ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…"/>;
   const profileOnboarding = <ProfileOnboardingDialog key={auth.user?.id} isOpen theme={theme} systemGray={systemGray}
     onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}
     onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
@@ -221,14 +253,17 @@ export function VisitorApp() {
   return <AppPresentation showFloatingActions={!projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode}
-        onOpenCategory={id => { if (presentation === 'mobile') setPortalPopup({ profileId: profile.id, categoryId: id }); else navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}`); }}
+        onOpenCategory={id => { if (presentation === 'mobile') setPortalPopup({ profileId: profile.id, categoryId: id }); else {
+          desktopCatalogueOrigin.current = null;
+          navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}` + previewSuffix);
+        } }}
         onSettingsOpen={() => { if (!settings && sharedPath) navigate(buildPath('controlCenter'), { state: { settingsReturn: sharedPath } }); }} />}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
         {visitorPreview && profileId && <VisitorPreviewBar onDone={() => window.location.assign(visitorPreviewReturn(profileId))} />}
         <div id="app-viewport">
           <div className="app-screen-layer h-full min-h-0">
-            <main tabIndex={-1} aria-label={settings ? 'Settings' : presentation === 'mobile' && projectId ? project ? `${project.title} files` : 'Shared project' : profile ? `${profile.name} shared catalogue` : 'Shared catalogue'} className={`min-h-0 h-full w-full ${projectId && !settings ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-              <div data-screen-scroll={projectId && !settings ? 'nested' : 'page'} className={`feed-starfield min-h-full ${projectId && !settings ? 'h-full' : ''}`}>
+            <main tabIndex={-1} aria-label={settings ? 'Settings' : presentation === 'mobile' && projectId ? project ? `${project.title} files` : 'Shared project' : profile ? `${profile.name} shared catalogue` : 'Shared catalogue'} className={`min-h-0 h-full w-full ${readerRoute ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+              <div data-screen-scroll={readerRoute ? 'nested' : 'page'} className={`feed-starfield min-h-full ${readerRoute ? 'h-full' : ''}`}>
                 {presentation === 'mobile' && catalogue.profile && <DeferredSurfaceBoundary active={catalogueReady} onClose={back} resetKey={catalogueScope}>
                   <Suspense fallback={catalogueReady ? pending : null}>
                     <VisitorProfileGrid key={`catalogue:${catalogueScope}`} profile={catalogue.profile} categoryId={null}
@@ -246,11 +281,13 @@ export function VisitorApp() {
                       onBack={back} onOpenProfile={openOwnProfile} />
                       : handleError ? <RouteError kind={routeErrorKind(handleError)} onBack={back} onHome={() => window.location.assign('/')} /> : handlePending ? pending
                       : invalidShared ? <RouteError kind="not-found" onBack={back} onHome={() => window.location.assign('/')} />
-                      : query.status === 'loading' || query.status === 'idle' ? pending : !profile ? <RouteError kind={query.status === 'error' ? routeErrorKind(query.error) : 'not-found'} onBack={back} onHome={() => window.location.assign('/')} />
-                      : projectId ? project ? <VisitorProjectPage key={project.id} profile={profile} project={project} onBack={back}
-                        onBackToProfile={presentation === 'mobile' ? back : () => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} onSelect={id => openProject(project.categoryId, id)} /> : <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={presentation === 'mobile' ? back : () => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
+                      : (query.status === 'loading' || query.status === 'idle') && !retainedWebReaderLoading ? pending : !profile ? <RouteError kind={query.status === 'error' ? routeErrorKind(query.error) : 'not-found'} onBack={back} onHome={() => window.location.assign('/')} />
+                      : projectId ? project || retainedWebReaderLoading ? <VisitorProjectPage key={presentation === 'web' ? `${profile.id}/${categoryId}` : project?.id} profile={profile} project={project ?? null} categoryId={categoryId ?? undefined} loading={retainedWebReaderLoading} onBack={back}
+                        onBackToProfile={presentation === 'mobile' ? back : () => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} onSelect={id => { if (categoryId) openProject(categoryId, id); }} /> : <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={presentation === 'mobile' ? back : () => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
                       : route.kind === 'sharedCollaboration' ? <CollaborationPage profile={profile} onBack={back} />
                       : presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId) ? <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
+                      : webCategoryRoute ? webCategoryReady && !firstCategoryProjectId ? <VisitorProjectPage key={`${profile.id}/${categoryId}`} profile={profile} project={null} categoryId={categoryId ?? undefined} onBack={back}
+                        onBackToProfile={back} onSelect={id => { if (categoryId) openProject(categoryId, id); }} /> : pending
                       : presentation === 'mobile' ? null : <VisitorProfileGrid key={`${profile.id}/${categoryId ?? ''}`} profile={profile} categoryId={categoryId} onOpen={openProject} onBack={back} onMessage={openMessages}
                         onCollaboration={openMessages} />}
                   </Suspense>

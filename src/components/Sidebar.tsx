@@ -690,7 +690,7 @@ export function Sidebar({
               const Icon = item.icon;
               return <button key={item.label} type="button" onClick={() => handleNavigate(item.label)} aria-label={`Open ${item.displayLabel}`} title={item.displayLabel} aria-current={activeTarget === 'home' ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none"><InterfaceIcon icon={Icon} weight="medium" /></button>;
             })}
-                {isAuthenticated ? <PersonalNavigationTile destination="notifications" collapsed active={isActivityActive} /> : <button type="button" disabled aria-label="Studio unavailable" title="Studio is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
+                {isAuthenticated ? <PersonalNavigationTile destination="portalSearch" collapsed active={isPortalSearchActive} /> : <button type="button" disabled aria-label="Studio unavailable" title="Studio is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
                   <InterfaceIcon icon={WarehouseIcon} weight="medium" />
                 </button>}
                 <button type="button" onClick={onSearchOpen} aria-label="Search accounts" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
@@ -716,7 +716,7 @@ export function Sidebar({
                   {primaryNav.map((item) => <NavTile key={item.label} label={item.displayLabel} icon={item.icon} isActive={activeTarget === 'home'} activeClassName="" onSelect={() => handleNavigate(item.label)} ariaLabel={`Open ${item.displayLabel}`} />)}
                 </div>
                 <div role="group" aria-label="Main navigation row two" className="contents">
-                  {isAuthenticated ? <PersonalNavigationTile destination="notifications" active={isActivityActive} /> : <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />}
+                  {isAuthenticated ? <PersonalNavigationTile destination="portalSearch" active={isPortalSearchActive} /> : <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />}
                   <NavTile label="Search" icon={UserSearchIcon} isActive={activeTarget === 'search'} activeClassName="" ariaLabel="Search accounts" onSelect={onSearchOpen} />
                   <NavTile label="Messages" icon={MessageCircleIcon} isActive={activeTarget === 'messages'} activeClassName="" onSelect={() => onMessagesOpen()} ariaLabel="Open messages" isProfileTile />
                   <NavTile label="Profile" icon={CircleUserRoundIcon} isActive={activeTarget === 'profile'} activeClassName="" onSelect={handleProfileOpen} href={profileHref} ariaLabel="Open your profile" isProfileTile />
@@ -801,14 +801,14 @@ export function Sidebar({
 
           </>}
 
-          {/* Personal destinations occupy the main grid; the inactive Studio
-              and Portals markers take their old footer slots in either rail. */}
+          {/* Studio and Activity share the footer between Settings and Appearance
+              in either rail size. */}
           <div className={`sidebar-account-footer mt-auto shrink-0 border-t border-[var(--hairline)] ${isSidebarCollapsed ? 'sidebar-rail' : 'pt-2'}`}>
             {isSidebarCollapsed ? <>
               <SettingsTrigger collapsed onOpen={onControlCenterOpen} />
               {isAuthenticated && <>
                 <PersonalNavigationTile destination="studio" collapsed active={isStudioActive} />
-                <PersonalNavigationTile destination="portalSearch" collapsed active={isPortalSearchActive} />
+                <PersonalNavigationTile destination="notifications" collapsed active={isActivityActive} />
               </>}
               <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
@@ -817,7 +817,7 @@ export function Sidebar({
                 <SettingsTrigger collapsed={false} onOpen={onControlCenterOpen} />
                 {isAuthenticated && <>
                   <PersonalNavigationTile destination="studio" active={isStudioActive} />
-                  <PersonalNavigationTile destination="portalSearch" active={isPortalSearchActive} />
+                  <PersonalNavigationTile destination="notifications" active={isActivityActive} />
                 </>}
                 <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}

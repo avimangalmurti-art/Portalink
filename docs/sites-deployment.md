@@ -1,3 +1,11 @@
+## 2026-10-30 - Larger six-column WEB portals published 566
+
+Live https://portalinknetworks.com/ from `8982e751566e178fd27968c0b66131d2c3487a6b` on codex/socal-release/GitHub/Sites mirror; open draft PR148 main-base matches source, main unmerged. WEB gains112px squircle tiles/36px glyphs on wide screens and adaptive up-to-six columns; MOBILE4/80/24 preserved. Creator badges/names/accents retained.
+
+Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_c2395cbe73608191beaf9cb0c6c07243`; deployment `appgdep_6ae54a4afbb8819185f5713970a944fa` succeeded `2026-10-31T01:54:28.782001+00:00`. Public audience/domains/runtime2/Supabase/worker+D1 unchanged. Fresh configured build/guards/source+archive audits pass; unchanged JS retains preceding164focused/type/lint evidence without rerun. Prior WEB/MOBILE fixture proof applies; physical phone/connected account/CI unverified.
+
+3source paths/648payloads(647byte-exact plus hosting normalization),423assets/fourSQL/server unchanged. Archive48,903,495bytes/SHA256 `528e3d651d5ff24146b53487bc9b2303a896c118afe25275d3beefce7287a482`; native83,681,280bytes/SHA256 `b315aa0191422eb6a457c4ec085e30769677c7bc5ef629e17c9670660d1cead2`. Both live entry reference sets/all215JS-CSS assets match,0failures. Receipts logs/web-portal-six-release*.json; no approval rejection, duplicate publication or JS/service/Auth/backend/config/dependency/main operation. Only postpublication receipt docs dirty; no further deployment required.
+
 ## 2026-10-30 - Larger six-column WEB portal publication authorized
 
 Explicit request covers pending WEB112px portal tiles/36px glyphs on wide panes and adaptive up-to-six columns in a960px group. MOBILE4/80/24 preserved. Owned codex/socal-release78b3ff8/live565; exact3paths1CSS2docs. Fresh configured client+worker build/main+visitor guards, independent review and prior exact-source WEB1280/1920/640 +MOBILE420 evidence pass. JS retains prior164focused/type/lint evidence without broad rerun. Exact main-base PR148/source/frozen build/archive/native publish/live checks follow. Retain public audience/domains/runtime2/Supabase/worker+D1/423assets/fourSQL; no JS/service/Auth/backend/config/dependency/main operation. Final receipt follows above.

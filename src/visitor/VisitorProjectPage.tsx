@@ -8,34 +8,51 @@ import { useAssetProcessing } from '../features/media/useAssetProcessing';
 import { getTypefaceStack } from '../data/typefaces';
 import { panelLayoutDefaults } from '../utils/panelLayoutDefaults';
 import { InterfaceIcon } from '../components/ui/InterfaceIcon';
+import { LoadingSkeleton } from '../components/ui/StateViews';
 import { useElementSize } from '../hooks/useElementSize';
 import { allocateProjectPanels, type ProjectPanel } from '../utils/projectPanelLayout';
 import { ProjectIndexList } from '../components/profile/ProjectIndexList';
 import { MobilePortalProjectToolbar } from '../components/profile/MobilePortalProjectToolbar';
 
 /** Uses the canonical media viewer without importing owner workspace/editors. */
-export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, onSelect }: {
-  profile: Profile; project: Project; onBack: () => void; onBackToProfile: () => void; onSelect: (id: string) => void;
+export function VisitorProjectPage({ profile, project, categoryId, loading = false, onBack, onBackToProfile, onSelect }: {
+  profile: Profile; project: Project | null; categoryId?: string; loading?: boolean; onBack: () => void; onBackToProfile: () => void; onSelect: (id: string) => void;
 }) {
   const isMobile = usePresentation() === 'mobile';
-  const [indexOpen, setIndexOpen] = useState(false), [railOpen, setRailOpen] = useState(false);
+  const [indexOpen, setIndexOpen] = useState(!isMobile), [railOpen, setRailOpen] = useState(false);
   const [lastPanel, setLastPanel] = useState<ProjectPanel | null>(null);
-  const [focused, setFocused] = useState(false);
-  const [pagesPerRow, setPagesPerRow] = useState(project.design?.pagesPerRow ?? 3);
-  const [resolvedCounts, setResolvedCounts] = useState<Record<string, number>>({});
+  // WEB keeps the category's index mounted when selection changes. Media state
+  // belongs to the selected project, including late document callbacks.
+  const currentScope = useRef({ profileId: profile.id, projectId: project?.id ?? null });
+  if (currentScope.current.profileId !== profile.id || currentScope.current.projectId !== (project?.id ?? null)) {
+    currentScope.current = { profileId: profile.id, projectId: project?.id ?? null };
+  }
+  const readerScope = currentScope.current;
+  const defaultPagesPerRow = project?.design?.pagesPerRow ?? 3;
+  type ReaderState = { scope: typeof readerScope; focused: boolean; pagesPerRow: number; resolvedCounts: Record<string, number> };
+  const [readerState, setReaderState] = useState<ReaderState>({ scope: readerScope, focused: false, pagesPerRow: defaultPagesPerRow, resolvedCounts: {} });
+  const { focused, pagesPerRow, resolvedCounts } = readerState.scope === readerScope ? readerState
+    : { focused: false, pagesPerRow: defaultPagesPerRow, resolvedCounts: {} as Record<string, number> };
+  const updateReader = useCallback((update: (state: ReaderState) => ReaderState) => {
+    setReaderState(current => currentScope.current !== readerScope ? current : update(current.scope === readerScope ? current
+      : { scope: readerScope, focused: false, pagesPerRow: defaultPagesPerRow, resolvedCounts: {} }));
+  }, [readerScope, defaultPagesPerRow]);
+  const setFocused = useCallback((value: boolean) => updateReader(current => ({ ...current, focused: value })), [updateReader]);
+  const setPagesPerRow = useCallback((value: number) => updateReader(current => ({ ...current, pagesPerRow: value })), [updateReader]);
   const [indexQuery, setIndexQuery] = useState('');
   const workspace = useElementSize<HTMLDivElement>();
   const indexOpener = useRef<HTMLButtonElement>(null);
-  const attachments = useMemo(() => project.attachments ?? [], [project.attachments]);
-  const category = profile.categories.find(item => item.id === project.categoryId);
-  const categoryProjects = profile.projects.filter(item => item.categoryId === project.categoryId);
+  const attachments = useMemo(() => project?.attachments ?? [], [project?.attachments]);
+  const currentCategoryId = project?.categoryId ?? categoryId;
+  const category = profile.categories.find(item => item.id === currentCategoryId);
+  const categoryProjects = profile.projects.filter(item => item.categoryId === currentCategoryId && item.isPubliclyVisible !== false);
   const visibleProjects = isMobile || !indexQuery.trim() ? categoryProjects
     : categoryProjects.filter(item => item.title.toLocaleLowerCase().includes(indexQuery.trim().toLocaleLowerCase()));
   // Public readers use published metadata, without querying owner job tables.
   const processing = useAssetProcessing([]);
   const rail = useResizablePanelWidth({ id: 'shared-project-details-standard', defaultWidth: panelLayoutDefaults.sharedDetails, minWidth: 240, maxWidth: 440, viewportReserve: 420 });
   const pageCount = useMemo(() => {
-    if (project.pageCount && project.pageCount > 0) return project.pageCount;
+    if (project?.pageCount && project.pageCount > 0) return project.pageCount;
     const documents = attachments.filter(item => item.kind === 'document');
     if (documents.length) {
       const counts = documents.map(item => Math.max(item.metadata?.pageCount ?? 0, item.metadata?.renderedPages?.length ?? 0,
@@ -43,8 +60,9 @@ export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, 
       return counts.every(count => count > 0) ? counts.reduce((sum, count) => sum + count, 0) : null;
     }
     return attachments.length > 0 && attachments.every(item => item.kind === 'image') ? attachments.length : null;
-  }, [project.pageCount, attachments, processing.statuses, resolvedCounts]);
-  const resolvePageCount = useCallback((id: string, count: number) => setResolvedCounts(current => current[id] === count ? current : { ...current, [id]: count }), []);
+  }, [project?.pageCount, attachments, processing.statuses, resolvedCounts]);
+  const resolvePageCount = useCallback((id: string, count: number) => updateReader(current => current.resolvedCounts[id] === count ? current
+    : { ...current, resolvedCounts: { ...current.resolvedCounts, [id]: count } }), [updateReader]);
   const changeIndex = (open: boolean) => {
     setIndexOpen(open); setLastPanel(open ? 'index' : null);
     if (!open) requestAnimationFrame(() => indexOpener.current?.focus({ preventScroll: true }));
@@ -65,26 +83,31 @@ export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, 
     </div>}
     {indexExpanded && <nav data-project-index-list="" aria-label={`${category?.label ?? 'Project'} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
       <ProjectIndexList profileId={profile.id} projects={visibleProjects} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
-        typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.isPinned).map(item => item.id)} activeProjectId={project.id} isOwner={false} sharedReadOnly
+        typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.isPinned).map(item => item.id)} activeProjectId={project?.id ?? null} isOwner={false} sharedReadOnly
         onReorder={() => undefined} onToggleHidden={() => undefined} onTogglePinned={() => undefined}
-        onSelect={id => { changeIndex(false); onSelect(id); }} />
-      {!visibleProjects.length && <p className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]">No projects match “{indexQuery.trim()}”.</p>}
+        onSelect={id => { if (isMobile) changeIndex(false); onSelect(id); }} />
+      {!visibleProjects.length && <p className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]">{categoryProjects.length ? `No projects match “${indexQuery.trim()}”.` : 'No published projects in this portal.'}</p>}
     </nav>}
   </aside>;
   return <div className="relative flex h-full min-h-0 w-full flex-col" data-shared-project-reader="" data-mobile-project-view={isMobile ? '' : undefined}>
-    {!isMobile && <header className="global-control-header side-panel-control-row px-2"><button type="button" className="side-panel-primary-control px-3" onClick={onBack}>Back</button><span className="min-w-0 truncate px-2">{project.title}</span></header>}
+    {!isMobile && <header className="global-control-header side-panel-control-row px-2"><button type="button" className="side-panel-primary-control px-3" onClick={onBack}>Back</button><span className="min-w-0 truncate px-2">{project?.title ?? category?.label ?? 'Projects'}</span></header>}
     {isMobile && !indexOpen && !focused && <>
       <button type="button" className="mobile-project-back" aria-label="Go back" onClick={onBack}><InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl /></button>
     </>}
     <div ref={workspace.ref} className="relative flex min-h-0 flex-1">
       {!isMobile && index}
-      <section className="flex min-h-0 min-w-0 flex-1" style={{ display: !isMobile && layout.singlePanel === 'index' ? 'none' : undefined }} aria-label={`${project.title} files`}>
-      <ProjectMediaViewer key={project.id} creator={profile} projectId={project.id} projectTitle={project.title} projectSummary={project.summary}
+      <section className="flex min-h-0 min-w-0 flex-1" style={{ display: !isMobile && layout.singlePanel === 'index' ? 'none' : undefined }} aria-label={project ? `${project.title} files` : `${category?.label ?? 'Portal'} work`}>
+      {project ? <ProjectMediaViewer key={project.id} creator={profile} projectId={project.id} projectTitle={project.title} projectSummary={project.summary}
         publishedAt={project.publishedAt} credits={project.credits} attachments={attachments} pageCount={pageCount} onDocumentPageCountResolved={resolvePageCount}
         contentTypefaceStack={getTypefaceStack(project.design?.typefaceId ?? 'default')} pagesPerRow={pagesPerRow} onPagesPerRowChange={setPagesPerRow} onPageFocusModeChange={setFocused}
         processing={processing} responseRailWidth={{ ...rail, width: isMobile ? rail.width : layout.responseWidth }} singlePanel={isMobile ? null : layout.singlePanel}
-        isRailOpen={isMobile ? railOpen : layout.responseOpen} onRailOpenChange={open => { setRailOpen(open); setLastPanel(open ? 'response' : null); }} readOnlyShare onClose={onBack}
+        isRailOpen={isMobile ? railOpen : layout.responseOpen} onRailOpenChange={open => { setRailOpen(open); setLastPanel(open ? 'response' : null); }} isOwner={false} readOnlyShare onClose={onBack}
         mobileNavigation={isMobile ? { indexOpener, index, isIndexOpen: indexOpen, onOpenIndex: () => changeIndex(true), onCloseIndex: () => changeIndex(false), onBack } : undefined} />
+        : loading ? <LoadingSkeleton kind="reader" label="Opening shared project…" />
+        : <div className="flex min-w-0 flex-1 items-center justify-center px-6 text-center"><div className="max-w-[420px]">
+          <h2 className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">No projects in {category?.label ?? 'this portal'}</h2>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work has been published in this portal.</p>
+        </div></div>}
       </section>
     </div>
   </div>;

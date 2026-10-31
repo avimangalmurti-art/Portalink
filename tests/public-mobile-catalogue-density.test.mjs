@@ -50,8 +50,9 @@ function fixture(initial = {}) {
   };
 }
 
-test('active MOBILE public images expose one named density control directly after the profile links', () => {
-  const h = fixture(), tree = h.render();
+test('active MOBILE and WEB public images expose one named density control directly after the profile links', () => {
+ for (const presentation of ['mobile', 'web']) for (const viewerProfileId of [null, 'creator']) {
+  const h = fixture({ presentation, viewerProfileId }), tree = h.render();
   const controls = densityControls(tree);
   assert.equal(controls.length, 1);
   const header = nodes(tree).find(node => node.props['data-profile-header'] !== undefined);
@@ -69,10 +70,13 @@ test('active MOBILE public images expose one named density control directly afte
   assert.equal(nodes(tree).find(node => node.type === 'profile-links').props.isSharedView, true);
   assert.equal(h.calls[0][0], h.profile);
   assert.equal(h.calls[0][1], false, 'A public slider never enables profile writes');
+  assert.equal(tree.props['data-public-image-catalogue'], presentation === 'mobile' ? '' : undefined, 'MOBILE flow and scroll repair retain their existing scope');
+ }
 });
 
 test('public density previews, cancellation and commits feed the same local wall state', () => {
-  const h = fixture({ viewerProfileId: 'creator' });
+ for (const presentation of ['mobile', 'web']) for (const viewerProfileId of [null, 'creator']) {
+  const h = fixture({ presentation, viewerProfileId });
   let tree = h.render();
   densityControls(tree)[0].props.onPreview(5);
   tree = h.render();
@@ -95,12 +99,14 @@ test('public density previews, cancellation and commits feed the same local wall
   assert.equal(densityControls(h.render())[0].props.columns, 13, 'A retained catalogue returns to its current local density');
   assert.ok(h.calls.every(([receivedProfile, canSave]) => receivedProfile === h.profile && canSave === false), 'Even the signed-in owner remains a read-only public viewer');
   assert.equal(h.profile.projectGridColumns, 3, 'Local choices never mutate the published profile');
+ }
 });
 
-test('WEB, Timeline, Portals and inactive public catalogues omit the MOBILE density control', () => {
+test('Timeline, Portals and inactive public catalogues omit density controls on both presentations', () => {
   for (const [name, options] of [
-    ['WEB images', { presentation: 'web' }],
     ['WEB Timeline', { presentation: 'web', view: 'journey' }],
+    ['WEB Portals', { presentation: 'web', search: 'view=portals' }],
+    ['inactive WEB images', { presentation: 'web', active: false }],
     ['MOBILE Timeline', { view: 'journey' }],
     ['MOBILE Portals', { search: 'view=portals' }],
     ['inactive MOBILE images', { active: false }],
@@ -113,7 +119,8 @@ test('WEB, Timeline, Portals and inactive public catalogues omit the MOBILE dens
 });
 
 test('returning from Timeline or Portals restores one image-catalogue slider with the current local value', () => {
-  const h = fixture();
+ for (const presentation of ['mobile', 'web']) {
+  const h = fixture({ presentation });
   densityControls(h.render())[0].props.onChange(4);
   h.state.view = 'journey';
   assert.equal(densityControls(h.render()).length, 0);
@@ -125,4 +132,20 @@ test('returning from Timeline or Portals restores one image-catalogue slider wit
   const tree = h.render();
   assert.equal(densityControls(tree).length, 1);
   assert.equal(densityControls(tree)[0].props.columns, wall(tree).props.columns);
+ }
+});
+
+test('WEB category images expose the same local control without enabling owner actions', () => {
+  const h = fixture({ presentation: 'web', categoryId: 'work', view: 'journey', viewerProfileId: 'creator' });
+  let tree = h.render();
+  assert.equal(densityControls(tree).length, 1, 'The visible category wall owns its density even if Timeline was selected on the profile');
+  assert.equal(nodes(tree).some(node => node.type === 'journey-toggle'), false, 'Existing WEB category tabs stay unchanged');
+  densityControls(tree)[0].props.onPreview(6);
+  tree = h.render();
+  assert.equal(wall(tree).props.columns, 6);
+  assert.equal(wall(tree).props.allowLayoutControls, false);
+  densityControls(tree)[0].props.onChange(6);
+  assert.deepEqual(h.changes, [['preview', 6], ['commit', 6]]);
+  assert.ok(h.calls.every(([, canSave]) => canSave === false));
+  assert.equal(h.profile.projectGridColumns, 3);
 });
