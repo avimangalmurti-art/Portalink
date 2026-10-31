@@ -12,7 +12,7 @@ function dockHarness(pathname='/studio') {
  vm.runInNewContext(ts.transpileModule(read('../src/presentation/mobile/MobileNavigation.tsx'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require(name){
   if(name==='react')return {...React,useRef:()=>({current:null})};
   if(name==='react-router-dom')return {Link:'link',useLocation:()=>({pathname})};
-  if(name.endsWith('/routes'))return{buildPath:kind=>kind==='home'?'/':`/${kind}`};
+  if(name.endsWith('/routes'))return{buildPath:kind=>kind==='home'?'/':kind==='portalSearch'?'/portal-search':`/${kind}`};
   if(name==='./MobileContextActions')return {MobileContextButton:'context-button',useMobileActions:()=>({opened:false})};
   if(name==='./useMobileDockScroll')return{useMobileDockScroll:(...args)=>calls.push(args)};
   return new Proxy({},{get:(_o,key)=>key});
@@ -48,10 +48,11 @@ test('dock orders Explore, Messages, SoCal, Studio and Profile, with no rail or 
  const source=read('../src/presentation/mobile/MobileNavigation.tsx');assert.doesNotMatch(source,/useNavigationSwipe|useNavigationOutsideTap|onCreateProject|mobile-navigation-opener|Videos|appearance/);
 });
 test('SoCal uses its explicit active flag without selecting Profile and preserves every existing destination',()=>{
- for(const [pathname,selected] of [['/','Explore'],['/messages','Messages'],['/studio','Studio'],['/saved','Studio'],['/p/me','Profile'],['/p/me/socal','SoCal'],['/p/other/socal',null]]){
+ for(const [pathname,selected] of [['/','Explore'],['/portal-search','Explore'],['/messages','Messages'],['/studio','Studio'],['/saved','Studio'],['/p/me','Profile'],['/p/me/socal','SoCal'],['/p/other/socal',null]]){
   const fixture=dockHarness(pathname);
   const tree=fixture.render({profileHref:'/p/me',isProfileActive:selected==='Profile',isSoCalActive:selected==='SoCal'});
   const items=nodes(tree).filter(node=>node.props.item).map(node=>node.type(node.props));
+  assert.equal(items.length,5,'Portal search belongs to Explore without adding another dock destination');
   assert.deepEqual(items.filter(node=>node.props['aria-current']==='page').map(node=>node.props['aria-label']),selected?[selected]:[],pathname);
   assert.equal(items.find(node=>node.props['aria-label']==='Explore').props.to,'/');
   assert.equal(items.find(node=>node.props['aria-label']==='Studio').props.to,'/studio');

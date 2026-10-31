@@ -5,9 +5,12 @@ import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
 import { useServices } from '../../contexts/ServicesContext';
 import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
+import { PreviewCreatorName } from '../../components/profile/PreviewCreatorName';
 import { getCategoryIcon } from '../../components/profile/categoryIcons';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StateViews';
+import { ScreenBack, useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
+import { usePresentation } from '../../presentation/usePresentation';
 import type { PublicPortalSummary } from '../../types/portals';
 import './public-portal-search.css';
 
@@ -87,6 +90,8 @@ function usePublicPortalDirectory(query: string) {
 
 /** Public portal identities only; opening a result uses its creator's existing catalogue route. */
 export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
+  const isMobile = usePresentation() === 'mobile';
+  const active = useMobileScreenActive();
   const auth = useAuth();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
@@ -101,7 +106,7 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
   return <section data-public-portal-search="" aria-labelledby="public-portal-search-title">
     <header className="global-control-header public-portal-search-header">
       <div className="public-portal-search-heading">
-        <button type="button" onClick={onBack} aria-label="Go back" className="public-portal-back"><InterfaceIcon icon={ChevronLeftIcon} /></button>
+        <ScreenBack action={onBack} visibleOnMobile><button type="button" onClick={onBack} aria-label="Go back" className="public-portal-back"><InterfaceIcon icon={ChevronLeftIcon} /></button></ScreenBack>
         <h1 id="public-portal-search-title">Portal search</h1>
       </div>
       <label className="public-portal-search-field">
@@ -123,8 +128,8 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
                     <span className="profile-collection-tile squircle"><InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor={Boolean(portal.creator.accentColor)} style={portal.creator.accentColor ? { color: portal.creator.accentColor } : undefined} /></span>
                     <span className="public-portal-avatar"><CreatorAvatar name={portal.creator.name} avatar={portal.creator.avatar} className="h-full w-full text-[12px]" /></span>
                   </span>
-                  <span className="profile-collection-name">{portal.label}</span>
-                  <span className="public-portal-creator-name">{portal.creator.name}</span>
+                  <span className="profile-collection-name">{isMobile ? <PreviewCreatorName name={portal.label} active={active} centered /> : portal.label}</span>
+                  <span className={isMobile ? 'profile-collection-name public-portal-creator-name' : 'public-portal-creator-name'}>{isMobile ? <PreviewCreatorName name={portal.creator.name} active={active} centered /> : portal.creator.name}</span>
                 </Link>
               </li>)}
             </ul>

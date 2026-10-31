@@ -10,10 +10,11 @@ const links = tree => nodes(tree).filter(node => node.type === 'route-link');
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props.children === label);
 const portal = (id, profileId = 'creator-a', label = `Portal ${id}`) => ({ id, profileId, label, iconName: 'camera', creator: { id: profileId, name: `Creator ${profileId}`, handle: profileId, avatar: `/${profileId}.jpg` } });
 
-function harness(initialQuery = '', account = 'account-a') {
+function harness(initialQuery = '', account = 'account-a', options = {}) {
   let cursor = 0, dirty = true, mounted = true, tree, params = new URLSearchParams(initialQuery), timer = 0, back = 0;
   let effects = [];
   const slots = [], timers = new Map(), calls = [], navigations = [];
+  const environment = { presentation: options.presentation ?? 'web', active: options.active ?? true };
   const auth = { isAuthenticated: Boolean(account), isInitializing: false, phase: 'authenticated', user: account ? { id: account } : null, loginSession: {}, requestAuth(view) { navigations.push(view); } };
   const discovery = { listPublicPortals(query, offset) { const response = deferred(); calls.push({ query, offset, response }); return response.promise; } };
   const same = (left, right) => left && right && left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
@@ -51,9 +52,12 @@ function harness(initialQuery = '', account = 'account-a') {
     '../../contexts/AuthContext': { useAuth: () => auth },
     '../../contexts/ServicesContext': { useServices: () => ({ discovery }) },
     '../../components/profile/CreatorAvatar': { CreatorAvatar: 'creator-avatar' },
+    '../../components/profile/PreviewCreatorName': { PreviewCreatorName: 'preview-creator-name' },
     '../../components/profile/categoryIcons': { getCategoryIcon: value => `chosen:${value ?? 'default'}` },
     '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
     '../../components/ui/StateViews': { EmptyState: 'empty', ErrorState: 'error', LoadingState: 'loading' },
+    '../../presentation/usePresentation': { usePresentation: () => environment.presentation },
+    '../../presentation/mobile/MobileBackNavigation': { ScreenBack: 'screen-back', useMobileScreenActive: () => environment.active },
     './public-portal-search.css': {},
   }, { window: { setTimeout(callback, delay) { timers.set(++timer, { callback, delay }); return timer; }, clearTimeout(id) { timers.delete(id); } } });
   const render = () => {
@@ -63,7 +67,7 @@ function harness(initialQuery = '', account = 'account-a') {
     return tree;
   };
   return {
-    calls, auth, navigations, timers,
+    calls, auth, navigations, timers, environment,
     get tree() { if (dirty) render(); return tree; },
     get back() { return back; },
     rerender() { dirty = true; return this.tree; },
@@ -73,6 +77,27 @@ function harness(initialQuery = '', account = 'account-a') {
     dispose() { for (const slot of slots) slot?.cleanup?.(); mounted = false; },
   };
 }
+
+test('the portal directory keeps one visible Back control and registers its action only for the active MOBILE screen', () => {
+  const h = harness(); const tree = h.tree;
+  const wrapper = nodes(tree).find(node => node.type === 'screen-back');
+  const back = nodes(tree).filter(node => node.type === 'button' && node.props['aria-label'] === 'Go back');
+  assert.ok(wrapper); assert.equal(wrapper.props.visibleOnMobile, true); assert.equal(back.length, 1);
+  assert.equal(wrapper.props.action, back[0].props.onClick);
+  for (const [presentation, active, enabled, shouldRegister] of [['mobile', true, true, true], ['mobile', false, true, false], ['mobile', true, false, false], ['web', true, true, false]]) {
+    const effects = [], registered = [];
+    const navigation = { register(action) { registered.push(action); return () => {}; } };
+    const { ScreenBack } = sourceModule('src/presentation/mobile/MobileBackNavigation.tsx', {
+      react: { ...React, createContext: initial => ({ initial }), useContext: context => context.initial === null ? navigation : { active, enabled }, useLayoutEffect: effect => effects.push(effect) },
+      '../usePresentation': { usePresentation: () => presentation },
+    });
+    const rendered = ScreenBack(wrapper.props); effects.forEach(effect => effect());
+    assert.equal(registered.length, shouldRegister ? 1 : 0, `${presentation}/${active}/${enabled}`);
+    assert.equal(nodes(rendered).filter(node => node.type === 'button' && node.props['aria-label'] === 'Go back').length, 1);
+    if (shouldRegister) registered[0]();
+  }
+  assert.equal(h.back, 1); back[0].props.onClick(); assert.equal(h.back, 2); h.dispose();
+});
 
 test('public portal grid uses each chosen icon, creator avatar, both names and canonical category link', async () => {
   const h = harness();
@@ -103,6 +128,49 @@ test('each portal glyph keeps its creator accent without recoloring labels, avat
   assert.ok(nodes(tree).filter(node => node.type === 'creator-avatar' || node.props.className === 'profile-collection-name' || node.props.className === 'public-portal-creator-name').every(node => node.props.style === undefined));
   assert.equal(tree.props.style, undefined);
   h.dispose();
+});
+
+test('MOBILE uses centered overflow labels while portal icons, creator badges, accents and links stay identical to WEB', async () => {
+  const item = portal('long', 'creator-b', 'A long structural engineering portal name');
+  item.creator.name = 'A creator with a longer public name';
+  item.creator.accentColor = '#8a44bb';
+  for (const presentation of ['mobile', 'web']) {
+    const h = harness('', 'account-a', { presentation }); h.tree; h.runTimers();
+    h.calls[0].response.resolve({ items: [item], nextOffset: null });
+    const tree = await h.flush(); const link = links(tree)[0];
+    assert.equal(link.props.to, '/p/creator-b/c/long');
+    assert.equal(link.props.title, `${item.label} — ${item.creator.name}`);
+    assert.equal(nodes(link).filter(node => node.props.className === 'profile-collection-tile squircle').length, 1);
+    const glyph = nodes(link).find(node => node.type === 'interface-icon' && node.props.icon === 'chosen:camera');
+    assert.equal(glyph.props.keepColor, true); assert.equal(glyph.props.style.color, '#8a44bb');
+    const avatar = nodes(link).find(node => node.type === 'creator-avatar');
+    assert.equal(avatar.props.name, item.creator.name); assert.equal(avatar.props.avatar, '/creator-b.jpg');
+    const labels = nodes(link).filter(node => node.type === 'preview-creator-name');
+    const creatorLabel = nodes(link).find(node => node.props.className?.split(' ').includes('public-portal-creator-name'));
+    if (presentation === 'mobile') {
+      assert.deepEqual(labels.map(node => node.props.name), [item.label, item.creator.name]);
+      assert.ok(labels.every(node => node.props.centered === true && node.props.active === true));
+      assert.equal(creatorLabel.props.className, 'profile-collection-name public-portal-creator-name');
+    } else {
+      assert.equal(labels.length, 0);
+      assert.equal(nodes(link).find(node => node.props.className === 'profile-collection-name').props.children, item.label);
+      assert.equal(creatorLabel.props.children, item.creator.name); assert.equal(creatorLabel.props.className, 'public-portal-creator-name');
+    }
+    h.dispose();
+  }
+});
+
+test('an outgoing MOBILE directory pauses both name revealers without removing its portal identities or rereading data', async () => {
+  const h = harness('', 'account-a', { presentation: 'mobile' }); h.tree; h.runTimers();
+  h.calls[0].response.resolve({ items: [portal('a')], nextOffset: null }); await h.flush();
+  h.environment.active = false;
+  const inactive = h.rerender();
+  const labels = nodes(inactive).filter(node => node.type === 'preview-creator-name');
+  assert.equal(labels.length, 2); assert.ok(labels.every(node => node.props.active === false));
+  assert.equal(links(inactive).length, 1); assert.equal(h.calls.length, 1);
+  h.environment.active = true;
+  assert.ok(nodes(h.rerender()).filter(node => node.type === 'preview-creator-name').every(node => node.props.active === true));
+  assert.equal(h.calls.length, 1); h.dispose();
 });
 
 test('portal name search is debounced and preserved in the canonical URL without a new history entry per key', async () => {

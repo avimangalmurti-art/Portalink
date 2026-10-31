@@ -316,7 +316,7 @@ test('actual HomeFeed enables recovery only for the active MOBILE feed and manua
   const calls = [], recoveries = [], memo = [];
   let cursor = 0;
   const cancel = () => calls.push('cancel');
-  const context = vm.createContext({ exports: {}, isMobile: true, screenActive: true, categoriesOpen: false, account: 'one', locationId: undefined,
+  const context = vm.createContext({ exports: {}, isMobile: true, screenActive: true, account: 'one', locationId: undefined,
     feed: { retry: () => calls.push('retry'), loadMore: () => calls.push('load-more') },
     useMemo(factory, deps) { const index = cursor++; if (!memo[index] || deps.some((value, position) => !Object.is(value, memo[index].deps[position]))) memo[index] = { value: factory(), deps }; return memo[index].value; },
     useCallback: callback => callback,
@@ -327,11 +327,11 @@ test('actual HomeFeed enables recovery only for the active MOBILE feed and manua
   const render = changes => { Object.assign(context, changes); cursor = 0; return context.exports.render(); };
   const controls = render(); const identity = recoveries.at(-1).identity;
   render(); assert.equal(recoveries.at(-1).identity, identity, 'Ordinary rerenders retain recovery scope');
-  for (const state of [{ isMobile: false }, { screenActive: false }, { categoriesOpen: true }]) {
-    render({ isMobile: true, screenActive: true, categoriesOpen: false, ...state });
+  for (const state of [{ isMobile: false }, { screenActive: false }]) {
+    render({ isMobile: true, screenActive: true, ...state });
     assert.equal(recoveries.at(-1).enabled, false);
   }
-  render({ isMobile: true, screenActive: true, categoriesOpen: false }); assert.equal(recoveries.at(-1).enabled, true);
+  render({ isMobile: true, screenActive: true }); assert.equal(recoveries.at(-1).enabled, true);
   render({ account: 'two' }); assert.notEqual(recoveries.at(-1).identity, identity);
   const accountIdentity = recoveries.at(-1).identity;
   render({ locationId: 'city' }); assert.notEqual(recoveries.at(-1).identity, accountIdentity);

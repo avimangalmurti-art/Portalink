@@ -14,6 +14,7 @@ function nodes(node) {
 
 function harness(presentation = 'mobile', props = {}) {
   const slots = []; let cursor = 0;
+  let screenActive = true;
   let layoutEffects = []; let actions=null; let refreshGesture=null; let readiness=null; let refreshMotion=null;
   const feedArguments = [], navigation = [];
   let reloads = 0;
@@ -39,7 +40,7 @@ function harness(presentation = 'mobile', props = {}) {
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
     if (name === 'react-router-dom') return { useNavigate: () => (...args) => navigation.push(args), useLocation: () => ({ pathname: props.locationId ? `/portalink/${props.locationId}` : '/', search: props.search ?? '', hash: '' }) };
-    if (name.endsWith('/app/routes')) return { buildPath: (kind, ids) => kind === 'home' ? '/' : kind === 'profile' ? '/p/' + ids.profileId : '/p/' + ids.profileId + '/c/' + ids.categoryId + '/' + ids.projectId };
+    if (name.endsWith('/app/routes')) return { buildPath: (kind, ids) => kind === 'home' ? '/' : kind === 'portalSearch' ? '/portal-search' : kind === 'profile' ? '/p/' + ids.profileId : '/p/' + ids.profileId + '/c/' + ids.categoryId + '/' + ids.projectId };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileScreenActions(model) { actions=model; } };
     if (name.endsWith('/useHomePullRefresh')) return {useHomePullRefresh:(_ref,enabled,_busy,refresh)=>{refreshGesture=enabled?refresh:null;return '';}};
     if (name.endsWith('/useHomeRefreshMotion')) return {useHomeRefreshMotion:options=>{refreshMotion=options;return {contentRef:{current:null},indicatorRef:{current:null},onPull(){}};}};
@@ -47,7 +48,7 @@ function harness(presentation = 'mobile', props = {}) {
     if (name.endsWith('/useMobileFeedRecovery')) return { useMobileFeedRecovery: () => () => {} };
     if (name.endsWith('/useMobileFeedResume')) return { useMobileFeedResume: () => ({ restoring: false, handled: false }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
-    if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
+    if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => screenActive };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: 'owner', isAuthenticated: true, user: { id: 'account' } }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null, close() {} }, deletion: { projectId: null, cancel() {} } }) };
     if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ ...ownerProfile, layout: ownerProfile.profile }) };
@@ -63,7 +64,7 @@ function harness(presentation = 'mobile', props = {}) {
     cursor = 0; layoutEffects = [];
     return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onExploreWorld() { worldVisits++; }, onSearchUsers() { userSearchVisits++; }, onOpenProject() {}, onOpenCreator() { throw new Error("Account search must not open the viewer profile"); }, ...props });
   };
-  return { navigation, feedArguments, feed, density, ownerProfile, get readiness(){return readiness;}, get refreshMotion(){return refreshMotion;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
+  return { navigation, feedArguments, feed, density, ownerProfile, setActive(value){screenActive=value;}, get readiness(){return readiness;}, get refreshMotion(){return refreshMotion;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
     restoreScroll(){const tree=render();nodes(tree).find(node=>typeof node.props.onScroll==='function').ref.current={scrollTop:0};layoutEffects.slice(0,3).forEach(effect=>effect());},
     measureLocation(width) {
       const scroller = nodes(render()).find(node => typeof node.props.onScroll === 'function');
@@ -100,7 +101,7 @@ test('only startup Home waits for readiness and prioritizes its visible artwork;
   const city=harness('mobile',{startupPending:true,locationId:'city'});city.render();assert.equal(city.readiness.enabled,false);
   const later=harness('mobile');later.render();assert.equal(later.readiness.enabled,false);
 });
-test('Explore retains all four discovery buttons without an Actions trigger or sheet registration',()=>{const h=harness();const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.equal(nodes(tree).some(n=>n.props['data-inline-screen-actions']===''||n.type==='context-button'),false);for(const label of ['Open globe search','Search accounts','Explore categories','Home'])assert.ok(nodes(tree).some(n=>n.props['aria-label']===label));nodes(tree).find(n=>n.props['aria-label']==='Search accounts').props.onClick();nodes(tree).find(n=>n.props['aria-label']==='Open globe search').props.onClick();assert.equal(h.userSearchVisits,1);assert.equal(h.worldVisits,1);assert.equal(h.actions,null);assert.ok(nodes(tree).find(n=>n.props['data-home-grid']===''));});
+test('Explore retains all four discovery buttons without an Actions trigger or sheet registration',()=>{const h=harness();const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.equal(nodes(tree).some(n=>n.props['data-inline-screen-actions']===''||n.type==='context-button'),false);for(const label of ['Open globe search','Search accounts','Search public portals','Home'])assert.ok(nodes(tree).some(n=>n.props['aria-label']===label));nodes(tree).find(n=>n.props['aria-label']==='Search accounts').props.onClick();nodes(tree).find(n=>n.props['aria-label']==='Open globe search').props.onClick();assert.equal(h.userSearchVisits,1);assert.equal(h.worldVisits,1);assert.equal(h.actions,null);assert.ok(nodes(tree).find(n=>n.props['data-home-grid']===''));});
 test('the shell suppresses Home action fallback while preserving other screens and WEB',()=>{
  const source=ts.createSourceFile('App.tsx',readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);let gate;
  function visit(node){if(ts.isConditionalExpression(node)&&node.whenTrue.kind===ts.SyntaxKind.NullKeyword&&ts.isJsxSelfClosingElement(node.whenFalse)&&node.whenFalse.tagName.getText(source)==='MobileScreenActions')gate=node.condition;ts.forEachChild(node,visit);}visit(source);assert.ok(gate);
@@ -158,13 +159,20 @@ test('obsolete guest view parameters cannot select a preview or bypass signed-in
   assert.deepEqual(h.navigation,[],'Rendering the account feed cannot generate a guest destination.');
  }
 });
-test('header categories entry opens a separate page without refreshing and restores Explore on Back',()=>{
+test('the fourth Explore button opens the real portal-search route without refreshing Home and WEB keeps its existing layout',()=>{
  const h=harness();const button=label=>nodes(h.render()).find(n=>n.type==='button'&&n.props['aria-label']===label);
  assert.equal(button('Reload Home content'),undefined);
- button('Open globe search').props.onClick();button('Search accounts').props.onClick();button('Explore categories').props.onClick();
- const page=h.render();assert.equal(page.type,'ExploreCategories');assert.equal(h.actions,null);h.pull();assert.equal(h.reloads,0);
- page.props.onBack();h.render();h.pull();assert.equal(h.reloads,1);assert.equal(h.worldVisits,1);assert.equal(h.userSearchVisits,1);
- const web=nodes(harness('web').render());assert.equal(web.some(n=>n.props['aria-label']==='Explore categories'),false);
+ button('Open globe search').props.onClick();button('Search accounts').props.onClick();
+ const portalButton=button('Search public portals');assert.ok(portalButton);
+ assert.equal(nodes(portalButton).find(node=>node.type==='InterfaceIcon').props.icon,'LayoutGridIcon');
+ portalButton.props.onClick();assert.deepEqual(h.navigation,[['/portal-search']]);
+ assert.equal(h.reloads,0);assert.equal(h.actions,null);
+ assert.equal(nodes(h.render()).filter(node=>node.props.className==='mobile-home-header-button').length,4);
+ assert.equal(nodes(h.render()).some(node=>node.type==='ExploreCategories'),false,'The entry cannot open the unavailable category preview');
+ h.setActive(false);h.render();h.pull();assert.equal(h.reloads,0,'Outgoing Home cannot refresh behind the portal directory');
+ h.setActive(true);h.render();h.pull();assert.equal(h.reloads,1,'Returning to Explore retains its pull-refresh behavior');
+ assert.equal(h.worldVisits,1);assert.equal(h.userSearchVisits,1);
+ const web=harness('web');assert.equal(nodes(web.render()).some(node=>node.props['aria-label']==='Search public portals'),false);assert.deepEqual(web.navigation,[]);
 });
 
 test('mobile Home separator controls existing grid density without adding a WEB control',()=>{

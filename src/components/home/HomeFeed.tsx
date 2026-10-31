@@ -1,5 +1,4 @@
 import { DensitySeparator } from '../ui/DensitySeparator';
-import { ExploreCategories } from './ExploreCategories';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { Globe2Icon, HomeIcon, UserSearchIcon, LayoutGridIcon } from 'lucide-react';
@@ -117,7 +116,6 @@ export function HomeFeed({
   const layoutFailed = !layoutReady && (ownerLayout.status === 'error' || ownerLayout.status === 'ready');
   const loadFailed = layoutFailed || feed.status === 'error';
   const autoScrollRef = useRef<HTMLDivElement>(null);
-  const [categoriesOpen,setCategoriesOpen]=useState(false);
   const [hasReloaded, setHasReloaded] = useState(false);
   const [locationGridWidth, setLocationGridWidth] = useState(0);
   const [locationGridChoice, setLocationGridChoice] = useState<number | null>(null);
@@ -126,7 +124,7 @@ export function HomeFeed({
   const [noteReadiness, setNoteReadiness] = useState<{ account: string | null; attempt: number; settled: boolean } | null>(null);
   const account = user?.id ?? null;
   const recoveryIdentity = useMemo(() => ({ account, locationId }), [account, locationId]);
-  const cancelRecovery = useMobileFeedRecovery({ enabled: isMobile && screenActive && !categoriesOpen, identity: recoveryIdentity, feed });
+  const cancelRecovery = useMobileFeedRecovery({ enabled: isMobile && screenActive, identity: recoveryIdentity, feed });
   const { retry: requestFeedRetry, loadMore: requestMore } = feed;
   const retryFeed = useCallback(() => { cancelRecovery(); requestFeedRetry(); }, [cancelRecovery, requestFeedRetry]);
   const loadMoreFeed = useCallback(() => { cancelRecovery(); requestMore(); }, [cancelRecovery, requestMore]);
@@ -158,7 +156,7 @@ export function HomeFeed({
   const documentProjects = useMemo(() => new Set(projects.filter(view => view.project.cover && view.project.coverKind === 'document' && !view.project.coverThumbnail).map(view => view.project.id)), [projects]);
   const projectIds = useMemo(() => projects.map(view => view.project.id), [projects]);
   const feedPath = locationId ? `/portalink/${encodeURIComponent(locationId)}` : '/';
-  const coldResume = useMobileFeedResume({ enabled: isMobile && canOwnScroll && !categoriesOpen && routeLocation.pathname === feedPath && !routeLocation.search && !routeLocation.hash,
+  const coldResume = useMobileFeedResume({ enabled: isMobile && canOwnScroll && routeLocation.pathname === feedPath && !routeLocation.search && !routeLocation.hash,
     accountId: isAuthenticated ? user?.id ?? null : null, path: feedPath, host: autoScrollRef, projectIds, ready: feed.status === 'success' && layoutReady, saveReady: scrollRestored,
     failed: Boolean(feed.error || feed.refreshError || feed.loadMoreError), busy: feed.isLoadingMore || feed.isRefreshing, nextCursor: feed.nextCursor, loadMore: requestMore });
   const firstProjectHome = isMobile && Boolean(firstProjectAction) && projects.length === 0;
@@ -254,10 +252,9 @@ export function HomeFeed({
 
   const {isRefreshing,status:feedStatus}=feed;
   const refreshHome=useCallback(()=>{if(isRefreshing||feedStatus==='loading')return;setHasReloaded(true);retryFeed();},[isRefreshing,feedStatus,retryFeed]);
-  const pullEnabled = showMobileSearch && screenActive && !categoriesOpen && !(firstProjectAction && projects.length === 0);
+  const pullEnabled = showMobileSearch && screenActive && !(firstProjectAction && projects.length === 0);
   const refreshMotion = useHomeRefreshMotion({ enabled: pullEnabled, refreshing: feed.isRefreshing, scope: recoveryIdentity });
   const pullLabel=useHomePullRefresh(autoScrollRef,pullEnabled,feed.isRefreshing||feed.status==='loading',refreshHome,refreshMotion.onPull);
-  if(isMobile && categoriesOpen)return <ExploreCategories onBack={()=>setCategoriesOpen(false)}/>;
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
       {showMobileSearch && <span ref={refreshMotion.indicatorRef} data-home-pull-feedback="" data-active={pullEnabled && Boolean(pullLabel || feed.isRefreshing) ? 'true' : undefined} aria-hidden="true" className="home-pull-indicator">
@@ -273,7 +270,7 @@ export function HomeFeed({
               {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
               <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
               {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={UserSearchIcon} weight="medium" /></button>}
-              <button type="button" aria-label="Explore categories" className="mobile-home-header-button" onClick={()=>setCategoriesOpen(true)}><InterfaceIcon icon={LayoutGridIcon} weight="medium" /></button>
+              <button type="button" aria-label="Search public portals" title="Portal search" className="mobile-home-header-button" onClick={() => navigate(buildPath('portalSearch'))}><InterfaceIcon icon={LayoutGridIcon} weight="medium" /></button>
             </div>
             <p role="status" className={hasReloaded && !feed.isRefreshing && feed.refreshError ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : pullLabel || (hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : '')}

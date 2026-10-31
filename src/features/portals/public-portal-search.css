@@ -26,6 +26,11 @@
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-back { width: 44px; height: 44px; }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-field { width: 100%; }
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .profile-collection-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link { gap: 10px; padding: 0; }
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-mark { margin-bottom: 0; }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-scroll {
   padding-inline: 16px;
   padding-bottom: calc(24px + var(--mobile-content-safe-bottom, 104px));

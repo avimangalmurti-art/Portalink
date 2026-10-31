@@ -20,7 +20,7 @@ export function MobileNavigation({ onMessages, onSoCal, isSoCalActive, onProfile
   const dockRef = useRef<HTMLDivElement>(null);
   useMobileDockScroll(!actions?.opened, pathname, dockRef);
   const destinations: Item[] = [
-    { label: 'Explore', icon: SearchIcon, href: buildPath('home'), active: pathname === buildPath('home') },
+    { label: 'Explore', icon: SearchIcon, href: buildPath('home'), active: pathname === buildPath('home') || pathname === buildPath('portalSearch') },
     { label: 'Messages', icon: MessageCircleIcon, action: () => onMessages(true), active: pathname === buildPath('messages') },
     { label: 'SoCal', icon: CalendarDaysIcon, action: onSoCal, active: isSoCalActive },
     { label: 'Studio', icon: WarehouseIcon, href: buildPath('studio'), active: pathname === buildPath('studio') || pathname === buildPath('saved') },
