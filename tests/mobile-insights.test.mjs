@@ -99,6 +99,31 @@ test('loading and failures do not fabricate zero read metrics; genuine empty dat
   assert.equal(accessibleText(headline(empty)), '0project opens');
   assert.deepEqual(totals(empty), ['0', '0', '0']);
   assert.equal(nodes(empty).some(node => node.props.className === 'insights-average'), false);
+  assert.equal(nodes(empty).some(node => node.props.className === 'insights-chart'), false, 'WEB retains its existing empty state');
+});
+
+test('successful empty mobile insights keeps the graph for every metric and period without inventing projects', () => {
+  const fixture = load([], { presentation: 'mobile' });
+  for (const period of ['7d', '30d', 'all']) {
+    let tree = fixture.render();
+    nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.onChange({ target: { value: period } });
+    for (const [index, label] of ['Opens', 'Completed', 'Page saves'].entries()) {
+      tree = fixture.render();
+      metricButtons(tree)[index].props.onClick();
+      tree = fixture.render();
+      const chart = nodes(tree).find(node => node.props['aria-label'] === `${label} by project`);
+      assert.ok(chart);
+      assert.equal(nodes(tree).filter(node => node.props.className === 'insights-chart-frame').length, 1);
+      assert.equal(nodes(chart).find(node => node.props.className === 'insights-grid').props['aria-hidden'], 'true');
+      assert.deepEqual(nodes(nodes(tree).find(node => node.props.className === 'insights-axis')).filter(node => node.type === 'span').map(text), [1, 0.5, 0].map(value => value.toLocaleString()));
+      assert.equal(chartButtons(chart).length, 0);
+      assert.equal(nodes(tree).some(node => ['insights-bar', 'insights-bar-label', 'insights-average-line', 'insights-average'].includes(node.props.className)), false);
+      assert.match(text(nodes(tree).find(node => node.props.className === 'insights-chart-caption')), /0 projects/);
+      assert.match(accessibleText(tree), /No project reads yet/);
+      assert.deepEqual(totals(tree), ['0', '0', '0']);
+    }
+  }
+  assert.deepEqual(fixture.navigations, []);
 });
 
 test('only the selected heading is accessible while all genuine headings can size the summary', () => {
@@ -426,6 +451,7 @@ test('mobile initial reads loading and errors retain the period picker without p
     assert.equal(metricButtons(tree).length, 0);
     assert.equal(headline(tree), undefined);
     assert.equal(nodes(tree).some(node => node.props['aria-label'] === 'Metric totals'), false);
+    assert.equal(nodes(tree).some(node => node.props.className === 'insights-chart'), false);
     assert.equal(nodes(tree).some(node => node.type === 'button' && text(node) === 'Refresh'), false);
     const view = nodes(tree).find(node => node.type === (state.loading ? 'loading' : 'error'));
     assert.ok(view);
@@ -446,6 +472,7 @@ test('mobile initial reads loading and errors retain the period picker without p
     tree = fixture.render();
     assert.equal(metricButtons(tree).length, 3);
     assert.match(text(tree), /No project reads yet/);
+    assert.ok(nodes(tree).some(node => node.props['aria-label'] === 'Opens by project'));
     assert.deepEqual(totals(tree), ['0', '0', '0']);
     assert.equal(text(nodes(tree).find(node => node.props.role === 'status')), '');
     assert.ok(activitySection(tree));

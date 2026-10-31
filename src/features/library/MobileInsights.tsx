@@ -84,11 +84,11 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
           {/* Alternatives reserve the same summary height for every metric, including large totals. */}
           <h3 className="insights-headline">{metrics.map(item => <span key={item.key} aria-hidden={metric !== item.key || undefined}><strong>{totals[item.key].toLocaleString()}</strong><span>{item.unit}</span></span>)}</h3>
           <div className="insights-chart-caption"><strong>By project</strong><span>{rows.length > 8 ? 'Top 8 projects' : `${rows.length} ${rows.length === 1 ? 'project' : 'projects'}`}</span></div>
-          {chartRows.length ? <>
+          {chartRows.length || isMobile ? <>
             <div className="insights-chart-frame">
               <div className="insights-chart" role="group" aria-label={`${activeMetric.label} by project`}>
                 <div className="insights-grid" aria-hidden="true">{[0, 1, 2, 3, 4].map(line => <i key={line} />)}</div>
-                <div className="insights-average-line" aria-hidden="true" style={{ bottom: `calc(24px + (100% - 24px) * ${average / maximum})` }} />
+                {chartRows.length > 0 && <div className="insights-average-line" aria-hidden="true" style={{ bottom: `calc(24px + (100% - 24px) * ${average / maximum})` }} />}
                 {chartRows.map((row, index) => <button data-system-color="" type="button" key={row.projectId} aria-label={`${row.title}: ${row[metric]} ${metric === 'opened' ? 'opens' : metric === 'finished' ? 'completed reads' : 'page saves'}. Open project insights`} onClick={() => openProject(row.projectId)}>
                   <span className="insights-bar-track"><span className="insights-bar" data-zero={row[metric] === 0 || undefined} style={{ height: `${row[metric] / maximum * 100}%` }} /><span className="insights-bar-count">{compactCount(row[metric])}</span></span>
                   <span className="insights-bar-label" title={row.title}>{index + 1}</span>
@@ -96,7 +96,7 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
               </div>
               <div className="insights-axis" aria-hidden="true"><span>{compactCount(maximum)}</span><span>{compactCount(maximum / 2)}</span><span>0</span></div>
             </div>
-            <p className="insights-average"><i aria-hidden="true" />Average per project <strong>{average.toLocaleString(undefined, { maximumFractionDigits: 1 })}</strong><span>Across all {rows.length} {rows.length === 1 ? 'project' : 'projects'}</span></p>
+            {chartRows.length ? <p className="insights-average"><i aria-hidden="true" />Average per project <strong>{average.toLocaleString(undefined, { maximumFractionDigits: 1 })}</strong><span>Across all {rows.length} {rows.length === 1 ? 'project' : 'projects'}</span></p> : <p className="insights-empty">No project reads yet. Insights will appear here when your work is read.</p>}
           </> : <p className="insights-empty">No project reads yet. Insights will appear here when your work is read.</p>}
           <dl className="insights-totals" aria-label="Metric totals">{metrics.map(item => <div key={item.key} data-insights-series={item.key}><dt><i aria-hidden="true" />{item.label}</dt><dd aria-label={totals[item.key].toLocaleString()} title={totals[item.key].toLocaleString()}>{compactCount(totals[item.key])}</dd></div>)}</dl>
           <p className="insights-total-context">Opens and completed: {periodLabel.toLowerCase()}. Page saves: current bookmarks.</p>

@@ -166,6 +166,7 @@
 [data-presentation='mobile'] .creator-insights .insights-chart-frame { grid-template-columns: minmax(0, 1fr) 34px; gap: 8px; }
 [data-presentation='mobile'] .creator-insights .insights-chart { height: 194px; }
 [data-presentation='mobile'] .creator-insights .insights-axis { height: 170px; }
+[data-presentation='mobile'] .creator-insights .insights-empty { min-height: 0; margin: 4px 0 24px; }
 [data-presentation='mobile'] .creator-insights .insights-totals { gap: 12px; }
 [data-presentation='mobile'] .creator-insights .insights-totals dt { font-size: 12px; gap: 5px; }
 [data-presentation='mobile'] .creator-insights .insights-totals dd { font-size: 24px; }
