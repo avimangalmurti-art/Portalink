@@ -9,10 +9,10 @@
 .public-portal-search-field input:focus { outline: none; box-shadow: none; }
 .public-portal-search-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 12px 24px 24px; }
 [data-public-portal-search] .profile-collection { padding: 12px 0 24px; }
-[data-public-portal-search] .profile-collection-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
-.public-portal-link { gap: 8px; padding: 4px; }
+[data-public-portal-search] .profile-collection-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.public-portal-link { gap: 10px; padding: 0; }
 .public-portal-link:focus-visible, .public-portal-back:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
-.public-portal-mark { position: relative; display: block; width: min(100%, 80px); aspect-ratio: 1; margin-bottom: 4px; }
+.public-portal-mark { position: relative; display: block; width: min(100%, 80px); aspect-ratio: 1; margin-bottom: 0; }
 .public-portal-mark > .profile-collection-tile { width: 100%; }
 /* Keep shared hover and opaque accessibility fills above this gentle rest surface. */
 .public-portal-mark > :where(.profile-collection-tile) { background: var(--surface-sunken); }
@@ -26,11 +26,6 @@
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-back { width: 44px; height: 44px; }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-field { width: 100%; }
-#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .profile-collection-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link { gap: 10px; padding: 0; }
-#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-mark { margin-bottom: 0; }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-scroll {
   padding-inline: 16px;
   padding-bottom: calc(24px + var(--mobile-content-safe-bottom, 104px));
