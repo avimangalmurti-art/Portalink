@@ -49,6 +49,7 @@ import {
 import { creatorLocationMatches } from '../../domain/contentPlacement';
 import { requireSupabase } from './client';
 import { requireDirectoryAccount } from './requireDirectoryAccount';
+import { listPublicPortals } from './publicPortalDirectory';
 import { refreshProjectCoverThumbnail, removePrivateCoverThumbnails, removeProfilePublicCovers } from './coverThumbnails';
 import { validateHandle } from '../../features/profile/validation';
 import { createProfileHandle } from '../../utils/profileHandle';
@@ -867,6 +868,7 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
 }
 
 export const supabaseDiscoveryService: DiscoveryService = {
+  listPublicPortals,
   async getHomeDiscovery(cursor) {
     const context = await discoveryContext('home', cursor);
     return { ...rankHomeProjects(context.availableProjects, context.sphere, new Date(), context.homeMode), nextCursor: context.nextCursor };

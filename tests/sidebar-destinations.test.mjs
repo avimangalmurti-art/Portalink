@@ -40,7 +40,7 @@ function harness({ collapsed = false, authenticated = true, presentation = 'web'
   });
   const props = {
     isHomeActive: false, isSearchActive: false, isPortalinkActive: false, isMessagesActive: false,
-    isInsightsActive: false, isActivityActive: false, isSavedActive: false, isProfileActive: false, isSoCalActive: false,
+    isInsightsActive: false, isActivityActive: false, isSavedActive: false, isStudioActive: false, isPortalSearchActive: false, isProfileActive: false, isSoCalActive: false,
     accentColor: '#007aff', isAuthenticated: authenticated, isAuthActionPending: false,
     onSearchOpen: () => calls.push('search'), onControlCenterOpen: () => calls.push('settings'),
     onSignIn: () => calls.push('signIn'), onSignOut: async () => false, onPortalinkOpen: () => calls.push('world'),
@@ -94,18 +94,22 @@ test('personal links retain their own active flags and canonical routes in both 
     assert.equal(selectedItems[0].props.href, path);
     assert.match(selectedItems[0].props.className, collapsed ? /surface-selected/ : /font-semibold/,
       'Each existing tile variant retains its selected presentation');
-    assert.ok(controls(footer(tree)).every(node => node.props['aria-current'] === undefined), 'Inactive footer markers never inherit route selection');
+    assert.ok(controls(footer(tree)).every(node => node.props['aria-current'] === undefined), 'Footer destinations never inherit unrelated route selection');
   }
 });
 
-test('authenticated WEB footer keeps Settings, inactive Studio, inactive Portals and Appearance in that order', () => {
+test('authenticated WEB footer activates Studio and Portal search while preserving Settings and Appearance order', () => {
   for (const collapsed of [false, true]) for (const theme of ['light', 'dark']) {
     const h = harness({ collapsed, theme }), tree = h.render(), items = controls(footer(tree));
-    assert.deepEqual(items.map(label), ['Open settings', 'Studio unavailable', 'Portals unavailable', `Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`]);
-    for (const marker of items.slice(1, 3)) {
-      assert.equal(marker.type, 'button'); assert.equal(marker.props.disabled, true);
-      assert.equal(marker.props.href, undefined); assert.equal(marker.props.onClick, undefined);
-      assert.equal(marker.props['aria-current'], undefined);
+    assert.deepEqual(items.map(label), ['Open settings', 'Open Studio', 'Open Portal search', `Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`]);
+    for (const [index, href, title, icon] of [[1, '/studio', 'Studio', icons.WarehouseIcon], [2, '/portal-search', 'Portal search', 'portal-ring-icon']]) {
+      const destination = items[index];
+      assert.equal(destination.type, 'a'); assert.equal(destination.props.disabled, undefined);
+      assert.equal(destination.props.href, href); assert.equal(destination.props.title, title);
+      assert.equal(destination.props.onClick, undefined, 'Router links keep native activation and modified-click behavior');
+      assert.equal(destination.props['aria-current'], undefined);
+      assert.match(destination.props.className, collapsed ? /sidebar-rail-slot/ : /sidebar-primary-control/);
+      assert.ok(nodes(destination).some(node => node.type === 'interface-icon' && node.props.icon === icon));
     }
     items[0].props.onClick(); items[3].props.onClick();
     assert.deepEqual(h.calls, ['settings', ['theme', theme === 'light' ? 'dark' : 'light']]);
@@ -114,7 +118,7 @@ test('authenticated WEB footer keeps Settings, inactive Studio, inactive Portals
 
 test('signed-out WEB preserves upper inactive Portals and Studio without exposing personal destination links or footer markers', () => {
   for (const collapsed of [false, true]) {
-    const h = harness({ collapsed, authenticated: false }), tree = h.render({ isInsightsActive: true, isActivityActive: true });
+    const h = harness({ collapsed, authenticated: false }), tree = h.render({ isInsightsActive: true, isActivityActive: true, isStudioActive: true, isPortalSearchActive: true });
     const items = controls(main(tree, collapsed));
     assert.deepEqual(items.map(label), ['Portals unavailable', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Studio unavailable', 'Search accounts', 'Open messages', 'Open your profile']);
     assert.equal(items[0].props.disabled, true); assert.equal(items[4].props.disabled, true);
@@ -140,7 +144,7 @@ test('the WEB swap preserves collapse and existing Home, world, search, messages
 test('MOBILE renders its actual five-destination dock without WEB personal links or footer controls', () => {
   for (const authenticated of [true, false]) for (const collapsed of [true, false]) {
     const h = harness({ presentation: 'mobile', authenticated, collapsed });
-    const tree = h.render({ isInsightsActive: true, isActivityActive: true, isProfileActive: true });
+    const tree = h.render({ isInsightsActive: true, isActivityActive: true, isStudioActive: true, isPortalSearchActive: true, isProfileActive: true });
     const items = controls(tree);
     assert.deepEqual(items.map(label), ['Explore', 'Messages', 'SoCal', 'Studio', 'Profile']);
     assert.equal(items[0].props.href, '/'); assert.equal(items[3].props.href, '/studio'); assert.equal(items[4].props.href, '/p/owner');
@@ -181,7 +185,22 @@ test('optional SoCal callers use the existing profile fallback while WEB exposes
     const webTree = web.render({ isSoCalActive: true });
     assert.equal(named(webTree, 'SoCal'), undefined);
     assert.deepEqual(controls(main(webTree, collapsed)).map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Activity', 'Search accounts', 'Open messages', 'Open your profile']);
-    assert.deepEqual(controls(footer(webTree)).map(label), ['Open settings', 'Studio unavailable', 'Portals unavailable', 'Switch to dark appearance']);
+    assert.deepEqual(controls(footer(webTree)).map(label), ['Open settings', 'Open Studio', 'Open Portal search', 'Switch to dark appearance']);
     assert.deepEqual(web.calls, []);
+  }
+});
+
+
+test('WEB footer destinations use only their own active flags in either sidebar size', () => {
+  for (const collapsed of [false, true]) for (const [flag, selected, href] of [
+    ['isStudioActive', 'Open Studio', '/studio'], ['isPortalSearchActive', 'Open Portal search', '/portal-search'],
+  ]) {
+    const tree = harness({ collapsed }).render({ [flag]: true });
+    const selectedItems = controls(footer(tree)).filter(node => node.props['aria-current'] === 'page');
+    assert.deepEqual(selectedItems.map(label), [selected]);
+    assert.equal(selectedItems[0].props.href, href);
+    assert.match(selectedItems[0].props.className, collapsed ? /surface-selected/ : /font-semibold/);
+    assert.ok(controls(main(tree, collapsed)).every(node => node.props['aria-current'] === undefined), 'Footer routes cannot select a main destination');
+    assert.equal(controls(tree).filter(node => label(node) === selected).length, 1);
   }
 });

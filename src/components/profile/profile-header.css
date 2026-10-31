@@ -99,6 +99,11 @@
   width: 100%;
 }
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .profile-identity-avatar { grid-column: 1; grid-row: 1 / 3; }
+/* The image owns its squircle; the surrounding button adds no square paint. */
+#root .codex-shell[data-presentation='web'] .profile-compact-header button.profile-identity-avatar {
+  background-color: transparent !important;
+  border-color: transparent;
+}
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .profile-identity-copy { display: contents; }
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .profile-identity-copy > :is(h1, p) { grid-column: 2; padding-inline-end: 38px; }
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .profile-identity-copy > h1 { grid-row: 1; }
@@ -156,6 +161,9 @@
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .profile-summary-counts .profile-count-control { min-height: 36px; }
 
 /* A real flow row keeps the desktop slider clear of the first project card. */
+#root .codex-shell[data-presentation='web'] [data-web-profile-header] > .profile-header-region:has(> .density-separator) > #profile-navigation-tools::after {
+  content: none;
+}
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .density-separator {
   position: relative;
   inset: auto;

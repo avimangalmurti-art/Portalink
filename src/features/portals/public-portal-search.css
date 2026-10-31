@@ -1,0 +1,33 @@
+[data-public-portal-search] { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; color: var(--text-primary); }
+#root .codex-shell [data-public-portal-search] .public-portal-search-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; height: auto; min-height: 64px; flex-shrink: 0; padding: 16px 24px; }
+.public-portal-search-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.public-portal-search-heading h1 { margin: 0; font-size: var(--type-title-2-size, 20px); line-height: 1.3; font-weight: 600; }
+.public-portal-back { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--ui-control-radius, 12px); }
+.public-portal-search-field { display: flex; align-items: center; gap: 10px; width: min(100%, 420px); min-width: 0; padding: 0 14px; border: 1px solid var(--hairline); border-radius: var(--shape-pill, 999px); background: var(--surface-sunken); }
+.public-portal-search-field input { width: 100%; min-width: 0; height: 44px; padding: 0; border: 0 !important; background: transparent !important; color: inherit; font: inherit; }
+.public-portal-search-field:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.public-portal-search-field input:focus { outline: none; box-shadow: none; }
+.public-portal-search-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 12px 24px 24px; }
+[data-public-portal-search] .profile-collection { padding: 12px 0 24px; }
+[data-public-portal-search] .profile-collection-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
+.public-portal-link { gap: 8px; padding: 4px; }
+.public-portal-link:focus-visible, .public-portal-back:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.public-portal-mark { position: relative; display: block; width: min(100%, 80px); aspect-ratio: 1; margin-bottom: 4px; }
+.public-portal-mark > .profile-collection-tile { width: 100%; }
+/* Keep shared hover and opaque accessibility fills above this gentle rest surface. */
+.public-portal-mark > :where(.profile-collection-tile) { background: var(--surface-sunken); }
+.public-portal-avatar { position: absolute; inset-inline-end: -6px; bottom: -6px; width: 28px; height: 28px; border: 2px solid var(--surface-canvas); border-radius: 26%; background: var(--surface-canvas); }
+.public-portal-creator-name { display: block; max-width: 100%; color: var(--text-secondary); font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
+.public-portal-pagination { display: block; width: fit-content; margin: 16px auto 0; text-align: center; }
+/* This nested page owns its phone safe edges; the outer page adds no padding. */
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-header {
+  padding-top: calc(16px + var(--mobile-content-safe-top, var(--safe-area-top, env(safe-area-inset-top, 0px))));
+  padding-inline: 16px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-back { width: 44px; height: 44px; }
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-field { width: 100%; }
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-scroll {
+  padding-inline: 16px;
+  padding-bottom: calc(24px + var(--mobile-content-safe-bottom, 104px));
+  scroll-padding-bottom: calc(24px + var(--mobile-content-safe-bottom, 104px));
+}

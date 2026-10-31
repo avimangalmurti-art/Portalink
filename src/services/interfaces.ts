@@ -22,6 +22,7 @@ import type { AccountDeletionCapability, AccountSecurityCapability, AccountSecur
 import type { CreateProfileInput, CreateProfileResult } from '../types/profile';
 import type { GeographicResult } from '../types/geography';
 import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscovery, HomeFeedMode, ProjectFeedCursor } from '../types/discovery';
+import type { PublicPortalPage } from '../types/portals';
 import type { ConversationPage, ConversationSummary, DirectMessage, MessageCursor, MessagePage, MessageParticipant, MessageReaction, MessagingPreferences } from '../types/messages';
 import type { SaveInsights } from '../types/creatorSaves';
 
@@ -342,6 +343,8 @@ export interface DiscoveryService {
    */
   listLocationProjects(locationId: Id): Promise<ProjectView[]>;
   listAccountsToExplore(): Promise<FeedCreator[]>;
+  /** Public, unhidden portals and their creator identities; includes empty portals. */
+  listPublicPortals(query?: string, offset?: number): Promise<PublicPortalPage>;
   /** Public account identities only, searched on the server before pagination. */
   searchAccounts?(query: string, offset?: number): Promise<FeedCreator[]>;
 }

@@ -4,6 +4,16 @@
   display: none;
 }
 
+/* Activated Studio tabs use the shared control palette in either appearance. */
+#root .codex-shell[data-presentation='web'] .studio-citation-pills > button {
+  background: var(--control-rest-surface, var(--surface-sunken));
+  color: var(--control-text, var(--text-primary));
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-pills > button[aria-pressed='true'] {
+  background: var(--control-selected-surface, var(--surface-selected));
+  color: var(--control-selected-text, var(--text-primary));
+}
+
 /* The sidebar's destination buttons stay below its company header. Only the
    portal list scrolls, so neither its outer body nor its list needs underlap. */
 @layer portalink-header-material {

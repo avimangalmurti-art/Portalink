@@ -169,6 +169,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     '../../hooks/useDialogViewport': { useDialogViewport(enabled=true) { const ref=h.react.useRef(null);viewportCalls.push({enabled,ref});return ref; } },
     '../auth/useEntryFieldViewport': { useEntryFieldViewport(ref, enabled) { entryViewportCalls.push({ref,enabled}); } },
     './splashPoster': { SPLASH_POSTER_DATA_URL: 'data:image/webp;base64,inline-poster-fixture' },
+    './StateViews': { LoadingState: 'LoadingState' },
   }, { window: h.window, document, Event });
   const onComplete = () => completed++;
   return { ...h,
@@ -176,12 +177,15 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
       const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, welcomeHandoff, hidden: surfaceHidden }));
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
-      const mediaContainer = tree.props.children[0];
+      const mediaContainer = React.Children.toArray(tree.props.children).find(child =>
+        React.isValidElement(child) && child.props.className === 'portalink-splash-media');
+      const actions = React.Children.toArray(tree.props.children).find(child =>
+        React.isValidElement(child) && child.props.className === 'mobile-share-landing-actions');
       const [poster, backup, media] = React.isValidElement(mediaContainer) ? mediaContainer.props.children.props.children : [];
       if (renderedMediaRef && renderedMediaRef !== media?.ref) renderedMediaRef.current = null;
       renderedMediaRef = media?.ref;
       if (media) media.ref.current = media.type === 'video' ? video : host;
-      h.flush(); return { poster, backup, media, tree };
+      h.flush(); return { poster, backup, media, actions, tree };
     },
     decoded() { video.readyState = 2; listeners.get('loadeddata')?.(); },
     buffer() { video.readyState = 4; video.buffered.length = 1; listeners.get('canplaythrough')?.(); },
@@ -324,13 +328,13 @@ test('guest readiness during an adopted intro preserves the startup scene until 
     const h=loader({presentation,bootVideo:{paused:false,readyState:2,currentTime:.4,dataset:{portalinkPainted:'true'}}});
     const first=h.render();h.setLanding(welcome);const pending=h.render();
     assert.equal(pending.tree.props.role,'status');assert.equal(pending.tree.props['data-share-landing'],undefined);
-    assert.equal(pending.tree.props.children[1],undefined,'Welcome actions cannot resize the playing intro');
+    assert.equal(pending.actions,undefined,'Welcome actions cannot resize the playing intro');
     assert.equal(pending.tree.props['data-startup-playing'],'true');assert.equal(h.video.loop,false);
     assert.equal(pending.media.ref.current,first.media.ref.current);assert.equal(h.video.currentTime,.4);
     assert.equal(h.plays,0);assert.equal(h.pauses,0);assert.equal(h.modalCalls.some(Boolean),false);
     h.paint();h.emit('ended');assert.equal(h.completed,1);const ready=h.render();
     assert.equal(ready.tree.props.role,'dialog');assert.equal(ready.tree.props['data-share-landing'],'true');
-    assert.equal(ready.tree.props['data-startup-playing'],undefined);assert.ok(ready.tree.props.children[1]);
+    assert.equal(ready.tree.props['data-startup-playing'],undefined);assert.ok(ready.actions);
     assert.equal(h.video.loop,true);assert.equal(h.plays,1,'Welcome looping begins only after the real intro end');
     assert.equal(h.host.children[0],h.video);h.unmount();assert.equal(h.timers.size,0);
   }
@@ -612,14 +616,53 @@ test('a completed intro stillOnly prop cannot freeze active guest or embedded we
   }
 });
 
-test('authenticated handoff preserves the remembered looping scene while Home waits and welcome fades',()=>{
+test('authenticated handoff replaces company entry with visible, focus-contained workspace progress on both presentations',()=>{
+  const nodes = tree => React.isValidElement(tree)
+    ? [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
+  const text = tree => React.isValidElement(tree)
+    ? React.Children.toArray(tree.props.children).map(text).join('') : typeof tree === 'string' ? tree : '';
   for(const presentation of ['mobile','web']) {
-    const h=loader({presentation,landing:welcome});const first=h.render();h.start();h.paint();
-    h.setLanding(undefined);h.setHandoff(true);h.setStillOnly(true);const handoff=h.render();
-    assert.equal(handoff.media.key,first.media.key);assert.equal(handoff.media.props.loop,true);
-    assert.equal(handoff.media.props.style.opacity,1);assert.equal(handoff.tree.props['data-share-landing'],'true');
-    assert.equal(h.plays,1,'The handoff does not pause or restart the welcome');
-    assert.equal(h.timers.size,0);h.unmount();
+    let dismissed = 0, signedIn = 0;
+    const content = React.createElement('section', {'data-company-entry':''},
+      React.createElement('h2',null,'About'),React.createElement('p',null,'Mission'),
+      React.createElement('button',{onClick:()=>signedIn++},'Sign in'));
+    const h=loader({presentation,landing:{...welcome,content,onDismiss:()=>dismissed++}});
+    const initial=h.render();h.start();h.paint();
+    assert.ok(nodes(initial.tree).some(node=>node.props['data-company-entry']!==undefined));
+    assert.equal(h.modalCalls.at(-1),true);
+    h.setLanding(undefined);h.setHandoff(true);h.setStillOnly(true);
+    const assertOpening = view => {
+      const rendered = nodes(view.tree);
+      assert.equal(view.tree.props['data-opening-workspace'],true);
+      assert.equal(view.tree.props.role,'dialog');
+      assert.equal(view.tree.props['aria-modal'],true);
+      assert.equal(view.tree.props['aria-busy'],true);
+      assert.equal(view.tree.props.tabIndex,-1);
+      assert.notEqual(view.tree.props.style?.pointerEvents,'none','Progress must not pass clicks through to the unfinished workspace.');
+      assert.equal(rendered.find(node=>node.type==='h1')?.props.children,'Opening Portalink…');
+      assert.ok(rendered.some(node=>node.type==='p'&&text(node).trim()),'A visible subtitle explains the workspace handoff.');
+      assert.equal(rendered.filter(node=>node.type==='LoadingState').length,1);
+      assert.equal(rendered.find(node=>node.type==='LoadingState').props.kind,'grid');
+      assert.equal(rendered.some(node=>node.props['data-company-entry']!==undefined||node.type==='EntryChoices'||node.type==='button'),false);
+      assert.doesNotMatch(text(view.tree),/About|Mission|Sign in/);
+      assert.equal(view.media,undefined);
+      assert.equal(view.poster,undefined);
+      assert.equal(view.backup,undefined);
+      assert.equal(rendered.some(node=>node.type==='video'||node.type==='img'),false);
+      assert.equal(h.modalCalls.at(-1),true,'Focus remains contained until the real destination is ready.');
+    };
+    const handoff=h.render();assertOpening(handoff);
+    const completedBeforeEscape=h.completed;
+    h.modalDismissals.at(-1)();
+    assert.equal(dismissed,0,'Escape cannot restore the completed company entry.');
+    assert.equal(signedIn,0);
+    assert.equal(h.completed,completedBeforeEscape,'Escape cannot prematurely finish workspace readiness.');
+    h.setHidden(true);const hidden=h.render();
+    assert.equal(hidden.tree.props['aria-hidden'],true);
+    assert.equal(hidden.tree.props.style.display,'none');
+    assert.equal(h.modalCalls.at(-1),false);
+    h.setHidden(false);assertOpening(h.render());
+    h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);
   }
 });
 
@@ -1072,7 +1115,7 @@ test('Escape and system Back cannot dismiss main account entry but still cancel 
 test('fallback entry choices expose account actions without a guest callback on both presentations', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = loader({ presentation, landing: welcome });
-    const choices = h.render().tree.props.children[1].props.children[0];
+    const choices = h.render().actions.props.children[0];
     assert.equal(choices.type, 'EntryChoices'); assert.equal(choices.props.onGuest, undefined);
     assert.equal(choices.props.onEmail, welcome.onCreateAccount); assert.equal(choices.props.onSignIn, welcome.onSignIn); h.unmount();
   }
@@ -1098,7 +1141,7 @@ test('the account form omits welcome media, pauses playback and restores it when
   h.video.currentTime=.7;
   h.setLanding({...welcome,hideMedia:true});const form=h.render();
   assert.equal(form.media,undefined);assert.equal(form.poster,undefined);
-  assert.equal(form.tree.props['data-entry-form'],true);assert.equal(form.tree.props.children[0],false);
+  assert.equal(form.tree.props['data-entry-form'],true);
   assert.equal(h.video.paused,true);assert.ok(h.pauses>0);
   assert.equal(h.frames.size,0);assert.equal(h.timers.size,0,'The hidden form leaves no playback work queued');
   if(!adopted){assert.equal(h.listeners.size,0);assert.equal(h.docListeners.size,0);assert.equal(h.windowListeners.size,0);}
@@ -1147,11 +1190,11 @@ test('a guest arriving during the fixed intro enables viewport measurement only 
 
 test('welcome loops without an exit deadline and keeps all entry actions available on BOTH',()=>{
   for(const presentation of ['mobile','web']) {
-    const h=loader({presentation,landing:welcome}),{media,tree}=h.render();assert.equal(media.props.loop,true);
-    assert.equal(tree.props.children[1].props['aria-busy'],false);
-    assert.equal(tree.props.children[1].props.children[0].type,'EntryChoices');
-    assert.equal(tree.props.children[1].props.children[0].props.presentation,presentation,'Bootstrap entry choices must receive the loader presentation before the app provider exists');
-    assert.equal(tree.props.children[1].props.children[0].props.onEmail,welcome.onCreateAccount);
+    const h=loader({presentation,landing:welcome}),{media,actions}=h.render();assert.equal(media.props.loop,true);
+    assert.equal(actions.props['aria-busy'],false);
+    assert.equal(actions.props.children[0].type,'EntryChoices');
+    assert.equal(actions.props.children[0].props.presentation,presentation,'Bootstrap entry choices must receive the loader presentation before the app provider exists');
+    assert.equal(actions.props.children[0].props.onEmail,welcome.onCreateAccount);
     h.start();h.paint();assert.equal(h.completed,1);assert.equal(h.timers.size,0);
     for(let cycle=0;cycle<3;cycle++){h.emit('waiting');assert.equal(h.render().media.props.style.opacity,1);h.start();h.paint();assert.equal(h.timers.size,0);}
     h.unmount();assert.equal(h.frames.size,0);
@@ -1185,9 +1228,9 @@ test('a verified guest waits for the remaining intro before switching to welcome
 
 test('mobile welcome delegates readiness to the shared entry controls',()=>{
   const h=loader({presentation:'mobile',landing:{...welcome,ready:false}});
-  const {tree}=h.render();
-  assert.equal(tree.props.children[1].props['aria-busy'],true);
-  assert.equal(tree.props.children[1].props.children[0].props.ready,false);
+  const {actions}=h.render();
+  assert.equal(actions.props['aria-busy'],true);
+  assert.equal(actions.props.children[0].props.ready,false);
   h.unmount();
 });
 

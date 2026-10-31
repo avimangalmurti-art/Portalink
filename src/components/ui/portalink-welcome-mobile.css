@@ -132,3 +132,16 @@ html:has(.portalink-splash[data-presentation='mobile'][data-share-landing]) { ov
   font-family: 'IBM Plex Sans', sans-serif !important;
 }
 [data-presentation='mobile'].portalink-splash[data-share-landing] .mobile-share-secondary button { border-radius: 10px; }
+
+/* Account handoff uses the shared loading pattern, never a retained entry page. */
+.portalink-splash[data-opening-workspace] {
+  background: var(--surface-canvas, #fff);
+  color: var(--text-primary, #171717);
+  padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.portalink-opening-workspace { width: min(100%, 640px); min-width: 0; }
+.portalink-opening-workspace h1 { margin: 0; font-size: var(--type-title-2-size, 24px); line-height: 1.25; font-weight: 650; }
+.portalink-opening-workspace > p { margin: 8px 0 24px; color: var(--text-secondary, #636366); font-size: 16px; line-height: 1.5; }
+.portalink-opening-preview { max-height: min(52dvh, 420px); overflow: hidden; border-radius: var(--radius-lg, 16px); }

@@ -8,6 +8,7 @@ import { useModalFocus } from '../../hooks/useModalFocus';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useEntryFieldViewport } from '../auth/useEntryFieldViewport';
 import { EntryChoices } from '../auth/EntryChoices';
+import { LoadingState } from './StateViews';
 
 const SPLASH_TIMEOUT_MS = 2200;
 const PRIMARY_LOAD_TIMEOUT_MS = 10_000;
@@ -29,13 +30,14 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
   // rather than mounting another app host or introducing device detection.
   const viewportPresentation = useViewportPresentation();
+  const openingWorkspace = welcomeHandoff && !landing && !welcomeMedia;
   // Finish the opening animation if the phone rotates during its short run.
   const [presentation] = useState(viewportPresentation);
   const isMobile = presentation === 'mobile' || welcomeMedia || Boolean(landing) || welcomeHandoff;
   const loopLanding = isMobile && (Boolean(landing) || welcomeHandoff);
   const mobileStartupIntro = isMobile && !loopLanding && !welcomeMedia && !stillOnly;
   const fixedMobileIntro = mobileStartupIntro && timedIntro;
-  const playbackHidden = hidden || Boolean(landing?.hideMedia);
+  const playbackHidden = hidden || Boolean(landing?.hideMedia) || openingWorkspace;
   const playbackHiddenRef = useRef(playbackHidden);
   playbackHiddenRef.current = playbackHidden;
   const videoSrc = '/portalink-splash-mobile.mp4?v=9c1a9457';
@@ -67,13 +69,11 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const backupFailedRef = useRef(false);
   const backupEventRef = useRef<((ready: boolean) => void) | null>(null);
   const [showVideo, setShowVideo] = useState(() => startupVideo?.dataset.portalinkPainted === 'true');
-  const lastLanding = useRef(landing);
-  if (landing) lastLanding.current = landing;
-  // Keep the exact white scene geometry while a completed sign-in fades it out.
-  const sceneLanding = introPending ? undefined : landing ?? (welcomeHandoff ? lastLanding.current : undefined);
-  const landingRef = useDialogViewport<HTMLDivElement>(presentation === 'mobile' && Boolean(sceneLanding) && !hidden);
+  // A completed sign-in must show progress rather than stale company content.
+  const sceneLanding = introPending ? undefined : landing;
+  const landingRef = useDialogViewport<HTMLDivElement>(presentation === 'mobile' && Boolean(sceneLanding || openingWorkspace) && !hidden);
   useEntryFieldViewport(landingRef, presentation === 'mobile' && Boolean(sceneLanding?.hideMedia) && !hidden);
-  useModalFocus(Boolean(landing && sceneLanding) && !hidden && !landing?.suspendFocus, landingRef, () => landing?.onDismiss?.(), true);
+  useModalFocus(Boolean((landing && sceneLanding) || openingWorkspace) && !hidden && !landing?.suspendFocus, landingRef, () => { if (!openingWorkspace) landing?.onDismiss?.(); }, true);
   const complete = useCallback(() => {
     if (reported.current) return;
     reported.current = true;
@@ -382,19 +382,26 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       data-entry-form={sceneLanding?.hideMedia || undefined}
       data-startup-playing={introPending ? 'true' : undefined}
       data-welcome-handoff={welcomeHandoff || undefined}
-      role={welcomeMedia ? 'img' : landing && sceneLanding ? 'dialog' : 'status'}
-      aria-modal={landing && sceneLanding && !hidden ? true : undefined}
-      aria-live={sceneLanding || welcomeMedia ? undefined : 'polite'}
-      aria-label={welcomeMedia ? 'Hello World — Portalink' : sceneLanding ? 'Welcome to Portalink' : 'Portalink Networks is opening'}
+      data-opening-workspace={openingWorkspace || undefined}
+      role={welcomeMedia ? 'img' : openingWorkspace || (landing && sceneLanding) ? 'dialog' : 'status'}
+      aria-modal={(openingWorkspace || (landing && sceneLanding)) && !hidden ? true : undefined}
+      aria-live={openingWorkspace || sceneLanding || welcomeMedia ? undefined : 'polite'}
+      aria-label={welcomeMedia ? 'Hello World — Portalink' : openingWorkspace ? 'Opening Portalink' : sceneLanding ? 'Welcome to Portalink' : 'Portalink Networks is opening'}
+      aria-busy={openingWorkspace || undefined}
       aria-hidden={hidden || undefined}
-      tabIndex={landing && sceneLanding ? -1 : undefined}
-      style={hidden ? { display: 'none' } : welcomeHandoff ? { pointerEvents: 'none' } : undefined}
+      tabIndex={openingWorkspace || (landing && sceneLanding) ? -1 : undefined}
+      style={hidden ? { display: 'none' } : undefined}
       className={welcomeMedia ? 'portalink-welcome-media' : 'portalink-splash fixed inset-0 z-[1000] grid min-h-[100dvh] w-full place-items-center overflow-hidden'}
       initial={false}
       exit={{ opacity: 0 }}
       transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : motionSeconds('base'), ease: motionCurve() }}
     >
-      {!sceneLanding?.hideMedia && <div className="portalink-splash-media" aria-hidden="true" style={{ '--portalink-media-ratio': mediaWidth / mediaHeight } as React.CSSProperties}>
+      {openingWorkspace && <div className="portalink-opening-workspace">
+        <h1>Opening Portalink…</h1>
+        <p>Getting your workspace ready.</p>
+        <div className="portalink-opening-preview"><LoadingState kind="grid" label="Opening Portalink…" /></div>
+      </div>}
+      {!openingWorkspace && !sceneLanding?.hideMedia && <div className="portalink-splash-media" aria-hidden="true" style={{ '--portalink-media-ratio': mediaWidth / mediaHeight } as React.CSSProperties}>
         <div className="portalink-splash-frame">
           <img src={SPLASH_POSTER_DATA_URL} alt="" aria-hidden="true" width={mediaWidth} height={mediaHeight} decoding="sync" className="portalink-splash-asset" />
           {!showStill && backupRequested && <img src={animatedBackupSrc} alt="" aria-hidden="true" width={mediaWidth} height={mediaHeight}

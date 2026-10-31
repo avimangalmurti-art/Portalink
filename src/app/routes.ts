@@ -11,7 +11,7 @@ import type { NavigationDestination } from '../components/navigation';
  * a pasted URL resolves the same record for everyone.
  */
 
-export type RouteId = 'home' | 'discovery' | 'search' | 'profile' | 'profileEditor' | 'collaboration' | 'sharedCollaboration' | 'socal' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
+export type RouteId = 'home' | 'discovery' | 'search' | 'portalSearch' | 'profile' | 'profileEditor' | 'collaboration' | 'sharedCollaboration' | 'socal' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
 export type RouteDefinition = {
   id: RouteId;
   path: string;
@@ -116,6 +116,12 @@ export const routes: Record<RouteId, RouteDefinition> = {
     params: ['locationId'],
     description: 'A location page and its live sessions.'
   },
+  portalSearch: {
+    id: 'portalSearch',
+    path: '/portal-search',
+    params: ['q'],
+    description: 'Search and browse public portals with their creator identities. Requires an account.'
+  },
   portals: {
     id: 'portals',
     path: '/portals',
@@ -132,7 +138,7 @@ export const routes: Record<RouteId, RouteDefinition> = {
     id: 'studio',
     path: '/studio',
     params: [],
-    description: 'Reserved Studio product destination while the feature is being designed.'
+    description: 'Private creator workbench, drafts, published work, saved content, references, and activity.'
   },
   messages: {
     id: 'messages',

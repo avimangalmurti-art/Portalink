@@ -66,6 +66,8 @@ export type AppRoute = {
 } | {
   kind: 'portals';
 } | {
+  kind: 'portalSearch';
+} | {
   kind: 'insights';
 } | {
   kind: 'studio';
@@ -88,13 +90,15 @@ export type AppRoute = {
  * Explicit shared-link routes and browser preferences remain public. Every
  * ordinary app destination, including Home, requires an account.
  */
-export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['home', 'messages', 'saved', 'notifications', 'insights', 'profileEditor', 'search', 'portalink', 'profile', 'category', 'project', 'activity', 'collaboration', 'socal', 'item', 'portals', 'studio']);
+export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['home', 'messages', 'saved', 'notifications', 'insights', 'profileEditor', 'search', 'portalSearch', 'portalink', 'profile', 'category', 'project', 'activity', 'collaboration', 'socal', 'item', 'portals', 'studio']);
 
 /** What the person was reaching for, for the auth gate's wording. */
 export function describeRoute(route: AppRoute): string {
   switch (route.kind) {
     case 'search':
       return 'search accounts';
+    case 'portalSearch':
+      return 'search public portals';
     case 'portalink':
       return 'explore Portalink';
     case 'socal':
@@ -219,6 +223,7 @@ function parse(pathname: string, search: string): AppRoute {
   }
   if (matchPath(routes.saved.path, pathname)) return { kind: 'saved' };
   if (matchPath(routes.notifications.path, pathname)) return { kind: 'notifications' };
+  if (matchPath(routes.portalSearch.path, pathname)) return { kind: 'portalSearch' };
   if (matchPath(routes.portals.path, pathname)) {
     return {
       kind: 'portals'
@@ -422,6 +427,7 @@ export function useRouteNavigator() {
       productId: projectId
     })),
     portals: () => navigate(routes.portals.path),
+    portalSearch: () => navigate(routes.portalSearch.path),
     insights: () => navigate(routes.insights.path),
     studio: () => navigate(routes.studio.path),
     messages: (conversationId?: Id, replace = false, recipientId?: Id, state?: Record<string, unknown>) => {

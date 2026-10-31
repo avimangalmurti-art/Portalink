@@ -1,9 +1,9 @@
 import React, { startTransition, useEffect, useRef } from 'react';
-import { MIN_PROJECT_GRID_COLUMNS, MAX_PROJECT_GRID_COLUMNS } from '../../utils/projectGridDensity';
+import { MIN_PROJECT_GRID_COLUMNS, MAX_PROJECT_GRID_COLUMNS, normalizeProjectGridColumns } from '../../utils/projectGridDensity';
 import { usePresentation } from '../../presentation/usePresentation';
 import './density-separator.css';
 
-/** Native thumb moves immediately; previews are frame-limited and saves commit on release. */
+/** Desktop thumb tracks the pointer continuously; grid previews and saves use whole columns. */
 export function DensitySeparator({columns,onChange,onPreview,label}:{columns:number;onChange:(value:number)=>void;onPreview?:(value:number)=>void;label:string}) {
   const mobile=usePresentation()==='mobile';
   const input=useRef<HTMLInputElement>(null), frame=useRef<number|null>(null);
@@ -35,16 +35,31 @@ export function DensitySeparator({columns,onChange,onPreview,label}:{columns:num
     frame.current=null;dragging.current=false;touch.current=null;
     if(pending.current===null)return;
     const value=pending.current;pending.current=null;
+    if(!mobile&&input.current)input.current.value=String(value);
     callbacks.current.onChange(value);
   };
-  return <input ref={input} className="density-separator" type="range" min={MIN_PROJECT_GRID_COLUMNS} max={MAX_PROJECT_GRID_COLUMNS} step={1} defaultValue={columns}
+  return <input ref={input} className="density-separator" type="range" min={MIN_PROJECT_GRID_COLUMNS} max={MAX_PROJECT_GRID_COLUMNS} step={mobile?1:'any'} defaultValue={columns}
     style={mobile?{'--density-position':thumbPosition(columns)} as React.CSSProperties:undefined}
+    aria-valuetext={mobile?undefined:`${columns} per row`}
     aria-label={label} onChange={event=>{
       if(touch.current?.axis==='vertical'){event.currentTarget.value=String(touch.current.value);syncThumb(event.currentTarget,touch.current.value);return;}
-      pending.current=Number(event.currentTarget.value);
+      const value=mobile?Number(event.currentTarget.value):normalizeProjectGridColumns(Number(event.currentTarget.value));
+      if(!mobile&&pending.current===value)return;
+      pending.current=value;
       syncThumb(event.currentTarget,pending.current);
       // Native ranges may change on touch-down, before scroll intent is known.
       if(touch.current?.axis!=='pending')preview();
+    }} onKeyDown={event=>{
+      if(mobile||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
+      event.preventDefault();
+      const current=normalizeProjectGridColumns(Number(event.currentTarget.value));
+      const direction=event.key==='ArrowRight'||event.key==='ArrowUp'?1:-1;
+      const rtl=(event.key==='ArrowLeft'||event.key==='ArrowRight')&&getComputedStyle(event.currentTarget).direction==='rtl';
+      const value=normalizeProjectGridColumns(current+(rtl?-direction:direction));
+      if(value===current)return;
+      event.currentTarget.value=String(value);
+      if(pending.current===value)return;
+      pending.current=value;preview();
     }} onPointerDown={event=>{
       dragging.current=true;event.stopPropagation();
       if(mobile&&event.pointerType==='touch')touch.current={id:event.pointerId,x:event.clientX,y:event.clientY,value:Number(event.currentTarget.value),axis:'pending',previewed:false};

@@ -1,4 +1,5 @@
 import { withProjectLocation } from '../../features/publishing/projectLocation';
+import { normalizePublicAppearance } from '../../utils/publicAppearance';
 import { projectRelevanceForPersistence } from '../../domain/discovery/ranking';
 /**
  * Mock implementations of every service interface.
@@ -887,6 +888,24 @@ export const mockDiscoveryService: DiscoveryService = {
   async listAccountsToExplore() {
     const creators = accountsToExploreIds.map((profileId) => profiles.find((profile) => profile.id === profileId)).filter((profile): profile is PrototypeProfile => profile !== undefined && !profile.isPrivate).map(creatorFromProfile);
     return resolve(creators);
+  },
+  async listPublicPortals(query = '', offset = 0) {
+    if (!readPrototypeSession()?.user.id) {
+      throw new Error('Create an account or sign in to find people on Portalink.');
+    }
+    const start = Number.isFinite(offset)
+      ? Math.min(Number.MAX_SAFE_INTEGER - 48, Math.max(0, Math.floor(offset))) : 0;
+    const term = query.trim().slice(0, 80).toLocaleLowerCase();
+    const rows = profiles.filter(profile => !profile.isPrivate).flatMap(profile => {
+      const hidden = new Set(savedArrangements.get(profile.id)?.hiddenCategoryIds ?? []);
+      return profile.categories.filter(category => !hidden.has(category.id) && (!term || category.label.toLocaleLowerCase().includes(term)))
+        .map(category => ({
+          id: category.id, profileId: profile.id, label: category.label, iconName: category.iconName || undefined,
+          creator: { id: profile.id, name: profile.name, handle: profile.handle, avatar: profile.avatar,
+            accentColor: normalizePublicAppearance((profile as PrototypeProfile & { publicAppearance?: unknown }).publicAppearance)?.accentColor },
+        }));
+    }).sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id)).slice(start, start + 49);
+    return resolve({ items: rows.slice(0, 48), nextOffset: rows.length > 48 ? start + 48 : null });
   },
   async searchAccounts(query, offset = 0) {
     const term = query.trim().replace(/^@/, '').toLocaleLowerCase();
