@@ -21,6 +21,7 @@ const registration = load('features/auth/registration.ts', () => shareModel);
 const intents = load('features/auth/interactionIntent.ts', () => registration);
 const sharedSettings = load('features/sharing/sharedSettings.ts', name => name === '../auth/registration' ? registration : shareModel);
 const panels = load('utils/projectPanelLayout.ts');
+const portalBrowsing = load('components/profile/portalProjectBrowsing.ts');
 const employer = load('features/employer/employer.ts');
 const profileId = '11111111-1111-4111-8111-111111111111';
 const profile = { id: profileId, name: 'Creator', links: [], socialLinks: {}, categories: [{ id: 'portal', label: 'Photography' }],
@@ -61,18 +62,20 @@ const button = (tree, label) => nodes(tree).find(node => node.type === 'button' 
 const json = value => JSON.parse(JSON.stringify(value));
 
 function portalPopupFixture(presentation = 'mobile') {
-  const focusCalls = [];
+  const focusCalls = [], h = hooks();
   const { PortalProjectPopup } = load('components/profile/PortalProjectPopup.tsx', name => {
-    if (name === 'react') return { ...React, useRef: () => ({ current: null }) };
+    if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (...args) => focusCalls.push(args) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/typefaces')) return { getTypefaceStack: id => `stack:${id}` };
+    if (name.endsWith('/portalProjectBrowsing')) return portalBrowsing;
+    if (name.endsWith('/StateViews')) return { EmptyState: 'EmptyState' };
     const component = name.split('/').pop();
     if (component === 'MobileBackNavigation') return named('ScreenBack');
     return named(component);
   });
-  return { PortalProjectPopup, focusCalls };
+  return { PortalProjectPopup: props => h.render(() => PortalProjectPopup(props)), focusCalls };
 }
 
 test('shared portal popup gives its published rows the mobile list sizing and keeps selection and dismissal', () => {
@@ -85,13 +88,16 @@ test('shared portal popup gives its published rows the mobile list sizing and ke
     throw new Error(name);
   });
   const profile = { id: 'owner', categories: [{ id: 'design', label: 'Product Design' }], projects: [{ id: 'paper', categoryId: 'design' }, { id: 'other', categoryId: 'other' }] };
-  const entry = SharedPortalPopup({ profile, categoryId: 'design', onClose: () => closed++, onSelect: (...args) => selected.push(args) });
+  const browsing = { layout: 'grid', sort: 'recent', onLayout() {}, onSort() {} };
+  const entry = SharedPortalPopup({ profile, categoryId: 'design', onClose: () => closed++, onSelect: (...args) => selected.push(args), browsing });
+  assert.equal(entry.props.browsing, browsing);
   const tree = entry.type(entry.props);
   const nav = one(tree, 'nav');
   assert.equal(nav.props['data-project-index-list'], '');
   assert.equal(nav.props['aria-label'], 'Product Design projects');
   const list = one(tree, 'ProjectIndexList');
-  assert.deepEqual(list.props.projects.map(project => project.id), ['paper']);
+  assert.deepEqual(Array.from(list.props.projects, project => project.id), ['paper']);
+  assert.equal(list.props.mobileLayout, 'grid');
   assert.equal(list.props.isOwner, false);
   list.props.onSelect('paper');
   assert.equal(closed, 1);
@@ -115,13 +121,14 @@ for (const presentation of ['mobile', 'web']) test(`${presentation} portal popup
   const layer = nodes(tree).find(node => node.props['data-presentation']);
   assert.equal(layer.props['data-presentation'], presentation);
   const list = one(tree, 'ProjectIndexList');
-  assert.deepEqual(list.props.projects.map(project => project.id), ['paper', 'next']);
+  assert.deepEqual(Array.from(list.props.projects, project => project.id), ['paper', 'next']);
   assert.equal(list.props.projects[0], creator.projects[0], 'Rows retain the canonical project rather than a synthetic timeline record.');
   assert.equal(list.props.profileId, creator.id);
   assert.deepEqual(Array.from(list.props.pinnedIds), ['paper']);
   assert.deepEqual(json(list.props.typefaceStacks), { paper: 'stack:serif', next: 'stack:default' });
   assert.equal(list.props.isOwner, false); assert.equal(list.props.sharedReadOnly, true);
   assert.equal(one(tree, 'MobilePortalProjectToolbar').props.backLabel, 'Back to Timeline');
+  assert.equal(one(tree, 'MobilePortalProjectToolbar').props.browsingControls, presentation === 'mobile');
   list.props.onSelect('other'); list.props.onSelect('missing');
   assert.deepEqual(calls, [], 'Another portal or an injected nonexistent row cannot navigate or dismiss.');
   list.props.onSelect('paper');
@@ -136,6 +143,58 @@ for (const presentation of ['mobile', 'web']) test(`${presentation} portal popup
   f.focusCalls[0][2]();
   assert.deepEqual(calls.slice(2), [['close'], ['close'], ['close'], ['close']], 'Backdrop, system Back, toolbar Back, and shared Escape all close the same local surface.');
   assert.equal(f.PortalProjectPopup({ profile: creator, categoryId: 'missing', onClose, onSelect }), null);
+});
+
+test('public MOBILE popup changes local list/grid and Recent/Name/Saved order without authoring access', () => {
+  const f = portalPopupFixture(), calls = [];
+  const projects = [
+    { id: 'zebra', categoryId: 'work', title: 'Zebra', publishedAt: '2026-01-02T00:00:00Z' },
+    { id: 'apple', categoryId: 'work', title: 'Apple', publishedAt: '2026-01-04T00:00:00Z', isPinned: true },
+    { id: 'beta', categoryId: 'work', title: 'Beta', publishedAt: 'invalid' },
+    { id: 'other', categoryId: 'elsewhere', title: 'Another portal' },
+  ];
+  const props = { profile: { id: 'creator', categories: [{ id: 'work', label: 'Work' }], projects }, categoryId: 'work',
+    onClose: () => calls.push('close'), onSelect: (...args) => calls.push(args) };
+  const render = () => f.PortalProjectPopup(props);
+  let tree = render();
+  const ids = tree => Array.from(one(tree, 'ProjectIndexList').props.projects, project => project.id);
+  assert.deepEqual(ids(tree), ['apple', 'zebra', 'beta']);
+  assert.equal(one(tree, 'ProjectIndexList').props.mobileLayout, 'list');
+  assert.equal(one(tree, 'MobilePortalProjectToolbar').props.browsingControls, true);
+  one(tree, 'MobilePortalProjectToolbar').props.onLayout('grid');
+  one(tree, 'MobilePortalProjectToolbar').props.onSort('title');
+  tree = render();
+  assert.equal(one(tree, 'ProjectIndexList').props.mobileLayout, 'grid');
+  assert.deepEqual(ids(tree), ['apple', 'beta', 'zebra']);
+  one(tree, 'MobilePortalProjectToolbar').props.onSort('saved');
+  tree = render();
+  assert.deepEqual(ids(tree), ['zebra', 'apple', 'beta']);
+  assert.deepEqual(Array.from(one(tree, 'ProjectIndexList').props.pinnedIds), ['apple']);
+  assert.deepEqual(projects.map(project => project.id), ['zebra', 'apple', 'beta', 'other']);
+  const list = one(tree, 'ProjectIndexList');
+  assert.equal(list.props.isOwner, false);
+  assert.equal(list.props.sharedReadOnly, true);
+  assert.deepEqual(Array.from(list.props.hiddenIds), []);
+  for (const callback of ['onEdit', 'onDelete', 'onChangeCover', 'onTypefaceChange']) assert.equal(list.props[callback], undefined);
+  assert.equal(one(tree, 'MobilePortalProjectToolbar').props.onCreate, undefined);
+  assert.deepEqual(calls, [], 'Local browsing never navigates or performs an author action.');
+  list.props.onSelect('beta');
+  assert.deepEqual(calls, ['close', ['work', 'beta']]);
+});
+
+test('an empty public portal explains that no projects have been published without fabricating rows', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const f = portalPopupFixture(presentation);
+    const tree = f.PortalProjectPopup({ profile: { id: 'creator', categories: [{ id: 'empty', label: 'Empty portal' }], projects: [] },
+      categoryId: 'empty', onClose() {}, onSelect() { assert.fail('An empty portal has no selected project.'); } });
+    const empty = one(tree, 'EmptyState');
+    if (presentation === 'mobile') {
+      assert.equal(empty.props.title, 'No projects in Empty portal');
+      assert.equal(empty.props.description, 'No work has been published in this portal.');
+    } else assert.equal(empty, undefined, 'WEB retains its existing empty-popup presentation.');
+    assert.deepEqual(Array.from(one(tree, 'ProjectIndexList').props.projects), []);
+    assert.equal(one(tree, 'MobilePortalProjectToolbar').props.onCreate, undefined);
+  }
 });
 
 // Executes the actual components with a deterministic hook lifecycle. Descendant
@@ -384,6 +443,7 @@ function readerHarness(presentation = 'mobile', width = 390) {
     if (name === '../components/ui/InterfaceIcon') return named('InterfaceIcon');
     if (name === '../components/profile/ProjectIndexList') return named('ProjectIndexList');
     if (name === '../components/profile/MobilePortalProjectToolbar') return named('MobilePortalProjectToolbar');
+    if (name === '../components/profile/portalProjectBrowsing') return portalBrowsing;
     if (name === '../components/ui/StateViews') return { LoadingSkeleton: 'LoadingSkeleton' };
     throw new Error(name);
   }, { requestAnimationFrame: fn => fn() });
@@ -401,7 +461,7 @@ test('mobile reader exposes Back and a framed, dismissible, scrollable project l
   assert.ok(one(navigation.index, 'nav').props.className.includes('overflow-y-auto'));
   const list = one(navigation.index, 'ProjectIndexList');
   assert.equal(list.props.isOwner, false); assert.equal(list.props.sharedReadOnly, true);
-  assert.deepEqual(list.props.projects.map(item => item.id), ['work', 'next']);
+  assert.deepEqual(Array.from(list.props.projects, item => item.id), ['work', 'next']);
   assert.deepEqual(json(list.props.pinnedIds), ['next']);
   assert.equal(one(navigation.index, 'MobilePortalProjectToolbar').props.category.label, 'Photography');
   one(navigation.index, 'MobilePortalProjectToolbar').props.onBack();
@@ -1018,6 +1078,54 @@ test('MOBILE sidebar portal opens its project popup without navigating to the pr
   h.state.presentation='web';
   one(h.render(),'SharedProfileSidebar').props.onOpenCategory('portal');
   assert.ok(h.navigations.length>0);
+});
+
+test('MOBILE public browse preferences survive chooser-to-reader and project remounts within their portal', () => {
+  const h = appHarness();
+  const readerNode = tree => nodes(tree).find(node => node.props?.project?.id && node.props?.onBack);
+  h.state.query.profile = { ...h.state.query.profile, categories: [...h.state.query.profile.categories, { id: 'other', label: 'Other portal' }] };
+  one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
+  let popup = one(h.render(), 'SharedPortalPopup');
+  assert.equal(popup.props.browsing.layout, 'list');
+  assert.equal(popup.props.browsing.sort, 'recent');
+  popup.props.browsing.onLayout('grid');
+  popup.props.browsing.onSort('title');
+  popup = one(h.render(), 'SharedPortalPopup');
+  assert.equal(popup.props.browsing.layout, 'grid');
+  assert.equal(popup.props.browsing.sort, 'title');
+  popup.props.onSelect('portal', 'work');
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  h.state.location = { ...h.state.location, key: 'reader-work', pathname: `/share/${profileId}/c/portal/work` };
+  let tree = h.render(), reader = readerNode(tree);
+  assert.equal(one(tree, 'SharedPortalPopup'), undefined);
+  assert.equal(reader.props.browsing.layout, 'grid');
+  assert.equal(reader.props.browsing.sort, 'title');
+  reader.props.onSelect('next');
+  h.state.route = { ...h.state.route, projectId: 'next' };
+  h.state.location = { ...h.state.location, key: 'reader-next', pathname: `/share/${profileId}/c/portal/next` };
+  reader = readerNode(h.render());
+  assert.equal(reader.props.browsing.layout, 'grid');
+  assert.equal(reader.props.browsing.sort, 'title');
+  reader.props.browsing.onSort('saved');
+  assert.equal(readerNode(h.render()).props.browsing.sort, 'saved');
+
+  h.state.route = { kind: 'sharedProfile', profileId };
+  h.state.location = { ...h.state.location, key: 'catalogue-return', pathname: `/share/${profileId}` };
+  one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('other');
+  popup = one(h.render(), 'SharedPortalPopup');
+  assert.equal(popup.props.browsing.layout, 'list');
+  assert.equal(popup.props.browsing.sort, 'recent');
+  popup.props.onClose();
+  one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
+  popup = one(h.render(), 'SharedPortalPopup');
+  assert.equal(popup.props.browsing.layout, 'grid');
+  assert.equal(popup.props.browsing.sort, 'saved');
+  popup.props.onClose();
+  h.state.presentation = 'web';
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  h.state.location = { ...h.state.location, pathname: `/share/${profileId}/c/portal/work` };
+  assert.equal(readerNode(h.render()).props.browsing, undefined, 'WEB keeps its established reader controls.');
+  assert.deepEqual(h.requests, [], 'View preferences never request authentication or writes.');
 });
 
 test('public MOBILE project opens retain the catalogue composition and Close uses the trusted reader history entry', () => {

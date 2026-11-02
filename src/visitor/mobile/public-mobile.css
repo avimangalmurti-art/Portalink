@@ -548,10 +548,12 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-index-panel] {
   left: max(8px, env(safe-area-inset-left, 0px));
   right: max(8px, env(safe-area-inset-right, 0px));
-  width: auto !important;
-  max-width: none;
+  /* Match the main reader's centered frame instead of sizing to long titles. */
+  box-sizing: border-box;
+  width: min(calc(100% - 32px), 420px) !important;
+  max-width: min(calc(100% - 32px), 420px) !important;
   overflow: hidden;
-  animation: mobile-project-panel-enter var(--m-base) var(--m-enter);
+  animation: none;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] {
@@ -725,7 +727,7 @@
   flex: 0 0 46px;
   width: 46px;
   height: 46px;
-  border-radius: 10px;
+  border-radius: var(--project-thumbnail-radius, 12px);
   overflow: hidden;
   background: var(--surface-sunken);
 }
@@ -735,7 +737,7 @@
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--project-card-copy-gap, 4px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-title {
@@ -751,7 +753,8 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-date {
   font-size: 12px;
-  line-height: 1.3;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='list'] .project-index-row > button {
@@ -784,8 +787,8 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > button {
   flex-direction: column;
   align-items: stretch;
-  padding: 10px 10px 40px;
-  gap: 8px;
+  padding: 10px 10px 48px;
+  gap: var(--project-card-media-gap, 8px);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-cover {
@@ -793,6 +796,16 @@
   width: 100%;
   height: auto;
   aspect-ratio: 1;
+}
+
+/* Keep the same metadata tracks as the main reader's project cards. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-copy {
+  display: grid;
+  font-size: 14px;
+  grid-template-rows: minmax(2.6em, auto) 1.2em;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-title {
+  min-height: 2.6em;
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > div.absolute {
@@ -2652,8 +2665,8 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child > svg {width:100%;height:100%;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-label {width:100%;min-width:0;text-align:center;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;line-height:1.4;}
 
-/* The public portal popup owns one surface; its grouped rows add no grey layers. */
-#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .portal-project-popup-layer > .shared-portal-popup [data-project-index-list] [data-mobile-project-layout='list'] :is(.inset-row-group, .project-index-row:not(.active)) {background:transparent;}
+/* The group stays clear; each project row owns its complete pill background. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .portal-project-popup-layer > .shared-portal-popup [data-project-index-list] [data-mobile-project-layout='list'] .inset-row-group {background:transparent;}
 @media (hover:hover) and (pointer:fine) {
   #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .portal-project-popup-layer > .shared-portal-popup [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row:not(.active):hover {background:var(--control-hover-surface);}
 }

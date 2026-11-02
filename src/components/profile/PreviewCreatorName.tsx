@@ -3,8 +3,8 @@ import React, { useLayoutEffect, useRef } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { usePresentation } from '../../presentation/usePresentation';
 
-/** Reveal the hidden end of a mobile attribution without moving its avatar. */
-export function PreviewCreatorName({ name, active, centered = false }: { name: string; active: boolean; centered?: boolean }) {
+/** Reveal the hidden end of a mobile label without moving adjacent controls. */
+export function PreviewCreatorName({ name, active, centered = false, className = 'text-[11px] font-semibold' }: { name: string; active: boolean; centered?: boolean; className?: string }) {
   const isMobile = usePresentation() === 'mobile';
   const reduceMotion = useReducedMotion();
   const viewportRef = useRef<HTMLSpanElement>(null);
@@ -48,9 +48,9 @@ export function PreviewCreatorName({ name, active, centered = false }: { name: s
     return () => { observer.disconnect(); animation?.cancel(); viewport.removeAttribute('data-name-overflow'); };
   }, [active, centered, isMobile, name, reduceMotion]);
 
-  if (!isMobile) return <span className="min-w-0 truncate text-left text-[11px] font-semibold">{name}</span>;
+  if (!isMobile) return <span className={`min-w-0 truncate text-left ${className}`}>{name}</span>;
 
-  return <span ref={viewportRef} data-preview-creator-name="" data-name-centered={centered ? '' : undefined} data-name-reduced-motion={reduceMotion ? '' : undefined} className={`min-w-0 flex-1 overflow-hidden text-left text-[11px] font-semibold ${reduceMotion ? 'whitespace-normal break-words' : 'whitespace-nowrap'}`}>
+  return <span ref={viewportRef} data-preview-creator-name="" data-name-centered={centered ? '' : undefined} data-name-reduced-motion={reduceMotion ? '' : undefined} className={`min-w-0 flex-1 overflow-hidden text-left ${className} ${reduceMotion ? 'whitespace-normal break-words' : 'whitespace-nowrap'}`}>
     <span ref={textRef} className={reduceMotion ? 'block' : 'block w-max'}>{name}</span>
   </span>;
 }

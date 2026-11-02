@@ -3225,6 +3225,48 @@
 #root .codex-shell[data-presentation='mobile'] .studio-bulk-actions { display: flex; align-items: center; gap: var(--mobile-control-gap); min-width: 0; flex: 1; overflow-x: auto; }
 #root .codex-shell[data-presentation='mobile'] .studio-bulk-actions button { display: flex; align-items: center; justify-content: center; gap: var(--mobile-control-group-gap); flex: none; min-height: var(--mobile-control-target); padding: 0 10px; border-radius: 999px; white-space: nowrap; font-size: 12px; color: var(--accent-text); }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-hint { padding: 0 8px; font-size: 12px; color: var(--text-tertiary); }
+
+/* Activity selection shares the system action pills and compact navigation rail. */
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-summary {
+  gap: var(--mobile-control-group-gap);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-summary button {
+  padding-inline: 12px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar {
+  --text-secondary: var(--navigation-foreground);
+  box-sizing: border-box;
+  inset-inline-start: max(var(--mobile-navigation-inset-start), (100% - var(--mobile-control-group-width)) / 2);
+  inset-inline-end: max(var(--mobile-navigation-inset-end), (100% - var(--mobile-control-group-width)) / 2);
+  flex-flow: row nowrap;
+  height: var(--mobile-dock-size);
+  padding: calc(var(--mobile-control-inset) - 1px);
+  border-color: var(--navigation-border);
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+  box-shadow: var(--navigation-shadow);
+  -webkit-backdrop-filter: var(--navigation-blur);
+  backdrop-filter: var(--navigation-blur);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar > button {
+  width: var(--mobile-control-target);
+  height: var(--mobile-control-target);
+  padding: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions {
+  flex-flow: row nowrap;
+  height: var(--mobile-control-target);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions button {
+  height: var(--mobile-control-target);
+  font-size: 14px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--navigation-foreground);
+}
 #root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar:where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true']) *) { visibility: hidden; }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio button:disabled { opacity: .45; }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -4803,7 +4845,7 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-home-search-header .mobile-screen-action-row {
-  display: grid; grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(3, minmax(44px, 1fr)); gap: 8px;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-home-header-button {
   display: flex; align-items: center; justify-content: center;

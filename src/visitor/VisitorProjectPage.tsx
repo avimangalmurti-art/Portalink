@@ -12,11 +12,12 @@ import { LoadingSkeleton } from '../components/ui/StateViews';
 import { useElementSize } from '../hooks/useElementSize';
 import { allocateProjectPanels, type ProjectPanel } from '../utils/projectPanelLayout';
 import { ProjectIndexList } from '../components/profile/ProjectIndexList';
-import { MobilePortalProjectToolbar } from '../components/profile/MobilePortalProjectToolbar';
+import { MobilePortalProjectToolbar, type MobileProjectSort } from '../components/profile/MobilePortalProjectToolbar';
+import { sortPortalProjects, type PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
 
 /** Uses the canonical media viewer without importing owner workspace/editors. */
-export function VisitorProjectPage({ profile, project, categoryId, loading = false, onBack, onBackToProfile, onSelect }: {
-  profile: Profile; project: Project | null; categoryId?: string; loading?: boolean; onBack: () => void; onBackToProfile: () => void; onSelect: (id: string) => void;
+export function VisitorProjectPage({ profile, project, categoryId, loading = false, onBack, onBackToProfile, onSelect, browsing }: {
+  profile: Profile; project: Project | null; categoryId?: string; loading?: boolean; onBack: () => void; onBackToProfile: () => void; onSelect: (id: string) => void; browsing?: PortalProjectBrowsing;
 }) {
   const isMobile = usePresentation() === 'mobile';
   const [indexOpen, setIndexOpen] = useState(!isMobile), [railOpen, setRailOpen] = useState(false);
@@ -40,13 +41,16 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   const setFocused = useCallback((value: boolean) => updateReader(current => ({ ...current, focused: value })), [updateReader]);
   const setPagesPerRow = useCallback((value: number) => updateReader(current => ({ ...current, pagesPerRow: value })), [updateReader]);
   const [indexQuery, setIndexQuery] = useState('');
+  const [localLayout, setLocalLayout] = useState<'list' | 'grid'>('list');
+  const [localSort, setLocalSort] = useState<MobileProjectSort>('recent');
+  const { layout: mobileLayout, sort: mobileSort, onLayout, onSort } = browsing ?? { layout: localLayout, sort: localSort, onLayout: setLocalLayout, onSort: setLocalSort };
   const workspace = useElementSize<HTMLDivElement>();
   const indexOpener = useRef<HTMLButtonElement>(null);
   const attachments = useMemo(() => project?.attachments ?? [], [project?.attachments]);
   const currentCategoryId = project?.categoryId ?? categoryId;
   const category = profile.categories.find(item => item.id === currentCategoryId);
   const categoryProjects = profile.projects.filter(item => item.categoryId === currentCategoryId && item.isPubliclyVisible !== false);
-  const visibleProjects = isMobile || !indexQuery.trim() ? categoryProjects
+  const visibleProjects = isMobile ? sortPortalProjects(categoryProjects, mobileSort) : !indexQuery.trim() ? categoryProjects
     : categoryProjects.filter(item => item.title.toLocaleLowerCase().includes(indexQuery.trim().toLocaleLowerCase()));
   // Public readers use published metadata, without querying owner job tables.
   const processing = useAssetProcessing([]);
@@ -70,8 +74,8 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   const layout = allocateProjectPanels(workspace.width, indexOpen, railOpen, 240, rail.preferredWidth, 240, lastPanel, lastPanel);
   const indexExpanded = isMobile ? indexOpen : layout.indexOpen;
   const index = <aside data-project-index-panel="" data-collapsed={!indexExpanded} data-shared-navigation-panel="" className="ps-panel relative flex h-full min-h-0 shrink-0 flex-col" style={isMobile ? undefined : { width: layout.indexWidth, display: layout.indexWidth === 0 ? 'none' : undefined }}>
-    {isMobile && indexExpanded && category ? <MobilePortalProjectToolbar category={category} onBack={onBackToProfile} sharedReadOnly
-      layout="list" onLayout={() => undefined} sort="saved" onSort={() => undefined} />
+    {isMobile && indexExpanded && category ? <MobilePortalProjectToolbar category={category} onBack={onBackToProfile} sharedReadOnly browsingControls
+      layout={mobileLayout} onLayout={onLayout} sort={mobileSort} onSort={onSort} />
     : <header data-shared-navigation-header="" className={`global-control-header side-panel-control-row shrink-0 ${indexExpanded ? 'px-2' : 'justify-center'}`}>
       {indexExpanded && <span className="min-w-0 flex-1 truncate px-2">{category?.label ?? 'Projects'}</span>}
       <button ref={isMobile ? undefined : indexOpener} data-project-index-toggle="" type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
@@ -82,7 +86,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
         placeholder="Search projects" aria-label={`Search projects in ${category?.label ?? 'this portal'}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" /></div>
     </div>}
     {indexExpanded && <nav data-project-index-list="" aria-label={`${category?.label ?? 'Project'} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
-      <ProjectIndexList profileId={profile.id} projects={visibleProjects} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
+      <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={mobileLayout} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
         typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.isPinned).map(item => item.id)} activeProjectId={project?.id ?? null} isOwner={false} sharedReadOnly
         onReorder={() => undefined} onToggleHidden={() => undefined} onTogglePinned={() => undefined}
         onSelect={id => { if (isMobile) changeIndex(false); onSelect(id); }} />

@@ -10,6 +10,7 @@ import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusI
 import type { Profile, PortfolioCategory as ProfileCategory } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from './MobilePortalProjectToolbar';
+import { sortPortalProjects } from './portalProjectBrowsing';
 import { getTypefaceStack } from '../../data/typefaces';
 import { useElementSize } from '../../hooks/useElementSize';
 import { allocateProjectPanels, projectPanelGeometry, type ProjectPanel } from '../../utils/projectPanelLayout';
@@ -177,9 +178,7 @@ export function ProfileCategoryPage({
   const visibleProjects = useMemo(() => {
     const normalized = indexQuery.trim().toLowerCase();
     const filtered = normalized ? projects.filter(project => `${project.title} ${project.summary}`.toLowerCase().includes(normalized)) : projects;
-    if (!isMobile || mobileSort === 'saved') return filtered;
-    return [...filtered].sort((a, b) => mobileSort === 'title' ? a.title.localeCompare(b.title) :
-      (Date.parse(b.publishedAt ?? '') || 0) - (Date.parse(a.publishedAt ?? '') || 0));
+    return isMobile ? sortPortalProjects(filtered, mobileSort) : filtered;
   }, [projects, indexQuery, isMobile, mobileSort]);
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null;
   useMobileScreenActions(activeProject && !sharedReadOnly ? contextActions('project', { signedIn: viewerRole !== 'guest', owner: showsOwnerTools }, { title: activeProject.title, handlers: {
@@ -434,7 +433,7 @@ export function ProfileCategoryPage({
             <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-          </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined} sharedReadOnly={sharedReadOnly}
+          </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined} sharedReadOnly={sharedReadOnly} browsingControls
             layout={mobileLayout} onLayout={setMobileLayout} sort={mobileSort} onSort={setMobileSort} /> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
             {mobileProjectView && <div className="mobile-portal-projects-back side-panel-control-row side-panel-content-inset">
               <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">

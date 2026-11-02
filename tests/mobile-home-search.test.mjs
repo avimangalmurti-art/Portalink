@@ -35,7 +35,7 @@ function harness(presentation = 'mobile', props = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/home/HomeFeed.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, URLSearchParams, window: { sessionStorage: { getItem: () => null }, addEventListener() {}, removeEventListener() {} }, require(name) {
+  }).outputText, { exports, URLSearchParams, window: { sessionStorage: { getItem: () => null }, addEventListener() {}, removeEventListener() {}, scrollTo() {} }, require(name) {
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
@@ -101,7 +101,7 @@ test('only startup Home waits for readiness and prioritizes its visible artwork;
   const city=harness('mobile',{startupPending:true,locationId:'city'});city.render();assert.equal(city.readiness.enabled,false);
   const later=harness('mobile');later.render();assert.equal(later.readiness.enabled,false);
 });
-test('Explore retains all four discovery buttons without an Actions trigger or sheet registration',()=>{const h=harness();const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.equal(nodes(tree).some(n=>n.props['data-inline-screen-actions']===''||n.type==='context-button'),false);for(const label of ['Open globe search','Search accounts','Search public portals','Home'])assert.ok(nodes(tree).some(n=>n.props['aria-label']===label));nodes(tree).find(n=>n.props['aria-label']==='Search accounts').props.onClick();nodes(tree).find(n=>n.props['aria-label']==='Open globe search').props.onClick();assert.equal(h.userSearchVisits,1);assert.equal(h.worldVisits,1);assert.equal(h.actions,null);assert.ok(nodes(tree).find(n=>n.props['data-home-grid']===''));});
+test('Explore retains three discovery buttons without an Actions trigger or sheet registration',()=>{const h=harness();const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.equal(nodes(tree).some(n=>n.props['data-inline-screen-actions']===''||n.type==='context-button'),false);for(const label of ['Open globe search','Search accounts','Home'])assert.ok(nodes(tree).some(n=>n.props['aria-label']===label));nodes(tree).find(n=>n.props['aria-label']==='Search accounts').props.onClick();nodes(tree).find(n=>n.props['aria-label']==='Open globe search').props.onClick();assert.equal(h.userSearchVisits,1);assert.equal(h.worldVisits,1);assert.equal(h.actions,null);assert.ok(nodes(tree).find(n=>n.props['data-home-grid']===''));});
 test('the shell suppresses Home action fallback while preserving other screens and WEB',()=>{
  const source=ts.createSourceFile('App.tsx',readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);let gate;
  function visit(node){if(ts.isConditionalExpression(node)&&node.whenTrue.kind===ts.SyntaxKind.NullKeyword&&ts.isJsxSelfClosingElement(node.whenFalse)&&node.whenFalse.tagName.getText(source)==='MobileScreenActions')gate=node.condition;ts.forEachChild(node,visit);}visit(source);assert.ok(gate);
@@ -112,7 +112,7 @@ test('the shell suppresses Home action fallback while preserving other screens a
  assert.equal(suppressed({route:{kind:'profile'},isOwnerMode:false}),true,'Another creator profile must not receive shell fallback actions');
 });
 test('city retains responsive measurement/local pinch and never receives the Home fit',()=>{const h=harness('mobile',{locationId:'city'});const grid=()=>nodes(h.render()).find(n=>n.type==='JustifiedImageWall');for(const [width,expected] of [[240,2],[390,2],[430,2],[458,3],[600,3]]){h.measureLocation(width);assert.equal(grid().props.columns,expected);assert.equal(grid().props.fitColumns,undefined);}grid().props.onColumnsChange(13);h.measureLocation(390);assert.equal(grid().props.columns,13);assert.equal(h.density.columns,5);const web=nodes(harness('web',{locationId:'city'}).render()).find(n=>n.type==='BentoFeedGrid');assert.equal(web.props.columns,undefined);});
-test('empty Explore feed retains its four top buttons without an Actions sheet',()=>{const h=harness();h.feed.isEmpty=true;h.feed.projects=[];const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.equal(nodes(tree).filter(n=>n.props.className==='mobile-home-header-button').length,4);assert.equal(h.actions,null);});
+test('empty Explore feed retains its three top buttons without an Actions sheet',()=>{const h=harness();h.feed.isEmpty=true;h.feed.projects=[];const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.equal(nodes(tree).filter(n=>n.props.className==='mobile-home-header-button').length,3);assert.equal(h.actions,null);});
 test('refresh gesture retains cards and its fixed spinner while announcing only real refresh state',()=>{
   const h=harness();let tree=h.render();
   const indicator=nodes(tree).find(n=>'data-home-pull-feedback' in n.props);
@@ -159,15 +159,14 @@ test('obsolete guest view parameters cannot select a preview or bypass signed-in
   assert.deepEqual(h.navigation,[],'Rendering the account feed cannot generate a guest destination.');
  }
 });
-test('the fourth Explore button opens the real portal-search route without refreshing Home and WEB keeps its existing layout',()=>{
+test('Explore omits the duplicate portal-search shortcut while preserving its three destinations and WEB layout',()=>{
  const h=harness();const button=label=>nodes(h.render()).find(n=>n.type==='button'&&n.props['aria-label']===label);
  assert.equal(button('Reload Home content'),undefined);
  button('Open globe search').props.onClick();button('Search accounts').props.onClick();
- const portalButton=button('Search public portals');assert.ok(portalButton);
- assert.equal(nodes(portalButton).find(node=>node.type==='InterfaceIcon').props.icon,'PortalRingIcon');
- portalButton.props.onClick();assert.deepEqual(h.navigation,[['/portal-search']]);
+ assert.equal(button('Search public portals'),undefined);
+ button('Home').props.onClick();assert.deepEqual(h.navigation,[['/']]);
  assert.equal(h.reloads,0);assert.equal(h.actions,null);
- assert.equal(nodes(h.render()).filter(node=>node.props.className==='mobile-home-header-button').length,4);
+ assert.equal(nodes(h.render()).filter(node=>node.props.className==='mobile-home-header-button').length,3);
  assert.equal(nodes(h.render()).some(node=>node.type==='ExploreCategories'),false,'The entry cannot open the unavailable category preview');
  h.setActive(false);h.render();h.pull();assert.equal(h.reloads,0,'Outgoing Home cannot refresh behind the portal directory');
  h.setActive(true);h.render();h.pull();assert.equal(h.reloads,1,'Returning to Explore retains its pull-refresh behavior');

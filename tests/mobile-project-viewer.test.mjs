@@ -7,6 +7,7 @@ import React from 'react';
 import ts from 'typescript';
 const actionMap = sourceModule('src/presentation/mobile/contextActions.ts', { 'lucide-react': new Proxy({}, { get: (_, key) => key }) });
 const pageLayout = sourceModule('src/features/projects/pageLayout.ts', {});
+const portalBrowsing = sourceModule('src/components/profile/portalProjectBrowsing.ts');
 
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
 const MobileProjectPageCounter = () => null;
@@ -26,26 +27,46 @@ function nodes(node) {
 const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
 
-function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video', search = '', hash = '' } = {}) {
+function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video', search = '', hash = '', lifecycle = false, sourceTransform = source => source } = {}) {
   engagement = { isPending: () => false, isEngaged: () => false, canEngage: true, isResolving: false, ...engagement };
-  const slots = []; let cursor = 0, panel = null;
+  const slots = []; let cursor = 0, panel = null, dirty = false, lastOverrides = {}, childEffect = null;
+  const pending = { layout: [], passive: [] };
+  const sameDeps = (previous, next) => previous && next && previous.length === next.length && next.every((value, index) => Object.is(previous[index], value));
+  const schedule = (phase, effect, deps) => {
+    if (!lifecycle) return;
+    const index = cursor++, slot = slots[index] ??= {};
+    if (sameDeps(slot.deps, deps)) return;
+    slot.deps = deps;
+    pending[phase].push(() => { slot.cleanup?.(); slot.cleanup = effect(); });
+  };
   const serviceIds = [], gates = [];
   const viewerMemory = new Map(), memoryWrites = [];
   const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [], sharedTargets = [], copies = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
   const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
-  const react = { ...React, useEffect() {}, useLayoutEffect() {}, useCallback: fn => fn,
+  const react = { ...React,
+    useEffect: (effect, deps) => schedule('passive', effect, deps),
+    useLayoutEffect: (effect, deps) => schedule('layout', effect, deps),
+    useCallback(fn, deps) {
+      if (!lifecycle) return fn;
+      const index = cursor++, slot = slots[index];
+      if (!slot || !sameDeps(slot.deps, deps)) slots[index] = { deps, value: fn };
+      return slots[index].value;
+    },
     useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial }; },
     useState(initial) {
       const i = cursor++;
       if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
-      return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }];
+      return [slots[i], next => {
+        const value = typeof next === 'function' ? next(slots[i]) : next;
+        if (!Object.is(value, slots[i])) { slots[i] = value; dirty = true; }
+      }];
     },
   };
   const exports = {};
-  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/ProjectMediaViewer.tsx', import.meta.url), 'utf8'), {
+  vm.runInNewContext(ts.transpileModule(sourceTransform(readFileSync(new URL('../src/components/media/ProjectMediaViewer.tsx', import.meta.url), 'utf8')), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, URL, URLSearchParams, window: { location: {pathname:readOnlyShare?'/share/creator/c/portal/project':'/p/creator/c/portal/project',origin:'https://portalink.test',href:'https://portalink.test/p/creator/c/portal/project'+search+hash,search,hash} }, require(name) {
+  }).outputText, { exports, URL, URLSearchParams, window: { setTimeout: () => 1, clearTimeout() {}, location: {pathname:readOnlyShare?'/share/creator/c/portal/project':'/p/creator/c/portal/project',origin:'https://portalink.test',href:'https://portalink.test/p/creator/c/portal/project'+search+hash,search,hash} }, require(name) {
     if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
     if (name.endsWith('/InternalContentShare')) return { useInternalContentShare: () => target => sharedTargets.push(target) };
     if (name.endsWith('/copyPublicLink')) return { copyPublicLink: async value => copies.push(value) };
@@ -90,8 +111,35 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
+  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; },
+    // Model React's commit order without mounting media or invoking backend APIs:
+    // parent layout effects, child focus-report passive effect, parent passive effects.
+    // The callback comes from the actual AttachmentRenderer element, as it does
+    // when ImageAttachment restores a focused page from viewer memory.
+    commitFocusedPage(focused, overrides = lastOverrides) {
+      assert.equal(lifecycle, true);
+      let tree;
+      for (let commits = 0; commits < 12; commits++) {
+        dirty = false;
+        tree = this.render(overrides);
+        pending.layout.splice(0).forEach(run => run());
+        const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
+        const callback = focused === null ? null : renderer?.props.onFocusModeChange;
+        // Keep the focused page object stable across scope changes: the real
+        // child's effect re-runs only if focus or its reporting callback changes.
+        if (childEffect?.callback !== callback || childEffect?.focused !== focused) {
+          childEffect?.callback?.(false);
+          childEffect = callback ? { callback, focused } : null;
+          callback?.(focused);
+        }
+        pending.passive.splice(0).forEach(run => run());
+        if (!dirty) return tree;
+      }
+      assert.fail('The real parent effects and child focus report must settle');
+    },
+    render(overrides = {}) {
     cursor = 0;
+    lastOverrides = overrides;
     return exports.ProjectMediaViewer({ projectId: 'project', projectTitle: 'Work', attachments, pageCount: null,
       responseRailWidth: { width: panel === 'response' ? 320 : 52 }, singlePanel: null, readOnlyShare,
       mobileNavigation: mobile ? { index, isIndexOpen: panel === 'index', onOpenIndex: () => { panel = 'index'; }, onCloseIndex: () => { panel = null; }, onBack } : undefined,
@@ -259,6 +307,90 @@ test('mobile overview Back yields to focused pages, the project index and respon
     else button(tree, 'Close project popup').props.onClick();
     tree = h.render();
     assert.equal(h.swipeCalls.at(-1).enabled, true);
+  }
+});
+
+function assertFocusedControls(h, tree, focused) {
+  assert.equal(withProp(tree, 'data-immersive').props['data-immersive'], String(focused));
+  assert.equal(nodes(tree).find(node => node.type === MobileProjectPageCounter).props.showControl, !focused,
+    'Only the focused renderer owns its counter while a page is focused');
+  assert.equal(nodes(tree).some(node => node.props.className === 'mobile-content-action-bar'), !focused,
+    'The normal project dock must not overlap the focused media controls');
+  const documentReading = nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment.kind === 'document';
+  assert.equal(h.swipeCalls.at(-1).enabled, !focused && !documentReading,
+    'Overview Back gestures yield to focused pages and document reading');
+}
+
+test('restored MOBILE image focus survives child-before-parent passive effects in workspace and public readers', () => {
+  for (const readOnlyShare of [false, true]) {
+    const reports = [], h = harness({ lifecycle: true, mediaKind: 'image', readOnlyShare, search: '?media=first&page=2&view=page' });
+    const props = { onPageFocusModeChange: value => reports.push(value) };
+    const tree = h.commitFocusedPage(true, props);
+    assertFocusedControls(h, tree, true);
+    assert.equal(reports.at(-1), true, 'The containing profile must also hide its ordinary Back control');
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.showMediaInteractions, !readOnlyShare,
+      'Public restored focus retains the existing read-only interaction boundary');
+  }
+  const legacy = harness({ lifecycle: true, mediaKind: 'image', search: '?media=first&page=2&view=page', sourceTransform(source) {
+    const restoredPassiveReset = source.replace(/useLayoutEffect\(\(\) => \{\s*setIsImmersive\(false\);/, 'useEffect(() => { setIsImmersive(false);');
+    assert.notEqual(restoredPassiveReset, source, 'The regression control must change only the attachment-focus reset phase');
+    return restoredPassiveReset;
+  } });
+  assert.equal(withProp(legacy.commitFocusedPage(true), 'data-immersive').props['data-immersive'], 'false',
+    'Restoring the old passive reset in memory reproduces the lost child focus report');
+});
+
+test('MOBILE restored focus is re-reported after a callback, project or viewer scope changes', () => {
+  for (const readOnlyShare of [false, true]) {
+    const original = [], replacement = [], h = harness({ lifecycle: true, mediaKind: 'image', readOnlyShare, search: '?media=first&page=2&view=page' });
+    h.commitFocusedPage(true, { onPageFocusModeChange: value => original.push(value) });
+    const props = { onPageFocusModeChange: value => replacement.push(value) };
+    let tree = h.commitFocusedPage(true, props);
+    assertFocusedControls(h, tree, true);
+    assert.equal(replacement.at(-1), true, 'Callback replacement cannot reset an already focused child');
+    const reportsBeforeProjectChange = replacement.length;
+    tree = h.commitFocusedPage(true, { ...props, projectId: 'another-project' });
+    assertFocusedControls(h, tree, true);
+    assert.ok(replacement.length > reportsBeforeProjectChange, 'The same attachment id in another project has a new focus scope');
+    assert.equal(replacement.at(-1), true);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.projectId, 'another-project');
+    const reportsBeforeViewerChange = replacement.length;
+    tree = h.commitFocusedPage(true, { ...props, projectId: 'another-project', readOnlyShare: !readOnlyShare });
+    assertFocusedControls(h, tree, true);
+    assert.ok(replacement.length > reportsBeforeViewerChange, 'A shared/workspace transition must re-report even for the same focused page object');
+    assert.equal(replacement.at(-1), true);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.memoryScope, readOnlyShare ? 'workspace' : 'shared');
+  }
+});
+
+test('leaving MOBILE image focus restores normal controls and switching attachments clears focused ownership', () => {
+  for (const readOnlyShare of [false, true]) {
+    const reports = [], h = harness({ lifecycle: true, mediaKind: 'image', readOnlyShare, search: '?media=first&page=2&view=page' });
+    const attachments = [h.attachments[0], { ...h.attachments[1], kind: 'document', typeLabel: 'Document' }];
+    const props = { attachments, onPageFocusModeChange: value => reports.push(value) };
+    assertFocusedControls(h, h.commitFocusedPage(true, props), true);
+    let tree = h.commitFocusedPage(false, props);
+    assertFocusedControls(h, tree, false);
+    assert.equal(reports.at(-1), false);
+    button(tree, 'second, Document').props.onClick();
+    tree = h.commitFocusedPage(null, props);
+    assertFocusedControls(h, tree, false);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment.id, 'second');
+    assert.equal(reports.at(-1), false);
+  }
+});
+
+test('WEB focus lifecycle retains its existing rail without MOBILE controls', () => {
+  for (const readOnlyShare of [false, true]) {
+    const reports = [], h = harness({ lifecycle: true, mobile: false, mediaKind: 'image', readOnlyShare, search: '?media=first&page=2&view=page' });
+    const props = { onPageFocusModeChange: value => reports.push(value) };
+    for (const focused of [true, false]) {
+      const tree = h.commitFocusedPage(focused, props);
+      assert.equal(withProp(tree, 'data-immersive').props['data-immersive'], String(focused));
+      assert.equal(reports.at(-1), focused);
+      assert.ok(withProp(tree, 'data-project-response-rail'), 'The existing desktop rail remains mounted');
+      assert.equal(nodes(tree).some(node => node.type === MobileProjectPageCounter || node.props.className === 'mobile-content-action-bar'), false);
+    }
   }
 });
 
@@ -686,6 +818,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/MobileProjectIndexPortal')) return { MobileProjectIndexPortal: IndexPortal };
     if (name.endsWith('/ProjectIndexList')) return { ProjectIndexList: Index };
     if (name.endsWith('/MobilePortalProjectToolbar')) return { MobilePortalProjectToolbar };
+    if (name.endsWith('/portalProjectBrowsing')) return portalBrowsing;
     if (name.endsWith('/viewer')) return { canAuthor: role => role === 'owner' };
     if (name.endsWith('/useProjectArrangement')) return { useProjectArrangement: () => ({ arrange: projects => Object.freeze(projects), pinnedIds: [], hiddenIds: [], isLoading: false, isSaving: false, ...arrangementRead }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ deletion: { projectId: null }, editor: {} }) };

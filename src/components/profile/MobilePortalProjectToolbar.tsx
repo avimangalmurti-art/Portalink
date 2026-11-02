@@ -3,30 +3,37 @@ import { ChevronDownIcon, ChevronLeftIcon, Grid2X2Icon, ListIcon, PlusIcon } fro
 import type { PortfolioCategory } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { getCategoryIcon } from './categoryIcons';
+import { PreviewCreatorName } from './PreviewCreatorName';
+import { usePresentation } from '../../presentation/usePresentation';
+import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 
 export type MobileProjectSort = 'recent' | 'title' | 'saved';
 
 /** Mobile browsing controls; authoring callbacks are supplied only for the owner. */
 export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout, onLayout,
-  sort, onSort, sharedReadOnly = false, backLabel }: {
+  sort, onSort, sharedReadOnly = false, browsingControls = !sharedReadOnly, backLabel }: {
   category: PortfolioCategory; onBack: () => void; onCreate?: () => void;
   layout: 'list' | 'grid'; onLayout: (value: 'list' | 'grid') => void;
   sort: MobileProjectSort; onSort: (value: MobileProjectSort) => void;
   sharedReadOnly?: boolean;
+  /** Local sorting and view controls do not grant authoring permissions. */
+  browsingControls?: boolean;
   backLabel?: string;
 }) {
+  const isMobile = usePresentation() === 'mobile';
+  const active = useMobileScreenActive();
   return <header className="mobile-portal-index-toolbar">
     <div className="mobile-portal-index-heading">
       <button type="button" onClick={onBack} aria-label={backLabel ?? (sharedReadOnly ? 'Back to profile' : 'Back to portals')} className="mobile-portal-index-control">
         <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
       </button>
       <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" className="mobile-portal-index-icon" />
-      <h2 title={category.label}>{category.label}</h2>
+      <h2 title={category.label}>{isMobile ? <PreviewCreatorName name={category.label} active={active} centered className="block w-full [font:inherit]" /> : category.label}</h2>
       {onCreate && <button type="button" onClick={onCreate} aria-label={`Add a new project to ${category.label}`} className="mobile-portal-index-control">
         <InterfaceIcon icon={PlusIcon} size="lg" />
       </button>}
     </div>
-    {!sharedReadOnly && <div className="mobile-portal-index-preferences">
+    {browsingControls && <div className="mobile-portal-index-preferences">
       <label className="mobile-portal-index-control mobile-portal-index-layout mobile-portal-index-sort">
         <span aria-hidden="true">{sort === 'recent' ? 'Recent' : sort === 'title' ? 'Name' : 'Saved order'}</span>
         <InterfaceIcon icon={ChevronDownIcon} size="sm" />

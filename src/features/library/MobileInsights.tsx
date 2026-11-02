@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ArrowUpRightIcon, BookmarkIcon, CalendarDaysIcon, CheckIcon, EyeIcon, FileTextIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useServices } from '../../contexts/ServicesContext';
@@ -14,7 +14,6 @@ import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavig
 import { useHomePullRefresh } from '../../components/home/useHomePullRefresh';
 import './insights.css';
 
-const LoadTimingInsights = lazy(() => import('./LoadTimingInsights'));
 const metrics = [
   { key: 'opened', label: 'Opens', unit: 'project opens', icon: EyeIcon },
   { key: 'finished', label: 'Completed', unit: 'completed reads', icon: CheckIcon },
@@ -130,6 +129,6 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
       </div>
       <p className="insights-note">Only you can see these insights. Reader and saver identities remain private. Saves recognise interest without requiring a follow. Removing a save reduces the current total; saving again never adds a duplicate.</p>
     </section>
-    <p className="insights-note">Today uses UTC. All time includes available history; older daily data is retained for about 13 months.</p><Suspense fallback={null}><LoadTimingInsights /></Suspense>
+    <p className="insights-note">Today uses UTC. All time includes available history; older daily data is retained for about 13 months.</p>
   </div>;
 }

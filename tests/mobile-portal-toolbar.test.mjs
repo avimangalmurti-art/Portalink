@@ -13,9 +13,13 @@ function compile(path, require) {
   return exports;
 }
 const Camera = () => null, InterfaceIcon = () => null;
+let presentation = 'mobile';
 const { MobilePortalProjectToolbar } = compile('../src/components/profile/MobilePortalProjectToolbar.tsx', name => {
   if (name === 'react') return React;
   if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon };
+  if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+  if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
+  if (name.endsWith('/PreviewCreatorName')) return { PreviewCreatorName: 'scrolling-title' };
   if (name.endsWith('/categoryIcons')) return { getCategoryIcon: icon => { assert.equal(icon, 'camera'); return Camera; } };
   return new Proxy({}, { get: () => () => null });
 });
@@ -32,7 +36,12 @@ function harness() {
 test('MOBILE portal header uses its real icon/name, one Back action, and an optional authorized Add action', () => {
   const h = harness();
   let tree = h.render();
-  assert.equal(nodes(tree).find(node => node.type === 'h2').props.children, 'Photography');
+  const heading = nodes(tree).find(node => node.type === 'h2');
+  assert.equal(heading.props.title, 'Photography');
+  assert.equal(heading.props.children.type, 'scrolling-title');
+  assert.equal(heading.props.children.props.name, 'Photography');
+  assert.equal(heading.props.children.props.centered, true);
+  assert.equal(heading.props.children.props.active, true);
   assert.ok(nodes(tree).find(node => node.type === InterfaceIcon && node.props.icon === Camera));
   assert.equal(control(tree, 'Add a new project to Photography'), undefined);
   control(tree, 'Back to portals').props.onClick();
@@ -70,14 +79,28 @@ test('portal popup keeps browsing controls without a duplicate page-density slid
   }
 });
 
-test('public project navigation keeps its title and Back path without layout or sorting controls', () => {
+test('public project navigation opts into local browsing controls without owner actions', () => {
   const h = harness(); h.props.sharedReadOnly = true;
-  const tree = h.render();
-  assert.equal(nodes(tree).find(node => node.type === 'h2').props.children, 'Photography');
+  let tree = h.render();
+  assert.equal(control(tree, 'Sort projects'), undefined, 'Unrelated read-only callers retain their default.');
+  h.props.browsingControls = true;
+  tree = h.render();
+  assert.equal(nodes(tree).find(node => node.type === 'h2').props.children.props.name, 'Photography');
   control(tree, 'Back to profile').props.onClick();
   assert.deepEqual(h.calls, [['back']]);
-  for (const name of ['Back to portals', 'Pages per row', 'Show project grid', 'Sort projects']) assert.equal(control(tree, name), undefined);
-  assert.equal(nodes(tree).some(node => node.props.className === 'mobile-portal-index-preferences'), false);
+  for (const name of ['Back to portals', 'Pages per row', 'Add a new project to Photography']) assert.equal(control(tree, name), undefined);
+  control(tree, 'Show project grid').props.onClick();
+  control(tree, 'Sort projects').props.onChange({ target: { value: 'title' } });
+  assert.deepEqual(h.calls, [['back'], ['layout', 'grid'], ['sort', 'title']]);
+  assert.equal(nodes(tree).some(node => node.props.className === 'mobile-portal-index-preferences'), true);
+  h.props.browsingControls = false;
+  presentation = 'web';
+  try {
+    const desktop = h.render();
+    assert.equal(nodes(desktop).find(node => node.type === 'h2').props.children, 'Photography');
+    assert.equal(control(desktop, 'Sort projects'), undefined);
+  }
+  finally { presentation = 'mobile'; }
 });
 
 test('a Timeline portal popup announces its own return destination while retaining the same Back action', () => {

@@ -263,14 +263,18 @@ export function ProjectMediaViewer({
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/') + window.location.search + window.location.hash, PUBLIC_ORIGIN).href;
   const shareProject = () => sendContent({title:projectTitle,url:publicUrl,onSent:()=>setIsProjectShared(true)});
   const active = attachments.find((item) => item.id === activeId) ?? attachments[0];
-  useEffect(() => {
+  // Reset before the attachment's passive effect restores its focused page.
+  // A passive reset here could overwrite that report and expose both toolbars.
+  useLayoutEffect(() => {
     setIsImmersive(false);
     onPageFocusModeChange?.(false);
-  }, [active?.id, onPageFocusModeChange]);
+  }, [active?.id, viewerMemoryKey, onPageFocusModeChange]);
   const handlePageFocusModeChange = useCallback((focused: boolean) => {
     setIsImmersive(focused);
     onPageFocusModeChange?.(focused);
-  }, [onPageFocusModeChange]);
+    // A new attachment scope must make the child report its restored focus again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id, viewerMemoryKey, onPageFocusModeChange]);
   /**
    * When audio and an image are uploaded as separate files, the image is the
    * track's cover rather than a second thing to click through to. Resolved from the
@@ -672,7 +676,7 @@ export function ProjectMediaViewer({
       {mobileNavigation?.isIndexOpen ? !isImmersive && <MobileProjectIndexPortal anchorRef={viewerRootRef}>
         <button type="button" aria-label="Close project list" className="mobile-project-index-dismiss" onClick={mobileNavigation.onCloseIndex} />
         {mobileNavigation.index}
-      </MobileProjectIndexPortal> : isMobileViewer ? <aside ref={mobileEngagementRef} data-project-response-rail="" data-rail-expanded="false" data-mobile-engagement-open={mobileEngagementOpen ? 'true' : 'false'} aria-label={`Project controls for ${projectTitle}`} className="ps-panel flex flex-col overflow-y-auto" onKeyDown={event => {
+      </MobileProjectIndexPortal> : isMobileViewer ? !isImmersive && <aside ref={mobileEngagementRef} data-project-response-rail="" data-rail-expanded="false" data-mobile-engagement-open={mobileEngagementOpen ? 'true' : 'false'} aria-label={`Project controls for ${projectTitle}`} className="ps-panel flex flex-col overflow-y-auto" onKeyDown={event => {
         if (event.key === 'Escape' && mobileEngagementOpen && !mobilePopup) { event.preventDefault(); event.stopPropagation(); closeMobileEngagement(); }
       }}>
         <div id="mobile-project-engagement-actions" data-mobile-engagement-content="" hidden={!mobileEngagementOpen}>

@@ -246,4 +246,25 @@
   )) {
     border-radius: var(--ui-icon-radius) !important;
   }
+
+  /* Portal view controls and relationship actions keep their system shapes
+     above the phone's compact fallback, including lazy public portal views. */
+  [data-presentation='mobile'][data-presentation] :is(
+    .mobile-portal-index-view-controls > button.mobile-portal-index-control,
+    .mobile-portals-page > header > button.mobile-portal-action,
+    [data-profile-visitor-actions] [data-profile-bookmark] > button
+  ) {
+    border-radius: var(--ui-icon-radius) !important;
+  }
+  [data-presentation='mobile'][data-presentation] :is(
+    [data-profile-visitor-actions] [data-profile-follow],
+    [data-profile-visitor-actions] > button.side-panel-primary-control
+  ) {
+    border-radius: var(--ui-action-radius) !important;
+  }
+  /* The card and its painted row share a curve; menus and focus stay unclipped. */
+  [data-presentation='mobile'][data-presentation] .mobile-portals-page[data-portals-layout='grid']
+    .mobile-portals-list :is(.mobile-portal-item, .mobile-portal-row) {
+    border-radius: var(--ui-row-radius) !important;
+  }
 }

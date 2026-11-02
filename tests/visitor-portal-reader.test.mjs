@@ -4,6 +4,7 @@ import React from 'react';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const panels = sourceModule('src/utils/projectPanelLayout.ts');
+const portalBrowsing = sourceModule('src/components/profile/portalProjectBrowsing.ts');
 const nodes = tree => Array.isArray(tree) ? tree.flatMap(nodes) : React.isValidElement(tree) ? [tree, ...nodes(tree.props.children)] : [];
 const one = (tree, type) => nodes(tree).find(node => node.type === type);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && (node.props['aria-label'] === label || node.props.children === label));
@@ -51,11 +52,12 @@ function fixture(presentation = 'web', { empty = false } = {}) {
     '../utils/projectPanelLayout': panels,
     '../components/profile/ProjectIndexList': { ProjectIndexList: 'project-index' },
     '../components/profile/MobilePortalProjectToolbar': { MobilePortalProjectToolbar: 'portal-toolbar' },
+    '../components/profile/portalProjectBrowsing': portalBrowsing,
   }, { requestAnimationFrame: callback => callback() });
   return { state, alpha, beta, calls, processingReads, render() {
     cursor = 0;
     return VisitorProjectPage({ profile: state.profile, project: state.project, categoryId: state.categoryId, loading: state.loading,
-      onBack: () => calls.push('back'), onBackToProfile: () => calls.push('profile'), onSelect: id => calls.push(id) });
+      onBack: () => calls.push('back'), onBackToProfile: () => calls.push('profile'), onSelect: id => calls.push(id), browsing: state.browsing });
   } };
 }
 
@@ -163,11 +165,59 @@ test('MOBILE keeps its closed index, portal toolbar and close-after-selection be
   const index = viewer.props.mobileNavigation.index;
   assert.equal(one(index, 'input'), undefined);
   assert.equal(one(index, 'portal-toolbar').props.sharedReadOnly, true);
+  assert.equal(one(index, 'portal-toolbar').props.browsingControls, true);
   assert.equal(one(index, 'portal-toolbar').props.category.label, 'Work');
-  assert.deepEqual(one(index, 'project-index').props.projects.map(project => project.id), ['alpha', 'beta']);
+  assert.deepEqual(Array.from(one(index, 'project-index').props.projects, project => project.id), ['alpha', 'beta']);
   one(index, 'portal-toolbar').props.onBack(); one(index, 'project-index').props.onSelect('beta');
   assert.deepEqual(h.calls, ['profile', 'beta']);
   assert.equal(one(h.render(), 'media-viewer').props.mobileNavigation.isIndexOpen, false);
+});
+
+test('MOBILE public reader offers local list/grid and sorting while retaining only published project rows', () => {
+  const h = fixture('mobile');
+  h.alpha.publishedAt = '2026-01-02T00:00:00Z';
+  h.beta.publishedAt = '2026-01-04T00:00:00Z';
+  h.state.profile.projects.push({ id: 'gamma', categoryId: 'work', title: 'Aardvark', publishedAt: 'invalid' });
+  one(h.render(), 'media-viewer').props.mobileNavigation.onOpenIndex();
+  const index = () => one(h.render(), 'media-viewer').props.mobileNavigation.index;
+  const ids = tree => Array.from(one(tree, 'project-index').props.projects, project => project.id);
+  let tree = index();
+  assert.deepEqual(ids(tree), ['beta', 'alpha', 'gamma']);
+  assert.equal(one(tree, 'project-index').props.mobileLayout, 'list');
+  one(tree, 'portal-toolbar').props.onLayout('grid');
+  one(tree, 'portal-toolbar').props.onSort('title');
+  tree = index();
+  assert.deepEqual(ids(tree), ['gamma', 'alpha', 'beta']);
+  assert.equal(one(tree, 'project-index').props.mobileLayout, 'grid');
+  one(tree, 'portal-toolbar').props.onSort('saved');
+  tree = index();
+  assert.deepEqual(ids(tree), ['alpha', 'beta', 'gamma']);
+  const list = one(tree, 'project-index');
+  assert.equal(list.props.isOwner, false);
+  assert.equal(list.props.sharedReadOnly, true);
+  assert.deepEqual(Array.from(list.props.hiddenIds), []);
+  assert.deepEqual(Array.from(list.props.pinnedIds), ['beta']);
+  assert.equal(one(tree, 'portal-toolbar').props.onCreate, undefined);
+  assert.equal(one(h.render(), 'media-viewer').props.readOnlyShare, true);
+  assert.ok(h.processingReads.every(attachments => attachments.length === 0), 'Browsing never queries owner processing jobs.');
+  assert.deepEqual(h.calls, []);
+});
+
+test('MOBILE public reader consumes shared browsing preferences and delegates changes without owner callbacks', () => {
+  const h = fixture('mobile'), changes = [];
+  h.state.browsing = { layout: 'grid', sort: 'title', onLayout: value => changes.push(['layout', value]), onSort: value => changes.push(['sort', value]) };
+  one(h.render(), 'media-viewer').props.mobileNavigation.onOpenIndex();
+  let index = one(h.render(), 'media-viewer').props.mobileNavigation.index;
+  assert.equal(one(index, 'project-index').props.mobileLayout, 'grid');
+  assert.equal(one(index, 'portal-toolbar').props.sort, 'title');
+  one(index, 'portal-toolbar').props.onLayout('list');
+  one(index, 'portal-toolbar').props.onSort('saved');
+  assert.deepEqual(changes, [['layout', 'list'], ['sort', 'saved']]);
+  h.state.browsing = { ...h.state.browsing, layout: 'list', sort: 'saved' };
+  index = one(h.render(), 'media-viewer').props.mobileNavigation.index;
+  assert.equal(one(index, 'project-index').props.mobileLayout, 'list');
+  assert.equal(one(index, 'portal-toolbar').props.sort, 'saved');
+  assert.equal(one(index, 'project-index').props.isOwner, false);
 });
 
 test('project density, focus and document counts reset on selection and ignore late prior-reader callbacks', () => {

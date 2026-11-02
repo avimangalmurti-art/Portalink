@@ -4529,10 +4529,14 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   backdrop-filter: blur(16px) saturate(120%);
   transition: background-color var(--m-fast) var(--m-enter);
 }
-/* A normal border is clipped by the avatar's SVG mask. Trace that same curve
-   above photos and initials, using the main profile avatar's 1px hairline. */
-.profile-collection-avatar { position: relative; }
-.profile-collection-avatar::after {
+/* A normal border is clipped by the squircle's SVG mask. Trace that same curve
+   above portraits and portal fills, using the main profile avatar's 1px hairline. */
+.profile-collection-avatar,
+.public-portal-mark > .profile-collection-tile,
+.public-portal-avatar > .squircle { position: relative; }
+.profile-collection-avatar::after,
+.public-portal-mark > .profile-collection-tile::after,
+.public-portal-avatar > .squircle::after {
   content: none;
   position: absolute;
   inset: 0;
@@ -4542,9 +4546,13 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='M50 0C4 0 0 4 0 50c0 46 4 50 50 50s50-4 50-50C100 4 96 0 50 0z' fill='none' stroke='black' stroke-width='2' vector-effect='non-scaling-stroke'/></svg>") 0 0 / 100% 100% no-repeat;
   mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='M50 0C4 0 0 4 0 50c0 46 4 50 50 50s50-4 50-50C100 4 96 0 50 0z' fill='none' stroke='black' stroke-width='2' vector-effect='non-scaling-stroke'/></svg>") 0 0 / 100% 100% no-repeat;
 }
-.high-contrast .profile-collection-avatar::after { content: ''; }
+.high-contrast .profile-collection-avatar::after,
+.high-contrast .public-portal-mark > .profile-collection-tile::after,
+.high-contrast .public-portal-avatar > .squircle::after { content: ''; }
 @media (prefers-contrast: more) {
-  .profile-collection-avatar::after { content: ''; }
+  .profile-collection-avatar::after,
+  .public-portal-mark > .profile-collection-tile::after,
+  .public-portal-avatar > .squircle::after { content: ''; }
 }
 .profile-collection-name {
   max-width: 100%;

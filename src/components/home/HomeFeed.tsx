@@ -2,7 +2,6 @@ import { DensitySeparator } from '../ui/DensitySeparator';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { Globe2Icon, HomeIcon, UserSearchIcon } from 'lucide-react';
-import { PortalRingIcon } from '../PortalRingIcon';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useHomePullRefresh } from './useHomePullRefresh';
 import { useHomeRefreshMotion } from './useHomeRefreshMotion';
@@ -271,7 +270,6 @@ export function HomeFeed({
               {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
               <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
               {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={UserSearchIcon} weight="medium" /></button>}
-              <button type="button" aria-label="Search public portals" title="Portal search" className="mobile-home-header-button" onClick={() => navigate(buildPath('portalSearch'))}><InterfaceIcon icon={PortalRingIcon} weight="medium" /></button>
             </div>
             <p role="status" className={hasReloaded && !feed.isRefreshing && feed.refreshError ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : pullLabel || (hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : '')}

@@ -24,6 +24,7 @@ import { resolveNavButtonTokens } from '../data/navButtonTokens';
 import { VisitorProfileGrid } from './VisitorProfileGrid';
 import { useMobileProjectReturn } from './useMobileProjectReturn';
 import type { Profile } from '../types/domain';
+import type { PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
 import { PublicActionSheet } from './mobile/PublicActionSheet';
 import { canResumeRegistration, readSharedReturnPath } from '../features/auth/registration';
 import { interactionIntent } from '../features/auth/interactionIntent';
@@ -77,6 +78,17 @@ export function VisitorApp() {
   const sharedPath = readSharedReturnPath(shared ? location.pathname + location.search : settingsReturn);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [portalPopup, setPortalPopup] = useState<{ profileId: string; categoryId: string } | null>(null);
+  const [portalBrowsing, setPortalBrowsing] = useState<Record<string, Pick<PortalProjectBrowsing, 'layout' | 'sort'>>>({});
+  // The chooser and keyed project readers share only local browsing preferences.
+  const browsingForPortal = (portalId: string): PortalProjectBrowsing => {
+    const scope = `${profileId}/${portalId}`;
+    const defaults = { layout: 'list' as const, sort: 'recent' as const };
+    return {
+      ...(portalBrowsing[scope] ?? defaults),
+      onLayout: layout => setPortalBrowsing(current => ({ ...current, [scope]: { ...(current[scope] ?? defaults), layout } })),
+      onSort: sort => setPortalBrowsing(current => ({ ...current, [scope]: { ...(current[scope] ?? defaults), sort } })),
+    };
+  };
   const deferredIntent = useRef<AuthIntent | null>(null);
   const interactiveSignIn = useRef(false), resumedRegistration = useRef<string | null>(null);
   const invalidShared = !settings && sharedShell && (!shared || !profileId || !isProfileId(profileId));
@@ -293,7 +305,7 @@ export function VisitorApp() {
                       : handleError ? <RouteError kind={routeErrorKind(handleError)} onBack={back} onHome={() => window.location.assign('/')} /> : handlePending ? pending
                       : invalidShared ? <RouteError kind="not-found" onBack={back} onHome={() => window.location.assign('/')} />
                       : (query.status === 'loading' || query.status === 'idle') && !retainedWebReaderLoading ? pending : !profile ? <RouteError kind={query.status === 'error' ? routeErrorKind(query.error) : 'not-found'} onBack={back} onHome={() => window.location.assign('/')} />
-                      : projectId ? project || retainedWebReaderLoading ? <VisitorProjectPage key={presentation === 'web' ? `${profile.id}/${categoryId}` : project?.id} profile={profile} project={project ?? null} categoryId={categoryId ?? undefined} loading={retainedWebReaderLoading} onBack={back}
+                      : projectId ? project || retainedWebReaderLoading ? <VisitorProjectPage key={presentation === 'web' ? `${profile.id}/${categoryId}` : project?.id} profile={profile} project={project ?? null} categoryId={categoryId ?? undefined} loading={retainedWebReaderLoading} onBack={back} browsing={presentation === 'mobile' && categoryId ? browsingForPortal(categoryId) : undefined}
                         onBackToProfile={presentation === 'mobile' ? back : () => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} onSelect={id => { if (categoryId) openProject(categoryId, id); }} /> : <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={presentation === 'mobile' ? back : () => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
                       : route.kind === 'sharedCollaboration' ? <CollaborationPage profile={profile} onBack={back} />
                       : presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId) ? <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
@@ -308,7 +320,7 @@ export function VisitorApp() {
           </div>
         </div>
       </div>
-      {profile && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopup(null)} onSelect={openProject} />}
+      {profile && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopup(null)} onSelect={openProject} browsing={browsingForPortal(portalPopupId)} />}
       <DeferredDialog active={Boolean(auth.pendingView) && (!onboardingOpen || auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery))} onClose={auth.closeAuth}>
         <AuthDialog welcomeBeforeSignup showWelcomeMedia={false} registrationReturnPath={sharedPath} theme={theme} systemGray={systemGray}
           onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}

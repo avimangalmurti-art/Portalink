@@ -50,15 +50,45 @@
  #root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) { background: var(--surface-raised) !important; backdrop-filter: none; }
 }
 
-/* The floating portal owns its raised material. An idle toolbar shares that
-   surface; rows scrolling underneath use the same canvas instead of page black. */
+/* The frame owns the glass. Keep the title clear in every scroll state and
+   scroll the list below it, matching the standalone portal chooser. */
 @layer portalink-header-material {
- #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel] > .mobile-portal-index-toolbar {
-  --fixed-header-canvas: var(--surface-raised);
- }
- #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel] > .mobile-portal-index-toolbar[data-mobile-header-underlap='false']::before {
+ #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel] > .mobile-portal-index-toolbar[data-mobile-header-underlap]::before {
   content: none !important;
  }
+ #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel] > nav[data-fixed-header-underlap] {
+  margin-top: var(--fixed-header-margin, 0px) !important;
+  padding-top: var(--fixed-header-padding, 0px) !important;
+  scroll-padding-top: var(--fixed-header-scroll-padding, 0px) !important;
+ }
+}
+
+/* Each row owns one complete pill; groups and inner controls add no grey. */
+#root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) [data-project-index-list] [data-mobile-project-layout='list'] .inset-row-group {
+ background: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) [data-project-index-list] [data-mobile-project-layout='list'] .inset-row-group > :not(:last-child)::after {
+ content: none;
+}
+#root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row {
+ --ui-row-radius: var(--ui-capsule-radius);
+}
+#root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row:not(.active) {
+ background: var(--surface-sunken);
+}
+#root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) [data-project-index-list] [data-mobile-project-layout='list'] :is(.project-index-row > button, .project-index-row [data-project-row-actions], .project-index-row [data-row-menu]) {
+ background: transparent !important;
+ box-shadow: none !important;
+ -webkit-backdrop-filter: none !important;
+ backdrop-filter: none !important;
+}
+@media (hover: hover) and (pointer: fine) {
+ #root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row:not(.active):hover {
+  background: var(--control-hover-surface);
+ }
+}
+#root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row:not(.active):has(> button:active) {
+ background: var(--surface-pressed);
 }
 
 [data-presentation='mobile'] [data-centered-project] [data-engagement-action] { min-height: 64px; color: var(--text-primary); background: var(--surface-sunken); border-radius: 12px; }

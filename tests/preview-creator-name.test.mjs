@@ -113,7 +113,9 @@ test('reduced motion wraps the full name while WEB retains its existing static l
 });
 
 test('connection names pause at both ends and move at a reading pace', () => {
-  const h = harness(); const tree = h.render({ centered: true });
+  const h = harness(); const tree = h.render({ centered: true, className: 'block w-full [font:inherit]' });
+  assert.match(tree.props.className, /\[font:inherit\]/);
+  assert.doesNotMatch(tree.props.className, /text-\[11px\]/);
   assert.equal(tree.props['data-name-centered'], '');
   const { frames, options } = h.animations[0];
   assert.equal(options.duration, 80 / 22 * 1000 + 2400);
@@ -123,9 +125,11 @@ test('connection names pause at both ends and move at a reading pace', () => {
   assert.equal(options.easing, 'linear');
   assert.equal(frames[1].easing, 'ease-in-out');
   h.observers[0].callback(); assert.equal(h.animations.length, 1);
-  h.setReducedMotion(true); const reduced = h.render({ centered: true });
+  h.setReducedMotion(true); const reduced = h.render({ centered: true, className: 'block w-full [font:inherit]' });
   assert.equal(h.animations[0].cancelled, true);
   assert.equal(reduced.props['data-name-reduced-motion'], '');
+  assert.match(reduced.props.className, /whitespace-normal/);
+  assert.match(reduced.props.className, /\[font:inherit\]/);
 });
 
 test('short connection names remain centered and still; desktop stays unchanged', () => {
