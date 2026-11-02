@@ -23,6 +23,7 @@ export function MobileContextProvider({ children, showFloatingButton = true, she
   const identityRef = useRef(identity); identityRef.current = identity;
   const entries = useRef(new Map<string, Registration>()), button = useRef<HTMLButtonElement | null>(null);
   const [revision, setRevision] = useState(0), [opened, setOpened] = useState<{ identity: string; source?: ModelSource } | null>(null), [notice, setNotice] = useState('');
+  const openedRef = useRef(opened); openedRef.current = opened;
   const [hint, setHint] = useState(() => { try { return localStorage.getItem(hintKey) !== '1'; } catch { return true; } });
   const register = useCallback((id: string, value: Registration | null) => {
     const previous = entries.current.get(id);
@@ -63,12 +64,24 @@ export function MobileContextProvider({ children, showFloatingButton = true, she
     focusContext();
   };
   const run = (selected: ContextAction) => {
-    // Re-resolve capabilities immediately before invoking an action. Native share
-    // and clipboard keep the user's activation; the old focus trap is gone first.
+    // Re-resolve capabilities before invocation. Hand-off actions close first;
+    // catalogue copy keeps its result visible in the current sheet.
     const latest = resolve();
     const action = latest && [...latest.primary, ...latest.groups.flat()].find(item => item.id === selected.id);
+    if (mobile && latest?.kind === 'profile' && action?.id === 'copy') {
+      const scope = opened;
+      const isCurrent = () => identityRef.current === identity && openedRef.current === scope;
+      const failed = (error: unknown) => {
+        if (isCurrent()) setNotice(error instanceof Error ? error.message : 'This action could not be completed. Please try again.');
+        return false;
+      };
+      setNotice('');
+      // Keep the row visible until the actual clipboard result is known.
+      try { return Promise.resolve(action.run()).then(() => isCurrent(), failed); }
+      catch (error) { return Promise.resolve(failed(error)); }
+    }
     close();
-    if (!action) return;
+    if (!action) return false;
     try { Promise.resolve(action.run()).catch(error => { if (identityRef.current === identity) setNotice(error instanceof Error ? error.message : 'This action could not be completed. Please try again.'); }); }
     catch (error) { setNotice(error instanceof Error ? error.message : 'This action could not be completed.'); }
   };

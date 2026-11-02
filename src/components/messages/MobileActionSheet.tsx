@@ -1,6 +1,6 @@
 import { useSheetMotion } from '../../presentation/motion/useSheetMotion';
-import React, { useId, useRef, useState } from 'react';
-import { SlidersHorizontalIcon, XIcon } from 'lucide-react';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { CheckIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -9,13 +9,21 @@ import { usePresentation } from '../../presentation/usePresentation';
 import type { ContextActions, ContextAction } from '../../presentation/mobile/contextActions';
 
 /** Shared message/context sheet: one viewport, focus, scrim and swipe lifecycle. */
-export function MobileActionSheet({ model, onClose, onAction, beforeActions, children, layout = 'actions', onboardingFiles = false }: { model: ContextActions; onClose: () => void; onAction: (action: ContextAction) => void; beforeActions?: React.ReactNode; children?: React.ReactNode; layout?: 'actions' | 'files'; onboardingFiles?: boolean }) {
+export function MobileActionSheet({ model, onClose, onAction, beforeActions, children, layout = 'actions', onboardingFiles = false }: { model: ContextActions; onClose: () => void; onAction: (action: ContextAction) => unknown; beforeActions?: React.ReactNode; children?: React.ReactNode; layout?: 'actions' | 'files'; onboardingFiles?: boolean }) {
   const presentation = usePresentation();
   const mobile = presentation === 'mobile';
   const motion=useSheetMotion(onClose);
   const [dragY,setDragY]=useState(0);
   const [dragging,setDragging]=useState(false);
   const [interacted,setInteracted]=useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'pending' | 'copied'>('idle');
+  const copyAttempt = useRef(0), copyPending = useRef(false);
+  const copyResetTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    copyAttempt.current++;
+    copyPending.current = false;
+    if (copyResetTimer.current !== null) { window.clearTimeout(copyResetTimer.current); copyResetTimer.current = null; }
+  }, []);
   const dialogRef = useRef<HTMLDivElement>(null), viewportRef = useDialogViewport(), titleId = useId();
   const ownerProfile = layout === 'actions' && model.kind === 'profile' && Boolean(model.viewer?.owner);
   // Phone menus start at the compact detent; expansion is an explicit action.
@@ -24,6 +32,32 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   const start = useRef<{x:number;y:number;id:number;rest:number;offset:number} | null>(null);
   const dragged = useRef(false);
   const cancelDrag = () => { start.current = null; setDragging(false); setDragY(0); };
+  const inlineCopy = (action: ContextAction) => mobile && model.kind === 'profile' && action.id === 'copy';
+  const activate = async (action: ContextAction, viewport?: HTMLElement | null) => {
+    if (!inlineCopy(action)) { motion.close(() => onAction(action), viewport); return; }
+    if (copyPending.current) return;
+    copyPending.current = true;
+    const attempt = ++copyAttempt.current;
+    if (copyResetTimer.current !== null) { window.clearTimeout(copyResetTimer.current); copyResetTimer.current = null; }
+    setCopyState('pending');
+    try {
+      const copied = await onAction(action);
+      if (copyAttempt.current !== attempt) return;
+      if (copied !== true) { setCopyState('idle'); return; }
+      setCopyState('copied');
+      copyResetTimer.current = window.setTimeout(() => {
+        copyResetTimer.current = null;
+        if (copyAttempt.current === attempt) setCopyState('idle');
+      }, 2000);
+    } catch {
+      if (copyAttempt.current === attempt) setCopyState('idle');
+    } finally {
+      if (copyAttempt.current === attempt) copyPending.current = false;
+    }
+  };
+  const actionIcon = (action: ContextAction) => inlineCopy(action) && copyState === 'copied'
+    ? <InterfaceIcon icon={CheckIcon} keepColor style={{ color: 'var(--status-success)' }} />
+    : <InterfaceIcon icon={action.icon} />;
   useModalFocus(true, dialogRef, dismiss, true);
   return <ModalPortal><div data-presentation={onboardingFiles ? presentation : 'mobile'} data-onboarding-files-manager={onboardingFiles || undefined} data-sheet-layout={layout === 'files' ? layout : undefined} ref={viewportRef} data-motion-scrim="" data-motion-closing={motion.closing || undefined} className="mobile-context-scrim modal-scrim" style={{...(ownerProfile ? {top:'var(--dialog-viewport-top, 0px)',bottom:'auto'} : {bottom:0}),height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)dismiss();}}>
     <div data-ui-surface="sheet" data-owner-profile-actions={ownerProfile || undefined} data-onboarding-files-manager={onboardingFiles || undefined} data-sheet-layout={layout === 'files' ? layout : undefined} ref={dialogRef} className="mobile-context-sheet" data-expanded={expanded} data-motion-sheet="" data-motion-closing={motion.closing || undefined} data-sheet-dragging={dragging || undefined} data-sheet-interacted={interacted || undefined} style={{['--sheet-drag-y' as string]:`${dragY}px`}} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
@@ -74,8 +108,9 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
       </header>
       <div className={`mobile-context-body${mobile ? ' overflow-y-auto' : ''}`}>
         {beforeActions}
-        {model.primary.length>0&&<div className="mobile-context-primary" style={{gridTemplateColumns:`repeat(${model.primary.length}, minmax(0, 1fr))`}}>{model.primary.map(action=><button type="button" key={action.id} onClick={event=>motion.close(()=>onAction(action),event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><InterfaceIcon icon={action.icon}/><span>{action.label}</span></button>)}</div>}
-        {model.groups.map((group,i)=><div className="mobile-context-group" key={i}>{group.map(action=><button type="button" key={action.id} data-destructive={action.destructive||undefined} data-keep-color={action.destructive?'':undefined} onClick={event=>motion.close(()=>onAction(action),event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><span>{action.label}</span><InterfaceIcon icon={action.icon}/></button>)}</div>)}
+        {model.primary.length>0&&<div className="mobile-context-primary" style={{gridTemplateColumns:`repeat(${model.primary.length}, minmax(0, 1fr))`}}>{model.primary.map(action=><button type="button" key={action.id} aria-busy={inlineCopy(action) && copyState === 'pending' || undefined} aria-disabled={inlineCopy(action) && copyState === 'pending' || undefined} onClick={event=>void activate(action,event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}>{actionIcon(action)}<span>{action.label}</span></button>)}</div>}
+        {model.groups.map((group,i)=><div className="mobile-context-group" key={i}>{group.map(action=><button type="button" key={action.id} data-destructive={action.destructive||undefined} data-keep-color={action.destructive?'':undefined} aria-busy={inlineCopy(action) && copyState === 'pending' || undefined} aria-disabled={inlineCopy(action) && copyState === 'pending' || undefined} onClick={event=>void activate(action,event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><span>{action.label}</span>{actionIcon(action)}</button>)}</div>)}
+        {mobile && model.kind === 'profile' && <span className="sr-only" role="status" aria-live="polite">{copyState === 'copied' ? 'Public catalogue link copied' : ''}</span>}
         {!beforeActions && model.primary.length === 0 && model.groups.length === 0 && !children && <p className="px-2 py-4 text-sm text-[var(--text-secondary)]">No additional actions on this screen.</p>}
         {children}
       </div>

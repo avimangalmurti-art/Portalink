@@ -76,8 +76,12 @@ test('registration composition stays in the active route kind and keeps canonica
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 
-function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,model:providedModel,presentation='mobile',onboardingFiles=false}={}) {
- const slots=[], calls=[], motions=[], measurements={viewport:0,panel:0}; let cursor=0, escape, tree;
+function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,model:providedModel,presentation='mobile',onboardingFiles=false,onAction}={}) {
+ const slots=[], calls=[], motions=[], effects=[], timers=new Map(), measurements={viewport:0,panel:0}; let cursor=0, escape, tree, now=0, timerId=0, disposed=false, lateWrites=0;
+ const same=(a,b)=>a&&b&&a.length===b.length&&a.every((value,index)=>Object.is(value,b[index]));
+ const effect=(fn,deps)=>{const index=cursor++,previous=slots[index];if(!same(previous?.deps,deps)){const slot={deps,cleanup:previous?.cleanup};slots[index]=slot;effects.push(()=>{slot.cleanup?.();slot.cleanup=fn();});}};
+ const setTimer=(fn,delay=0)=>{timers.set(++timerId,{fn,at:now+delay});return timerId;};
+ const clearTimer=id=>timers.delete(id);
  class ElementStub {
   constructor(kind='header') { this.kind=kind; this.captured=new Set(); }
   closest(selector) {
@@ -99,9 +103,9 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,mod
   const offset=rest+Number.parseFloat(node?.props.style?.['--sheet-drag-y']??0)+(node?.props['data-sheet-dragging']?0:entranceOffset);
   return {top:viewportHeight-height+offset,bottom:viewportHeight+offset,height};
  }};
- const react={...React,useId:()=> 'title',useRef(initial){return slots[cursor++]??={current:initial};},useState(initial){
-  const index=cursor++; if(!(index in slots))slots[index]=initial;
-  return [slots[index],next=>{slots[index]=typeof next==='function'?next(slots[index]):next;}];
+ const react={...React,useEffect:effect,useId:()=> 'title',useRef(initial){return slots[cursor++]??={current:initial};},useState(initial){
+  const index=cursor++; if(!(index in slots))slots[index]=typeof initial==='function'?initial():initial;
+  return [slots[index],next=>{if(disposed)lateWrites++;slots[index]=typeof next==='function'?next(slots[index]):next;}];
  }};
  const {MobileActionSheet}=compile('../src/components/messages/MobileActionSheet.tsx',{
   react,
@@ -109,11 +113,12 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,mod
   '../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close(after,scope){motions.push({immediate:typeof after==='function',scope});if(after)after();else onClose();}})},
   '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:viewport})},
   '../../hooks/useModalFocus':{useModalFocus:(open,_ref,onClose,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=onClose;}},
- },{Element:ElementStub});
+ },{Element:ElementStub,setTimeout:setTimer,clearTimeout:clearTimer,window:{setTimeout:setTimer,clearTimeout:clearTimer}});
  const model=providedModel??contextActions('home',{signedIn:true},{handlers:{explore:()=>calls.push('explore'),newProject:()=>calls.push('new')}});
  const render=()=>{
-  cursor=0;tree=MobileActionSheet({model,onClose:()=>calls.push('close'),onAction:action=>action.run(),layout,onboardingFiles});
+  cursor=0;tree=MobileActionSheet({model,onClose:()=>calls.push('close'),onAction:onAction??(action=>action.run()),layout,onboardingFiles});
   nodes(tree).find(node=>node.props.role==='dialog').ref.current=dialog;
+  effects.splice(0).forEach(run=>run());
   return tree;
  };
  const find=predicate=>nodes(render()).find(predicate);
@@ -121,12 +126,162 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,mod
   isPrimary:true,button:0,pointerId:1,clientX:100,clientY:600,target:header,currentTarget:header,...overrides,
  });
  const resizeButton=()=>find(node=>node.props.className==='mobile-context-resize');
- return {render,find,calls,motions,viewport,measurements,escape:()=>escape(),pointer,header,resize,close,resizeButton,
+ return {render,find,calls,motions,viewport,measurements,timers,get lateWrites(){return lateWrites;},escape:()=>escape(),pointer,header,resize,close,resizeButton,
+  advance(ms){now+=ms;for(const[id,timer]of[...timers])if(timer.at<=now){timers.delete(id);timer.fn();}},
+  async flush(){for(let i=0;i<5;i++)await Promise.resolve();},
+  dispose(){for(const slot of slots)slot?.cleanup?.();disposed=true;},
   dialog:()=>find(node=>node.props.role==='dialog'),
   scrim:()=>find(node=>node.props.className?.includes('mobile-context-scrim')),
   clickResize:(detail=1)=>resizeButton().props.onClick({detail}),
  };
 }
+
+const deferredCopy=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};};
+const actionRow=(h,label)=>h.find(node=>node.type==='button'&&nodes(node).some(child=>child.type==='span'&&child.props.children===label));
+const clickAction=(h,row)=>row.props.onClick({currentTarget:{closest:()=>h.viewport}});
+const actionGlyph=row=>nodes(row).find(node=>node.type==='InterfaceIcon');
+const profileCopyModel=owner=>contextActions('profile',{signedIn:true,owner},{handlers:{copy(){}}});
+
+test('MOBILE profile catalogue copy confirms only successful completion, blocks duplicate taps and restores its icon',async()=>{
+ for(const owner of[true,false]){
+  const copy=deferredCopy();let writes=0;
+  const h=sheetHarness({model:profileCopyModel(owner),onAction:()=>{writes++;return copy.promise;}});
+  const row=actionRow(h,'Copy public catalogue link');
+  assert.equal(actionGlyph(row).props.icon,'CopyIcon');
+  clickAction(h,row);clickAction(h,row);
+  assert.equal(writes,1,'A second tap before rerender must not start another clipboard write');
+  assert.equal(h.motions.length,0,'This action keeps its row visible instead of closing the sheet');
+  assert.equal(actionRow(h,'Copy public catalogue link').props['aria-busy'],true);
+  assert.equal(actionGlyph(actionRow(h,'Copy public catalogue link')).props.icon,'CopyIcon');
+  assert.equal(h.timers.size,0,'Pending clipboard work cannot start the success timer');
+  copy.resolve(true);await h.flush();
+  const success=actionGlyph(actionRow(h,'Copy public catalogue link'));
+  assert.equal(success.props.icon,'CheckIcon');assert.equal(success.props.keepColor,true);
+  assert.equal(success.props.style.color,'var(--status-success)');
+  assert.ok(nodes(h.render()).some(node=>node.props.role==='status'&&node.props['aria-live']==='polite'&&node.props.children==='Public catalogue link copied'));
+  assert.equal(h.calls.includes('close'),false);
+  h.advance(1999);assert.equal(actionGlyph(actionRow(h,'Copy public catalogue link')).props.icon,'CheckIcon');
+  h.advance(1);assert.equal(actionGlyph(actionRow(h,'Copy public catalogue link')).props.icon,'CopyIcon');
+  assert.equal(h.timers.size,0);h.dispose();
+ }
+});
+
+test('MOBILE profile copy failures and non-success results never show a confirmation and remain retryable',async()=>{
+ for(const result of[false,undefined,'copied']){
+  let writes=0;const h=sheetHarness({model:profileCopyModel(true),onAction:()=>{writes++;return Promise.resolve(writes===1?result:true);}});
+  clickAction(h,actionRow(h,'Copy public catalogue link'));await h.flush();
+  assert.equal(actionGlyph(actionRow(h,'Copy public catalogue link')).props.icon,'CopyIcon');
+  assert.equal(h.timers.size,0);
+  clickAction(h,actionRow(h,'Copy public catalogue link'));await h.flush();
+  assert.equal(writes,2);assert.equal(actionGlyph(actionRow(h,'Copy public catalogue link')).props.icon,'CheckIcon');h.dispose();
+ }
+ const h=sheetHarness({model:profileCopyModel(true),onAction:()=>Promise.reject(new Error('Clipboard denied'))});
+ clickAction(h,actionRow(h,'Copy public catalogue link'));await h.flush();
+ assert.equal(actionGlyph(actionRow(h,'Copy public catalogue link')).props.icon,'CopyIcon');assert.equal(h.timers.size,0);h.dispose();
+});
+
+test('closing a profile copy sheet clears its timer and ignores clipboard completion after unmount',async()=>{
+ for(const finishBeforeClose of[false,true]){
+  const copy=deferredCopy(),h=sheetHarness({model:profileCopyModel(true),onAction:()=>copy.promise});
+  clickAction(h,actionRow(h,'Copy public catalogue link'));
+  if(finishBeforeClose){copy.resolve(true);await h.flush();h.render();assert.equal(h.timers.size,1);}
+  h.escape();h.dispose();assert.ok(h.calls.includes('close'));assert.equal(h.timers.size,0);
+  if(!finishBeforeClose){copy.resolve(true);await h.flush();}
+  h.advance(3000);assert.equal(h.lateWrites,0);assert.equal(h.timers.size,0);
+ }
+ const reopened=sheetHarness({model:profileCopyModel(true)});
+ assert.equal(actionGlyph(actionRow(reopened,'Copy public catalogue link')).props.icon,'CopyIcon');reopened.dispose();
+});
+
+test('WEB and non-profile-copy actions retain motion-close delegation without copy feedback',async()=>{
+ for(const[presentation,kind,id]of[['web','profile','copy'],['mobile','shared','copy'],['mobile','profile','share']]){
+  let runs=0;const model=contextActions(kind,{signedIn:true,owner:true},{handlers:{[id](){}}});
+  const action=[...model.primary,...model.groups.flat()].find(item=>item.id===id);
+  const h=sheetHarness({presentation,model,onAction:()=>{runs++;return Promise.resolve(true);}});
+  clickAction(h,actionRow(h,action.label));await h.flush();
+  assert.equal(runs,1);assert.equal(h.motions.length,1);assert.equal(h.motions[0].immediate,true);
+  assert.equal(nodes(h.render()).some(node=>node.props.role==='status'&&node.props.children==='Public catalogue link copied'),false);
+  assert.equal(h.timers.size,0);h.dispose();
+ }
+});
+
+function providerCopyHarness(){
+ const slots=[],effects=[],calls=[];let cursor=0,tree,dirty=false,location={pathname:'/p/owner',search:''},account='me';
+ const same=(a,b)=>a&&b&&a.length===b.length&&a.every((value,index)=>Object.is(value,b[index]));
+ const react={...React,useRef(value){return slots[cursor++]??={current:value};},useState(value){
+  const index=cursor++;slots[index]??={value:typeof value==='function'?value():value};
+  return[slots[index].value,next=>{const value=typeof next==='function'?next(slots[index].value):next;if(!Object.is(value,slots[index].value)){slots[index].value=value;dirty=true;}}];
+ },useCallback:fn=>fn,useEffect(fn,deps){const index=cursor++,previous=slots[index];if(!same(previous?.deps,deps)){const slot={deps,cleanup:previous?.cleanup};slots[index]=slot;effects.push(()=>{slot.cleanup?.();slot.cleanup=fn();});}}};
+ const {MobileContextProvider}=compile('../src/presentation/mobile/MobileContextActions.tsx',{
+  react,'react-dom':{flushSync:fn=>fn()},'react-router-dom':{useLocation:()=>location},
+  '../../contexts/AuthContext':{useAuth:()=>({user:{id:account}})},'../usePresentation':{usePresentation:()=> 'mobile'},
+  './contextFocus':{focusMobileContextButton:()=>{calls.push('focus');return null;}},'./contextActions':{mergeContextActions},
+  '../../components/messages/MobileActionSheet':{MobileActionSheet:'copy-feedback-sheet'},
+ },{Error,localStorage:{getItem:()=>null,setItem(){}}});
+ const render=()=>{for(let renders=0;renders<8;renders++){cursor=0;dirty=false;tree=MobileContextProvider({children:null});effects.splice(0).forEach(run=>run());if(!dirty)return tree;}assert.fail('Provider effects must settle');};
+ const sheet=()=>nodes(render()).find(node=>node.type==='copy-feedback-sheet');
+ render();
+ return{calls,render,sheet,
+  open(source){render().props.value.open(source);render();},
+  run(id='copy'){const current=sheet();const action=[...current.props.model.primary,...current.props.model.groups.flat()].find(item=>item.id===id);return current.props.onAction(action);},
+  close(){sheet().props.onClose();render();},
+  route(path){location={pathname:path,search:''};render();},
+  account(value){account=value;render();},
+  notice(){return nodes(render()).find(node=>node.props.role==='alert');},
+  dispose(){for(const slot of slots)slot?.cleanup?.();},
+ };
+}
+
+test('provider keeps profile copy open, re-resolves its latest capability and reports clipboard success explicitly',async()=>{
+ for(const owner of[true,false]){
+  const copy=deferredCopy(),h=providerCopyHarness();let oldWrites=0,newWrites=0;
+  let model=contextActions('profile',{signedIn:true,owner},{handlers:{copy(){oldWrites++;}}});
+  h.open(()=>model);const clicked=h.sheet(),selected=[...clicked.props.model.groups.flat()].find(action=>action.id==='copy');
+  model=contextActions('profile',{signedIn:true,owner},{handlers:{copy(){newWrites++;return copy.promise;}}});
+  const pending=clicked.props.onAction(selected);assert.ok(pending instanceof Promise || typeof pending?.then==='function');
+  assert.equal(oldWrites,0);assert.equal(newWrites,1);assert.ok(h.sheet());
+  assert.deepEqual(h.calls,['focus'],'A successful copy must not close the sheet or steal row focus');
+  copy.resolve();assert.equal(await pending,true);assert.ok(h.sheet());h.dispose();
+ }
+ const h=providerCopyHarness();let writes=0;
+ let model=contextActions('profile',{signedIn:true,owner:true},{handlers:{copy(){writes++;}}});
+ h.open(()=>model);const clicked=h.sheet(),selected=clicked.props.model.groups.flat().find(action=>action.id==='copy');
+ model=contextActions('profile',{signedIn:true,owner:true},{handlers:{}});
+ assert.equal(clicked.props.onAction(selected),false);assert.equal(writes,0);assert.equal(h.sheet(),undefined);h.dispose();
+});
+
+test('profile copy provider reports failures without confirmation and clears the notice for a successful retry',async()=>{
+ const retry=deferredCopy(),h=providerCopyHarness();let writes=0;
+ h.open(contextActions('profile',{signedIn:true,owner:true},{handlers:{copy(){writes++;return writes===1?Promise.reject(new Error('Clipboard denied')):retry.promise;}}}));
+ assert.equal(await h.run(),false);assert.ok(h.sheet());
+ assert.ok(h.notice());assert.ok(React.Children.toArray(h.notice().props.children).includes('Clipboard denied'));
+ const pending=h.run();assert.equal(h.notice(),undefined,'Retry clears the previous failure instead of showing success and error together');
+ retry.resolve();assert.equal(await pending,true);assert.equal(writes,2);assert.equal(h.notice(),undefined);assert.ok(h.sheet());h.dispose();
+ const sync=providerCopyHarness();sync.open(contextActions('profile',{signedIn:true,owner:true},{handlers:{copy(){throw new Error('Clipboard denied');}}}));
+ assert.equal(await sync.run(),false);assert.ok(sync.notice());assert.ok(sync.sheet());sync.dispose();
+});
+
+test('profile copy completion is rejected after route, account, close or reopened-sheet changes',async()=>{
+ for(const change of['route','account','close','reopen'])for(const rejects of[false,true]){
+  const copy=deferredCopy(),h=providerCopyHarness(),model=contextActions('profile',{signedIn:true,owner:true},{handlers:{copy:()=>copy.promise}});
+  h.open(model);const pending=h.run();
+  if(change==='route')h.route('/p/another');
+  else if(change==='account')h.account('another-account');
+  else {h.close();if(change==='reopen')h.open(model);}
+  if(rejects)copy.reject(new Error('Late clipboard failure'));else copy.resolve();
+  assert.equal(await pending,false,`${change} must invalidate a pending clipboard confirmation`);
+  assert.equal(h.notice(),undefined,'An old clipboard failure must not appear over a different screen or new sheet');
+  assert.equal(Boolean(h.sheet()),change==='reopen');h.dispose();
+ }
+});
+
+test('provider keeps close-first delegation for other profile actions and non-profile copy',()=>{
+ for(const[kind,id]of[['profile','share'],['shared','copy']]){
+  const h=providerCopyHarness();let runs=0,openDuringRun;
+  h.open(contextActions(kind,{signedIn:true,owner:true},{handlers:{[id](){runs++;openDuringRun=Boolean(h.sheet());}}}));
+  h.run(id);assert.equal(runs,1);assert.equal(openDuringRun,false);assert.equal(h.sheet(),undefined);h.dispose();
+ }
+});
 
 test('file-sheet opt-in provides an explicit Done action while ordinary sheets retain their existing close control',()=>{
  const files=sheetHarness({layout:'files'}),tree=files.render();
@@ -610,15 +765,19 @@ test('App suppresses fallback actions only for ordinary mobile other-creator pro
     ts.forEachChild(node, visit);
   }
   visit(source); assert.ok(fallback, 'The application retains its explicit fallback selection');
-  const shared = fallback.parent;
-  assert.ok(ts.isConditionalExpression(shared) && shared.whenFalse === fallback);
+  const authenticated = fallback.parent;
+  assert.ok(ts.isConditionalExpression(authenticated) && authenticated.whenFalse === fallback);
+  assert.equal(authenticated.whenTrue.kind, ts.SyntaxKind.NullKeyword, 'Signed-out ordinary routes have no authenticated fallback actions');
+  const shared = authenticated.parent;
+  assert.ok(ts.isConditionalExpression(shared) && shared.whenFalse === authenticated);
   assert.ok(ts.isJsxSelfClosingElement(shared.whenTrue));
   assert.equal(shared.whenTrue.tagName.getText(source), 'SharedContextActions', 'Public shared actions take precedence over the ordinary screen gate');
-  const base = { isSharedRoute: false, presentation: 'mobile', route: { kind: 'profile' }, isOwnerMode: false,
+  const base = { isSharedRoute: false, auth: { isAuthenticated: true }, presentation: 'mobile', route: { kind: 'profile' }, isOwnerMode: false,
     isSearchOpen: false, isMessagesOpen: false, isMobileStudioOpen: false, activeProjectId: null };
   const branch = changes => {
     const context = { ...base, ...changes };
     if (vm.runInNewContext(shared.condition.getText(source), context)) return 'shared';
+    if (vm.runInNewContext(authenticated.condition.getText(source), context)) return null;
     return vm.runInNewContext(fallback.condition.getText(source), context) ? null : 'ordinary';
   };
   assert.equal(branch({}), null);
@@ -632,7 +791,10 @@ test('App suppresses fallback actions only for ordinary mobile other-creator pro
   for (const changes of [{ route: { kind: 'home' } }, { route: { kind: 'portalink', locationId: null } }]) assert.equal(branch(changes), null);
   for (const changes of [{}, { isOwnerMode: true }, { presentation: 'web' }, { route: { kind: 'sharedProfile' } }, { route: { kind: 'category' }, activeProjectId: 'project' }]) {
     assert.equal(branch({ ...changes, isSharedRoute: true }), 'shared', JSON.stringify(changes));
+    assert.equal(branch({ ...changes, isSharedRoute: true, auth: { isAuthenticated: false } }), 'shared');
   }
+  for (const route of [{ kind: 'profile' }, { kind: 'studio' }, { kind: 'settings' }])
+    assert.equal(branch({ route, auth: { isAuthenticated: false }, presentation: 'web' }), null);
 });
 
 test('individual page Cite remains available for owners as well as visitors',()=>{

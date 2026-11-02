@@ -32,6 +32,28 @@
   -webkit-backdrop-filter: var(--ui-modal-filter) !important;
   backdrop-filter: var(--ui-modal-filter) !important;
 }
+/* Portal browsing softens the page with the same smoke/blur as avatar preview. */
+#root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer,
+  .mobile-profile-portal-overlay, .mobile-project-index-overlay[data-mobile-combined-rail]) {
+  --ui-modal-filter: blur(18px) saturate(115%);
+  background: rgb(0 0 0 / 46%) !important;
+  -webkit-backdrop-filter: var(--ui-modal-filter) !important;
+  backdrop-filter: var(--ui-modal-filter) !important;
+}
+/* The backdrop host owns the tint; its full-screen dismissal target stays clear. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] > .mobile-project-index-dismiss {
+  background: transparent !important;
+}
+#root .codex-shell[data-presentation='mobile'].high-contrast :is(.portal-project-popup-layer,
+  .mobile-profile-portal-overlay, .mobile-project-index-overlay[data-mobile-combined-rail]) {
+  background: var(--scrim) !important;
+}
+@media (prefers-contrast: more) {
+  #root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer,
+    .mobile-profile-portal-overlay, .mobile-project-index-overlay[data-mobile-combined-rail]) {
+    background: var(--scrim) !important;
+  }
+}
 /* Attached sheets keep their lower edge and gesture/viewport geometry. */
 #root .codex-shell [data-ui-surface='sheet'][data-ui-surface] {
   border-bottom-left-radius: 0 !important;
