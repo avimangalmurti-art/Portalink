@@ -106,6 +106,27 @@ test('shared portal popup gives its published rows the mobile list sizing and ke
   assert.equal(closed, 2);
 });
 
+test('shared popup Back is distinct from dismissal and selection, while other popup callers keep close behavior', () => {
+  const f = portalPopupFixture(), calls = [];
+  const { SharedPortalPopup } = load('visitor/mobile/SharedPortalPopup.tsx', name => {
+    if (name === 'react') return React;
+    if (name.endsWith('/PortalProjectPopup')) return { PortalProjectPopup: f.PortalProjectPopup };
+    throw new Error(name);
+  });
+  const entry = SharedPortalPopup({ profile, categoryId: 'portal', onBack: () => calls.push('portals'),
+    onClose: () => calls.push('close'), onSelect: (...args) => calls.push(['select', ...args]) });
+  const tree = entry.type(entry.props), toolbar = one(tree, 'MobilePortalProjectToolbar');
+  assert.equal(toolbar.props.backLabel, 'Back to portals');
+  toolbar.props.onBack(); one(tree, 'ScreenBack').props.action();
+  assert.deepEqual(calls, ['portals', 'portals']);
+  const layer = nodes(tree).find(node => node.props['data-presentation']), backdrop = {};
+  layer.props.onClick({ target: backdrop, currentTarget: backdrop });
+  f.focusCalls[0][2]();
+  one(tree, 'ProjectIndexList').props.onSelect('work');
+  assert.deepEqual(calls, ['portals', 'portals', 'close', 'close', 'close', ['select', 'portal', 'work']],
+    'Outside dismissal, Escape and project selection must not issue a return-to-Portals request.');
+});
+
 for (const presentation of ['mobile', 'web']) test(`${presentation} portal popup filters its own portal, preserves canonical row metadata, and shares every dismissal path`, () => {
   const f = portalPopupFixture(presentation), calls = [];
   const creator = { id: 'creator', categories: [{ id: 'design', label: 'Product Design' }], projects: [
@@ -1078,6 +1099,60 @@ test('MOBILE sidebar portal opens its project popup without navigating to the pr
   h.state.presentation='web';
   one(h.render(),'SharedProfileSidebar').props.onOpenCategory('portal');
   assert.ok(h.navigations.length>0);
+});
+
+test('MOBILE shared popup Back requests its Portals chooser without navigating or reopening on ordinary dismissal and selection', () => {
+  const h = appHarness();
+  one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
+  let tree = h.render();
+  assert.equal(one(tree, 'SharedProfileSidebar').props.mobileNavigationEnabled, false);
+  assert.equal(one(tree, 'SharedProfileSidebar').props.mobileNavigationRequest, undefined);
+  one(tree, 'SharedPortalPopup').props.onBack();
+  tree = h.render();
+  assert.equal(one(tree, 'SharedPortalPopup'), undefined);
+  const request = one(tree, 'SharedProfileSidebar').props.mobileNavigationRequest;
+  assert.ok(request);
+  assert.equal(one(tree, 'SharedProfileSidebar').props.mobileNavigationEnabled, true);
+  assert.equal(one(h.render(), 'SharedProfileSidebar').props.mobileNavigationRequest, request, 'Rerendering does not create repeated requests.');
+  assert.equal(h.navigations.length + h.assigned.length + h.replaced.length, 0, 'Popup Back stays inside the catalogue and never traverses browser history.');
+
+  one(tree, 'SharedProfileSidebar').props.onOpenCategory('portal');
+  one(h.render(), 'SharedPortalPopup').props.onClose();
+  tree = h.render();
+  assert.notEqual(one(tree, 'SharedProfileSidebar').props.mobileNavigationRequest, request,
+    'Opening another portal clears the consumed request rather than replaying it on dismissal.');
+  assert.equal(one(tree, 'SharedProfileSidebar').props.mobileNavigationRequest, undefined);
+  one(tree, 'SharedProfileSidebar').props.onOpenCategory('portal');
+  one(h.render(), 'SharedPortalPopup').props.onSelect('portal', 'work');
+  tree = h.render();
+  assert.equal(one(tree, 'SharedProfileSidebar').props.mobileNavigationRequest, undefined);
+  assert.deepEqual(json(h.navigations), [[`/share/${profileId}/c/portal/work`, { replace: false }]]);
+});
+
+test('MOBILE chooser return requests expire with route, creator, account or presentation changes', () => {
+  for (const change of ['pathname', 'search', 'hash', 'creator', 'account', 'presentation']) {
+    const h = appHarness();
+    one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
+    one(h.render(), 'SharedPortalPopup').props.onBack();
+    assert.ok(one(h.render(), 'SharedProfileSidebar').props.mobileNavigationRequest);
+    if (change === 'pathname') h.state.location = { ...h.state.location, pathname: '/creator' };
+    if (change === 'search') h.state.location = { ...h.state.location, search: '?via=friend' };
+    if (change === 'hash') h.state.location = { ...h.state.location, hash: '#another-project' };
+    if (change === 'creator') {
+      const other = '22222222-2222-4222-8222-222222222222';
+      h.state.route = { kind: 'sharedProfile', profileId: other };
+      h.state.location = { ...h.state.location, pathname: `/share/${other}` };
+      h.state.query = { ...h.state.query, profile: { ...profile, id: other } };
+    }
+    if (change === 'account') h.signedIn();
+    if (change === 'presentation') h.state.presentation = 'web';
+    assert.equal(one(h.render(), 'SharedProfileSidebar').props.mobileNavigationRequest, undefined, `${change} invalidates old return intent.`);
+    assert.equal(one(h.render(), 'SharedPortalPopup'), undefined);
+    if (change === 'presentation') {
+      h.state.presentation = 'mobile';
+      assert.equal(one(h.render(), 'SharedProfileSidebar').props.mobileNavigationRequest, undefined, 'Returning to MOBILE cannot replay an old request.');
+    }
+  }
 });
 
 test('MOBILE public browse preferences survive chooser-to-reader and project remounts within their portal', () => {

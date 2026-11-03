@@ -16,13 +16,14 @@ type PortalProjectPopupProps = {
   profile: Profile;
   categoryId: string;
   onClose: () => void;
+  onBack?: () => void;
   onSelect: (categoryId: string, projectId: string) => void;
   backLabel?: string;
   browsing?: PortalProjectBrowsing;
 };
 
 /** A portal's existing navigation list, floating over the screen that opened it. */
-export function PortalProjectPopup({ profile, categoryId, onClose, onSelect, backLabel = 'Back to profile', browsing }: PortalProjectPopupProps) {
+export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onClose, onSelect, backLabel = 'Back to profile', browsing }: PortalProjectPopupProps) {
   const presentation = usePresentation();
   const [localLayout, setLocalLayout] = useState<'list' | 'grid'>('list');
   const [localSort, setLocalSort] = useState<MobileProjectSort>('recent');
@@ -38,9 +39,9 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onSelect, bac
     <div data-presentation={presentation} className="shared-portal-popup-layer portal-project-popup-layer" onClick={event => {
       if (event.target === event.currentTarget) onClose();
     }}>
-      <ScreenBack action={onClose}>{null}</ScreenBack>
+      <ScreenBack action={onBack}>{null}</ScreenBack>
       <section data-ui-surface="popup" ref={ref} className="shared-portal-popup ps-panel" role="dialog" aria-modal="true" aria-label={category.label} tabIndex={-1}>
-        <MobilePortalProjectToolbar category={category} onBack={onClose} backLabel={backLabel} sharedReadOnly browsingControls={presentation === 'mobile'}
+        <MobilePortalProjectToolbar category={category} onBack={onBack} backLabel={backLabel} sharedReadOnly browsingControls={presentation === 'mobile'}
           layout={layout} onLayout={onLayout} sort={sort} onSort={onSort} />
         <nav data-project-index-list="" className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}>
           {presentation === 'mobile' && !projects.length && <EmptyState title={`No projects in ${category.label}`} description="No work has been published in this portal." />}

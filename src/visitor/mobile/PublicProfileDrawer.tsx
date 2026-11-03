@@ -16,9 +16,11 @@ function sharedDrawerRelease(progress: number, distance: number, velocity: numbe
 }
 
 /** An independent foreground layer. No drag or open state changes page layout. */
-export function PublicProfileDrawer({ name, children, enabled = true }: {
+export function PublicProfileDrawer({ name, children, enabled = true, openRequest }: {
   name: string;
   enabled?: boolean;
+  /** Each new request restores Portals after returning from a child popup. */
+  openRequest?: object;
   children: (close: () => void) => React.ReactNode;
 
 }) {
@@ -35,6 +37,7 @@ export function PublicProfileDrawer({ name, children, enabled = true }: {
   const suppressClick = useRef(false);
   const committed = useRef(false);
   const animation = useRef<{ stop: () => void } | null>(null);
+  const consumedOpenRequest = useRef<object | undefined>(undefined);
 
   const settle = useCallback((next: boolean, immediate = false) => {
     animation.current?.stop();
@@ -58,6 +61,11 @@ export function PublicProfileDrawer({ name, children, enabled = true }: {
     drag.current = null;
     settle(false, true);
   }, [pathname, search, enabled, settle]);
+  useEffect(() => {
+    if (!openRequest || consumedOpenRequest.current === openRequest) return;
+    consumedOpenRequest.current = openRequest;
+    if (enabled) settle(true);
+  }, [enabled, openRequest, settle]);
   useEffect(() => () => animation.current?.stop(), []);
 
   function cancel() {

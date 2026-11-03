@@ -119,7 +119,8 @@ test('successful empty mobile insights keeps the graph for every metric and peri
       assert.equal(nodes(tree).some(node => ['insights-bar', 'insights-bar-label', 'insights-average-line', 'insights-average'].includes(node.props.className)), false);
       assert.match(text(nodes(tree).find(node => node.props.className === 'insights-chart-caption')), /0 projects/);
       assert.match(accessibleText(tree), /No project reads yet/);
-      assert.deepEqual(totals(tree), ['0', '0', '0']);
+      assert.deepEqual(totals(tree), [], 'MOBILE keeps the selected zero headline without repeating every metric total.');
+      assert.equal(accessibleText(headline(tree)), `0${['project opens', 'completed reads', 'current page saves'][index]}`);
       assert.doesNotMatch(accessibleText(tree), /Top locations|Location insights are not available/);
     }
   }
@@ -222,18 +223,20 @@ test('periods drive queries, project covers load, and only recorded sources appe
 });
 
 test('mobile and web initial periods stay distinct while current saves stay separate from period counts', () => {
-  for (const [initialPeriod, expected, label] of [[undefined, '7d', '7 days'], ['30d', '30d', '30 days']]) {
-    const fixture = load(rows, { initialPeriod });
+  for (const [presentation, initialPeriod, expected, label] of [['mobile', undefined, '7d', '7 days'], ['web', '30d', '30d', '30 days']]) {
+    const fixture = load(rows, { presentation, initialPeriod });
     let tree = fixture.render();
     assert.equal(nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.value, expected);
     assert.equal(fixture.periods.at(-1), expected);
     assert.equal(text(nodes(tree).find(node => node.props.className === 'insights-eyebrow')), label);
-    assert.equal(text(nodes(tree).find(node => node.props.className === 'insights-total-context')), `Opens and completed: ${label}. Page saves: current bookmarks.`);
+    assert.equal(text(nodes(tree).find(node => node.props.className === 'insights-total-context')), presentation === 'mobile' ? '' : `Opens and completed: ${label}. Page saves: current bookmarks.`);
     metricButtons(tree)[2].props.onClick();
     tree = fixture.render();
-    assert.equal(text(nodes(tree).find(node => node.props.className === 'insights-eyebrow')), 'Current totals');
+    assert.equal(text(nodes(tree).find(node => node.props.className === 'insights-eyebrow')), presentation === 'mobile' ? '' : 'Current totals');
     assert.equal(accessibleText(headline(tree)), '5current page saves');
-    assert.match(accessibleText(nodes(tree).find(node => node.props.className === 'insights-note insights-metric-note')), /current bookmarks, not saves made during this period/);
+    const metricNote = nodes(tree).find(node => node.props.className === 'insights-note insights-metric-note');
+    if (presentation === 'mobile') assert.equal(metricNote, undefined);
+    else assert.match(accessibleText(metricNote), /current bookmarks, not saves made during this period/);
     const audience = nodes(tree).find(node => node.props['aria-label'] === 'Audience');
     assert.match(text(audience), /Current totals/);
     assert.deepEqual(nodes(audience).filter(node => node.type === 'dt').map(text), ['Creator saves', 'Project saves', 'Followers']);
@@ -246,24 +249,29 @@ test('project average includes zero-count projects outside the top eight without
   const manyRows = Array.from({ length: 10 }, (_, index) => ({
     projectId: `project-${index}`, title: `Project ${index}`, opened: (9 - index) * 10, finished: 0, saved: 0, refs: {},
   }));
-  const fixture = load(manyRows);
-  let tree = fixture.render();
-  const chart = nodes(tree).find(node => node.props['aria-label'] === 'Opens by project');
-  assert.equal(chartButtons(chart).length, 8);
-  assert.match(text(nodes(tree).find(node => node.props.className === 'insights-chart-caption')), /Top 8 projects/);
-  const average = nodes(tree).find(node => node.props.className === 'insights-average');
-  assert.equal(text(nodes(average).find(node => node.type === 'strong')), '45');
-  assert.match(text(average), /Average per project.*Across all 10 projects/);
-  assert.equal(nodes(chart).find(node => node.props.className === 'insights-average-line').props.style.bottom, 'calc(24px + (100% - 24px) * 0.5)');
-  assert.deepEqual(totals(tree), ['450', '0', '0']);
-  assert.match(text(tree), /Daily trends are not available/);
-  assert.equal(nodes(chart).find(node => node.props.className === 'insights-grid').props['aria-hidden'], 'true');
-  metricButtons(tree)[1].props.onClick();
-  tree = fixture.render();
-  const zeroChart = nodes(tree).find(node => node.props['aria-label'] === 'Completed by project');
-  assert.equal(text(nodes(nodes(tree).find(node => node.props.className === 'insights-average')).find(node => node.type === 'strong')), '0');
-  assert.equal(nodes(zeroChart).find(node => node.props.className === 'insights-average-line').props.style.bottom, 'calc(24px + (100% - 24px) * 0)');
-  assert.equal(nodes(zeroChart).filter(node => node.props.className === 'insights-bar').every(node => node.props.style.height === '0%'), true);
+  for (const presentation of ['mobile', 'web']) {
+    const fixture = load(manyRows, { presentation });
+    let tree = fixture.render();
+    const chart = nodes(tree).find(node => node.props['aria-label'] === 'Opens by project');
+    assert.equal(chartButtons(chart).length, 8);
+    assert.match(text(nodes(tree).find(node => node.props.className === 'insights-chart-caption')), /Top 8 projects/);
+    const average = nodes(tree).find(node => node.props.className === 'insights-average');
+    assert.equal(text(nodes(average).find(node => node.type === 'strong')), '45');
+    if (presentation === 'mobile') {
+      assert.match(text(average), /Average \(10 projects\).*45/);
+      assert.equal(nodes(average).some(node => node.type === 'span'), false, 'The compact legend has no second project-count line.');
+    } else assert.match(text(average), /Average per project.*Across all 10 projects/);
+    assert.equal(nodes(chart).find(node => node.props.className === 'insights-average-line').props.style.bottom, 'calc(24px + (100% - 24px) * 0.5)');
+    assert.deepEqual(totals(tree), presentation === 'mobile' ? [] : ['450', '0', '0']);
+    assert.equal(/Daily trends are not available/.test(text(tree)), presentation === 'web');
+    assert.equal(nodes(chart).find(node => node.props.className === 'insights-grid').props['aria-hidden'], 'true');
+    metricButtons(tree)[1].props.onClick();
+    tree = fixture.render();
+    const zeroChart = nodes(tree).find(node => node.props['aria-label'] === 'Completed by project');
+    assert.equal(text(nodes(nodes(tree).find(node => node.props.className === 'insights-average')).find(node => node.type === 'strong')), '0');
+    assert.equal(nodes(zeroChart).find(node => node.props.className === 'insights-average-line').props.style.bottom, 'calc(24px + (100% - 24px) * 0)');
+    assert.equal(nodes(zeroChart).filter(node => node.props.className === 'insights-bar').every(node => node.props.style.height === '0%'), true);
+  }
 });
 
 test('compact chart and legend labels preserve exact accessible totals and project counts', () => {
@@ -293,6 +301,10 @@ test('updated time appears only from an actual successful query timestamp', () =
   assert.match(text(updated), /^Updated /);
   assert.equal(time.props.dateTime, new Date(fetchedAt).toISOString());
   assert.equal(text(time), new Date(fetchedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
+  const mobile = load(rows, { presentation: 'mobile', fetchedAt }).render();
+  assert.equal(nodes(mobile).some(node => hasClass(node, 'insights-metric-note') || hasClass(node, 'insights-updated')), false);
+  assert.equal(nodes(mobile).some(node => node.type === 'time'), false);
+  assert.ok(nodes(mobile).find(node => node.props['aria-label'] === 'Top projects'));
   for (const state of [{ loading: true }, { error: 'Unavailable' }]) {
     assert.equal(nodes(load(undefined, { ...state, fetchedAt }).render()).some(node => node.type === 'time'), false);
   }
@@ -309,7 +321,11 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.ok(section, 'Project activity keeps its accessible section name');
     assert.ok(card);
     assert.ok(nodes(card).some(node => node.props['aria-label'] === 'Opens by project'));
-    assert.ok(nodes(card).some(node => node.props['aria-label'] === 'Metric totals'));
+    assert.equal(nodes(card).some(node => node.props['aria-label'] === 'Metric totals'), presentation === 'web');
+    assert.equal(nodes(card).some(node => hasClass(node, 'insights-total-context')), presentation === 'web');
+    const summaryUnits = React.Children.toArray(headline(tree).props.children).filter(React.isValidElement)
+      .map(node => React.Children.toArray(node.props.children).find(child => React.isValidElement(child) && child.type === 'span'));
+    assert.equal(summaryUnits.every(node => hasClass(node, 'sr-only')), presentation === 'mobile', 'MOBILE avoids repeating the selected tab label while retaining accessible units.');
     assert.equal(nodes(section).filter(node => node.type === 'h2' && text(node) === 'Project activity').length, presentation === 'mobile' ? 0 : 1);
     assert.equal(nodes(card).filter(node => node.props['aria-label'] === 'Insights period').length, presentation === 'mobile' ? 1 : 0);
     assert.equal(metricButtons(card).length, presentation === 'mobile' ? 3 : 0);
@@ -354,6 +370,7 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.deepEqual(metricButtons(group).map(node => node.props['aria-pressed']), [false, true, false]);
     assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', 'Completed', ''] : ['Opens', 'Completed', 'Page saves']);
     assert.equal(accessibleText(headline(tree)), '8completed reads');
+    assert.equal(text(nodes(tree).find(node => hasClass(node, 'insights-eyebrow'))), '30 days');
     if (presentation === 'mobile') assert.equal(picker.props.title, 'Insights period: 30 days');
     metricButtons(group)[2].props.onClick();
     tree = fixture.render();
@@ -361,6 +378,7 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', '', 'Page saves'] : ['Opens', 'Completed', 'Page saves']);
     assert.deepEqual(metricButtons(group).map(node => node.props['aria-label']), presentation === 'mobile' ? ['Opens', 'Completed', 'Page saves'] : [undefined, undefined, undefined]);
     assert.equal(accessibleText(headline(tree)), '5current page saves');
+    assert.equal(nodes(tree).some(node => hasClass(node, 'insights-eyebrow')), presentation === 'web');
   }
 });
 
@@ -482,7 +500,8 @@ test('mobile initial reads loading and errors retain the period picker without p
     assert.equal(metricButtons(tree).length, 3);
     assert.match(text(tree), /No project reads yet/);
     assert.ok(nodes(tree).some(node => node.props['aria-label'] === 'Opens by project'));
-    assert.deepEqual(totals(tree), ['0', '0', '0']);
+    assert.deepEqual(totals(tree), [], 'MOBILE loading recovery retains the zero headline and chart without duplicate totals.');
+    assert.equal(accessibleText(headline(tree)), '0project opens');
     assert.equal(text(nodes(tree).find(node => node.props.role === 'status')), '');
     assert.ok(activitySection(tree));
     assert.equal(metricButtons(activityCard(tree)).length, 3);

@@ -139,6 +139,10 @@ export function VisitorApp() {
   // session identity hidden until resolution confirms (or changes) the creator.
   const returnProfileId = profileId ?? (handlePending || handleError ? lastSharedRoute.current?.profileId : null);
   const catalogueScope = `${returnProfileId ?? ''}:${auth.user?.id ?? ''}`;
+  const [portalNavigationRequest, setPortalNavigationRequest] = useState<{ scope: string } | null>(null);
+  useEffect(() => {
+    setPortalNavigationRequest(null);
+  }, [catalogueScope, location.pathname, location.search, location.hash, presentation]);
   const desktopCatalogueOrigin = useRef<{ scope: string; origin: CatalogueReaderOrigin; pending: boolean } | null>(null);
   useLayoutEffect(() => {
     const memory = desktopCatalogueOrigin.current;
@@ -251,7 +255,7 @@ export function VisitorApp() {
     ...resolveNavButtonTokens(theme, accentColor, highContrast, reduceTranslucency, systemGray), ...resolveMacTokens(accentColor, theme),
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
   const openProject = (category: string, id: string) => { if (profileId) {
-    if (presentation === 'mobile') setPortalPopup(null);
+    if (presentation === 'mobile') { setPortalPopup(null); setPortalNavigationRequest(null); }
     if (presentation === 'web' && !projectId && catalogueReady) {
       const origin = captureCatalogueReaderOrigin(profileId, location.pathname + location.search + location.hash, id,
         document.querySelector<HTMLElement>('[data-public-portfolio-grid]'));
@@ -273,7 +277,11 @@ export function VisitorApp() {
   return <AppPresentation showFloatingActions={!settings && !projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode}
-        onOpenCategory={id => { if (presentation === 'mobile') setPortalPopup({ profileId: profile.id, categoryId: id }); else {
+        mobileNavigationRequest={presentation === 'mobile' && portalNavigationRequest?.scope === catalogueScope ? portalNavigationRequest : undefined}
+        onOpenCategory={id => { if (presentation === 'mobile') {
+          setPortalNavigationRequest(null);
+          setPortalPopup({ profileId: profile.id, categoryId: id });
+        } else {
           desktopCatalogueOrigin.current = null;
           navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}` + previewSuffix);
         } }}
@@ -320,7 +328,9 @@ export function VisitorApp() {
           </div>
         </div>
       </div>
-      {profile && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopup(null)} onSelect={openProject} browsing={browsingForPortal(portalPopupId)} />}
+      {profile && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopup(null)}
+        onBack={() => { setPortalPopup(null); setPortalNavigationRequest({ scope: catalogueScope }); }}
+        onSelect={openProject} browsing={browsingForPortal(portalPopupId)} />}
       <DeferredDialog active={Boolean(auth.pendingView) && (!onboardingOpen || auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery))} onClose={auth.closeAuth}>
         <AuthDialog welcomeBeforeSignup showWelcomeMedia={false} registrationReturnPath={sharedPath} theme={theme} systemGray={systemGray}
           onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}

@@ -15,6 +15,7 @@ import { PublicProfileDrawer } from '../../visitor/mobile/PublicProfileDrawer';
 type SharedProfileSidebarProps = {
   profile: Profile;
   mobileNavigationEnabled?: boolean;
+  mobileNavigationRequest?: object;
   activeCategoryId: string | null;
   theme: AppearanceTheme;
   onThemeChange: (theme: AppearanceTheme) => void;
@@ -31,6 +32,7 @@ type SharedProfileSidebarProps = {
 export function SharedProfileSidebar({
   profile,
   mobileNavigationEnabled = true,
+  mobileNavigationRequest,
   activeCategoryId,
   theme,
   onThemeChange,
@@ -108,7 +110,7 @@ export function SharedProfileSidebar({
         </div>
       </div>
     </aside>;
-  return isMobile ? <PublicProfileDrawer name={profile.name} enabled={mobileNavigationEnabled}>{close => <section className="mobile-portals-page shared-mobile-portals" data-portals-layout={portalLayout} aria-label={`${profile.name} portals`}>
+  return isMobile ? <PublicProfileDrawer name={profile.name} enabled={mobileNavigationEnabled} openRequest={mobileNavigationRequest}>{close => <section className="mobile-portals-page shared-mobile-portals" data-portals-layout={portalLayout} aria-label={`${profile.name} portals`}>
     <header className="global-control-header shrink-0 gap-2 px-4">
       <button type="button" aria-label="Go back" className="mobile-portal-action" onClick={close}><InterfaceIcon icon={ChevronLeftIcon} size="lg" mirroredInRtl /></button>
       <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold">Portals</h1>

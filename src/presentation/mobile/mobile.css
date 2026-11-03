@@ -4548,8 +4548,57 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 [data-presentation='mobile'] [data-mobile-profile-back] { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--navigation-surface); color: var(--navigation-foreground); box-shadow: var(--navigation-shadow, none); }
 [data-presentation='mobile'] [data-mobile-profile-back]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
-/* Recent accounts use the same inset grouped surface as conversation rows. */
-#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list { width: calc(100% - 32px); margin-inline: 16px; padding-inline: 0; }
+/* Match conversation groups while preserving the search header's 20px gutter. */
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-results {
+  margin-inline: -4px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list {
+  box-sizing: border-box;
+  width: 100%;
+  margin-inline: 0;
+  padding-inline: 0;
+  overflow: hidden;
+}
+@layer portalink-interface-shapes {
+  #root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list {
+    border-radius: var(--ui-row-radius) !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > :first-child {
+    border-start-start-radius: var(--ui-row-radius) !important;
+    border-start-end-radius: var(--ui-row-radius) !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > :last-child {
+    border-end-start-radius: var(--ui-row-radius) !important;
+    border-end-end-radius: var(--ui-row-radius) !important;
+  }
+}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button:first-child {
+  min-height: 68px;
+  padding: 14px 16px;
+  --tw-ring-inset: inset;
+}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button:first-child > span:first-child {
+  width: 40px;
+  height: 40px;
+  border-radius: 0;
+  font-size: 12px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button:first-child > span:last-child > span {
+  font-size: 12px;
+  line-height: 16px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button:first-child > span:last-child > span:not(:empty) {
+  margin-top: 2px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button[data-ui-control='icon'] {
+  padding: 0;
+  margin-inline-end: 8px;
+}
 /* Arrival clearance belongs to the scrolling content, so work still passes
    beneath the profile's existing 20px fade after the user scrolls. */
 #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(> .profile-header-region) > #profile-content:not(.mobile-profile-workspace-content),
@@ -5133,9 +5182,9 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
   padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
   background: var(--surface-canvas); overflow-x: auto; overflow-y: hidden;
 }
-/* Studio's top rail keeps a clear canvas instead of a glass blur. */
+/* Other Studio collections retain their clear canvas; Insights uses shared header glass. */
 @layer portalink-header-material {
-  #root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills[data-mobile-header-underlap]::before {
+  #root .codex-shell[data-presentation='mobile'] .studio-citation-shell:not(:has(> .mobile-insights-page)) > .studio-citation-pills[data-mobile-header-underlap]::before {
     background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;

@@ -56,6 +56,7 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
   const busy = Boolean(state.loading || state.refreshing || covers.loading || covers.refreshing || saves.loading || saves.refreshing);
   const pullLabel = useHomePullRefresh(surfaceRef, isMobile && screenActive, busy, refresh, undefined,
     () => surfaceRef.current?.closest<HTMLElement>('.mobile-insights-scroll')?.scrollTop ?? Infinity);
+  const refreshLabel = pullLabel || (busy && !state.loading && !saves.loading ? 'Refreshing insights…' : '');
   const metricControls = !state.loading && !state.error ? <div className="insights-metrics" data-ui-shape="capsule" role="group" aria-label="Insight metric">
     {metrics.map(item => <button data-ui-shape="action" data-system-color="" data-insights-series={item.key} type="button" key={item.key} aria-label={isMobile ? item.label : undefined} title={isMobile ? item.label : undefined} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" />{(!isMobile || metric === item.key) && <span>{item.label}</span>}</button>)}
   </div> : null;
@@ -71,16 +72,19 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
         <select data-ui-shape="action" aria-label="Insights period" value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
         <button data-ui-shape="action" type="button" onClick={refresh} disabled={state.loading || state.refreshing || saves.loading || saves.refreshing}>Refresh</button>
     </div>}
-    {isMobile && <div className="insights-refresh-status" role="status" aria-live="polite">{pullLabel || (busy && !state.loading && !saves.loading ? 'Refreshing insights…' : '')}</div>}
+    {isMobile && <div className="insights-refresh-status" role="status" aria-live="polite">{refreshLabel && <>
+      <span className="premium-media-loading-mark" aria-hidden="true" />
+      <span className="sr-only">{refreshLabel}</span>
+    </>}</div>}
     {readStatus ? isMobile ? <div className="insights-data-surface">{mobileFilters}{readStatus}</div> : readStatus : <>
       {!isMobile && metricControls}
       <section className="insights-activity" aria-label="Project activity">
         {!isMobile && <h2 className="insights-section-title">Project activity</h2>}
         <div className="insights-data-surface">
           {isMobile && mobileFilters}
-          <p className="insights-eyebrow">{metric === 'saved' ? 'Current totals' : periodLabel}</p>
+          {(!isMobile || metric !== 'saved') && <p className="insights-eyebrow">{metric === 'saved' ? 'Current totals' : periodLabel}</p>}
           {/* Alternatives reserve the same summary height for every metric, including large totals. */}
-          <h3 className="insights-headline">{metrics.map(item => <span key={item.key} aria-hidden={metric !== item.key || undefined}><strong>{totals[item.key].toLocaleString()}</strong><span>{item.unit}</span></span>)}</h3>
+          <h3 className="insights-headline">{metrics.map(item => <span key={item.key} aria-hidden={metric !== item.key || undefined}><strong>{totals[item.key].toLocaleString()}</strong><span className={isMobile ? 'sr-only' : undefined}>{item.unit}</span></span>)}</h3>
           <div className="insights-chart-caption"><strong>By project</strong><span>{rows.length > 8 ? 'Top 8 projects' : `${rows.length} ${rows.length === 1 ? 'project' : 'projects'}`}</span></div>
           {chartRows.length || isMobile ? <>
             <div className="insights-chart-frame">
@@ -94,13 +98,15 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
               </div>
               <div className="insights-axis" aria-hidden="true"><span>{compactCount(maximum)}</span><span>{compactCount(maximum / 2)}</span><span>0</span></div>
             </div>
-            {chartRows.length ? <p className="insights-average"><i aria-hidden="true" />Average per project <strong>{average.toLocaleString(undefined, { maximumFractionDigits: 1 })}</strong><span>Across all {rows.length} {rows.length === 1 ? 'project' : 'projects'}</span></p> : <p className="insights-empty">No project reads yet. Insights will appear here when your work is read.</p>}
+            {chartRows.length ? <p className="insights-average"><i aria-hidden="true" />{isMobile ? `Average (${rows.length} ${rows.length === 1 ? 'project' : 'projects'})` : 'Average per project'} <strong>{average.toLocaleString(undefined, { maximumFractionDigits: 1 })}</strong>{!isMobile && <span>Across all {rows.length} {rows.length === 1 ? 'project' : 'projects'}</span>}</p> : <p className="insights-empty">No project reads yet. Insights will appear here when your work is read.</p>}
           </> : <p className="insights-empty">No project reads yet. Insights will appear here when your work is read.</p>}
-          <dl className="insights-totals" aria-label="Metric totals">{metrics.map(item => <div key={item.key} data-insights-series={item.key}><dt><i aria-hidden="true" />{item.label}</dt><dd aria-label={totals[item.key].toLocaleString()} title={totals[item.key].toLocaleString()}>{compactCount(totals[item.key])}</dd></div>)}</dl>
-          <p className="insights-total-context">Opens and completed: {periodLabel.toLowerCase()}. Page saves: current bookmarks.</p>
+          {!isMobile && <>
+            <dl className="insights-totals" aria-label="Metric totals">{metrics.map(item => <div key={item.key} data-insights-series={item.key}><dt><i aria-hidden="true" />{item.label}</dt><dd aria-label={totals[item.key].toLocaleString()} title={totals[item.key].toLocaleString()}>{compactCount(totals[item.key])}</dd></div>)}</dl>
+            <p className="insights-total-context">Opens and completed: {periodLabel.toLowerCase()}. Page saves: current bookmarks.</p>
+          </>}
         </div>
-        <p className="insights-note insights-metric-note"><span aria-hidden={metric === 'saved' || undefined}>Opens count anonymous visits, not unique people. Completed reads are included in opens. Daily trends are not available.</span><span aria-hidden={metric !== 'saved' || undefined}>Page saves are current bookmarks, not saves made during this period.</span></p>
-        {state.fetchedAt != null && <p className="insights-updated">Updated <time dateTime={new Date(state.fetchedAt).toISOString()}>{new Date(state.fetchedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time></p>}
+        {!isMobile && <p className="insights-note insights-metric-note"><span aria-hidden={metric === 'saved' || undefined}>Opens count anonymous visits, not unique people. Completed reads are included in opens. Daily trends are not available.</span><span aria-hidden={metric !== 'saved' || undefined}>Page saves are current bookmarks, not saves made during this period.</span></p>}
+        {!isMobile && state.fetchedAt != null && <p className="insights-updated">Updated <time dateTime={new Date(state.fetchedAt).toISOString()}>{new Date(state.fetchedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time></p>}
       </section>
       <div className="insights-details-grid">
         <section className="insights-section" aria-label="Top projects">

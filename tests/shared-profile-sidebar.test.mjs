@@ -191,3 +191,23 @@ test('MOBILE public portals switch list/cards without owner tools and retain vis
  nodes(view).find(n=>n.props?.['aria-label']==='Show portals as list').props.onClick();
  assert.equal(h.render().props.children(close).props['data-portals-layout'],'list');
 });
+
+test('MOBILE forwards portal Back requests to the existing drawer while retaining its grid preference', () => {
+  const h = harness('mobile'), close = () => h.calls.push('close'), request = { scope: 'creator:guest' };
+  let tree = h.render({ mobileNavigationRequest: request });
+  assert.equal(tree.type, 'PublicProfileDrawer');
+  assert.equal(tree.props.openRequest, request);
+  let view = tree.props.children(close);
+  nodes(view).find(node => node.props['aria-label'] === 'Show portals as cards').props.onClick();
+  portals(h.render().props.children(close))[0].props.onClick();
+  assert.deepEqual(h.calls, ['close', 'photos']);
+  tree = h.render({ mobileNavigationRequest: { scope: 'creator:guest' } });
+  view = tree.props.children(close);
+  assert.equal(view.props['data-portals-layout'], 'grid', 'Returning from a portal uses the same chooser state.');
+  assert.equal(portals(view).length, 2);
+  h.setPresentation('web');
+  const web = h.render({ mobileNavigationRequest: request });
+  assert.equal(web.type, 'aside');
+  assert.equal(nodes(web).some(node => node.type === 'PublicProfileDrawer'), false);
+  assert.equal(home(web).props.to, '/share/creator');
+});

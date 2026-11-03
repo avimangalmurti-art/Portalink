@@ -20,9 +20,10 @@ import { useTimelineSection } from './useTimelineSection';
 const PortalProjectPopup = React.lazy(() => import('../../components/profile/PortalProjectPopup').then(module => ({ default: module.PortalProjectPopup })));
 
 export function JourneyCover({ project, sizes = '92px' }: { project: Project; sizes?: string }) {
+  const isMobile = usePresentation() === 'mobile';
   return <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} kind={project.coverKind} previewSource={getProjectCoverPreview(project)}
     alt={project.coverAlt || project.title} sizes={sizes} priority="viewport" fit="contain"
-    allowPdfFallback={false} allowVideoFallback={false} fallbackAttachments={project.attachments} />;
+    allowPdfFallback={false} allowVideoFallback={isMobile} fallbackAttachments={project.attachments} />;
 }
 type JourneyViewProps = {
   active?: boolean;

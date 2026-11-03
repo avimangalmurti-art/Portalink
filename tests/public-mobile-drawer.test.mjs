@@ -118,6 +118,7 @@ function harness({ reducedMotion = false, inert = false, width = 312, onEscape, 
       return key;
     },
     open() { opener(tree).props.onClick(); render(); return finish(); },
+    setProps(changes) { Object.assign(props, changes); render(); return render(); },
     navigate(pathname, search = '') { location = { pathname, search }; render(); return render(); },
     unmount() { for (const slot of slots) slot?.cleanup?.(); },
   };
@@ -276,4 +277,40 @@ test('reader and settings entries have no sidebar opener or opening gesture', ()
   assert.equal(h.render().props['data-visible'], false);
   assert.equal(h.render().props.children.some(child => child?.props?.className === 'mobile-shared-drawer-edge'), false);
   h.unmount();
+});
+
+test('portal Back requests reopen the drawer once, without replay after dismissal or enable cycles', () => {
+  for (const reducedMotion of [false, true]) {
+    const h = harness({ reducedMotion }), request = {};
+    h.setProps({ openRequest: request });
+    assert.equal(h.finish().props['data-visible'], true);
+    h.outsideBinding.close();
+    assert.equal(h.finish().props['data-visible'], false);
+    h.setProps({ enabled: false });
+    h.setProps({ enabled: true, openRequest: request });
+    assert.equal(h.finish().props['data-visible'], false, 'A consumed request cannot reopen a dismissed drawer.');
+    h.setProps({ openRequest: {} });
+    assert.equal(h.finish().props['data-visible'], true, 'A later Back activation creates a new opening request.');
+    h.unmount();
+  }
+});
+
+test('disabled and route-invalidated drawer requests never reopen navigation later', () => {
+  const disabled = harness({ enabled: false }), ignoredRequest = {};
+  disabled.setProps({ openRequest: ignoredRequest });
+  assert.equal(disabled.finish().props['data-visible'], false);
+  disabled.setProps({ enabled: true });
+  assert.equal(disabled.finish().props['data-visible'], false, 'Reader/settings restrictions discard an ineligible request.');
+  disabled.unmount();
+
+  for (const change of ['pathname', 'search']) {
+    const h = harness(), request = {};
+    h.setProps({ openRequest: request }); h.finish();
+    const tree = h.navigate(change === 'pathname' ? '/share/another-creator' : '/share/creator',
+      change === 'search' ? '?settings=1' : '');
+    assert.equal(tree.props['data-visible'], false, `${change} changes close a previously requested drawer.`);
+    h.setProps({ openRequest: request });
+    assert.equal(h.finish().props['data-visible'], false, 'The old request cannot replay on the new location.');
+    h.unmount();
+  }
 });
