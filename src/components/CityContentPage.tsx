@@ -27,7 +27,7 @@ export function CityContentPage({
   // it hosts — the same feed on Home carries no sky of its own.
   return <div data-city-page="" className="portalink-stars relative flex h-full w-full flex-col bg-[var(--surface-canvas)]">
       <div data-city-header="" data-mobile-safe-header="" className="ps-panel-toolbar global-control-header side-panel-content-inset shrink-0">
-        <ScreenBack><button type="button" onClick={onBack} aria-label="Back to World" className={`side-panel-primary-control side-panel-control-row px-3 text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isMobile ? 'mobile-city-back' : ''}`}>
+        <ScreenBack><button data-ui-control={isMobile ? 'icon' : undefined} data-ui-shape={isMobile ? 'icon' : undefined} data-control-size={isMobile ? 'md' : undefined} data-control-variant={isMobile ? 'ghost' : undefined} type="button" onClick={onBack} aria-label="Back to World" className={`side-panel-primary-control side-panel-control-row px-3 text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isMobile ? 'mobile-city-back' : ''}`}>
           <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
           {!isMobile && 'Back to World'}
         </button></ScreenBack>

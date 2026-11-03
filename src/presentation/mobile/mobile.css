@@ -742,6 +742,10 @@
   background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised)) !important;
 }
 
+/* The Portal search centre follows the viewer's selected accent. */
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination .portal-ring-dot {
+  fill: var(--accent-primary) !important;
+}
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination [data-interface-icon-frame] {
   --interface-icon-size: 24px;
 }
@@ -3191,14 +3195,14 @@
 #root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--mobile-control-gap);
+  gap: var(--cdx-dense-gap);
   margin-top: 9px;
-  padding: var(--mobile-control-inset);
+  padding: 0;
   border-radius: 999px;
-  background: var(--surface-sunken);
+  background: transparent;
 }
-#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs button { min-height: var(--mobile-control-target); border-radius: 999px; font-size: 13px; color: var(--text-secondary); }
-#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs [aria-pressed='true'] { background: var(--surface-raised); color: var(--text-primary); box-shadow: 0 1px 3px rgb(0 0 0 / 8%); font-weight: 600; }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs button { height: 44px; min-height: 44px; padding-inline: 12px; border: 1px solid transparent; border-radius: 999px; background: transparent; font-size: 14px; font-weight: 500; color: var(--text-secondary); }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs [aria-pressed='true'] { background: var(--control-selected-surface); color: var(--control-selected-text); box-shadow: none; font-weight: 600; }
 
 #root .codex-shell[data-presentation='mobile'] .studio-content {
   flex: 1;
@@ -3226,7 +3230,18 @@
 #root .codex-shell[data-presentation='mobile'] .studio-bulk-actions button { display: flex; align-items: center; justify-content: center; gap: var(--mobile-control-group-gap); flex: none; min-height: var(--mobile-control-target); padding: 0 10px; border-radius: 999px; white-space: nowrap; font-size: 12px; color: var(--accent-text); }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-hint { padding: 0 8px; font-size: 12px; color: var(--text-tertiary); }
 
-/* Activity selection shares the system action pills and compact navigation rail. */
+/* Activity uses one canvas and one grouped surface instead of stacked grey tiles. */
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-list {
+  background: var(--surface-sunken);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] :is([data-studio-row-surface], [data-studio-row-surface] > button[aria-pressed]) {
+  background: transparent !important;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-row-fallback {
+  background: transparent;
+  color: var(--text-secondary);
+}
+/* Activity selection stays in one aligned row with reachable read/delete actions. */
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-summary {
   gap: var(--mobile-control-group-gap);
 }
@@ -3234,19 +3249,20 @@
   padding-inline: 12px;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar {
-  --text-secondary: var(--navigation-foreground);
+  --text-secondary: var(--text-primary);
   box-sizing: border-box;
   inset-inline-start: max(var(--mobile-navigation-inset-start), (100% - var(--mobile-control-group-width)) / 2);
   inset-inline-end: max(var(--mobile-navigation-inset-end), (100% - var(--mobile-control-group-width)) / 2);
   flex-flow: row nowrap;
-  height: var(--mobile-dock-size);
+  min-height: var(--mobile-dock-size);
+  height: auto;
   padding: calc(var(--mobile-control-inset) - 1px);
-  border-color: var(--navigation-border);
-  background: var(--navigation-surface);
-  color: var(--navigation-foreground);
+  border-color: var(--hairline);
+  background: linear-gradient(var(--surface-sunken), var(--surface-sunken)), var(--surface-canvas);
+  color: var(--text-primary);
   box-shadow: var(--navigation-shadow);
-  -webkit-backdrop-filter: var(--navigation-blur);
-  backdrop-filter: var(--navigation-blur);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar > button {
   width: var(--mobile-control-target);
@@ -3255,17 +3271,38 @@
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions {
   flex-flow: row nowrap;
-  height: var(--mobile-control-target);
+  align-items: center;
+  justify-content: center;
+  min-height: var(--mobile-control-target);
+  height: auto;
+  gap: 4px;
+  overflow: visible;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions button {
+  flex: 1 1 0;
+  min-width: 0;
   height: var(--mobile-control-target);
-  font-size: 14px;
+  padding-inline: 6px;
+  gap: 4px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: normal;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--mobile-control-target);
+  flex: 1;
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 20px;
-  color: var(--navigation-foreground);
+  color: var(--text-primary);
 }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar:where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true']) *) { visibility: hidden; }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio button:disabled { opacity: .45; }
@@ -4425,12 +4462,13 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   margin-inline-start:auto;
   text-align:right;
 }
-/* Conversation groups sit inside the page gutters, rather than edge to edge. */
-#root .codex-shell[data-presentation='mobile'] [data-messages-page] ul.inset-row-group:has(.message-contact-row) {
-  box-sizing:border-box;
-  width:calc(100% - 32px);
-  margin-inline:16px;
-  padding-inline:0;
+/* Search and conversations share one joined-list frame. */
+#root .codex-shell[data-presentation='mobile'] .inset-row-group[data-mobile-contact-group]:not(:empty) {
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  margin-inline: 16px;
+  padding-inline: 0;
+  overflow: hidden;
 }
 
 /* Account search keeps its back control below the system status area. */
@@ -4548,57 +4586,13 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 [data-presentation='mobile'] [data-mobile-profile-back] { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--navigation-surface); color: var(--navigation-foreground); box-shadow: var(--navigation-shadow, none); }
 [data-presentation='mobile'] [data-mobile-profile-back]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
-/* Match conversation groups while preserving the search header's 20px gutter. */
+/* Search keeps header spacing while its shared contact group owns the gutters. */
+#root .codex-shell[data-presentation='mobile'] [data-account-search] { padding-inline: 0; }
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-header { margin-inline: 20px; }
 #root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-results {
-  margin-inline: -4px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list {
-  box-sizing: border-box;
-  width: 100%;
   margin-inline: 0;
-  padding-inline: 0;
-  overflow: hidden;
 }
-@layer portalink-interface-shapes {
-  #root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list {
-    border-radius: var(--ui-row-radius) !important;
-  }
-  #root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > :first-child {
-    border-start-start-radius: var(--ui-row-radius) !important;
-    border-start-end-radius: var(--ui-row-radius) !important;
-  }
-  #root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > :last-child {
-    border-end-start-radius: var(--ui-row-radius) !important;
-    border-end-end-radius: var(--ui-row-radius) !important;
-  }
-}
-#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button:first-child {
-  min-height: 68px;
-  padding: 14px 16px;
-  --tw-ring-inset: inset;
-}
-#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button:first-child > span:first-child {
-  width: 40px;
-  height: 40px;
-  border-radius: 0;
-  font-size: 12px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list strong {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button:first-child > span:last-child > span {
-  font-size: 12px;
-  line-height: 16px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button:first-child > span:last-child > span:not(:empty) {
-  margin-top: 2px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list > li > button[data-ui-control='icon'] {
-  padding: 0;
-  margin-inline-end: 8px;
-}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-results > :not(.account-search-list) { margin-inline: 20px; }
 /* Arrival clearance belongs to the scrolling content, so work still passes
    beneath the profile's existing 20px fade after the user scrolls. */
 #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(> .profile-header-region) > #profile-content:not(.mobile-profile-workspace-content),
@@ -5081,6 +5075,28 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
   overflow: visible;
   flex-basis: auto;
 }
+/* Keep the city title and results in document flow, without a nested pane
+   pulling the first row back underneath the header as content loads. */
+#root .codex-shell[data-presentation='mobile'] [data-city-page] { display: block; }
+#root .codex-shell[data-presentation='mobile'] [data-city-feed] > .feed-starfield > .feed-edge-fade {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-city-project-density] {
+  position: relative;
+  height: 44px;
+  margin-bottom: 12px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-city-project-density]::before {
+  content: '';
+  position: absolute;
+  inset-inline: 16px;
+  top: 50%;
+  height: 1px;
+  background: var(--hairline);
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-city-project-density] > :is(.density-separator, .density-separator-ticks) { bottom: 0; }
 
 /* Equal side slots center the location in the screen, not the leftover row. */
 #root .codex-shell[data-presentation='mobile'] [data-city-header] {

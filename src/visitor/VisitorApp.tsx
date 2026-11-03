@@ -1,8 +1,6 @@
 import { LoadingSkeleton } from '../components/ui/StateViews';
 import { RouteError, routeErrorKind } from '../components/ui/RouteError';
 import { SharedPortalPopup } from './mobile/SharedPortalPopup';
-import { VisitorPreviewBar } from '../features/profile/VisitorPreviewBar';
-import { isOwnVisitorPreview, visitorPreviewReturn } from '../features/profile/visitorPreview';
 import { handleFromPath, isPublicSharePath, portfolioPath, portfolioProjectPath } from '../features/sharing/shareModel';
 import { sharedSettingsPath, sharedSettingsReturnPath } from '../features/sharing/sharedSettings';
 import { useHandleRoute } from './useHandleRoute';
@@ -63,10 +61,6 @@ export function VisitorApp() {
   const settings = Boolean(publicSettingsReturn) || route.kind === 'controlCenter' && Boolean(settingsReturn && lastSharedRoute.current);
   const readingRoute = shared ? route as SharedRoute : settings ? lastSharedRoute.current : null;
   const profileId = readingRoute?.profileId ?? null;
-  const previewOwner = useRef<string | null>(null);
-  if (isOwnVisitorPreview(location.search, profileId, auth.viewerProfileId)) previewOwner.current = profileId;
-  const visitorPreview = Boolean(profileId && previewOwner.current === profileId && auth.viewerProfileId === profileId);
-  const previewSuffix = visitorPreview ? '?visitorPreview=1' : '';
   const categoryId = readingRoute?.kind === 'sharedCategory' || readingRoute?.kind === 'sharedProject' ? readingRoute.categoryId : null;
   const projectId = readingRoute?.kind === 'sharedProject' ? readingRoute.projectId : null;
   useEffect(() => {
@@ -129,10 +123,8 @@ export function VisitorApp() {
   const firstCategoryProjectId = (publicCategoryProjects.find(item => item.isPinned) ?? publicCategoryProjects[0])?.id;
   useEffect(() => {
     if (!webCategoryReady || !profileId || !categoryId || !firstCategoryProjectId) return;
-    const search = visitorPreview && !new URLSearchParams(location.search).has('visitorPreview')
-      ? `${location.search}${location.search ? '&' : '?'}visitorPreview=1` : location.search;
-    navigate(portfolioProjectPath(profileId, categoryId, firstCategoryProjectId, handleFromPath(location.pathname)) + search + location.hash, { replace: true });
-  }, [webCategoryReady, profileId, categoryId, firstCategoryProjectId, visitorPreview, location.pathname, location.search, location.hash, navigate]);
+    navigate(portfolioProjectPath(profileId, categoryId, firstCategoryProjectId, handleFromPath(location.pathname)) + location.search + location.hash, { replace: true });
+  }, [webCategoryReady, profileId, categoryId, firstCategoryProjectId, location.pathname, location.search, location.hash, navigate]);
   const catalogueRoute = !settings && (route.kind === 'sharedProfile' || route.kind === 'sharedCategory');
   const catalogueReady = catalogueRoute && !handlePending && !handleError && !invalidShared && query.status === 'ready' && Boolean(profile);
   // Canonical handle replacement can briefly be unresolved; keep this trusted
@@ -180,9 +172,9 @@ export function VisitorApp() {
       navigate(desktopOrigin.origin.path);
       return;
     }
-    if (profileId && !invalidShared && projectReturn.close(portfolioPath(profileId, handleFromPath(location.pathname)) + previewSuffix)) return;
+    if (profileId && !invalidShared && projectReturn.close(portfolioPath(profileId, handleFromPath(location.pathname)))) return;
     if (!profileId || !profile || invalidShared || handleError) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else window.location.assign('/'); return; }
-    if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + previewSuffix,
+    if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)),
       presentation === 'web' && readerRoute ? { replace: true } : undefined);
   };
   useEffect(() => {
@@ -261,7 +253,7 @@ export function VisitorApp() {
         document.querySelector<HTMLElement>('[data-public-portfolio-grid]'));
       desktopCatalogueOrigin.current = origin ? { scope: catalogueScope, origin, pending: true } : null;
     }
-    projectReturn.open(withCataloguePageTarget(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix, id), id);
+    projectReturn.open(withCataloguePageTarget(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)), id, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), id);
   } };
   const pending = <LoadingSkeleton kind={projectId || webCategoryRoute ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…"/>;
   const profileOnboarding = <ProfileOnboardingDialog key={auth.user?.id} isOpen theme={theme} systemGray={systemGray}
@@ -283,14 +275,13 @@ export function VisitorApp() {
           setPortalPopup({ profileId: profile.id, categoryId: id });
         } else {
           desktopCatalogueOrigin.current = null;
-          navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}` + previewSuffix);
+          navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}`);
         } }}
         onSettingsOpen={() => { if (!settings && sharedPath) {
           const path = sharedSettingsPath(location.pathname + location.search + location.hash);
           if (path) navigate(path);
         } }} />}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
-        {visitorPreview && profileId && <VisitorPreviewBar onDone={() => window.location.assign(visitorPreviewReturn(profileId))} />}
         <div id="app-viewport">
           <div className="app-screen-layer h-full min-h-0">
             <main tabIndex={-1} aria-label={settings ? 'Settings' : presentation === 'mobile' && projectId ? project ? `${project.title} files` : 'Shared project' : profile ? `${profile.name} shared catalogue` : 'Shared catalogue'} className={`min-h-0 h-full w-full ${readerRoute ? 'overflow-hidden' : 'overflow-y-auto'}`}>

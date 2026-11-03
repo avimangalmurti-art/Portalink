@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 const actionMap = sourceModule('src/presentation/mobile/contextActions.ts', { 'lucide-react': new Proxy({}, { get: (_, key) => key }) });
+const gridDensity = sourceModule('src/utils/projectGridDensity.ts');
 
 function nodes(node) {
   if (!React.isValidElement(node)) return [];
@@ -16,11 +17,11 @@ function harness(presentation = 'mobile', props = {}) {
   const slots = []; let cursor = 0;
   let screenActive = true;
   let layoutEffects = []; let actions=null; let refreshGesture=null; let readiness=null; let refreshMotion=null;
-  const feedArguments = [], navigation = [];
+  const feedArguments = [], navigation = [], densityWrites = [];
   let reloads = 0;
   let worldVisits = 0;
   let userSearchVisits = 0;
-  const density = { columns: 5, setColumns(value) { density.columns = value; }, saveError: null };
+  const density = { columns: 5, setColumns(value) { densityWrites.push(value); density.columns = value; }, saveError: null };
   const ownerProfile = { profile: { id: 'owner', projectGridColumns: 5 }, status: 'ready' };
   const feed = { status: 'success', featured: null, projects: [{ project: { id: 'first' }, creator:{id:'owner'} }, { project: { id: 'second' }, creator:{id:'other'} }], isEmpty: false,
     isRefreshing: false, refreshError: null, retry() { reloads++; } };
@@ -58,13 +59,14 @@ function harness(presentation = 'mobile', props = {}) {
       return feed;
     } };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1, resolveFeedSpan: () => 1 };
+    if (name.endsWith('/projectGridDensity')) return gridDensity;
     return new Proxy({}, { get: (_, key) => key });
   }, document:{scrollingElement:{scrollTop:0}},requestAnimationFrame:callback=>{callback();return 1;},cancelAnimationFrame(){} });
   const render = () => {
     cursor = 0; layoutEffects = [];
     return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onExploreWorld() { worldVisits++; }, onSearchUsers() { userSearchVisits++; }, onOpenProject() {}, onOpenCreator() { throw new Error("Account search must not open the viewer profile"); }, ...props });
   };
-  return { navigation, feedArguments, feed, density, ownerProfile, setActive(value){screenActive=value;}, get readiness(){return readiness;}, get refreshMotion(){return refreshMotion;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
+  return { navigation, feedArguments, feed, density, densityWrites, ownerProfile, setActive(value){screenActive=value;}, get readiness(){return readiness;}, get refreshMotion(){return refreshMotion;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
     restoreScroll(){const tree=render();nodes(tree).find(node=>typeof node.props.onScroll==='function').ref.current={scrollTop:0};layoutEffects.slice(0,3).forEach(effect=>effect());},
     measureLocation(width) {
       const scroller = nodes(render()).find(node => typeof node.props.onScroll === 'function');
@@ -112,6 +114,41 @@ test('the shell suppresses Home action fallback while preserving other screens a
  assert.equal(suppressed({route:{kind:'profile'},isOwnerMode:false}),true,'Another creator profile must not receive shell fallback actions');
 });
 test('city retains responsive measurement/local pinch and never receives the Home fit',()=>{const h=harness('mobile',{locationId:'city'});const grid=()=>nodes(h.render()).find(n=>n.type==='JustifiedImageWall');for(const [width,expected] of [[240,2],[390,2],[430,2],[458,3],[600,3]]){h.measureLocation(width);assert.equal(grid().props.columns,expected);assert.equal(grid().props.fitColumns,undefined);}grid().props.onColumnsChange(13);h.measureLocation(390);assert.equal(grid().props.columns,13);assert.equal(h.density.columns,5);const web=nodes(harness('web',{locationId:'city'}).render()).find(n=>n.type==='BentoFeedGrid');assert.equal(web.props.columns,undefined);});
+
+test('MOBILE city slider precedes the projects and shares normalized local density with pinch without Home writes',()=>{
+ const h=harness('mobile',{locationId:'city-a'}),all=()=>nodes(h.render());
+ const control=()=>all().find(node=>node.type==='DensitySeparator'&&node.props.label==='City projects per row');
+ const wall=()=>all().find(node=>node.type==='JustifiedImageWall');
+ let tree=h.render(),content=nodes(tree).find(node=>'data-feed-scroll-content' in node.props),children=React.Children.toArray(content.props.children);
+ assert.equal(children[0].props['data-city-project-density'],'');assert.equal(children[1].type,'section');
+ assert.equal(control().props.columns,3,'Before measurement the existing city default is three.');
+ assert.equal(wall().props.showDensityControl,false,'The city wall cannot add a second slider.');
+ const initialControl=control();assert.equal(initialControl.props.onChange,initialControl.props.onPreview,'A preview and commit update only city-local state.');
+ h.measureLocation(390);assert.equal(control().props.columns,2);assert.equal(wall().props.columns,2);
+ control().props.onPreview(5.6);assert.equal(control().props.columns,6);assert.equal(wall().props.columns,6);
+ control().props.onChange(14);assert.equal(wall().props.columns,13);
+ control().props.onChange(0);assert.equal(wall().props.columns,1);
+ wall().props.onColumnsChange(4.4);assert.equal(control().props.columns,4);
+ h.measureLocation(600);assert.equal(wall().props.columns,4,'Measurement cannot replace a deliberate city choice.');
+ assert.deepEqual(h.densityWrites,[]);assert.equal(h.density.columns,5);
+ const fresh=harness('mobile',{locationId:'city-b'});assert.equal(nodes(fresh.render()).find(node=>node.props.label==='City projects per row').props.columns,3,'A fresh city view retains its own responsive baseline.');
+ fresh.measureLocation(390);assert.equal(nodes(fresh.render()).find(node=>node.props.label==='City projects per row').props.columns,2);
+});
+
+test('city loading follows its MOBILE slider while WEB keeps its adaptive grid and no additional city control',()=>{
+ const h=harness('mobile',{locationId:'city'});h.feed.status='loading';h.feed.projects=[];
+ const all=()=>nodes(h.render()),control=()=>all().find(node=>node.props.label==='City projects per row');
+ assert.equal(all().find(node=>node.type==='LoadingState').props.columns,3);
+ h.measureLocation(390);assert.equal(all().find(node=>node.type==='LoadingState').props.columns,2);
+ control().props.onPreview(7.8);assert.equal(all().find(node=>node.type==='LoadingState').props.columns,8);
+ h.feed.status='success';h.feed.projects=[{project:{id:'loaded'},creator:{id:'other'}}];
+ assert.equal(all().find(node=>node.type==='JustifiedImageWall').props.columns,8);assert.deepEqual(h.densityWrites,[]);
+ const web=harness('web',{locationId:'city'}),webNodes=nodes(web.render());
+ assert.equal(webNodes.some(node=>'data-city-project-density' in node.props||node.props.label==='City projects per row'),false);
+ const grid=webNodes.find(node=>node.type==='BentoFeedGrid');assert.equal(grid.props.columns,undefined);assert.equal(grid.props.onColumnsChange,undefined);
+ const home=nodes(harness('mobile').render());assert.equal(home.some(node=>'data-city-project-density' in node.props),false);
+ assert.equal(home.find(node=>node.type==='JustifiedImageWall').props.showDensityControl,undefined,'Home wall behavior is unchanged.');
+});
 test('empty Explore feed retains its three top buttons without an Actions sheet',()=>{const h=harness();h.feed.isEmpty=true;h.feed.projects=[];const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.equal(nodes(tree).filter(n=>n.props.className==='mobile-home-header-button').length,3);assert.equal(h.actions,null);});
 test('refresh gesture retains cards and its fixed spinner while announcing only real refresh state',()=>{
   const h=harness();let tree=h.render();

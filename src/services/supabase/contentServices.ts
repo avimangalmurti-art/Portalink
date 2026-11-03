@@ -813,7 +813,7 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
   const [viewerRow, followResult, engagementResult, signalResult, preferenceResult, page] = await Promise.all([
     client.from('profiles').select('id,location').eq('account_id', accountId).maybeSingle(),
     client.from('profile_follows').select('target_profile_id').eq('follower_account_id', accountId).eq('status', 'following'),
-    client.from('project_engagement').select('project_id,kind,created_at').eq('account_id', accountId),
+    client.from('project_engagement').select('project_id,kind,created_at').eq('account_id', accountId).in('kind', ['like', 'save']),
     client.from('discovery_signals').select('topic_key,interest_weight,curiosity_weight,last_interest_at,last_curiosity_at').eq('account_id', accountId),
     client.from('discovery_preferences').select('home_mode').eq('account_id', accountId).maybeSingle(),
     pageRequest,
@@ -857,7 +857,7 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
       viewerProfile,
       availableProjects,
       followedCreatorIds,
-      engagement: ((engagementResult.data ?? []) as unknown as Array<{ project_id: string; kind: 'like' | 'save' | 'repost'; created_at: string }>).map((row) => ({
+      engagement: ((engagementResult.data ?? []) as unknown as Array<{ project_id: string; kind: 'like' | 'save'; created_at: string }>).filter(row => row.kind === 'like' || row.kind === 'save').map((row) => ({
         projectId: row.project_id,
         kind: row.kind,
         createdAt: row.created_at,

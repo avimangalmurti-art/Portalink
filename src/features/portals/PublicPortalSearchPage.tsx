@@ -106,7 +106,7 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
   return <section data-public-portal-search="" aria-labelledby="public-portal-search-title">
     <header className="global-control-header public-portal-search-header">
       <div className="public-portal-search-heading">
-        <ScreenBack action={onBack} visibleOnMobile><button type="button" onClick={onBack} aria-label="Go back" className="public-portal-back"><InterfaceIcon icon={ChevronLeftIcon} /></button></ScreenBack>
+        <ScreenBack action={onBack} visibleOnMobile><button data-ui-shape={isMobile ? 'icon' : undefined} type="button" onClick={onBack} aria-label="Go back" className="public-portal-back"><InterfaceIcon icon={ChevronLeftIcon} /></button></ScreenBack>
         <h1 id="public-portal-search-title">Portal search</h1>
       </div>
       <label className="public-portal-search-field">

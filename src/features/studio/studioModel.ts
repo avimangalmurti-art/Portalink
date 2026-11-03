@@ -6,7 +6,7 @@ import { savedPageKey } from '../library/savedPages';
 export const STUDIO_CATEGORIES = ['drafts', 'published', 'bookmarks', 'activity'] as const;
 export type StudioCategory = typeof STUDIO_CATEGORIES[number];
 export type StudioBookmarkTab = 'projects' | 'pages' | 'creators';
-export type StudioAction = 'open' | 'share' | 'copy-link' | 'edit' | 'unsave' | 'mark-read';
+export type StudioAction = 'open' | 'share' | 'copy-link' | 'edit' | 'unsave' | 'mark-read' | 'delete';
 export const STUDIO_DRAFTS_EXPLANATION = 'Drafts cannot be listed here yet. Choose New project to resume a draft saved on this device, or return to Your first project on your profile.';
 
 type StudioRowBase = { id: string; title: string; secondary: string; date?: string; href?: string };
@@ -92,6 +92,6 @@ export function studioSections(rows: StudioRow[], category: StudioCategory, tab:
 export function studioRowActions(row: StudioRow): StudioAction[] {
   const actions: StudioAction[] = row.href ? ['open'] : [];
   if (row.kind === 'published') return [...actions, 'share', 'copy-link', 'edit'];
-  if (row.kind === 'activity') return row.notification.isUnread ? [...actions, 'mark-read'] : actions;
+  if (row.kind === 'activity') return [...actions, ...(row.notification.isUnread ? ['mark-read' as const] : []), 'delete'];
   return [...actions, ...(row.href ? ['share', 'copy-link'] as StudioAction[] : []), 'unsave'];
 }

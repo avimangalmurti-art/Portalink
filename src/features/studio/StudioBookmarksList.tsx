@@ -12,7 +12,7 @@ import { contextActions } from '../../presentation/mobile/contextActions';
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeftIcon, ArrowRightIcon, ChevronLeftIcon, BellIcon, BookmarkIcon, CopyIcon, EllipsisIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, ShareIcon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, ChevronLeftIcon, BellIcon, BookmarkIcon, CopyIcon, EllipsisIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, ShareIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
@@ -78,6 +78,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const [localError, setLocalError] = useState<string | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
   const busy = useRef(false);
+  const deletionFlight = useRef<{ scope: object } | null>(null);
   const mounted = useRef(true);
   const account = useRef(auth.user?.id);
   account.current = auth.user?.id;
@@ -93,6 +94,16 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const feedbackSize = useRef({ scope: activityScope, height: 0 });
   const priorSave = useRef(management.editor.result);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => {
+    if (!deletionFlight.current || deletionFlight.current.scope === activityScope) return;
+    deletionFlight.current = null;
+    busy.current = false;
+    setBulkPending(false);
+    setSelected(new Set());
+    setSelecting(false);
+    setNotice(null);
+    setLocalError(null);
+  }, [activityScope]);
   useEffect(() => {
     setSelected(new Set());
     setSelecting(false);
@@ -242,6 +253,44 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
     });
   }
 
+  async function deleteActivityRows(rows: StudioItem[], selection = false) {
+    if (busy.current || isRefreshing || data.activityRefreshing) return;
+    const targets = rows.filter(row => row.kind === 'activity');
+    if (!targets.length) return;
+    const identity = account.current, scope = currentScope.current;
+    const flight = { scope };
+    deletionFlight.current = flight;
+    const current = () => mounted.current && deletionFlight.current === flight && account.current === identity && currentScope.current === scope;
+    busy.current = true;
+    setBulkPending(true);
+    setLocalError(null);
+    try {
+      const confirmed = new Set(await data.deleteActivity(targets));
+      if (!current()) return;
+      const successful = new Set(targets.filter(row => confirmed.has(row.id)).map(row => row.id));
+      const remaining = new Set([...selectedIds].filter(id => !successful.has(id)));
+      if (selection) setSelected(remaining);
+      if (successful.size) setNotice(`${successful.size} ${successful.size === 1 ? 'update deleted' : 'updates deleted'}`);
+      if (successful.size !== targets.length) setLocalError(selection
+        ? 'Some updates could not be deleted. They remain selected so you can try again.'
+        : 'This update could not be deleted. Please try again.');
+      if (successful.size === targets.length && (!selection || remaining.size === 0)) {
+        if (selection) setSelecting(false);
+        restoreSelectionFocus();
+      }
+    } catch {
+      if (current()) setLocalError(selection
+        ? 'Updates could not be deleted. They remain selected so you can try again.'
+        : 'This update could not be deleted. Please try again.');
+    } finally {
+      if (deletionFlight.current === flight) {
+        deletionFlight.current = null;
+        busy.current = false;
+        if (mounted.current) setBulkPending(false);
+      }
+    }
+  }
+
   const [exportProject,setExportProject]=useState<string|'all'|null>(null);
   function actionsFor(row: StudioItem): StudioRowAction[] {
     const available = studioRowActions(row);
@@ -252,13 +301,14 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
       'copy-link': { id: 'copy-link', label: 'Copy link', icon: CopyIcon, onAction: () => { void shareRows([row], true); } },
       unsave: { id: 'unsave', label: 'Remove bookmark', icon: BookmarkIcon, onAction: () => { void mutateRow(row, 'unsave'); } },
       'mark-read': { id: 'mark-read', label: 'Mark read', icon: MailOpenIcon, onAction: () => { void mutateRow(row, 'markRead'); } },
+      delete: { id: 'delete', label: 'Delete update', icon: Trash2Icon, destructive: true, onAction: () => { void deleteActivityRows([row]); } },
     };
     if(row.kind==='saved-page') return [...available.map(id=>({...definitions[id],disabled:data.pendingIds.has(row.id)||bulkPending||isRefreshing})),{id:'cite',label:'Cite in…',onAction:()=>{void (async()=>{try{const imageId=await resolveImageId(row.target.attachmentId);let item=imageId?await resolveCitationItem(imageId):null;if(!item){const id=await resolvePageId(row.target.attachmentId,row.target.pageIndex);if(id)item=await resolveCitationItem(id);}if(item)setCiteItem(item);else setLocalError('This item is unavailable for citation.');}catch{setLocalError('Citation could not be loaded.');}})();}}];
-    return [...available.map(id => ({ ...definitions[id], disabled: data.pendingIds.has(row.id) || bulkPending || isRefreshing })),...(row.kind==='published'?[{id:'export',label:'Export',onAction:()=>setExportProject(row.project.id)}]:[])];
+    return [...available.map(id => ({ ...definitions[id], disabled: data.pendingIds.has(row.id) || bulkPending || isRefreshing || id === 'delete' && data.activityRefreshing })),...(row.kind==='published'?[{id:'export',label:'Export',onAction:()=>setExportProject(row.project.id)}]:[])];
   }
   function renderRow(row: StudioItem) {
     const actions = actionsFor(row);
-    const leftIds = row.kind === 'published' ? ['share', 'edit'] : row.kind === 'activity' ? ['open', 'mark-read'] : ['open', 'unsave'];
+    const leftIds = row.kind === 'published' ? ['share', 'edit'] : row.kind === 'activity' ? ['open', 'mark-read', 'delete'] : ['open', 'unsave'];
     return <React.Fragment key={row.id}><StudioRow key={row.id} id={row.id} title={row.title} secondary={row.secondary} date={row.kind==='published'?studioMadeOnDate(row.date):studioDate(row.date)} referenceCount={row.kind === 'published' ? Number(citationLabels[row.id]?.split(' ')[0]) || 0 : undefined} onOpenReferences={row.kind === 'published' && row.href ? () => navigate(row.href + '#references') : undefined} leading={<RowPreview row={row} />} unread={row.kind === 'activity' && row.notification.isUnread} selecting={selecting} selected={selectedIds.has(row.id)} pending={data.pendingIds.has(row.id) || bulkPending || isRefreshing} onSelect={() => toggleRow(row.id)} onOpen={actions.some(action => action.id === 'open') ? () => openRow(row) : undefined} actions={leftIds.flatMap(id => actions.filter(action => action.id === id))} primaryAction={actions.find(action => action.id === 'open')} onMenu={() => setSheet({ row })} />{row.kind !== 'published' && citationLabels[row.id]&&<li><button data-ui-shape="action" className="studio-text-control" onClick={()=>row.kind==='published'&&row.href?navigate(row.href+'#references'):setSheet({row})}>{citationLabels[row.id]}</button></li>}</React.Fragment>;
   }
 
@@ -307,10 +357,11 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
       <button data-ui-control={mobileActivity ? 'icon' : undefined} data-ui-shape={mobileActivity ? 'icon' : undefined} data-control-size={mobileActivity ? 'md' : undefined} data-control-variant={mobileActivity ? 'ghost' : undefined} type="button" className="studio-round-control" aria-label="Exit selection" disabled={bulkPending} onClick={closeSelection}><InterfaceIcon icon={XIcon} /></button>
       <div className="studio-bulk-actions scrollbar-hidden">
         {bulk.unsave.length > 0 && <button data-ui-control={mobileActivity ? 'button' : undefined} data-ui-shape={mobileActivity ? 'action' : undefined} data-control-size={mobileActivity ? 'md' : undefined} data-control-variant={mobileActivity ? 'ghost' : undefined} type="button" disabled={bulkPending || isRefreshing} onClick={() => { void runBulk('unsave'); }}><InterfaceIcon icon={BookmarkIcon} /><span>Remove bookmarks ({bulk.unsave.length})</span></button>}
-        {bulk.markRead.length > 0 && <button data-ui-control={mobileActivity ? 'button' : undefined} data-ui-shape={mobileActivity ? 'action' : undefined} data-control-size={mobileActivity ? 'md' : undefined} data-control-variant={mobileActivity ? 'ghost' : undefined} type="button" disabled={bulkPending || isRefreshing} onClick={() => { void runBulk('markRead'); }}><InterfaceIcon icon={MailOpenIcon} /><span>Mark read ({bulk.markRead.length})</span></button>}
+        {bulk.markRead.length > 0 && <button data-ui-control={mobileActivity ? 'button' : undefined} data-ui-shape={mobileActivity ? 'action' : undefined} data-control-size={mobileActivity ? 'md' : undefined} data-control-variant={mobileActivity ? 'ghost' : undefined} type="button" aria-label={mobileActivity ? `Mark read (${bulk.markRead.length})` : undefined} disabled={bulkPending || isRefreshing} onClick={() => { void runBulk('markRead'); }}><InterfaceIcon icon={MailOpenIcon} /><span>{mobileActivity ? 'Read' : 'Mark read'} ({bulk.markRead.length})</span></button>}
+        {bulk.deleteActivity.length > 0 && <button data-ui-control={mobileActivity ? 'button' : undefined} data-ui-shape={mobileActivity ? 'action' : undefined} data-control-size={mobileActivity ? 'md' : undefined} data-control-variant={mobileActivity ? 'ghost' : undefined} type="button" aria-label={`Delete updates (${bulk.deleteActivity.length})`} disabled={bulkPending || isRefreshing || data.activityRefreshing} onClick={() => { void deleteActivityRows(bulk.deleteActivity, true); }}><InterfaceIcon icon={Trash2Icon} /><span>Delete ({bulk.deleteActivity.length})</span></button>}
         {bulk.share.length > 0 && <button data-ui-control={mobileActivity ? 'button' : undefined} data-ui-shape={mobileActivity ? 'action' : undefined} data-control-size={mobileActivity ? 'md' : undefined} data-control-variant={mobileActivity ? 'ghost' : undefined} type="button" disabled={bulkPending || isRefreshing} onClick={() => { void shareRows(bulk.share); }}><InterfaceIcon icon={ShareIcon} /><span>Share ({bulk.share.length})</span></button>}
         {!selectedRows.length && <span className="studio-selection-hint">Tap items to select them</span>}
-        {selectedRows.length > 0 && !bulk.unsave.length && !bulk.markRead.length && !bulk.share.length && <span className="studio-selection-hint">These updates are already read</span>}
+        {selectedRows.length > 0 && !bulk.unsave.length && !bulk.markRead.length && !bulk.deleteActivity.length && !bulk.share.length && <span className="studio-selection-hint">These updates are already read</span>}
       </div>
     </div>}
     {exportProject&&auth.viewerProfileId&&<ExportSheet profileId={auth.viewerProfileId} projectId={exportProject==='all'?undefined:exportProject} onClose={()=>setExportProject(null)}/>} {sheet && <StudioActionSheet title={'view' in sheet ? collectionTitle : sheet.row.title} actions={('view' in sheet ? viewActions : actionsFor(sheet.row)).map(action => ({ ...action, onAction: () => { setSheet(null); action.onAction(); } }))} onClose={() => setSheet(null)} />}

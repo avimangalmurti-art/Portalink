@@ -48,7 +48,7 @@
     .studio-material-strip button > span, .studio-drafts-list li > label,
     .studio-row-fallback, .studio-bookmark-tabs, .mobile-insights-project-art,
     :is(.studio-list, .studio-attention-list) [data-studio-row-surface] > button > .overflow-hidden:not(:has(.squircle)),
-    .inset-row-group:not(:where([data-messages-page] ul:has(> li > .message-contact-row))), .mobile-portal-item,
+    .inset-row-group:not(:where([data-mobile-contact-group], [data-messages-page] ul:has(> li > .message-contact-row))), .mobile-portal-item,
     .portfolio-live-card, .portfolio-share-preview, .portfolio-share-cover,
     .first-project-empty-tile, .first-project-home, .creator-insights-callout, .reads-weekly,
     .explore-category-card, .cite-source-summary, .citation-row img,
@@ -60,11 +60,11 @@
     border-radius: var(--mobile-component-radius) !important;
   }
 
-  [data-presentation='mobile'] .inset-row-group:not(:where([data-messages-page] ul:has(> li > .message-contact-row))) > :first-child {
+  [data-presentation='mobile'] .inset-row-group:not(:where([data-mobile-contact-group], [data-messages-page] ul:has(> li > .message-contact-row))) > :first-child {
     border-start-start-radius: var(--mobile-component-radius) !important;
     border-start-end-radius: var(--mobile-component-radius) !important;
   }
-  [data-presentation='mobile'] .inset-row-group:not(:where([data-messages-page] ul:has(> li > .message-contact-row))) > :last-child {
+  [data-presentation='mobile'] .inset-row-group:not(:where([data-mobile-contact-group], [data-messages-page] ul:has(> li > .message-contact-row))) > :last-child {
     border-end-start-radius: var(--mobile-component-radius) !important;
     border-end-end-radius: var(--mobile-component-radius) !important;
   }

@@ -175,3 +175,11 @@
 }
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .density-separator::-webkit-slider-thumb { width: 18px; height: 18px; }
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .density-separator::-moz-range-thumb { width: 18px; height: 18px; }
+#root .codex-shell[data-presentation='web'] [data-web-profile-header] .density-separator-ticks {
+  position: relative;
+  inset: auto;
+  top: -18px;
+  height: 0;
+  flex: none;
+  margin-inline: calc(12px + (var(--density-thumb-width) - 1px) / 2);
+}

@@ -21,7 +21,7 @@ test('project exports add only the requested actions and do not reveal previousl
  assert.ok(flat(owner).includes('delete'));assert.ok(flat(owner).includes('copyCitation'));assert.ok(flat(owner).includes('export'));
 });
 const ids = model => [...model.primary, ...model.groups.flat()].map(action => action.id);
-const all = ['viewAsVisitor','projectInfo','deleteChat','newProject','search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
+const all = ['projectInfo','deleteChat','newProject','search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
 const handlers = Object.fromEntries(all.map(id => [id, () => id]));
 const expected = {
  home:['search','explore','viewProfile','refresh','settings','leaveLive'], profile:['follow','message','saveCreator','share','copy','report'],
@@ -42,7 +42,7 @@ for (const kind of Object.keys(expected)) for (const viewer of [{signedIn:false}
  });
 }
 test('owner maps preserve requested order; unavailable callbacks are absent', () => {
- assert.deepEqual(Array.from(ids(contextActions('profile',{signedIn:true,owner:true},{handlers}))),['newProject','editProfile','share','viewAsVisitor','reorder','insights','bookmarks','copy','settings']);
+ assert.deepEqual(Array.from(ids(contextActions('profile',{signedIn:true,owner:true},{handlers:{...handlers,viewAsVisitor(){throw new Error('Retired visitor preview must not run.');}}}))),['newProject','editProfile','share','reorder','insights','bookmarks','copy','settings']);
  assert.deepEqual(Array.from(ids(contextActions('project',{signedIn:true,owner:true},{handlers}))),['edit','cover','list','projectInfo','viewProfile','pageIndex','copy','visibility','delete']);
  assert.deepEqual(Array.from(ids(contextActions('home',{signedIn:true},{handlers:{newProject:handlers.newProject,explore:handlers.explore}}))),['explore']);
 });
@@ -325,12 +325,12 @@ test('onboarding WEB file manager omits mobile detents and never begins a header
 });
 
 test('mobile owner profile actions open compact and expand only after an explicit swipe or keyboard activation',()=>{
- const actionIds=['newProject','editProfile','share','viewAsVisitor','thenNow','reorder','insights','bookmarks','copy','settings'];
+ const actionIds=['newProject','editProfile','share','thenNow','reorder','insights','bookmarks','copy','settings'];
  const model=contextActions('profile',{signedIn:true,owner:true},{handlers:Object.fromEntries(actionIds.map(id=>[id,()=>id]))});
  const h=sheetHarness({model}),labels=()=>nodes(h.render()).filter(node=>node.type==='button').flatMap(node=>nodes(node).filter(child=>child.type==='span'&&typeof child.props.children==='string').map(child=>child.props.children));
  assert.equal(h.dialog().props['data-expanded'],false);
  assert.equal(h.resizeButton().props['aria-label'],'Expand actions');assert.equal(h.resizeButton().props['aria-expanded'],false);
- const initialLabels=labels();assert.equal(initialLabels.length,10);assert.equal(initialLabels.at(-1),'Settings');
+ const initialLabels=labels();assert.equal(initialLabels.length,9);assert.equal(initialLabels.at(-1),'Settings');
  assert.ok(initialLabels.includes('New project'));assert.ok(initialLabels.includes('Copy public catalogue link'));
  h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerMove',{clientY:450});h.pointer('onPointerUp',{clientY:450});
  assert.equal(h.dialog().props['data-expanded'],true);assert.equal(h.resizeButton().props['aria-label'],'Collapse actions');
@@ -353,7 +353,7 @@ test('WEB owner profile actions retain their existing expanded entry state',()=>
 
 test('expanded profile New project and last Settings row delegate the same real context callbacks',()=>{
  for(const actionId of ['newProject','settings']){
-  const delegated=[],model=contextActions('profile',{signedIn:true,owner:true},{handlers:{newProject:()=>delegated.push('newProject'),editProfile(){},share(){},viewAsVisitor(){},thenNow(){},reorder(){},insights(){},bookmarks(){},copy(){},settings:()=>delegated.push('settings')}});
+  const delegated=[],model=contextActions('profile',{signedIn:true,owner:true},{handlers:{newProject:()=>delegated.push('newProject'),editProfile(){},share(){},thenNow(){},reorder(){},insights(){},bookmarks(){},copy(){},settings:()=>delegated.push('settings')}});
   const h=sheetHarness({model}),action=[...model.primary,...model.groups.flat()].find(item=>item.id===actionId);
   assert.equal(h.dialog().props['data-expanded'],false);
   h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:450});h.pointer('onPointerUp',{clientY:450});

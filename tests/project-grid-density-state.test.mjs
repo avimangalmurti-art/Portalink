@@ -11,7 +11,7 @@ function setup(options = {}) {
   const records = { owner: { id: 'owner', projectGridColumns: 2, name: 'Owner' },
     other: { id: 'other', projectGridColumns: 8 }, ...options.records };
   const writes = [];
-  let invalidations = 0, active;
+  let invalidations = 0, active, activePresentation;
   const services = { profiles: { async updateProfile(id, input) {
     writes.push({ id, input: { ...input } });
     await options.save?.(id, input, writes.length);
@@ -38,10 +38,11 @@ function setup(options = {}) {
       if (name.endsWith('/ServicesContext')) return { useServices: () => services };
       if (name.endsWith('/ProfileDataContext')) return { useProfileData: () => profileData };
       if (name.endsWith('/projectGridDensity')) return densityExports;
+      if (name.endsWith('/usePresentation')) return { usePresentation: () => activePresentation };
       throw Error(`Unexpected dependency: ${name}`);
     },
   });
-  function mount(profile = { ...records.owner }, canSave = true, scope = 'profile') {
+  function mount(profile = { ...records.owner }, canSave = true, scope = 'profile', presentation = 'web') {
     const slots = [];
     let cursor = 0, dirty = true, effects = [], result;
     const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
@@ -69,7 +70,7 @@ function setup(options = {}) {
       },
     };
     function render() {
-      active = hooks; cursor = 0; dirty = false; effects = [];
+      active = hooks; activePresentation = presentation; cursor = 0; dirty = false; effects = [];
       result = exports.useProjectGridDensity(profile, canSave, scope);
       for (const effect of effects) effect();
       return result;
@@ -78,6 +79,7 @@ function setup(options = {}) {
       get value() { return dirty ? render() : result; },
       async flush() { for (let i = 0; i < 25; i++) { if (dirty) render(); await Promise.resolve(); } return result; },
       update(next, owner = canSave) { profile = next; canSave = owner; dirty = true; },
+      present(next) { presentation = next; dirty = true; },
       dispose() { slots.forEach(slot => slot.cleanup?.()); },
     };
   }
@@ -209,4 +211,70 @@ test('drag previews update immediately without profile writes and final release 
  assert.equal(profile.value.columns,9);assert.equal(s.writes.length,0);
  profile.value.setColumns(9);await profile.flush();
  assert.equal(s.writes.length,1);assert.equal(s.writes[0].input.projectGridColumns,9);
+});
+
+test('WEB profile saves and MOBILE device choices never overwrite each other across refreshes and sessions', async () => {
+  const saved = new Map(), storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) };
+  const s = setup({ storage, records: { owner: { id: 'owner', projectGridColumns: 6 } } });
+  const web = s.mount(), mobile = s.mount({ ...s.records.owner }, true, 'profile', 'mobile');
+  assert.equal(web.value.columns, 6); assert.equal(mobile.value.columns, 2);
+  web.value.setColumns(4); await web.flush();
+  mobile.update({ ...s.records.owner }); await mobile.flush();
+  assert.equal(mobile.value.columns, 2, 'A desktop canonical refresh cannot change the mobile default.');
+  mobile.value.setColumns(9); await mobile.flush();
+  assert.equal(s.writes.length, 1); assert.equal(s.records.owner.projectGridColumns, 4);
+  assert.equal(web.value.columns, 4); assert.equal(mobile.value.saving, false);
+  mobile.value.previewColumns(7); await mobile.flush();
+  assert.equal(saved.get('portalink.profile-grid-columns:mobile:owner'), '9', 'Previews do not persist.');
+  mobile.value.setColumns(7); await mobile.flush();
+  assert.equal(saved.get('portalink.profile-grid-columns:mobile:owner'), '7');
+  mobile.dispose();
+  assert.equal(s.mount({ ...s.records.owner }, true, 'profile', 'mobile').value.columns, 7);
+  const fresh = setup({ storage, records: s.records });
+  assert.equal(fresh.mount().value.columns, 4);
+  assert.equal(fresh.mount({ ...s.records.owner }, true, 'profile', 'mobile').value.columns, 7);
+  assert.equal(fresh.mount({ ...s.records.other }, true, 'profile', 'mobile').value.columns, 2);
+});
+
+test('a single mounted profile restores each presentation while a late WEB save finishes', async () => {
+  const pending = deferred(), s = setup({ save: () => pending.promise }), h = s.mount();
+  h.value.setColumns(5); await h.flush(); assert.equal(h.value.saving, true);
+  h.present('mobile'); await h.flush(); assert.equal(h.value.columns, 2);
+  h.value.setColumns(8); await h.flush(); assert.equal(h.value.saving, false);
+  pending.resolve(); await h.flush(); h.update({ ...s.records.owner }); await h.flush();
+  assert.equal(h.value.columns, 8); assert.equal(s.records.owner.projectGridColumns, 5);
+  h.present('web'); await h.flush(); assert.equal(h.value.columns, 5); assert.equal(h.value.saving, false);
+  h.present('mobile'); await h.flush(); assert.equal(h.value.columns, 8);
+  assert.equal(s.writes.length, 1);
+});
+
+test('Home choices are independent by presentation and profile while legacy WEB choices are retained', async () => {
+  const saved = new Map([['portalink.home-grid-columns:owner', '6']]);
+  const storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) };
+  const s = setup({ storage }), h = s.mount({ ...s.records.owner }, true, 'home');
+  assert.equal(h.value.columns, 6);
+  h.present('mobile'); await h.flush(); assert.equal(h.value.columns, 2);
+  h.value.setColumns(3); await h.flush();
+  assert.equal(saved.get('portalink.home-grid-columns:owner'), '6');
+  assert.equal(saved.get('portalink.home-grid-columns:mobile:owner'), '3');
+  h.present('web'); await h.flush(); assert.equal(h.value.columns, 6);
+  h.value.setColumns(9); await h.flush();
+  h.present('mobile'); await h.flush(); assert.equal(h.value.columns, 3);
+  const fresh = setup({ storage });
+  assert.equal(fresh.mount({ ...fresh.records.owner }, true, 'home').value.columns, 9);
+  assert.equal(fresh.mount({ ...fresh.records.owner }, true, 'home', 'mobile').value.columns, 3);
+  assert.equal(fresh.mount({ ...fresh.records.other }, true, 'home', 'mobile').value.columns, 2);
+  assert.equal(s.writes.length, 0); assert.equal(s.invalidations, 0);
+});
+
+test('read-only visitors retain independent local slots and never save an owner layout', async () => {
+  const s = setup(), visitor = s.mount({ ...s.records.other }, false);
+  assert.equal(visitor.value.columns, 8); visitor.value.setColumns(4); await visitor.flush();
+  visitor.present('mobile'); await visitor.flush(); assert.equal(visitor.value.columns, 2);
+  visitor.value.setColumns(5); await visitor.flush();
+  visitor.update({ ...s.records.other, projectGridColumns: 12 }, false); await visitor.flush();
+  assert.equal(visitor.value.columns, 5);
+  visitor.present('web'); await visitor.flush(); assert.equal(visitor.value.columns, 4);
+  visitor.present('mobile'); await visitor.flush(); assert.equal(visitor.value.columns, 5);
+  assert.equal(s.writes.length, 0); assert.equal(s.invalidations, 0);
 });

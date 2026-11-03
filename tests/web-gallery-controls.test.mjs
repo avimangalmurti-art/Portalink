@@ -41,12 +41,12 @@ test('desktop layout exposes the existing density slider and reset through one c
 test('actual desktop thumb movement stays continuous and commits one integer only on release', () => {
   const changes = [], frames = new Map(); let nextFrame = 0;
   const { DensitySeparator } = load('../src/components/ui/DensitySeparator.tsx', {
-    react: { ...React, useRef: current => ({ current }), useEffect() {}, startTransition: callback => callback() },
+    react: { ...React, useRef: current => ({ current }), useEffect() {}, useLayoutEffect() {}, startTransition: callback => callback() },
     '../../presentation/usePresentation': { usePresentation: () => 'web' }, './density-separator.css': {},
   }, { requestAnimationFrame: callback => { const id = ++nextFrame; frames.set(id, callback); return id; }, cancelAnimationFrame: id => frames.delete(id) });
   const { WebGalleryControls } = load('../src/presentation/web/WebGalleryControls.tsx', { '../../components/ui/DensitySeparator': { DensitySeparator } });
   const tree = WebGalleryControls({ columns: 5, onChange: value => changes.push(value) });
-  const slider = DensitySeparator(nodes(tree).find(node => node.type === DensitySeparator).props);
+  const slider = nodes(DensitySeparator(nodes(tree).find(node => node.type === DensitySeparator).props)).find(node => node.type === 'input');
   const input = { value: '5', style: { setProperty() {} } }; slider.ref.current = input;
   assert.equal(slider.props.min, 1); assert.equal(slider.props.max, 13); assert.equal(slider.props.step, 'any');
   slider.props.onPointerDown({ pointerType: 'mouse', stopPropagation() {} });

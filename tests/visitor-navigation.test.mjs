@@ -39,8 +39,6 @@ test('failed handle lookup cannot trap Back navigation to a UUID project', async
     if (name === 'react-router-dom') return { useLocation: () => location, useNavigate: () => navigate };
     if (name === '../contexts/ServicesContext') return { useServices: () => ({ profiles }) };
     if (name === '../features/sharing/shareModel') return shareModel;
-    if (name === '../features/profile/visitorPreview') return load('features/profile/visitorPreview.ts', () => routes);
-    if (name === '../features/profile/VisitorPreviewBar') return named('VisitorPreviewBar');
     throw new Error(name);
   }, { window: {} });
   h.render(() => useHandleRoute({ kind: 'unknown' }));
@@ -294,8 +292,6 @@ function appHarness({ firstVisit = false, catalogueOrigin = null } = {}) {
     if (name === './mobile/PublicActionSheet') return { PublicActionSheet: 'PublicActionSheet' };
     if (name === './mobile/publicWelcome') return { ...load('visitor/mobile/publicWelcome.ts'), publicWelcomeCompleted: () => !firstVisit, completePublicWelcome() {} };
     if (name === '../features/sharing/shareModel') return shareModel;
-    if (name === '../features/profile/visitorPreview') return load('features/profile/visitorPreview.ts', () => routes);
-    if (name === '../features/profile/VisitorPreviewBar') return named('VisitorPreviewBar');
     if (name === './useHandleRoute') return {useHandleRoute:route=>({route,pending:state.handlePending,error:state.handleError,retry(){}})};
     if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
@@ -1034,18 +1030,21 @@ test('WEB portal navigation clears prior catalogue origin while ordinary card Ba
   assert.deepEqual(json(h.navigations.at(-1)), ['/creator', { replace: true }], 'A new sidebar portal must not restore an unrelated old catalogue location.');
 });
 
-test('WEB owner visitor-preview survives sidebar portal entry, automatic selection and reader Back', () => {
+test('WEB legacy preview URLs use ordinary portal navigation and never recreate preview state', () => {
   const h = appHarness(); h.state.presentation = 'web'; h.signedIn({ viewerProfileId: profileId });
   h.state.location = { ...h.state.location, pathname: '/creator', search: '?visitorPreview=1' };
   one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
-  assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal?visitorPreview=1', null]);
+  assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal', null]);
   h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
   h.state.location = { ...h.state.location, pathname: '/creator/c/portal', search: '?visitorPreview=1&via=friend', hash: '#entry' };
   h.render(); assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal/next?visitorPreview=1&via=friend#entry', { replace: true }]);
   h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'next' };
   h.state.location.pathname = '/creator/c/portal/next';
   const reader = nodes(h.render()).find(node => node.props?.project?.id === 'next');
-  reader.props.onBack(); assert.deepEqual(json(h.navigations.at(-1)), ['/creator?visitorPreview=1', { replace: true }]);
+  reader.props.onBack(); assert.deepEqual(json(h.navigations.at(-1)), ['/creator', { replace: true }]);
+  h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+  h.state.location = { ...h.state.location, pathname: '/creator/c/portal', search: '?via=friend', hash: '#entry' };
+  h.render(); assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal/next?via=friend#entry', { replace: true }], 'Ordinary public query/hash state stays intact without reviving the retired mode.');
 });
 
 test('MOBILE public portal links open the chooser while explicit project links still open the reader', () => {
@@ -1272,8 +1271,6 @@ test('handle project navigation resolves the complete target and preserves it th
       if (name === 'react-router-dom') return {useLocation: () => location, useNavigate: () => navigate};
       if (name === '../contexts/ServicesContext') return {useServices: () => ({profiles})};
       if (name === '../features/sharing/shareModel') return shareModel;
-    if (name === '../features/profile/visitorPreview') return load('features/profile/visitorPreview.ts', () => routes);
-    if (name === '../features/profile/VisitorPreviewBar') return named('VisitorPreviewBar');
       throw new Error(name);
     }, {window: {}});
     h.render(() => useHandleRoute({kind: 'unknown'}));
@@ -1305,14 +1302,20 @@ test('visitor silently respects creator branding, system theme and an explicit v
  assert.ok(other.render().props.className.includes('theme-light'));
 });
 
-test('View as visitor uses public appearance and public query, with Done returning to the owner app', () => {
- const h=appHarness();h.signedIn({viewerProfileId:profileId});h.state.location.search='?visitorPreview=1';
- h.state.query.profile={...profile,publicAppearance:{mode:'light',accentColor:'#34c759',systemGray:'gray'}};
- const tree=h.render(),bar=one(tree,'VisitorPreviewBar');assert.ok(bar);
- assert.match(tree.props.className,/theme-light/);assert.equal(tree.props['data-public-portfolio'],'');
- assert.equal(h.queryCalls.at(-1)[0],profileId);
- h.state.location.search='';assert.ok(one(h.render(),'VisitorPreviewBar'),'Preview survives internal creator links without copying its query');
- bar.props.onDone();assert.equal(h.assigned.at(-1),routes.buildPath('profile',{profileId}));
- const normal=appHarness();normal.signedIn({viewerProfileId:profileId});assert.equal(one(normal.render(),'VisitorPreviewBar'),undefined);
- const other=appHarness();other.signedIn();other.state.location.search='?visitorPreview=1';assert.equal(one(other.render(),'VisitorPreviewBar'),undefined);
+test('legacy preview URLs remain ordinary public catalogues with public appearance and public queries', () => {
+ for (const presentation of ['mobile', 'web']) for (const viewer of ['guest', 'owner', 'other']) {
+  const h = appHarness(); h.state.presentation = presentation;
+  if (viewer !== 'guest') h.signedIn({ viewerProfileId: viewer === 'owner' ? profileId : 'other-profile' });
+  h.state.location.search = '?visitorPreview=1&via=friend';
+  h.state.query.profile = { ...profile, publicAppearance: { mode: 'light', accentColor: '#34c759', systemGray: 'gray' } };
+  const tree = h.render();
+  assert.match(tree.props.className, /theme-light/); assert.equal(tree.props.style['--accent-color'], '#34c759');
+  assert.equal(tree.props['data-public-portfolio'], ''); assert.ok(one(tree, 'VisitorProfileGrid'));
+  assert.equal(h.queryCalls.at(-1)[0], profileId);
+  assert.equal(one(tree, 'VisitorPreviewBar'), undefined);
+  assert.equal(button(tree, 'Done'), undefined);
+  assert.equal(h.navigations.length + h.assigned.length + h.replaced.length, 0, `${presentation}/${viewer} keeps the public catalogue open`);
+  h.state.location.search = '';
+  assert.equal(one(h.render(), 'VisitorPreviewBar'), undefined);
+ }
 });

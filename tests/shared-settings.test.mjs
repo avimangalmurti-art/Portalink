@@ -7,7 +7,7 @@ const validation = sourceModule('src/features/profile/validation.ts', { '../shar
 const registration = sourceModule('src/features/auth/registration.ts', { '../profile/validation': validation, '../sharing/shareModel': shareModel });
 const settings = sourceModule('src/features/sharing/sharedSettings.ts', { '../auth/registration': registration, './shareModel': shareModel });
 
-test('public Settings survives handle/UUID reader reload and restores only the catalogue location', () => {
+test('public Settings survives handle/UUID reader reload with safe public state and drops retired preview state', () => {
   for (const base of ['/portalite', '/share/11111111-1111-4111-8111-111111111111', '/portalite/c/art/work']) {
     const path = settings.sharedSettingsPath(base + '?view=projects&page=2&media=image-a&visitorPreview=1', '?section=account&security=1');
     const url = new URL(path, 'https://portalink.invalid');
@@ -15,14 +15,16 @@ test('public Settings survives handle/UUID reader reload and restores only the c
     assert.equal(url.searchParams.get('settings'), '1');
     assert.equal(url.searchParams.get('section'), 'account');
     assert.equal(url.searchParams.get('security'), '1');
-    assert.equal(url.searchParams.get('visitorPreview'), '1');
+    assert.equal(url.searchParams.get('visitorPreview'), null);
     const back = new URL(settings.sharedSettingsReturnPath(path), 'https://portalink.invalid');
     assert.equal(back.pathname, base);
     assert.equal(back.searchParams.get('view'), 'projects');
+    assert.equal(back.searchParams.get('page'), '2');
+    assert.equal(back.searchParams.get('media'), 'image-a');
     assert.equal(back.searchParams.get('settings'), null);
     assert.equal(back.searchParams.get('section'), null);
     assert.equal(back.searchParams.get('security'), null);
-    assert.equal(back.searchParams.get('visitorPreview'), '1');
+    assert.equal(back.searchParams.get('visitorPreview'), null);
   }
 });
 

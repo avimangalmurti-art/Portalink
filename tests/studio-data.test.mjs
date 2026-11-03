@@ -85,8 +85,10 @@ test('Studio actions never promise unsupported draft/unread or unavailable bookm
   assert.deepEqual(Array.from(model.studioRowActions(model.savedPageStudioRows([pageEntry])[0])), ['unsave']);
   assert.deepEqual(Array.from(model.studioRowActions(model.savedCreatorStudioRows([{ id: 'gone', profile: null }])[0])), ['unsave']);
   const activity = model.activityStudioRows([notification])[0];
-  assert.deepEqual(Array.from(model.studioRowActions(activity)), ['open', 'mark-read']);
-  assert.deepEqual(Array.from(model.studioRowActions({ ...activity, notification: { ...notification, isUnread: false } })), ['open']);
+  assert.deepEqual(Array.from(model.studioRowActions(activity)), ['open', 'mark-read', 'delete']);
+  assert.deepEqual(Array.from(model.studioRowActions({ ...activity, notification: { ...notification, isUnread: false } })), ['open', 'delete']);
+  assert.deepEqual(Array.from(model.studioRowActions({ ...activity, href: undefined, notification: { ...notification, isUnread: false } })), ['delete']);
+  assert.deepEqual(Array.from(view.studioBulkTargets([activity, { ...activity, id: 'activity:read', notification: { ...notification, id: 'read', isUnread: false } }]).deleteActivity, row => row.id), ['activity:note', 'activity:read']);
   assert.ok(model.studioRowActions(model.publishedStudioRows(creator)[0]).includes('edit'));
 });
 
@@ -305,4 +307,47 @@ test('Studio project unsave refreshes canonical engagement and only removes a ro
   assert.ok(hook.value.rows.some(item => item.id === row.id)); assert.equal(hook.value.mutationError, 'refused');
   fail = false; assert.equal(await hook.value.unsave(row), true); await hook.flush();
   assert.equal(hook.value.rows.some(item => item.id === row.id), false); assert.deepEqual(refreshed, ['old']); hook.dispose();
+});
+
+test('Studio deletion submits only current Activity identities once and returns only confirmed Studio IDs', async () => {
+  const calls = [];
+  const { hook } = studioHarness({ category: 'activity', activityOverrides: { deleteNotifications: async ids => { calls.push(Array.from(ids)); return ['note', 'injected']; } } });
+  await hook.flush();
+  const row = hook.value.rows[0], unrelated = model.savedProjectStudioRows([{ project: oldProject, creator }])[0];
+  const confirmed = await hook.value.deleteActivity([row, row, unrelated, { ...row, id: 'activity:missing', notification: { ...notification, id: 'missing' } }]);
+  assert.deepEqual(calls, [['note']]);
+  assert.deepEqual(Array.from(confirmed), ['activity:note']);
+  assert.deepEqual(Array.from(await hook.value.deleteActivity([unrelated])), []);
+  assert.equal(calls.length, 1);
+  hook.dispose();
+});
+
+test('Studio deletion rejects stale account entry and late completion before returning confirmed IDs', async () => {
+  const flight = deferred(); let calls = 0;
+  const { hook, auth } = studioHarness({ category: 'activity', activityOverrides: { deleteNotifications: () => { calls += 1; return flight.promise; } } });
+  await hook.flush();
+  const row = hook.value.rows[0], remove = hook.value.deleteActivity;
+  const pending = remove([row]);
+  auth.user = { id: 'another-account' }; hook.rerender(); await hook.flush();
+  assert.deepEqual(Array.from(await remove([row])), []); assert.equal(calls, 1);
+  flight.resolve(['note']);
+  assert.deepEqual(Array.from(await pending), []);
+  hook.dispose();
+});
+
+test('Studio deletion rejects a stale open menu revision rather than deleting a newer notification', async () => {
+  const calls = [];
+  const { hook, activity } = studioHarness({ category: 'activity', activityOverrides: { deleteNotifications: async ids => { calls.push(Array.from(ids)); return Array.from(ids); } } });
+  await hook.flush();
+  const staleRow = hook.value.rows[0], retainedDelete = hook.value.deleteActivity;
+  activity.notifications = [{ ...notification, timestamp: '2026-02-03T00:00:00Z' }];
+  hook.rerender(); await hook.flush();
+  assert.deepEqual(Array.from(await retainedDelete([staleRow])), []);
+  assert.deepEqual(Array.from(await hook.value.deleteActivity([staleRow])), []);
+  const currentRow = hook.value.rows[0];
+  assert.deepEqual(Array.from(await hook.value.deleteActivity([{ ...currentRow, notification: { ...currentRow.notification, id: 'different-id' } }])), []);
+  assert.deepEqual(calls, [], 'Neither a stale timestamp nor a mismatched notification identity can invoke deletion.');
+  assert.deepEqual(Array.from(await hook.value.deleteActivity([currentRow])), ['activity:note']);
+  assert.deepEqual(calls, [['note']]);
+  hook.dispose();
 });

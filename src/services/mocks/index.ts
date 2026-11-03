@@ -1435,8 +1435,7 @@ function recordsFor(accountId: string): Record<EngagementKind, Set<Id>> {
   }
   const created: Record<EngagementKind, Set<Id>> = {
     like: new Set<Id>(),
-    save: new Set<Id>(),
-    repost: new Set<Id>()
+    save: new Set<Id>()
   };
   engagementByAccount.set(accountId, created);
   return created;
@@ -1449,7 +1448,7 @@ function readEngagement(projectId: Id, accountId: string | null): ProjectEngagem
     projectId,
     isLiked: records?.like.has(projectId) ?? false,
     isSaved: records?.save.has(projectId) ?? false,
-    isReposted: records?.repost.has(projectId) ?? false,
+    isReposted: false,
     likeCount: null,
     saveCount: null,
     repostCount: null
@@ -1472,9 +1471,10 @@ export const mockEngagementService: EngagementService = {
   }) {
     // Enforced HERE, independently of the React gate. A call that reaches this
     // point without a session is refused rather than written to a shared set.
+    if (kind !== 'like' && kind !== 'save') throw new EngagementServiceError('permission_denied', 'This engagement action is unavailable.');
     const accountId = currentAccountId();
     if (!accountId) {
-      throw new EngagementServiceError('unauthenticated', 'Sign in to like, save, or repost work.');
+      throw new EngagementServiceError('unauthenticated', 'Sign in to like or save work.');
     }
     // The project has to exist: engaging with an id nothing published would be a
     // record pointing at nothing.
@@ -1492,18 +1492,24 @@ export const mockEngagementService: EngagementService = {
     return resolve(readEngagement(projectId, accountId), 260);
   },
   async listEngagedProjectIds(kind) {
+    if (kind !== 'like' && kind !== 'save') throw new EngagementServiceError('permission_denied', 'This activity collection is unavailable.');
     // An activity collection is private account data. There is no such thing as a
     // guest's collection, so this is REFUSED rather than answered with an empty
     // array — an empty array would read as "you have liked nothing", which is a
     // different and misleading claim.
     const accountId = currentAccountId();
     if (!accountId) {
-      throw new EngagementServiceError('unauthenticated', 'Sign in to see your own likes, saved work, and reposts.');
+      throw new EngagementServiceError('unauthenticated', 'Sign in to see your own likes and saved work.');
     }
     return resolve([...recordsFor(accountId)[kind]], 0);
   }
 };
 export const mockNotificationService: NotificationService = {
+  async deleteNotifications() {
+    if (!currentAccountId()) throw new Error('Sign in to manage notifications.');
+    // This prototype has no notification records to confirm as deleted.
+    return [];
+  },
   async listNotifications() {
     return resolve([] as Notification[]);
   },

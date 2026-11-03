@@ -228,7 +228,7 @@ test('mobile and web initial periods stay distinct while current saves stay sepa
     let tree = fixture.render();
     assert.equal(nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.value, expected);
     assert.equal(fixture.periods.at(-1), expected);
-    assert.equal(text(nodes(tree).find(node => node.props.className === 'insights-eyebrow')), label);
+    assert.equal(text(nodes(tree).find(node => node.props.className === 'insights-eyebrow')), presentation === 'mobile' ? '' : label);
     assert.equal(text(nodes(tree).find(node => node.props.className === 'insights-total-context')), presentation === 'mobile' ? '' : `Opens and completed: ${label}. Page saves: current bookmarks.`);
     metricButtons(tree)[2].props.onClick();
     tree = fixture.render();
@@ -241,6 +241,8 @@ test('mobile and web initial periods stay distinct while current saves stay sepa
     assert.match(text(audience), /Current totals/);
     assert.deepEqual(nodes(audience).filter(node => node.type === 'dt').map(text), ['Creator saves', 'Project saves', 'Followers']);
     assert.deepEqual(nodes(audience).filter(node => node.type === 'dd').map(text).filter(value => /^\d+$/.test(value)), ['9', '7', '3']);
+    assert.equal(/Only you can see these insights\. Reader and saver identities remain private/.test(text(audience)), presentation === 'web');
+    assert.equal(/Today uses UTC\. All time includes available history; older daily data is retained for about 13 months\./.test(text(tree)), presentation === 'web');
     assert.doesNotMatch(text(tree), /daily average|last week|previous period|this week|\d+% from/i);
   }
 });
@@ -345,14 +347,15 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.equal(picker.type, 'select');
     assert.equal(picker.props.value, '7d');
     assert.deepEqual(nodes(picker).filter(node => node.type === 'option').map(node => [node.props.value, text(node)]), [
-      ['today', 'Today'], ['7d', '7 days'], ['30d', '30 days'], ['12m', '12 months'], ['all', 'All time'],
+      ['today', 'Today'], ['7d', presentation === 'mobile' ? 'Last 7 days' : '7 days'], ['30d', presentation === 'mobile' ? 'Last 30 days' : '30 days'], ['12m', presentation === 'mobile' ? 'Last 12 months' : '12 months'], ['all', 'All time'],
     ]);
     assert.equal(nodes(top).filter(node => node.type === 'button' && text(node) === 'Refresh').length, presentation === 'web' ? 1 : 0);
     const label = nodes(top).find(node => node.props.className === 'insights-period-picker');
     if (presentation === 'mobile') {
       assert.equal(label.type, 'label');
-      assert.deepEqual(React.Children.toArray(label.props.children).map(node => node.type), ['icon', 'select']);
-      assert.equal(nodes(label).find(node => node.type === 'icon').props.icon, 'CalendarDaysIcon');
+      assert.deepEqual(React.Children.toArray(label.props.children).map(node => node.type), ['select', 'icon']);
+      assert.equal(nodes(label).find(node => node.type === 'icon').props.icon, 'ChevronDownIcon');
+      assert.equal(picker.props['data-ui-shape'], 'action');
       assert.equal(label.props.title, 'Insights period: 7 days');
       assert.equal(picker.props.title, 'Insights period: 7 days');
     } else {
@@ -370,7 +373,7 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.deepEqual(metricButtons(group).map(node => node.props['aria-pressed']), [false, true, false]);
     assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', 'Completed', ''] : ['Opens', 'Completed', 'Page saves']);
     assert.equal(accessibleText(headline(tree)), '8completed reads');
-    assert.equal(text(nodes(tree).find(node => hasClass(node, 'insights-eyebrow'))), '30 days');
+    assert.equal(text(nodes(tree).find(node => hasClass(node, 'insights-eyebrow'))), presentation === 'mobile' ? '' : '30 days');
     if (presentation === 'mobile') assert.equal(picker.props.title, 'Insights period: 30 days');
     metricButtons(group)[2].props.onClick();
     tree = fixture.render();

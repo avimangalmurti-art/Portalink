@@ -2,10 +2,11 @@ import { likesCapability } from './capabilities';
 import { useEffect, useMemo } from 'react';
 import { useEngagementStore } from '../../contexts/EngagementContext';
 import type { EngagementKind, ProjectEngagement } from '../../types/engagement';
+import { isEngagementKind } from '../../types/engagement';
 import type { Id } from '../../types/domain';
 
 /**
- * The one boundary presentation uses for like, save, and repost.
+ * The one boundary presentation uses for like and save.
  *
  * `UI → this hook → EngagementService`. It reads from the canonical store, so every
  * surface showing the same project shares one state and one set of counts; the
@@ -53,28 +54,29 @@ export function useProjectEngagement(projectId: Id | null): ProjectEngagementLif
         store.refresh(projectId);
       }
     },
-    isPending: (kind) => entry?.pending[kind] === true,
+    isPending: (kind) => isEngagementKind(kind) && entry?.pending[kind] === true,
     isEngaged: (kind) => {
       const record = entry?.record;
-      if (!record) {
+      if (!isEngagementKind(kind) || !record) {
         return false;
       }
-      return kind === 'like' ? record.isLiked : kind === 'save' ? record.isSaved : record.isReposted;
+      return kind === 'like' ? record.isLiked : record.isSaved;
     },
     count: (kind) => {
       const record = entry?.record;
-      if (!record) {
+      if (!isEngagementKind(kind) || !record) {
         return null;
       }
-      return kind === 'like' ? record.likeCount : kind === 'save' ? record.saveCount : record.repostCount;
+      return kind === 'like' ? record.likeCount : record.saveCount;
     },
     toggle: (kind) => {
+      if (!isEngagementKind(kind)) return;
       if (kind === 'like' && !likesCapability) return;
       if (projectId) {
         store.toggle(projectId, kind);
       }
     },
-    failure: entry?.failure ? {
+    failure: entry?.failure && isEngagementKind(entry.failure.kind) ? {
       kind: entry.failure.kind,
       message: entry.failure.message,
       retry: entry.failure.retry

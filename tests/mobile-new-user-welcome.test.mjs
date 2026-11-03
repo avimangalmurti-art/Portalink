@@ -11,6 +11,9 @@ const validation = sourceModule('src/features/profile/validation.ts', { '../shar
 const registration = sourceModule('src/features/auth/registration.ts', {
   '../sharing/shareModel': shareModel, '../profile/validation': validation,
 });
+const sharedSettings = sourceModule('src/features/sharing/sharedSettings.ts', {
+  '../auth/registration': registration, './shareModel': shareModel,
+});
 const profileId = '11111111-1111-4111-8111-111111111111';
 const draft = { version: 1, id: '22222222-2222-4222-8222-222222222222', name: 'Test maker',
   handle: 'test.maker', location: '', accentColor: '#0A84FF', hasAvatar: false };
@@ -74,9 +77,8 @@ function harness(presentation = 'mobile') {
     '../utils/projectContinuity': { beginProjectContinuity() {} },
     '../components/ui/RouteError': { ...names('RouteError'), routeErrorKind: () => 'network' },
     './mobile/SharedPortalPopup': names('SharedPortalPopup'),
-    '../features/profile/VisitorPreviewBar': names('VisitorPreviewBar'),
-    '../features/profile/visitorPreview': { isOwnVisitorPreview: () => false, visitorPreviewReturn: () => '/' },
     '../features/sharing/shareModel': shareModel,
+    '../features/sharing/sharedSettings': sharedSettings,
     './useHandleRoute': { useHandleRoute: route => ({ route, pending: false, error: '' }) },
     '../presentation/AppPresentation': names('AppPresentation'),
     '../presentation/usePresentation': { usePresentation: () => presentation },

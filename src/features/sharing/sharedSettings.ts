@@ -9,8 +9,6 @@ function publicReturnPath(value: unknown): string | undefined {
   if (!path) return;
   const url = new URL(path, origin);
   if (!isPublicSharePath(url.pathname)) return;
-  // Preview changes presentation only; VisitorApp still verifies its owner.
-  if (typeof value === 'string' && new URL(value, origin).searchParams.get('visitorPreview') === '1') url.searchParams.set('visitorPreview', '1');
   return url.pathname + url.search + url.hash;
 }
 

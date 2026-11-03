@@ -34,6 +34,7 @@ export function studioBulkTargets(rows: StudioRow[]) {
   return {
     unsave: rows.filter(row => row.kind.startsWith('saved-')),
     markRead: rows.filter(row => row.kind === 'activity' && row.notification.isUnread),
+    deleteActivity: rows.filter(row => row.kind === 'activity'),
     share: rows.filter(row => studioSharePath(row) !== null),
   };
 }

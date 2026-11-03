@@ -58,7 +58,7 @@ function InlineAttachmentPage({ project, slide, current, active, onCount }: {
   const isMobile = usePresentation() === 'mobile';
   const attachment = slide.attachment;
   if (!attachment) return null;
-  if (attachment.kind === 'image') return <ol className="inline-project-image-list"><ImagePage
+  if (attachment.kind === 'image') return <ol className="inline-project-image-list" data-inline-photo=""><ImagePage
     projectId={project.id} attachment={attachment} pageNumber={slide.page ?? 1} pageCount={project.attachments?.filter(item => item.kind === 'image').length ?? 1}
     priorityCount={1} isFocused isMobile={isMobile} inlinePreview showMediaInteractions={false} onToggleFocus={noAction} /> </ol>;
   if (attachment.kind === 'document') {

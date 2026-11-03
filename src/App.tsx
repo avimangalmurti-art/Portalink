@@ -170,7 +170,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       void loadCategoryPage().catch(() => undefined);
     }
   }, [route.kind]);
-  const nav = useRouteNavigator();
+  const nav = useRouteNavigator(presentation);
   const isSharedRoute = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' || route.kind === 'sharedCollaboration';
   const isCollaborationOpen = route.kind === 'collaboration' || route.kind === 'sharedCollaboration';
   const auth = useAuth();

@@ -13,9 +13,9 @@ function compile(path, require, globals = {}) {
   return exports;
 }
 
-function harness() {
+function harness(initialPresentation = 'web') {
   const slots = [], listeners = new Map(), timers = new Map(), commits = [];
-  let cursor = 0, effects = [], timerId = 0;
+  let cursor = 0, effects = [], timerId = 0, presentation = initialPresentation;
   const react = {
     useCallback: fn => fn,
     useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; },
@@ -33,7 +33,7 @@ function harness() {
   };
   const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
   const density = compile('../src/utils/projectGridDensity.ts', () => ({}));
-  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : name.endsWith('/projectGridDensity') ? density : react, {
+  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/usePresentation') ? { usePresentation: () => presentation } : name.endsWith('/pinchGesture') ? pinch : name.endsWith('/projectGridDensity') ? density : react, {
     window: { setTimeout(fn, delay) { timers.set(++timerId, { fn, delay }); return timerId; }, clearTimeout: id => timers.delete(id) },
   });
   const element = {
@@ -48,6 +48,7 @@ function harness() {
     return result;
   };
   return { render, listeners, timers, commits,
+    setPresentation(value) { presentation = value; },
     flush(delay) { for (const [id, timer] of timers) if (timer.delay === delay) { timers.delete(id); timer.fn(); } },
     wheel(deltaY) { listeners.get('wheel')({ ctrlKey: true, deltaY, preventDefault() {} }); },
     cleanup() { slots.forEach(slot => slot?.cleanup?.()); },
@@ -153,6 +154,73 @@ test('modified wheel commits once after its burst, while a new owner setting rej
   assert.deepEqual(h.commits, [5], 'An old delayed callback must not overwrite a newer saved setting');
   assert.equal(h.render(8, true, 8).columns, 8);
   h.cleanup();
+});
+
+test('a presentation switch cancels pending wheel density without leaking selection or commits into an equal baseline', () => {
+  for (const [previous, next] of [['web', 'mobile'], ['mobile', 'web']]) {
+    const h = harness(previous), writes = { web: [], mobile: [] };
+    const save = scope => value => writes[scope].push(value);
+    h.render(2, true, 2, save(previous));
+    h.wheel(1);
+    const pending = h.render(2, true, 2, save(previous));
+    assert.equal(pending.columns, 3);
+    assert.equal(pending.isAdjusting, true);
+    assert.deepEqual(writes, { web: [], mobile: [] });
+    h.setPresentation(next);
+    const switched = h.render(2, true, 2, save(next));
+    assert.equal(switched.columns, 2, 'The same numeric reset key cannot carry a different presentation\'s local selection.');
+    assert.equal(switched.isZoomed, false);
+    assert.equal(switched.isAdjusting, false);
+    h.flush(220);
+    assert.deepEqual(writes, { web: [], mobile: [] }, 'Neither cleanup nor the old timer may invoke the new callback.');
+    h.wheel(1); h.render(2, true, 2, save(next)); h.flush(220);
+    assert.deepEqual(writes[next], [3]);
+    assert.deepEqual(writes[previous], []);
+    h.cleanup();
+    assert.equal(h.listeners.size, 0); assert.equal(h.timers.size, 0);
+  }
+});
+
+test('WEB and MOBILE controlled choices restore independently and reject a stale gallery callback', () => {
+  const h = harness('web'), saved = { web: 2, mobile: 2 }, writes = [];
+  const render = scope => {
+    h.setPresentation(scope);
+    return h.render(saved[scope], true, saved[scope], value => { saved[scope] = value; writes.push([scope, value]); });
+  };
+  const web = render('web');
+  web.chooseColumns(5);
+  assert.equal(render('web').columns, 5);
+  const mobile = render('mobile');
+  assert.equal(mobile.columns, 2);
+  web.chooseColumns(9);
+  assert.deepEqual(saved, { web: 5, mobile: 2 }, 'A callback from the previous presentation cannot change the new slot.');
+  mobile.chooseColumns(1);
+  assert.equal(render('mobile').columns, 1);
+  assert.equal(render('web').columns, 5);
+  assert.equal(render('mobile').columns, 1);
+  assert.deepEqual(writes, [['web', 5], ['mobile', 1]]);
+  h.cleanup();
+});
+
+test('a pending pinch cannot cross presentations while same-presentation reorder and unmount still commit', () => {
+  const h = harness('mobile'), writes = [];
+  const touches = distance => [{ clientX: 0, clientY: 0 }, { clientX: distance, clientY: 0 }];
+  h.render(2, true, 2, value => writes.push(['mobile', value]));
+  h.listeners.get('touchstart')({ touches: touches(100) });
+  h.listeners.get('touchmove')({ touches: touches(64), cancelable: true, preventDefault() {} });
+  const oldRelease = h.listeners.get('touchend');
+  assert.equal(h.render(2, true, 2).columns, 4);
+  h.setPresentation('web');
+  assert.equal(h.render(2, true, 2, value => writes.push(['web', value])).columns, 2);
+  oldRelease();
+  assert.deepEqual(writes, []);
+  h.wheel(1);
+  h.render(2, false, 2, value => writes.push(['web', value]));
+  assert.deepEqual(writes, [['web', 3]], 'Entering reorder in the same presentation keeps the final gesture commit.');
+  h.render(2, true, 2, value => writes.push(['web', value]));
+  h.wheel(1); h.cleanup();
+  assert.deepEqual(writes, [['web', 3], ['web', 4]], 'Route unmount in the same presentation keeps the final gesture commit.');
+  assert.equal(h.listeners.size, 0); assert.equal(h.timers.size, 0);
 });
 
 test('a cancelled pinch stops changing density and a new pinch starts at the current selection', () => {

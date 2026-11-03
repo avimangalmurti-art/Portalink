@@ -5,16 +5,18 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 
 function setup({ failure = null } = {}) {
-  const calls = []; let account = 'viewer'; let rowsRead = 0;
+  const calls = [], writes = []; let account = 'viewer'; let rowsRead = 0, authReads = 0;
   const client = {
-    auth: { getSession: async () => ({ data: { session: account ? { user: { id: account } } : null } }) },
+    auth: { getSession: async () => { authReads++; return { data: { session: account ? { user: { id: account } } : null } }; } },
     async rpc(name, args) {
       calls.push({ name, args });
       if (name === 'project_engagement_summaries') return failure ? { error: failure } : { data: args.p_project_ids.map(project_id => ({ project_id, viewer_liked: true, viewer_saved: false, viewer_reposted: false, like_count: 9, save_count: 3, repost_count: 2 })) };
       assert.equal(name, 'project_engagement_summary'); return { data: { like_count: 7, save_count: 0, repost_count: 0 } };
     },
-    from() {
-      const query = { select() { return query; }, eq() { return query; }, then(resolve) { rowsRead++; return Promise.resolve({ data: [{ kind: 'like' }] }).then(resolve); } };
+    from(table) {
+      const query = { select() { return query; }, eq() { return query; }, in() { return query; }, order() { return query; },
+        upsert(row) { writes.push({ table, row }); return query; }, delete() { writes.push({ table, deleted: true }); return query; },
+        then(resolve) { rowsRead++; return Promise.resolve({ data: [{ kind: 'like' }] }).then(resolve); } };
       return query;
     },
   };
@@ -30,7 +32,7 @@ function setup({ failure = null } = {}) {
       throw Error(name);
     },
   });
-  return { service: exports.supabaseEngagementService, calls, get rowsRead() { return rowsRead; }, switchAccount(next) { account = next; } };
+  return { service: exports.supabaseEngagementService, calls, writes, get rowsRead() { return rowsRead; }, get authReads() { return authReads; }, switchAccount(next) { account = next; } };
 }
 
 test('twenty simultaneous card reads use one bounded engagement summary call', async () => {
@@ -65,4 +67,19 @@ test('an account switch cancels queued reads instead of resolving new-account fl
   for (let i = 0; i < 5; i++) await Promise.resolve();
   h.switchAccount('other');
   await assert.rejects(pending, /account changed/); assert.equal(h.calls.length, 0);
+});
+
+test('Supabase rejects retired repost mutations, lists and participants before authentication or database access', async () => {
+  const h = setup();
+  for (const account of ['viewer', null]) {
+    h.switchAccount(account);
+    for (const engaged of [true, false]) await assert.rejects(h.service.setEngagement({ projectId: 'p', kind: 'repost', engaged }), error => error.code === 'permission_denied');
+    await assert.rejects(h.service.listEngagedProjectIds('repost'), error => error.code === 'permission_denied');
+    await assert.rejects(h.service.listProjectParticipants('p', 'repost'), error => error.code === 'permission_denied');
+  }
+  assert.equal(h.authReads, 0); assert.equal(h.calls.length, 0); assert.equal(h.rowsRead, 0); assert.equal(h.writes.length, 0);
+  h.switchAccount('viewer');
+  const saved = await h.service.setEngagement({ projectId: 'p', kind: 'save', engaged: true });
+  assert.equal(saved.projectId, 'p'); assert.equal(h.writes.length, 1);
+  assert.equal(h.writes[0].row.kind, 'save');
 });

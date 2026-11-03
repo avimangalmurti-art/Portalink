@@ -66,13 +66,13 @@ function SavedPageCard({ target, presentation, onRemoved }: { target: SavedPageT
 function SavedPageMetrics({ target, label, onOpen }: { target: SavedPageTarget; label: string; onOpen: () => void }) {
   // Reading a preview must not consume/replay the viewer's pending actions.
   const query = useCallback(() => mediaInteractionRequest<{
-    counts: Record<'like' | 'save' | 'repost', number>;
+    counts: Record<'like' | 'save', number>;
     comments: unknown[];
   }>(`/api/media-interactions?${new URLSearchParams({ projectId: target.projectId, attachmentId: target.attachmentId, pageIndex: String(target.pageIndex) })}`), [target.projectId, target.attachmentId, target.pageIndex]);
   const activity = useAccountQuery(query);
   const record = !activity.loading && !activity.error ? activity.data : null;
   return <div className="flex min-w-0 flex-col gap-1">
     <span className="text-[11px] font-semibold">{label}</span>
-    <PreviewMetrics counts={record?.counts ?? { like: null, save: null, repost: null }} commentCount={record?.comments.length ?? null} onOpenComments={onOpen} />
+    <PreviewMetrics counts={record?.counts ?? { like: null, save: null }} commentCount={record?.comments.length ?? null} onOpenComments={onOpen} />
   </div>;
 }

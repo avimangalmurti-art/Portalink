@@ -158,7 +158,7 @@ export const routes: Record<RouteId, RouteDefinition> = {
     id: 'activity',
     path: '/p/:profileId/activity/:activityKind',
     params: ['profileId', 'activityKind'],
-    description: "One engagement collection — likes, saved, reposts. Private to the profile's own account; `activityKind` is likes|saved|reposts."
+    description: "One engagement collection — likes or saved. Private to the profile's own account; `activityKind` is likes|saved."
   }
 };
 

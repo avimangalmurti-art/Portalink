@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import React from 'react';
 import ts from 'typescript';
 import { sourceModule } from './helpers/source-module.mjs';
 
@@ -34,6 +35,33 @@ test('image and PDF hints use the existing one-based reader contract without cha
     assert.equal(h.withCataloguePageTarget('/p/creator/c/portal/project', 'project'), `/p/creator/c/portal/project?media=${attachmentId}&page=${page}&view=page`);
     assert.deepEqual(position, { index: 3, key, attachmentId, page });
   }
+});
+
+test('MOBILE image scroll hints address the selected image without requesting isolated focus; PDF and WEB keep their contract', () => {
+  const h = fixture(), position = { index: 4, key: 'image/a&b:image', attachmentId: 'image/a&b', page: 3 };
+  h.positions.set('project', position);
+  assert.equal(h.withCataloguePageTarget('/project?visitorPreview=1#work', 'project', undefined, 'scroll'),
+    '/project?visitorPreview=1&media=image%2Fa%26b&page=3#work');
+  assert.equal(h.withCataloguePageTarget('/project', 'project', undefined, 'focused'), '/project?media=image%2Fa%26b&page=3&view=page');
+  assert.deepEqual(position, { index: 4, key: 'image/a&b:image', attachmentId: 'image/a&b', page: 3 });
+  for (const key of ['image/a&b:page:3', 'unrelated:image']) {
+    assert.equal(h.withCataloguePageTarget('/project', 'project', { ...position, key }, 'scroll'),
+      '/project?media=image%2Fa%26b&page=3&view=page', 'Only the matching canonical image key opts into continuous reading.');
+  }
+  assert.equal(h.withCataloguePageTarget('/project', 'project', { index: 3, key: 'pdf:page:9', attachmentId: 'pdf', page: 9 }, 'scroll'),
+    '/project?media=pdf&page=9&view=page');
+});
+
+test('MOBILE image scroll mode preserves explicit saved targets and deliberate view queries', () => {
+  const h = fixture(), position = { index: 3, key: 'image:image', attachmentId: 'image', page: 2 };
+  for (const path of ['/project?media=saved&page=7&view=page#citation', '/project?page=7', '/project?media=saved',
+    '/project?media=image&page=2&view=page', '/project?media=&page=2&page=3']) {
+    assert.equal(h.withCataloguePageTarget(path, 'project', position, 'scroll'), path);
+  }
+  assert.equal(h.withCataloguePageTarget('/project?view=page#deliberate', 'project', position, 'scroll'),
+    '/project?view=page&media=image&page=2#deliberate');
+  assert.equal(h.withCataloguePageTarget('/project?view=existing', 'project', position, 'scroll'),
+    '/project?view=existing&media=image&page=2');
 });
 
 test('other media selects its real attachment without inventing a page or focused-page mode', () => {
@@ -92,6 +120,64 @@ test('main and shared navigator project entry keeps ownership, transition and re
   assert.equal(calls.at(-1)[0], '/p/creator/c/portal/other');
 });
 
+test('main and shared navigators open catalogue images continuously only on MOBILE', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = fixture(), calls = [], transitions = [];
+    const routes = sourceModule('src/app/routes.ts', { '../components/navigation': { navigationDestinations: [] } });
+    const routing = sourceModule('src/app/useAppRoute.ts', {
+      react: { useMemo: fn => fn(), useRef: value => ({ current: value }) },
+      'react-router-dom': { useNavigate: () => (...args) => calls.push(args), useLocation: () => ({ pathname: '/p/creator', search: '', hash: '' }), matchPath: () => null },
+      './routes': routes, '../types/engagement': { activityKindFromSlug: value => value, activitySlugForKind: value => value },
+      '../utils/projectContinuity': { beginProjectContinuity: id => { transitions.push(id); return true; } },
+      '../features/profile/cataloguePageNavigation': h,
+    });
+    const nav = routing.useRouteNavigator(presentation), mode = presentation === 'mobile' ? '' : '&view=page';
+    h.positions.set('project', { index: 4, key: 'image:image', attachmentId: 'image', page: 3 });
+    nav.project('creator', 'portal', 'project');
+    nav.sharedProject('creator', 'portal', 'project', true);
+    assert.deepEqual(plain(calls), [
+      [`/p/creator/c/portal/project?media=image&page=3${mode}`, { replace: false, viewTransition: true }],
+      [`/share/creator/c/portal/project?media=image&page=3${mode}`, { replace: true, viewTransition: false }],
+    ]);
+    assert.deepEqual(transitions, ['project']);
+    h.positions.set('project', { index: 4, key: 'pdf:page:4', attachmentId: 'pdf', page: 4 });
+    nav.project('creator', 'portal', 'project');
+    assert.equal(calls.at(-1)[0], '/p/creator/c/portal/project?media=pdf&page=4&view=page');
+  }
+});
+
+test('real preview-card href uses the presentation-specific image target and preserves saved-page artwork links', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = fixture(), position = { index: 3, key: 'image:image', attachmentId: 'image', page: 2 };
+    h.positions.set('project', position);
+    const { ProjectPreviewCard } = sourceModule('src/components/profile/ProjectPreviewCard.tsx', {
+      react: { ...React, useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}], useEffect() {}, lazy: () => 'lazy-component' },
+      'react-router-dom': { Link: 'link' }, 'lucide-react': { MoreHorizontalIcon: 'dots' },
+      '../../presentation/usePresentation': { usePresentation: () => presentation },
+      '../../hooks/useContentPreview': { useContentPreview: () => ({ expanded: false, events: {}, ref: {}, open: (_event, action) => action() }) },
+      '../../utils/projectPresentation': { getProjectAspectRatio: () => 1, getProjectCoverPreview: () => undefined },
+      '../../utils/projectContinuity': { projectContinuityStyle: () => ({}), getProjectContinuityArtwork: () => undefined, beginProjectContinuity() {} },
+      '../../features/profile/cataloguePagePosition': { getCataloguePagePosition: id => h.positions.get(id), rememberCataloguePagePosition() {} },
+      '../../features/profile/cataloguePageNavigation': h,
+      '../../features/profile/useInlineProjectContent': { useInlineProjectContent: ({ project }) => ({ project, metadataComplete: true }) },
+      './inlineProjectPageModel': { normalizeInlineProjectPosition: (_project, selected) => selected, inlinePositionMatches: () => true },
+      './ProjectPageBrowsingContext': { useInlineProjectPages: () => false },
+      '../media/ProjectCover': { ProjectCover: 'cover' }, './ProjectHoverDetails': { ProjectHoverDetails: 'details' },
+      '../ui/InterfaceIcon': { InterfaceIcon: 'icon' }, '../media/MobileProjectPopup': { MobileProjectPopup: 'popup' },
+      '../media/warmDocumentRenderer': { warmProjectDocumentRenderer() {} }, './project-preview-actions.css': {},
+    });
+    const props = { project: { id: 'project', title: 'Photos', attachments: [] }, creator: { id: 'creator', name: 'Creator' },
+      href: '/project?visitorPreview=1#photos', onOpen() {}, showCreator: false, showEngagementMetrics: false };
+    const links = tree => React.Children.toArray(tree.props.children).flatMap(function visit(node) {
+      return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(visit)] : [];
+    }).filter(node => node.type === 'link');
+    assert.equal(links(ProjectPreviewCard(props))[0].props.to,
+      `/project?visitorPreview=1&media=image&page=2${presentation === 'mobile' ? '' : '&view=page'}#photos`);
+    assert.equal(links(ProjectPreviewCard({ ...props, href: '/project?media=saved&page=7&view=page', cover: React.createElement('span') }))[0].props.to,
+      '/project?media=saved&page=7&view=page');
+  }
+});
+
 const visitorSource = readFileSync(new URL('../src/visitor/VisitorApp.tsx', import.meta.url), 'utf8');
 const visitorTree = ts.createSourceFile('VisitorApp.tsx', visitorSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const visitorCallbacks = {};
@@ -115,21 +201,41 @@ test('public catalogue entry uses the selected page while preserving preview suf
   const root = {}, origin = { profileId: 'creator', path: '/portalite?view=projects#work', projectId: 'project' };
   const context = {
     profileId: 'creator', projectId: null, presentation: 'web', catalogueReady: true, catalogueScope: 'creator:guest',
-    location: { pathname: '/portalite', search: '?view=projects', hash: '#work' }, previewSuffix: '?visitorPreview=1',
-    desktopCatalogueOrigin: { current: null }, setPortalPopup: value => calls.push(['popup', value]),
+    location: { pathname: '/portalite', search: '?view=projects', hash: '#work' },
+    desktopCatalogueOrigin: { current: null }, setPortalPopup: value => calls.push(['popup', value]), setPortalNavigationRequest() {},
     captureCatalogueReaderOrigin: (...args) => { captures.push(args); return origin; },
     document: { querySelector: () => root }, projectReturn: { open: (...args) => calls.push(['open', ...args]) },
     portfolioProjectPath: (_profile, category, project) => `/portalite/c/${category}/${project}`, handleFromPath: () => 'portalite',
     withCataloguePageTarget: paths.withCataloguePageTarget,
   };
   visitorCallback('openProject', context)('art', 'project');
-  assert.deepEqual(plain(calls), [['open', '/portalite/c/art/project?visitorPreview=1&media=pdf&page=3&view=page', 'project']]);
+  assert.deepEqual(plain(calls), [['open', '/portalite/c/art/project?media=pdf&page=3&view=page', 'project']]);
   assert.equal(captures.length, 1); assert.equal(captures[0][1], '/portalite?view=projects#work'); assert.equal(captures[0][3], root);
   assert.equal(context.desktopCatalogueOrigin.current.origin, origin);
   context.projectId = 'project'; visitorCallback('openProject', context)('art', 'next');
   assert.equal(captures.length, 1, 'The reader index must not replace the catalogue origin.');
   context.presentation = 'mobile'; visitorCallback('openProject', context)('art', 'project');
   assert.deepEqual(plain(calls.at(-2)), ['popup', null]); assert.equal(captures.length, 1, 'MOBILE retains its existing origin hook.');
+});
+
+test('public catalogue callback preserves image selection while MOBILE opens continuous reading and WEB keeps focus', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const paths = fixture(), calls = [];
+    paths.positions.set('project', { index: 4, key: 'image:image', attachmentId: 'image', page: 3 });
+    const context = { profileId: 'creator', projectId: null, presentation, catalogueReady: true, catalogueScope: 'creator:guest',
+      location: { pathname: '/portalite', search: '', hash: '' }, desktopCatalogueOrigin: { current: null },
+      setPortalPopup: value => calls.push(['popup', value]), setPortalNavigationRequest() {},
+      captureCatalogueReaderOrigin: () => null, document: { querySelector: () => null },
+      projectReturn: { open: (...args) => calls.push(['open', ...args]) },
+      portfolioProjectPath: (_profile, category, project) => `/portalite/c/${category}/${project}`, handleFromPath: () => 'portalite',
+      withCataloguePageTarget: paths.withCataloguePageTarget };
+    visitorCallback('openProject', context)('art', 'project');
+    assert.deepEqual(plain(calls.at(-1)), ['open', `/portalite/c/art/project?media=image&page=3${presentation === 'mobile' ? '' : '&view=page'}`, 'project']);
+    assert.equal(calls.filter(call => call[0] === 'popup').length, presentation === 'mobile' ? 1 : 0);
+    paths.positions.set('project', { index: 4, key: 'pdf:page:3', attachmentId: 'pdf', page: 3 });
+    visitorCallback('openProject', context)('art', 'project');
+    assert.equal(calls.at(-1)[1], '/portalite/c/art/project?media=pdf&page=3&view=page');
+  }
 });
 
 test('public WEB Back returns to its captured catalogue only within the same creator/account scope', () => {

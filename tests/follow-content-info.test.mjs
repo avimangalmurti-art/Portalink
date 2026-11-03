@@ -91,12 +91,12 @@ function fixture({ guest = false, reduce = false, appReduce = false, hasOptions 
     unmount, reopen() { unmount(); slots.length = 0; dom.clear(); mount(); } };
 }
 
-test('Follow popup uses real content and exactly comments/bookmark/repost, with synchronous existing callbacks', () => {
+test('Follow popup uses real content and exactly comments/bookmark, with synchronous existing callbacks', () => {
   const h = fixture(), all = nodes(h.tree), group = all.find(node => node.props.role === 'group'), buttons = nodes(group).filter(node => node.type === 'button');
   assert.equal(all.find(node => node.type === 'h2').props.children, 'Real title'); assert.equal(all.find(node => node.type === 'formatted').props.text, 'First paragraph\n\nSecond paragraph');
-  assert.equal(buttons.length, 3); assert.deepEqual(buttons.map(button => nodes(button).find(node => node.type === 'span').props.children), [7, 12, 4]); assert.equal(buttons[1].props['aria-pressed'], true);
+  assert.equal(buttons.length, 2); assert.deepEqual(buttons.map(button => button.props['aria-label']), ['Comments: Real title', 'Bookmark: Real title']); assert.deepEqual(buttons.map(button => nodes(button).find(node => node.type === 'span').props.children), [7, 12]); assert.equal(buttons[1].props['aria-pressed'], true);
   buttons.forEach(button => button.props.onClick()); all.find(node => node.props['aria-label'] === 'Content options').props.onClick();
-  assert.deepEqual(h.calls, ['comments', 'save', 'repost', 'options']); assert.equal(h.timers.size, 0); assert.equal(all.some(node => /close/i.test(node.props['aria-label'] ?? '')), false); h.unmount();
+  assert.deepEqual(h.calls, ['comments', 'save', 'options']); assert.equal(h.timers.size, 0); assert.equal(all.some(node => /close/i.test(node.props['aria-label'] ?? '')), false); h.unmount();
 });
 
 test('reading-only information has no engagement footer or comment read for guests and signed-in viewers', () => {
@@ -163,5 +163,5 @@ test('reader preexisting inert state is preserved and guests retain the synchron
 
 test('search preview omits unavailable three-dot menu while keeping content and engagement', () => {
   const h = fixture({ hasOptions: false }), all = nodes(h.tree);
-  assert.equal(all.some(node => node.props['aria-label'] === 'Content options'), false); assert.equal(all.find(node => node.type === 'h2').props.children, 'Real title'); assert.equal(nodes(all.find(node => node.props.role === 'group')).filter(node => node.type === 'button').length, 3); h.unmount();
+  assert.equal(all.some(node => node.props['aria-label'] === 'Content options'), false); assert.equal(all.find(node => node.type === 'h2').props.children, 'Real title'); assert.equal(nodes(all.find(node => node.props.role === 'group')).filter(node => node.type === 'button').length, 2); h.unmount();
 });

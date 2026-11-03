@@ -4,6 +4,7 @@ import { useProfileData } from '../../contexts/ProfileDataContext';
 import type { ProfileService } from '../../services/interfaces';
 import type { Profile } from '../../types/domain';
 import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
+import { usePresentation, type Presentation } from '../../presentation/usePresentation';
 
 type DensityState = {
   columns: number;
@@ -34,6 +35,11 @@ function ownerState(service: ProfileService, id: string, columns: unknown): Dens
 
 function notify(state: DensityState) {
   state.listeners.forEach(listener => listener());
+}
+
+function storedColumns(key: string): number | undefined {
+  try { const stored = localStorage.getItem(key); return stored === null ? undefined : Number(stored); }
+  catch { return undefined; }
 }
 
 async function savePending(state: DensityState, service: ProfileService, id: string, invalidateProfiles: () => void) {
@@ -67,7 +73,7 @@ async function savePending(state: DensityState, service: ProfileService, id: str
   }
 }
 
-/** Profile layout is shared with visitors; Home keeps a separate device preference. */
+/** WEB keeps the authored profile layout; MOBILE and Home have separate device preferences. */
 export function useProjectGridDensity(
   profile: Pick<Profile, 'id' | 'projectGridColumns'> | null,
   canSave: boolean,
@@ -75,25 +81,36 @@ export function useProjectGridDensity(
 ) {
   const { profiles } = useServices();
   const { invalidateProfiles } = useProfileData();
+  const presentation = usePresentation();
+  const isMobile = presentation === 'mobile';
   const profileId = profile?.id ?? null;
-  const homeKey = `portalink.home-grid-columns:${profileId ?? 'guest'}`;
-  const saveProfile = canSave && scope === 'profile';
+  // The existing Home key belongs to WEB so its saved choice survives this split.
+  const homeKey = `portalink.home-grid-columns:${isMobile ? 'mobile:' : ''}${profileId ?? 'guest'}`;
+  const mobileProfileKey = `portalink.profile-grid-columns:mobile:${profileId ?? 'guest'}`;
+  const saveProfile = canSave && scope === 'profile' && !isMobile;
   const canonicalColumns = normalizeProjectGridColumns(profile?.projectGridColumns);
   const [, render] = useState(0);
+  // A new profile/service starts a new visitor view; resizing keeps both slots.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const visitorStates = useMemo(() => new Map<Presentation, DensityState>(), [profiles, profileId, canSave, scope]);
   const state = useMemo(() => {
     if (scope === 'home') {
-      let value: number | undefined;
-      try { const stored = localStorage.getItem(homeKey); if (stored !== null) value = Number(stored); } catch { /* Device preference is optional. */ }
-      return ownerState(profiles, `home:${profileId ?? 'guest'}`, value);
+      return ownerState(profiles, `home:${presentation}:${profileId ?? 'guest'}`, storedColumns(homeKey));
     }
-    return canSave && profileId
-    ? ownerState(profiles, profileId, canonicalColumns)
-    : createState(canonicalColumns);
+    if (canSave && profileId) return isMobile
+      ? ownerState(profiles, `profile:mobile:${profileId}`, storedColumns(mobileProfileKey))
+      : ownerState(profiles, profileId, canonicalColumns);
+    let visitor = visitorStates.get(presentation);
+    if (!visitor) {
+      visitor = createState(isMobile ? storedColumns(mobileProfileKey) : canonicalColumns);
+      visitorStates.set(presentation, visitor);
+    }
+    return visitor;
   },
   // Canonical refreshes hydrate below; they must not recreate a visitor pinch
   // or discard an owner write when the profile cache is invalidated.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [profiles, profileId, canSave, scope]);
+  [profiles, profileId, canSave, scope, presentation, visitorStates]);
 
   useEffect(() => {
     const listener = () => render(revision => revision + 1);
@@ -103,7 +120,7 @@ export function useProjectGridDensity(
 
   const { columns, saving, saveError } = state;
   useEffect(() => {
-    if (scope === 'home' || state.previewing) return;
+    if (scope === 'home' || isMobile || state.previewing) return;
     if (state.localChoice) {
       // Ignore old refetches until the service has echoed the latest confirmed
       // owner choice. Visitors' local zoom is never written to the profile.
@@ -114,7 +131,7 @@ export function useProjectGridDensity(
       state.columns = canonicalColumns;
       notify(state);
     }
-  }, [state, canonicalColumns, canSave, columns, saving, saveError, scope]);
+  }, [state, canonicalColumns, canSave, columns, saving, saveError, scope, isMobile]);
 
   const setColumns = useCallback((value: number) => {
     const next = normalizeProjectGridColumns(value);
@@ -125,11 +142,13 @@ export function useProjectGridDensity(
     state.saveError = null;
     if (scope === 'home') {
       try { localStorage.setItem(homeKey, String(next)); } catch { /* Keep the in-memory choice. */ }
+    } else if (isMobile && canSave && profileId) {
+      try { localStorage.setItem(mobileProfileKey, String(next)); } catch { /* Keep the in-memory choice. */ }
     }
     if (saveProfile && profileId) state.pending = next;
     notify(state);
     if (saveProfile && profileId) void savePending(state, profiles, profileId, invalidateProfiles);
-  }, [state, saveProfile, profileId, profiles, invalidateProfiles, scope, homeKey]);
+  }, [state, saveProfile, profileId, profiles, invalidateProfiles, scope, homeKey, isMobile, canSave, mobileProfileKey]);
 
   const retry = useCallback(() => {
     if (!saveProfile || !profileId || !state.saveError) return;

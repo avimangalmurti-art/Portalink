@@ -40,7 +40,7 @@ interface SitesEnvironment {
   RUM_OWNER_PROFILE_ID?: string
 }
 
-type EngagementKind = 'like' | 'save' | 'repost'
+type EngagementKind = 'like' | 'save'
 type AuthenticatedUser = {
   id: string
   email?: string
@@ -55,7 +55,7 @@ type Target = {
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim() ?? ''
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? ''
-const ENGAGEMENT_KINDS: EngagementKind[] = ['like', 'save', 'repost']
+const ENGAGEMENT_KINDS: EngagementKind[] = ['like', 'save']
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
@@ -232,6 +232,7 @@ async function interactionRecords(db: D1Database, targets: Target[], user: Authe
       SELECT e.project_id, e.attachment_id, e.page_index, e.kind, COUNT(*) AS total,
         MAX(CASE WHEN e.account_id = ? THEN 1 ELSE 0 END) AS own
       FROM requested r JOIN media_engagements e USING(project_id, attachment_id, page_index)
+      WHERE e.kind IN ('like', 'save')
       GROUP BY e.project_id, e.attachment_id, e.page_index, e.kind`)
       .bind(...values, user?.id ?? '').all<{ project_id: string; attachment_id: string; page_index: number; kind: EngagementKind; total: number; own: number }>(),
     db.prepare(`${requested}, ranked AS (
@@ -242,9 +243,9 @@ async function interactionRecords(db: D1Database, targets: Target[], user: Authe
   ]);
   return targets.map((target) => {
     const matches = (row: { project_id: string; attachment_id: string; page_index: number }) => row.project_id === target.projectId && row.attachment_id === target.attachmentId && row.page_index === target.pageIndex;
-    const counts = { like: 0, save: 0, repost: 0 };
-    const engaged = { like: false, save: false, repost: false };
-    for (const row of (engagements.results ?? []).filter(matches)) {
+    const counts = { like: 0, save: 0 };
+    const engaged = { like: false, save: false };
+    for (const row of (engagements.results ?? []).filter(row => matches(row) && ENGAGEMENT_KINDS.includes(row.kind))) {
       counts[row.kind] = Number(row.total);
       engaged[row.kind] = Boolean(row.own);
     }

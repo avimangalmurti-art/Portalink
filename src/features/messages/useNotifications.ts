@@ -15,6 +15,7 @@ export type NotificationsState = {
   /** Local completion time of a successful service fetch. */
   updatedAt: number | null;
   markRead: (id: string) => Promise<boolean>;
+  deleteNotifications: (ids: readonly string[]) => Promise<string[]>;
   markAllRead: () => Promise<void>;
   retry: () => void;
   refresh: () => Promise<boolean>;
@@ -49,6 +50,7 @@ export function useNotifications({ mobileContinuity = false }: NotificationsOpti
   const [loadedScope, setLoadedScope] = useState<typeof scope | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const pendingRef = useRef(new Set<string>());
+  const deletingRef = useRef(new Set<string>());
   const request = useRef(0);
   const accountRef = useRef(account);
   accountRef.current = account;
@@ -58,6 +60,7 @@ export function useNotifications({ mobileContinuity = false }: NotificationsOpti
 
   const load = useCallback((background = false): Promise<boolean> => {
     if (!mountedRef.current || scopeRef.current !== scope) return Promise.resolve(false);
+    if (deletingRef.current.size) return Promise.resolve(false);
     if (mobileContinuity) {
       const existing = mobileFlightRef.current;
       if (existing?.scope === scope) return existing.promise;
@@ -146,6 +149,7 @@ export function useNotifications({ mobileContinuity = false }: NotificationsOpti
     setLoadedScope(null);
     setUpdatedAt(null);
     pendingRef.current = new Set();
+    deletingRef.current = new Set();
     setPendingIds(new Set());
     setMutationError(null);
     setIsMarkingAll(false);
@@ -172,7 +176,7 @@ export function useNotifications({ mobileContinuity = false }: NotificationsOpti
   async function markRead(id: string) {
     // Acknowledging rows from an older snapshot must not cancel a foreground
     // refresh and strand it in loading. A ref also protects retained callbacks.
-    if (!mountedRef.current || !account || statusRef.current === 'loading' || scopeRef.current !== scope || loadedScope !== scope || (mobileContinuity && snapshotScopeRef.current !== scope) || pendingRef.current.has(id)) return false;
+    if (!mountedRef.current || !account || statusRef.current === 'loading' || scopeRef.current !== scope || loadedScope !== scope || (mobileContinuity && snapshotScopeRef.current !== scope) || markingAllRef.current || pendingRef.current.has(id)) return false;
     const entry = items.find(item => item.id === id);
     if (!entry) return false;
     if (!entry.isUnread) return true;
@@ -199,7 +203,7 @@ export function useNotifications({ mobileContinuity = false }: NotificationsOpti
   }
 
   async function markAllRead() {
-    if (!mountedRef.current || !account || statusRef.current === 'loading' || scopeRef.current !== scope || loadedScope !== scope || (mobileContinuity && snapshotScopeRef.current !== scope) || markingAllRef.current || !items.some((item) => item.isUnread)) return;
+    if (!mountedRef.current || !account || statusRef.current === 'loading' || scopeRef.current !== scope || loadedScope !== scope || (mobileContinuity && snapshotScopeRef.current !== scope) || pendingRef.current.size || markingAllRef.current || !items.some((item) => item.isUnread)) return;
     markingAllRef.current = true;
     setIsMarkingAll(true);
     setMutationError(null);
@@ -224,6 +228,39 @@ export function useNotifications({ mobileContinuity = false }: NotificationsOpti
     }
   }
 
+  async function deleteNotifications(ids: readonly string[]): Promise<string[]> {
+    const current = () => mountedRef.current && scopeRef.current === scope && accountRef.current === account;
+    if (!current() || !account || statusRef.current === 'loading' || loadedScope !== scope || markingAllRef.current
+      || (mobileContinuity && snapshotScopeRef.current !== scope)) return [];
+    const selected = new Set(ids);
+    const targets = items.filter(item => selected.has(item.id) && !pendingRef.current.has(item.id)).map(({ id, timestamp }) => ({ id, timestamp }));
+    if (!targets.length) return [];
+    targets.forEach(target => { pendingRef.current.add(target.id); deletingRef.current.add(target.id); });
+    setPendingIds(value => new Set([...value, ...targets.map(target => target.id)]));
+    setMutationError(null);
+    // A list fetched before deletion must never resurrect a confirmed removal.
+    request.current += 1;
+    if (mobileContinuity) { mobileFlightRef.current = null; setIsRefreshing(false); }
+    try {
+      const removed = await service.deleteNotifications(targets);
+      if (!current()) return [];
+      const confirmed = new Set(removed.filter(result => targets.some(target => target.id === result.id && target.timestamp === result.timestamp))
+        .map(target => JSON.stringify([target.id, target.timestamp])));
+      const confirmedIds = targets.filter(target => confirmed.has(JSON.stringify([target.id, target.timestamp]))).map(target => target.id);
+      setItems(value => value.filter(item => !confirmed.has(JSON.stringify([item.id, item.timestamp]))));
+      if (confirmedIds.length < targets.length) setMutationError('Some notifications could not be deleted. Refresh and try again.');
+      return confirmedIds;
+    } catch {
+      if (current()) setMutationError('Notifications could not be deleted. Please try again.');
+      return [];
+    } finally {
+      if (current()) {
+        targets.forEach(target => { pendingRef.current.delete(target.id); deletingRef.current.delete(target.id); });
+        setPendingIds(value => { const next = new Set(value); targets.forEach(target => next.delete(target.id)); return next; });
+      }
+    }
+  }
+
   const isCurrent = loadedScope === scope;
   const visibleItems = isCurrent ? items : [];
   const unreadCount = visibleItems.filter(entry => entry.isUnread).length;
@@ -238,6 +275,7 @@ export function useNotifications({ mobileContinuity = false }: NotificationsOpti
     isRefreshing: mobileContinuity && isRefreshing && mobileFlightRef.current?.scope === scope,
     updatedAt: isCurrent && (status === 'success' || (mobileContinuity && snapshotScopeRef.current === scope)) ? updatedAt : null,
     markRead,
+    deleteNotifications,
     markAllRead,
     retry: () => void load(),
     refresh: () => load(),

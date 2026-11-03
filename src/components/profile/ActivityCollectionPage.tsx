@@ -2,7 +2,7 @@ import { likesCapability } from '../../features/engagement/capabilities';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React from 'react';
 import { ProjectPreviewCard } from './ProjectPreviewCard';
-import { ArrowLeftIcon, BookmarkIcon, HeartIcon, Repeat2Icon } from 'lucide-react';
+import { ArrowLeftIcon, BookmarkIcon, HeartIcon } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import { EngagementBar } from '../../features/engagement/EngagementBar';
 import { useActivityCollection } from '../../features/engagement/useActivityCollection';
@@ -16,7 +16,7 @@ import { Link } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 
 /**
- * One activity collection: Likes, Saved, or Reposts.
+ * One activity collection: Likes or Saved.
  *
  * **Activity is private.** It belongs to the account that owns the profile and is
  * never published to visitors — the engagement service is viewer-scoped and has no
@@ -31,8 +31,7 @@ import { buildPath } from '../../app/routes';
  */
 const ICONS: Record<EngagementKind, typeof HeartIcon> = {
   like: HeartIcon,
-  save: BookmarkIcon,
-  repost: Repeat2Icon
+  save: BookmarkIcon
 };
 type ActivityCollectionProps = {
   kind: EngagementKind;

@@ -121,6 +121,40 @@ test('anonymous public reads use anonymous RLS and expose no account-specific st
   } finally { s.close(); }
 });
 
+test('historical page reposts stay stored but never appear in single or batched interaction reads', async () => {
+  const s = setup();
+  try {
+    const seed = s.sqlite.prepare('INSERT INTO media_engagements(account_id,project_id,attachment_id,page_index,kind) VALUES (?,?,?,?,?)');
+    for (const [account, kind] of [['alice', 'repost'], ['bob', 'repost'], ['alice', 'like'], ['bob', 'save']]) {
+      seed.run(account, 'public', 'pdf', 0, kind);
+    }
+    const record = await (await s.readTarget(target(), 'alice')).json();
+    assert.deepEqual(record.counts, { like: 1, save: 1 });
+    assert.deepEqual(record.engaged, { like: true, save: false });
+    const batch = await (await s.batch([target()], 'alice')).json();
+    assert.deepEqual(batch.items[0].record.counts, record.counts);
+    assert.deepEqual(batch.items[0].record.engaged, record.engaged);
+    assert.equal(s.sqlite.prepare("SELECT count(*) AS n FROM media_engagements WHERE kind='repost'").get().n, 2);
+    assert.equal(s.executions.filter(entry => entry.kind === 'write').length, 0);
+  } finally { s.close(); }
+});
+
+test('stale repost create and remove requests are rejected without changing historical page interactions', async () => {
+  const s = setup();
+  try {
+    s.sqlite.prepare('INSERT INTO media_engagements(account_id,project_id,attachment_id,page_index,kind) VALUES (?,?,?,?,?)')
+      .run('alice', 'public', 'pdf', 0, 'repost');
+    for (const engaged of [true, false]) {
+      const response = await s.request(`${base}/engagement`, { account: 'alice', method: 'POST', body: { ...target(), kind: 'repost', engaged } });
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).error, 'Invalid engagement action.');
+    }
+    assert.equal(s.sqlite.prepare("SELECT count(*) AS n FROM media_engagements WHERE kind='repost'").get().n, 1);
+    assert.equal(s.executions.filter(entry => entry.kind === 'write').length, 0);
+    assert.equal((await s.request(`${base}/engagement`, { account: null, method: 'POST', body: { ...target(), kind: 'repost', engaged: true } })).status, 401);
+  } finally { s.close(); }
+});
+
 test('private, hidden-project and hidden-portal access follows the verified caller policies', async () => {
   const s = setup();
   try {

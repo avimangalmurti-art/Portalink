@@ -7,6 +7,7 @@ import type { NavigationDestination } from '../components/navigation';
 import type { Id } from '../types/domain';
 import { beginProjectContinuity } from '../utils/projectContinuity';
 import { withCataloguePageTarget } from '../features/profile/cataloguePageNavigation';
+import type { Presentation } from '../presentation/usePresentation';
 
 /**
  * The URL, read as a destination.
@@ -56,7 +57,7 @@ export type AppRoute = {
   categoryId: Id;
   projectId: Id;
 } | {
-  /** One of the viewer's own engagement collections: Likes, Saved, Reposts. */
+  /** One of the viewer's own engagement collections: Likes or Saved. */
   kind: 'activity';
   profileId: Id;
   activityKind: EngagementKind;
@@ -288,7 +289,7 @@ export function useAppRoute(): AppRoute {
  * Navigation, expressed as destinations rather than state mutations. Every path
  * comes from the route map, so a template only ever exists in one place.
  */
-export function useRouteNavigator() {
+export function useRouteNavigator(presentation: Presentation = 'web') {
   const navigate = useNavigate();
   const location = useLocation();
   const locationRef = useRef(location);
@@ -359,7 +360,7 @@ export function useRouteNavigator() {
         profileId,
         categoryId,
         projectId
-      }), projectId), {
+      }), projectId, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), {
         replace,
         viewTransition
       });
@@ -379,16 +380,17 @@ export function useRouteNavigator() {
         profileId,
         categoryId,
         projectId
-      }), projectId), {
+      }), projectId, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), {
         replace,
         viewTransition
       });
     },
-    /** The URL says `likes`/`saved`/`reposts`; the domain says like/save/repost. */
-    activity: (profileId: Id, activityKind: EngagementKind) => navigate(buildPath('activity', {
-      profileId,
-      activityKind: activitySlugForKind(activityKind)
-    })),
+    /** The URL says `likes`/`saved`; the domain says like/save. */
+    activity: (profileId: Id, activityKind: EngagementKind) => {
+      const slug = activitySlugForKind(activityKind);
+      if (!slug) return;
+      navigate(buildPath('activity', { profileId, activityKind: slug }));
+    },
     item: (projectId: Id) => navigate(buildPath('productDetail', {
       productId: projectId
     })),
@@ -424,7 +426,7 @@ export function useRouteNavigator() {
       replace,
       viewTransition
     })
-  }), [navigate]);
+  }), [navigate, presentation]);
 }
 
 /**

@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookmarkIcon, MessageCircleIcon, MoreHorizontalIcon, Repeat2Icon } from 'lucide-react';
+import { BookmarkIcon, MessageCircleIcon, MoreHorizontalIcon } from 'lucide-react';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { useSheetMotion } from '../../presentation/motion/useSheetMotion';
@@ -61,10 +61,10 @@ export function FollowContentInfoPopup({ projectId, title, description, creatorH
         {showEngagement && <footer className="follow-info-engagement">
           {engagementContent ?? <><div role="group" aria-label={`Engagement for ${title}`}>
             <button type="button" data-ui-shape="action" aria-label={`Comments: ${title}`} onClick={onComments}><InterfaceIcon icon={MessageCircleIcon} />{comments.phase === 'ready' && <span>{comments.totalCount}</span>}</button>
-            {(['save', 'repost'] as const).map(kind => <button key={kind} type="button" data-ui-shape="action" aria-label={`${kind === 'save' ? 'Bookmark' : 'Repost'}: ${title}`} aria-pressed={engagement.isEngaged(kind)}
-              disabled={!onRequireAccount && (engagement.isPending(kind) || engagement.isResolving || engagement.resolveError !== null)} onClick={() => onRequireAccount ? onRequireAccount() : engagement.toggle(kind)}>
-              <InterfaceIcon icon={kind === 'save' ? BookmarkIcon : Repeat2Icon} fill={engagement.isEngaged(kind) ? 'currentColor' : 'none'} />{engagement.count(kind) !== null && <span>{engagement.count(kind)}</span>}
-            </button>)}
+            <button type="button" data-ui-shape="action" aria-label={`Bookmark: ${title}`} aria-pressed={engagement.isEngaged('save')}
+              disabled={!onRequireAccount && (engagement.isPending('save') || engagement.isResolving || engagement.resolveError !== null)} onClick={() => onRequireAccount ? onRequireAccount() : engagement.toggle('save')}>
+              <InterfaceIcon icon={BookmarkIcon} fill={engagement.isEngaged('save') ? 'currentColor' : 'none'} />{engagement.count('save') !== null && <span>{engagement.count('save')}</span>}
+            </button>
           </div>
           <EngagementFeedback engagement={engagement} /></>}
         </footer>}

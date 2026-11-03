@@ -839,7 +839,7 @@ function openProfileOptions(h) {
   if (toggle) toggle.props.onClick();
   else {
     assert.equal(h.isMobile, true, 'WEB retains its existing Profile options disclosure');
-    if (h.isOwner) assert.ok(h.action('viewAsVisitor'), 'MOBILE owner delegates to the standard floating Actions button');
+    if (h.isOwner) assert.ok(h.action('settings'), 'MOBILE owner delegates to the standard floating Actions button');
     else assert.equal(h.mobileActions, null, 'MOBILE other-creator profiles use their direct controls without a context sheet');
   }
   return h.render();
@@ -1463,9 +1463,9 @@ test('WEB header density previews and commits the existing wall value without du
     assert.equal(sliders()[0].props.columns, 13);
     assert.equal(wall(h.render()).props.columns, 13);
     const { DensitySeparator } = compile('../src/components/ui/DensitySeparator.tsx', name => name === 'react'
-      ? { ...React, useRef: current => ({ current }), useEffect() {} }
+      ? { ...React, useRef: current => ({ current }), useEffect() {}, useLayoutEffect() {} }
       : name.endsWith('/projectGridDensity') ? gridDensity : name.endsWith('/usePresentation') ? { usePresentation: () => 'web' } : {});
-    const range = DensitySeparator(sliders()[0].props);
+    const range = nodes(DensitySeparator(sliders()[0].props)).find(node => node.type === 'input');
     assert.equal(range.type, 'input');
     assert.equal(range.props.type, 'range');
     assert.equal(range.props.min, 1);

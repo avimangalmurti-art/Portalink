@@ -33,6 +33,10 @@
 .journey-portal { display: block; width: fit-content; max-width: 100%; min-height: 44px; margin-top: 2px; padding: 4px 0; text-align: left; font-size: 13px; line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
 .journey-pair-grid .journey-portal { font-weight: 400; }
 .journey-pair { margin-top: 24px; }
+[data-presentation='mobile'] .journey-pair-cover :is(img, video) {
+  object-fit: cover;
+  object-position: center;
+}
 
 /* Both mobile entries pin the same Timeline controls inside the identity header. */
 #root .codex-shell[data-presentation='mobile'] .timeline-header-controls {

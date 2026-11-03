@@ -1,7 +1,6 @@
 import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
 import { DensitySeparator } from './ui/DensitySeparator';
 import { rememberAccount } from '../features/follows/recentAccounts';
-import { visitorPreviewPath } from '../features/profile/visitorPreview';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
 import { DeferredSurface } from './ui/DeferredDialog';
 import { ScreenBack, useMobileScreenActive } from '../presentation/mobile/MobileBackNavigation';
@@ -577,7 +576,6 @@ export function UserProfilePage({
     return address?.handle ? new URL(portfolioPath(profile.id, address.handle), PUBLIC_ORIGIN).href : publicProfileUrl;
   };
   const profileActions = contextActions('profile', { signedIn: !needsAccount(viewerRole), owner: showsOwnerTools }, { title: showsOwnerTools ? 'Your profile' : profile.name, handlers: {
-    viewAsVisitor: showsOwnerTools && !isSharedView ? () => window.location.assign(visitorPreviewPath(profile.id)) : undefined,
     editProfile: onEditProfile, newProject: onPublishProject,
     thenNow: showsOwnerTools && isJourney ? () => setPairSelection('') : undefined,
     share: !profile.isPrivate ? openShare : undefined,

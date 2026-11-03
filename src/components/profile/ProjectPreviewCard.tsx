@@ -76,7 +76,7 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
     rememberCataloguePagePosition(project.id, position);
     setSelection({ projectId: project.id, position });
   }, [project.id, position, remembered]);
-  const targetHref = href && !cover ? withCataloguePageTarget(href, project.id, position) : href;
+  const targetHref = href && !cover ? withCataloguePageTarget(href, project.id, position, isMobile ? 'scroll' : 'focused') : href;
   const hasExtension = Boolean(showCreator || metrics || showEngagementMetrics || footerEnd);
   useEffect(() => { if (!preview.expanded) onCollapse?.(); }, [preview.expanded, onCollapse]);
   const openProps = {

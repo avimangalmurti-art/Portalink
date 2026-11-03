@@ -16,6 +16,7 @@ import { JustifiedImageWall } from '../profile/JustifiedImageWall';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 import { getProjectAspectRatio } from '../../utils/projectPresentation';
+import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
 import { useAuth } from '../../contexts/AuthContext';
@@ -148,6 +149,7 @@ export function HomeFeed({
   const locationColumns = locationGridChoice ?? (locationGridWidth > 0
     ? Math.max(2, Math.min(3, Math.floor((locationGridWidth + 4) / 154)))
     : 3);
+  const chooseLocationColumns = useCallback((value: number) => setLocationGridChoice(normalizeProjectGridColumns(value)), []);
 
   const projects = useMemo(() => {
     const ordered = feed.featured ? [feed.featured, ...feed.projects] : feed.projects;
@@ -266,6 +268,7 @@ export function HomeFeed({
         className="feed-edge-fade scrollbar-hidden relative z-10 min-h-0 flex-1 overflow-y-auto px-2 pb-7"
       >
         <div ref={showMobileSearch ? refreshMotion.contentRef : undefined} data-feed-scroll-content="" className="relative pt-3">
+          {isMobile && locationId && <div data-city-project-density=""><DensitySeparator columns={locationColumns} onPreview={chooseLocationColumns} onChange={chooseLocationColumns} label="City projects per row" /></div>}
           {showMobileSearch && <header className="mobile-home-search-header"><div className="mobile-screen-action-row">
               {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
               <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
@@ -284,7 +287,7 @@ export function HomeFeed({
               ? <ErrorState title="Your Home layout could not be loaded" description={ownerLayout.error ?? undefined} onRetry={ownerLayout.retry} />
               : !loadFailed ? <LoadingState kind="grid" columns={density.columns} label="Loading your Home layout" /> : null)}
             {!loadFailed && feed.status === 'loading' && projects.length === 0
-              ? <LoadingState kind="grid" columns={density.columns} label="Loading your Home feed" />
+              ? <LoadingState kind="grid" columns={isMobile && locationId ? locationColumns : density.columns} label="Loading your Home feed" />
               : null}
             {feed.status === 'error'
               ? <ErrorState
@@ -307,8 +310,9 @@ export function HomeFeed({
               ? locationId ? <JustifiedImageWall
                   label="Home projects"
                   key={viewerProfileId ?? 'guest'}
-                  columns={locationId ? locationColumns : density.columns}
-                  onColumnsChange={locationId ? setLocationGridChoice : density.setColumns}
+                  columns={locationColumns}
+                  onColumnsChange={chooseLocationColumns}
+                  showDensityControl={false}
                   items={cells.map((cell, index) => ({
                     key: cell.key,
                     ratio: getProjectAspectRatio(projects[index].project),

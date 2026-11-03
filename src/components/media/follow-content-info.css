@@ -31,7 +31,7 @@
 [data-follow-info-layer] .follow-info-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 16px; line-height: 1.6; }
 [data-follow-info-layer] .follow-info-description p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 [data-follow-info-layer] .follow-info-engagement { flex: none; border-top: 1px solid var(--hairline-strong); padding-top: 16px; }
-[data-follow-info-layer] .follow-info-engagement [role='group'] { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+[data-follow-info-layer] .follow-info-engagement [role='group'] { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 [data-follow-info-layer] .follow-info-engagement [role='group'] button { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 16px; background: color-mix(in srgb, var(--text-primary) 8%, transparent); font-variant-numeric: tabular-nums; }
 [data-follow-info-layer] button:active { background: color-mix(in srgb, var(--text-primary) 16%, transparent); }
 [data-follow-info-layer] button:disabled { opacity: .5; }

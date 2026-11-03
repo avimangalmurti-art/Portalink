@@ -159,7 +159,7 @@ test('legacy public Settings hand off to durable public Settings before renderin
       state: { settingsReturn: `/share/${profileId}/c/portal/project?media=paper&page=3&visitorPreview=1` } });
     h.render(); h.settle();
     assert.equal(h.app, null, `${presentation}/${authenticated}/${path}`);
-    assert.deepEqual(h.trace.filter(item => item[0] === 'replace'), [['replace', `/share/${profileId}/c/portal/project?page=3&media=paper&visitorPreview=1&settings=1&section=account&panel=appearance&security=1`]]);
+    assert.deepEqual(h.trace.filter(item => item[0] === 'replace'), [['replace', `/share/${profileId}/c/portal/project?page=3&media=paper&settings=1&section=account&panel=appearance&security=1`]]);
     assert.equal(h.trace.some(item => item[0] === 'warm'), false);
     assert.equal(h.trace.some(item => item[0] === 'request-auth'), false); h.dispose();
   }

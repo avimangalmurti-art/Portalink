@@ -8,7 +8,7 @@ import { readMediaInteraction } from './mediaInteractionBatch';
 import { readSharedReturnPath } from '../auth/registration';
 import { PUBLIC_ORIGIN } from '../citations/publicOrigin';
 
-export type MediaEngagementKind = 'like' | 'save' | 'repost';
+export type MediaEngagementKind = 'like' | 'save';
 
 export type MediaInteractionTarget = {
   projectId: string;
@@ -40,8 +40,8 @@ type PendingMediaAction = {
 
 const PENDING_ACTION_KEY = 'portalink.pendingMediaAction';
 const EMPTY_RECORD: MediaInteractionRecord = {
-  engaged: { like: false, save: false, repost: false },
-  counts: { like: 0, save: 0, repost: 0 },
+  engaged: { like: false, save: false },
+  counts: { like: 0, save: 0 },
   comments: []
 };
 
@@ -73,7 +73,11 @@ function takePendingAction(key: string): PendingMediaAction | null {
     const raw = window.sessionStorage.getItem(PENDING_ACTION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PendingMediaAction>;
-    if (parsed.targetKey !== key || !['like', 'save', 'repost', 'comment'].includes(parsed.action ?? '')) return null;
+    if (!['like', 'save', 'comment'].includes(parsed.action ?? '')) {
+      window.sessionStorage.removeItem(PENDING_ACTION_KEY);
+      return null;
+    }
+    if (parsed.targetKey !== key) return null;
     window.sessionStorage.removeItem(PENDING_ACTION_KEY);
     return parsed as PendingMediaAction;
   } catch {
@@ -147,6 +151,7 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
   }, [auth, key, target]);
 
   const setEngagement = useCallback(async (kind: MediaEngagementKind, engaged: boolean, replayed = false, isCurrent?: () => boolean) => {
+    if (kind !== 'like' && kind !== 'save') return false;
     if (isCurrent && !isCurrent()) return false;
     if (kind === 'like' && !likesCapability) return false;
     if (!auth.isAuthenticated && !replayed) {

@@ -433,7 +433,7 @@ export interface CommentService {
 }
 
 /**
- * Project engagement: like, save, repost.
+ * Project engagement: like and save.
  *
  * This is the ONE authority on those facts. An earlier `ActivityService` also
  * claimed them — a second contract over the same domain, which could only ever
@@ -459,6 +459,7 @@ export interface CommentService {
  * 4. **`setEngagement` is idempotent.** Asking for a state the viewer is already
  *    in must succeed without double-counting.
  * 5. **A count that cannot be reported is `null`, never `0`.**
+ * 6. Unsupported runtime kinds are refused before authentication or data access.
  */
 export interface EngagementService {
   listProjectParticipants?(projectId: Id, kind: EngagementKind, offset?: number): Promise<Array<{ id: Id; name: string; avatar: string }>>;
@@ -470,8 +471,12 @@ export interface EngagementService {
   listEngagedProjectIds(kind: EngagementKind): Promise<Id[]>;
   listSavedProjectEntries?(): Promise<Array<{projectId: Id; savedAt: string}>>;
 }
+/** The exact inbox revision selected by the viewer, not its source content. */
+export type NotificationDeleteTarget = Pick<Notification, 'id' | 'timestamp'>;
 export interface NotificationService {
   listNotifications(): Promise<Notification[]>;
+  /** Return only the exact revisions confirmed removed from this account's inbox. */
+  deleteNotifications(targets: readonly NotificationDeleteTarget[]): Promise<NotificationDeleteTarget[]>;
   markRead(notificationId: Id): Promise<void>;
   markAllRead(): Promise<void>;
   subscribeToNotifications(onChange: () => void, onStatus?: (connected: boolean) => void): () => void;

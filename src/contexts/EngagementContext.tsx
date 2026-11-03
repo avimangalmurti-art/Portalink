@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from './ServicesContext';
 import { useAuth } from './AuthContext';
-import { EngagementServiceError, isRetryableEngagementCode } from '../types/engagement';
+import { ENGAGEMENT_KINDS, EngagementServiceError, isEngagementKind, isRetryableEngagementCode } from '../types/engagement';
 import type { EngagementErrorCode, EngagementKind, ProjectEngagement } from '../types/engagement';
 import type { Id } from '../types/domain';
 import { interactionIntent } from '../features/auth/interactionIntent';
@@ -21,7 +21,7 @@ import { interactionIntent } from '../features/auth/interactionIntent';
  * - **Optimism is bounded and reversible.** A press applies the viewer's intent
  *   immediately (with its count adjusted only where a count is actually known),
  *   then the SERVICE's answer confirms that kind. A failure restores only that
- *   kind, preserving independent likes, saves, or reposts made in the meantime.
+ *   kind, preserving independent likes or saves made in the meantime.
  * - **Stale answers cannot win.** Every read and every mutation is tagged, and a
  *   response is dropped unless it is still the newest for that project and kind.
  * - **Guests are gated, not lied to.** An unauthenticated press mutates nothing
@@ -74,13 +74,12 @@ type EngagementStore = {
   canEngage: boolean;
 };
 const EngagementContext = createContext<EngagementStore | null>(null);
-function flagFor(kind: EngagementKind): 'isLiked' | 'isSaved' | 'isReposted' {
-  return kind === 'like' ? 'isLiked' : kind === 'save' ? 'isSaved' : 'isReposted';
+function flagFor(kind: EngagementKind): 'isLiked' | 'isSaved' {
+  return kind === 'like' ? 'isLiked' : 'isSaved';
 }
-function countFor(kind: EngagementKind): 'likeCount' | 'saveCount' | 'repostCount' {
-  return kind === 'like' ? 'likeCount' : kind === 'save' ? 'saveCount' : 'repostCount';
+function countFor(kind: EngagementKind): 'likeCount' | 'saveCount' {
+  return kind === 'like' ? 'likeCount' : 'saveCount';
 }
-const ENGAGEMENT_KINDS: EngagementKind[] = ['like', 'save', 'repost'];
 
 /** A summary for one mutation cannot confirm another kind's concurrent write. */
 function withConfirmedKind(record: ProjectEngagement, confirmed: ProjectEngagement, kind: EngagementKind): ProjectEngagement {
@@ -190,12 +189,12 @@ export function EngagementProvider({ children }: { children: React.ReactNode }) 
     load(projectId);
   }, [isCurrent, load, scope]);
   const toggle = useCallback((projectId: Id, kind: EngagementKind) => {
-    if (!isCurrent()) return;
+    if (!isEngagementKind(kind) || !isCurrent()) return;
     // Gating happens here, once, rather than in each control. The action is not
     // queued for replay: after signing in the viewer presses again deliberately.
     if (!authRef.current.isAuthenticated) {
       authRef.current.requestAuthenticatedDestination(interactionIntent(
-        kind === 'like' ? 'like this project' : kind === 'save' ? 'save this project' : 'repost this project'
+        kind === 'like' ? 'like this project' : 'save this project'
       ));
       return;
     }
@@ -255,6 +254,7 @@ export function EngagementProvider({ children }: { children: React.ReactNode }) 
     knownFor: (kind) => {
       const engaged: Id[] = [];
       const withdrawn: Id[] = [];
+      if (!isEngagementKind(kind)) return { engaged, withdrawn };
       for (const [projectId, entry] of Object.entries(isCurrent() ? entries : {})) {
         if (!entry.record) {
           continue;

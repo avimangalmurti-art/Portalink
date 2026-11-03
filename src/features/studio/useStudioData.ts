@@ -61,6 +61,8 @@ export function useStudioData(category: StudioCategory = 'bookmarks', tab: Studi
     ...savedCreatorStudioRows(creators.data ?? []),
     ...activityStudioRows(activity.notifications),
   ].filter(row => !scope.removed.has(row.id));
+  const currentRows = useRef(allRows);
+  currentRows.current = allRows;
   const sections = studioSections(allRows, category, tab);
   const rows = sections.flatMap(section => section.rows);
 
@@ -126,6 +128,16 @@ export function useStudioData(category: StudioCategory = 'bookmarks', tab: Studi
     return activity.markRead(row.notification.id);
   }
 
+  async function deleteActivity(requested: StudioRow[]): Promise<string[]> {
+    if (!isCurrent()) return [];
+    const selected = new Set(requested.flatMap(row => row.kind === 'activity' ? [JSON.stringify([row.id, row.notification.id, row.notification.timestamp])] : []));
+    const eligible = currentRows.current.filter((row): row is Extract<StudioRow, { kind: 'activity' }> => row.kind === 'activity' && selected.has(JSON.stringify([row.id, row.notification.id, row.notification.timestamp])));
+    if (!eligible.length) return [];
+    const deleted = new Set(await activity.deleteNotifications(eligible.map(row => row.notification.id)));
+    if (!isCurrent()) return [];
+    return eligible.filter(row => deleted.has(row.notification.id)).map(row => row.id);
+  }
+
   function refresh() {
     if (!isCurrent() || scope.pending.size) return;
     if (mobileActivity && category === 'activity') return activity.refresh();
@@ -140,6 +152,6 @@ export function useStudioData(category: StudioCategory = 'bookmarks', tab: Studi
     loadingMore: showsPages && Boolean(currentPages?.loading), loadMoreError: showsPages ? currentPages?.error ?? null : null,
     pendingIds: new Set([...scope.pending, ...[...activity.pendingIds].map(id => `activity:${id}`)]),
     mutationError: scope.error ?? activity.mutationError,
-    unsave, markRead,
+    unsave, markRead, deleteActivity,
   };
 }

@@ -9,11 +9,11 @@ const tick = async () => { for (let index = 0; index < 30; index++) await Promis
 const source = ts.createSourceFile('contentServices.ts', readFileSync(new URL('../src/services/supabase/contentServices.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'discoveryContext');
 
-function fixture({ gate, metadataError, prepare = async () => [{ project: { id: 'one' } }], page = { rows: [{ project: { id: 'one' } }], nextCursor: { id: 'one', publishedAt: '2026-10-01' } }, pageError } = {}) {
+function fixture({ gate, metadataError, prepare = async () => [{ project: { id: 'one' } }], page = { rows: [{ project: { id: 'one' } }], nextCursor: { id: 'one', publishedAt: '2026-10-01' } }, pageError, engagement } = {}) {
   const pageCalls = [], preparations = [], fallback = [], filters = [];
   const records = {
     profiles: { id: 'owner', location: 'City' }, profile_follows: [{ target_profile_id: 'followed' }],
-    project_engagement: [{ project_id: 'one', kind: 'like', created_at: '2026-10-01' }],
+    project_engagement: engagement ?? [{ project_id: 'one', kind: 'like', created_at: '2026-10-01' }],
     discovery_signals: [], discovery_preferences: { home_mode: 'latest' },
   };
   const client = {
@@ -22,6 +22,7 @@ function fixture({ gate, metadataError, prepare = async () => [{ project: { id: 
       const query = {
         select() { return query; }, maybeSingle() { return query; },
         eq(key, value) { filters.push({ table, key, value }); return query; },
+        in(key, value) { filters.push({ table, key, value }); return query; },
         then(resolve, reject) {
           const result = { data: records[table], error: table === 'profile_follows' ? metadataError ?? null : null };
           return Promise.resolve(table === 'profile_follows' ? gate : undefined).then(() => result).then(resolve, reject);
@@ -68,6 +69,14 @@ test('Home prepares its one public page while account ranking reads are pending 
   assert.equal(result.nextCursor.id, 'one');
   assert.equal(h.preparations.length, 1);
   assert.ok(h.filters.filter(row => row.key === 'account_id').every(row => row.value === 'account'));
+});
+
+test('discovery reads and ranking inputs exclude legacy repost rows without changing stored data', async () => {
+  const h = fixture({ engagement: ['like', 'save', 'repost'].map(kind => ({ project_id: 'one', kind, created_at: '2026-10-01' })) });
+  const result = await h.run('home');
+  assert.deepEqual(Array.from(result.sphere.engagement, entry => entry.kind), ['like', 'save']);
+  const filter = h.filters.find(row => row.table === 'project_engagement' && row.key === 'kind');
+  assert.deepEqual(Array.from(filter.value), ['like', 'save']);
 });
 
 test('early cover errors are safely captured while existing account errors retain precedence', async () => {

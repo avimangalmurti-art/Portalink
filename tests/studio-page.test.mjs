@@ -21,10 +21,11 @@ const rows = [
   { kind: 'activity', id: 'activity:n1', title: 'Message', secondary: 'Hello', href: '/messages?conversation=1', notification: { id: 'n1', isUnread: true } },
 ];
 
-function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, presentation = headerHost ? 'mobile' : 'web', hideBack = false, citations = [], extraRows = [] } = {}) {
+function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, presentation = headerHost ? 'mobile' : 'web', hideBack = false, citations = [], extraRows = [], initialRows = rows, deleteActivity = async targets => targets.map(row => row.id) } = {}) {
   let params = new URLSearchParams(initialSearch), cursor = 0, dirty = true, effects = [], tree;
   const slots = [], history = [], calls = [], frames = [];
-  const currentRows = [...rows, ...extraRows];
+  const currentRows = [...initialRows, ...extraRows].map(row => row.kind === 'activity' ? { ...row, notification: { ...row.notification } } : row);
+  const auth = { user: { id: 'a' }, viewerProfileId: 'me', isAuthenticated: true };
   const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
   const react = { ...React,
     useState(initial) { const index = cursor++; slots[index] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[index].value, next => { const value = typeof next === 'function' ? next(slots[index].value) : next; if (!Object.is(value, slots[index].value)) { slots[index].value = value; dirty = true; } }]; },
@@ -35,9 +36,20 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     useLayoutEffect(effect, deps) { return react.useEffect(effect, deps); },
   };
   const management = { editor: { result: null, open: id => calls.push(['edit', id]) } };
-  const data = { status: 'ready', error: null, refresh() {}, updatedAt: 10, hasMore: false, loadingMore: false, loadMoreError: null, pendingIds: new Set(), mutationError: null,
+  const data = { status: 'ready', error: null, refresh() {}, updatedAt: 10, hasMore: false, loadingMore: false, loadMoreError: null, pendingIds: new Set(), mutationError: null, activityRefreshing: false,
     async unsave(row) { calls.push(['unsave', row.id]); currentRows.splice(currentRows.findIndex(item => item.id === row.id), 1); dirty = true; return true; },
     async markRead(row) { calls.push(['mark-read', row.id]); row.notification.isUnread = false; dirty = true; return true; },
+    async deleteActivity(targets) {
+      calls.push(['delete', Array.from(targets, row => row.id)]);
+      const identity = auth.user?.id;
+      const confirmed = await deleteActivity(targets);
+      if (auth.user?.id !== identity) return [];
+      for (let index = currentRows.length - 1; index >= 0; index--) {
+        if (currentRows[index].kind === 'activity' && confirmed.includes(currentRows[index].id)) currentRows.splice(index, 1);
+      }
+      dirty = true;
+      return confirmed;
+    },
   };
   const deps = {
     '../citations/publicOrigin': { PUBLIC_ORIGIN: 'https://portalinknetworks.com' },
@@ -56,7 +68,7 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     'react-router-dom': { useNavigate: () => (path, options) => { history.push({ path, options: { ...options } }); }, useSearchParams: () => [params, (next, options) => { params = new URLSearchParams(next); history.push({ params: String(params), options: { ...options } }); dirty = true; }] },
     'lucide-react': new Proxy({}, { get: (_, key) => key }),
     '../../app/routes': { buildPath },
-    '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'a' }, viewerProfileId: 'me', isAuthenticated: true }) },
+    '../../contexts/AuthContext': { useAuth: () => auth },
     '../../components/media/ProjectCover': { ProjectCover: 'project-cover' },
     '../../components/profile/CreatorAvatar': { CreatorAvatar: 'creator-avatar' },
     '../../utils/copyPublicLink': { copyPublicLink: async value => calls.push(['copy', value]) },
@@ -74,6 +86,7 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
   return { get nodes() { return nodes(render()); }, history, calls, frames, data,
     button(label) { return this.nodes.find(node => node.type === 'button' && node.props['aria-label'] === label); },
     setSearch(value) { params = new URLSearchParams(value); dirty = true; },
+    setAccount(id) { auth.user = id ? { id } : null; dirty = true; },
     rerender() { dirty = true; return render(); },
   };
 }
@@ -206,4 +219,112 @@ test('row copying and batch sharing emit official public links from a preview ho
   nodes(toolbar).find(node => node.type === 'button' && nodes(node).some(child => child.type === 'span' && child.props.children?.[0] === 'Share (')).props.onClick();
   assert.equal(page.calls.find(call => call[0] === 'share')[1].url, 'https://portalinknetworks.com/share/me/c/c1/p1\nhttps://portalinknetworks.com/share/me/c/c1/p2');
  }
+});
+
+const inboxRows = (count, isUnread = false) => Array.from({ length: count }, (_, index) => ({
+  kind: 'activity', id: `activity:inbox-${index}`, title: `Update ${index}`, secondary: `Inbox detail ${index}`,
+  notification: { id: `inbox-${index}`, isUnread },
+}));
+const selectAll = page => {
+  page.button('Select items').props.onClick();
+  page.nodes.find(node => node.type === 'button' && node.props.children === 'Select all shown').props.onClick();
+};
+
+test('read and unavailable-target Activity rows expose destructive single deletion on MOBILE and WEB', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const page = pageHarness({ initialSearch: 'collection=activity', presentation, initialRows: inboxRows(1) });
+    const row = page.nodes.find(node => node.type === 'studio-row');
+    assert.equal(row.props.onOpen, undefined);
+    assert.deepEqual(Array.from(row.props.actions, action => action.id), ['delete']);
+    assert.equal(row.props.actions[0].destructive, true);
+    row.props.onMenu();
+    const sheet = page.nodes.find(node => node.type === 'sheet');
+    assert.deepEqual(Array.from(sheet.props.actions, action => [action.id, action.label, action.destructive]), [['delete', 'Delete update', true]]);
+    sheet.props.actions[0].onAction();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(page.calls, [['delete', ['activity:inbox-0']]]);
+    assert.equal(page.nodes.some(node => node.type === 'studio-row'), false);
+    assert.ok(page.nodes.some(node => node.props.role === 'status' && node.props.children === '1 update deleted'));
+  }
+});
+
+test('MOBILE all-read selection can delete70updates in one request and blocks duplicate taps', async () => {
+  let finish;
+  const flight = new Promise(resolve => { finish = resolve; });
+  const entries = inboxRows(70);
+  const page = pageHarness({ initialSearch: 'collection=activity', presentation: 'mobile', initialRows: entries, deleteActivity: () => flight });
+  page.button('Select items').props.onClick();
+  assert.ok(page.nodes.some(node => node.props.className === 'studio-selection-hint' && node.props.children === 'Tap items to select them'));
+  page.nodes.find(node => node.type === 'button' && node.props.children === 'Select all shown').props.onClick();
+  assert.equal(page.nodes.some(node => node.props.className === 'studio-selection-hint'), false);
+  assert.equal(page.button('Mark read (70)'), undefined);
+  const remove = page.button('Delete updates (70)');
+  remove.props.onClick(); remove.props.onClick();
+  assert.equal(page.calls.length, 1);
+  assert.equal(page.calls[0][1].length, 70);
+  assert.equal(page.button('Delete updates (70)').props.disabled, true);
+  finish(entries.map(row => row.id));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.nodes.some(node => node.type === 'studio-row'), false);
+  assert.equal(page.nodes.some(node => node.props['aria-label'] === 'Selected item actions'), false);
+  assert.ok(page.nodes.some(node => node.props.role === 'status' && node.props.children === '70 updates deleted'));
+});
+
+test('MOBILE unread selection keeps compact Read and Delete with complete accessible names', async () => {
+  const page = pageHarness({ initialSearch: 'collection=activity', presentation: 'mobile', initialRows: inboxRows(70, true) });
+  selectAll(page);
+  const read = page.button('Mark read (70)'), remove = page.button('Delete updates (70)');
+  assert.ok(read && remove);
+  assert.equal(read.props.children[1].props.children.join(''), 'Read (70)');
+  assert.equal(remove.props.children[1].props.children.join(''), 'Delete (70)');
+  read.props.onClick();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.calls.filter(call => call[0] === 'mark-read').length, 70);
+  assert.equal(page.calls.some(call => call[0] === 'delete'), false);
+  selectAll(page);
+  assert.equal(page.button('Mark read (70)'), undefined);
+  assert.ok(page.button('Delete updates (70)'));
+});
+
+test('bulk Activity deletion retains failed selection through partial success and retries', async () => {
+  let attempt = 0;
+  const page = pageHarness({ initialSearch: 'collection=activity', presentation: 'mobile', initialRows: inboxRows(2),
+    deleteActivity: async targets => {
+      attempt += 1;
+      if (attempt === 1) return [targets[0].id];
+      if (attempt === 2) throw Error('Offline');
+      return targets.map(row => row.id);
+    },
+  });
+  selectAll(page);
+  page.button('Delete updates (2)').props.onClick();
+  await new Promise(resolve => setImmediate(resolve));
+  const remaining = page.nodes.filter(node => node.type === 'studio-row');
+  assert.equal(remaining.length, 1); assert.equal(remaining[0].props.selected, true);
+  assert.match(page.nodes.find(node => node.props.role === 'alert').props.children, /remain selected/);
+  page.button('Delete updates (1)').props.onClick();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.nodes.find(node => node.type === 'studio-row').props.selected, true);
+  assert.equal(page.button('Delete updates (1)').props.disabled, false);
+  page.button('Delete updates (1)').props.onClick();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(page.nodes.some(node => node.type === 'studio-row'), false);
+  assert.equal(page.calls.filter(call => call[0] === 'delete').length, 3);
+});
+
+test('late Activity deletion cannot publish feedback or selection into a different account or collection', async () => {
+  for (const change of ['account', 'collection']) {
+    let finish;
+    const flight = new Promise(resolve => { finish = resolve; });
+    const page = pageHarness({ initialSearch: 'collection=activity', presentation: 'mobile', initialRows: inboxRows(1), deleteActivity: () => flight });
+    selectAll(page); page.button('Delete updates (1)').props.onClick();
+    if (change === 'account') page.setAccount('another-account');
+    else page.setSearch('collection=bookmarks');
+    page.rerender();
+    if (change === 'account') assert.equal(page.button('Select items').props.disabled, false, 'An old account deletion cannot lock the new account while its request is still pending.');
+    finish(['activity:inbox-0']);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(page.nodes.some(node => node.props.role === 'status' && /deleted/.test(String(node.props.children))), false);
+    assert.equal(page.nodes.some(node => node.props.role === 'alert'), false);
+  }
 });

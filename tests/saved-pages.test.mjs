@@ -117,7 +117,7 @@ test('signed-out and expired sessions cannot list or remove page bookmarks', asy
   } finally { db.sqlite.close(); }
 });
 
-test('removing one page is idempotent and leaves other pages, accounts, likes and reposts untouched', async () => {
+test('removing one page is idempotent and preserves other pages, accounts, likes and historical repost rows', async () => {
   const { db, request } = await readyDb();
   try {
     add(db, 'alice', 0); add(db, 'alice', 1); add(db, 'bob', 0); add(db, 'alice', 0, 'like'); add(db, 'alice', 0, 'repost');
@@ -125,6 +125,7 @@ test('removing one page is idempotent and leaves other pages, accounts, likes an
     assert.equal((await request(savedPath, { method: 'DELETE', body })).status, 200);
     assert.equal((await request(savedPath, { method: 'DELETE', body })).status, 200);
     assert.equal(db.sqlite.prepare('SELECT count(*) AS n FROM media_engagements').get().n, 4);
+    assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM media_engagements WHERE kind='repost'").get().n, 1);
     const alice = await (await request(savedPath)).json();
     const bob = await (await request(savedPath, { account: 'bob' })).json();
     assert.equal(alice.items[0].pageIndex, 1); assert.equal(bob.items.length, 1);

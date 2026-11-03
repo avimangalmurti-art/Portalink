@@ -88,7 +88,7 @@ export type Profile = {
   isPrivate?: boolean;
   /** Creator branding shared by every public URL; null until first saved. */
   publicAppearance?: PublicAppearance | null;
-  /** Owner's saved 1–13 project-card count, shared by Home and the public profile. */
+  /** Owner's saved WEB 1–13 project-card count, shared with the public profile. MOBILE and Home keep device preferences. */
   projectGridColumns?: number;
 };
 /**
@@ -456,7 +456,7 @@ export type FollowRequest = {
   avatar: string;
 };
 /**
- * Engagement — like, save, repost — lives in `types/engagement.ts`, together with
+ * Engagement — like and save — lives in `types/engagement.ts`, together with
  * its service contract. `ActivityKind` and `ActivityItem` used to be declared here
  * as a parallel vocabulary for the same three facts (with `bookmark` where the
  * engagement domain says `save`), and have been removed so there is one name per

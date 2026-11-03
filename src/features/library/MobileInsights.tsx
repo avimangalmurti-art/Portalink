@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowUpRightIcon, BookmarkIcon, CalendarDaysIcon, CheckIcon, EyeIcon, FileTextIcon } from 'lucide-react';
+import { ArrowUpRightIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, EyeIcon, FileTextIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useServices } from '../../contexts/ServicesContext';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
@@ -62,8 +62,8 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
   </div> : null;
   const mobileFilters = <div className="insights-period">
     <label className="insights-period-picker" title={`Insights period: ${periodLabel}`}>
-      <InterfaceIcon icon={CalendarDaysIcon} size="sm" />
-      <select aria-label="Insights period" title={`Insights period: ${periodLabel}`} value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select>
+      <select data-ui-shape="action" aria-label="Insights period" title={`Insights period: ${periodLabel}`} value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.key === 'today' || item.key === 'all' ? item.label : `Last ${item.label}`}</option>)}</select>
+      <InterfaceIcon icon={ChevronDownIcon} size="sm" />
     </label>{metricControls}
   </div>;
   const readStatus = state.loading ? <LoadingState kind="insights" label="Loading insights" /> : state.error ? <ErrorState title="Unable to load reads" description={state.error} onRetry={state.retry} /> : null;
@@ -82,7 +82,7 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
         {!isMobile && <h2 className="insights-section-title">Project activity</h2>}
         <div className="insights-data-surface">
           {isMobile && mobileFilters}
-          {(!isMobile || metric !== 'saved') && <p className="insights-eyebrow">{metric === 'saved' ? 'Current totals' : periodLabel}</p>}
+          {!isMobile && <p className="insights-eyebrow">{metric === 'saved' ? 'Current totals' : periodLabel}</p>}
           {/* Alternatives reserve the same summary height for every metric, including large totals. */}
           <h3 className="insights-headline">{metrics.map(item => <span key={item.key} aria-hidden={metric !== item.key || undefined}><strong>{totals[item.key].toLocaleString()}</strong><span className={isMobile ? 'sr-only' : undefined}>{item.unit}</span></span>)}</h3>
           <div className="insights-chart-caption"><strong>By project</strong><span>{rows.length > 8 ? 'Top 8 projects' : `${rows.length} ${rows.length === 1 ? 'project' : 'projects'}`}</span></div>
@@ -133,8 +133,8 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
           ['Followers', saves.data.followers, 'People following you. Pending requests are not included.'],
         ] as const).map(([label, count, description]) => <div key={label}><dt>{label}</dt><dd>{count.toLocaleString()}</dd><dd>{description}</dd></div>)}</dl>}
       </div>
-      <p className="insights-note">Only you can see these insights. Reader and saver identities remain private. Saves recognise interest without requiring a follow. Removing a save reduces the current total; saving again never adds a duplicate.</p>
+      {!isMobile && <p className="insights-note">Only you can see these insights. Reader and saver identities remain private. Saves recognise interest without requiring a follow. Removing a save reduces the current total; saving again never adds a duplicate.</p>}
     </section>
-    <p className="insights-note">Today uses UTC. All time includes available history; older daily data is retained for about 13 months.</p>
+    {!isMobile && <p className="insights-note">Today uses UTC. All time includes available history; older daily data is retained for about 13 months.</p>}
   </div>;
 }

@@ -179,9 +179,10 @@ export function buildUserContentSphere(input: ContentSphereInput): ContentSphere
   });
 
   input.engagement.forEach((entry) => {
+    if (entry.kind !== 'like' && entry.kind !== 'save') return;
     const project = projectById.get(entry.projectId)?.project;
     if (!project) return;
-    const amount = entry.kind === 'save' ? 1 : entry.kind === 'repost' ? 0.65 : 0.25;
+    const amount = entry.kind === 'save' ? 1 : 0.25;
     addWeight(interest, projectRelevance(project).topicKeys, amount);
     sources.add(entry.kind === 'save' ? 'work you saved' : 'explicit project actions');
   });
