@@ -29,7 +29,7 @@
   width: min(100%, 112px);
   --interface-icon-xl: clamp(24px, 3vw, 36px);
 }
-/* Creator accents fill the tile; the viewer's mode determines its glyph. */
+/* Desktop keeps the creator accent fill and a glyph keyed to the viewer's theme. */
 #root .codex-shell [data-public-portal-search] { --public-portal-icon-ink: #000; }
 #root .codex-shell.theme-dark [data-public-portal-search] { --public-portal-icon-ink: #fff; }
 /* This nested page owns its phone safe edges; the outer page adds no padding. */
@@ -60,4 +60,57 @@
   padding-inline: 16px;
   padding-bottom: calc(24px + var(--mobile-content-safe-bottom, 104px));
   scroll-padding-bottom: calc(24px + var(--mobile-content-safe-bottom, 104px));
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .profile-collection-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link {
+  position: relative;
+  height: 100%;
+  min-height: 134px;
+  aspect-ratio: 5 / 7;
+  gap: 6px;
+  padding: 22px 6px 10px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-raised);
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link:active {
+  background: var(--surface-hover);
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-mark {
+  position: static;
+  display: grid;
+  flex: 1 0 auto;
+  min-height: 44px;
+  width: 100%;
+  place-items: center;
+  aspect-ratio: auto;
+  --interface-icon-xl: clamp(36px, 12vw, 56px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-glyph {
+  display: grid;
+  place-items: center;
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar {
+  top: 8px;
+  inset-inline-end: 8px;
+  bottom: auto;
+  width: 24px;
+  height: 24px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .profile-collection-name {
+  display: grid;
+  min-height: 2.6em;
+  place-items: center;
+  font-size: clamp(12px, 3.45vw, 15px);
+}
+#root .codex-shell.high-contrast[data-presentation='mobile'] [data-public-portal-search] .public-portal-link {
+  border-color: var(--text-primary);
+}
+@media (prefers-contrast: more) {
+  #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link {
+    border-color: var(--text-primary);
+  }
 }

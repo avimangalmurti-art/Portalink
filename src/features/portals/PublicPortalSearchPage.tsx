@@ -5,11 +5,10 @@ import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
 import { useServices } from '../../contexts/ServicesContext';
 import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
-import { PreviewCreatorName } from '../../components/profile/PreviewCreatorName';
 import { getCategoryIcon } from '../../components/profile/categoryIcons';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StateViews';
-import { ScreenBack, useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
+import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { PublicPortalSummary } from '../../types/portals';
 import './public-portal-search.css';
@@ -91,7 +90,6 @@ function usePublicPortalDirectory(query: string) {
 /** Public portal identities only; opening a result uses its creator's existing catalogue route. */
 export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
   const isMobile = usePresentation() === 'mobile';
-  const active = useMobileScreenActive();
   const auth = useAuth();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
@@ -116,19 +114,21 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
       </label>
     </header>
     <div className="public-portal-search-scroll scrollbar-overlay">
-      {directory.transitioning ? <LoadingState kind="grid" label="Opening portal search…" />
+      {directory.transitioning ? <LoadingState kind="grid" columns={isMobile ? 3 : undefined} label="Opening portal search…" />
         : !directory.enabled ? <EmptyState title="Sign in to search portals" action={{ label: 'Sign in', onClick: () => auth.requestAuth('signIn') }} />
         : <>
-          {directory.loading && <LoadingState kind="grid" label="Loading public portals…" />}
+          {directory.loading && <LoadingState kind="grid" columns={isMobile ? 3 : undefined} label="Loading public portals…" />}
           {hasResults && <div className="profile-collection">
             <ul className="profile-collection-grid" aria-label="Public portals" aria-busy={directory.loadingMore}>
               {directory.items.map(portal => <li key={`${portal.profileId}:${portal.id}`}>
-                <Link to={buildPath('profileCategory', { profileId: portal.profileId, categoryId: portal.id })} className="profile-collection-link public-portal-link" title={`${portal.label} — ${portal.creator.name}`} aria-label={`${portal.label} — ${portal.creator.name}`}>
+                <Link to={buildPath('profileCategory', { profileId: portal.profileId, categoryId: portal.id })} data-ui-shape={isMobile ? 'row' : undefined} className="profile-collection-link public-portal-link" title={`${portal.label} — ${portal.creator.name}`} aria-label={`${portal.label} — ${portal.creator.name}`}>
                   <span className="public-portal-mark" aria-hidden="true">
-                    <span className="profile-collection-tile squircle" style={portal.creator.accentColor ? { backgroundColor: portal.creator.accentColor } : undefined}><InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor style={{ color: 'var(--public-portal-icon-ink)' }} /></span>
+                    <span className={isMobile ? 'public-portal-glyph' : 'profile-collection-tile squircle'} style={!isMobile && portal.creator.accentColor ? { backgroundColor: portal.creator.accentColor } : undefined}>
+                      <InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor style={{ color: isMobile ? portal.creator.accentColor || 'var(--text-secondary)' : 'var(--public-portal-icon-ink)' }} />
+                    </span>
                     <span className="public-portal-avatar"><CreatorAvatar name={portal.creator.name} avatar={portal.creator.avatar} className="h-full w-full text-[12px]" /></span>
                   </span>
-                  <span className="profile-collection-name">{isMobile ? <PreviewCreatorName name={portal.label} active={active} centered /> : portal.label}</span>
+                  <span className="profile-collection-name">{portal.label}</span>
                 </Link>
               </li>)}
             </ul>

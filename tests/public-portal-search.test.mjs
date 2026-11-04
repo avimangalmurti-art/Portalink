@@ -14,7 +14,7 @@ function harness(initialQuery = '', account = 'account-a', options = {}) {
   let cursor = 0, dirty = true, mounted = true, tree, params = new URLSearchParams(initialQuery), timer = 0, back = 0;
   let effects = [];
   const slots = [], timers = new Map(), calls = [], navigations = [];
-  const environment = { presentation: options.presentation ?? 'web', active: options.active ?? true };
+  const environment = { presentation: options.presentation ?? 'web' };
   const auth = { isAuthenticated: Boolean(account), isInitializing: false, phase: 'authenticated', user: account ? { id: account } : null, loginSession: {}, requestAuth(view) { navigations.push(view); } };
   const discovery = { listPublicPortals(query, offset) { const response = deferred(); calls.push({ query, offset, response }); return response.promise; } };
   const same = (left, right) => left && right && left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
@@ -52,12 +52,11 @@ function harness(initialQuery = '', account = 'account-a', options = {}) {
     '../../contexts/AuthContext': { useAuth: () => auth },
     '../../contexts/ServicesContext': { useServices: () => ({ discovery }) },
     '../../components/profile/CreatorAvatar': { CreatorAvatar: 'creator-avatar' },
-    '../../components/profile/PreviewCreatorName': { PreviewCreatorName: 'preview-creator-name' },
     '../../components/profile/categoryIcons': { getCategoryIcon: value => `chosen:${value ?? 'default'}` },
     '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
     '../../components/ui/StateViews': { EmptyState: 'empty', ErrorState: 'error', LoadingState: 'loading' },
     '../../presentation/usePresentation': { usePresentation: () => environment.presentation },
-    '../../presentation/mobile/MobileBackNavigation': { ScreenBack: 'screen-back', useMobileScreenActive: () => environment.active },
+    '../../presentation/mobile/MobileBackNavigation': { ScreenBack: 'screen-back' },
     './public-portal-search.css': {},
   }, { window: { setTimeout(callback, delay) { timers.set(++timer, { callback, delay }); return timer; }, clearTimeout(id) { timers.delete(id); } } });
   const render = () => {
@@ -132,58 +131,54 @@ test('each portal tile uses its creator accent without recoloring labels, avatar
   h.dispose();
 });
 
-test('MOBILE and WEB use creator-coloured tiles and viewer-theme icons while keeping their existing labels and avatars', async () => {
+test('MOBILE uses creator-coloured glyphs on named cards while WEB keeps its accent-filled tiles', async () => {
   const item = portal('long', 'creator-b', 'A long structural engineering portal name');
   const legacy = portal('legacy', 'creator-c', 'Legacy portal');
   item.creator.name = 'A creator with a longer public name';
   item.creator.accentColor = '#8a44bb';
   for (const presentation of ['mobile', 'web']) {
-    const h = harness('', 'account-a', { presentation }); h.tree; h.runTimers();
+    const h = harness('', 'account-a', { presentation });
+    assert.equal(nodes(h.tree).find(node => node.type === 'loading').props.columns, presentation === 'mobile' ? 3 : undefined);
+    h.runTimers();
     h.calls[0].response.resolve({ items: [item, legacy], nextOffset: null });
     const tree = await h.flush(); const link = links(tree)[0];
     assert.equal(link.props.to, '/p/creator-b/c/long');
     assert.equal(link.props.title, `${item.label} — ${item.creator.name}`);
     assert.equal(link.props['aria-label'], `${item.label} — ${item.creator.name}`);
-    assert.equal(nodes(link).filter(node => node.props.className === 'profile-collection-tile squircle').length, 1);
-    const tile = nodes(link).find(node => node.props.className === 'profile-collection-tile squircle');
-    assert.equal(tile.props.style?.backgroundColor, item.creator.accentColor);
+    const mobile = presentation === 'mobile';
+    const tileClass = mobile ? 'public-portal-glyph' : 'profile-collection-tile squircle';
+    const tile = nodes(link).find(node => node.props.className === tileClass);
+    assert.equal(link.props['data-ui-shape'], mobile ? 'row' : undefined);
+    assert.equal(tile.props.style?.backgroundColor, mobile ? undefined : item.creator.accentColor);
     const glyph = nodes(link).find(node => node.type === 'interface-icon' && node.props.icon === 'chosen:camera');
     assert.equal(glyph.props.keepColor, true);
-    assert.equal(glyph.props.style.color, 'var(--public-portal-icon-ink)');
+    assert.equal(glyph.props.style.color, mobile ? item.creator.accentColor : 'var(--public-portal-icon-ink)');
     const avatar = nodes(link).find(node => node.type === 'creator-avatar');
     assert.equal(avatar.props.name, item.creator.name); assert.equal(avatar.props.avatar, '/creator-b.jpg');
-    const labels = nodes(link).filter(node => node.type === 'preview-creator-name');
     const creatorLabel = nodes(link).find(node => node.props.className?.split(' ').includes('public-portal-creator-name'));
     assert.equal(creatorLabel, undefined);
-    if (presentation === 'mobile') {
-      assert.deepEqual(labels.map(node => node.props.name), [item.label]);
-      assert.ok(labels.every(node => node.props.centered === true && node.props.active === true));
-    } else {
-      assert.equal(labels.length, 0);
-      assert.equal(nodes(link).find(node => node.props.className === 'profile-collection-name').props.children, item.label);
-    }
+    assert.equal(nodes(link).find(node => node.props.className === 'profile-collection-name').props.children, item.label);
     const legacyLink = links(tree)[1];
     assert.equal(legacyLink.props.to, '/p/creator-c/c/legacy');
-    const legacyTile = nodes(legacyLink).find(node => node.props.className === 'profile-collection-tile squircle');
+    const legacyTile = nodes(legacyLink).find(node => node.props.className === tileClass);
     assert.equal(legacyTile.props.style, undefined, 'A missing creator accent keeps the neutral tile instead of borrowing a viewer accent.');
     const legacyGlyph = nodes(legacyLink).find(node => node.type === 'interface-icon' && node.props.icon === 'chosen:camera');
     assert.equal(legacyGlyph.props.keepColor, true);
-    assert.equal(legacyGlyph.props.style?.color, 'var(--public-portal-icon-ink)');
+    assert.equal(legacyGlyph.props.style?.color, mobile ? 'var(--text-secondary)' : 'var(--public-portal-icon-ink)');
     assert.equal(nodes(legacyLink).find(node => node.type === 'creator-avatar').props.avatar, legacy.creator.avatar);
     h.dispose();
   }
 });
 
-test('an outgoing MOBILE directory pauses its portal label without removing its identity or rereading data', async () => {
+test('switching presentation keeps loaded portal names and canonical links without rereading data', async () => {
   const h = harness('', 'account-a', { presentation: 'mobile' }); h.tree; h.runTimers();
   h.calls[0].response.resolve({ items: [portal('a')], nextOffset: null }); await h.flush();
-  h.environment.active = false;
-  const inactive = h.rerender();
-  const labels = nodes(inactive).filter(node => node.type === 'preview-creator-name');
-  assert.equal(labels.length, 1); assert.ok(labels.every(node => node.props.active === false));
-  assert.equal(links(inactive).length, 1); assert.equal(h.calls.length, 1);
-  h.environment.active = true;
-  assert.ok(nodes(h.rerender()).filter(node => node.type === 'preview-creator-name').every(node => node.props.active === true));
+  for (const presentation of ['web', 'mobile']) {
+    h.environment.presentation = presentation;
+    const tree = h.rerender();
+    assert.deepEqual(links(tree).map(node => node.props.to), ['/p/creator-a/c/a']);
+    assert.equal(nodes(tree).find(node => node.props.className === 'profile-collection-name').props.children, 'Portal a');
+  }
   assert.equal(h.calls.length, 1); h.dispose();
 });
 
