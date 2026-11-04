@@ -1,3 +1,18 @@
+## 2026-11-03 - Mobile authoring and Insights release authorized
+
+The user requested publication of the three pending mobile refinements from the owned `codex/socal-release` branch on live578. Mobile Insights uses icon-only metric controls and shows the current metric title under the count. The mobile project authoring frames use a continuous surface color. New project covers the catalogue while its form follows the keyboard viewport.
+
+The focused run passed 103 of 106 checks. The three failing publishing fixtures reproduced on live578 and stub the changed CSS. Typecheck, lint with zero errors and 111 existing warnings, and the configured client and worker build passed. Both entry graphs passed their configuration guard. The local browser preview covered the three changes, including a simulated keyboard. Draft PR148 is the source review path. Archive and production verification receipts follow separately.
+
+## 2026-11-03 - Mobile Studio and Mission refinements published 578
+
+Published https://portalinknetworks.com from `6afbb5238196b28607df1769303f2d11ca16f324` on `codex/socal-release`. The Studio dock uses the Shapes icon. The Mission header matches the sheet. Studio Insights opens 32px higher and displays the graph, top projects, traffic sources and audience in separate grey cards. Draft PR148 matches the release source.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_600af7a7a958819180a1bdb81d26ee49`, deployment `appgdep_6aeaa70ae64881919da14bcf671c18b0` succeeded 2026-11-04T03:31:34.581887+00:00. Public audience and runtime revision 2 are confirmed. The worker, four D1 SQL payloads and 423 public assets are byte identical to live577. The separate repost SQL remains unapplied.
+
+All 56 focused tests, typecheck, lint with zero errors and 111 existing warnings, and the configured build passed. The archive audit matched 642 files, and production matched four entry routes and all 209 JS and CSS assets. Phone-sized Chrome covered the UI. Physical-phone and authenticated production behavior remain unverified. Receipts are in `logs/mobile-cards-release.json` and the matching source, build, archive and live files. Only the two receipt docs remain dirty. Safe writer handoff.
+
+
 ## 2026-11-03 - Mobile Studio and Mission release authorized
 
 The user requested publication of the four pending mobile refinements from the owned `codex/socal-release` branch on live577. The Studio dock uses Shapes, the Mission header matches its sheet, and Insights opens higher with the graph and detail sections in separate grey cards. Three production paths and two documentation paths were reviewed.

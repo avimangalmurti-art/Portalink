@@ -134,15 +134,12 @@
 [data-presentation='mobile'] .creator-insights .insights-period :is(button, select),
 [data-presentation='mobile'] .creator-insights .insights-metrics button { min-height: 44px; }
 [data-presentation='mobile'] .creator-insights .insights-metrics { margin-bottom: 28px; }
-[data-presentation='mobile'] .creator-insights .insights-metrics button { flex: 0 0 44px; min-width: 44px; padding: 8px 4px; gap: 5px; font-size: 13px; }
-[data-presentation='mobile'] .creator-insights .insights-metrics button[aria-pressed='true'] { flex: 1 1 auto; }
+[data-presentation='mobile'] .creator-insights .insights-metrics button { flex: 1 1 0; min-width: 44px; padding: 8px 4px; }
 [data-presentation='mobile'] .creator-insights .insights-period { flex-direction: row; align-items: center; gap: 8px; margin-bottom: 20px; }
 [data-presentation='mobile'] .creator-insights .insights-period > .insights-metrics {
   display: flex; flex: 1 1 0; min-width: 150px; max-width: none; margin: 0;
   border: 1px solid var(--hairline); border-radius: 999px;
 }
-[data-presentation='mobile'] .creator-insights .insights-data-surface > .insights-period .insights-metrics button { flex-direction: row; gap: 5px; white-space: nowrap; }
-[data-presentation='mobile'] .creator-insights .insights-period .insights-metrics button > span:not([data-interface-icon-frame]) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 [data-presentation='mobile'] .creator-insights .insights-period-picker {
   position: relative; align-self: auto; flex: 0 1 45%; min-width: 0; max-width: 100%;
 }
@@ -159,11 +156,6 @@
   margin: -8px 0 12px; text-align: center; color: var(--text-secondary); font-size: 13px;
 }
 [data-presentation='mobile'] .creator-insights .insights-refresh-status:empty { display: none; }
-@media (max-width: 359px) {
-  [data-presentation='mobile'] .creator-insights .insights-period .insights-metrics button {
-    flex-direction: row; gap: 5px; padding: 6px 2px; font-size: 12px; line-height: 16px;
-  }
-}
 [data-presentation='mobile'] .creator-insights .insights-data-surface { padding: 22px 18px; }
 [data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page .insights-data-surface:has(> .insights-period) {
   padding-top: 6px;

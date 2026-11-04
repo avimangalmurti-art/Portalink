@@ -327,7 +327,7 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.equal(nodes(card).some(node => hasClass(node, 'insights-total-context')), presentation === 'web');
     const summaryUnits = React.Children.toArray(headline(tree).props.children).filter(React.isValidElement)
       .map(node => React.Children.toArray(node.props.children).find(child => React.isValidElement(child) && child.type === 'span'));
-    assert.equal(summaryUnits.every(node => hasClass(node, 'sr-only')), presentation === 'mobile', 'MOBILE avoids repeating the selected tab label while retaining accessible units.');
+    assert.ok(summaryUnits.every(node => node && !hasClass(node, 'sr-only')), 'The selected metric title is visible beneath its total.');
     assert.equal(nodes(section).filter(node => node.type === 'h2' && text(node) === 'Project activity').length, presentation === 'mobile' ? 0 : 1);
     assert.equal(nodes(card).filter(node => node.props['aria-label'] === 'Insights period').length, presentation === 'mobile' ? 1 : 0);
     assert.equal(metricButtons(card).length, presentation === 'mobile' ? 3 : 0);
@@ -339,7 +339,7 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.equal(nodes(tree).filter(node => node.props['aria-label'] === 'Insight metric').length, 1);
     assert.equal(group.props.role, 'group');
     assert.equal(group.props['data-ui-shape'], 'capsule');
-    assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['Opens', '', ''] : ['Opens', 'Completed', 'Page saves']);
+    assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', '', ''] : ['Opens', 'Completed', 'Page saves']);
     assert.deepEqual(metricButtons(group).map(node => node.props['aria-label']), presentation === 'mobile' ? ['Opens', 'Completed', 'Page saves'] : [undefined, undefined, undefined]);
     assert.equal(nodes(group).filter(node => node.type === 'icon').length, 3);
     assert.deepEqual(metricButtons(group).map(node => node.props['aria-pressed']), [true, false, false]);
@@ -371,14 +371,14 @@ test('mobile keeps filters inside the graph card without a visible activity head
     assert.equal(picker.props.value, '30d');
     assert.equal(fixture.periods.at(-1), '30d');
     assert.deepEqual(metricButtons(group).map(node => node.props['aria-pressed']), [false, true, false]);
-    assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', 'Completed', ''] : ['Opens', 'Completed', 'Page saves']);
+    assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', '', ''] : ['Opens', 'Completed', 'Page saves']);
     assert.equal(accessibleText(headline(tree)), '8completed reads');
     assert.equal(text(nodes(tree).find(node => hasClass(node, 'insights-eyebrow'))), presentation === 'mobile' ? '' : '30 days');
     if (presentation === 'mobile') assert.equal(picker.props.title, 'Insights period: 30 days');
     metricButtons(group)[2].props.onClick();
     tree = fixture.render();
     group = nodes(tree).find(node => node.props['aria-label'] === 'Insight metric');
-    assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', '', 'Page saves'] : ['Opens', 'Completed', 'Page saves']);
+    assert.deepEqual(metricButtons(group).map(text), presentation === 'mobile' ? ['', '', ''] : ['Opens', 'Completed', 'Page saves']);
     assert.deepEqual(metricButtons(group).map(node => node.props['aria-label']), presentation === 'mobile' ? ['Opens', 'Completed', 'Page saves'] : [undefined, undefined, undefined]);
     assert.equal(accessibleText(headline(tree)), '5current page saves');
     assert.equal(nodes(tree).some(node => hasClass(node, 'insights-eyebrow')), presentation === 'web');

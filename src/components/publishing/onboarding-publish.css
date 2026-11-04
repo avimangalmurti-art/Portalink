@@ -104,6 +104,7 @@
   padding:max(20px,calc(var(--safe-area-top,env(safe-area-inset-top,0px)) - var(--dialog-viewport-top,0px))) 0 0;
 }
 #root .codex-shell[data-presentation='mobile'] .onboarding-publish-backdrop>[data-onboarding-publish].project-form-screen {
+  --fixed-header-canvas:var(--surface-raised);
   position:relative;
   inset:auto;
   z-index:auto;
@@ -117,6 +118,9 @@
   border-radius:var(--ui-floating-radius,28px) var(--ui-floating-radius,28px) 0 0!important;
   background:var(--surface-raised)!important;
   box-shadow:0 24px 80px rgb(0 0 0 / 15%)!important;
+}
+#root .codex-shell[data-presentation='mobile'] .onboarding-publish-backdrop>[data-onboarding-publish].project-form-screen>.mobile-publish-flow>.mobile-publish-actions {
+  background:var(--surface-raised);
 }
 #root .codex-shell[data-presentation='mobile'] [data-onboarding-publish].project-form-screen>.onboarding-publish-heading {
   display:grid;

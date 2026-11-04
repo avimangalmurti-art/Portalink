@@ -134,6 +134,7 @@
   padding:0;
 }
 .post-publish-idea-backdrop[data-presentation='mobile']>.post-publish-idea-dialog {
+  --fixed-header-canvas:var(--surface-raised);
   max-width:none;
   height:100%;
   border-bottom:0;

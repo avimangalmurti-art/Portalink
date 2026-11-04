@@ -1,3 +1,36 @@
+## 2026-11-03 - Mobile authoring and Insights release authorized
+
+The user requested publication of the three pending mobile refinements from the owned `codex/socal-release` branch on live578. Mobile Insights uses icon-only metric controls and shows the current metric title under the count. The mobile project authoring frames use a continuous surface color. New project covers the catalogue while its form follows the keyboard viewport.
+
+The focused run passed 103 of 106 checks. The three failing publishing fixtures reproduced on live578 and stub the changed CSS. Typecheck, lint with zero errors and 111 existing warnings, and the configured client and worker build passed. Both entry graphs passed their configuration guard. The local browser preview covered the three changes, including a simulated keyboard. Draft PR148 is the source review path. Archive and production verification receipts follow separately.
+
+## 2026-11-03 - Mobile New project keyboard cover
+
+The mobile New project overlay now covers the layout viewport with the same opaque raised fill as the form. The panel follows the existing visual viewport height and offset independently, so the Continue button stays above the keyboard. The mobile panel drops its modal shadow so it blends into the cover. The existing setup and Portal icon states share this frame. Only `src/features/publishing/projectSetup.css` changed for this request.
+
+Continued the owned `codex/socal-release` at `6afbb5238196b28607df1769303f2d11ca16f324` (live578). Pending Insights icons, authoring tint and release receipt edits were preserved. All 24 focused setup, viewport and keyboard checks passed. In isolated Chrome at 420 × 912, an EventTarget simulated a 464px visual viewport with offsets of 0 and 24px. The cover stayed 912px tall and opaque, the panel and footer followed the smaller viewport, and closing and reopening restored the correct geometry. Checked light and dark, plus desktop scope at 1280 × 900. Physical iOS keyboard compositing is unverified. Diff check passed. Local change is unpublished. Safe writer handoff.
+
+## 2026-11-03 - Continuous mobile project creation color
+
+The mobile New project header now uses the same raised surface tint as the form and safe area. The Portal icon picker in the same frame, the upload and review frame reached by Continue, and the published confirmation use the same color treatment. The publishing action footer also uses the raised panel fill. Existing header blur and accessibility fallbacks use the matching tint. Changes are scoped to the three mobile publishing stylesheets.
+
+Continued the owned `codex/socal-release` at `6afbb5238196b28607df1769303f2d11ca16f324` (live578). The pending Insights metric icons and release receipts were preserved. Phone-sized Chrome at 420 × 912 verified the real setup, icon picker, continuation frame with fictional form, and confirmation surfaces, plus matching light and solid accessibility fills. Desktop at 1280 × 900 retained its existing header material. Focused tests reported 80/83. The same three publish completion assertions failed against live578 source at lines 90, 223 and 283. These test fixtures stub CSS imports. Diff check passed. Physical iOS status bar and authenticated publishing are unverified. Local change is unpublished. Safe writer handoff.
+
+## 2026-11-03 - Mobile Insights metric icons and titles
+
+Mobile Insights now uses three equally sized icon-only metric buttons with accessible names and selected states. The selected count is followed by its visible title: project opens, completed reads, or current page saves. The existing stacked summary reserves space across metrics. The date and metrics remain on one row above the same 194px chart.
+
+Continued the owned `codex/socal-release` at `6afbb5238196b28607df1769303f2d11ca16f324` (live578). Edited `MobileInsights.tsx`, `insights.css`, and the existing `mobile-insights.test.mjs` expectations. All 15 focused tests passed. The isolated Chrome preview exercised all three selections at 420 × 912, checked the 44px targets and fit at 320 × 700, and confirmed the desktop labels and 224px chart at 1280 × 900. Diff check passed. Physical-phone and production behavior are unverified. This change is unpublished. Safe writer handoff.
+
+## 2026-11-03 - Mobile Studio and Mission refinements published 578
+
+Published https://portalinknetworks.com from `6afbb5238196b28607df1769303f2d11ca16f324` on `codex/socal-release`. The Studio dock uses the Shapes icon. The Mission header matches the sheet. Studio Insights opens 32px higher and displays the graph, top projects, traffic sources and audience in separate grey cards. Draft PR148 matches the release source.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_600af7a7a958819180a1bdb81d26ee49`, deployment `appgdep_6aeaa70ae64881919da14bcf671c18b0` succeeded 2026-11-04T03:31:34.581887+00:00. Public audience and runtime revision 2 are confirmed. The worker, four D1 SQL payloads and 423 public assets are byte identical to live577. The separate repost SQL remains unapplied.
+
+All 56 focused tests, typecheck, lint with zero errors and 111 existing warnings, and the configured build passed. The archive audit matched 642 files, and production matched four entry routes and all 209 JS and CSS assets. Phone-sized Chrome covered the UI. Physical-phone and authenticated production behavior remain unverified. Receipts are in `logs/mobile-cards-release.json` and the matching source, build, archive and live files. Only the two receipt docs remain dirty. Safe writer handoff.
+
+
 ## 2026-11-03 - Mobile Studio and Mission release authorized
 
 The user requested publication of the four pending mobile refinements from the owned `codex/socal-release` branch on live577. The Studio dock uses Shapes, the Mission header matches its sheet, and Insights opens higher with the graph and detail sections in separate grey cards. Three production paths and two documentation paths were reviewed.

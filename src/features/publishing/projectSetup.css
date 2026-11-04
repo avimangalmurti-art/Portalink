@@ -224,11 +224,25 @@
   font-weight:550;
 }
 .project-setup-save-status { margin:12px 0 0; font-size:12px; line-height:1.5; color:var(--text-secondary); }
-.project-setup-screen[data-presentation='mobile'] { padding:0; }
-.app-shell .project-setup-screen[data-presentation='mobile']>.project-setup-page[role='dialog'] {
-  max-width:none;
+/* The cover stays full height while the keyboard resizes the visible form. */
+.app-shell .project-setup-screen[data-presentation='mobile'] {
+  inset:0;
   height:100%;
+  height:max(100%,100lvh);
+  padding:0;
+  background:var(--surface-raised);
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+.app-shell .project-setup-screen[data-presentation='mobile']>.project-setup-page[role='dialog'] {
+  --fixed-header-canvas:var(--surface-raised);
+  position:absolute;
+  inset-inline:0;
+  top:var(--dialog-viewport-top,0px);
+  max-width:none;
+  height:var(--dialog-viewport-height,100dvh);
   border-bottom:0;
+  box-shadow:none!important;
   border-radius:0!important;
 }
 /* Artwork yields space before fields do, keeping the complete form in view. */

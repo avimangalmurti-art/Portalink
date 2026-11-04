@@ -58,7 +58,7 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
     () => surfaceRef.current?.closest<HTMLElement>('.mobile-insights-scroll')?.scrollTop ?? Infinity);
   const refreshLabel = pullLabel || (busy && !state.loading && !saves.loading ? 'Refreshing insights…' : '');
   const metricControls = !state.loading && !state.error ? <div className="insights-metrics" data-ui-shape="capsule" role="group" aria-label="Insight metric">
-    {metrics.map(item => <button data-ui-shape="action" data-system-color="" data-insights-series={item.key} type="button" key={item.key} aria-label={isMobile ? item.label : undefined} title={isMobile ? item.label : undefined} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" />{(!isMobile || metric === item.key) && <span>{item.label}</span>}</button>)}
+    {metrics.map(item => <button data-ui-shape="action" data-system-color="" data-insights-series={item.key} type="button" key={item.key} aria-label={isMobile ? item.label : undefined} title={isMobile ? item.label : undefined} aria-pressed={metric === item.key} onClick={() => setMetric(item.key)}><InterfaceIcon icon={item.icon} size="xs" />{!isMobile && <span>{item.label}</span>}</button>)}
   </div> : null;
   const mobileFilters = <div className="insights-period">
     <label className="insights-period-picker" title={`Insights period: ${periodLabel}`}>
@@ -84,7 +84,7 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
           {isMobile && mobileFilters}
           {!isMobile && <p className="insights-eyebrow">{metric === 'saved' ? 'Current totals' : periodLabel}</p>}
           {/* Alternatives reserve the same summary height for every metric, including large totals. */}
-          <h3 className="insights-headline">{metrics.map(item => <span key={item.key} aria-hidden={metric !== item.key || undefined}><strong>{totals[item.key].toLocaleString()}</strong><span className={isMobile ? 'sr-only' : undefined}>{item.unit}</span></span>)}</h3>
+          <h3 className="insights-headline">{metrics.map(item => <span key={item.key} aria-hidden={metric !== item.key || undefined}><strong>{totals[item.key].toLocaleString()}</strong><span>{item.unit}</span></span>)}</h3>
           <div className="insights-chart-caption"><strong>By project</strong><span>{rows.length > 8 ? 'Top 8 projects' : `${rows.length} ${rows.length === 1 ? 'project' : 'projects'}`}</span></div>
           {chartRows.length || isMobile ? <>
             <div className="insights-chart-frame">
