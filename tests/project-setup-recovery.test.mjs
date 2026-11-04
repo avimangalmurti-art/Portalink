@@ -94,7 +94,7 @@ function harness(storage, extraProps = {}) {
   };
   const { ProjectSetupScreen } = sourceModule('src/features/publishing/ProjectSetupScreen.tsx', {
     react,
-    'lucide-react': { PlusIcon: 'plus', XIcon: 'close' },
+    'lucide-react': { CheckIcon: 'check', PlusIcon: 'plus', XIcon: 'close' },
     '../../components/profile/categoryIcons': { portalIconNames: ['shapes', 'camera', 'lucide:telescope'] },
     '../../components/profile/NewCategoryDialog': { NewCategoryDialog: 'new-category-dialog' },
     '../../components/ui/ModalPortal': { ModalPortal: 'portal' },
@@ -273,7 +273,7 @@ test('removed saved Portal stays explicit until the creator chooses another', ()
     const choices = nodes(h.render().find(node => node.props.id === 'project-setup-portal-list'));
     assert.equal(choices.some(node => node.props['aria-pressed']), false);
     if (categories.length) {
-     h.click('Design');
+     choices.find(node => node.type === 'button' && node.props.value === 'design').props.onClick();
      assert.equal(h.render().find(node => node.type === 'footer').props.hidden, false);
      assert.equal(storage.api.readSetupDraft('account', 'profile').portal, 'design');
     } else {

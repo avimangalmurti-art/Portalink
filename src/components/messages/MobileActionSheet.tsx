@@ -26,8 +26,8 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   }, []);
   const dialogRef = useRef<HTMLDivElement>(null), viewportRef = useDialogViewport(), titleId = useId();
   const ownerProfile = layout === 'actions' && model.kind === 'profile' && Boolean(model.viewer?.owner);
-  // Phone menus start at the compact detent; expansion is an explicit action.
-  const [expanded, setExpanded] = useState(ownerProfile && !mobile);
+  // File management starts expanded so the reorder grid has room to scroll.
+  const [expanded, setExpanded] = useState(mobile ? layout === 'files' : ownerProfile);
   const dismiss = () => motion.close(onClose, viewportRef.current);
   const start = useRef<{x:number;y:number;id:number;rest:number;offset:number} | null>(null);
   const dragged = useRef(false);

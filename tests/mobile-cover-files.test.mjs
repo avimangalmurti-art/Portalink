@@ -28,6 +28,7 @@ test('default cover workspace keeps file management behind Reorder and passes th
  assert.equal(sheet.props.layout,'files');
  assert.equal(nodes(sheet).find(n=>n.type==='MediaPicker').props.media,h.media);
  assert.equal(nodes(sheet).find(n=>n.type==='MediaPicker').props.mobileFileManager,true);
+ assert.equal(nodes(sheet).find(n=>n.type==='MediaPicker').props.reorderGrid,true);
  sheet.props.onClose();assert.equal(nodes(h.render()).find(n=>n.type==='MobileActionSheet'),undefined);
 });
 
@@ -35,6 +36,7 @@ test('onboarding empty chooser accepts a file batch on both platforms without ch
  for(const presentation of ['mobile','web']){
   const h=harness(false,'idle',{presentation,count:0,onboarding:true}),all=nodes(h.render());
   assert.equal(all.find(n=>n.props['aria-label']==='Selected files'),undefined);
+  assert.ok(all.find(n=>n.props.className==='onboarding-files-art'));
   const chooser=all.find(n=>n.type==='button'&&text(n)==='Choose files');assert.ok(chooser);chooser.props.onClick();
   assert.deepEqual(h.calls,['picker']);
   const files=[{name:'first.png'},{name:'notes.pdf'}],target={files,value:'selection'};
@@ -46,6 +48,9 @@ test('onboarding empty chooser accepts a file batch on both platforms without ch
 test('onboarding keeps every cover choice and reorders the original files on both platforms',()=>{
  for(const presentation of ['mobile','web']){
   const h=harness(false,'idle',{presentation,count:15,onboarding:true}),all=nodes(h.render());
+  const intro=all.find(n=>n.props.className==='onboarding-files-brand');
+  if(presentation==='mobile')assert.equal(intro,undefined);
+  else assert.match(text(intro),/Choose your cover\./);
   const choices=all.filter(n=>n.type==='button'&&n.props['aria-label']?.startsWith('Use Artwork'));
   assert.equal(choices.length,15);choices[14].props.onClick();assert.equal(h.calls.at(-1),'file-15');
   assert.equal(all.find(n=>n.type==='CoverFilmstrip').props.media,h.media);
@@ -55,6 +60,7 @@ test('onboarding keeps every cover choice and reorders the original files on bot
   assert.equal(sheet.props.onboardingFiles,true);assert.equal(sheet.props.layout,'files');
   assert.equal(picker.props.onboardingFiles,true);
   assert.equal(picker.props.mobileFileManager,presentation==='mobile'?true:undefined);
+  assert.equal(picker.props.reorderGrid,presentation==='mobile'?true:undefined);
   sheet.props.onClose();assert.equal(nodes(h.render()).some(n=>n.type==='MobileActionSheet'),false);
  }
 });
@@ -142,7 +148,9 @@ test('Word sources request a separate PDF or image cover while normal Add remain
   const word={id:'word',isCover:true,family:'document',capability:'converted',displayTitle:'Work.docx',previewUrl:null};
   const h=harness(false,'idle',{presentation,onboarding:true,items:[word]}),all=nodes(h.render());
   assert.equal(all.find(n=>n.type==='CoverFilmstrip'),undefined);
-  assert.match(text(h.render()),/Add a PDF or image for your cover\./);
+  const intro=all.find(n=>n.props.className==='onboarding-files-brand');
+  if(presentation==='mobile')assert.equal(intro,undefined);
+  else assert.match(text(intro),/Add a PDF or image for your cover\./);
   const wordChoice=all.find(n=>n.props['aria-label']==='Use Work.docx as cover');assert.equal(wordChoice.props.disabled,true);assert.equal(wordChoice.props['aria-pressed'],false);
   const general=all.find(n=>n.props['aria-label']==='Add project files');
   const cover=all.find(n=>n.props['aria-label']==='Add PDF or image cover');

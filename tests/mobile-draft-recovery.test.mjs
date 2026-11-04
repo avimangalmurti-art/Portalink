@@ -155,10 +155,29 @@ test('neither presentation can close while selected files are still being prepar
   }
 });
 
-test('both presentations expose failed-save retry and explicit draft discard, retaining the dialog on failed cleanup', async () => {
-  for (const presentation of ['mobile', 'web']) {
+test('mobile Files omits routine save status and discard but retains failed-save recovery', async () => {
+  for (const localDraftStatus of ['saving', 'saved']) {
+    const h = dialogHarness('mobile', { localDraftStatus });
+    assert.equal(elements(h.tree, node => 'data-upload-draft-status' in node.props).length, 0);
+    assert.equal(elements(h.tree, node => node.props.children === 'Discard draft').length, 0);
+  }
+  const h = dialogHarness('mobile', { localDraftStatus: 'error' });
+  const status = elements(h.tree, node => 'data-upload-draft-status' in node.props)[0];
+  assert.equal(elements(status, node => node.props.role === 'status')[0].props.children, 'Not saved on this device');
+  assert.equal(elements(h.tree, node => node.props.children === 'Discard draft').length, 0);
+  elements(status, node => node.props.children === 'Retry save')[0].props.onClick();
+  await tick();
+  assert.deepEqual(h.calls, ['save']);
+});
+
+test('mobile Details and Review and desktop retain failed-save retry and explicit discard on failed cleanup', async () => {
+  for (const [presentation, stage] of [
+    ['mobile', { firstProjectStage: 'details' }],
+    ['mobile', { step: 'preview' }],
+    ['web', {}],
+  ]) {
     let canDiscard = false;
-    const h = dialogHarness(presentation, { localDraftStatus: 'error', discard: async () => { h.calls.push('discard'); return canDiscard; } });
+    const h = dialogHarness(presentation, { ...stage, localDraftStatus: 'error', discard: async () => { h.calls.push('discard'); return canDiscard; } });
     const status = elements(h.tree, node => 'data-upload-draft-status' in node.props)[0];
     assert.equal(status.props['data-presentation'], presentation);
     assert.equal(elements(status, node => node.props.role === 'status')[0].props.children, 'Not saved on this device');

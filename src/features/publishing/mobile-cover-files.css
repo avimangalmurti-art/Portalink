@@ -5,6 +5,8 @@
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-progress li { flex: 1; gap: 6px; min-width: 0; font-size: 12px; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-progress li > span { flex: none; width: 24px; height: 24px; }
 [data-presentation='mobile'] [data-mobile-publish] > .mobile-publish-body { flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; gap: 16px; padding: 0 0 16px; scroll-padding-block: 12px; }
+/* Let the file controls fill the first view before the step actions. */
+[data-presentation='mobile'] .mobile-publish-file-content { display: flex; flex: none; flex-direction: column; gap: inherit; min-height: 100%; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-step-heading { flex: none; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-step-heading h3 { font-size: var(--ui-surface-title-size, 20px); font-weight: 600; line-height: 1.35; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-step-heading p { font-size: 14px; line-height: 1.5; margin-top: 8px; }
@@ -75,6 +77,7 @@
 [data-presentation='mobile'] [data-review-step] .mobile-review-thumbnails > span { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 10px; overflow: hidden; background: var(--surface-sunken); }
 [data-presentation='mobile'] [data-review-step] .mobile-review-thumbnails img { width: 100%; height: 100%; object-fit: cover; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-actions { flex: none; padding: 12px 0 0; border-top: 1px solid var(--hairline); background: var(--surface-canvas); }
+[data-presentation='mobile'] [data-mobile-publish][data-cover-step] > .mobile-publish-body > .mobile-publish-actions { padding: 0; border: 0; background: transparent; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-actions > div { display: flex; gap: 12px; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-actions button { min-height: 44px; border-radius: var(--ui-control-radius, 12px); font-size: 16px; }
 [data-presentation='mobile'] [data-mobile-publish] .mobile-publish-actions button[type=submit] { flex: 1; }

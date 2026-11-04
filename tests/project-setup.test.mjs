@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';import test from 'node:test';import{readFileSync}from'node:fs';import vm from'node:vm';import React from'react';import ts from'typescript';
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
-const portalButton = (all, label) => all.find(node => node.type === 'button' && node.props.children === label);
+const portalButton = (all, label) => all.find(node => node.type === 'button' && (node.props['aria-label'] ?? node.props.children) === label);
 const portalList = all => all.find(node => node.type === 'ul' && node.props.id === 'project-setup-portal-list');
 const portalChoice = (all, id) => nodes(portalList(all)).find(node => node.type === 'button' && node.props.value === id);
 const newPortalDialog = all => all.find(node => node.type === 'NewCategoryDialog');
@@ -8,7 +8,7 @@ function load(file,mocks){const exports={};vm.runInNewContext(ts.transpileModule
 const validation=load('../src/features/publishing/validation.ts',{}),category=load('../src/features/profile/useCategoryManagement.ts',{});
 function harness(create=async(name,iconName)=>({id:'created',label:name,iconName}),confirm,{initialCategories=[{id:'existing',label:'Design'}],presentation='mobile'}={}){
  let categories=initialCategories;let cursor=0;const slots=[],calls=[],cleanups=[];let mounted=false;const react={...React,useEffect(effect){if(!mounted){cleanups.push(effect());}},useRef:v=>slots[cursor++]??={current:v},useState:v=>{const i=cursor++;if(!(i in slots))slots[i]=typeof v==='function'?v():v;return[slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}];}};
- const {ProjectSetupScreen}=load('../src/features/publishing/ProjectSetupScreen.tsx',{'react':react,'lucide-react':{PlusIcon:'plus-icon',XIcon:'close-icon'},'../../components/profile/categoryIcons':{portalIconNames:['shapes','camera','globe','lucide:book-open']},'../../components/profile/NewCategoryDialog':{NewCategoryDialog:'NewCategoryDialog'},'./validation':validation,'../profile/useCategoryManagement':category,'../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},'../../hooks/useModalFocus':{useModalFocus(){}},'../../components/publishing/useAuthoringFocus':{useAuthoringFocus(){}},'../../presentation/usePresentation':{usePresentation:()=>presentation}});
+ const {ProjectSetupScreen}=load('../src/features/publishing/ProjectSetupScreen.tsx',{'react':react,'lucide-react':{CheckIcon:'check-icon',PlusIcon:'plus-icon',XIcon:'close-icon'},'../../components/profile/categoryIcons':{portalIconNames:['shapes','camera','globe','lucide:book-open']},'../../components/profile/NewCategoryDialog':{NewCategoryDialog:'NewCategoryDialog'},'./validation':validation,'../profile/useCategoryManagement':category,'../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},'../../hooks/useModalFocus':{useModalFocus(){}},'../../components/publishing/useAuthoringFocus':{useAuthoringFocus(){}},'../../presentation/usePresentation':{usePresentation:()=>presentation}});
  const render=()=>{cursor=0;const tree=ProjectSetupScreen({categories,onCreatePortal:async(n,iconName)=>{calls.push(['create',n,iconName]);return create(n,iconName)},onConfirmPortal:confirm,onContinue:v=>calls.push(['continue',v]),onClose:()=>calls.push(['close'])});mounted=true;return tree;};
  const change=(label,value)=>{const n=nodes(render()).find(n=>n.props['aria-label']===label||n.type==='textarea'&&label==='Note (optional)'||n.props.name==='title'&&label==='Title');n.props.onChange({target:{value}})};
  const choosePortal = id => {
@@ -111,6 +111,7 @@ test('mobile Portals selects an existing Portal while preserving the authored fo
  assert.equal(add.props['aria-haspopup'], 'dialog');
  assert.equal(portals.props['aria-controls'], portalList(all).props.id);
  assert.equal(portals.props['aria-expanded'], false);
+ assert.equal(nodes(portals).find(node => node.props.id === portals.props['aria-describedby']).props.children, 'Design');
  assert.equal(portalList(all).props.hidden, true);
  assert.equal(all.find(node => node.type === 'select' && node.props['aria-label'] === 'Portal'), undefined);
  assert.equal(all.find(node => node.props.name === 'title').props.autoFocus, true);
@@ -123,11 +124,12 @@ test('mobile Portals selects an existing Portal while preserving the authored fo
  assert.equal(portalChoice(all, 'existing').props['aria-pressed'], true);
  const photo = portalChoice(all, 'photo');
  assert.equal(photo.props.type, 'button');
- assert.equal(photo.props.children, 'Photography');
+ assert.ok(nodes(photo).some(node => node.props.children === 'Photography'));
  assert.equal(photo.props['aria-pressed'], false);
  photo.props.onClick();
  all = nodes(h.render());
  assert.equal(portalButton(all, 'Portals').props['aria-expanded'], false);
+ assert.equal(nodes(portalButton(all, 'Portals')).find(node => node.props.id === 'project-setup-selected-portal').props.children, 'Photography');
  assert.equal(portalList(all).props.hidden, true);
  assert.equal(portalChoice(all, 'photo').props['aria-pressed'], true);
  assert.equal(h.calls.length, 0);

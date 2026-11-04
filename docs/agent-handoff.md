@@ -1,3 +1,47 @@
+## 2026-11-03 - Label details in mobile Review project
+
+Mobile guided review shows separate Portal, Title and Description fields under Project details, with one Edit action. Long titles wrap, formatted descriptions use a bounded scrolling region, and empty descriptions show an explicit message. Location remains below the fields. Local on `codex/socal-release` at live581, unpublished.
+
+All 57 focused tests, targeted lint and diff check passed. Isolated Chrome at 420 × 912 and 320 × 740 verified the label order, title wrapping, formatted text, empty state and editing the same draft. Desktop at 1280 × 900 verified its existing presentation. Physical iPhone testing is pending.
+
+## 2026-11-03 - Simplify mobile Files & cover
+
+Removed the routine save status, Discard draft and populated cover introduction from mobile Files & cover. Failed saves retain their retry action. The empty chooser, required cover action and Studio draft management remain available. Fixed overlapping rows in the unpublished mobile Reorder grid by sizing rows to their tile content.
+
+All 80 focused tests, typecheck, targeted lint and diff check passed. Two legacy desktop persistence assertions in the additional draft suite reproduce on live581. Isolated Chrome verified populated, empty and failed-save states at 420 × 912, desktop at 1280 × 900, and all 18 Reorder tiles at 320 × 680. Physical iPhone testing is pending. Local on `codex/socal-release` at live581, unpublished.
+
+## 2026-11-03 - Mobile Files & cover Reorder grid
+
+The Files & cover Reorder sheet opens expanded with one title, Done and a separate file toolbar. It uses three columns of larger previews with position badges. Filenames and image metadata are hidden from the tiles. Hold and drag or use the keyboard or file menu to move a file. The existing media draft reorder preserves the selected cover and writes the order on each completed move. The desktop file manager keeps its list.
+
+Updated `MobileCoverFiles`, `MediaPicker`, the file manager CSS and the shared sheet, sortable and modal focus code. The existing tests cover the grid opt-in and move indices. All 96 focused tests, typecheck, targeted lint and diff check passed. Chrome with fictional files at 420 × 912 and 320 × 680 verified the header, grid, touch drag, keyboard cancel, menu move and reopening with the new order. Desktop at 1280 × 900 verified the file list. Physical iPhone testing remains pending. Local on `codex/socal-release` at live581 source `7f19f0b56cbe94329f6728fa261a61084144fe93`, unpublished.
+
+## 2026-11-03 - Scroll to the mobile Files & cover actions
+
+Back and Review project now appear after the mobile Files & cover content in the same scroll area. The file controls fill the opening view so the actions start below it. Details, Review and desktop keep the existing footer placement. Updated `MobilePublishFlow.tsx`, `mobile-cover-files.css` and the existing flow test. Local on `codex/socal-release` at live581 source `7f19f0b56cbe94329f6728fa261a61084144fe93`.
+
+All 61 focused tests, targeted lint and diff check passed. Chrome with fictional files at 420 × 912 and 390 × 760 verified scrolling to the actions and reaching Details and Review. Desktop at 1280 × 900 verified the existing footer. Physical iPhone verification remains pending. Unpublished.
+
+## 2026-11-03 - Show the selected portal in mobile New project
+
+The Portals button now shows the current portal name under its action label and keeps the name visible when the list closes. Long names wrap inside the button. The existing draft and selection state supply the name. Local on `codex/socal-release` at live581 source `7f19f0b56cbe94329f6728fa261a61084144fe93`.
+
+All 31 focused tests, targeted lint and diff check passed. Chrome with fictional data at 420 × 912 verified the default, changed and newly created choices. At 320 × 740 a long name wrapped without horizontal overflow. Desktop at 1280 × 900 used the native picker. Physical iPhone verification remains pending. Unpublished.
+
+## 2026-11-03 - Mobile portal choice rows
+
+The expanded Portals list in mobile New project now uses plain rows with separators and a checkmark on the selected portal. The two main actions remain pills. Updated the setup screen, its stylesheet and the two existing test fixtures. The change is local on `codex/socal-release` at live581 source `7f19f0b56cbe94329f6728fa261a61084144fe93`.
+
+All 31 focused tests, targeted lint and diff check passed. Chrome at 420 × 912 verified the visual distinction, selection and focus return. At 1280 × 900 the desktop picker was present. The fixture used fictional data. Physical iPhone verification remains pending. Unpublished.
+
+## 2026-11-03 - New portal and mobile authoring published 581
+
+Published `7f19f0b56cbe94329f6728fa261a61084144fe93` to https://portalinknetworks.com. Mobile New project has Portals and New Portal actions, and mobile and desktop creation share the New portal title and icon screen. The release includes the mobile authoring background and keyboard fixes, Home refresh placement, and startup canvas refinements.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_184351a8d70c8191b70df0af94b9372c` and deployment `appgdep_6aead27e90cc8191a8f03e9c4d1ef08c` succeeded at 2026-11-04T06:36:58.095042+00:00. The public audience and runtime revision 2 were verified. Draft PR148 matches the deployed source. The archive audit verified 642 files, with byte parity for the worker, four D1 SQL payloads and 423 public assets against live580. No migration was applied.
+
+Production matched all four checked entry routes and all 209 JavaScript and CSS assets. The configured build, both entry checks, typecheck and targeted lint passed. Of 339 focused checks, 338 passed. The guest Home fixture still expects anonymous results from a service that requires sign-in, as recorded for the previous release. Chrome with fictional data covered the project and portal flow at phone and desktop widths. Physical iPhone and authenticated production actions are unverified. Receipts use `logs/new-portal-release*`. Safe writer handoff.
+
 ## 2026-11-03 - New portal screen in project setup
 
 New Portal in mobile project setup and the desktop create controls open the shared New portal form with the title, preview, search, icon grid, Cancel and Create portal together. Removed the separate project setup Portal icon screen. Create portal selects the returned portal and returns to the project draft. Continue confirms that selection and opens uploads. Cancel keeps the original project details and selection. Interrupted portal edits can be restored when New Portal is reopened, including legacy drafts. On mobile the opaque screen cover stays full-height when the keyboard shrinks the form.

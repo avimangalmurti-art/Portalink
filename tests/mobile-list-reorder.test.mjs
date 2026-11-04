@@ -38,12 +38,12 @@ function harness() {
     if (name === 'framer-motion') return { useReducedMotion: () => reducedMotion };
     throw new Error(`Unexpected import ${name}`);
   });
-  const saves = [];
+  const saves = [], moves = [];
   const props = { items: [{ id: 'a' }, { id: 'b' }, { id: 'hidden' }], label: 'Portals', className: 'list',
-    onReorder: items => saves.push(items.map(item => item.id)),
+    onReorder: (items, { from, to }) => { saves.push(items.map(item => item.id)); moves.push([from, to]); },
     groupForItem: item => item.id === 'hidden' ? 'hidden' : 'visible',
     renderItem: (item, activator) => React.createElement('button', { ...activator }, item.id) };
-  return { props, saves, render: () => MobileReorderList(props), setDragging: value => { dragging = value; }, setReducedMotion: value => { reducedMotion = value; } };
+  return { props, saves, moves, render: () => MobileReorderList(props), setDragging: value => { dragging = value; }, setReducedMotion: value => { reducedMotion = value; } };
 }
 const drop = (tree, from, to) => tree.props.onDragEnd({ active: { id: from }, over: to === null ? null : { id: to } });
 const firstRow = tree => { const row = tree.props.children.props.children.props.children[0]; return row.type(row.props); };
@@ -68,6 +68,7 @@ test('changed release saves once; unchanged, cancelled, stale, disabled and cros
   assert.deepEqual(h.saves, []);
   drop(tree, 'a', 'b');
   assert.deepEqual(h.saves, [['b', 'a', 'hidden']]);
+  assert.deepEqual(h.moves, [[0, 1]]);
   assert.deepEqual(h.props.items.map(item => item.id), ['a', 'b', 'hidden']);
   h.props.disabled = true;
   drop(h.render(), 'a', 'b');
@@ -319,5 +320,6 @@ test('visible move actions respect the same group boundaries and disabled state 
   h.props.renderItem=(item,activator,moves)=>{if(item.id==='a')actions=moves;return React.createElement('button',activator,item.id);};
   firstRow(h.render());assert.equal(actions.moveUp,undefined);assert.equal(typeof actions.moveDown,'function');
   actions.moveDown();assert.deepEqual(h.saves,[['b','a','hidden']]);
+  assert.deepEqual(h.moves, [[0, 1]]);
   h.props.disabled=true;firstRow(h.render());assert.equal(actions.moveDown,undefined);
 });

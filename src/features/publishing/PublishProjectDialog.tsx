@@ -47,7 +47,10 @@ export function PublishProjectDialog({
   const guided = isMobile || Boolean(firstProject) || onboarding;
   const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
   const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: true, resume: resumeDraft, initialMetadata, awaitProfile: isMobile });
-  const mobileTitle = publishFlow.hasCommittedProject || publishFlow.step === 'preview' ? 'Review project' : publishFlow.firstProjectStage === 'details' ? onboarding ? 'Project details' : 'New project' : 'Files & cover';
+  const isReviewing = publishFlow.hasCommittedProject || publishFlow.step === 'preview';
+  const isEditingDetails = publishFlow.firstProjectStage === 'details';
+  const isMobileFiles = isMobile && !isReviewing && !isEditingDetails;
+  const mobileTitle = isReviewing ? 'Review project' : isEditingDetails ? onboarding ? 'Project details' : 'New project' : 'Files & cover';
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
@@ -152,10 +155,10 @@ export function PublishProjectDialog({
     : !media.items.length ? 'Add a file to publish.'
     : publishFlow.upload.isBusy ? 'Wait for your files to finish uploading.' : null;
   const notices = <>
-              {publishFlow.isDirty && <div className="mobile-draft-status" data-upload-draft-status="" data-presentation={isMobile ? 'mobile' : 'web'}>
+              {publishFlow.isDirty && (!isMobileFiles || publishFlow.localDraftStatus === 'error') && <div className="mobile-draft-status" data-upload-draft-status="" data-presentation={isMobile ? 'mobile' : 'web'}>
                 <span role="status" aria-live="polite">{publishFlow.localDraftStatus === 'error' ? 'Not saved on this device' : publishFlow.localDraftStatus === 'saved' ? 'Saved on this device' : 'Saving on this device…'}</span>
                 {publishFlow.localDraftStatus === 'error' && <button type="button" disabled={isRecovering} onClick={()=>void publishFlow.saveLocalDraft().catch(()=>undefined)}>Retry save</button>}
-                {!publishFlow.hasCommittedProject && <button type="button" disabled={isRecovering} onClick={()=>setIsConfirmingDiscard(true)}>Discard draft</button>}
+                {!isMobileFiles && !publishFlow.hasCommittedProject && <button type="button" disabled={isRecovering} onClick={()=>setIsConfirmingDiscard(true)}>Discard draft</button>}
               </div>}
               {/* The transfer itself was refused. Retrying re-sends the same
                files; nothing the creator chose has been reset. Deliberately

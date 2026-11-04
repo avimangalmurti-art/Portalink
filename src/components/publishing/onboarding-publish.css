@@ -242,7 +242,7 @@
   border:0;
   box-shadow:none;
 }
-#root .codex-shell [data-onboarding-idea-review] .onboarding-review-idea>header h4 {
+#root .codex-shell [data-onboarding-idea-review] .onboarding-review-idea>header:not(.onboarding-review-fields-heading) h4 {
   font-size:20px;
   font-weight:600;
   line-height:1.35;
@@ -364,6 +364,38 @@
   overflow-y:auto;
   overscroll-behavior:contain;
 }
+#root .codex-shell [data-project-creation] [data-onboarding-idea-review] > .onboarding-review-idea:has(> .onboarding-review-fields) {
+  flex:none;
+  grid-template-rows:auto;
+}
+[data-onboarding-idea-review] .onboarding-review-fields {
+  display:grid;
+  gap:8px;
+  margin:0;
+}
+[data-onboarding-idea-review] .onboarding-review-fields > div {
+  display:grid;
+  gap:3px;
+  min-width:0;
+}
+[data-onboarding-idea-review] .onboarding-review-fields dt { font-size:13px; font-weight:550; color:var(--text-secondary); }
+[data-onboarding-idea-review] .onboarding-review-fields dd {
+  margin:0;
+  min-width:0;
+  color:var(--text-primary);
+  font-size:15px;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+[data-onboarding-idea-review] .onboarding-review-fields .onboarding-review-title-value { font-size:20px; font-weight:600; line-height:1.35; }
+#root .codex-shell [data-project-creation] .onboarding-review-fields .onboarding-review-summary {
+  contain:none;
+  min-height:0;
+  max-height:clamp(88px,18dvh,160px);
+  margin:0;
+  color:inherit;
+}
+[data-onboarding-idea-review] .onboarding-review-fields .onboarding-review-empty-description { margin:0; color:var(--text-secondary); }
 /* A short desktop window gives space to crop controls before the preview. */
 #root .codex-shell [data-project-creation][data-presentation='web'] [data-onboarding-files-cover] [data-focused-cover] .cover-filmstrip-track {
   height:clamp(112px,calc(var(--dialog-viewport-height,100dvh) - 480px),280px);

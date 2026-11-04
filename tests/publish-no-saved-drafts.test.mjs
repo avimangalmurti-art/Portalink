@@ -35,8 +35,8 @@ test('desktop keeps close-to-discard behavior and never enables device persisten
  }
 });
 
-test('mobile explicitly confirms discard separately from saving and closing',async()=>{
- const h=harness(),tree=h.render();
+test('mobile Details explicitly confirms discard separately from saving and closing',async()=>{
+ const h=harness('mobile',{firstProjectStage:'details'}),tree=h.render();
  const guided=nodes(tree).find(node=>node.type==='MobilePublishFlow');
  const discard=nodes(guided.props.notices).find(node=>node.type==='button'&&node.props.children==='Discard draft');
  discard.props.onClick();

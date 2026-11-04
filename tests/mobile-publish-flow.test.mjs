@@ -226,6 +226,9 @@ test('MOBILE leaves each stage title to its screen frame and removes the duplica
    const tree=h.render(stage==='review'?'files':stage),all=nodes(tree);
    assert.equal(all.some(node=>node.type==='h1'||node.type==='h2'||node.type==='h3'),false);
    assert.equal(all.some(node=>node.type==='ol'||node.props['aria-current']==='step'||node.props.className==='project-creation-orientation'||node.props.className==='project-creation-context'),false);
+   const body = all.find(node => node.props.className?.includes('mobile-publish-body'));
+   const footer = all.find(node => node.type === 'footer');
+   assert.equal(React.Children.toArray((stage === 'files' ? body : tree).props.children).at(-1)?.type, footer.type);
    if(stage==='files')assert.equal(button(tree,'Review project').props.disabled,!media.isComplete);
    if(stage==='details')assert.equal(all.find(node=>node.props.className==='project-form-details').props['aria-labelledby'],'publish-dialog-title');
   }
@@ -252,6 +255,7 @@ test('WEB keeps its existing numbered rail, inline headings, explanatory copy an
   for(const [stage,expected] of [['files','Create your cover'],['details','Project details'],['review','Review project']]){
    if(stage==='review')h.flow.step='preview';
    const tree=h.render(stage==='review'?'files':stage),all=nodes(tree),rail=all.find(node=>node.type==='ol');
+   assert.equal(React.Children.toArray(tree.props.children).at(-1)?.type, 'footer');
    assert.equal(rail.props['aria-label'],'Upload steps');
    const labels=detailsFirst?['Details','Files','Review']:['Files','Details','Review'];
    assert.deepEqual(nodes(rail).filter(node=>node.type==='li').map(node=>React.Children.toArray(node.props.children).at(-1)),labels);
@@ -368,10 +372,17 @@ test('onboarding Review shows full authored details and accessible mixed-file su
   assert.deepEqual(sections.map(node=>node.props['aria-label']),['Cover','Project details','Selected files']);
   assert.equal(nodes(tree).some(node=>node.type==='h3'),false);
   assert.equal(nodes(tree).some(node=>node.type==='img'&&node.props.src?.startsWith('/onboarding/')),false);
-  assert.ok(nodes(sections[1]).some(node=>node.type==='strong'&&text(node)==='Interiors'));
-  assert.ok(text(sections[1]).includes('Portal'));
   const details=sections[1],files=sections[2];
-  assert.equal(text(nodes(details).find(node=>node.type==='h4')),title);
+  if(presentation==='mobile') {
+   const fields = nodes(details).find(node => node.type === 'dl');
+   assert.deepEqual(nodes(fields).filter(node => node.type === 'dt').map(text), ['Portal', 'Title', 'Description']);
+   assert.deepEqual(nodes(fields).filter(node => node.type === 'dd').slice(0, 2).map(text), ['Interiors', title]);
+   assert.equal(text(nodes(details).find(node => node.type === 'h4')), 'Project details');
+  } else {
+   assert.ok(nodes(details).some(node => node.type === 'strong' && text(node) === 'Interiors'));
+   assert.ok(text(details).includes('Portal'));
+   assert.equal(text(nodes(details).find(node => node.type === 'h4')), title);
+  }
   assert.equal(component(details,'FormattedText').props.text,summary);
   assert.ok(text(details).includes('Kyoto'));
   assert.doesNotMatch(text(details),/Description \(optional\)|Not added/);

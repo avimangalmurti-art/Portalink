@@ -22,7 +22,7 @@ export function MobileReorderList<T extends { id: string }>({
   className: string;
   itemClassName?: string;
   groupForItem?: (item: T) => string;
-  onReorder: (items: T[]) => void;
+  onReorder: (items: T[], move: { from: number; to: number }) => void;
   renderItem: (item: T, activator: MobileReorderActivator, actions: MobileReorderActions) => React.ReactNode;
 }) {
   // TouchSensor cancels when scrolling begins before the hold. Unlike disabling
@@ -44,7 +44,7 @@ export function MobileReorderList<T extends { id: string }>({
   const moveAction = (index: number, delta: -1 | 1) => {
     const destination = index + delta;
     if (disabled || destination < 0 || destination >= items.length || (groupForItem && groupForItem(items[index]) !== groupForItem(items[destination]))) return undefined;
-    return () => onReorder(arrayMove(items, index, destination));
+    return () => onReorder(arrayMove(items, index, destination), { from: index, to: destination });
   };
   return <DndContext sensors={sensors} collisionDetection={collisionDetection}
     accessibility={{ screenReaderInstructions: { draggable: 'Hold to move. With a keyboard, press Space, use the arrow keys to reposition, and press Space to save. Press Escape to cancel.' } }}
@@ -55,7 +55,7 @@ export function MobileReorderList<T extends { id: string }>({
       if (from < 0 || to < 0 || (groupForItem && groupForItem(items[from]) !== groupForItem(items[to]))) return;
       // Sortable previews movement with transforms. Only release writes an order,
       // so cancellation is reversible and one gesture cannot race multiple saves.
-      onReorder(arrayMove(items, from, to));
+      onReorder(arrayMove(items, from, to), { from, to });
     }}>
     <SortableContext items={items.map(item => item.id)} strategy={layout === 'grid' ? rectSortingStrategy : verticalListSortingStrategy}>
       <ul aria-label={label} className={className}>

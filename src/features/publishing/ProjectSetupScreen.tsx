@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { PlusIcon, XIcon } from 'lucide-react';
+import { CheckIcon, PlusIcon, XIcon } from 'lucide-react';
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { NewCategoryDialog } from '../../components/profile/NewCategoryDialog';
 import { portalIconNames } from '../../components/profile/categoryIcons';
@@ -122,13 +122,22 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
    <div className="project-setup-group"><label className="project-setup-identity"><span>Title</span><input autoFocus={!hasOpenedNewPortal.current} name="title" data-ui-shape="field" value={title} onChange={e=>setTitle(e.target.value)} maxLength={TITLE_MAX_LENGTH} placeholder="Enter a title" disabled={busy} required/></label>
     {mobileAuthoring ? <div className="project-setup-mobile-portals">
      <div className="project-setup-portal-buttons">
-      <button type="button" ref={portalsButton} data-ui-control="button" data-control-size="lg" data-control-variant="secondary" data-ui-shape="action" aria-expanded={showPortals} aria-controls="project-setup-portal-list" aria-describedby={selectedPortal?'project-setup-selected-portal':undefined} disabled={busy} onClick={()=>setShowPortals(!showPortals)}>Portals</button>
+      <button type="button" ref={portalsButton} className="project-setup-portal-picker" data-ui-control="button" data-control-size="lg" data-control-variant="secondary" data-ui-shape="action"
+       aria-label="Portals" aria-expanded={showPortals} aria-controls="project-setup-portal-list" aria-describedby={selectedPortal?'project-setup-selected-portal':undefined} disabled={busy} onClick={()=>setShowPortals(!showPortals)}>
+       Portals
+       {selectedPortal&&<span id="project-setup-selected-portal">{selectedPortal.label}</span>}
+      </button>
       <button type="button" ref={newPortalButton} data-ui-control="button" data-control-size="lg" data-control-variant="secondary" data-ui-shape="action" aria-haspopup="dialog" disabled={busy} onClick={openNewPortal}>New Portal</button>
      </div>
-     {selectedPortal&&<span className="sr-only" id="project-setup-selected-portal">Selected Portal: {selectedPortal.label}</span>}
      {portal!=='new'&&!selectedPortal&&<p className="project-setup-portal-error" role="status">Portal unavailable. Choose a Portal.</p>}
      <ul className="project-setup-portal-list" id="project-setup-portal-list" hidden={!showPortals}>
-      {availableCategories.length ? availableCategories.map(category=><li key={category.id}><button type="button" value={category.id} data-ui-control="button" data-control-size="lg" data-control-variant="secondary" aria-pressed={portal===category.id} disabled={busy} onClick={()=>{setPortal(category.id);closePortalChoices();}}>{category.label}</button></li>) : <li>No portals yet.</li>}
+      {availableCategories.length ? availableCategories.map(category=><li key={category.id}>
+       <button type="button" className="project-setup-portal-option" data-ui-shape="row" value={category.id}
+        aria-pressed={portal===category.id} disabled={busy} onClick={()=>{setPortal(category.id);closePortalChoices();}}>
+        <span>{category.label}</span>
+        {portal===category.id&&<CheckIcon size={18} aria-hidden="true"/>}
+       </button>
+      </li>) : <li>No portals yet.</li>}
      </ul>
     </div> : <div className="project-setup-portal-choice"><label className="project-setup-row"><span>Portal</span><select aria-label="Portal" data-ui-shape="field" value={portal==='new'?'':portal} onChange={e=>{if(e.target.value==='new')openNewPortal();else setPortal(e.target.value);}} disabled={busy}>{portal==='new'&&<option value="" disabled>Select a Portal</option>}{portal!=='new'&&!selectedPortal&&<option value={portal} disabled>Portal unavailable — choose another</option>}{availableCategories.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}<option value="new">Create a Portal</option></select></label>
      <button type="button" ref={newPortalButton} className="project-setup-add-portal" aria-label="Create a Portal" aria-haspopup="dialog" disabled={busy} onClick={openNewPortal}><PlusIcon size={18} aria-hidden="true"/></button>

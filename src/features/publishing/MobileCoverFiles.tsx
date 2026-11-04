@@ -29,7 +29,7 @@ export function MobileCoverFiles({ media, upload, disabled, onboarding = false }
       if (!locked && !media.isFull && event.target.files?.length) void media.select(event.target.files);
       event.target.value = '';
     }} />}
-    {onboarding && media.items.length > 0 && <div className="onboarding-files-brand"><img src="/onboarding/portals.webp" alt="" width="1254" height="1254" draggable={false}/><p>{needsDocumentCover ? 'Add a PDF or image for your cover.' : 'Choose your cover.'}</p></div>}
+    {!mobile && onboarding && media.items.length > 0 && <div className="onboarding-files-brand"><img src="/onboarding/portals.webp" alt="" width="1254" height="1254" draggable={false}/><p>{needsDocumentCover ? 'Add a PDF or image for your cover.' : 'Choose your cover.'}</p></div>}
     {cover ? <CoverFilmstrip media={media} disabled={locked} focused onboardingControls={onboarding} cropInstructions={mobile ? 'Drag to reposition. Use the slider to zoom.' : undefined} /> : onboarding ? media.items.length === 0 ? <section className="onboarding-files-empty" aria-labelledby="onboarding-files-title">
       <div className="onboarding-files-art" aria-hidden="true"><img src="/onboarding/portals.webp" alt="" width="1254" height="1254" draggable={false}/></div>
       <h3 id="onboarding-files-title">Bring your project to life</h3>
@@ -45,6 +45,8 @@ export function MobileCoverFiles({ media, upload, disabled, onboarding = false }
       <div className="mobile-selected-actions"><button type="button" data-ui-control={onboarding ? 'button' : undefined} data-control-size={onboarding ? 'lg' : undefined} data-control-variant={onboarding ? 'secondary' : undefined} disabled={locked || media.items.length === 0} onClick={() => setReordering(true)}>{onboarding ? <InterfaceIcon icon={ArrowUpDownIcon} weight="medium"/> : <ArrowUpDownIcon size={18} aria-hidden="true" />}Reorder</button><button type="button" data-ui-control={onboarding ? 'button' : undefined} data-control-size={onboarding ? 'lg' : undefined} data-control-variant={onboarding ? 'secondary' : undefined} disabled={locked || media.isFull} onClick={() => input.current?.click()}>{onboarding ? <InterfaceIcon icon={PlusIcon} weight="medium"/> : <PlusIcon size={18} aria-hidden="true" />}Add</button></div>
     </section>}
     {media.error && <p role="alert" className="mobile-cover-error">{media.error}</p>}
-    {reordering && <MobileActionSheet onboardingFiles={onboarding} layout={mobile || onboarding ? 'files' : undefined} model={{ title: 'Reorder', primary: [], groups: [] }} onClose={() => setReordering(false)} onAction={() => undefined}>{mobile ? <div className="mobile-reorder-files"><p className="mobile-reorder-summary">{media.items.length} {media.items.length === 1 ? 'file' : 'files'} selected</p><MediaPicker media={media} upload={upload} disabled={locked} compact expanded mobileFileManager onboardingFiles={onboarding}/></div> : <MediaPicker media={media} upload={upload} disabled={locked} compact expanded onboardingFiles={onboarding}/>}</MobileActionSheet>}
+    {reordering && <MobileActionSheet onboardingFiles={onboarding} layout={mobile || onboarding ? 'files' : undefined} model={{ title: 'Reorder', primary: [], groups: [] }} onClose={() => setReordering(false)} onAction={() => undefined}>
+      <MediaPicker media={media} upload={upload} disabled={locked} compact expanded mobileFileManager={mobile || undefined} reorderGrid={mobile || undefined} onboardingFiles={onboarding}/>
+    </MobileActionSheet>}
   </div>;
 }

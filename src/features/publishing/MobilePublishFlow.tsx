@@ -98,15 +98,21 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
   };
   const hint = stage === 'files' ? (preparing ? 'Preparing your files…' : !flow.media.isComplete ? onboarding ? null : 'Choose at least one file to continue.' : null)
     : null;
+  const summary = flow.metadata.summary.trim();
   const editAction = (label: string, target: MobilePublishStep) => <button type="button" className={onboarding ? 'onboarding-review-edit' : mobile ? 'mobile-review-edit' : undefined} data-ui-control={onboarding ? 'button' : undefined} data-control-variant={onboarding ? 'ghost' : undefined} data-control-size={onboarding ? 'sm' : undefined} aria-label={label} disabled={busy || flow.hasCommittedProject || (target === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(target)}><PencilIcon size={16} aria-hidden="true" />Edit</button>;
-  return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" data-onboarding-publish={onboarding || undefined} data-cover-step={stage === 'files' || undefined} data-details-step={stage === 'details' || undefined} data-review-step={stage === 'review' || undefined} data-first-project={Boolean(firstProject) || undefined} aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
-    {!singleHeading && <ol className="mobile-publish-progress" aria-label="Upload steps">
-      {(detailsFirst ? ['Details', 'Files', 'Review'] : ['Files', 'Details', 'Review']).map((label, stepIndex) => <li key={label} aria-current={stepIndex === index ? 'step' : undefined} data-complete={stepIndex < index || undefined}>
-        <span aria-hidden="true">{stepIndex < index ? <CheckIcon size={14} /> : stepIndex + 1}</span>{label}
-      </li>)}
-    </ol>}
-    {flow.state === 'publishing' && <PublishingProgress flow={flow} onboarding={onboarding} />}
-    <div ref={bodyRef} className="mobile-publish-body scrollbar-slim">
+  const actionsScrollWithFiles = mobile && stage === 'files';
+  const actions = <footer className="mobile-publish-actions">
+    {hint && <p id="mobile-publish-hint" role="status">{hint}</p>}
+    <div>
+      {backStep && <Button type="button" variant="secondary" size="lg" aria-label={singleHeading ? `Back to ${backStep === 'files' ? 'files' : 'project details'}` : undefined} disabled={busy || flow.hasCommittedProject || (singleHeading && backStep === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(backStep)}><ArrowLeftIcon size={18} aria-hidden="true" />Back</Button>}
+      <Button type="submit" variant="primary" size="lg" fullWidth isLoading={flow.state === 'publishing' || flow.isSavingDraft}
+        disabled={busy || (stage === 'files' && !flow.media.isComplete) || (stage === 'review' && !flow.canPublish)}>
+        {flow.state === 'publishing' ? 'Publishing…' : flow.isSavingDraft ? 'Saving details…' : stage === 'review' ? flow.hasCommittedProject ? 'Finish saving details' : 'Publish project' : onboarding ? stage === 'files' || flow.media.isComplete ? 'Review project' : 'Continue to upload' : mobile && stage === 'files' ? detailsFirst ? 'Review project' : 'Continue to details' : detailsFirst && !flow.media.isComplete ? 'Continue to upload' : stage === 'details' || detailsFirst ? 'Review project' : 'Continue'}
+        {!busy && <ArrowRightIcon size={20} aria-hidden="true" />}
+      </Button>
+    </div>
+  </footer>;
+  const content = <>
       {!singleHeading && <header className="mobile-publish-step-heading">
         <h3 id="mobile-publish-step-title" ref={headingRef} tabIndex={-1}>{titles[stage]}</h3>
         {stage === 'files' && !mobile && <p>Choose an image, adjust the crop and make it look its best.</p>}
@@ -131,9 +137,22 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
           {flow.media.items.some(item => item.isCover && canBeCover(item.family, item.capability)) ? <CoverFilmstrip compact readOnly media={flow.media} disabled /> : <p className="onboarding-review-empty-cover">No cover selected</p>}
         </section>
         <section className="onboarding-review-idea" aria-label="Project details">
-          <p className="onboarding-review-portal"><span>Portal</span><strong>{categoryLabel}</strong></p>
-          <header><h4>{flow.metadata.title.trim()}</h4>{editAction('Edit project details', 'details')}</header>
-          <div className="onboarding-review-summary" role="region" tabIndex={0} aria-label="Description">{flow.metadata.summary.trim() ? <FormattedText text={flow.metadata.summary.trim()}/> : <p className="onboarding-review-empty-description">No description added.</p>}</div>
+          {mobile ? <>
+            <header className="onboarding-review-fields-heading"><h4>Project details</h4>{editAction('Edit project details', 'details')}</header>
+            <dl className="onboarding-review-fields">
+              <div><dt>Portal</dt><dd>{categoryLabel}</dd></div>
+              <div><dt>Title</dt><dd className="onboarding-review-title-value">{flow.metadata.title.trim()}</dd></div>
+              <div>
+                <dt id={`${screenTitleId}-description`}>Description</dt>
+                <dd>{summary ? <div className="onboarding-review-summary" role="region" tabIndex={0} aria-labelledby={`${screenTitleId}-description`}><FormattedText text={summary} /></div>
+                  : <p className="onboarding-review-empty-description">No description added.</p>}</dd>
+              </div>
+            </dl>
+          </> : <>
+            <p className="onboarding-review-portal"><span>Portal</span><strong>{categoryLabel}</strong></p>
+            <header><h4>{flow.metadata.title.trim()}</h4>{editAction('Edit project details', 'details')}</header>
+            <div className="onboarding-review-summary" role="region" tabIndex={0} aria-label="Description">{summary ? <FormattedText text={summary} /> : <p className="onboarding-review-empty-description">No description added.</p>}</div>
+          </>}
           {flow.location.trim() && <p className="onboarding-review-location"><MapPinIcon size={16} aria-hidden="true"/><span>{flow.location.trim()}</span></p>}
         </section>
         <section className="onboarding-review-files" aria-label="Selected files">
@@ -163,18 +182,19 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
         {/* Exceptional transport states retain the existing retry/cleanup actions. */}
         {(flow.upload.failure || flow.upload.cleanupError) && <div className="mobile-review-transport"><MediaPicker compact media={flow.media} upload={flow.upload} disabled /></div>}
       </div>}
+  </>;
+  return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" data-onboarding-publish={onboarding || undefined} data-cover-step={stage === 'files' || undefined} data-details-step={stage === 'details' || undefined} data-review-step={stage === 'review' || undefined} data-first-project={Boolean(firstProject) || undefined} aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
+    {!singleHeading && <ol className="mobile-publish-progress" aria-label="Upload steps">
+      {(detailsFirst ? ['Details', 'Files', 'Review'] : ['Files', 'Details', 'Review']).map((label, stepIndex) => <li key={label} aria-current={stepIndex === index ? 'step' : undefined} data-complete={stepIndex < index || undefined}>
+        <span aria-hidden="true">{stepIndex < index ? <CheckIcon size={14} /> : stepIndex + 1}</span>{label}
+      </li>)}
+    </ol>}
+    {flow.state === 'publishing' && <PublishingProgress flow={flow} onboarding={onboarding} />}
+    <div ref={bodyRef} className="mobile-publish-body scrollbar-slim">
+      {actionsScrollWithFiles ? <div className="mobile-publish-file-content">{content}</div> : content}
+      {actionsScrollWithFiles && actions}
     </div>
-    <footer className="mobile-publish-actions">
-      {hint && <p id="mobile-publish-hint" role="status">{hint}</p>}
-      <div>
-        {backStep && <Button type="button" variant="secondary" size="lg" aria-label={singleHeading ? `Back to ${backStep === 'files' ? 'files' : 'project details'}` : undefined} disabled={busy || flow.hasCommittedProject || (singleHeading && backStep === 'files' && flow.upload.phase === 'uploaded')} onClick={() => edit(backStep)}><ArrowLeftIcon size={18} aria-hidden="true" />Back</Button>}
-        <Button type="submit" variant="primary" size="lg" fullWidth isLoading={flow.state === 'publishing' || flow.isSavingDraft}
-          disabled={busy || (stage === 'files' && !flow.media.isComplete) || (stage === 'review' && !flow.canPublish)}>
-          {flow.state === 'publishing' ? 'Publishing…' : flow.isSavingDraft ? 'Saving details…' : stage === 'review' ? flow.hasCommittedProject ? 'Finish saving details' : 'Publish project' : onboarding ? stage === 'files' || flow.media.isComplete ? 'Review project' : 'Continue to upload' : mobile && stage === 'files' ? detailsFirst ? 'Review project' : 'Continue to details' : detailsFirst && !flow.media.isComplete ? 'Continue to upload' : stage === 'details' || detailsFirst ? 'Review project' : 'Continue'}
-          {!busy && <ArrowRightIcon size={20} aria-hidden="true" />}
-        </Button>
-      </div>
-    </footer>
+    {!actionsScrollWithFiles && actions}
   </form>;
 }
 

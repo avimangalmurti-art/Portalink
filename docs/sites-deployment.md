@@ -1,3 +1,11 @@
+## 2026-11-03 - New portal and mobile authoring published 581
+
+Published `7f19f0b56cbe94329f6728fa261a61084144fe93` to https://portalinknetworks.com. Mobile New project has Portals and New Portal actions, and mobile and desktop creation share the New portal title and icon screen. The release includes the mobile authoring background and keyboard fixes, Home refresh placement, and startup canvas refinements.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_184351a8d70c8191b70df0af94b9372c` and deployment `appgdep_6aead27e90cc8191a8f03e9c4d1ef08c` succeeded at 2026-11-04T06:36:58.095042+00:00. The public audience and runtime revision 2 were verified. Draft PR148 matches the deployed source. The archive audit verified 642 files, with byte parity for the worker, four D1 SQL payloads and 423 public assets against live580. No migration was applied.
+
+Production matched all four checked entry routes and all 209 JavaScript and CSS assets. The configured build, both entry checks, typecheck and targeted lint passed. Of 339 focused checks, 338 passed. The guest Home fixture still expects anonymous results from a service that requires sign-in, as recorded for the previous release. Chrome with fictional data covered the project and portal flow at phone and desktop widths. Physical iPhone and authenticated production actions are unverified. Receipts use `logs/new-portal-release*`. Safe writer handoff.
+
 ## 2026-11-03 - Shorter mobile profile setup published 580
 
 Published `acdf835be5d9a70497cba7ce06268c9622f6b57a` to https://portalinknetworks.com. Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_afcfefec75908191a9ccec292e48c4f3` and deployment `appgdep_6aeac50bd7288191a9a78daab774da2a` succeeded at 2026-11-04T05:39:34.326765+00:00. Draft PR148 matches the deployed source.
