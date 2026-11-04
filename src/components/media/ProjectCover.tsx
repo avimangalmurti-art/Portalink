@@ -20,6 +20,7 @@ type ProjectCoverProps = {
   aspectRatio?: number;
   sizes?: string;
   priority?: ImagePriority;
+  showLoadingIndicator?: boolean;
   /** Visitor grids show existing bitmaps or a placeholder, never a live PDF. */
   allowPdfFallback?: boolean;
   /** Visitor grids defer original video playback until the project is opened. */
@@ -63,6 +64,7 @@ export function ProjectCover({
   aspectRatio: chosenAspectRatio,
   sizes,
   priority = false,
+  showLoadingIndicator = false,
   allowPdfFallback = true,
   allowVideoFallback = true,
   frame,
@@ -79,19 +81,35 @@ export function ProjectCover({
   const effectiveFit = fallback?.document ? 'contain' : fit;
   const [imageFailed, setImageFailed] = useState(false);
   const [previewFailed, setPreviewFailed] = useState(false);
+  const [loadedAsset, setLoadedAsset] = useState<string>();
   const storedImage = coverThumbnailSources(thumbnail);
+  const useDocumentPreview = kind === 'document' && Boolean(previewSource) && !previewFailed;
+  const mediaSource = useDocumentPreview && previewSource ? previewSource : source;
+  const activeAsset = storedImage?.src ?? mediaSource;
   useEffect(() => setImageFailed(false), [source, storedImage?.src]);
   useEffect(() => setPreviewFailed(false), [source, previewSource]);
+  useEffect(() => {
+    if (showLoadingIndicator) setLoadedAsset(current => current === activeAsset ? current : undefined);
+  }, [activeAsset, showLoadingIndicator]);
   const placeholder = <span role="img" aria-label={imageFailed || thumbnail || (kind === 'document' && !allowPdfFallback) || (kind === 'video' && !allowVideoFallback) ? `${alt} preview unavailable` : `${alt} has no cover`} className={`flex h-full w-full items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${className}`}>
         <InterfaceIcon icon={FileIcon} size="xl" weight="medium" />
       </span>;
+  const loadingMark = showLoadingIndicator ? <span data-project-cover-loading="" aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center">
+    <span className="premium-media-loading-mark" />
+  </span> : null;
+  const assetLoading = showLoadingIndicator && loadedAsset !== activeAsset;
+  const markLoaded = showLoadingIndicator ? () => setLoadedAsset(activeAsset) : undefined;
+  const withLoading = (media: React.ReactElement) => showLoadingIndicator
+    ? <>{media}{assetLoading && loadingMark}</> : media;
   if (thumbnail) {
     // A failed thumbnail stays a placeholder; never download the original or
     // start a PDF worker because one cacheable image could not be fetched.
-    return !storedImage || imageFailed ? placeholder : <ResponsiveImage {...storedImage}
+    return !storedImage || imageFailed ? placeholder : withLoading(<ResponsiveImage {...storedImage}
+      key={showLoadingIndicator ? storedImage.src : undefined}
       trackCoverPaint
       alt={alt} sizes={sizes} measureWidth priority={priority} data-project-cover-thumbnail=""
-      onError={() => setImageFailed(true)} className={`h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain'} ${className}`} />;
+      onLoad={markLoaded}
+      onError={() => setImageFailed(true)} className={`h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain'} ${className}`} />);
   }
   if (!source || imageFailed) {
     return placeholder;
@@ -101,14 +119,14 @@ export function ProjectCover({
     ? `${normalizedFrame.x * 100}% ${normalizedFrame.y * 100}%`
     : undefined;
   const safeRatio = aspectRatio && Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
-  const useDocumentPreview = kind === 'document' && Boolean(previewSource) && !previewFailed;
   const renderPdf = kind === 'document' && !useDocumentPreview;
   if (renderPdf && !allowPdfFallback) return placeholder;
   if (kind === 'video' && !allowVideoFallback) return placeholder;
   const content = renderPdf
-    ? <Suspense fallback={placeholder}><PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} fit={normalizedFrame ? 'cover' : 'contain'} objectPosition={objectPosition} className="h-full w-full" /></Suspense>
+    ? <Suspense fallback={loadingMark ?? placeholder}><PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} showLoadingIndicator={showLoadingIndicator} fit={normalizedFrame ? 'cover' : 'contain'} objectPosition={objectPosition} className="h-full w-full" /></Suspense>
     : kind === 'video'
       ? <video
+          key={showLoadingIndicator ? source : undefined}
           src={source}
           aria-label={alt}
           autoPlay
@@ -116,29 +134,34 @@ export function ProjectCover({
           muted
           playsInline
           preload="metadata"
+          onLoadedData={markLoaded}
+          onCanPlay={markLoaded}
+          onError={showLoadingIndicator ? () => setImageFailed(true) : undefined}
           style={{ objectPosition }}
           className={`h-full w-full ${effectiveFit === 'cover' ? 'object-cover' : 'object-contain'}`}
         />
       : <ResponsiveImage
+          key={showLoadingIndicator ? mediaSource : undefined}
           trackCoverPaint
-          src={useDocumentPreview && previewSource ? previewSource : source}
+          src={mediaSource ?? source}
           alt={alt}
           width={Math.max(1, Math.round(safeRatio * 1000))}
           height={1000}
           sizes={sizes}
           priority={priority}
+          onLoad={markLoaded}
           onError={() => useDocumentPreview ? setPreviewFailed(true) : setImageFailed(true)}
           style={{ objectPosition }}
-          className={`h-full w-full ${useDocumentPreview ? 'bg-white ' : ''}${(useDocumentPreview ? Boolean(normalizedFrame) : effectiveFit === 'cover') ? 'object-cover' : 'object-contain'}`}
+          className={`h-full w-full ${useDocumentPreview && !assetLoading ? 'bg-white ' : ''}${(useDocumentPreview ? Boolean(normalizedFrame) : effectiveFit === 'cover') ? 'object-cover' : 'object-contain'}`}
         />;
 
   if (!normalizedFrame) {
     if (renderPdf) {
-      return <Suspense fallback={placeholder}><PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} className={className} /></Suspense>;
+      return <Suspense fallback={loadingMark ?? placeholder}><PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} showLoadingIndicator={showLoadingIndicator} className={className} /></Suspense>;
     }
-    return React.cloneElement(content, {
+    return withLoading(React.cloneElement(content, {
       className: `${content.props.className ?? ''} ${className}`.trim(),
-    });
+    }));
   }
 
   return <span className={`relative block h-full w-full overflow-hidden ${className}`}>
@@ -147,9 +170,14 @@ export function ProjectCover({
       style={{
         transform: `scale3d(${normalizedFrame.zoom}, ${normalizedFrame.zoom}, 1)`,
         transformOrigin: objectPosition,
-      }}
+        ...(renderPdf && showLoadingIndicator ? {
+          '--cover-loading-counter-transform': `scale(${1 / normalizedFrame.zoom})`,
+          '--cover-loading-transform-origin': objectPosition,
+        } : {}),
+      } as React.CSSProperties}
     >
       {content}
     </span>
+    {!renderPdf && assetLoading && loadingMark}
   </span>;
 }

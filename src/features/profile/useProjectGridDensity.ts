@@ -6,6 +6,8 @@ import type { Profile } from '../../types/domain';
 import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
 import { usePresentation, type Presentation } from '../../presentation/usePresentation';
 
+const DEFAULT_MOBILE_PROJECT_GRID_COLUMNS = 4;
+
 type DensityState = {
   columns: number;
   saving: boolean;
@@ -38,7 +40,12 @@ function notify(state: DensityState) {
 }
 
 function storedColumns(key: string): number | undefined {
-  try { const stored = localStorage.getItem(key); return stored === null ? undefined : Number(stored); }
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return undefined;
+    const columns = Number(stored);
+    return Number.isFinite(columns) ? columns : undefined;
+  }
   catch { return undefined; }
 }
 
@@ -95,14 +102,15 @@ export function useProjectGridDensity(
   const visitorStates = useMemo(() => new Map<Presentation, DensityState>(), [profiles, profileId, canSave, scope]);
   const state = useMemo(() => {
     if (scope === 'home') {
-      return ownerState(profiles, `home:${presentation}:${profileId ?? 'guest'}`, storedColumns(homeKey));
+      return ownerState(profiles, `home:${presentation}:${profileId ?? 'guest'}`,
+        storedColumns(homeKey) ?? (isMobile ? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS : undefined));
     }
     if (canSave && profileId) return isMobile
-      ? ownerState(profiles, `profile:mobile:${profileId}`, storedColumns(mobileProfileKey))
+      ? ownerState(profiles, `profile:mobile:${profileId}`, storedColumns(mobileProfileKey) ?? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS)
       : ownerState(profiles, profileId, canonicalColumns);
     let visitor = visitorStates.get(presentation);
     if (!visitor) {
-      visitor = createState(isMobile ? storedColumns(mobileProfileKey) : canonicalColumns);
+      visitor = createState(isMobile ? storedColumns(mobileProfileKey) ?? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS : canonicalColumns);
       visitorStates.set(presentation, visitor);
     }
     return visitor;

@@ -1,3 +1,18 @@
+## 2026-11-04 - Mobile Portal Search layout published 584
+
+Published [Portalink](https://portalinknetworks.com) from `aaa96c6003744960e51c8a56a9cb0a7e85dff5b4`. Mobile Portal Search now shows three rounded cards per row. Desktop retains six columns. Other pending local edits were excluded. [Draft PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points to the release commit.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_feb8f30763548191a19e48ff9582e775` and deployment `appgdep_6aeb5d342fcc8191a57d5a81dd1bb18e` succeeded at 2026-11-04T16:28:49.660178+00:00. The public audience and runtime revision 2 were verified. The archive audit verified 642 files, with byte parity for the worker, four D1 SQL payloads and 423 public assets against live 583. All four custom-domain entry routes and 209 JS/CSS assets matched the archive. No migration was applied. Local receipts are under `logs/socal-release/logs/portal-search-mobile-release-*`.
+
+
+## 2026-11-04 - Onboarding and mobile editor published 583
+
+Published [Portalink](https://portalinknetworks.com) from `6d57ae1500028913a96e5c5d387bc630d83f93ca`. Email signup proceeds to verification without the placeholder agreements. Mobile signup lands on Home, optional setup previews appearance across the sheet, and the empty owner Profile starts first-project publishing. Mobile publishing returns to Profile. Edit project has a compact header Save, a vertical Files grid, and pinch-to-zoom cover editing. The release also updates portal labels, notes, file order, review details and iPhone status-bar metadata.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_755870121a108191b3171d35cb0d1319` and deployment `appgdep_6aeb0365eb008191a44c54b1f896abb8` succeeded at 2026-11-04T10:05:36.336999+00:00. The public audience and runtime revision 2 were verified. Draft PR148 matches the deployed source. The archive audit verified 642 files, with byte parity for the worker, four D1 SQL payloads and 423 public assets against live582. No migration was applied.
+
+All 465 focused tests, typecheck, targeted lint and configured build passed. Production matched all four checked entry routes and 209 JavaScript and CSS assets. Authenticated production flows and the native status bar on an installed iPhone remain unverified. Receipts use `logs/mobile-onboarding-editor-release*`. Safe writer handoff.
+
 ## 2026-11-03 - Mobile publishing and review published 582
 
 Published `f9fffef5d9a3e3291ec0201f86531b63ce9c8ab0` to https://portalinknetworks.com. Mobile project setup shows the selected Portal and a plain list of choices. Files & cover opens to the editor and places its actions below the files. Reorder uses three columns of larger previews. Review project labels Portal, Title and Description.

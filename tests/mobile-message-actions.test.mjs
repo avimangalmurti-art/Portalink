@@ -5,6 +5,13 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { sourceModule } from './helpers/source-module.mjs';
+
+const publicOrigin = 'https://portalinknetworks.com';
+const sharedContentPreview = sourceModule('src/features/messages/sharedContentPreview.ts', {
+  '../citations/publicOrigin': { PUBLIC_ORIGIN: publicOrigin },
+  '../sharing/shareModel': sourceModule('src/features/sharing/shareModel.ts'),
+});
 
 function nodes(node) {
   return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
@@ -43,11 +50,12 @@ function listHarness(presentation = 'mobile', overrides = {}, runEffects = false
   const state = stateReact(runEffects), calls = [], frames = new Map(), elements = new Map();
   let frameId = 0, activeElement = null;
   function element(key) {
-    if (!elements.has(key)) elements.set(key, { key, isConnected: true, disabled: false, focus() { if (this.isConnected && !this.disabled) activeElement = this; } });
+    if (!elements.has(key)) elements.set(key, { key, isConnected: true, disabled: false, closest: () => null, focus() { if (this.isConnected && !this.disabled) activeElement = this; } });
     return elements.get(key);
   }
   const MobileMessageActions = () => null;
   const props = { messages: [ownMessage], viewerProfileId: 'me', canInteract: true, participantReadAt: null, pendingMessageId: null,
+    isReactionPending: () => false,
     onRetry: async id => { calls.push(['retry', id]); return true; },
     onEdit: async (id, body) => { calls.push(['edit', id, body]); return true; },
     onDelete: async id => { calls.push(['delete', id]); return true; },
@@ -220,66 +228,82 @@ test('MOBILE hands focus from the sheet to Unsend Cancel and restores its enable
 
 function sheetHarness(isMine = true) {
   const state = stateReact(), calls = []; let escape;
-  const props = { message: ownMessage, isMine, pending: false,
+  const props = { message: ownMessage, isMine, pending: false, anchor: null,
     onClose: () => calls.push('close'), onReact: emoji => calls.push(['react', emoji]), onEdit: () => calls.push('edit'), onRequestUnsend: () => calls.push('confirm-unsend') };
-  const sheetApi = compile('../src/components/messages/MobileActionSheet.tsx', {
-    react: state.react,
-    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
-    '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
-    '../../hooks/useModalFocus': { useModalFocus(open, _ref, close, preventScroll) { assert.equal(open, true); assert.equal(preventScroll, true); escape = close; } },
-  });
   const contextModule = compile('../src/presentation/mobile/contextActions.ts', {});
   const api = compile('../src/components/messages/MobileMessageActions.tsx', {
-    react: state.react,
+    react: { ...state.react, useLayoutEffect() {} },
     '../../presentation/mobile/contextActions': contextModule,
-    './MobileActionSheet': { MobileActionSheet: 'sheet' },
+    '../../features/messages/sharedContentPreview': sharedContentPreview,
+    '../ui/ModalPortal': { ModalPortal: 'portal' },
+    '../../hooks/useModalFocus': { useModalFocus(open, _ref, close, preventScroll) { assert.equal(open, true); assert.equal(preventScroll, true); escape = close; } },
     'react-dom': { flushSync: fn => fn() },
-    '../../presentation/mobile/contextFocus': { focusMobileContextButton() {} },
-  });
-  const render = () => { state.reset(); const adapter = api.MobileMessageActions(props); return sheetApi.MobileActionSheet(adapter.props); };
+  }, '', { window: { location: { origin: publicOrigin } } });
+  const render = () => { state.reset(); return api.MobileMessageActions(props); };
   return { render, props, calls, escape: () => escape() };
 }
 
-test('action sheet supports focus dismissal, touch reactions and only shows editing for the sender', () => {
+test('the anchored options support focus dismissal and editing for the sender', () => {
   const h = sheetHarness(); const tree = h.render();
   assert.ok(nodes(tree).find(node => node.props.role === 'dialog' && node.props['aria-modal']));
   const reactions = nodes(tree).filter(node => node.type === 'button' && node.props['aria-pressed'] !== undefined);
   assert.equal(reactions.length, 3, 'All supported icon reactions are visible without duplicates');assert.deepEqual(reactions.map(node=>node.props['aria-label']),['Remove Love','React with Applause','React with Sparkle']);assert.ok(reactions.every(node=>!React.Children.toArray(node.props.children).some(child=>typeof child==='string'&&/[❤👏✨]/u.test(child))));
   assert.equal(reactions[0].props['aria-label'], 'Remove Love');
   assert.equal(reactions[0].props['aria-pressed'], true);
-  for (const reaction of reactions) assert.match(reaction.props.className, /min-h-\[64px\]/);
+  const stack = nodes(tree).find(node => node.props['data-message-context-stack'] !== undefined);
+  assert.deepEqual(React.Children.toArray(stack.props.children).slice(0, 3).map(node => node.props.className), [
+    'mobile-message-context-reactions', 'mobile-message-context-bubble', 'mobile-message-context-actions',
+  ]);
   reactions[0].props.onClick(); assert.deepEqual(h.calls.at(-1), ['react', '❤']);
   h.escape(); assert.equal(h.calls.at(-1), 'close');
-  const overlay = nodes(tree).find(node => node.props.className?.includes('mobile-context-scrim'));
+  const overlay = nodes(tree).find(node => node.props['data-message-context'] !== undefined);
+  let blockedClicks = 0;
+  const click = detail => ({ detail, preventDefault() { blockedClicks++; }, stopPropagation() {} });
+  overlay.props.onClickCapture(click(1));
+  assert.equal(blockedClicks, 1, 'The opening hold release cannot invoke a popover action');
+  overlay.props.onPointerDownCapture({ isPrimary: true, button: 0 });
+  overlay.props.onClickCapture(click(1));
+  overlay.props.onClickCapture(click(0));
+  assert.equal(blockedClicks, 1, 'Fresh taps and keyboard activation still work');
   const background = {}; const before = h.calls.length;
   overlay.props.onClick({ target: {}, currentTarget: background }); assert.equal(h.calls.length, before);
   overlay.props.onClick({ target: background, currentTarget: background }); assert.equal(h.calls.at(-1), 'close');
   const incomingButtons = nodes(sheetHarness(false).render()).filter(node => node.type === 'button');
-  assert.equal(incomingButtons.length, 5, 'Incoming messages have Resize, Close and all three icon reactions');
+  assert.equal(incomingButtons.length, 5, 'Incoming messages have Copy, Close and all three icon reactions');
+  assert.equal(incomingButtons.some(node => React.Children.toArray(node.props.children).includes('Edit message')), false);
   h.props.pending = true;
-  const mutationButtons = nodes(h.render()).filter(node => node.type === 'button' && node.props['aria-label'] !== 'Close actions' && node.props.className !== 'mobile-context-resize');
-  assert.equal(mutationButtons.length, 3);assert.ok(mutationButtons.every(button=>button.props.disabled));
+  const mutationButtons = nodes(h.render()).filter(node => node.type === 'button' && node.props['aria-pressed'] !== undefined);
+  assert.equal(mutationButtons.length, 3); assert.ok(mutationButtons.every(button => button.props.disabled));
 });
 
-test('message sheet resizing preserves reactions and pending state still permits resizing and dismissal', () => {
+test('Message options omit generated shares while preserving notes and the reaction actions', () => {
   const h = sheetHarness();
-  const resize = () => nodes(h.render()).find(node => node.props.className === 'mobile-context-resize');
-  const dialog = () => nodes(h.render()).find(node => node.props.role === 'dialog');
-  resize().props.onClick({ detail: 0 });
-  assert.equal(dialog().props['data-expanded'], true);
-  const reactions = nodes(h.render()).filter(node => node.type === 'button' && node.props['aria-pressed'] !== undefined);
-  assert.equal(reactions.length, 3);
-  reactions[1].props.onClick();
-  assert.equal(h.calls.at(-1)[0], 'react');
+  const project = `${publicOrigin}/p/creator/c/portal/project`;
+  const page = `${project}?media=creator%2Ffile.pdf&page=6`;
+  for (const [body, expected] of [
+    [`Page 6\n${page}`, null],
+    [page, null],
+    [project, null],
+    [`Page 6\n${page}\nMy note`, 'My note'],
+    [`Read this page\n${page}`, 'Read this page'],
+    [`Project title\n${project}`, 'Project title'],
+    ['Read this https://example.test/project', 'Read this https://example.test/project'],
+  ]) {
+    h.props.message = { ...ownMessage, body };
+    const tree = nodes(h.render());
+    const preview = tree.find(node => node.props['data-message-options-preview'] !== undefined);
+    assert.equal(preview ? nodes(preview).find(node => node.type === 'p')?.props.children : null, expected);
+    assert.ok(tree.some(node => node.props['aria-label'] === 'React with Sparkle'));
+  }
+});
+
+test('the options can still be dismissed while reactions are pending', () => {
+  const h = sheetHarness();
   h.props.pending = true;
-  assert.ok(nodes(h.render()).filter(node=>node.props['aria-pressed']!==undefined).every(node=>node.props.disabled));
-  assert.equal(resize().props.disabled, undefined);
-  const before = h.calls.length;
-  resize().props.onClick({ detail: 0 });
-  assert.equal(dialog().props['data-expanded'], false);
-  assert.equal(h.calls.length, before, 'Resizing cannot invoke a message mutation');
-  nodes(h.render()).find(node => node.props['aria-label'] === 'Close actions').props.onClick();
-  assert.equal(h.calls.at(-1), 'close');
+  const close = nodes(h.render()).find(node => node.type === 'button' && node.props.children === 'Close options');
+  assert.equal(close.props.disabled, undefined);
+  close.props.onClick();
+  assert.deepEqual(h.calls, ['close']);
 });
 
 function conversationHarness(presentation = 'mobile') {

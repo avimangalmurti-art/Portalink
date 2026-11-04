@@ -3998,6 +3998,11 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   box-shadow: none;
 }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble='incoming'] { background: var(--surface-sunken); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble]:has(> [data-message-body] > [data-shared-page-only]):not(:has(> ul, > p)) {
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+}
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble] > p { font-size: 16px; line-height: 1.4; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-meta] {
   position: absolute;
@@ -4062,6 +4067,39 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row][data-has-reactions][data-has-receipt] [data-message-meta] { top: calc(100% + 22px); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row][data-message-failed] { margin-bottom: 52px; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not(:has(> label))::before { left: 0; }
+
+/* Regular chats keep the editable surface between the separate touch targets. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] form:has(> [data-message-composer]:not([data-invitation-composer])) {
+  padding-inline: max(8px, var(--safe-area-left, 0px)) max(8px, var(--safe-area-right, 0px));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer]) {
+  min-height: var(--mobile-control-target);
+  padding: 0;
+  gap: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer])::before {
+  content: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer]) > label {
+  background: transparent;
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer]) > textarea {
+  --message-line-height: 24px;
+  --message-field-padding: calc((var(--mobile-control-target) - var(--message-line-height)) / 2);
+  max-height: clamp(var(--mobile-control-target), calc(var(--dialog-viewport-height, 100dvh) * .36), calc(5 * var(--message-line-height) + 2 * var(--message-field-padding)));
+  padding: var(--message-field-padding) 12px;
+  line-height: var(--message-line-height);
+  background-color: var(--surface-inset) !important;
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-tertiary) transparent;
+  overscroll-behavior-y: contain;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer]) > textarea:focus {
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  outline: none !important;
+}
 
 /* Focused portfolio sharing uses the visible viewport without the main dock. */
 #root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) .portfolio-share-page) .mobile-navigation-layer { display: none; }
@@ -5853,6 +5891,11 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
 /* Measure the refresh band from the resting Home controls. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] > .home-pull-indicator {position:absolute;z-index:11;inset-inline:0;top:var(--mobile-screen-action-top);height:24px;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator > .premium-media-loading-mark {width:22px;height:22px;}
+/* A legacy PDF cover's crop transforms its artwork, not its loading mark. */
+#root .codex-shell[data-presentation='mobile'] [data-home-grid] [data-project-cover-loading] {
+  transform: var(--cover-loading-counter-transform, none);
+  transform-origin: var(--cover-loading-transform-origin, center);
+}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator:not([data-active='true']) .premium-media-loading-mark {animation-play-state:paused;}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator:where(.reduce-motion *, .app-viewport--reduce-motion *) .premium-media-loading-mark {animation:none;}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator[data-refresh-reduced='true'] .premium-media-loading-mark {animation:none;}
@@ -6032,6 +6075,7 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 
 /* Holding a message opens actions rather than Safari text selection/callouts. */
 [data-presentation='mobile'] [data-message-hold] :is(p, time),
+[data-presentation='mobile'] [data-message-hold] [data-shared-content-preview] [data-preview-open],
 [data-presentation='mobile'] [data-message-date],
 [data-presentation='mobile'] [data-message-options-preview],
 [data-presentation='mobile'] [data-message-options-preview] :is(p, time) {

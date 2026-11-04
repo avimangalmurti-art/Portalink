@@ -104,6 +104,18 @@ function composerFixture({ mobile = true, account = 'account-a', store = storage
   return { auth, messaging, store, legacy, drafts,
     get text() { return textarea().props.value; },
     type(text) { textarea().props.onChange({ target: { value: text } }); render(); },
+    pressReturn({ isComposing = false } = {}) {
+      let prevented = false;
+      let submitted = false;
+      const input = textarea();
+      input.props.onKeyDown({
+        key: 'Enter',
+        nativeEvent: { isComposing },
+        currentTarget: { form: { requestSubmit() { submitted = true; } } },
+        preventDefault() { prevented = true; },
+      });
+      return { prevented, submitted, hint: input.props.enterKeyHint };
+    },
     send() { const form = nodes(render()).find(node => node.type === 'form'); form.props.onSubmit({ preventDefault() {} }); render(); },
     retry(id) { return nodes(render()).find(node => node.type?.name === 'MessageList').props.onRetry(id); },
     setMobile(value) { mobile = value; dirty = true; render(); },
@@ -111,6 +123,16 @@ function composerFixture({ mobile = true, account = 'account-a', store = storage
     async flush() { await Promise.resolve(); await Promise.resolve(); render(); },
   };
 }
+
+test('mobile Return keeps typing while desktop Enter submits outside IME composition', () => {
+  const mobile = composerFixture();
+  mobile.type('A draft');
+  assert.deepEqual(mobile.pressReturn(), { prevented: false, submitted: false, hint: 'enter' });
+  assert.equal(mobile.text, 'A draft');
+  const desktop = composerFixture({ mobile: false });
+  assert.deepEqual(desktop.pressReturn(), { prevented: true, submitted: true, hint: undefined });
+  assert.deepEqual(desktop.pressReturn({ isComposing: true }), { prevented: false, submitted: false, hint: undefined });
+});
 
 test('actual mobile composer survives relaunch and failed send; success clears after acknowledgement', async () => {
   const store = storage(); const first = composerFixture({ store }); first.type('Unsent text');

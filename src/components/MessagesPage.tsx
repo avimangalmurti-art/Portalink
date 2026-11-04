@@ -128,6 +128,7 @@ export function MessagesPage({
   const preserveScrollRef = useRef(false);
   const activeId = messaging.activeConversation?.id ?? null;
   const isMessageRequest = messaging.activeConversation?.status === 'request';
+  const isMobileMessageComposer = isMobile && activeId !== null && !isMessageRequest;
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
   const entryIdentity = JSON.stringify([isMobile, screenActive, auth.user?.id, auth.viewerProfileId, activeId]);
@@ -221,9 +222,18 @@ export function MessagesPage({
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    textarea.style.height = 'auto';
-    textarea.style.height = `${Math.min(128, Math.max(38, textarea.scrollHeight))}px`;
-  }, [draft]);
+    const resize = () => {
+      const scrollTop = textarea.scrollTop;
+      textarea.style.height = 'auto';
+      const contentHeight = textarea.scrollHeight;
+      textarea.style.height = `${isMobileMessageComposer ? contentHeight : Math.min(128, Math.max(38, contentHeight))}px`;
+      if (isMobileMessageComposer) textarea.scrollTop = scrollTop;
+    };
+    resize();
+    if (!isMobileMessageComposer) return;
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [draft, isMobileMessageComposer]);
 
   useEffect(() => {
     if (isMobile) return;
@@ -525,7 +535,7 @@ export function MessagesPage({
                     <button data-ui-shape="action" data-control-size="md" type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}
                 {!messaging.isLoadingThread && !mobileThreadError && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]">{isMobile && isMessageRequest ? <p className="text-[14px] leading-6 text-[var(--text-secondary)]">Send one text-only invitation to chat. You can send more messages and attachments after they accept.</p> : <EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} />}</div> : null}
-                <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest && !messaging.activeConversation.participant.isDeleted} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
+                <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest && !messaging.activeConversation.participant.isDeleted} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} isReactionPending={messaging.isReactionPending} onRetry={retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
                 {hasNewBelow ? <button data-ui-shape="action" data-control-size="md" type="button" onClick={scrollToLatest} className="sticky bottom-2 mx-auto mt-3 flex items-center gap-2 rounded-full bg-[var(--surface-raised)] px-3 py-2 text-[12px] font-semibold text-[var(--accent-text)] shadow-lg ring-1 ring-[var(--hairline)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowDownIcon} />New messages</button> : null}
               </div>
 
@@ -540,9 +550,9 @@ export function MessagesPage({
                 {!isMessageRequest && attachments.length > 0 ? <ul className="mx-auto mb-2 flex max-w-[760px] flex-wrap gap-2" aria-label="Selected attachments">
                     {attachments.map((file, index) => <li key={`${file.name}:${file.size}:${index}`} className="flex max-w-full items-center gap-2 rounded-full bg-[var(--surface-sunken)] px-3 py-1.5 text-[12px]"><InterfaceIcon icon={FileTextIcon} /><span className="max-w-48 truncate">{file.name}</span><button data-ui-shape="icon" data-control-size="sm" type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`} className="shape-compact flex items-center justify-center"><InterfaceIcon icon={XIcon} size="md" /></button></li>)}
                   </ul> : null}
-                <div data-ui-shape="composer" data-message-composer="" data-invitation-composer={isMessageRequest || undefined} className="text-control-shell mx-auto flex max-w-[760px] items-end gap-2 rounded-[22px] p-1.5 pl-2">
+                <div data-ui-shape="composer" data-message-composer="" data-invitation-composer={isMessageRequest || undefined} className={`${isMobileMessageComposer ? '' : 'text-control-shell '}mx-auto flex max-w-[760px] items-end gap-2 rounded-[22px] p-1.5 pl-2`}>
                   {!isMessageRequest ? <label className="shape-compact flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)]" title="Attach files">
-                    <span className="sr-only">Attach files</span><InterfaceIcon icon={isMobile ? PlusIcon : PaperclipIcon} />
+                    <span className="sr-only">Attach files</span><InterfaceIcon icon={isMobile ? PlusIcon : PaperclipIcon} size={isMobileMessageComposer ? 'lg' : undefined} />
                     <input type="file" multiple className="sr-only" onChange={(event) => {
                       const selected = [...(event.target.files ?? [])];
                       const oversized = selected.filter((file) => file.size > 25 * 1024 * 1024);
@@ -557,8 +567,8 @@ export function MessagesPage({
                       event.currentTarget.value = '';
                     }} />
                   </label> : null}
-                  <textarea ref={textareaRef} autoFocus={isMobile && isMessageRequest && messaging.activeConversation.isDraft} value={draft} onChange={(event) => updateDraft(event.target.value)} onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  <textarea data-ui-shape={isMobileMessageComposer ? 'composer' : undefined} ref={textareaRef} autoFocus={isMobile && isMessageRequest && messaging.activeConversation.isDraft} value={draft} onChange={(event) => updateDraft(event.target.value)} enterKeyHint={isMobileMessageComposer ? 'enter' : undefined} onKeyDown={(event) => {
+                    if (!isMobileMessageComposer && event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                       event.preventDefault();
                       event.currentTarget.form?.requestSubmit();
                     }
@@ -616,12 +626,13 @@ function MessageHold({ enabled, onHold, children }: { enabled: boolean; onHold: 
   return React.cloneElement(children as React.ReactElement, { ...hold, ref: rowRef, 'data-message-hold': enabled ? '' : undefined });
 }
 
-function MessageList({ messages, viewerProfileId, canInteract, participantReadAt, pendingMessageId, onRetry, onEdit, onDelete, onReact }: {
+function MessageList({ messages, viewerProfileId, canInteract, participantReadAt, pendingMessageId, isReactionPending, onRetry, onEdit, onDelete, onReact }: {
   messages: DirectMessage[];
   viewerProfileId: Id | null;
   canInteract: boolean;
   participantReadAt: string | null;
   pendingMessageId: Id | null;
+  isReactionPending: (id: Id) => boolean;
   onRetry: (id: Id) => Promise<boolean>;
   onEdit: (id: Id, body: string) => Promise<boolean>;
   onDelete: (id: Id) => Promise<boolean>;
@@ -633,10 +644,29 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
   const [editBody, setEditBody] = useState('');
   const [deleteId, setDeleteId] = useState<Id | null>(null);
   const [actionsId, setActionsId] = useState<Id | null>(null);
+  const openedActions = useRef<Id | null>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const actionTriggerRef = useRef<HTMLButtonElement | null>(null);
   const hadInlineActionRef = useRef(false);
   const actionMessage = isMobile && canInteract ? messages.find((message) => message.id === actionsId && !message.id.startsWith('local-') && !message.isRemoved) : undefined;
+  const isMessagePending = (id: Id) => pendingMessageId === id || isReactionPending(id);
+  const closeActions = () => {
+    openedActions.current = null;
+    setActionsId(null);
+  };
+  const openActions = (id: Id, trigger: HTMLButtonElement | null, held = false) => {
+    if (openedActions.current === id) return;
+    openedActions.current = id;
+    actionTriggerRef.current = trigger;
+    setActionsId(id);
+    if (held && typeof navigator !== 'undefined') navigator.vibrate?.(12);
+  };
+  useEffect(() => {
+    if (actionsId && !actionMessage) {
+      openedActions.current = null;
+      setActionsId(null);
+    }
+  }, [actionsId, actionMessage]);
   useEffect(() => {
     const hadInlineAction = hadInlineActionRef.current;
     hadInlineActionRef.current = Boolean(editingId || deleteId);
@@ -661,11 +691,12 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
         const previous = messages[index - 1];
         const grouped = !showDay && previous?.senderProfileId === message.senderProfileId && new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() < 5 * 60 * 1000;
         const hasReactions = Boolean(message.reactions?.length);
+        const isPending = isMessagePending(message.id);
         const hasReceipt = isMine && (message.id === latestOutgoingId || message.deliveryState === 'sending' || message.deliveryState === 'failed');
         return <React.Fragment key={message.id}>
             {showDay ? <li data-message-date="" className="py-3 text-center text-[11px] font-medium text-[var(--text-tertiary)]">{day}</li> : null}
-            <MessageHold enabled={isMobile && canInteract && !message.isRemoved && !message.id.startsWith('local-') && pendingMessageId !== message.id && !editingId && !deleteId} onHold={trigger => { actionTriggerRef.current = trigger; setActionsId(message.id); }}><li data-message-id={message.id} data-message-row="" data-message-grouped={grouped || undefined} data-has-reactions={hasReactions || undefined} data-has-receipt={hasReceipt || undefined} data-message-failed={message.deliveryState === 'failed' || undefined} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-              <div data-message-bubble={isMine ? 'outgoing' : 'incoming'} className={`group/message max-w-[78%] rounded-[18px] px-3.5 py-2.5 ${isMine ? 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)] ring-1 ring-[var(--hairline)]'} ${message.deliveryState === 'failed' ? 'ring-2 ring-[var(--status-danger)]' : ''}`}>
+            <MessageHold enabled={isMobile && canInteract && !message.isRemoved && !message.id.startsWith('local-') && !isPending && !editingId && !deleteId} onHold={trigger => openActions(message.id, trigger, true)}><li data-message-id={message.id} data-message-row="" data-message-grouped={grouped || undefined} data-has-reactions={hasReactions || undefined} data-has-receipt={hasReceipt || undefined} data-message-failed={message.deliveryState === 'failed' || undefined} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+              <div data-message-context-selected={actionMessage?.id === message.id || undefined} data-message-bubble={isMine ? 'outgoing' : 'incoming'} className={`group/message max-w-[78%] rounded-[18px] px-3.5 py-2.5 ${isMine ? 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)] ring-1 ring-[var(--hairline)]'} ${message.deliveryState === 'failed' ? 'ring-2 ring-[var(--status-danger)]' : ''}`}>
                 {message.isRemoved ? <p className="text-[12px] text-[var(--text-tertiary)]">Deleted User</p> : null}
                 {editingId === message.id ? <form onSubmit={(event) => { event.preventDefault(); void onEdit(message.id, editBody).then((saved) => { if (saved) setEditingId(null); }); }}>
                     <textarea data-ui-shape="composer" ref={editTextareaRef} autoFocus aria-label="Edit message" value={editBody} onChange={(event) => setEditBody(event.target.value)} onKeyDown={!isMobile ? (event) => {
@@ -678,7 +709,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                     } : undefined} maxLength={4000} className={`min-h-20 w-full resize-y rounded-[9px] bg-[var(--surface-canvas)] p-2 text-[var(--text-primary)] ${isMobile ? 'text-[16px] border border-[var(--hairline)] rounded-[16px] !p-3 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]' : 'text-[15px]'}`} />
                     {!isMobile ? <p className="mt-1 text-[11px] opacity-75">Esc to cancel · Ctrl/Cmd+Enter to save</p> : null}
                     <div className="mt-2 flex justify-end gap-2"><button data-ui-shape={isMobile ? "action" : undefined} type="button" onClick={() => setEditingId(null)} className={`${isMobile ? 'min-h-[44px] min-w-[80px] px-4 text-[14px] rounded-[12px] bg-[var(--surface-sunken)] !no-underline' : 'text-[12px]'} font-semibold underline`}>Cancel</button><button data-ui-shape={isMobile ? "action" : undefined} type="submit" disabled={!editBody.trim() || pendingMessageId === message.id} className={`${isMobile ? 'min-h-[44px] min-w-[80px] px-4 text-[14px] rounded-[12px] bg-[var(--surface-sunken)] !no-underline' : 'text-[12px]'} font-semibold underline disabled:opacity-50`}>Save</button></div>
-                  </form> : <MessageText className="whitespace-pre-wrap break-words text-[16px] leading-6"><MessageBody body={message.body} previewLinks={isMobile} /></MessageText>}
+                  </form> : <MessageText data-message-body={isMobile ? '' : undefined} className="whitespace-pre-wrap break-words text-[16px] leading-6"><MessageBody body={message.body} previewLinks={isMobile} /></MessageText>}
                 {message.attachments?.length ? <ul className="mt-2 grid gap-2">
                     {message.attachments.map((attachment) => <li key={attachment.id}><MessageAttachmentView attachment={attachment} /></li>)}
                   </ul> : null}
@@ -690,10 +721,10 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                   {message.id === latestOutgoingId && message.deliveryState !== 'failed' ? <span className="opacity-75">{participantReadAt && participantReadAt >= message.createdAt ? 'Seen' : 'Sent'}</span> : null}
                 </span>
                 {!message.id.startsWith('local-') && !message.isRemoved && canInteract ? <div data-message-reactions="" className="mt-2 flex flex-wrap items-center gap-1">
-                    {(canInteract ? message.reactions ?? [] : []).map((reaction) => <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, reaction.emoji)} className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${isMobile ? 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px]' : ''} ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`} aria-label={`${messageReactionOption(reaction.emoji).label}: ${reaction.count}${reaction.isMine ? '. Selected' : ''}`}>{isMobile ? <InterfaceIcon icon={messageReactionOption(reaction.emoji).icon} size="sm" /> : reaction.emoji} {reaction.count}</button>)}
-                    {isMobile ? <button type="button" aria-label="Message options" aria-haspopup="dialog" aria-expanded={actionsId === message.id} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} onClick={(event) => { actionTriggerRef.current = event.currentTarget; setActionsId(message.id); }} className="sr-only focus:not-sr-only focus:absolute focus:right-0 focus:bottom-0 focus:h-11 focus:w-11 focus:rounded-full focus:bg-[var(--surface-raised)] focus:text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-current"><InterfaceIcon icon={MoreHorizontalIcon} /></button> : <>
-                      {(canInteract ? ['❤', '👏', '✨'] as const : []).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, emoji)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70">{emoji}</button>)}
-                      {isMine ? <><button data-ui-shape="icon" data-control-size="sm" type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setEditingId(message.id); setEditBody(message.body); }} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} aria-label="Edit message" title="Edit message" className="shape-compact ml-auto flex items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={PencilIcon} size="md" /></button><button data-ui-shape="icon" data-control-size="sm" type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setDeleteId(message.id); }} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} aria-label="Unsend message" title="Unsend message" className="shape-compact flex items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={Trash2Icon} size="md" /></button></> : null}
+                    {(canInteract ? message.reactions ?? [] : []).map((reaction) => <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={isPending} onClick={() => void onReact(message.id, reaction.emoji)} className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${isMobile ? 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px]' : ''} ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`} aria-label={`${messageReactionOption(reaction.emoji).label}: ${reaction.count}${reaction.isMine ? '. Selected' : ''}`}>{isMobile ? <InterfaceIcon icon={messageReactionOption(reaction.emoji).icon} size="sm" fill={reaction.emoji === '❤' && reaction.isMine ? 'currentColor' : undefined} /> : reaction.emoji} {reaction.count}</button>)}
+                    {isMobile ? <button type="button" aria-label="Message options" aria-haspopup="dialog" aria-expanded={actionsId === message.id} disabled={isPending || editingId === message.id || deleteId === message.id} onClick={event => openActions(message.id, event.currentTarget)} className="sr-only focus:not-sr-only focus:absolute focus:right-0 focus:bottom-0 focus:h-11 focus:w-11 focus:rounded-full focus:bg-[var(--surface-raised)] focus:text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-current"><InterfaceIcon icon={MoreHorizontalIcon} /></button> : <>
+                      {(canInteract ? ['❤', '👏', '✨'] as const : []).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={isPending} onClick={() => void onReact(message.id, emoji)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70">{emoji}</button>)}
+                      {isMine ? <><button data-ui-shape="icon" data-control-size="sm" type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setEditingId(message.id); setEditBody(message.body); }} disabled={isPending || editingId === message.id || deleteId === message.id} aria-label="Edit message" title="Edit message" className="shape-compact ml-auto flex items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={PencilIcon} size="md" /></button><button data-ui-shape="icon" data-control-size="sm" type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setDeleteId(message.id); }} disabled={isPending || editingId === message.id || deleteId === message.id} aria-label="Unsend message" title="Unsend message" className="shape-compact flex items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={Trash2Icon} size="md" /></button></> : null}
                     </>}
                   </div> : null}
                 {deleteId===message.id && <ConfirmationDialog title="Unsend this message?" description="This message will be removed for both people." confirmLabel="Unsend message" variant="destructive" pending={pendingMessageId===message.id} pendingLabel="Unsending…" onCancel={()=>setDeleteId(null)} onConfirm={async()=>{const removed=await onDelete(message.id);if(removed)setDeleteId(null);return removed;}}/>}
@@ -702,7 +733,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
           </React.Fragment>;
       })}
     </ol>
-    {actionMessage ? <MobileMessageActions message={actionMessage} isMine={actionMessage.senderProfileId !== null && actionMessage.senderProfileId === viewerProfileId} pending={pendingMessageId === actionMessage.id} onClose={() => setActionsId(null)} onReact={(emoji) => { setActionsId(null); void onReact(actionMessage.id, emoji); }} onEdit={() => { setActionsId(null); setEditingId(actionMessage.id); setEditBody(actionMessage.body); }} onRequestUnsend={() => { setActionsId(null); setDeleteId(actionMessage.id); }} /> : null}
+    {actionMessage ? <MobileMessageActions key={actionMessage.id} message={actionMessage} isMine={actionMessage.senderProfileId !== null && actionMessage.senderProfileId === viewerProfileId} pending={isMessagePending(actionMessage.id)} anchor={actionTriggerRef.current?.closest<HTMLElement>('[data-message-bubble]') ?? null} onClose={closeActions} onReact={(emoji) => { closeActions(); void onReact(actionMessage.id, emoji); }} onEdit={() => { closeActions(); setEditingId(actionMessage.id); setEditBody(actionMessage.body); }} onRequestUnsend={() => { closeActions(); setDeleteId(actionMessage.id); }} /> : null}
     </>;
 }
 

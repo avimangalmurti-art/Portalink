@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { sourceModule } from './helpers/source-module.mjs';
 
 const deferred = () => {
   let resolve, reject;
@@ -110,11 +111,11 @@ const preview = (name = 'Current project', source = 'https://storage.test/curren
   title: name, pageLabel: 'Page 6', source, kind: 'image', pageNumber: 6,
 });
 
-function previewFixture({ observe = false, holdChunks = false } = {}) {
+function previewFixture({ observe = false, holdChunks = false, standalonePage = false } = {}) {
   const requests = [], observers = [], chunks = [];
   let auth = { user: { id: 'account-a' }, viewerProfileId: 'viewer-a', loginSession: {} };
   let services = { projects: { name: 'current projects' }, profiles: { name: 'current profiles' } };
-  let props = { target: target() };
+  let props = { target: target(), standalonePage };
   class Observer {
     constructor(callback, options) { this.callback = callback; this.options = options; this.disconnected = false; observers.push(this); }
     observe(host) { this.host = host; }
@@ -140,7 +141,7 @@ function previewFixture({ observe = false, holdChunks = false } = {}) {
     update(change = {}) {
       if (change.auth) auth = change.auth;
       if (change.services) services = change.services;
-      if (change.target) props = { target: change.target };
+      if (change.target) props = { ...props, target: change.target };
       return h.render(props);
     },
     getAuth: () => auth, getServices: () => services,
@@ -152,24 +153,32 @@ function previewFixture({ observe = false, holdChunks = false } = {}) {
 }
 
 test('shared artwork loads only near the viewport and preserves one exact in-app destination and frame', async () => {
-  const h = previewFixture({ observe: true }); await h.flush();
+  const h = previewFixture({ observe: true, standalonePage: true }); await h.flush();
   assert.equal(h.requests.length, 0, 'Off-screen history must not request project metadata');
   const frame = nodes(h.tree).find(node => node.props.className === 'shared-content-message-preview-frame');
   const loadingLink = nodes(h.tree).find(node => node.type === 'internal-link');
   assert.equal(loadingLink.props.to, target().to);
   assert.ok(text(frame).includes('Loading preview'));
+  assert.equal(h.tree.props['data-shared-page-only'], undefined);
   h.observers[0].enter(); await h.flush(); assert.equal(h.requests.length, 1);
   assert.equal(h.observers[0].disconnected, true);
-  h.requests[0].resolve(preview()); await h.flush();
+  h.requests[0].resolve({ ...preview(), aspectRatio: 0.75 }); await h.flush();
   const readyFrame = nodes(h.tree).find(node => node.props.className === frame.props.className);
   assert.equal(readyFrame.type, frame.type); assert.equal(readyFrame.key, frame.key);
+  assert.equal(h.tree.props['data-shared-page-only'], '');
+  assert.equal(readyFrame.props['data-shared-page-image'], '');
+  assert.equal(readyFrame.props.style['--shared-page-ratio'], 0.75);
+  assert.equal(text(h.tree), '');
   const image = nodes(h.tree).find(node => node.type === 'img');
   assert.equal(image.props.src, preview().source); assert.equal(image.props.alt, 'Current project · Page 6');
   assert.equal(image.props.referrerPolicy, 'no-referrer');
-  assert.equal(nodes(h.tree).find(node => node.type === 'internal-link').props.to, target().to);
+  const readyLink = nodes(h.tree).find(node => node.type === 'internal-link');
+  assert.equal(readyLink.props.to, target().to);
+  assert.equal(readyLink.props['aria-label'], 'Open Current project · Page 6');
   const css = readFileSync(new URL('../src/components/messages/shared-content-message-preview.css', import.meta.url), 'utf8');
   assert.match(css, /\.shared-content-message-preview-frame\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/);
   assert.match(css, /\.shared-content-message-preview-frame\s*>\s*img\s*\{[^}]*object-fit:\s*contain/);
+  assert.match(css, /\[data-shared-page-image\]\s*>\s*img\s*\{[^}]*height:\s*auto[^}]*aspect-ratio:\s*auto/);
   h.dispose(); assert.equal(h.observers[0].disconnected, true);
 });
 
@@ -212,7 +221,7 @@ test('late resolver success and rejection after unmount cannot update preview st
 });
 
 test('failed metadata and image loads expose Retry and make one fresh read without changing the destination', async () => {
-  const h = previewFixture(); await h.flush();
+  const h = previewFixture({ standalonePage: true }); await h.flush();
   h.requests[0].reject(new Error('Private storage backend details must not reach the message')); await h.flush();
   assert.ok(text(h.tree).includes('Preview unavailable'));
   assert.equal(text(h.tree).includes('Private storage'), false);
@@ -224,7 +233,9 @@ test('failed metadata and image loads expose Retry and make one fresh read witho
   assert.ok(text(h.tree).includes('Loading preview')); assert.equal(text(h.tree).includes('Retry preview'), false);
   h.requests[1].resolve(preview()); await h.flush();
   const image = nodes(h.tree).find(node => node.type === 'img'); image.props.onError(); await h.flush();
-  assert.ok(text(h.tree).includes('Preview unavailable')); h.retry(); await h.flush();
+  assert.ok(text(h.tree).includes('Preview unavailable'));
+  assert.equal(h.tree.props['data-shared-page-only'], undefined);
+  h.retry(); await h.flush();
   assert.equal(h.requests.length, 3); assert.equal(h.requests[2].target.to, target().to);
   h.requests[2].resolve(preview('Refreshed title', 'https://storage.test/refreshed.png')); await h.flush();
   assert.equal(nodes(h.tree).find(node => node.type === 'img')?.props.src, 'https://storage.test/refreshed.png');
@@ -301,6 +312,39 @@ test('WEB MessageBody default keeps canonical text links without constructing or
   assert.equal(nodes(h.tree).some(node => node.type === 'metadata-preview'), false);
   assert.equal(nodes(h.tree).find(node => node.type === 'internal-link')?.props.to, target().to.split('#')[0]);
   assert.ok(text(h.tree).includes('https://portalinknetworks.com/share/creator/c/portal/project')); h.dispose();
+});
+
+test('MOBILE only treats a standalone page share or its generated label as an image-only message', async () => {
+  const origin = 'https://portalinknetworks.com';
+  const { isGeneratedPageShareLabel } = sourceModule('src/features/messages/sharedContentPreview.ts', {
+    '../citations/publicOrigin': { PUBLIC_ORIGIN: origin },
+    '../sharing/shareModel': sourceModule('src/features/sharing/shareModel.ts'),
+  });
+  const pageTarget = target();
+  const pageUrl = origin + pageTarget.to;
+  const projectUrl = pageUrl.split('?')[0];
+  const h = componentHarness('src/components/messages/MessageBody.tsx', 'MessageBody', {
+    body: pageUrl, previewLinks: true,
+  }, {
+    'react-router-dom': { Link: 'internal-link' },
+    '../../features/citations/publicOrigin': { PUBLIC_ORIGIN: origin },
+    '../../features/sharing/shareModel': { isPublicSharePath: path => path.startsWith('/share/') },
+    '../../features/messages/sharedContentPreview': { isGeneratedPageShareLabel, parseSharedContentLink: url => url === pageUrl ? pageTarget : { to: new URL(url).pathname } },
+    './SharedContentMessagePreview': { SharedContentMessagePreview: 'metadata-preview' },
+  }, { window: { location: { origin } } });
+  for (const body of [pageUrl, `Page 6\n${pageUrl}`]) {
+    const tree = h.render({ body, previewLinks: true });
+    assert.equal(nodes(tree).find(node => node.type === 'metadata-preview')?.props.standalonePage, true);
+    assert.equal(text(tree), '');
+  }
+  for (const body of [`Page 6 ${pageUrl}`, `Page 7\n${pageUrl}`, `Check this out\n${pageUrl}`, `${pageUrl}\nWhat do you think?`, `${pageUrl} ${pageUrl}`, projectUrl]) {
+    const tree = h.render({ body, previewLinks: true });
+    const previews = nodes(tree).filter(node => node.type === 'metadata-preview');
+    assert.ok(previews.length > 0);
+    assert.ok(previews.every(node => !node.props.standalonePage));
+    assert.equal(text(tree), body.replaceAll(pageUrl, '').replaceAll(projectUrl, ''));
+  }
+  h.dispose();
 });
 
 test('strict shared PDF page rendering refuses unavailable page instead of showing another page', async () => {

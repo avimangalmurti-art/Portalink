@@ -71,6 +71,23 @@ export function parseSharedContentLink(text: string, origin: string): SharedCont
   }
 }
 
+export function isGeneratedPageShareLabel(text: string, target: SharedContentTarget): boolean {
+  return Boolean(target.attachmentId) && text.endsWith('\n') && text.trim() === `Page ${target.pageNumber ?? 1}`;
+}
+
+export function messageOptionsPreviewText(body: string, origin: string): string {
+  const parts = body.split(/(https?:\/\/[^\s]+)/g);
+  let removedShare = false;
+  for (let index = 1; index < parts.length; index += 2) {
+    const target = parseSharedContentLink(parts[index], origin);
+    if (!target) continue;
+    if (isGeneratedPageShareLabel(parts[index - 1], target)) parts[index - 1] = '';
+    parts[index] = '';
+    removedShare = true;
+  }
+  return removedShare ? parts.join('').trim() : body;
+}
+
 function unavailable(): never { throw new Error('This shared content is unavailable.'); }
 function validRatio(value: number | undefined): number | undefined {
   return value && Number.isFinite(value) && value > 0 ? value : undefined;

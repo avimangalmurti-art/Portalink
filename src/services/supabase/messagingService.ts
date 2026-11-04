@@ -431,7 +431,10 @@ export const supabaseMessagingService: MessagingService = {
     if (existing.error) throw publicMessageError(existing.error, 'This reaction could not be updated.');
     const mutation = existing.data
       ? await client.from('direct_message_reactions').delete().eq('message_id', messageId).eq('profile_id', profileId).eq('emoji', emoji)
-      : await client.from('direct_message_reactions').insert({ message_id: messageId, profile_id: profileId, emoji });
+      : await client.from('direct_message_reactions').upsert(
+          { message_id: messageId, profile_id: profileId, emoji },
+          { onConflict: 'message_id,profile_id,emoji', ignoreDuplicates: true },
+        );
     if (mutation.error) throw publicMessageError(mutation.error, 'This reaction could not be updated.');
     const result = await client.from('direct_message_reactions').select('profile_id,emoji').eq('message_id', messageId);
     if (result.error) throw publicMessageError(result.error, 'Reactions could not be refreshed.');

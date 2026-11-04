@@ -51,6 +51,7 @@ type PdfPageProps = {
   className?: string;
   fit?: 'contain' | 'cover';
   objectPosition?: string;
+  showLoadingIndicator?: boolean;
 };
 
 /**
@@ -61,6 +62,7 @@ type PdfPageProps = {
  */
 export function PdfPage({
   source, onRenderFailure,
+  showLoadingIndicator = false,
   label,
   pageNumber = 1,
   strictPageNumber = false,
@@ -218,9 +220,11 @@ export function PdfPage({
 
   useEffect(() => { if (status === 'failed') onRenderFailure?.(); }, [status, onRenderFailure]);
 
-  return <div ref={hostRef} role="img" aria-label={label} aria-busy={status === 'loading'} className={`pdf-page-viewport relative bg-white ${className}`}>
-      {status !== 'ready' && <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
-          <FileTextIcon className="h-6 w-6" />
+  return <div ref={hostRef} role="img" aria-label={label} aria-busy={status === 'loading'} className={`pdf-page-viewport relative ${status === 'loading' && showLoadingIndicator ? 'bg-[var(--surface-canvas)]' : 'bg-white'} ${className}`}>
+      {status !== 'ready' && <span data-project-cover-loading={status === 'loading' && showLoadingIndicator ? '' : undefined} aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
+          {status === 'loading' && showLoadingIndicator
+            ? <span className="premium-media-loading-mark" />
+            : <FileTextIcon className="h-6 w-6" />}
         </span>}
       <div className="pdf-page-wrapper">
         <canvas ref={canvasRef} style={fit === 'cover' ? { width: '100%', height: '100%', objectFit: 'cover', objectPosition } : undefined} className={`pdf-page-canvas ${status === 'ready' ? 'opacity-100' : 'opacity-0'}`} />

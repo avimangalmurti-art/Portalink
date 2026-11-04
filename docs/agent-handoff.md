@@ -1,3 +1,84 @@
+## 2026-11-04 - Combined Messages, Home and density release
+
+Release candidate based on Sites 584 source `aaa96c6` in `logs/mobile-portal-cards-release`. It combines pending Messages changes, mobile Home cover loading and the four-project mobile Explore/Profile default. Prior Portal Search cards are present in the baseline. Messages uses the existing reaction uniqueness rule. Browser vibration is available only where supported. No migration or worker source change is required.
+
+The combined run passed 344 focused checks, with one existing database fixture skipped. The configured client and worker build and lint passed, with 111 existing lint warnings. The actual Home component in isolated Chrome showed a four-project first row and independently centered indicators for a held image and measured thumbnail at 420 × 912. The corresponding desktop preview retained its existing behavior. Receipt: `logs/combined-home-grid-qa/receipt.json`.
+
+## 2026-11-04 - Four projects per row on first mobile use
+
+Mobile Explore and Profile project grids default to four columns when no device preference exists. Each screen keeps its saved setting independently, including a saved value of two. The fallback is applied in `useProjectGridDensity.ts`. The existing density state tests cover the new default and retention of explicit choices. Local and unpublished on `codex/mobile-default-project-density` from Sites 584 source `aaa96c6` in `logs/mobile-portal-cards-release`.
+
+All 86 focused checks, typecheck, targeted lint and diff check passed. Isolated Chrome using the production hook, slider and project grid verified four projects in the first row at 420 × 912, retention of saved settings, and existing desktop defaults and authored density at 1280 × 900. The fixture used fictional projects. Receipt is in `logs/mobile-grid-default-qa/receipt.json`.
+
+## 2026-11-04 - Mobile Portal Search cards published in Sites 584
+
+Published only the mobile three-column Portal Search cards to [Portalink](https://portalinknetworks.com). The isolated release checkout is `logs/mobile-portal-cards-release` on `codex/socal-release` at `aaa96c6003744960e51c8a56a9cb0a7e85dff5b4` from live 583 (`6d57ae1`). The delta is `PublicPortalSearchPage.tsx`, `public-portal-search.css`, and `public-portal-search.test.mjs`. Draft PR 148's head was verified at the release commit. GitHub main remains unmerged.
+
+All 26 focused tests, typecheck, lint (0 errors and 111 existing warnings), configured build and both entry graph checks passed. The audited 642-file archive preserves the worker, four D1 SQL payloads and 423 public assets. The custom domain matched four entry routes and all 209 JS/CSS assets. The pre-deploy Chrome checks covered mobile light and dark high contrast and unchanged desktop layout; physical iPhone and live authenticated rendering were not tested. No migration was applied.
+
+The original working checkout is intentionally still at `6d57ae1` with the pending Messages and Home work intact and the now-published Portal Search files still present locally. Reconcile that exact three-file delta with the release head before the next combined release. No work was removed from the original checkout. The following local Portal Search entry predates publication.
+
+
+## 2026-11-04 - Three-column mobile Portal search cards
+
+Mobile Portal search shows three neutral, rounded cards per row with the creator-accent glyph, wrapped portal name and avatar badge inside each card. Missing accents use neutral ink and High contrast strengthens the card edge. The loading grid uses the same column count. Updated `PublicPortalSearchPage.tsx`, its stylesheet and existing directory tests. Desktop retains its established responsive grid and accent-filled squircles. Local and unpublished on `codex/socal-release` at live583 (`6d57ae1`).
+
+15 focused directory and popup tests, typecheck, targeted lint and diff check passed. Isolated Chrome verified mobile at 420 × 912 in light mode and 320 × 720 in dark High contrast, including long labels, avatar photos and initials, creator colors, search and the canonical category link. Desktop at 1280 × 900 matched the six-column release 583 baseline. Receipt is in `logs/mobile-portal-card-layout-qa/receipt.json`. No physical phone or live account was used.
+
+## 2026-11-04 - Mobile Home project cover loading
+
+Mobile Home opts into the existing system loading glyph for each pending project cover. Stored thumbnails, original bitmaps and legacy media settle individually. Missing and failed covers use their terminal file placeholder. Framed legacy PDFs counteract the crop on the indicator so it stays centered. Updated the Home card call path, `ProjectCover.tsx`, `PdfPage.tsx`, mobile CSS and the existing thumbnail regression. Local and unpublished on `codex/socal-release` at live583 (`6d57ae1`).
+
+70 focused checks passed, including the existing Home readiness, feed, thumbnail and PDF recovery suites. The final focused cover/PDF rerun, typecheck and diff check passed. Targeted lint reported three existing PdfPage warnings and zero errors. Isolated Chrome at 420 × 912 verified a held bitmap, a measured stored thumbnail, a raw PDF cropped at 3×, stable tile bounds and missing or failed bitmap placeholders. Desktop at 1280 × 900 kept its previous pending presentation. Receipts are in `logs/mobile-home-cover-loading-qa/`. Video, a real account and a physical phone were not tested.
+
+## 2026-11-04 - Mobile Messages composer focus edge
+
+Regular mobile chat uses the neutral inset field edge when focused. A scoped override in `mobile.css` removes the additional global focus outline. The dark 420px Chrome fixture reproduced the shared outer accent ring from release 583 and the separate field outline from the earlier local draft, then verified that the final field has one neutral edge and separate attachment and Send controls. Evidence is in `logs/mobile-composer-growth-qa/focus-ring-fixed.png`. Diff check passed. The check used a simulated keyboard viewport. Local and unpublished on `codex/socal-release` at live583 (`6d57ae1`).
+
+## 2026-11-04 - Mobile Messages typing layout
+
+The regular mobile composer uses one rounded field surface with separate bottom-aligned attachment and accent Send buttons. Drafts grow to five visible lines and then scroll within the field. A short visible viewport lowers the cap. Mobile Return inserts a line break. Updated `MessagesPage.tsx`, scoped mobile styles and the existing draft tests. Desktop and the invitation composer retain their own presentation and Enter behavior. Local and unpublished on `codex/socal-release` at live583 (`6d57ae1`).
+
+60 focused Messages and keyboard checks passed, including Return/Enter and IME handling. A final scope adjustment passed 21 draft and keyboard checks. Targeted lint reported one existing warning and zero errors. Typecheck and diff check passed. Isolated Chrome verified five-line growth, internal scrolling, button alignment, light/dark fill and mobile Return at 420px and 320px with a simulated keyboard viewport. At 1280px the desktop composer matched release 583 and Enter submitted once. Receipt is in `logs/mobile-composer-growth-qa/receipt.json`. Physical keyboard and live sending were not tested.
+
+## 2026-11-04 - Anchor mobile Message options to the selected message
+
+Mobile hold opens a contextual popover over the conversation. It places the existing three reactions above the selected bubble and Copy plus owner actions below. It follows the visible viewport and safe areas, allows long previews to scroll, and requires a fresh tap after the opening hold. Shared artwork can open options on hold and keeps its exact destination on tap. The menu requests one 12 ms vibration where the web API is available. Safari has no web vibration API. Updated `MessagesPage.tsx`, `MobileMessageActions.tsx`, the shared preview link, mobile styles, and the positioning helper with focused tests. Local and unpublished on `codex/socal-release` at live583 (`6d57ae1`).
+
+70 focused tests, typecheck and diff check passed. Targeted lint reported one existing warning and zero errors. Two existing assertions in the broader generic MobileActionSheet suite failed in unrelated layout modes. Isolated Chrome verified center, top, bottom and tall bubbles, exactly one mocked vibration, safe hold release, Copy with a mocked clipboard, focus restoration, scroll retention, shared-image hold and exact tap navigation, plus desktop time and emoji. A final CSS guard keeps the source visible when no lifted preview is available. Receipt is in `logs/message-anchored-options-qa/receipt.json`. Native hardware, clipboard and physical iPhone were not tested.
+
+## 2026-11-04 - Hide generated share details in mobile Message options
+
+The mobile options sheet omits recognized Portalink project URLs and their matching generated Page labels. Shares with no text left open directly to reactions and actions. Notes and ordinary links still preview as text. Older whole-project share titles are indistinguishable from a typed note and their leading text is retained. The conversation's shared artwork and exact destination remain available. Updated `MobileMessageActions.tsx`, `MessageBody.tsx`, the shared-content parser and focused tests. Local and unpublished on `codex/socal-release` at live583 (`6d57ae1`).
+
+All 60 focused tests, typecheck and diff check passed. Targeted lint reported one existing Fast Refresh warning and zero errors. Isolated Chrome at 420 × 912 verified six cases including exact artwork navigation. The sheet checks used the existing context-menu event. Physical iPhone and native long-press behavior were not verified. Receipt is in `logs/mobile-shared-preview-qa/share-options-receipt.json`.
+
+## 2026-11-04 - Mobile Message options timestamp and Sparkle
+
+Removed the date and time from the Message options preview and kept the existing Edited label for edited messages. Mobile Message options and inline reaction chips use the installed single four-point Sparkle glyph with the same stored reaction identifier. Conversation date separators and desktop reactions keep their existing behavior. Updated `MobileMessageActions.tsx` and `messageReactionIcons.ts` on `codex/socal-release` at live583 (`6d57ae1`). Local and unpublished.
+
+All 12 focused message action tests, typecheck, targeted lint and diff check passed. Isolated Chrome verified the timestamp-free preview, single SVG path, selection/count update and conversation date separator at 420 × 912, plus the original desktop time and emoji at 1280 × 900. Receipt is in `logs/message-reaction-qa/options-receipt.json`. Physical iPhone and live messaging were not tested.
+
+## 2026-11-04 - One heart per account in Messages
+
+Rapid reaction taps now share one in-flight mutation per message across mobile and desktop. Concurrent inserts use the existing message/profile/emoji key and ignore duplicate rows. A deliberate second tap removes the viewer's reaction and preserves the other participant's. Mobile fills the viewer's selected heart to distinguish it from an outline. Updated the messaging hook, Messages page, Supabase messaging service and focused tests. Local and unpublished on `codex/socal-release` at live583 (`6d57ae1`). No migration needed.
+
+Typecheck, 73 focused tests, 19 disposable database tests and diff check passed. Targeted lint reported one existing warning and zero errors. Isolated Chrome verified rapid taps and the 1→2→1 toggle at 420 × 912, and same-task double click at 1280 × 900. Browser receipt is in `logs/message-reaction-qa/receipt.json`. The screenshot's live conversation and physical iPhone were not tested.
+
+## 2026-11-04 - Image-only mobile Messages previews
+
+Standalone project-page shares in mobile Messages show just the artwork, edge to edge at its intrinsic aspect ratio. The generated page label and visible preview caption are omitted for raster artwork. Typed notes, whole-project previews, exact accessible link destinations and unavailable/retry states retain their handling. Changed `MessagesPage.tsx`, `MessageBody.tsx`, `SharedContentMessagePreview.tsx`, the preview and mobile stylesheets, and the existing preview lifecycle tests. Local and unpublished on `codex/socal-release` at live583 (`6d57ae1`).
+
+Typecheck and 78 focused tests passed. Changed application files had zero lint errors and two existing warnings. Direct lint of the lifecycle test reports the same four empty mock-method errors at HEAD. Isolated Chrome passed portrait, landscape and raster PDF artwork at 420 × 912 and 320 × 720, retry and exact links, and matched ten desktop rows against release 583 at 1280 × 900. Evidence is in `logs/mobile-shared-preview-qa/receipt.json`. Physical iPhone, raw PDF canvas and real messaging were not exercised in the browser.
+
+## 2026-11-04 - Onboarding and mobile editor published 583
+
+Published [Portalink](https://portalinknetworks.com) from `6d57ae1500028913a96e5c5d387bc630d83f93ca`. Email signup proceeds to verification without the placeholder agreements. Mobile signup lands on Home, optional setup previews appearance across the sheet, and the empty owner Profile starts first-project publishing. Mobile publishing returns to Profile. Edit project has a compact header Save, a vertical Files grid, and pinch-to-zoom cover editing. The release also updates portal labels, notes, file order, review details and iPhone status-bar metadata.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_755870121a108191b3171d35cb0d1319` and deployment `appgdep_6aeb0365eb008191a44c54b1f896abb8` succeeded at 2026-11-04T10:05:36.336999+00:00. The public audience and runtime revision 2 were verified. Draft PR148 matches the deployed source. The archive audit verified 642 files, with byte parity for the worker, four D1 SQL payloads and 423 public assets against live582. No migration was applied.
+
+All 465 focused tests, typecheck, targeted lint and configured build passed. Production matched all four checked entry routes and 209 JavaScript and CSS assets. Authenticated production flows and the native status bar on an installed iPhone remain unverified. Receipts use `logs/mobile-onboarding-editor-release*`. Safe writer handoff.
+
 ## 2026-11-04 - Remove the placeholder signup agreements
 
 Removed the placeholder Terms and Conditions dialog, its entry links and its in-memory acknowledgment from both presentations and shared-link signup. Valid email details submit directly to the existing verification flow, and the opt-in Google button uses the existing OAuth guard and destination. Updated `EntryChoices.tsx`, `AuthDialog.tsx`, the relevant CSS and auth tests. Deleted `EntryAgreements.tsx` and its stylesheet. Local and unpublished on `codex/socal-release` at live582 (`f9fffef`).

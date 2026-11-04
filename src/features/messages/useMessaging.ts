@@ -63,6 +63,8 @@ export function useMessaging({
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const [pendingAction, setPendingAction] = useState<'accept' | 'delete-request' | 'mute' | 'archive' | 'block' | 'report' | null>(null);
   const [pendingMessageId, setPendingMessageId] = useState<Id | null>(null);
+  const [pendingReactions, setPendingReactions] = useState<ReadonlyMap<Id, number>>(() => new Map());
+  const reactionRequests = useRef(new Map<Id, number>());
   const [error, setError] = useState<string | null>(null);
   const [threadFailure, setThreadFailure] = useState<{ generation: number; conversationId: Id; message: string } | null>(null);
   const [refreshingThread, setRefreshingThread] = useState<{ generation: number; version: number; conversationId: Id } | null>(null);
@@ -471,16 +473,28 @@ export function useMessaging({
   const toggleReaction = useCallback(async (messageId: Id, emoji: string) => {
     const conversationId = activeRef.current?.id;
     if (!conversationId || activeRef.current?.status === 'request' || messageId.startsWith('local-')) return false;
-    setPendingMessageId(messageId);
+    const ownerGeneration = threadScope.current.ownerGeneration;
+    const requests = reactionRequests.current;
+    if (requests.get(messageId) === ownerGeneration) return false;
+    requests.set(messageId, ownerGeneration);
+    setPendingReactions(new Map(requests));
     setError(null);
     try {
       const reactions = await messaging.toggleReaction(messageId, emoji);
+      if (!mounted.current || threadScope.current.ownerGeneration !== ownerGeneration) return false;
       placeMessage(conversationId, (current) => current.map((message) => message.id === messageId ? { ...message, reactions } : message));
       return true;
     } catch (caught) {
-      if (activeRef.current?.id === conversationId) setError(friendlyError(caught, 'This reaction could not be updated.'));
+      if (mounted.current && threadScope.current.ownerGeneration === ownerGeneration && activeRef.current?.id === conversationId) {
+        setError(friendlyError(caught, 'This reaction could not be updated.'));
+      }
       return false;
-    } finally { if (activeRef.current?.id === conversationId) setPendingMessageId(null); }
+    } finally {
+      if (requests.get(messageId) === ownerGeneration) {
+        requests.delete(messageId);
+        if (mounted.current) setPendingReactions(new Map(requests));
+      }
+    }
   }, [messaging, placeMessage]);
 
   const searchConversations = useCallback((query: string) => messaging.searchConversations(query, { limit: 50 }), [messaging]);
@@ -794,6 +808,7 @@ export function useMessaging({
     isSavingPreferences,
     pendingAction,
     pendingMessageId,
+    isReactionPending: (messageId: Id) => pendingReactions.get(messageId) === threadOwnerGeneration,
     error,
     dismissError: () => { setError(null); if (mobileContinuity) setThreadFailure(null); },
     retryThread,

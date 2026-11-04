@@ -2,6 +2,17 @@
 .shared-content-message-preview-link { display: block; color: inherit; text-decoration: none; border-radius: inherit; }
 .shared-content-message-preview-frame { display: flex; width: 100%; aspect-ratio: 4 / 3; align-items: center; justify-content: center; overflow: hidden; border-radius: 8px; background: var(--surface-sunken); color: var(--text-secondary); font-size: 13px; text-align: center; }
 .shared-content-message-preview-frame > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.shared-content-message-preview[data-shared-page-only] { width: min(78vw, 320px); }
+.shared-content-message-preview-frame[data-shared-page-image] {
+  display: block;
+  aspect-ratio: auto;
+  background: transparent;
+  border-radius: var(--mobile-component-radius, 8px);
+}
+.shared-content-message-preview-frame[data-shared-page-image] > img {
+  height: auto;
+  aspect-ratio: auto var(--shared-page-ratio, 4 / 3);
+}
 .shared-content-message-preview-frame > .pdf-page-viewport { width: 100%; height: 100%; }
 .shared-content-message-preview-caption { display: block; padding-top: 6px; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
 .shared-content-message-preview-retry { min-height: 44px; padding: 8px 0; font-size: 14px; text-decoration: underline; }
