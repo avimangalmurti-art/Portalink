@@ -132,23 +132,25 @@
 [data-presentation='mobile'] .creator-insights .insights-period :is(button, select),
 [data-presentation='mobile'] .creator-insights .insights-metrics button { min-height: 44px; }
 [data-presentation='mobile'] .creator-insights .insights-metrics { margin-bottom: 28px; }
-[data-presentation='mobile'] .creator-insights .insights-metrics button { flex: 0 0 44px; padding: 8px 4px; gap: 5px; font-size: 13px; }
+[data-presentation='mobile'] .creator-insights .insights-metrics button { flex: 0 0 44px; min-width: 44px; padding: 8px 4px; gap: 5px; font-size: 13px; }
 [data-presentation='mobile'] .creator-insights .insights-metrics button[aria-pressed='true'] { flex: 1 1 auto; }
-[data-presentation='mobile'] .creator-insights .insights-period { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 20px; }
+[data-presentation='mobile'] .creator-insights .insights-period { flex-direction: row; align-items: center; gap: 8px; margin-bottom: 20px; }
 [data-presentation='mobile'] .creator-insights .insights-period > .insights-metrics {
-  display: flex; flex: 1; min-width: 0; max-width: none; margin: 0;
+  display: flex; flex: 1 1 0; min-width: 150px; max-width: none; margin: 0;
   border: 1px solid var(--hairline); border-radius: 999px;
 }
 [data-presentation='mobile'] .creator-insights .insights-data-surface > .insights-period .insights-metrics button { flex-direction: row; gap: 5px; white-space: nowrap; }
+[data-presentation='mobile'] .creator-insights .insights-period .insights-metrics button > span:not([data-interface-icon-frame]) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 [data-presentation='mobile'] .creator-insights .insights-period-picker {
-  position: relative; align-self: flex-start; flex: none; max-width: 100%;
+  position: relative; align-self: auto; flex: 0 1 45%; min-width: 0; max-width: 100%;
 }
+[data-presentation='mobile'] .creator-insights .insights-period-picker:only-child { flex-basis: auto; }
 [data-presentation='mobile'] .creator-insights .insights-period-picker select {
-  display: block; appearance: none; min-height: 44px; max-width: 100%;
-  padding-block: 8px; padding-inline: 16px 42px; cursor: pointer; font-size: 16px; font-weight: 600;
+  display: block; appearance: none; width: 100%; min-width: 0; min-height: 44px; max-width: 100%;
+  padding-block: 8px; padding-inline: 12px 30px; cursor: pointer; font-size: 16px; font-weight: 600;
 }
 [data-presentation='mobile'] .creator-insights .insights-period-picker > [data-interface-icon-frame] {
-  position: absolute; inset-inline-end: 14px; top: 50%; transform: translateY(-50%); pointer-events: none;
+  position: absolute; inset-inline-end: 10px; top: 50%; transform: translateY(-50%); pointer-events: none;
 }
 [data-presentation='mobile'] .creator-insights .insights-refresh-status {
   display: flex; align-items: center; justify-content: center;

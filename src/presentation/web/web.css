@@ -21,7 +21,7 @@
   background: linear-gradient(var(--hairline), var(--hairline)) center / 100% 1px no-repeat !important;
 }
 .codex-shell:where([data-presentation='web']) [data-web-gallery-controls] .density-separator-ticks {
-  inset-inline: calc((var(--density-thumb-width) - 1px) / 2);
+  inset-inline: calc((var(--density-thumb-width) - var(--density-tick-width)) / 2);
   bottom: 0;
   height: 36px;
 }

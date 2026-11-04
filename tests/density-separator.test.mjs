@@ -100,7 +100,7 @@ test('release cancels an unpainted preview and commits the latest rounded bounde
  for(const presentation of ['web','mobile']){
  for(const [raw,expected] of [[5.7,6],[0.2,gridDensity.MIN_PROJECT_GRID_COLUMNS],[99.8,gridDensity.MAX_PROJECT_GRID_COLUMNS]]){
   const h=touchSlider(presentation);h.start();h.move(120,101);h.change(raw);
-  assert.equal(h.input.value,String(raw));assert.equal(h.frames.size,1);
+  assert.equal(Number(h.input.value),Math.max(gridDensity.MIN_PROJECT_GRID_COLUMNS,Math.min(gridDensity.MAX_PROJECT_GRID_COLUMNS,raw)));assert.equal(h.frames.size,1);
   assert.deepEqual(h.previews,[]);assert.deepEqual(h.commits,[]);
   h.end();h.flush();h.slider.props.onBlur();
   assert.equal(h.input.value,String(expected));assert.deepEqual(h.previews,[]);assert.deepEqual(h.commits,[expected]);
@@ -195,11 +195,11 @@ function switchingSlider(initialPresentation) {
  };
 }
 
-test('mobile raw clip position follows every fractional move and survives rounded preview renders',()=>{
- const h=switchingSlider('mobile');h.start();h.change(3.1);h.move();h.flush();h.render();
- assert.equal(h.input.value,'3.1');assert.deepEqual(h.previews.mobile,[3]);assert.deepEqual(h.commits.mobile,[]);
- assert.equal(Number(h.styles.get('--density-position')),(3.1-1)/12);
- assert.equal(h.tree.props.style['--density-position'],(3.1-1)/12,'A rounded wall render must not snap the clipping window.');
+test('mobile raw clip position follows fractional movement outside the magnetic zone and survives rounded preview renders',()=>{
+ const h=switchingSlider('mobile');h.start();h.change(3.25);h.move();h.flush();h.render();
+ assert.equal(h.input.value,'3.25');assert.deepEqual(h.previews.mobile,[3]);assert.deepEqual(h.commits.mobile,[]);
+ assert.equal(Number(h.styles.get('--density-position')),(3.25-1)/12);
+ assert.equal(h.tree.props.style['--density-position'],(3.25-1)/12,'A rounded wall render must not snap the clipping window.');
  h.change(3.3);h.flush();h.render();
  assert.deepEqual(h.previews.mobile,[3],'The same whole column is not rendered again.');
  assert.equal(Number(h.styles.get('--density-position')),(3.3-1)/12,'Raw thumb alignment updates before preview deduplication.');
@@ -209,6 +209,44 @@ test('mobile raw clip position follows every fractional move and survives rounde
  h.end();h.tree.props.onBlur();assert.equal(h.input.value,'4');
  assert.equal(Number(h.styles.get('--density-position')),(4-1)/12);assert.deepEqual(h.commits.mobile,[4]);
  h.dispose();
+});
+
+test('both sliders capture nearby stops, hold through small jitter and release into continuous movement',()=>{
+ for(const presentation of ['web','mobile']){
+  const h=touchSlider(presentation);h.start();h.move(120,101);
+  h.change(2.6);h.flush();assert.equal(h.input.value,'2.6');assert.deepEqual(h.previews,[3]);
+  h.change(2.91);h.flush();assert.equal(h.input.value,'3');
+  if(presentation==='mobile')assert.equal(Number(h.styles.get('--density-position')),2/12,'Hit area follows the snapped thumb before integer preview deduplication');
+  for(const value of [2.85,3.12,3.2]){h.change(value);h.flush();assert.equal(h.input.value,'3');}
+  assert.deepEqual(h.previews,[3]);assert.deepEqual(h.commits,[]);
+  h.change(3.21);h.flush();assert.equal(h.input.value,'3.21','Moving beyond the wider release distance unlocks the thumb');
+  h.change(3.19);h.flush();assert.equal(h.input.value,'3.19','Returning only to the release zone does not immediately relock');
+  h.change(3.12);h.flush();assert.equal(h.input.value,'3','Capture works from the other side at the boundary');
+  h.change(5.06);h.flush();assert.equal(h.input.value,'5','Fast movement can skip stops and acquire the new nearest stop');
+  assert.deepEqual(h.previews,[3,5]);assert.deepEqual(h.commits,[]);
+  h.end();h.slider.props.onBlur();assert.deepEqual(h.commits,[5]);
+ }
+});
+
+test('magnetic stops reset after release or cancellation and never capture non-pointer input',()=>{
+ for(const presentation of ['web','mobile']){
+  const h=touchSlider(presentation);h.start();h.move(120,101);h.change(3.08);h.flush();assert.equal(h.input.value,'3');
+  h.end();assert.deepEqual(h.commits,[3]);
+  h.start();h.move(120,101);h.change(3.18);h.flush();assert.equal(h.input.value,'3.18','A new drag cannot inherit the last stop');
+  h.change(5.08);h.flush();assert.equal(h.input.value,'5');h.slider.props.onPointerCancel();
+  h.start();h.move(120,101);h.change(5.18);h.flush();assert.equal(h.input.value,'5.18','Cancellation also clears the magnetic lock');
+  h.end();
+  const keyboard=touchSlider(presentation);keyboard.change(4.08);assert.equal(keyboard.input.value,'4.08','Native non-pointer changes remain free');
+  keyboard.keyDown('ArrowRight');keyboard.keyUp();assert.equal(keyboard.input.value,'5');assert.deepEqual(keyboard.commits,[5]);
+ }
+});
+
+test('mobile snapping does not turn a vertical scroll gesture into a density save',()=>{
+ for(const finish of ['onPointerUp','onPointerCancel','onBlur']){
+  const h=touchSlider();h.start();h.change(5.08);assert.equal(h.input.value,'5');assert.equal(h.frames.size,0);
+  h.move(101,130);h.change(6.04);h.slider.props[finish]({stopPropagation(){}});h.flush();
+  assert.equal(h.input.value,'2');assert.deepEqual(h.previews,[]);assert.deepEqual(h.commits,[]);
+ }
 });
 
 test('tick marks are a separate noninteractive decoration and retain the direct native input',()=>{
@@ -224,9 +262,9 @@ test('tick marks are a separate noninteractive decoration and retain the direct 
 });
 
 test('presentation changes cancel an unpainted range preview before RAF and ignore its later release at equal densities',()=>{
- for(const origin of ['web','mobile']){
+ for(const origin of ['web','mobile'])for(const raw of [7.35,7.05]){
   const h=switchingSlider(origin),other=origin==='web'?'mobile':'web';
-  h.start();h.change(7.35);h.move();
+  h.start();h.change(raw);h.move();
   assert.equal(h.frames.size,1);
   const staleFrame=[...h.frames.values()][0],oldTree=h.tree;
   h.switch();assert.equal(h.input.value,'2');assert.equal(h.frames.size,0);

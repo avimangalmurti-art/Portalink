@@ -22,7 +22,7 @@
     z-index: -1;
     pointer-events: none;
     border-radius: inherit;
-    background: color-mix(in srgb, var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) 92%, transparent) !important;
+    background: color-mix(in srgb, var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) var(--fixed-header-opacity, 92%), transparent) !important;
     -webkit-backdrop-filter: var(--navigation-blur, blur(22px) saturate(140%)) !important;
     backdrop-filter: var(--navigation-blur, blur(22px) saturate(140%)) !important;
     -webkit-mask-image: none !important;

@@ -181,5 +181,5 @@
   top: -18px;
   height: 0;
   flex: none;
-  margin-inline: calc(12px + (var(--density-thumb-width) - 1px) / 2);
+  margin-inline: calc(12px + (var(--density-thumb-width) - var(--density-tick-width)) / 2);
 }

@@ -38,7 +38,7 @@ test('desktop layout exposes the existing density slider and reset through one c
   assert.equal(nodes(WebGalleryControls({ columns: 1, onChange() {} })).find(node => node.type === 'button').props.disabled, false);
 });
 
-test('actual desktop thumb movement stays continuous and commits one integer only on release', () => {
+test('actual desktop thumb movement stays continuous between magnetic stops and commits one integer only on release', () => {
   const changes = [], frames = new Map(); let nextFrame = 0;
   const { DensitySeparator } = load('../src/components/ui/DensitySeparator.tsx', {
     react: { ...React, useRef: current => ({ current }), useEffect() {}, useLayoutEffect() {}, startTransition: callback => callback() },
@@ -50,10 +50,10 @@ test('actual desktop thumb movement stays continuous and commits one integer onl
   const input = { value: '5', style: { setProperty() {} } }; slider.ref.current = input;
   assert.equal(slider.props.min, 1); assert.equal(slider.props.max, 13); assert.equal(slider.props.step, 'any');
   slider.props.onPointerDown({ pointerType: 'mouse', stopPropagation() {} });
-  for (const value of ['5.2', '7.6', '8.1']) {
+  for (const [value, shown] of [['5.2', '5.2'], ['7.6', '7.6'], ['8.1', '8'], ['8.18', '8'], ['8.24', '8.24']]) {
     input.value = value; slider.props.onChange({ currentTarget: input });
     const pending = [...frames.values()]; frames.clear(); pending.forEach(callback => callback());
-    assert.equal(input.value, value); assert.deepEqual(changes, []);
+    assert.equal(input.value, shown); assert.deepEqual(changes, []);
   }
   slider.props.onPointerUp({ stopPropagation() {} });
   slider.props.onBlur();

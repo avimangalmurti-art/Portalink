@@ -12,8 +12,9 @@
 /* Decorative stops span the native thumb's travel without intercepting input. */
 .density-separator-ticks {
   --density-thumb-width: 18px;
+  --density-tick-width: .5px;
   position: absolute;
-  inset-inline: calc(16px + (var(--density-thumb-width) - 1px) / 2);
+  inset-inline: calc(16px + (var(--density-thumb-width) - var(--density-tick-width)) / 2);
   bottom: -22px;
   z-index: 1;
   display: flex;
@@ -22,7 +23,7 @@
   height: 44px;
   pointer-events: none;
 }
-.density-separator-ticks > span { flex: none; width: 1px; height: 10px; background: var(--text-tertiary); }
+.density-separator-ticks > span { flex: none; width: var(--density-tick-width); height: 6px; background: var(--hairline); }
 [data-presentation='mobile'] .density-separator-ticks { --density-thumb-width: 30px; }
 /* Keep the native range and its position, but only the 44px handle target owns
    touches. The rest of this transparent strip passes through to the catalogue. */

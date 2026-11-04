@@ -5198,6 +5198,10 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
   padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
   background: var(--surface-canvas); overflow-x: auto; overflow-y: hidden;
 }
+/* Insights matches Home's lighter navigation glass; controls stay fully opaque. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell:has(> .mobile-insights-page) > .studio-citation-pills {
+  --fixed-header-opacity: var(--interface-glass-opacity, 78%);
+}
 /* Other Studio collections retain their clear canvas; Insights uses shared header glass. */
 @layer portalink-header-material {
   #root .codex-shell[data-presentation='mobile'] .studio-citation-shell:not(:has(> .mobile-insights-page)) > .studio-citation-pills[data-mobile-header-underlap]::before {
