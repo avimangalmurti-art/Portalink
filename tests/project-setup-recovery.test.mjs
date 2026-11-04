@@ -94,10 +94,9 @@ function harness(storage, extraProps = {}) {
   };
   const { ProjectSetupScreen } = sourceModule('src/features/publishing/ProjectSetupScreen.tsx', {
     react,
-    'lucide-react': { ArrowLeftIcon: 'back', PlusIcon: 'plus', UsersIcon: 'users', XIcon: 'close' },
-    '../../components/profile/categoryIcons': { getCategoryIcon: () => 'portal-icon', getPortalIconLabel: name => name.replace(/^lucide:/, ''), portalIconNames: ['shapes', 'camera', 'lucide:telescope'] },
-    '../../components/profile/PortalIconLibrary': { PortalIconLibrary: 'portal-icon-library' },
-    '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
+    'lucide-react': { PlusIcon: 'plus', XIcon: 'close' },
+    '../../components/profile/categoryIcons': { portalIconNames: ['shapes', 'camera', 'lucide:telescope'] },
+    '../../components/profile/NewCategoryDialog': { NewCategoryDialog: 'new-category-dialog' },
     '../../components/ui/ModalPortal': { ModalPortal: 'portal' },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus() {} },
@@ -122,13 +121,8 @@ function harness(storage, extraProps = {}) {
   return {
     render, change, calls,
     click(label) { const button = render().find(node => node.type === 'button' && (node.props.children === label || node.props['aria-label'] === label)); assert.ok(button, label); return button.props.onClick(); },
-    chooseIcon(iconName) {
-      const button = render().find(node => node.type === 'button' && node.props['aria-label'] === 'Choose Portal icon');
-      assert.ok(button, 'New Portal exposes its existing icon library'); button.props.onClick();
-      const library = render().find(node => node.type === 'portal-icon-library');
-      assert.ok(library, 'The actual setup passes selection to the icon library'); library.props.onSelect(iconName);
-      return render();
-    },
+    openNewPortal() { this.click(presentation === 'mobile' ? 'New Portal' : 'Create a Portal'); return this.dialog(); },
+    dialog() { return render().find(node => node.type === 'new-category-dialog'); },
     submit() { render().find(node => node.type === 'form').props.onSubmit({ preventDefault() {} }); },
   };
 }
@@ -136,36 +130,46 @@ function harness(storage, extraProps = {}) {
 test('a fresh setup is saved as fields change and restores on same-device reopen without backend writes', () => {
   const storage = storageFixture(), first = harness(storage);
   first.render(); assert.equal(storage.entries.size, 0);
-  first.change('title', setup.title); first.change('summary', setup.summary); first.change('Portal', 'new'); first.change('New portal name', setup.name);
+  first.change('title', setup.title); first.change('summary', setup.summary);
   first.click('Cancel new project');
   assert.deepEqual(first.calls, [['close']]);
   const reopened = harness(storage), all = reopened.render();
   assert.equal(all.find(node => node.props.name === 'title').props.value, setup.title);
   assert.equal(all.find(node => node.type === 'textarea').props.value, setup.summary);
-  assert.equal(all.find(node => node.props['aria-label'] === 'Portal').props.value, 'new');
-  assert.equal(all.find(node => node.props['aria-label'] === 'New portal name').props.value, setup.name);
+  assert.equal(all.find(node => node.type === 'button' && node.props.value === 'design').props['aria-pressed'], true);
+  assert.equal(reopened.dialog(), undefined);
   assert.equal(all.some(node => node.type === 'button' && node.props.children === 'Start fresh'), false);
   assert.equal(all.some(node => ['project-setup-recovered', 'project-setup-save-status', 'project-setup-hint'].includes(node.props.className)), false);
   assert.equal(reopened.calls.length, 0);
 });
 
-test('new Portal icon and exact authored details survive close and reopen on both platforms', () => {
+test('an interrupted canonical Portal draft restores its name and icon when manually reopened', () => {
   for (const presentation of ['mobile', 'web']) {
     const storage = storageFixture(), first = harness(storage, { categories: [], presentation });
-    first.change('title', setup.title); first.change('summary', setup.summary); first.change('New portal name', setup.name);
-    const returned = first.chooseIcon('lucide:telescope');
-    assert.equal(returned.some(node => node.type === 'portal-icon-library'), false, 'Selection returns to the idea fields');
-    assert.equal(first.calls.length, 0, 'Choosing an icon is not a Portal write');
-    first.click('Cancel new project');
-    assert.deepEqual(first.calls, [['close']]);
-    assert.equal(JSON.stringify(storage.api.readSetupDraft('account', 'profile')), JSON.stringify({ ...setup, iconName: 'lucide:telescope' }));
+    first.change('title', setup.title); first.change('summary', setup.summary);
+    first.openNewPortal().props.onDraftChange(setup.name, 'lucide:telescope');
+    first.render();
+    const saved = storage.api.readSetupDraft('account', 'profile');
+    assert.equal(saved.creatingPortal, true);
+    assert.equal(saved.name, setup.name);
+    assert.equal(saved.iconName, 'lucide:telescope');
+    assert.equal(saved.portal, 'new');
+    assert.deepEqual(first.calls, [], 'Editing the draft does not create a Portal');
     const reopened = harness(storage, { categories: [], presentation }), all = reopened.render();
+    assert.equal(reopened.dialog(), undefined);
     assert.equal(all.find(node => node.props.name === 'title').props.value, setup.title);
     assert.equal(all.find(node => node.type === 'textarea').props.value, setup.summary);
-    assert.equal(all.find(node => node.props['aria-label'] === 'New portal name').props.value, setup.name);
-    reopened.click('Choose Portal icon');
-    assert.equal(reopened.render().find(node => node.type === 'portal-icon-library').props.selected, 'lucide:telescope');
-    assert.equal(reopened.calls.length, 0);
+    const dialog = reopened.openNewPortal();
+    assert.equal(dialog.props.initialLabel, setup.name);
+    assert.equal(dialog.props.initialIconName, 'lucide:telescope');
+    dialog.props.onCancel();
+    reopened.render();
+    const afterCancel = storage.api.readSetupDraft('account', 'profile');
+    assert.equal(Boolean(afterCancel.creatingPortal), false);
+    assert.equal(afterCancel.title, setup.title);
+    assert.equal(afterCancel.summary, setup.summary);
+    assert.equal(afterCancel.portal, 'new');
+    assert.deepEqual(reopened.calls, []);
   }
 });
 
@@ -173,34 +177,49 @@ test('an icon-only choice is saved and restores without creating a Portal or exp
   for (const presentation of ['mobile', 'web']) {
     const storage = storageFixture(), first = harness(storage, { categories: [], presentation });
     first.render(); assert.equal(storage.entries.size, 0);
-    first.chooseIcon('camera');
-    assert.equal(JSON.stringify(storage.api.readSetupDraft('account', 'profile')), JSON.stringify({ title: '', summary: '', portal: 'new', name: '', iconName: 'camera' }));
+    first.openNewPortal().props.onDraftChange('', 'camera');
+    first.render();
+    const saved = storage.api.readSetupDraft('account', 'profile');
+    assert.deepEqual([saved.title,saved.summary,saved.portal,saved.name,saved.iconName,saved.creatingPortal], ['', '', 'new', '', 'camera', true]);
     const reopened = harness(storage, { categories: [], presentation });
     const all = reopened.render();
     assert.equal(all.some(node => node.type === 'button' && node.props.children === 'Start fresh'), false);
-    reopened.click('Choose Portal icon');
-    assert.equal(reopened.render().find(node => node.type === 'portal-icon-library').props.selected, 'camera');
+    assert.equal(reopened.dialog(), undefined);
+    assert.equal(reopened.openNewPortal().props.initialIconName, 'camera');
     assert.equal(storage.api.readSetupDraft('account', 'profile').iconName, 'camera');
     assert.equal(reopened.calls.length, 0);
   }
 });
 
-test('legacy or unavailable saved icons reopen with a default and preserve all earlier authored text', () => {
-  for (const draft of [setup, { ...setup, iconName: 'lucide:missing-catalog-icon' }]) {
+test('legacy Portal drafts open manually with the saved name and an available or default icon', () => {
+  for (const [draft, iconName] of [[setup,'shapes'],[{ ...setup, iconName: 'lucide:missing-catalog-icon' },'shapes'],[{ ...setup, iconName: 'camera' },'camera']]) {
     const storage = storageFixture(); storage.api.saveSetupDraft('account', 'profile', draft);
     const h = harness(storage), all = h.render();
     assert.equal(all.find(node => node.props.name === 'title').props.value, setup.title);
     assert.equal(all.find(node => node.type === 'textarea').props.value, setup.summary);
-    assert.equal(all.find(node => node.props['aria-label'] === 'New portal name').props.value, setup.name);
-    h.click('Choose Portal icon');
-    assert.equal(h.render().find(node => node.type === 'portal-icon-library').props.selected, 'shapes');
+    assert.equal(h.dialog(), undefined);
+    const dialog = h.openNewPortal();
+    assert.equal(dialog.props.initialLabel, setup.name);
+    assert.equal(dialog.props.initialIconName, iconName);
     assert.equal(h.calls.length, 0);
   }
 });
 
 test('Continue retains setup until the publisher explicitly clears it', async () => {
   const storage = storageFixture(), h = harness(storage);
-  h.change('title', 'Project'); h.change('summary', 'Description'); h.submit();
+  h.change('title', 'Project'); h.change('summary', 'Description');
+  h.openNewPortal().props.onDraftChange('Photography', 'camera');
+  await h.dialog().props.onCreate('Photography', 'camera');
+  assert.deepEqual(h.calls, [['create','Photography','camera']]);
+  assert.equal(h.dialog(), undefined);
+  const saved = storage.api.readSetupDraft('account', 'profile');
+  assert.equal(saved.portal, 'created');
+  assert.equal(saved.title, 'Project');
+  assert.equal(saved.summary, 'Description');
+  assert.equal(saved.name, '');
+  assert.equal(saved.iconName, 'shapes');
+  assert.equal(Boolean(saved.creatingPortal), false);
+  h.submit();
   await new Promise(setImmediate);
   assert.equal(h.calls.at(-1)[0], 'continue');
   assert.equal(storage.api.readSetupDraft('account', 'profile').title, 'Project');
@@ -240,14 +259,44 @@ test('existing draft and committed-project actions delegate only after an explic
   }
 });
 
-test('removed saved portal stays explicit until the creator chooses another', () => {
- for(const categories of [[],[{id:'design',label:'Design'}]]){
-  const storage = storageFixture(); storage.api.saveSetupDraft('account', 'profile', { ...setup, portal: 'removed' });
-  const h = harness(storage,{categories}), all = h.render();
-  assert.equal(all.find(node => node.props['aria-label'] === 'Portal').props.value, 'removed');
-  assert.ok(all.some(node => node.type === 'option' && node.props.value === 'removed' && node.props.disabled));
-  assert.equal(h.calls.length,0);
-  h.change('Portal','new');const changed=h.render();assert.equal(Boolean(changed.find(node=>node.props['aria-label']==='Portal')),categories.length>0);assert.equal(changed.find(node=>node.props['aria-label']==='New portal name').props.value,setup.name);assert.equal(h.calls.length,0);
+test('removed saved Portal stays explicit until the creator chooses another', () => {
+ for (const presentation of ['mobile', 'web']) {
+  for (const categories of [[], [{id:'design',label:'Design'}]]) {
+   const storage = storageFixture();
+   storage.api.saveSetupDraft('account', 'profile', { ...setup, portal: 'removed' });
+   const h = harness(storage, { categories, presentation }), all = h.render();
+   assert.equal(h.calls.length, 0);
+   if (presentation === 'mobile') {
+    assert.ok(all.some(node => node.props.children === 'Portal unavailable. Choose a Portal.'));
+    assert.equal(all.find(node => node.type === 'footer').props.hidden, true);
+    h.click('Portals');
+    const choices = nodes(h.render().find(node => node.props.id === 'project-setup-portal-list'));
+    assert.equal(choices.some(node => node.props['aria-pressed']), false);
+    if (categories.length) {
+     h.click('Design');
+     assert.equal(h.render().find(node => node.type === 'footer').props.hidden, false);
+     assert.equal(storage.api.readSetupDraft('account', 'profile').portal, 'design');
+    } else {
+     assert.ok(choices.some(node => node.props.children === 'No portals yet.'));
+    }
+    const dialog = h.openNewPortal();
+    assert.equal(dialog.props.itemName, 'portal');
+    dialog.props.onCancel();
+   } else {
+    assert.equal(all.find(node => node.props['aria-label'] === 'Portal').props.value, 'removed');
+    assert.ok(all.some(node => node.type === 'option' && node.props.value === 'removed' && node.props.disabled));
+    h.change('Portal', 'new');
+    const dialog = h.dialog();
+    assert.equal(dialog.props.itemName, 'portal');
+    dialog.props.onCancel();
+    assert.equal(h.render().find(node => node.props['aria-label'] === 'Portal').props.value, 'removed');
+   }
+   const changed = h.render();
+   assert.equal(changed.find(node => node.props.name === 'title').props.value, setup.title);
+   assert.equal(changed.find(node => node.type === 'textarea').props.value, setup.summary);
+   assert.equal(h.dialog(), undefined);
+   assert.equal(h.calls.length, 0);
+  }
  }
 });
 

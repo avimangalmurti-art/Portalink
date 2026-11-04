@@ -3,6 +3,7 @@ import { animate, useMotionValue, type AnimationPlaybackControls } from 'framer-
 import { reducedMotion } from '../../presentation/motion/motion';
 
 const returnSpring = { type: 'spring' as const, stiffness: 300, damping: 20, mass: .8, restDelta: .1, restSpeed: .5 };
+const indicatorHeight = 24;
 
 /** Home's rubber band changes only paint; feed geometry and request timing stay real. */
 export function useHomeRefreshMotion({ enabled, refreshing, scope }: { enabled: boolean; refreshing: boolean; scope: object }) {
@@ -39,10 +40,11 @@ export function useHomeRefreshMotion({ enabled, refreshing, scope }: { enabled: 
     ownsBand.current = false; awaitingRefresh.current = false;
     const content = contentRef.current, indicator = indicatorRef.current;
     if (!enabled || !content) { mountedScope.current = null; stop(); offset.jump(0); opacity.jump(0); return; }
-    // Reveal only once the tabs have cleared the stationary top indicator.
-    const paintOpacity = (value: number) => { if (indicator) indicator.style.opacity = String(value * Math.min(1, Math.max(0, (offset.get() - 24) / 8))); };
+    // Reveal once there is room for the indicator between the resting and pulled tabs.
+    const paintOpacity = (value: number) => { if (indicator) indicator.style.opacity = String(value * Math.min(1, Math.max(0, (offset.get() - indicatorHeight) / 8))); };
     const paintOffset = (value: number) => {
       if (content) content.style.transform = enabled && Math.abs(value) > .01 ? `translate3d(0, ${value}px, 0)` : '';
+      if (indicator) indicator.style.transform = value > indicatorHeight ? `translate3d(0, ${(value - indicatorHeight) / 2}px, 0)` : '';
       paintOpacity(opacity.get());
     };
     const unwatchOffset = offset.on('change', paintOffset), unwatchOpacity = opacity.on('change', paintOpacity);
@@ -67,7 +69,7 @@ export function useHomeRefreshMotion({ enabled, refreshing, scope }: { enabled: 
       window.removeEventListener('scroll', interruptScroll); observer?.disconnect();
       preference?.removeEventListener('change', preferenceChanged);
       if (content) content.style.transform = '';
-      if (indicator) indicator.style.opacity = '0';
+      if (indicator) { indicator.style.transform = ''; indicator.style.opacity = '0'; }
     };
   }, [enabled, scope, offset, opacity, stop, settle]);
 

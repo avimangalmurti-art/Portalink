@@ -14,6 +14,9 @@ type NewCategoryDialogProps = {
   itemName?: 'category' | 'portal';
   isSaving?: boolean;
   error?: string | null;
+  initialLabel?: string;
+  initialIconName?: string;
+  onDraftChange?: (label: string, iconName: string) => void;
 };
 const DEFAULT_ICON = 'shapes';
 
@@ -36,13 +39,16 @@ export function NewCategoryDialog({
   onCreate,
   itemName = 'category',
   isSaving = false,
-  error = null
+  error = null,
+  initialLabel = '',
+  initialIconName = DEFAULT_ICON,
+  onDraftChange,
 }: NewCategoryDialogProps) {
   const presentation = usePresentation();
   const viewportRef = useDialogViewport(presentation === 'mobile');
   const focusTitleOnOpen = useRef(presentation === 'web');
-  const [label, setLabel] = useState('');
-  const [iconName, setIconName] = useState(DEFAULT_ICON);
+  const [label, setLabel] = useState(initialLabel);
+  const [iconName, setIconName] = useState(initialIconName);
   const [isIconSearch, setIsIconSearch] = useState(false);
   const [iconQuery, setIconQuery] = useState('');
   const dialogRef = useRef<HTMLFormElement>(null);
@@ -76,6 +82,21 @@ export function NewCategoryDialog({
     }
   }
 
+  function changeField(value: string) {
+    if (isIconSearch) {
+      setIconQuery(value);
+      return;
+    }
+    setLabel(value);
+    onDraftChange?.(value, iconName);
+  }
+
+  function selectIcon(name: string) {
+    setIconName(name);
+    onDraftChange?.(label, name);
+    if (isIconSearch) returnToTitle();
+  }
+
   function submit(event: React.FormEvent) {
     event.preventDefault();
     if (isIconSearch || !trimmed || isSaving) {
@@ -84,8 +105,8 @@ export function NewCategoryDialog({
     onCreate(trimmed, iconName);
   }
   return <ModalPortal><div ref={viewportRef} data-presentation={presentation} data-mobile-icon-create={presentation==='mobile'?'portal':undefined} role="presentation" onMouseDown={(event) => {
-    // A press on the backdrop leaves; a press inside must not.
-    if (event.target === event.currentTarget) {
+    // Only the desktop popup has a dismissible backdrop.
+    if (presentation === 'web' && event.target === event.currentTarget) {
       onCancel();
     }
   }} className="new-portal-screen modal-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -115,7 +136,7 @@ export function NewCategoryDialog({
           <label htmlFor="new-category-title" className="sr-only">{isIconSearch ? 'Search icons' : `${itemName === 'portal' ? 'Portal' : 'Category'} title`}</label>
           <div data-icon-create-field="" className="mt-5 flex items-center gap-2">
             <input ref={fieldRef} disabled={isSaving} id="new-category-title" data-ui-shape="field" type={isIconSearch ? 'search' : 'text'}
-              value={isIconSearch ? iconQuery : label} onChange={event => isIconSearch ? setIconQuery(event.target.value) : setLabel(event.target.value)}
+              value={isIconSearch ? iconQuery : label} onChange={event => changeField(event.target.value)}
               onKeyDown={event => { if (isIconSearch && event.key === 'Enter') event.preventDefault(); }}
               maxLength={isIconSearch ? undefined : 48} autoComplete="off"
               placeholder={isIconSearch ? 'Search icons' : `${itemName === 'portal' ? 'Portal' : 'Category'} title`}
@@ -130,7 +151,7 @@ export function NewCategoryDialog({
 
           </div>
           <div ref={presentation === 'mobile' ? contentRef : undefined} data-portal-icon-scroll="" className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents overflow-y-auto"}>
-          <PortalIconLibrary selected={iconName} onSelect={name => { setIconName(name); if (isIconSearch) returnToTitle(); }} searchQuery={isIconSearch ? iconQuery : ''} disabled={isSaving} compact label={`${itemName === 'portal' ? 'Portal' : 'Category'} icon`} />
+          <PortalIconLibrary selected={iconName} onSelect={selectIcon} searchQuery={isIconSearch ? iconQuery : ''} disabled={isSaving} compact label={`${itemName === 'portal' ? 'Portal' : 'Category'} icon`} />
           </div>
         </div>
 

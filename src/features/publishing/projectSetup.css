@@ -1,3 +1,5 @@
+@import '../../components/publishing/authoring-material.css';
+
 .project-setup-screen {
   position:fixed;
   z-index:150;
@@ -41,7 +43,7 @@
   gap:8px;
   padding:12px 16px 4px;
 }
-.project-setup-page>header,.project-setup-page form,.project-setup-page>footer,.project-setup-page>.project-setup-icon-picker {
+.project-setup-page>header,.project-setup-page form,.project-setup-page>footer {
   width:100%;
   max-width:620px;
   margin-inline:auto;
@@ -132,35 +134,11 @@
 .project-setup-page .project-setup-identity input { font-size:18px; font-weight:550; }
 .project-setup-portal-choice { display:flex; align-items:flex-end; gap:8px; min-width:0; }
 .project-setup-portal-choice>.project-setup-row { flex:1; }
-.project-setup-new-portal-row { display:flex; align-items:flex-end; gap:8px; min-width:0; }
-.project-setup-new-portal-row>.project-setup-row { flex:1; }
-.project-setup-icon-choice {
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  flex:none;
-  min-width:120px;
-  min-height:48px;
-  padding:4px 10px;
-  border:1px solid var(--hairline-strong,var(--hairline));
-  background:var(--surface-sunken);
-  color:var(--text-primary);
-  font:inherit;
-  font-size:13px;
-  line-height:1.2;
-}
-.project-setup-page>[hidden] { display:none; }
-.project-setup-icon-picker {
-  flex:1;
-  min-height:0;
-  overflow-y:auto;
-  overscroll-behavior:contain;
-  padding:4px 24px 24px;
-  scroll-padding-block:12px;
-}
-.project-setup-page .project-setup-icon-picker input[type='search'] { padding-inline-start:40px; }
-.project-setup-icon-portal { margin:4px 0 0; text-align:center; color:var(--text-secondary); font-size:14px; line-height:1.4; }
+.project-setup-portal-buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.project-setup-portal-list { list-style:none; margin:8px 0 0; padding:0; }
+.project-setup-portal-list:not([hidden]) { display:grid; gap:4px; }
+.project-setup-portal-list button { width:100%; justify-content:flex-start; text-align:start; overflow-wrap:anywhere; }
+.project-setup-page>footer[hidden] { display:none; }
 .project-setup-add-portal {
   display:grid;
   place-items:center;
@@ -199,6 +177,16 @@
 .project-setup-screen[data-presentation='web'] .project-setup-continue { min-height:40px; }
 .project-setup-page :is(button,input,textarea,select):focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
 .project-setup-page>header button:focus-visible { outline-offset:-2px; }
+.project-setup-screen[data-presentation='mobile'] .project-setup-identity input:focus {
+  outline:none!important;
+  border-color:var(--focus-ring)!important;
+}
+.project-setup-screen[data-presentation='mobile'][data-authoring-keyboard-open] .project-setup-identity input:focus {
+  border-color:var(--hairline-strong,var(--hairline))!important;
+}
+/* Keep the form controls in place as focus moves while the keyboard is open. */
+.project-setup-screen[data-presentation='mobile'][data-authoring-keyboard-open] form > :is(.project-setup-art,.project-setup-intro) { display:none; }
+.project-setup-portal-error { color:var(--status-danger); font-size:13px; margin:8px 0 0; }
 .project-setup-page button:disabled { opacity:.5; cursor:default; }
 .project-setup-page [role='alert'] { color:var(--status-danger); font-size:14px; line-height:1.5; margin:16px 0 0; overflow-wrap:anywhere; }
 .project-setup-recovery,.project-setup-recovered {
@@ -224,29 +212,14 @@
   font-weight:550;
 }
 .project-setup-save-status { margin:12px 0 0; font-size:12px; line-height:1.5; color:var(--text-secondary); }
-/* The cover stays full height while the keyboard resizes the visible form. */
-.app-shell .project-setup-screen[data-presentation='mobile'] {
-  inset:0;
-  height:100%;
-  height:max(100%,100lvh);
-  padding:0;
-  background:var(--surface-raised);
-  backdrop-filter:none!important;
-  -webkit-backdrop-filter:none!important;
-}
 .app-shell .project-setup-screen[data-presentation='mobile']>.project-setup-page[role='dialog'] {
-  --fixed-header-canvas:var(--surface-raised);
-  position:absolute;
-  inset-inline:0;
-  top:var(--dialog-viewport-top,0px);
   max-width:none;
-  height:var(--dialog-viewport-height,100dvh);
   border-bottom:0;
   box-shadow:none!important;
   border-radius:0!important;
 }
 /* Artwork yields space before fields do, keeping the complete form in view. */
-.project-setup-screen .project-setup-page form:not([hidden]) {
+.project-setup-screen .project-setup-page form {
   display:flex;
   flex-direction:column;
 }

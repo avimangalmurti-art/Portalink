@@ -162,6 +162,9 @@
         :root { --mobile-launch-height: 100vh; }
         html[data-appearance='light'] { background-color: #ffffff; }
         html[data-appearance='dark'] { background-color: #000000; }
+        /* Safari samples the opening surface at the viewport edges. Keep the
+           artwork itself on its original canvas. */
+        html[data-appearance='dark']:not([data-standalone]) { --portalink-mobile-opening-canvas: #000000; }
         body { background-color: inherit; }
         html:root, html:root body, html:root #root {
           margin: 0;
@@ -174,7 +177,7 @@
         /* Match the visible launch layer even while the app mounts beneath it. */
         html:root:has(#portalink-preboot, [data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']), [data-presentation='mobile'].portalink-startup-wait),
         html:root:has(#portalink-preboot, [data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']), [data-presentation='mobile'].portalink-startup-wait) body {
-          background-color: var(--portalink-welcome-canvas, #fdffff) !important;
+          background-color: var(--portalink-welcome-canvas, var(--portalink-mobile-opening-canvas, #fdffff)) !important;
         }
         /* Legacy iOS navigator.standalone is marked before the body is parsed. */
         html:root[data-standalone], html:root[data-standalone] body, html:root[data-standalone] #root {
@@ -187,7 +190,7 @@
           --mobile-viewport-height: 100vh;
           --mobile-fixed-offset: 0px;
         }
-        #portalink-preboot { background-color: #fdffff; --portalink-splash-background: #fdffff; --portalink-media-ratio: 0.7111111111; }
+        #portalink-preboot { background-color: var(--portalink-mobile-opening-canvas, #fdffff); --portalink-splash-background: #fdffff; --portalink-media-ratio: 0.7111111111; }
         #portalink-preboot { height: var(--mobile-launch-height); min-height: var(--mobile-launch-height); }
         /* Recovery actions follow the visible screen, not the taller launch artwork. */
         #portalink-preboot-status {

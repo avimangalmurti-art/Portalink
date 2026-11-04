@@ -1,8 +1,44 @@
-## 2026-11-03 - Shorter mobile profile setup
+## 2026-11-03 - New portal screen in project setup
+
+New Portal in mobile project setup and the desktop create controls open the shared New portal form with the title, preview, search, icon grid, Cancel and Create portal together. Removed the separate project setup Portal icon screen. Create portal selects the returned portal and returns to the project draft. Continue confirms that selection and opens uploads. Cancel keeps the original project details and selection. Interrupted portal edits can be restored when New Portal is reopened, including legacy drafts. On mobile the opaque screen cover stays full-height when the keyboard shrinks the form.
+
+Continued `codex/socal-release` at `acdf835be5d9a70497cba7ce06268c9622f6b57a` (live580), preserving pending edits. Updated the shared `NewCategoryDialog`, its mobile CSS, `ProjectSetupScreen`, its CSS, `setupDraft`, and the two focused setup tests. All 148 focused checks, typecheck, targeted lint and diff check passed. Isolated Chrome at 420 × 912 verified cancel, create, icon search, draft restoration, Continue and the full opaque backdrop with a simulated keyboard. Desktop at 1280 × 900 verified the original picker and the shared centered creation popup. Chrome used fictional data. Physical iPhone behavior is unverified. Local and unpublished.
+
+## 2026-11-03 - Mobile New project Portal buttons
+
+Mobile New project shows two equal buttons labelled Portals and New Portal. Portals opens an inline list of existing portals with the current choice marked. New Portal opens the existing name and icon fields. The existing selection, draft and validation flow still supplies the portal for Continue. Desktop uses its existing picker.
+
+Continued `codex/socal-release` at `acdf835be5d9a70497cba7ce06268c9622f6b57a` (live580), preserving the pending mobile edits. Updated `ProjectSetupScreen.tsx`, `projectSetup.css`, and the setup and recovery tests. All 77 focused checks, typecheck, targeted lint and diff check passed. Isolated Chrome at 420 × 912 verified the labels, selection, empty list, new name validation and icon picker with fictional data. At 1280 × 900 desktop retained its native select and add control. Physical iPhone behavior is unverified. Local and unpublished.
+
+## 2026-11-03 - Mobile New project title entry
+
+Mobile New project now shows Continue only for a valid title and an available or valid new Portal. Note remains optional. The focused Title uses one field edge, and the illustration and intro stay hidden while the software keyboard is open so the form controls do not move when focus changes.
+
+Continued `codex/socal-release` at `acdf835be5d9a70497cba7ce06268c9622f6b57a` (live580), preserving the other pending mobile changes. Edited the setup component, its CSS and the focused setup test. All 61 focused checks and targeted lint passed. Chrome at 420 × 912 verified empty and valid titles, duplicate and unique Portal names, focus appearance and illustration restoration using a simulated keyboard. Desktop scope checked at 1280 × 900. Physical iPhone behavior is unverified. Local and unpublished.
+
+## 2026-11-03 - Mobile Home pull-to-refresh placement
+
+The Home spinner now moves with the midpoint of the gap opened above the controls during a pull and while a refresh is held. Its reveal, fade and request timing use the existing motion values.
+
+Continued `codex/socal-release` at `acdf835be5d9a70497cba7ce06268c9622f6b57a` (live580), preserving the pending mobile canvas and modal changes. Updated the Home refresh hook, the mobile indicator anchor and its existing motion test. All 37 focused checks passed. Isolated Chrome at 420 × 912 measured the midpoint for both 32px and 80px gaps, with the spinner clear of the controls. The desktop preview at 1280 × 900 had no spinner. Physical iPhone behavior is unverified. Local and unpublished.
+
+## 2026-11-03 - Mobile modal scrolling and authoring material
+
+The shared mobile modal styles lock the document while a modal is visible. The focus stack also blocks touch and wheel gestures that would chain past the top modal. Directional scrolling inside it, pinch and horizontal gestures, and normal document scrolling after dismissal remain available. New project, guided upload and resumed upload use the profile Extra Actions tint and backdrop. The authoring cover stays layout-sized, becomes solid for the keyboard and accessibility preferences, and lets the active form follow the visible viewport.
+
+Continued `codex/socal-release` at `acdf835be5d9a70497cba7ce06268c9622f6b57a` (live580), preserving the separate pending startup canvas change. Updated modal focus, viewport tracking, shared surface CSS, mobile authoring and the UI consistency tests. Typecheck, focused lint, configured build and both entry guards passed. Of 173 focused checks, 172 passed. The existing platform stylesheet scope test still rejects an unchanged desktop `@layer`. Isolated Chrome at 420 × 912 verified light and dark material, the simulated keyboard, a nonzero background scroll position held through opening and dismissal, and native scrolling inside the form. Desktop at 1280 × 900 retained its original material. Physical iOS remains unverified. Local and unpublished.
+
+## 2026-11-03 - Mobile browser theme during startup
+
+The dark mobile browser opening canvas now stays black from the inline main entry through the startup wait and React intro. The shared catalogue intro reads the same canvas colour through its loaded CSS. The light splash artwork keeps its original backing, and the installed Home Screen launch retains its separate material. The visible welcome and the settled app keep using their existing appearance owners.
+
+Continued `codex/socal-release` at `acdf835be5d9a70497cba7ce06268c9622f6b57a` (live580). Edited `index.html` and `src/components/ui/portalink-welcome-mobile.css`. Six isolated Chrome cases covered 420 × 912 browser and simulated installed modes, desktop at 1280 × 900, both entries and live theme changes in the opening view. The configured build and both entry guards passed. Of 161 focused checks, 160 passed. The unchanged guest Home fixture still expects an anonymous result from a service that requires sign-in. Native Safari tint and physical-device behavior are unverified. The change is local and unpublished.
+
+## 2026-11-03 - Shorter mobile profile setup published 580
 
 Mobile registration resumes with a compact system spinner and a single status line after 500 ms. Fast completions open the new profile directly. Explicit destinations still take precedence. Failed setup keeps the saved form and retry action, with the form staying visible during a manual retry. The full profile form remains available when information needs attention.
 
-Continued `codex/socal-release` at `1c0a7854d4fb1969ea0fd471a9e24cb71189561f` (live579). The profile setup component and App completion handler changed, with focused registration and navigation coverage. All 124 focused tests and typecheck passed. Focused lint found zero errors and three existing App warnings. Isolated Chrome at 420 × 912 and 1280 × 900 passed all four checks for fast setup, delayed progress, retry and desktop presentation with fictional accounts. Physical iOS and production signup are unverified. The source change is local and unpublished. No migration is needed.
+Published `acdf835be5d9a70497cba7ce06268c9622f6b57a` from `codex/socal-release` to https://portalinknetworks.com. Draft PR148 matches the deployed source. All 124 focused tests and typecheck passed. Focused lint found zero errors and three existing App warnings. Isolated Chrome at 420 × 912 and 1280 × 900 passed fast setup, delayed progress, retry and desktop checks with fictional accounts. Production served all four expected entry routes and matched all 209 audited JavaScript and CSS assets. Physical iOS and authenticated production signup are unverified. Release receipts use `logs/registration-progress-release*`. No migration was applied. Safe writer handoff.
 
 ## 2026-11-03 - Mobile authoring and Insights published 579
 

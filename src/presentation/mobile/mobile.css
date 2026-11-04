@@ -5854,8 +5854,8 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
 #root .codex-shell[data-presentation='mobile'] .journey-popular-heading .journey-title {flex:1 1 150px;min-width:0;}
 #root .codex-shell[data-presentation='mobile'] .journey-popularity {display:inline-flex;align-items:center;gap:6px;flex:none;font-size:13px;line-height:1.5;color:var(--text-secondary);font-variant-numeric:tabular-nums;white-space:nowrap;}
 
-/* Stay above the tabs while Home's content elastically releases its refresh band. */
-#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] > .home-pull-indicator {position:absolute;z-index:11;inset-inline:0;top:calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 8px);height:24px;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;}
+/* Measure the refresh band from the resting Home controls. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] > .home-pull-indicator {position:absolute;z-index:11;inset-inline:0;top:var(--mobile-screen-action-top);height:24px;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator > .premium-media-loading-mark {width:22px;height:22px;}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator:not([data-active='true']) .premium-media-loading-mark {animation-play-state:paused;}
 #root .codex-shell[data-presentation='mobile'] .home-pull-indicator:where(.reduce-motion *, .app-viewport--reduce-motion *) .premium-media-loading-mark {animation:none;}

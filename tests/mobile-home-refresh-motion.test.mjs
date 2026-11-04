@@ -140,22 +140,23 @@ test('every real pending refresh reserves the top indicator band, while gesture 
   h.complete(); assert.equal(h.offset, 0); assert.equal(h.opacity, 0); h.assertPaintOnly(); h.dispose();
 });
 
-test('the stationary indicator reveals only after the moving tabs clear it and responds to both paint values', () => {
+test('the indicator stays centered in the revealed band and fades before the tabs can overlap it', () => {
   const h = fixture(); h.complete();
   h.update({ refreshing: true });
   const movement = h.activeControls.find(control => control.value === h.values[0]);
   const fade = h.activeControls.find(control => control.value === h.values[1]);
   const renders = h.renders;
   fade.advance(1); assert.equal(h.indicator.style.opacity, '0', 'A pending request must not paint the indicator over resting tabs');
-  movement.advance(24); assert.equal(h.indicator.style.opacity, '0');
-  movement.advance(28); assert.equal(h.indicator.style.opacity, '0.5');
-  movement.advance(32); assert.equal(h.indicator.style.opacity, '1');
+  movement.advance(24); assert.equal(h.indicator.style.opacity, '0'); assert.equal(h.indicator.style.transform, '');
+  movement.advance(28); assert.equal(h.indicator.style.opacity, '0.5'); assert.equal(h.indicator.style.transform, 'translate3d(0, 2px, 0)');
+  movement.advance(32); assert.equal(h.indicator.style.opacity, '1'); assert.equal(h.indicator.style.transform, 'translate3d(0, 4px, 0)');
   fade.advance(.4); assert.equal(h.indicator.style.opacity, '0.4', 'The existing fade still owns completion opacity');
   movement.advance(20); assert.equal(h.indicator.style.opacity, '0', 'Returning tabs hide the indicator before they overlap');
   movement.advance(80); assert.equal(h.indicator.style.opacity, '0.4', 'A longer pull never amplifies the fade above its own opacity');
+  assert.equal(h.indicator.style.transform, 'translate3d(0, 28px, 0)');
   assert.equal(h.renders, renders, 'Reveal follows MotionValue paint without rerendering Home');
   h.update({ refreshing: false }); h.complete();
-  assert.equal(h.indicator.style.opacity, '0'); assert.equal(h.content.style.transform, '');
+  assert.equal(h.indicator.style.opacity, '0'); assert.equal(h.indicator.style.transform, ''); assert.equal(h.content.style.transform, '');
   h.assertPaintOnly(); h.dispose();
 });
 

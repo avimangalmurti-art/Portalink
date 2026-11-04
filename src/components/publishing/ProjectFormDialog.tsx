@@ -76,16 +76,21 @@ export function ProjectDiscardConfirmation({ title, description, error, busy = f
 /** Mobile publishing occupies its own screen rather than a modal surface. */
 export function ProjectFormScreen({title,titleId,onClose,closeDisabled,confirmation,children,onboarding = false,fullScreen = false}: ComponentProps<typeof ProjectFormDialog>) {
   const presentation = usePresentation();
-  const viewport = useDialogViewport<HTMLDivElement>();
+  const mobileAuthoring = presentation === 'mobile' && fullScreen;
+  const viewport = useDialogViewport<HTMLDivElement>(true, mobileAuthoring);
   const panel = useRef<HTMLElement>(null);
   useAuthoringFocus(viewport);
-  useModalFocus(true, onboarding ? panel : viewport, () => { if (!closeDisabled) return onClose(); }, true);
-  if (onboarding) return <ModalPortal><div ref={viewport} className="onboarding-publish-backdrop modal-scrim" data-project-creation={fullScreen || undefined} data-presentation={presentation} data-onboarding-publish="true"><section ref={panel} className="project-form-screen" data-project-creation={fullScreen || undefined} data-presentation={presentation} data-onboarding-publish="true" data-ui-shape={fullScreen ? 'screen' : presentation === 'mobile' ? 'sheet' : 'popup'} data-mobile-upload-surface="create" data-material="content" role="dialog" aria-modal="true" tabIndex={-1} aria-labelledby={titleId}>
+  useModalFocus(true, onboarding || mobileAuthoring ? panel : viewport, () => { if (!closeDisabled) return onClose(); }, true);
+  if (onboarding) return <ModalPortal><div ref={viewport} className="onboarding-publish-backdrop modal-scrim" data-project-creation={fullScreen || undefined} data-presentation={presentation} data-onboarding-publish="true" data-ui-modal-backdrop={mobileAuthoring ? 'authoring' : undefined}><section ref={panel} className="project-form-screen" data-project-creation={fullScreen || undefined} data-presentation={presentation} data-onboarding-publish="true" data-ui-shape={fullScreen ? 'screen' : presentation === 'mobile' ? 'sheet' : 'popup'} data-mobile-upload-surface="create" data-material="content" role="dialog" aria-modal="true" tabIndex={-1} aria-labelledby={titleId}>
     <header className="onboarding-publish-heading"><button type="button" aria-label="Close new project" data-ui-control="icon" data-control-variant="ghost" disabled={closeDisabled} onClick={onClose}><XIcon size={20} aria-hidden="true"/></button><h1 id={titleId} tabIndex={-1}>{title}</h1><span aria-hidden="true"/></header>
     {children}{confirmation}
   </section></div></ModalPortal>;
-  return <ModalPortal><div className="mobile-upload-surface-backdrop" aria-hidden="true" /><section ref={viewport} className="project-form-screen" data-project-creation={fullScreen || undefined} data-mobile-upload-surface="create" data-material="content" role="dialog" aria-modal="true" tabIndex={-1} aria-labelledby={titleId}>
+  const screen = <section ref={mobileAuthoring ? panel : viewport} className="project-form-screen" data-project-creation={fullScreen || undefined} data-mobile-upload-surface="create" data-material="content" role="dialog" aria-modal="true" tabIndex={-1} aria-labelledby={titleId}>
     <header><button type="button" aria-label="Close new project" disabled={closeDisabled} onClick={onClose}><XIcon size={22} aria-hidden="true" /></button><h1 id={titleId} tabIndex={-1}>{title}</h1></header>
     {children}{confirmation}
-  </section></ModalPortal>;
+  </section>;
+  return <ModalPortal>{mobileAuthoring
+    ? <div ref={viewport} className="project-form-screen-backdrop modal-scrim" data-presentation="mobile" data-ui-modal-backdrop="authoring">{screen}</div>
+    : <><div className="mobile-upload-surface-backdrop" aria-hidden="true" />{screen}</>}
+  </ModalPortal>;
 }

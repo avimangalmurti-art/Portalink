@@ -1,4 +1,4 @@
-export type SetupDraft = { title: string; summary: string; portal: string; name: string; iconName?: string };
+export type SetupDraft = { title: string; summary: string; portal: string; name: string; iconName?: string; creatingPortal?: true };
 
 type StoredSetupDraft = SetupDraft & { version: 1 };
 const PREFIX = 'portalink.project-setup.v1:';
@@ -30,7 +30,8 @@ export function readSetupDraft(accountId: string, profileId: string): SetupDraft
     throw new Error('Saved project details could not be opened.');
   }
   const iconName = savedIconName(draft.iconName);
-  return { title: draft.title, summary: draft.summary, portal: draft.portal, name: draft.name, ...(iconName ? { iconName } : {}) };
+  return { title: draft.title, summary: draft.summary, portal: draft.portal, name: draft.name,
+    ...(iconName ? { iconName } : {}), ...(draft.creatingPortal === true ? { creatingPortal: true } : {}) };
 }
 
 export function saveSetupDraft(accountId: string, profileId: string, draft: SetupDraft): void {

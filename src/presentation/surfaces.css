@@ -26,11 +26,18 @@
    A custom property keeps the standard and WebKit filter values identical. */
 #root .codex-shell :is(.portalink-confirmation-overlay, .follow-info-overlay,
   [data-project-description-overlay], .portal-project-popup-layer,
-  .mobile-profile-portal-overlay, .mobile-context-scrim, .new-portal-screen) {
+  .mobile-profile-portal-overlay, .mobile-context-scrim, .new-portal-screen, [data-ui-modal-backdrop='authoring']) {
   --ui-modal-filter: blur(18px) saturate(115%);
   background: var(--scrim) !important;
   -webkit-backdrop-filter: var(--ui-modal-filter) !important;
   backdrop-filter: var(--ui-modal-filter) !important;
+}
+/* A mobile modal owns scrolling while it covers the page. Keep the document's
+   layout and scroll position so it resumes where it was. */
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)),
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)) body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 /* Portal browsing softens the page with the same smoke/blur as avatar preview. */
 #root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer,

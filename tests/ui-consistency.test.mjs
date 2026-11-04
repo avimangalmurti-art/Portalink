@@ -73,24 +73,44 @@ test('menus flip at the lower edge and remain inside short or narrow viewports',
 
 function focusEnvironment() {
   const listeners = new Map();
+  const window = { visualViewport: { scale: 1 } };
+  const captures = options => typeof options === 'boolean' ? options : Boolean(options?.capture);
   const document = {
     activeElement: null,
-    addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(fn); },
-    removeEventListener(name, fn) { listeners.get(name)?.delete(fn); },
+    addEventListener(name, fn, options) {
+      if (!listeners.has(name)) listeners.set(name, new Map());
+      listeners.get(name).set(fn, options);
+    },
+    removeEventListener(name, fn, options) {
+      const registered = listeners.get(name);
+      if (registered?.has(fn) && captures(registered.get(fn)) === captures(options)) registered.delete(fn);
+    },
   };
-  function dispatch(name, event) { for (const listener of [...listeners.get(name) ?? []]) listener(event); }
+  function dispatch(name, event) {
+    for (const [listener, options] of [...listeners.get(name) ?? []]) {
+      event.passive = options?.passive ?? ['touchstart', 'touchmove', 'wheel'].includes(name);
+      listener(event);
+    }
+  }
   class Element {
     constructor(parent = null, modal = false) {
-      this.parent = parent; this.modal = modal; this.children = []; this.isConnected = true;
+      this.parent = parent; this.parentElement = parent; this.modal = modal; this.children = []; this.isConnected = true;
       this.disabled = false; this.hidden = false; this.visibility = 'visible'; this.tabIndex = 0;
+      this.dataset = {}; this.isShell = false;
+      this.scrollHeight = 100; this.clientHeight = 100; this.scrollTop = 0; this.overflowY = 'visible';
       parent?.children.push(this);
     }
     contains(other) { return other === this || this.children.some((child) => child.contains(other)); }
     closest(selector) {
+      if (selector === '.codex-shell') return this.isShell ? this : this.parent?.closest(selector) ?? null;
+      if (selector === '.screen-exit') return this.exiting ? this : this.parent?.closest(selector) ?? null;
       if (selector.includes('role=')) return this.modal ? this : this.parent?.closest(selector) ?? null;
       return this.hidden ? this : this.parent?.closest(selector) ?? null;
     }
-    matches(selector) { return selector === ':disabled' && this.disabled; }
+    matches(selector) {
+      if (selector === '[data-presentation="mobile"]') return this.dataset.presentation === 'mobile';
+      return selector === ':disabled' && this.disabled;
+    }
     getClientRects() { return this.hidden ? [] : [{}]; }
     querySelectorAll() { return this.children.flatMap((child) => [child, ...child.querySelectorAll()]); }
     focus(options) {
@@ -100,12 +120,24 @@ function focusEnvironment() {
     }
   }
   const { containModalFocus, dismissTopModal } = compile('../src/hooks/useModalFocus.ts', {
-    document, HTMLElement: Element, getComputedStyle: (element) => ({ visibility: element.visibility }),
+    document, window, HTMLElement: Element, getComputedStyle: (element) => ({ visibility: element.visibility, overflowY: element.overflowY }),
   });
-  return { document, Element, containModalFocus, dismissTopModal, key(key, shiftKey = false) {
-    const event = { key, shiftKey, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
-    dispatch('keydown', event); return event;
-  } };
+  return {
+    document, window, Element, containModalFocus, dismissTopModal,
+    key(key, shiftKey = false) {
+      const event = { key, shiftKey, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
+      dispatch('keydown', event); return event;
+    },
+    input(name, target, details = {}) {
+      const path = [];
+      for (let element = target; element; element = element.parentElement) path.push(element);
+      const event = { target, cancelable: true, defaultPrevented: false, deltaX: 0, deltaY: 0, ctrlKey: false, touches: [],
+        composedPath: () => [...path, document, window],
+        preventDefault() { if (this.cancelable && !this.passive) this.defaultPrevented = true; }, ...details };
+      dispatch(name, event); return event.defaultPrevented;
+    },
+    listenerCount(name) { return listeners.get(name)?.size ?? 0; },
+  };
 }
 
 test('system dismissal awaits the active child without closing its parent', async () => {
@@ -171,6 +203,90 @@ test('animated sheets can retain focus without scrolling the overlay on open, tr
   close();
   assert.equal(env.document.activeElement, opener);
   assert.equal(opener.focusOptions.preventScroll, true);
+});
+
+function modalScrollEnvironment() {
+  const env = focusEnvironment();
+  const shell = new env.Element(); shell.isShell = true; shell.dataset.presentation = 'mobile';
+  const background = new env.Element(shell); background.overflowY = 'auto'; background.scrollHeight = 450; background.scrollTop = 50;
+  const backdrop = new env.Element(shell);
+  const dialog = new env.Element(backdrop, true); dialog.tabIndex = -1;
+  const scroller = new env.Element(dialog); scroller.overflowY = 'auto'; scroller.scrollHeight = 250;
+  const item = new env.Element(scroller);
+  const close = env.containModalFocus(dialog, () => {}, true);
+  return { ...env, shell, background, backdrop, dialog, scroller, item, close };
+}
+
+test('mobile modal wheel scrolling stays inside the active dialog and stops at its scroll boundaries', () => {
+  const h = modalScrollEnvironment();
+  const wheel = (target, deltaY, details) => h.input('wheel', target, { deltaY, ...details });
+  assert.equal(wheel(h.item, 40), false, 'a descendant can scroll its dialog scrollport');
+  assert.equal(wheel(h.item, -40), true, 'the top boundary cannot move the page');
+  h.scroller.scrollTop = 150;
+  assert.equal(wheel(h.scroller, 40), true, 'the bottom boundary cannot move the page');
+  assert.equal(wheel(h.scroller, -40), false, 'an element can scroll directly');
+  assert.equal(wheel(h.backdrop, 40), true);
+  assert.equal(wheel(h.background, 40), true, 'a scrollable background is not part of the dialog');
+  const inner = new h.Element(h.scroller); inner.overflowY = 'auto'; inner.scrollHeight = 160; inner.scrollTop = 60;
+  assert.equal(wheel(inner, 40), true, 'neither scrollport can move further down');
+  h.scroller.scrollTop = 50;
+  assert.equal(wheel(inner, 40), false, 'a parent scrollport inside the dialog can move when its child reaches the edge');
+  h.scroller.overflowY = 'hidden';
+  assert.equal(wheel(h.item, -40), true, 'a clipped ancestor does not consume wheel scrolling');
+  assert.equal(wheel(h.backdrop, 5, { deltaX: 80 }), false, 'horizontal wheel remains available');
+  assert.equal(wheel(h.backdrop, 40, { ctrlKey: true }), false, 'browser zoom remains available');
+
+  h.shell.dataset.presentation = 'web';
+  assert.equal(wheel(h.backdrop, 40), false, 'an existing dialog relinquishes the boundary on desktop');
+  h.shell.dataset.presentation = 'mobile';
+  assert.equal(wheel(h.backdrop, 40), true);
+  h.close();
+  assert.equal(wheel(h.background, 40), false);
+  for (const event of ['wheel', 'touchstart', 'touchmove', 'touchend', 'touchcancel']) assert.equal(h.listenerCount(event), 0, `${event} listener leaked`);
+});
+
+test('mobile modal touch scrolling allows vertical content movement, horizontal gestures and pinch zoom', () => {
+  const h = modalScrollEnvironment();
+  const point = (clientX, clientY, identifier = 1) => ({ clientX, clientY, identifier });
+  const start = target => h.input('touchstart', target, { touches: [point(100, 150)] });
+  const move = (target, x, y) => h.input('touchmove', target, { touches: [point(x, y)] });
+  start(h.item);
+  assert.equal(move(h.item, 100, 110), false, 'the inner scrollport can consume upward motion');
+  h.scroller.scrollTop = 150;
+  assert.equal(move(h.item, 100, 70), true, 'upward motion at its bottom is contained');
+  h.input('touchend', h.item);
+  start(h.backdrop);
+  assert.equal(move(h.backdrop, 100, 110), true, 'the backdrop cannot move the page');
+  h.input('touchcancel', h.backdrop);
+  start(h.backdrop);
+  assert.equal(move(h.backdrop, 145, 145), false, 'horizontal gestures remain available');
+  assert.equal(h.input('touchmove', h.backdrop, { touches: [point(145, 110), point(200, 120, 2)] }), false, 'pinch zoom remains available');
+  h.window.visualViewport.scale = 1.5;
+  start(h.backdrop);
+  assert.equal(move(h.backdrop, 100, 110), false, 'a zoomed viewport can still pan');
+  h.window.visualViewport.scale = 1;
+  h.close();
+  start(h.background);
+  assert.equal(move(h.background, 100, 110), false, 'closing releases native page scrolling');
+});
+
+test('a child mobile modal owns scrolling until it closes and hands it back to its parent', () => {
+  const h = modalScrollEnvironment();
+  const child = new h.Element(h.dialog, true); child.tabIndex = -1;
+  const childBody = new h.Element(child); childBody.overflowY = 'auto'; childBody.scrollHeight = 200;
+  const closeChild = h.containModalFocus(child, () => {}, true);
+  const wheel = target => h.input('wheel', target, { deltaY: 40 });
+  assert.equal(wheel(childBody), false, 'parent cannot block the child scrollport');
+  assert.equal(wheel(h.item), true, 'child guards the parent scrollport');
+  childBody.scrollTop = 100;
+  assert.equal(wheel(childBody), true, 'child edge cannot spill into its parent');
+  child.exiting = true;
+  assert.equal(wheel(h.item), false, 'an exiting layer cannot claim the scroll boundary');
+  closeChild();
+  assert.equal(wheel(h.item), false, 'parent resumes scrolling');
+  assert.equal(wheel(h.background), true, 'parent still contains the document');
+  h.close();
+  assert.equal(wheel(h.background), false);
 });
 
 test('project editor Escape uses existing dirty and transfer safeguards', () => {

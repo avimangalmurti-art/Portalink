@@ -1,6 +1,8 @@
-## 2026-11-03 - Shorter mobile profile setup release
+## 2026-11-03 - Shorter mobile profile setup published 580
 
-The requested release starts from live579 and contains the delayed mobile signup spinner, direct profile entry after successful setup, and saved form recovery. All 124 focused tests and typecheck passed. The configured production build passed both entry checks. This release uses the existing public Site and bindings, with no migration needed.
+Published `acdf835be5d9a70497cba7ce06268c9622f6b57a` to https://portalinknetworks.com. Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_afcfefec75908191a9ccec292e48c4f3` and deployment `appgdep_6aeac50bd7288191a9a78daab774da2a` succeeded at 2026-11-04T05:39:34.326765+00:00. Draft PR148 matches the deployed source.
+
+The configured build passed both entry checks. The archive audit matched 642 files and confirmed byte parity with version 579 for the worker, four D1 SQL payloads and 423 public assets. Public access and runtime revision 2 were confirmed. Production matched four entry routes and all 209 JavaScript and CSS assets. Physical-device and authenticated production signup remain unverified. Receipts use `logs/registration-progress-release*`. No migration was applied.
 
 ## 2026-11-03 - Mobile authoring and Insights published 579
 

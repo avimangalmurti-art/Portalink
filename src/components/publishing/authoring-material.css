@@ -1,0 +1,50 @@
+/* The scrim covers the layout viewport. The dialog alone follows the keyboard. */
+#root .codex-shell[data-presentation='mobile'] [data-ui-modal-backdrop='authoring'][data-presentation='mobile'] {
+  position: fixed;
+  inset: 0;
+  height: 100%;
+  height: max(100%, 100lvh);
+  padding: 0;
+  overflow: hidden;
+  --authoring-panel-surface: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 78%), transparent);
+}
+.project-form-screen-backdrop { z-index: 80; }
+#root .codex-shell[data-presentation='mobile'] [data-ui-modal-backdrop='authoring'][data-presentation='mobile'] > :is(.project-setup-page, .project-form-screen)[role='dialog'] {
+  position: absolute;
+  inset: var(--dialog-viewport-top, 0px) 0 auto;
+  height: var(--dialog-viewport-height, 100dvh);
+  --fixed-header-canvas: var(--surface-raised);
+  background: var(--authoring-panel-surface) !important;
+}
+/* Keep the panel tint continuous and soften content only as it scrolls under the title. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] [data-ui-modal-backdrop='authoring'] [role='dialog'] > header[data-mobile-header-underlap]::before {
+    inset: 0 0 -16px !important;
+    background: transparent !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] [data-ui-modal-backdrop='authoring'] [role='dialog'] > header[data-mobile-header-underlap='false']::before {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+/* The dialog tint already extends behind its footer. */
+#root .codex-shell[data-presentation='mobile'] [data-ui-modal-backdrop='authoring'][data-presentation='mobile'] .project-form-screen > .mobile-publish-flow > .mobile-publish-actions {
+  background: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-ui-modal-backdrop='authoring'][data-authoring-keyboard-open],
+#root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) [data-ui-modal-backdrop='authoring'] {
+  --authoring-panel-surface: var(--surface-raised);
+  background: var(--surface-raised) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  #root .codex-shell[data-presentation='mobile'] [data-ui-modal-backdrop='authoring'][data-presentation='mobile'] {
+    --authoring-panel-surface: var(--surface-raised);
+    background: var(--surface-raised) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}

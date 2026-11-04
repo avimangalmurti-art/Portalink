@@ -1,12 +1,17 @@
+/* The shared catalogue can show the intro without the main HTML preboot. */
+@media (max-width: 639px) and (display-mode: browser) {
+  html[data-appearance='dark']:not([data-standalone]) { --portalink-mobile-opening-canvas: #000000; }
+}
+
 /* The startup layer exists before the app host and carries the same scope. */
 [data-presentation='mobile'].portalink-startup-wait {
   height: var(--mobile-launch-height, 100dvh);
   min-height: var(--mobile-launch-height, 100dvh);
-  background-color: #fdffff;
+  background-color: var(--portalink-mobile-opening-canvas, #fdffff);
   overflow: hidden;
 }
 [data-presentation='mobile'].portalink-splash {
-  background-color: #fdffff;
+  background-color: var(--portalink-mobile-opening-canvas, #fdffff);
   height: var(--mobile-launch-height, 100dvh);
   min-height: var(--mobile-launch-height, 100dvh);
   overscroll-behavior: none;
