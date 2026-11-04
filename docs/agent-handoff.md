@@ -1,3 +1,9 @@
+## 2026-11-04 - ALL iOS Capacitor shell (user-approved native start), unpublished
+
+Devin owned branch devin/capacitor-ios-shell from github/main 5c3f7f2 in its own VM checkout. User explicitly chose a Capacitor wrapper over an Expo rebuild for App Store delivery. Added @capacitor/core, @capacitor/ios, @capacitor/cli 8.5.3 (exact), capacitor.config.ts, ios/ Xcode project (Swift Package Manager), native/shell offline fallback page, npm run ios:sync, and .github/workflows/ios.yml (unsigned simulator build on macos-15, excludes autosave/**). The app loads the hosted PUBLIC_ORIGIN so Auth callbacks, share links, /api worker routes and the media service worker keep their origin; WKAppBoundDomains lists that host so WKWebView service workers work. CAP_SERVER_URL at sync time points a dev build at a live-reload server. Bundle ID com.portalinknetworks.app is a placeholder pending user confirmation.
+
+typecheck passes; lint 0 errors/111 existing warnings; build with CI fixture env passes. Xcode build unverified locally (Linux); relies on the iOS workflow. No signing, TestFlight, store submission, SQL, Sites publish or worker deploy. WEB/MOBILE source unchanged.
+
 ## 2026-10-09 — Visitor video and signup interaction correction
 
 Owned logs/info-popup-dismiss, codex/visitor-video-auth-fix from github/main e6e552c. Public portfolio enables existing muted inline video previews and first-video attachment fallback; documents retain bitmap-only grid policy. Visitor reader suppresses duplicate floating screen actions through an explicit presentation prop (defaults preserve all other screens). Bottom reader dots open information publicly; guest engagement clears info before signup. Main-app shared/invitation entry skips Appearance and starts Create your profile, matching visitor entry. No authentication/data permissions changed, SQL or publish.
