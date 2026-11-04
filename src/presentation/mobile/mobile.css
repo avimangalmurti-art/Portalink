@@ -4003,6 +4003,49 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   background: transparent;
   color: var(--text-primary);
 }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble][data-message-editing] {
+  width: min(100%, 380px);
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+}
+[data-message-editing] > :is([data-message-meta], [data-message-reactions]) { display: none; }
+[data-mobile-message-edit] {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: end;
+  gap: 8px;
+}
+[data-mobile-message-edit] > button {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+[data-mobile-message-edit] > button:disabled { opacity: .45; }
+[data-mobile-message-edit] > textarea {
+  width: 100%;
+  min-height: 44px;
+  max-height: 112px;
+  padding: 10px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 22px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  field-sizing: content;
+  font-size: 16px;
+  line-height: 22px;
+  resize: none;
+}
+[data-mobile-message-edit] > textarea:focus {
+  border-color: var(--hairline-strong);
+  outline: none !important;
+}
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble] > p { font-size: 16px; line-height: 1.4; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-meta] {
   position: absolute;

@@ -33,8 +33,10 @@
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
-  outline: none;
 }
+
+/* Opening the menu focuses the container; only its controls need a visible focus ring. */
+.mobile-message-context-stack:focus-visible { outline: none !important; }
 
 .mobile-message-context-stack[data-message-context-side='outgoing'] {
   left: auto;

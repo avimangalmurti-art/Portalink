@@ -81,7 +81,7 @@ function componentHarness(file, name, initialProps, dependencies = {}, globals =
   };
 }
 
-function pdfFixture({ pageNumber = 3, strictPageNumber, count = 2 } = {}) {
+function pdfFixture({ pageNumber = 3, strictPageNumber, count = 2, usePageAspectRatio = false } = {}) {
   const requests = [], failed = [], counts = [], tasks = [];
   const page = { getViewport: ({ scale }) => ({ width: 600 * scale, height: 900 * scale }),
     render: () => ({ promise: Promise.resolve(), cancel() {} }) };
@@ -91,7 +91,7 @@ function pdfFixture({ pageNumber = 3, strictPageNumber, count = 2 } = {}) {
     tasks.push(task); return task;
   } };
   const h = componentHarness('src/components/media/PdfPage.tsx', 'PdfPage', {
-    source: 'https://storage.test/permission-checked.pdf', label: 'Shared page', pageNumber,
+    source: 'https://storage.test/permission-checked.pdf', label: 'Shared page', pageNumber, usePageAspectRatio,
     ...(strictPageNumber === undefined ? {} : { strictPageNumber }),
     onRenderFailure: () => failed.push('failed'), onPageCountChange: value => counts.push(value),
   }, {
@@ -242,11 +242,15 @@ test('failed metadata and image loads expose Retry and make one fresh read witho
   assert.equal(nodes(h.tree).find(node => node.type === 'internal-link').props.to, target().to); h.dispose();
 });
 
-test('explicit PDF fallback opts into strict page rendering and surfaces render failure as Retry', async () => {
-  const h = previewFixture(); await h.flush();
+test('standalone PDF fallback opens the exact page with no visible caption and keeps Retry on failure', async () => {
+  const h = previewFixture({ standalonePage: true }); await h.flush();
   h.requests[0].resolve({ ...preview(), kind: 'document', source: 'https://storage.test/exact.pdf', pageNumber: 6 }); await h.flush();
   const page = nodes(h.tree).find(node => node.props.strictPageNumber === true);
   assert.ok(page); assert.equal(page.props.pageNumber, 6); assert.equal(page.props.source, 'https://storage.test/exact.pdf');
+  assert.equal(page.props.usePageAspectRatio, true);
+  assert.equal(h.tree.props['data-shared-page-only'], '');
+  assert.equal(text(h.tree).includes('Current project'), false);
+  assert.equal(nodes(h.tree).find(node => node.type === 'internal-link').props['aria-label'], 'Open Current project · Page 6');
   page.props.onRenderFailure(); await h.flush();
   assert.ok(text(h.tree).includes('Preview unavailable')); assert.ok(text(h.tree).includes('Retry preview')); h.dispose();
 });
@@ -356,11 +360,16 @@ test('strict shared PDF page rendering refuses unavailable page instead of showi
   h.dispose(); assert.equal(h.tasks[0].destroyed, 1);
 });
 
-test('strict shared PDF preview requests the exact valid page and legacy cover rendering still clamps', async () => {
-  const strict = pdfFixture({ pageNumber: 2, strictPageNumber: true, count: 5 });
-  await strict.flush(); assert.deepEqual(strict.requests, [2]); assert.deepEqual(strict.failed, []); strict.dispose();
+test('strict shared PDF preview uses the exact page and its intrinsic layout while legacy covers still clamp', async () => {
+  const strict = pdfFixture({ pageNumber: 2, strictPageNumber: true, count: 5, usePageAspectRatio: true });
+  await strict.flush(); assert.deepEqual(strict.requests, [2]); assert.deepEqual(strict.failed, []);
+  assert.equal(strict.tree.props.style.aspectRatio, '600 / 900');
+  assert.equal(strict.tree.props.style.height, 'auto');
+  strict.dispose();
   const legacy = pdfFixture({ pageNumber: 6, count: 2 });
-  await legacy.flush(); assert.deepEqual(legacy.requests, [2]); assert.deepEqual(legacy.failed, []); legacy.dispose();
+  await legacy.flush(); assert.deepEqual(legacy.requests, [2]); assert.deepEqual(legacy.failed, []);
+  assert.equal(legacy.tree.props.style, undefined);
+  legacy.dispose();
 });
 
 test('strict shared PDF preview rejects nonpositive, fractional and nonfinite page values', async () => {

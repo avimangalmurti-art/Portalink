@@ -1,3 +1,10 @@
+## 2026-11-04 - Messages, Home and mobile density published 585
+
+Published [Portalink](https://portalinknetworks.com) from `3229383e3a49951f3d83cda361b2699c5edcbe7a`. The release includes the recent Messages preview, reaction, long-press and composer changes, the mobile Home cover loading indicator and the four-project mobile default for Explore and Profile. Draft [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points to the release commit.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_1bebe69f688c8191a63c9e06fee0704c` and deployment `appgdep_6aeb67b159008191930717e99920118a` succeeded at 2026-11-04T17:13:34.037267+00:00. The archive preserved the worker, four D1 SQL files and 423 public assets. The custom domain matched four entry routes and all 209 JavaScript and CSS assets. All 344 executed focused checks, typecheck, lint and the production build passed. One pre-existing database fixture skipped. No migration was applied.
+
+
 ## 2026-11-04 - Mobile Portal Search layout published 584
 
 Published [Portalink](https://portalinknetworks.com) from `aaa96c6003744960e51c8a56a9cb0a7e85dff5b4`. Mobile Portal Search now shows three rounded cards per row. Desktop retains six columns. Other pending local edits were excluded. [Draft PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points to the release commit.

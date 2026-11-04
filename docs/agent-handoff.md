@@ -1,3 +1,32 @@
+## 2026-11-04 - Even spacing in the project options popup
+
+The Edit project and Delete project menu inside the mobile project information popup no longer inherits the inline action group's 16px top margin. The menu uses its existing padding evenly around the controls. Scoped to `follow-content-info.css` on `codex/mobile-message-pdf-preview` from Sites 585 (`3229383`). All 12 focused popup tests and diff check passed. The Chrome CSS fixture confirmed equal 8px top and bottom padding and 44px targets at 420px and 320px. Receipt `logs/mobile-project-owner-menu-qa/receipt.json`. Local and unpublished.
+
+## 2026-11-04 - Mobile reader portal dot follows the accent
+
+The centre dot of the reader's Open portal button uses the active accent token. The rule is scoped to the mobile reader toolbar in shared `src/index.css`, which is loaded by both app entries. 84 focused tests and diff check passed. Isolated Chrome with the real icon and built CSS verified a pink-to-blue accent change with neutral ring strokes. Receipt `logs/mobile-reader-portal-accent-qa/receipt.json`. Local and unpublished on `codex/mobile-message-pdf-preview` from Sites 585 (`3229383`).
+
+## 2026-11-04 - Simplify mobile inline message editing
+
+The mobile editor uses a neutral inline row with an X, a text field and a checkmark. Save requires changed, nonblank text and the controls are locked while saving. The desktop buttons and shortcuts retain their existing presentation. Updated `MessagesPage.tsx`, `mobile.css` and the focused Message options test on `codex/mobile-message-pdf-preview` from Sites 585 (`3229383`). All 34 focused tests, typecheck and diff check passed. Targeted lint reported one existing warning. Isolated Chrome verified 420px, 320px and desktop. Receipt `logs/mobile-inline-message-edit-qa/receipt.json`. Local and unpublished.
+
+## 2026-11-04 - Mobile Message options opening outline
+
+The popup's focused container now suppresses the global accent outline. Its buttons still have keyboard focus indicators. The change is scoped to `mobile-message-actions.css` on `codex/mobile-message-pdf-preview` from Sites 585 (`3229383`). All 13 focused tests and diff check passed. Chrome at 420px confirmed the fix in light and dark, with visible Tab focus on the reaction button and focus returning to the opener after Escape. Receipt `logs/message-options-focus-qa/receipt.json`. Local and unpublished.
+
+## 2026-11-04 - Mobile Messages PDF pages and reaction ownership
+
+In `logs/mobile-portal-cards-release` on `codex/mobile-message-pdf-preview` from Sites 585 (`3229383`), standalone PDF pages rendered from the original document now use the artwork-only mobile preview. `SharedContentMessagePreview.tsx` and its CSS remove the generated caption and bubble frame for that path. `PdfPage.tsx` opts this preview into the exact page's intrinsic proportions. `MessagesPage.tsx` shows “You + 1” when both participants chose the same reaction, with a matching accessible label. The existing one-reaction-per-account rule remains in force.
+
+71 focused tests, typecheck, targeted lint (no errors, four existing warnings) and diff check passed. Isolated Chrome rendered a real portrait PDF in Messages at 420px and 320px with its original proportions, no generated caption or bubble background, and visible “You + 1” ownership. Desktop retained the exact text link. Receipt: `logs/message-pdf-artwork-qa/receipt.json`. The private conversation and physical iPhone were not used. This change is local and unpublished.
+
+## 2026-11-04 - Sites 585 published
+
+The combined Messages, Home loading and mobile project density release is live at [Portalink](https://portalinknetworks.com). Source is `3229383e3a49951f3d83cda361b2699c5edcbe7a`, GitHub draft PR 148, local branch `codex/mobile-default-project-density` in `logs/mobile-portal-cards-release`. The original `logs/socal-release` checkout retains copies of the now-published changes over its older baseline. Use the 585 source as the baseline when preparing the next release.
+
+344 focused checks passed with one existing database fixture skipped. Typecheck, lint (zero errors, 111 existing warnings), the configured build and archive audit passed. In Chrome the real Home component starts at four columns and centers the spinner on pending artwork. The production domain matched four public entry routes and all 209 JS/CSS files. Chrome confirmed that the public welcome page rendered and /portalite showed 20 projects with four in the first row at 420px. The browser receipt is in logs/mobile-portal-cards-release/logs/live585-browser-smoke/. Private Messages and physical iPhone behavior were not exercised in production. No migration was applied.
+
+
 ## 2026-11-04 - Combined Messages, Home and density release
 
 Release candidate based on Sites 584 source `aaa96c6` in `logs/mobile-portal-cards-release`. It combines pending Messages changes, mobile Home cover loading and the four-project mobile Explore/Profile default. Prior Portal Search cards are present in the baseline. Messages uses the existing reaction uniqueness rule. Browser vibration is available only where supported. No migration or worker source change is required.

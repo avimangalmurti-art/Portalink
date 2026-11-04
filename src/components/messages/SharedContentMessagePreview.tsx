@@ -61,20 +61,21 @@ export function SharedContentMessagePreview({ target, standalonePage = false }: 
   const source = thumbnail?.src ?? preview?.source;
   const label = preview ? [preview.title, preview.pageLabel].filter(Boolean).join(' · ') : target.pageNumber ? `Shared page ${target.pageNumber}` : 'Shared project';
   const failed = current?.failed ?? false;
-  const pageImage = standalonePage && preview?.kind === 'image' && Boolean(source) && !failed;
+  const pageArtwork = standalonePage && preview?.kind !== 'cover' && Boolean(source) && !failed;
+  const pageImage = pageArtwork && preview?.kind === 'image';
   const fail = () => {
     if (currentScope.current === scope) setSnapshot(previous => previous?.scope === scope ? { ...previous, failed: true } : previous);
   };
 
-  return <div ref={hostRef} className="shared-content-message-preview" data-shared-content-preview="" data-shared-page-only={pageImage ? '' : undefined}>
+  return <div ref={hostRef} className="shared-content-message-preview" data-shared-content-preview="" data-shared-page-only={pageArtwork ? '' : undefined}>
     <Link ref={linkRef} data-preview-open="" to={target.to} aria-label={`Open ${label}`} className="shared-content-message-preview-link">
       <div className="shared-content-message-preview-frame" data-shared-page-image={pageImage ? '' : undefined}
         style={pageImage && preview.aspectRatio ? { '--shared-page-ratio': preview.aspectRatio } as React.CSSProperties : undefined}>
         {failed ? <span>Preview unavailable</span> : !preview ? <span role="status">Loading preview…</span> : preview.kind === 'document' && source && PdfPage ?
-          <PdfPage key={`${attempt}:${source}`} source={source} pageNumber={preview.pageNumber} strictPageNumber label={label} onRenderFailure={fail} />
+          <PdfPage key={`${attempt}:${source}`} source={source} pageNumber={preview.pageNumber} strictPageNumber usePageAspectRatio={pageArtwork} label={label} onRenderFailure={fail} />
           : source ? <img key={`${attempt}:${source}`} src={source} srcSet={thumbnail?.srcSet} sizes="280px" alt={label} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={fail} /> : <span>Preview unavailable</span>}
       </div>
-      {!pageImage && <span className="shared-content-message-preview-caption">{label}</span>}
+      {!pageArtwork && <span className="shared-content-message-preview-caption">{label}</span>}
     </Link>
     {failed ? <button type="button" className="shared-content-message-preview-retry" onClick={() => { linkRef.current?.focus({ preventScroll: true }); setSnapshot(null); setAttempt(value => value + 1); }}>Retry preview</button> : null}
   </div>;

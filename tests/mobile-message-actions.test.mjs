@@ -222,6 +222,14 @@ test('MOBILE hands focus from the sheet to Unsend Cancel and restores its enable
 
   h.button('Message options').props.onClick(); h.sheet().props.onEdit(); h.render();
   h.sheetCleanup(); h.flushFrames(); assert.equal(h.focused, 'Edit message');
+  const editor = nodes(h.render()).find(node => node.props['data-mobile-message-edit'] !== undefined);
+  assert.deepEqual(nodes(editor).filter(node => node.type === 'button' || node.type === 'textarea')
+    .map(node => node.props['aria-label']), ['Cancel', 'Edit message', 'Save']);
+  assert.equal(h.button('Save').props.disabled, true);
+  editor.props.onSubmit({ preventDefault() {} });
+  assert.equal(h.calls.length, 0, 'An unchanged edit cannot be submitted');
+  nodes(editor).find(node => node.type === 'textarea').props.onChange({ target: { value: 'Updated message' } });
+  assert.equal(h.button('Save').props.disabled, false);
   h.button('Cancel').props.onClick(); h.render(); h.flushFrames();
   assert.equal(h.focused, 'Message options', 'Edit cancellation also returns to its usable opener');
 });

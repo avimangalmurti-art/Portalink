@@ -1792,6 +1792,9 @@ button[data-portalink-tile],
 .portal-ring-dot {
   fill: #34c759 !important;
 }
+[data-presentation='mobile'] .mobile-content-action-bar .portal-ring-dot {
+  fill: var(--accent-primary) !important;
+}
 .portalink-ticker-track {
   display: inline-flex;
   white-space: nowrap;
