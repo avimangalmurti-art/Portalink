@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ios-testflight
@@ -26,6 +27,27 @@ jobs:
       ARCHIVE_PATH: ${{ runner.temp }}/App.xcarchive
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # AGENTS.md: only commits on main or heads of open PRs against main may be published.
+      - name: Verify source is reviewed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          git fetch --quiet origin main
+          if git merge-base --is-ancestor "$sha" origin/main; then
+            echo "Source: $sha on main" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --state open --json number,headRefOid \
+            --jq ".[] | select(.headRefOid == \"$sha\") | .number" | head -n1)
+          if [ -n "$pr" ]; then
+            echo "Source: $sha, head of open PR #$pr against main" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::$sha is not on main or the head of an open PR against main."
+          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
