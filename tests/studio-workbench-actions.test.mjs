@@ -6,8 +6,12 @@ const model=sourceModule('src/features/studio/workbenchModel.ts');
 const draft={id:'draft',metadata:{title:'Draft'},stage:'review',createdAt:'2026-10-01'};
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
 function harness(status='ready',drafts=[draft],options={}){
- const calls=[],workbenchEnabled=[];let registered;
- const fake={...React,useEffect(){},useRef:initial=>({current:initial}),useCallback:callback=>callback,useState:v=>[typeof v==='function'?v():v,value=>calls.push(['state',value])]};
+ const calls=[],workbenchEnabled=[],state=[];let registered,stateIndex=0;
+ const fake={...React,useEffect(){},useRef:initial=>({current:initial}),useCallback:callback=>callback,useState(initial){
+  const index=stateIndex++;
+  if(!(index in state))state[index]=typeof initial==='function'?initial():initial;
+  return[state[index],value=>{state[index]=typeof value==='function'?value(state[index]):value;calls.push(['state',state[index]]);}];
+ }};
  const dependencies={'../../presentation/mobile/MobilePillHeader':{MobilePillHeader:'pill-header'},
   react:fake,'react-router-dom':{useLocation:()=>({state:null}),useNavigate:()=>path=>calls.push(['navigate',path]),useSearchParams:()=>[new URLSearchParams(options.search),value=>calls.push(['collection',value.collection])]},
   'lucide-react':{ChevronLeftIcon:'chevron'},'../../components/ui/InterfaceIcon':{InterfaceIcon:'icon'},
@@ -23,12 +27,17 @@ function harness(status='ready',drafts=[draft],options={}){
   './discardStudioDraft':{},'./StudioBookmarksList':{StudioPage:'bookmarks'},'./StudioDraftsList':{StudioDraftsList:'drafts'},
   '../library/PersonalPages':{InsightsPage:'insights'},
   './StudioOverview':{StudioOverview:'overview'},'./StudioWorkbenchView':{StudioWorkbenchHeader:'hub-header'},
-  './workbenchModel':model,'./useWorkbench':{useWorkbench:enabled=>{workbenchEnabled.push(enabled);return{loading:status==='loading',error:status==='error'?'Offline':undefined,data:{profile:{id:'owner',projects:[]},drafts,material:[]},retry(){}};}},
+  './workbenchModel':model,'./useWorkbench':{useWorkbench:enabled=>{workbenchEnabled.push(enabled);return{loading:status==='loading',error:status==='error'?'Offline':undefined,data:{profile:{id:'owner',projects:[],categories:[]},drafts,material:[]},retry(){calls.push(['retry']);}};}},
   './studio-workbench.css':{},
  };
  const Page=sourceModule('src/features/studio/StudioPage.tsx',dependencies,{window:{history:{state:{idx:0}}}}).StudioPage;
- const tree=Page({onBack(){},onOpenProject(){},onNewProject:()=>calls.push(['create']),savedRoute:options.savedRoute});
- return{calls,registered,tree,workbenchEnabled};
+ const render=()=>{
+  stateIndex=0;
+  return Page({onBack(){},onOpenProject(){},onNewProject:()=>calls.push(['create']),
+   onPublishedProject:(result,title)=>calls.push(['published',result,title]),savedRoute:options.savedRoute});
+ };
+ const tree=render();
+ return{calls,registered,render,tree,workbenchEnabled};
 }
 test('Overview resumes the exact saved draft and Add work uses the existing creation flow',()=>{
  const withDraft=harness('ready',[draft],{presentation:'web'}),overview=nodes(withDraft.tree).find(n=>n.type==='overview');
@@ -39,6 +48,26 @@ test('Overview resumes the exact saved draft and Add work uses the existing crea
  const withoutDraft=harness('ready',[],{presentation:'web'}),empty=nodes(withoutDraft.tree).find(n=>n.type==='overview');
  assert.equal(empty.props.draft,null);empty.props.onNew();
  assert.deepEqual(withoutDraft.calls,[['create']]);
+});
+test('a resumed publication closes and refreshes Studio before notifying the mobile profile return',()=>{
+ const result={projectId:'published-project',mediaPersisted:true,sessionOnly:false};
+ for(const presentation of ['mobile','web']){
+  const h=harness('ready',[draft],{presentation,search:'collection=drafts'});
+  const drafts=nodes(h.tree).find(node=>node.type==='drafts');
+  drafts.props.onResume(draft);
+  const publisher=nodes(h.render()).find(node=>node.type==='publish-dialog');
+  assert.equal(publisher.props.resumeDraft,draft);
+  h.calls.length=0;
+  publisher.props.onPublished(result,'Published work');
+  const expected=[['state',null],['retry']];
+  if(presentation==='mobile')expected.push(['published',result,'Published work']);
+  assert.deepEqual(h.calls,expected);
+  assert.equal(nodes(h.render()).some(node=>node.type==='publish-dialog'),false);
+  drafts.props.onResume(draft);
+  h.calls.length=0;
+  nodes(h.render()).find(node=>node.type==='publish-dialog').props.onClose();
+  assert.deepEqual(h.calls,[['state',null],['retry']]);
+ }
 });
 test('existing Studio action shortcuts reach Bookmarks and Insights in ready, loading and error states',()=>{
  for(const status of ['ready','loading','error']){

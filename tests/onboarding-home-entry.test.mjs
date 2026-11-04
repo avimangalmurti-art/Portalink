@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
-test('mobile onboarding opens the new profile after registration and retains explicit destinations', () => {
+test('mobile onboarding opens Home after registration and retains explicit destinations', () => {
  const source = readFileSync(new URL('../src/App.tsx', import.meta.url),'utf8');
  const ast = ts.createSourceFile('App.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
  let callback;
@@ -25,11 +25,19 @@ test('mobile onboarding opens the new profile after registration and retains exp
  calls.length=0;
  context.completedRegistration=true;
  vm.runInNewContext(code,context);
- assert.deepEqual(calls,[['onboarding',false],['profile','profile']]);
+ assert.deepEqual(calls,[['onboarding',false],['home',true]]);
  calls.length=0;
  context.deferredIntentRef.current={kind:'route',path:'/share/example'};
  vm.runInNewContext(code,context);
  assert.deepEqual(calls,[['onboarding',false],['destination','/share/example']]);
+ calls.length=0;
+ context.deferredIntentRef.current={kind:'my-profile'};
+ vm.runInNewContext(code,context);
+ assert.deepEqual(calls,[['onboarding',false],['profile','profile']]);
+ calls.length=0;
+ context.presentation='web';
+ vm.runInNewContext(code,context);
+ assert.deepEqual(calls,[['onboarding',false],['optional','account'],['profile','profile']]);
 });
 
 test('first-project profile action opens details without silently creating a portal', async () => {

@@ -275,13 +275,10 @@ test('missing metadata is created for mobile then removed on unmount', () => {
   assert.equal(h.document.body.style.getPropertyValue('color-scheme'), '');
 });
 
-test('both launch entries opt into the edge-to-edge iOS canvas before React starts', () => {
+test('both launch entries let iOS match the native status bar to the document canvas', () => {
   for (const entry of ['index.html', 'share.html']) {
     const html = readFileSync(new URL(`../${entry}`, import.meta.url), 'utf8');
-    const status = [...html.matchAll(/<meta\b[^>]*name="apple-mobile-web-app-status-bar-style"[^>]*>/g)];
-    assert.equal(status.length, 1, entry);
-    assert.match(status[0][0], /content="black-translucent"/);
-    assert.ok(html.indexOf(status[0][0]) < html.indexOf('<body>'), entry);
+    assert.doesNotMatch(html, /<meta\b[^>]*name="apple-mobile-web-app-status-bar-style"[^>]*>/, entry);
     const viewport = [...html.matchAll(/<meta\b[^>]*name="viewport"[^>]*>/g)];
     assert.equal(viewport.length, 1, entry);
     assert.match(viewport[0][0], /viewport-fit=cover/);

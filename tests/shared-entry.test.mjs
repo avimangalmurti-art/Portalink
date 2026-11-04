@@ -15,7 +15,6 @@ function load(path, imports, globals = {}) {
   }).outputText, { exports, URL, URLSearchParams, ...globals, require(name) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
-    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
     if (name.endsWith('/CatalogWelcome') && !(name in imports)) return { CatalogWelcome: 'catalog-welcome' };
     if (name.endsWith('/catalogWelcomeState') && !(name in imports)) return { hasEnteredCatalogWelcome: () => true, canOfferCatalogWelcome: () => false };

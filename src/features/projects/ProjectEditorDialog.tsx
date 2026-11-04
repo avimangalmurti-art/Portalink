@@ -39,8 +39,10 @@ export function ProjectEditorDialog({
   } = management;
   const isMobile = usePresentation() === 'mobile';
   const isOpen = editor.projectId !== null;
-  const [section, setSection] = useState<'details' | 'files' | 'cover'>('details');
-  useEffect(() => { setSection(editor.mode === 'files' ? 'files' : editor.mode === 'cover-choice' ? 'cover' : 'details'); }, [editor.projectId, editor.mode]);
+  const [section, setSection] = useState<'details' | 'files'>('details');
+  useEffect(() => {
+    setSection(editor.mode === 'files' || editor.mode === 'cover-choice' ? 'files' : 'details');
+  }, [editor.projectId, editor.mode]);
   const EditorFrame = isMobile ? MobileProjectEditorScreen : ProjectFormDialog;
   const [repositionId, setRepositionId] = useState<string | null>(null);
   const coverEdit = editor.attachmentEdits.find((item) => item.isCover);
@@ -87,7 +89,8 @@ export function ProjectEditorDialog({
           return;
         }
         if (editor.mode === 'cover' || editor.mode === 'cover-choice') {
-          dialogRef.current?.querySelector<HTMLButtonElement>('[data-project-cover-choice]')?.focus();
+          const choice = dialogRef.current?.querySelector<HTMLButtonElement>('[data-project-cover-choice]:not(:disabled)');
+          (choice ?? document.getElementById('project-replacement-files'))?.focus({ preventScroll: true });
           return;
         }
         document.getElementById('project-replacement-files')?.focus();
@@ -126,13 +129,39 @@ export function ProjectEditorDialog({
       focusField(outcome);
     }
   }
-  return <EditorFrame mobileFlow={isMobile} title={(isMobile ? section === 'cover' && editor.mode !== 'story' && editor.mode !== 'journey' : editor.mode === 'cover-choice') ? isMobile ? 'Edit cover' : 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={isMobile ? undefined : editor.mode === 'story' ? 'Describe your project.' : editor.mode === 'journey' ? 'Update when you made this work.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
+  const saveDisabled = (!editor.isDirty && editor.mode !== 'cover-choice') || isLocked || editor.phase === 'loading' || editor.phase === 'load-failed';
+  const saveLabel = editor.isTransferring ? 'Uploading…' : editor.isSaving ? 'Saving…' : 'Save changes';
+  const saveFeedback = editor.failure || (editor.phase === 'saved' && editor.result) ? <>
+    {editor.failure && <p role="alert" className="flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
+      <AlertCircleIcon className="mt-[2px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span className="min-w-0">
+        {editor.failure.message}
+        {editor.failure.code === 'conflict' && ' Reopen this project to see the current version before saving again.'}
+        {editor.failure.retry && <button type="button" onClick={editor.failure.retry} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none">Try again</button>}
+      </span>
+    </p>}
+    {editor.phase === 'saved' && editor.result && <p role="status" className="flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+      <InterfaceIcon icon={CheckIcon} size="sm" weight="medium" className="mt-[2px]" />
+      <span className="min-w-0">{editor.result.message ?? 'Your changes are saved.'}</span>
+    </p>}
+  </> : null;
+  const mobileHeader = isMobile ? {
+    saveAction: <Button type="submit" form="project-editor-form" className="project-editor-header-save" data-ui-shape="action"
+      variant="primary" size="sm" isLoading={isLocked} disabled={saveDisabled} aria-label={saveLabel}>
+      {isLocked ? null : 'Save'}
+    </Button>,
+    saveFeedback,
+  } : {};
+  return <EditorFrame {...mobileHeader} mobileFlow={isMobile} title={!isMobile && editor.mode === 'cover-choice' ? 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={isMobile ? undefined : editor.mode === 'story' ? 'Describe your project.' : editor.mode === 'journey' ? 'Update when you made this work.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
     if (await editor.close()) setIsConfirmingDiscard(false);
   }} /> : null}>
         <form id="project-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void saveChanges(); }} className="project-form-content scrollbar-slim">
-          {isMobile && !['journey', 'story'].includes(editor.mode) && <nav className="project-editor-sections" aria-label="Edit project sections">{(['details', 'files', 'cover'] as const).map(item => <button type="button" key={item} aria-pressed={section === item} onClick={() => setSection(item)}>{item === 'details' ? 'Details' : item === 'files' ? 'Files' : 'Cover'}</button>)}</nav>}
+          {isMobile && !['journey', 'story'].includes(editor.mode) && <nav className="project-editor-sections" aria-label="Edit project sections">
+            <button type="button" aria-pressed={section === 'details'} onClick={() => setSection('details')}>Details</button>
+            <button type="button" aria-pressed={section === 'files'} onClick={() => setSection('files')}>Files</button>
+          </nav>}
           {editor.phase === 'loading' ? <LoadingState label="Loading this project…" /> : editor.phase === 'load-failed' ? <ErrorState title="This project could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <>
-              {(isMobile ? section === 'cover' && editor.mode !== 'story' && editor.mode !== 'journey' : editor.mode === 'cover-choice') ? <PublishedCoverFilmstrip attachments={editor.originalAttachments} selectedId={coverEdit?.id} disabled={isLocked} onSelect={editor.setCover} onAddFiles={() => { if (isMobile) setSection('files'); else if (editor.projectId) editor.open(editor.projectId, 'files'); }} /> : editor.mode === 'story' ? <div className="project-form-details">
+              {!isMobile && editor.mode === 'cover-choice' ? <PublishedCoverFilmstrip attachments={editor.originalAttachments} selectedId={coverEdit?.id} disabled={isLocked} onSelect={editor.setCover} onAddFiles={() => { if (editor.projectId) editor.open(editor.projectId, 'files'); }} /> : editor.mode === 'story' ? <div className="project-form-details">
                 <ProfileField id="project-summary" label="Description" formatting={isMobile} optional multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={value => editor.setField('summary', value)} />
 
               </div> : editor.mode === 'journey' ? <div className="project-form-details">
@@ -140,20 +169,37 @@ export function ProjectEditorDialog({
                 <ProfileField id="project-then-now-caption" label="Then/Now caption" maxLength={180} value={editor.metadata.thenNowCaption ?? ''} placeholder="Add a short comparison caption" disabled={isLocked} onChange={value => editor.setJourneyField('caption', value)} />
               </div> : <>
               <section hidden={isMobile && section !== 'files'} aria-labelledby="project-files-title" className="project-form-media project-form-media--edit">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 id="project-files-title" className="text-[13px] font-semibold text-[var(--text-primary)]">Project files</h3>
-                  <Button id="project-replacement-files" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isLocked || added.isFull}><InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />Add</Button>
+                <div className={isMobile ? 'project-editor-file-tools' : 'flex items-center justify-between gap-3'}>
+                  <h3 id="project-files-title" className={isMobile ? undefined : 'text-[13px] font-semibold text-[var(--text-primary)]'}>{isMobile ? 'Set a cover' : 'Project files'}</h3>
+                  <Button id="project-replacement-files" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isLocked || added.isFull}><InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />{isMobile ? 'Add files' : 'Add'}</Button>
                 </div>
-                <details><summary className="min-h-11 cursor-pointer py-3 text-sm">How to replace a file</summary><p className="text-sm text-[var(--text-secondary)]">Add the new version and remove the old one. Changes apply when you save.</p></details>
+                {!isMobile && <details><summary className="min-h-11 cursor-pointer py-3 text-sm">How to replace a file</summary><p className="text-sm text-[var(--text-secondary)]">Add the new version and remove the old one. Changes apply when you save.</p></details>}
                 {coverSource?.sourceUrl && ['image', 'video', 'document'].includes(coverSource.kind) ? <div className="project-media-selection">
                   <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>{isMobile ? 'Edit cover' : 'Reposition preview'}</Button></div>
-                  <ProjectPreviewFrame aspectRatio={coverPreviewRatio}><ProjectCover source={coverSource.sourceUrl} alt="Project cover preview" kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : undefined} pageNumber={coverSource.metadata?.coverPageNumber} frame={coverEdit?.coverFrame} /></ProjectPreviewFrame>
+                  {!isMobile && <ProjectPreviewFrame aspectRatio={coverPreviewRatio}><ProjectCover source={coverSource.sourceUrl} alt="Project cover preview" kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : undefined} pageNumber={coverSource.metadata?.coverPageNumber} frame={coverEdit?.coverFrame} /></ProjectPreviewFrame>}
                 </div> : null}
                 {repositionSource?.sourceUrl && ['image', 'document', 'video'].includes(repositionSource.kind) && repositionEdit ? <ProjectCoverRepositionDialog key={repositionSource.id} source={repositionSource.sourceUrl} kind={repositionSource.kind === 'document' ? 'document' : repositionSource.kind === 'video' ? 'video' : 'image'} pageNumber={repositionSource.metadata?.coverPageNumber} alt={repositionEdit.displayName} aspectRatio={coverPreviewRatio} frame={repositionEdit.coverFrame} onClose={() => setRepositionId(null)} onSave={({ frame }) => {
                   editor.setCoverFrame(repositionSource.id, frame);
                   setRepositionId(null);
                 }} /> : null}
-                <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
+                {isMobile ? section === 'files' && <ol className="project-editor-file-grid" aria-label="Project files, in presentation order">
+                  {editor.attachmentEdits.map((edit, index) => {
+                    const source = editor.originalAttachments.find(attachment => attachment.id === edit.id);
+                    const kind = source?.kind;
+                    const coverable = kind === 'image' || kind === 'document' || kind === 'video';
+                    return <MobileProjectFileTile key={edit.id} position={index + 1} name={edit.displayName} isCover={edit.isCover}
+                      onSelectCover={coverable ? () => editor.setCover(edit.id) : undefined} locked={isLocked}
+                      preview={<ProjectCover source={coverable ? source?.sourceUrl : undefined} alt="" fit="contain"
+                        kind={kind === 'document' || kind === 'video' ? kind : undefined} pageNumber={source?.metadata?.coverPageNumber} />}
+                      onMoveEarlier={index > 0 ? () => editor.moveAttachment(edit.id, -1) : undefined}
+                      onMoveLater={index < editor.attachmentEdits.length - 1 ? () => editor.moveAttachment(edit.id, 1) : undefined}
+                      onRemove={() => editor.removeAttachment(edit.id)} />;
+                  })}
+                  {added.items.map((item, index) => <MobileProjectFileTile key={item.id} position={editor.attachmentEdits.length + index + 1}
+                    name={item.displayTitle} locked={isLocked} progress={upload.itemProgress[item.id]?.fraction}
+                    preview={<ProjectCover source={item.family === 'image' ? item.previewUrl : undefined} alt="" fit="contain" />}
+                    onRemove={() => added.remove(item.id)} />)}
+                </ol> : <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
                   {editor.attachmentEdits.map((edit, index) => {
                 const source = editor.originalAttachments.find((attachment) => attachment.id === edit.id);
                 return <li key={edit.id} className="project-edit-file-row relative flex items-center gap-2.5 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-inset)] p-2">
@@ -174,7 +220,7 @@ export function ProjectEditorDialog({
                         <button type="button" onClick={() => editor.removeAttachment(edit.id)} disabled={isLocked} aria-label={`Remove ${edit.displayName} from this edit`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="project-edit-file-remove shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} size="sm" weight="medium" /></button>
                       </li>;
               })}
-                </ul>
+                </ul>}
 
                 {/* Nothing was deleted: the removal is only pending a save. */}
                 {editor.hasRemovals && <p role="status" className="mt-2 flex items-start gap-1.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
@@ -192,7 +238,7 @@ export function ProjectEditorDialog({
                 added.select(event.target.files);
                 event.target.value = '';
               }} />
-                  {added.items.length > 0 && <ul className="project-media-list scrollbar-slim mt-2 m-0 flex list-none flex-col gap-1 p-0">
+                  {!isMobile && added.items.length > 0 && <ul className="project-media-list scrollbar-slim mt-2 m-0 flex list-none flex-col gap-1 p-0">
                       {added.items.map((item) => {
                   const itemState = upload.itemProgress[item.id];
                   return <li key={item.id} className="flex items-center gap-2 rounded-[8px] bg-[var(--surface-sunken)] px-2.5 py-1.5 text-[12px] text-[var(--text-secondary)]">
@@ -251,47 +297,80 @@ export function ProjectEditorDialog({
               </section>
               <div hidden={isMobile && section !== 'details'} className="project-form-details">
               <label className="flex flex-col gap-2 text-sm" htmlFor="project-details-made-on">Made on<input id="project-details-made-on" type="date" className="text-control p-3" disabled={isLocked} value={editor.metadata.madeOn ?? ''} onChange={e=>editor.setField('madeOn',e.target.value)}/></label>
-                <label>Access<select value={editor.metadata.accessLevel ?? 'public'} disabled={isLocked} onChange={e=>editor.setField('accessLevel',e.target.value)}><option value="private">Private</option><option value="public">Public</option><option value="citable">Citable</option></select></label><p>Others' AI tools may use single pages or images from this project, always with your name and a link back.</p>
-                <ProfileField ref={titleRef} id="project-title" label="Title" required value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" disabled={isLocked} onChange={(value) => editor.setField('title', value)} />
-              <ProfileField id="project-summary" label="Description" formatting={isMobile} optional multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
+                <label className={isMobile ? 'project-editor-access' : undefined}>
+                  Access
+                  <select value={editor.metadata.accessLevel ?? 'public'} disabled={isLocked} onChange={event => editor.setField('accessLevel', event.target.value)}>
+                    <option value="private">Private</option>
+                    <option value="public">Public</option>
+                    <option value="citable">Citable</option>
+                  </select>
+                </label>
+                <p>Others' AI tools may use single pages or images from this project, always with your name and a link back.</p>
+                <ProfileField ref={titleRef} id="project-title" label="Title" required requiredIndicator={isMobile ? 'parenthesized' : undefined} value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" disabled={isLocked} onChange={(value) => editor.setField('title', value)} />
+                <ProfileField id="project-summary" label="Description" formatting={isMobile} optional optionalParentheses={isMobile} multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
               </div>
               </>}
             </>}
 
-        <footer className="project-form-actions flex flex-col gap-2">
-          {/* A failed save keeps everything entered, and offers the same attempt. */}
-          {editor.failure && <p role="alert" className="flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
-              <AlertCircleIcon className="mt-[2px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="min-w-0">
-                {editor.failure.message}
-                {editor.failure.code === 'conflict' && ' Reopen this project to see the current version before saving again.'}
-                {editor.failure.retry && <button type="button" onClick={editor.failure.retry} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none">Try again</button>}
-              </span>
-            </p>}
-          {editor.phase === 'saved' && editor.result && <p role="status" className="flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-              <InterfaceIcon icon={CheckIcon} size="sm" weight="medium" className="mt-[2px]" />
-              <span className="min-w-0">{editor.result.message ?? 'Your changes are saved.'}</span>
-            </p>}
+        {!isMobile && <footer className="project-form-actions flex flex-col gap-2">
+          {saveFeedback}
           <div className="flex items-center justify-end gap-2">
-            <Button className={isMobile ? 'project-editor-cancel' : undefined} variant="secondary" size="lg" onClick={requestClose} disabled={isLocked || upload.isCleaningUp}>{editor.isDirty ? 'Cancel' : 'Close'}</Button>
-            <Button type="submit" variant="primary" size="lg" isLoading={isLocked} disabled={(!editor.isDirty && editor.mode !== 'cover-choice') || isLocked || editor.phase === 'loading' || editor.phase === 'load-failed'}>
-              {editor.isTransferring ? 'Uploading…' : editor.isSaving ? 'Saving…' : 'Save changes'}
+            <Button variant="secondary" size="lg" onClick={requestClose} disabled={isLocked || upload.isCleaningUp}>{editor.isDirty ? 'Cancel' : 'Close'}</Button>
+            <Button type="submit" variant="primary" size="lg" isLoading={isLocked} disabled={saveDisabled}>
+              {saveLabel}
             </Button>
           </div>
-        </footer>
+        </footer>}
         </form>
     </EditorFrame>;
 }
 
+function MobileProjectFileTile({ position, name, preview, isCover, locked, progress, onSelectCover, onMoveEarlier, onMoveLater, onRemove }: {
+  position: number;
+  name: string;
+  preview: React.ReactNode;
+  isCover?: boolean;
+  locked: boolean;
+  progress?: number;
+  onSelectCover?: () => void;
+  onMoveEarlier?: () => void;
+  onMoveLater?: () => void;
+  onRemove: () => void;
+}) {
+  return <li className="project-editor-file-card">
+    {onSelectCover ? <button type="button" className="project-editor-file-preview" data-project-cover-choice=""
+      aria-label={`Use ${name} as the cover`} aria-pressed={Boolean(isCover)} disabled={locked} onClick={onSelectCover}>
+      {preview}
+      {isCover && <span className="project-editor-cover-mark" aria-hidden="true"><CheckIcon size={16} /></span>}
+    </button> : <div className="project-editor-file-preview" role="img" aria-label={name}>{preview}</div>}
+    <span className="project-editor-file-position">{position}</span>
+    {progress !== undefined && <span className="text-center text-[12px] tabular-nums text-[var(--text-secondary)]">{Math.round(progress * 100)}%</span>}
+    <div className="project-editor-file-actions">
+      {(onMoveEarlier || onMoveLater) && <>
+        <button type="button" aria-label={`Move ${name} earlier`} disabled={locked || !onMoveEarlier} onClick={onMoveEarlier}
+          data-ui-control="icon" data-control-variant="ghost"><ChevronUpIcon size={18} aria-hidden="true" /></button>
+        <button type="button" aria-label={`Move ${name} later`} disabled={locked || !onMoveLater} onClick={onMoveLater}
+          data-ui-control="icon" data-control-variant="ghost"><ChevronDownIcon size={18} aria-hidden="true" /></button>
+      </>}
+      <button type="button" aria-label={`Remove ${name} from this edit`} disabled={locked} onClick={onRemove}
+        data-ui-control="icon" data-control-variant="ghost"><InterfaceIcon icon={XIcon} size="sm" weight="medium" /></button>
+    </div>
+  </li>;
+}
+
 /** A mobile screen; the shared desktop editor remains a dialog. */
-function MobileProjectEditorScreen({ title, titleId, onClose, closeDisabled, dialogRef, confirmation, children }: React.ComponentProps<typeof ProjectFormDialog>) {
+function MobileProjectEditorScreen({ title, titleId, onClose, closeDisabled, dialogRef, confirmation, children, saveAction, saveFeedback }: React.ComponentProps<typeof ProjectFormDialog> & {
+  saveAction?: React.ReactNode;
+  saveFeedback?: React.ReactNode;
+}) {
   const viewport = useDialogViewport<HTMLElement>();
   useAuthoringFocus(viewport);
   const requestClose = () => { if (!closeDisabled) onClose(); };
   useImperativeHandle<HTMLElement | null, HTMLElement | null>(dialogRef, () => viewport.current, [viewport]);
   useModalFocus(true, viewport, requestClose, true);
   return <ModalPortal><div className="mobile-upload-surface-backdrop" aria-hidden="true" /><section ref={viewport} className="mobile-project-editor-screen" data-mobile-upload-surface="editor" data-material="content" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId}>
-    <ScreenBack visibleOnMobile action={requestClose}><header><button type="button" aria-label="Back" onClick={requestClose} disabled={closeDisabled}><ArrowLeftIcon aria-hidden="true" size={24} /></button><h1 id={titleId}>{title}</h1></header></ScreenBack>
+    <ScreenBack visibleOnMobile action={requestClose}><header><button type="button" aria-label="Back" onClick={requestClose} disabled={closeDisabled}><ArrowLeftIcon aria-hidden="true" size={24} /></button><h1 id={titleId}>{title}</h1>{saveAction}</header></ScreenBack>
+    {saveFeedback && <div className="project-editor-save-feedback">{saveFeedback}</div>}
     {children}{confirmation}
   </section></ModalPortal>;
 }

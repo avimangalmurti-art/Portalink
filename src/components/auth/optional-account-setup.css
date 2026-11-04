@@ -54,7 +54,42 @@
 .optional-setup-backdrop [data-appearance-open='true'] .optional-setup-appearance-toggle { margin-top:16px; }
 .optional-setup-backdrop[data-presentation='mobile'] .optional-account-setup[data-appearance-open='false'] .optional-setup-content>p { margin-bottom:20px; }
 .optional-setup-backdrop[data-presentation='mobile'] .optional-account-setup[data-appearance-open='false'] .optional-setup-appearance-toggle { margin-top:auto; }
-#root .codex-shell .optional-setup-backdrop[data-presentation='mobile'] > .optional-account-setup { border-radius:28px 28px 0 0 !important; }
+#root .codex-shell .optional-setup-backdrop[data-presentation='mobile'] {
+  /* Keep the standard property in the built CSS alongside the shared Safari rule. */
+  backdrop-filter: blur(18px) saturate(115%);
+}
+#root .codex-shell .optional-setup-backdrop[data-presentation='mobile'] > .optional-account-setup {
+  border-radius: 28px 28px 0 0 !important;
+  background: var(--optional-setup-fill, var(--optional-setup-material, var(--optional-setup-surface))) !important;
+}
+.optional-setup-backdrop[data-presentation='mobile'] > .optional-account-setup > :is(header, .optional-setup-content, .optional-setup-actions) {
+  background: transparent;
+}
+.optional-setup-backdrop[data-presentation='mobile'] > .optional-account-setup > header {
+  min-height: 60px;
+  justify-content: center;
+}
+.optional-setup-backdrop[data-presentation='mobile'] > [data-setup-high-contrast='true'] {
+  border-color: var(--text-primary);
+}
+.optional-setup-backdrop[data-presentation='mobile'] [data-setup-high-contrast='true'] > header {
+  box-shadow: inset 0 -1px var(--hairline);
+}
+.optional-setup-backdrop[data-presentation='mobile'] [data-setup-high-contrast='true'] > footer {
+  box-shadow: inset 0 1px var(--hairline);
+}
+.optional-setup-backdrop[data-presentation='mobile'] [data-setup-high-contrast='true'] [role='radio'][aria-checked='true'] {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 1px;
+}
+.optional-setup-backdrop[data-presentation='mobile'] [data-setup-high-contrast='true'] .appearance-switch-track {
+  border-color: var(--text-primary) !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .optional-setup-backdrop[data-presentation='mobile'] > .optional-account-setup {
+    --optional-setup-fill: var(--optional-setup-surface);
+  }
+}
 @media (hover:hover) {
   .optional-setup-backdrop .optional-account-setup :is(header>button,.optional-setup-appearance-toggle,.optional-setup-skip):hover { color:var(--optional-setup-hover-foreground); }
   .optional-setup-backdrop .mobile-onboarding-swatches button[aria-checked='true']:hover { border-color:var(--optional-setup-hover-foreground); }

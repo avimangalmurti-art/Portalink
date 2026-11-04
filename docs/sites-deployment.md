@@ -1,3 +1,11 @@
+## 2026-11-03 - Mobile publishing and review published 582
+
+Published `f9fffef5d9a3e3291ec0201f86531b63ce9c8ab0` to https://portalinknetworks.com. Mobile project setup shows the selected Portal and a plain list of choices. Files & cover opens to the editor and places its actions below the files. Reorder uses three columns of larger previews. Review project labels Portal, Title and Description.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_3a8af29e347881919e2e86b4474062b0` and deployment `appgdep_6aeae5a867d48191ace0adb2f3bccfd7` succeeded at 2026-11-04T07:58:42.142500+00:00. The public audience and runtime revision 2 were verified. Draft PR148 matches the deployed source. The archive audit verified 642 files, including byte parity with live581 for the worker, four D1 SQL payloads and 423 public assets. No migration was applied.
+
+Production matched all four checked entry routes and 209 JavaScript and CSS assets. All 160 focused tests, typecheck, targeted lint and both configured bundle checks passed. The two legacy desktop draft expectations documented below reproduce on live581. Isolated Chrome verified the mobile flows with fictional data. Physical iPhone and authenticated production actions are unverified. Receipts use `logs/mobile-review-release*`. Safe writer handoff.
+
 ## 2026-11-03 - New portal and mobile authoring published 581
 
 Published `7f19f0b56cbe94329f6728fa261a61084144fe93` to https://portalinknetworks.com. Mobile New project has Portals and New Portal actions, and mobile and desktop creation share the New portal title and icon screen. The release includes the mobile authoring background and keyboard fixes, Home refresh placement, and startup canvas refinements.

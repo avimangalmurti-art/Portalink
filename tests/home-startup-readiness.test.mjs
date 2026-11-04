@@ -167,6 +167,13 @@ test('WeeklyReadNote reports settlement and dismisses smoothly once per login', 
   assert.equal(mobileCard.filter(node=>node.type==='li').length,2);
   assert.deepEqual(mobileCard.filter(node=>node.type==='li').map(node=>React.Children.toArray(node.props.children).join('')),['48 project opens.','6 reads reached the end.']);
   assert.equal(mobileCard.some(node=>node.type==='p'||node.type==='h2'),false);
+  query.data = [];
+  assert.equal(render(1), null, 'A new mobile account has no weekly card');
+  assert.equal(reports.at(-1), true, 'No activity still settles startup');
+  query.data = [{ projectId: 'older-work', weekly: { opened: 0, finished: 0 }, allTime: { opened: 48, finished: 6 } }];
+  assert.equal(render(1), null, 'Past activity alone does not show a zero week');
+  query.data = [{ projectId: 'work', weekly: { opened: 1, finished: 0 } }];
+  assert.ok(render(1), 'Current activity can appear before the first completed read');
   presentation='web';
   walk(render(1)).find(node => node.type === 'button' && node.props.children === 'Dismiss').props.onClick();
   query.loading = true; assert.equal(render(1), null); assert.equal(reports.at(-1), true);

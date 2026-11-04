@@ -101,7 +101,6 @@ function compile(path, imports, globals) {
   }).outputText, { exports, URLSearchParams, ...globals, require(name) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
-    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
  if(name.endsWith('.css'))return {}; if(name.endsWith('/motion/motion'))return motionFixture; assert.ok(name in imports, name); return imports[name]; } });
   if (bootstrap) {

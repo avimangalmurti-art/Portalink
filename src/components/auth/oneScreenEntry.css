@@ -31,8 +31,6 @@
 #root .codex-shell .entry-inline-form button[type='submit'] { background:#071326 !important; color:#fff !important; }
 #root .codex-shell .optional-account-setup { border-radius:28px !important; outline:none !important; }
 .entry-inline-form h1 { font-size:24px; font-weight:600; }
-.entry-inline-form .entry-legal { font-size:12px; line-height:1.5; color:#535d6b; }
-.entry-inline-form .entry-legal a { text-decoration:underline; }
 .entry-inline-form .entry-handle { font-size:13px; }
 .entry-inline-form > form { gap:12px; }
 

@@ -1,3 +1,95 @@
+## 2026-11-04 - Remove the placeholder signup agreements
+
+Removed the placeholder Terms and Conditions dialog, its entry links and its in-memory acknowledgment from both presentations and shared-link signup. Valid email details submit directly to the existing verification flow, and the opt-in Google button uses the existing OAuth guard and destination. Updated `EntryChoices.tsx`, `AuthDialog.tsx`, the relevant CSS and auth tests. Deleted `EntryAgreements.tsx` and its stylesheet. Local and unpublished on `codex/socal-release` at live582 (`f9fffef`).
+
+All 182 focused tests, typecheck, targeted lint and the configured production build passed. The emitted main, visitor and worker output contains none of the removed placeholder identifiers or copy. Isolated Chrome verified mobile, desktop and mobile shared-return email signup with fictional transport, including validation, a single submission and email confirmation. No live account or provider action was performed.
+
+## 2026-11-04 - Appearance-only mobile account setup
+
+Mobile Make Portalink yours offers Choose appearance and Skip for now. The header title is centered and the publishing shortcut is scoped to WEB. Skipping the optional mobile sheet reveals Home. The empty owner Profile's dotted Publish your first project tile uses the existing project setup, draft recovery and publishing path. Updated `App.tsx`, `OptionalAccountSetup.tsx`, `optional-account-setup.css` and the existing setup test on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All 92 focused checks passed. Targeted lint reported three existing App warnings and zero errors. Isolated Chrome verified both actions and live appearance controls at 420 × 912 and 390 × 670, the dotted owner Profile tile callback at 420 × 912, and the prior desktop layout and actions at 1280px. No live signup, upload or physical-phone test was performed.
+
+## 2026-11-04 - Full-sheet mobile appearance preview
+
+The optional Make Portalink yours sheet uses the selected gray with the shared 92% navigation tint over the softened page backdrop. The header, content and footer share that surface. Reduce translucency uses solid gray and the existing shared blur override. High contrast uses solid gray and strengthens the sheet edge, separators, selected swatches and switch outlines. The mobile scrim keeps the standard blur declaration in the optimized output. The accent and all existing preference callbacks remain connected. Updated `OptionalAccountSetup.tsx`, `optional-account-setup.css`, and the existing setup and CSS optimizer tests on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All 22 focused tests, typecheck, targeted lint and the configured production build passed. The emitted CSS contains the standard and Safari blur declarations. Isolated Chrome verified live light and dark, gray and accent changes, High contrast, and both the in-app and OS Reduce translucency settings at 420 × 912. The 1280px desktop setup matched the prior baseline. Physical iPhone testing remains pending.
+
+## 2026-11-04 - Mobile first entry opens the public project grid
+
+Ordinary mobile signup now finishes on Home. Explicit destinations, including My profile and shared links, keep their existing flow. Home uses the existing public discovery feed, which includes published work from creators the new user has yet to follow. The mobile weekly read card stays hidden for a zero-activity week, while still reporting that its request settled. Updated `App.tsx`, `WeeklyReadNote.tsx`, and the existing onboarding and Home readiness tests on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All 72 focused tests, typecheck and diff check passed. Targeted lint reported three existing App warnings and zero errors. Isolated Chrome with fictional services verified the three mobile Home controls, public covers, private-work exclusion, zero and positive activity, genuine empty and retry states at 420 × 912, and the existing desktop layout and zero note at 1280px. No live account registration or physical-phone test was performed.
+
+## 2026-11-04 - Automatic iPhone status-bar appearance
+
+Removed the deprecated `black-translucent` status-bar override from `index.html` and `share.html` so iOS can use the page colour. Both entries retain `viewport-fit=cover` and the existing live theme synchronization. WebKit documents the native behaviour in [issue 317153](https://bugs.webkit.org/show_bug.cgi?id=317153#c2). Updated the entry metadata assertion in `tests/mobile-browser-surface.test.mjs`. Local and unpublished on `codex/socal-release` at live582 (`f9fffef`).
+
+All 56 focused appearance, startup, sharing and entry-build tests passed, along with typecheck, the configured production build and diff check. Isolated Chrome at 420 × 912 verified manual and System theme switches in both entries, with no reload. `tests/presentation-boundary.test.mjs` still rejects the pre-existing `@layer` in the unchanged desktop stylesheet. The native status bar needs verification on a physical iPhone with the existing installation and a fresh Home Screen installation.
+
+## 2026-11-04 - Compact mobile Edit project save action
+
+Mobile Edit project puts one compact Save button in the header on both Details and Files. It submits the existing editor form, and save feedback appears below the header. Updated `ProjectEditorDialog.tsx`, `mobile.css`, and the existing editor test on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All 17 focused tests, typecheck, targeted lint and diff check passed. Isolated Chrome with fictional files verified the 420 × 912 and 320 × 700 header layout, form submission from Details and Files, busy states, retry and success. Desktop footer geometry and states matched the 1280 × 900 baseline. Physical iPhone testing remains pending.
+
+## 2026-11-04 - Pinch to zoom in mobile Edit cover
+
+The mobile cover crop uses two touch pointers to zoom around their moving midpoint. Either finger can continue panning after the other lifts. The slider and preview share the same bounded crop, and the existing Save and Cancel actions handle it. Updated `ImageRepositioner.tsx`, `ImageRepositionDialog.tsx`, `imageCrop.ts`, and the focused tests on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All 28 focused tests, typecheck, targeted lint and diff check passed. Isolated Chrome at 420 × 912 verified an off-center pinch, one-finger pan, slider, and Save cover using fictional files. The direct editor at 390 × 844 zoomed to 300% and back to 100%. Desktop wheel and slider controls passed at 1280 × 900. Physical iPhone testing remains pending.
+
+## 2026-11-04 - Unify mobile Edit project Files and Cover
+
+Mobile Edit project has two tabs, Details and Files. Files uses a vertical two-column preview grid with the current order printed beneath each tile. The grid shows saved files in their edited order followed by pending additions. Cover selection, crop, Add files, move, remove and restore use the existing draft and save actions. The detailed file-title editor and cover chooser remain available on desktop. Updated `ProjectEditorDialog.tsx`, `mobile.css`, and the existing editor test on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All 27 focused tests, typecheck, targeted lint, CSS parsing and diff check passed. Isolated Chrome with fictional files verified 420 × 912 and 320 × 700 layouts, numbered previews, file selection, cover choice and crop, reorder, removal and restore, and one explicit Save. Desktop Files and Set a cover matched their baseline at 1280 × 900. Physical iPhone and real uploads remain unverified.
+
+## 2026-11-04 - Polish mobile Edit project Details
+
+Removed the mobile Edit project header divider, spaced the Access label and selector, and added parentheses to the Title and Description hints. The required hint uses the system danger color and the title retains its required semantics. Updated `ProjectEditorDialog.tsx`, `ProfileField.tsx`, `mobile.css`, and the focused editor test on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All eight focused tests, typecheck, targeted lint and diff check passed. Isolated Chrome verified the editor at 420 × 912 in light mode, 390 × 844 in dark mode, and 1280 × 900 on desktop. Physical iPhone testing remains pending.
+
+## 2026-11-04 - Open Profile directly after mobile publishing
+
+Mobile publish completion now opens the owner’s Profile catalogue with a brief confirmation instead of the full-screen success overlay. It selects Catalogue from Timeline and reveals the published tile when the catalogue has one. Studio draft completion uses the same return. The first-publication sharing controls remain available from Profile, and a successful publication no longer opens the share sheet automatically on arrival. Desktop completion and the dedicated citation return keep their existing destinations. Updated `App.tsx`, `useAppRoute.ts`, `UserProfilePage.tsx`, `StudioPage.tsx`, and focused navigation tests on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All 123 focused routing, Studio and Profile tests passed. Typecheck, diff check and targeted lint passed with five existing lint warnings. Three additional `publish-completion` expectations also fail in an isolated live582 baseline. Isolated Chrome at 420 × 912 with a fictional profile confirmed the Timeline switch, published tile focus, and no blocking modal. Desktop and mobile visitor checks confirmed the owner reveal does not run there. The existing cover filter still excludes projects with no cover from the catalogue. Real-account publishing and physical iPhone behavior remain unverified.
+
+## 2026-11-04 - Distinguish mobile Review project labels and draft controls
+
+Mobile Review project uses compact uppercase field labels, more space between fields, and a separate draft status surface with outlined actions. This changes the visual hierarchy within the existing scroll area. Updated `mobile-cover-files.css` on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All 41 focused tests and diff check passed. Isolated Chrome verified labels, authored content, draft status and Retry at 420 × 912 and 320 × 740, wrapping at 240px, and desktop typography against the baseline at 1280 × 900. Physical iPhone testing remains pending.
+
+## 2026-11-04 - Number selected files in mobile Files & cover
+
+Mobile Files & cover shows a number on each selected file in the current project order. The numbers follow the file list after adding or reordering, and tapping a thumbnail still selects the cover. Apple’s picker supplies the files only after confirmation. Updated `MobileCoverFiles.tsx`, `mobile-cover-files.css`, and the focused test on `codex/socal-release` at live582 (`f9fffef`). Local and unpublished.
+
+All 52 focused tests, typecheck, targeted lint and diff check passed. Isolated Chrome at 420 × 912 verified import order, accessible position descriptions, cover selection and renumbering after a move. At 320 × 740 the strip scrolls to the last file without document overflow, and at 1280 × 900 desktop retained its existing presentation. The iPhone Photos picker was outside the browser check.
+
+## 2026-11-04 - Expand the mobile New project Note
+
+The Note field grows to fit typed, pasted or restored text. Long notes scroll with the form, and an empty field returns to its usual height. Desktop keeps its existing resizable field. Updated `ProjectSetupScreen.tsx` and `projectSetup.css` on `codex/socal-release` at live582 (`f9fffef`), preserving the pending portal label change. Local and unpublished.
+
+All 36 focused tests, typecheck, targeted lint and diff check passed. Isolated Chrome verified full note sizing at 420 × 912 and 320 × 740, the simulated keyboard, draft restoration, clearing, and unchanged desktop sizing at 1280 × 900. The CSS fallback passed with support disabled in the fixture. Physical iPhone testing remains pending.
+
+## 2026-11-04 - Show only the current portal name on mobile
+
+Mobile New project shows the current portal name as the picker text and uses Portals when there is no selection. Long names wrap. The accessible name identifies the current portal and the change action. Local on `codex/socal-release` at live582, unpublished.
+
+All 31 focused tests, targeted lint and diff check passed. Isolated Chrome verified initial, changed, created, empty and unavailable choices at 420 × 912, wrapping at 320 × 740, and the desktop picker at 1280 × 900. Physical iPhone testing is pending.
+
+## 2026-11-03 - Mobile publishing and review published 582
+
+Published `f9fffef5d9a3e3291ec0201f86531b63ce9c8ab0` to https://portalinknetworks.com. Mobile project setup shows the selected Portal and a plain list of choices. Files & cover opens to the editor and places its actions below the files. Reorder uses three columns of larger previews. Review project labels Portal, Title and Description.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_3a8af29e347881919e2e86b4474062b0` and deployment `appgdep_6aeae5a867d48191ace0adb2f3bccfd7` succeeded at 2026-11-04T07:58:42.142500+00:00. The public audience and runtime revision 2 were verified. Draft PR148 matches the deployed source. The archive audit verified 642 files, including byte parity with live581 for the worker, four D1 SQL payloads and 423 public assets. No migration was applied.
+
+Production matched all four checked entry routes and 209 JavaScript and CSS assets. All 160 focused tests, typecheck, targeted lint and both configured bundle checks passed. The two legacy desktop draft expectations documented below reproduce on live581. Isolated Chrome verified the mobile flows with fictional data. Physical iPhone and authenticated production actions are unverified. Receipts use `logs/mobile-review-release*`. Safe writer handoff.
+
 ## 2026-11-03 - Label details in mobile Review project
 
 Mobile guided review shows separate Portal, Title and Description fields under Project details, with one Edit action. Long titles wrap, formatted descriptions use a bounded scrolling region, and empty descriptions show an explicit message. Location remains below the fields. Local on `codex/socal-release` at live581, unpublished.

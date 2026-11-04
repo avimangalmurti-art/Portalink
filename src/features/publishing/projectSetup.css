@@ -114,7 +114,7 @@
   font-weight:550;
   color:var(--text-primary);
 }
-.project-setup-page :is(input,textarea,select) {
+.project-setup-page :is(input,textarea,select,:where(.project-setup-note-measure)) {
   display:block;
   width:100%;
   min-width:0;
@@ -137,14 +137,10 @@
 .project-setup-portal-buttons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .project-setup-portal-buttons .project-setup-portal-picker {
   min-width:0;
-  flex-direction:column;
-  gap:2px;
   padding-block:6px;
 }
 .project-setup-portal-picker > span {
   max-width:100%;
-  font-size:12px;
-  line-height:1.25;
   text-align:center;
   overflow-wrap:anywhere;
 }
@@ -181,6 +177,28 @@
 }
 .project-setup-optional { font-weight:400; color:var(--text-secondary); }
 .project-setup-description textarea { min-height:80px; resize:vertical; }
+.project-setup-screen[data-presentation='mobile'] .project-setup-description textarea {
+  box-sizing:border-box;
+  field-sizing:content;
+  resize:none;
+  overflow:hidden;
+}
+.project-setup-page .project-setup-note-measure { display:none; }
+@supports not (field-sizing:content) {
+  /* Match the textarea's wrapping and let the form scroll around the full note. */
+  .project-setup-screen[data-presentation='mobile'] .project-setup-description { grid-template-columns:minmax(0,1fr); }
+  .project-setup-screen[data-presentation='mobile'] .project-setup-description > :is(textarea,.project-setup-note-measure) {
+    grid-area:2 / 1;
+    white-space:pre-wrap;
+    overflow-wrap:break-word;
+  }
+  .project-setup-screen[data-presentation='mobile'] .project-setup-note-measure {
+    display:block;
+    box-sizing:border-box;
+    font-size:max(16px,1rem);
+    visibility:hidden;
+  }
+}
 .project-setup-page>footer { flex:none; padding:12px 32px 24px; }
 .project-setup-hint {
   margin:0 0 10px;

@@ -22,7 +22,7 @@ function visit(node) {
   if (ts.isCallExpression(node) && node.expression.getText(ast) === 'useEffect'
       && node.arguments[0]?.getText(ast).includes('if (!isGlobalCreatePending')) entry = node.arguments[0];
   if(ts.isCallExpression(node)&&node.expression.getText(ast)==='useEffect'&&node.arguments[0]?.getText(ast).includes('publishingAccountRef.current === accountId'))accountReset=node.arguments[0];
-  if(ts.isFunctionDeclaration(node)&&['focusPublishedDestination','closePostPublishIdea','openPostPublishedIdea'].includes(node.name?.text))completionFunctions.push(node.getText(ast));
+  if(ts.isFunctionDeclaration(node)&&['focusPublishedDestination','closePostPublishIdea','openPostPublishedIdea','showPublishConfirmation','returnToPublishedProfile'].includes(node.name?.text))completionFunctions.push(node.getText(ast));
   if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
       && node.tagName.getText(ast) === 'ProjectSetupScreen') setupAttributes = node.attributes;
   if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
@@ -248,7 +248,7 @@ function publicationHarness(options = {}) {
     rememberLivePortfolio(){assert.fail('Ordinary cleanup must not enable first-publication behavior.');},
   };
   Object.assign(context,options.context);
-  const code = ts.transpileModule(`(${publishedHandler.getText(ast)})(result,'Edited final title');`,{
+  const code = ts.transpileModule(`${completionFunctions.join('\n')}\n(${publishedHandler.getText(ast)})(result,'Edited final title');`,{
     compilerOptions:{target:ts.ScriptTarget.ES2022},
   }).outputText;
   const evaluate=expression=>vm.runInNewContext(ts.transpileModule(`${completionFunctions.join('\n')}\nresult=(${expression});`,{compilerOptions:{target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.React}}).outputText,{...context});
@@ -329,14 +329,17 @@ test('matching WEB cleanup occurs before a confirmed citation redirect',()=>{
   assert.equal(h.saved,null);
 });
 
-test('only confirmed ordinary New idea publications open a scoped completion card on both platforms',()=>{
- for(const presentation of ['mobile','web']){
-  const h=publicationHarness({presentation});h.run();
-  assert.deepEqual(JSON.parse(JSON.stringify(h.context.postPublishIdea)),{accountId:'account',profileId:'profile',categoryId:'work',projectId:'published'});
-  assert.equal(h.context.publishConfirmation,null,'The persistent card replaces only this completion toast.');
-  assert.equal(h.calls.some(call=>call[0]===(presentation==='mobile'?'profile':'project')),true,'The established destination remains beneath the card.');
-  assert.equal(h.renderCompletion().props.children.type,'PostPublishIdeaDialog');
- }
+test('confirmed ordinary New idea publication opens the completion card only on WEB',()=>{
+ const web=publicationHarness();web.run();
+ assert.deepEqual(JSON.parse(JSON.stringify(web.context.postPublishIdea)),{accountId:'account',profileId:'profile',categoryId:'work',projectId:'published'});
+ assert.equal(web.context.publishConfirmation,null,'The persistent card replaces only this completion toast.');
+ assert.ok(web.calls.some(call=>call[0]==='project'));
+ assert.equal(web.renderCompletion().props.children.type,'PostPublishIdeaDialog');
+ const mobile=publicationHarness({presentation:'mobile'});mobile.run();
+ assert.equal(mobile.context.postPublishIdea,null);
+ assert.ok(!mobile.renderCompletion());
+ assert.match(mobile.context.publishConfirmation.message,/published\./);
+ assert.ok(mobile.calls.some(call=>call[0]==='profile'));
 });
 
 test('completion eligibility rejects provisional, legacy and stale owner scope without hiding their truthful toast',()=>{
@@ -370,10 +373,10 @@ test('confirmed citation return precedes the new completion card and existing na
 });
 
 test('completion render and actions reject a changed account or profile before reset runs',()=>{
- for(const presentation of ['mobile','web'])for(const change of [
+ for(const change of [
   {isAuthenticated:false},{user:{id:'next-account'}},{viewerProfileId:'next-profile'},
  ]){
-  const h=publicationHarness({presentation});h.run();h.calls.length=0;Object.assign(h.context.auth,change);
+  const h=publicationHarness();h.run();h.calls.length=0;Object.assign(h.context.auth,change);
   assert.ok(!h.renderCompletion(),'A stale snapshot must be hidden immediately.');
   h.open('idea');assert.equal(h.context.postPublishIdea,null);assert.deepEqual(h.calls,[]);
  }
@@ -391,8 +394,8 @@ test('account reset clears a completion snapshot and its old toast while an unch
 });
 
 test('completion CTA callbacks use captured route IDs and dismissal only restores eligible destination focus',()=>{
- for(const presentation of ['mobile','web'])for(const destination of ['idea','catalogue','close']){
-  const h=publicationHarness({presentation});h.run();h.calls.length=0;let focused=0;
+ for(const destination of ['idea','catalogue','close']){
+  const h=publicationHarness();h.run();h.calls.length=0;let focused=0;
   h.context.mainContentRef.current={focus:options=>{assert.equal(options.preventScroll,true);focused++;}};
   h.context.publishTargetCategoryId='later-portal';h.context.projectSetupMetadata={categoryId:'later-portal'};
   const card=h.renderCompletion().props.children;

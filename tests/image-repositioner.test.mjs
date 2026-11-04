@@ -15,6 +15,7 @@ function editorHarness(options = {}) {
     useState(initial){const i=cursor++;slots[i]??={value:typeof initial==='function'?initial():initial};return[slots[i].value,(v)=>{const n=typeof v==='function'?v(slots[i].value):v;if(!Object.is(n,slots[i].value)){slots[i].value=n;dirty=true;}}];},
     useRef(initial){const i=cursor++;slots[i]??={current:initial};return slots[i];},
     useId(){const i=cursor++;return `id-${i}`;},
+    useCallback(callback){const i=cursor++;slots[i]??={callback};return slots[i].callback;},
     useEffect(effect,deps){const i=cursor++,prior=slots[i];if(!prior||!deps.every((v,k)=>Object.is(v,prior.deps[k]))){slots[i]={deps};effects.push(()=>{prior?.cleanup?.();slots[i].cleanup=effect();});}},
   };
   class LoadedImage {
@@ -26,11 +27,13 @@ function editorHarness(options = {}) {
   const globals={Blob,Image:LoadedImage,URL,ResizeObserver:class{observe(){}disconnect(){}},document:{createElement:()=>canvas()}};
   function load(path,require){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,require,...globals});return exports;}
   const geometry=load('../src/utils/imageCrop.ts');
+  const pinchGesture=load('../src/utils/pinchGesture.ts');
   const Component=load('../src/components/media/ImageRepositioner.tsx',(name)=>{
     if(name==='react')return react;
     if(name==='react/jsx-runtime')return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props}),Fragment:'Fragment'};
     if(name==='lucide-react')return {MoveIcon:'Move',RotateCcwIcon:'Reset'};
     if(name.endsWith('/imageCrop'))return geometry;
+    if(name.endsWith('/pinchGesture'))return pinchGesture;
     if(name.endsWith('/Button'))return {Button:'Button'};
     if(name.endsWith('/InterfaceIcon'))return {InterfaceIcon:'Icon'};
     throw Error(name);
@@ -44,6 +47,12 @@ function editorHarness(options = {}) {
     find:(predicate)=>{if(dirty)render();return walk(tree,predicate);},
     button(label){if(dirty)render();return walk(tree,(node)=>node.type==='Button'&&text(node)===label);},
     zoom(value){if(dirty)render();walk(tree,(node)=>node.type==='input').props.onChange({currentTarget:{value:String(value)}});},
+    touch(handler, id, x, y) {
+      if (dirty) render();
+      const viewport = walk(tree, node => node.props?.className?.includes('image-reposition-viewport'));
+      viewport.props[handler]({ pointerId: id, pointerType: 'touch', isPrimary: id === 1, button: 0,
+        clientX: x, clientY: y, preventDefault() {}, currentTarget: viewport.props.ref.current });
+    },
     options(next){props={...props,...next};dirty=true;},
     failExport(){failExport=true;},
     holdExport(){holdExport=true;},
@@ -77,6 +86,31 @@ test('Save exports the current crop once and keeps it when Reposition opens agai
   assert.equal(saves.length,1);assert.equal(saves[0].crop.zoom,2);assert.ok(saves[0].blob.size>0);
   editor.button('Reposition').props.onClick();await editor.flush();
   assert.equal(editor.find((node)=>node.type==='input').props.value,2);
+  editor.dispose();
+});
+
+test('a mobile pinch zooms around the moving fingers and resumes dragging when either finger lifts', async () => {
+  const saves = [];
+  const editor = editorHarness({ pinchToZoom: true, initialPosition: { x: .5, y: .5, zoom: 1.5 }, onSave: result => saves.push(result) });
+  await editor.flush();
+  editor.touch('onPointerDown', 1, 220, 160);
+  editor.touch('onPointerDown', 2, 300, 160);
+  editor.touch('onPointerMove', 1, 210, 175);
+  editor.touch('onPointerMove', 2, 330, 175);
+  await editor.flush();
+  assert.equal(editor.find(node => node.type === 'input').props.value, 2.25);
+  const imageLeft = () => Number.parseFloat(editor.find(node => node.type === 'img').props.style.left);
+  const beforeRelease = imageLeft();
+  editor.touch('onPointerUp', 1, 210, 175);
+  editor.touch('onLostPointerCapture', 1, 210, 175);
+  assert.equal(imageLeft(), beforeRelease);
+  editor.touch('onPointerMove', 2, 350, 175);
+  assert.ok(Math.abs(imageLeft() - beforeRelease - 100 * 20 / 640) < 1e-9);
+  editor.touch('onPointerCancel', 2, 350, 175);
+  assert.equal(saves.length, 0);
+  editor.button('Save').props.onClick();
+  await editor.flush();
+  assert.equal(saves[0].crop.zoom, 2.25);
   editor.dispose();
 });
 
@@ -146,7 +180,8 @@ test('dialog guards X, backdrop and Escape for the entire Save', () => {
   const child=dialog.props.children[1].props.children.props.children[1];
   const authoring=presentation==='mobile'&&mobileAuthoring;
   assert.equal(backdrop.props['data-mobile-upload-surface'],authoring?'cover':undefined);
-  assert.equal(child.props.instructions,authoring?'Drag to reposition. Use the slider to zoom.':undefined);
+  assert.equal(child.props.pinchToZoom,authoring);
+  assert.equal(child.props.instructions,authoring?'Drag to reposition. Pinch or use the slider to zoom.':undefined);
   assert.equal(child.props.saveLabel,authoring?'Save cover':undefined);
   child.props.onSavingChange(true);
   backdrop=render();dialog=backdrop.props.children;

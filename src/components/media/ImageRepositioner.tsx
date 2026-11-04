@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MoveIcon, RotateCcwIcon } from 'lucide-react';
 import type { ImageCropResult, ImagePosition, RelativeImageCrop } from '../../types/imageCrop';
 import { CENTER_IMAGE_POSITION, cropFromPosition, normalizeImagePosition, panImage, positionFromCrop, renderImageCrop, zoomImage } from '../../utils/imageCrop';
+import { pinchDistance } from '../../utils/pinchGesture';
 import { Button } from '../ui/Button';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 
@@ -14,6 +15,7 @@ export type ImageRepositionerProps = {
   initialPosition?: ImagePosition;
   initialCrop?: RelativeImageCrop;
   startEditing?: boolean;
+  pinchToZoom?: boolean;
   disabled?: boolean;
   outputWidth?: number;
   mimeType?: 'image/png' | 'image/jpeg' | 'image/webp';
@@ -27,8 +29,18 @@ export type ImageRepositionerProps = {
   saveLabel?: string;
 };
 
+type CropPointer = Pick<PointerEvent, 'clientX' | 'clientY' | 'pointerType'>;
+
+function getPinch(pointers: ReadonlyMap<number, CropPointer>) {
+  if (pointers.size !== 2) return null;
+  const [first, second] = Array.from(pointers.values());
+  const distance = pinchDistance([first, second]);
+  if (distance === null) return null;
+  return { distance, x: (first.clientX + second.clientX) / 2, y: (first.clientY + second.clientY) / 2 };
+}
+
 /** Local, transactional crop editor. Only Save exports or invokes the caller. */
-export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = 'rectangle', initialPosition, initialCrop, startEditing = false, disabled = false, outputWidth, mimeType, exportCircle = false, onSave, onCancel, onEditingChange, onSavingChange, instructions = 'Drag to reposition. Scroll or use the slider to zoom. Arrow keys make small adjustments.', saveLabel = 'Save' }: ImageRepositionerProps) {
+export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = 'rectangle', initialPosition, initialCrop, startEditing = false, pinchToZoom = false, disabled = false, outputWidth, mimeType, exportCircle = false, onSave, onCancel, onEditingChange, onSavingChange, instructions = 'Drag to reposition. Scroll or use the slider to zoom. Arrow keys make small adjustments.', saveLabel = 'Save' }: ImageRepositionerProps) {
   const ratio = shape === 'rectangle' && Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [position, setPosition] = useState<ImagePosition>(CENTER_IMAGE_POSITION);
@@ -42,7 +54,12 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
   positionRef.current = position;
   const sourceVersion = useRef(0);
   const busyRef = useRef(false);
-  const drag = useRef<{ id: number; x: number; y: number } | null>(null);
+  const pointers = useRef(new Map<number, CropPointer>());
+  const pinchStart = useRef<{ distance: number; x: number; y: number; position: ImagePosition } | null>(null);
+  const resetGesture = useCallback(() => {
+    pointers.current.clear();
+    pinchStart.current = null;
+  }, []);
   const initialRef = useRef({ initialCrop, initialPosition });
   initialRef.current = { initialCrop, initialPosition };
   const callbacks = useRef({ onSave, onCancel, onEditingChange, onSavingChange });
@@ -59,7 +76,7 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
     setSaving(false);
     callbacks.current.onSavingChange?.(false);
     busyRef.current = false;
-    drag.current = null;
+    resetGesture();
     const initial = normalizeImagePosition(initialRef.current.initialCrop ? positionFromCrop(initialRef.current.initialCrop) : initialRef.current.initialPosition);
     savedRef.current = initial;
     setPosition(initial);
@@ -82,11 +99,11 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
       if (next) { next.onload = null; next.onerror = null; }
       if (ownedUrl) URL.revokeObjectURL(ownedUrl);
     };
-  }, [source, startEditing, loadAttempt]);
+  }, [source, startEditing, loadAttempt, resetGesture]);
 
   // A new viewport shape changes crop geometry, not the source or the user's
-  // current framing. End any drag without resetting their zoom/position.
-  useEffect(() => { drag.current = null; }, [ratio]);
+  // current framing. End a gesture when its surface or geometry changes.
+  useEffect(resetGesture, [ratio, pinchToZoom, editing, disabled, saving, resetGesture]);
 
   const update = (next: ImagePosition) => { positionRef.current = next; setPosition(next); };
   useEffect(() => {
@@ -104,10 +121,10 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
     };
     // React's delegated wheel event is passive in some browsers.
     viewport.addEventListener('wheel', onWheel, { passive: false });
-    const observer = new ResizeObserver(() => { drag.current = null; });
+    const observer = new ResizeObserver(resetGesture);
     observer.observe(viewport);
     return () => { viewport.removeEventListener('wheel', onWheel); observer.disconnect(); };
-  }, [image, editing, disabled, saving, ratio]);
+  }, [image, editing, disabled, saving, ratio, resetGesture]);
 
   const changeEditing = (value: boolean) => {
     setEditing(value);
@@ -115,7 +132,7 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
   };
   const cancel = () => {
     if (busyRef.current) return;
-    drag.current = null;
+    resetGesture();
     update(savedRef.current);
     setError(null);
     changeEditing(false);
@@ -147,10 +164,45 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
   const crop = image ? cropFromPosition({ width: image.naturalWidth, height: image.naturalHeight }, ratio, position) : null;
   const canEdit = editing && Boolean(image) && !disabled && !saving;
   const radius = shape === 'circle' ? '50%' : shape === 'square' ? 'var(--shape-compact)' : '8px';
-  const stopDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (drag.current?.id !== event.pointerId) return;
-    drag.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  const beginPinch = () => {
+    const pinch = getPinch(pointers.current);
+    pinchStart.current = pinch ? { ...pinch, position: positionRef.current } : null;
+  };
+  const startPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    const touch = pinchToZoom && event.pointerType === 'touch';
+    if (!canEdit || event.button !== 0 || (!event.isPrimary && !touch)) return;
+    const first = pointers.current.values().next().value;
+    if (first && (!touch || first.pointerType !== 'touch')) return;
+    event.preventDefault();
+    if (!first) event.currentTarget.focus({ preventScroll: pinchToZoom });
+    pointers.current.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY, pointerType: event.pointerType });
+    event.currentTarget.setPointerCapture(event.pointerId);
+    beginPinch();
+  };
+  const movePointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    const previous = pointers.current.get(event.pointerId);
+    if (!previous || !canEdit || !image) return;
+    pointers.current.set(event.pointerId, { ...previous, clientX: event.clientX, clientY: event.clientY });
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
+    const size = { width: image.naturalWidth, height: image.naturalHeight };
+    if (pointers.current.size === 1) {
+      update(panImage(positionRef.current, size, bounds, event.clientX - previous.clientX, event.clientY - previous.clientY));
+      return;
+    }
+    const pinch = getPinch(pointers.current);
+    if (!pinch) return;
+    const start = pinchStart.current;
+    if (!start) { beginPinch(); return; }
+    const relative = ({ x, y }: { x: number; y: number }) => ({ x: (x - bounds.left) / bounds.width, y: (y - bounds.top) / bounds.height });
+    update(zoomImage(start.position, size, ratio, start.position.zoom * pinch.distance / start.distance, relative(start), relative(pinch)));
+  };
+  const stopPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!pointers.current.delete(event.pointerId)) return;
+    beginPinch();
+    if (event.type !== 'lostpointercapture' && event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   };
 
   return <div className="image-repositioner min-w-0" onKeyDown={(event) => {
@@ -160,20 +212,8 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
       <div ref={viewportRef} role={editing ? 'group' : undefined} aria-label={editing ? `Reposition ${alt}` : undefined} aria-describedby={editing ? instructionsId : undefined} tabIndex={canEdit ? 0 : undefined}
         style={{ '--crop-ratio': ratio, aspectRatio: ratio, borderRadius: radius, touchAction: canEdit ? 'none' : 'auto', cursor: canEdit ? 'grab' : 'default', overflow: editing ? 'visible' : 'hidden' } as React.CSSProperties}
         className="image-reposition-viewport relative mx-auto outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-        onPointerDown={(event) => {
-          if (!canEdit || !event.isPrimary || event.button !== 0) return;
-          event.preventDefault();
-          event.currentTarget.focus();
-          drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          const pointer = drag.current;
-          if (!pointer || pointer.id !== event.pointerId || !canEdit || !image) return;
-          const bounds = event.currentTarget.getBoundingClientRect();
-          update(panImage(positionRef.current, { width: image.naturalWidth, height: image.naturalHeight }, { width: bounds.width, height: bounds.height }, event.clientX - pointer.x, event.clientY - pointer.y));
-          drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
-        }} onPointerUp={stopDrag} onPointerCancel={stopDrag} onLostPointerCapture={() => { drag.current = null; }}
+        onPointerDown={startPointer} onPointerMove={movePointer} onPointerUp={stopPointer}
+        onPointerCancel={stopPointer} onLostPointerCapture={stopPointer}
         onKeyDown={(event) => {
           if (!canEdit || !image) return;
           const step = event.shiftKey ? 24 : 4;

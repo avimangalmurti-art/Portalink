@@ -14,7 +14,6 @@ function load(path, imports = {}, globals = {}) {
   }).outputText, { exports, URL, Error, ...globals, require(name) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
-    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
 
     assert.ok(Object.hasOwn(imports, name), `Unexpected import: ${name}`);

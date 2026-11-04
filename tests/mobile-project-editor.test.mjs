@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
 import {sourceModule} from './helpers/source-module.mjs';
-const nodes=node=>React.isValidElement(node)?[node,...React.Children.toArray(node.props.children).flatMap(nodes)]:[];
+function nodes(node) {
+  if (!React.isValidElement(node)) return [];
+  if (node.type.name === 'MobileProjectFileTile') return nodes(node.type(node.props));
+  return [node, ...React.Children.toArray(node.props.children).flatMap(nodes)];
+}
 
 /** Run the actual editor and its MOBILE frame; only management/services are synthetic. */
 function harness(presentation='mobile'){
@@ -31,25 +35,44 @@ function harness(presentation='mobile'){
  return {editor,calls,focus,render,frame:()=>{render();return frame;},find:predicate=>nodes(render()).find(predicate),escape(){render();modalClose();},update(values){Object.assign(editor,values);dirty=true;},async submit(){const form=nodes(render()).find(node=>node.type==='form');form.props.onSubmit({preventDefault(){}});for(let index=0;index<4;index++)await Promise.resolve();render();}};
 }
 
-test('mobile editor keeps its save controls inside the editable form and accepts an empty description',async()=>{
+test('mobile editor submits from the compact header action and accepts an empty description',async()=>{
  const h=harness(),tree=h.render();
  const dialog=nodes(tree).find(node=>node.props.role==='dialog');assert.equal(dialog.props['aria-modal'],'true');
- const form=nodes(dialog).find(node=>node.type==='form'),footer=nodes(form).find(node=>node.type==='footer');
- assert.ok(footer);assert.ok(nodes(footer).find(node=>node.props.type==='submit'));
+ const form=nodes(dialog).find(node=>node.type==='form'),header=nodes(dialog).find(node=>node.type==='header');
+ const save=nodes(header).find(node=>node.props.className==='project-editor-header-save');
+ assert.ok(save);assert.equal(save.props.type,'submit');assert.equal(save.props.form,form.props.id);
+ assert.equal(save.props.children,'Save');assert.equal(save.props['aria-label'],'Save changes');assert.equal(save.props.disabled,false);
+ assert.equal(nodes(dialog).filter(node=>node.props.type==='submit').length,1);
+ assert.equal(nodes(form).some(node=>node.type==='footer'),false);
+ h.update({isDirty:false});assert.equal(h.find(node=>node.props.className==='project-editor-header-save').props.disabled,true);
+ h.update({isDirty:true,isSaving:true});const busy=h.find(node=>node.props.className==='project-editor-header-save');
+ assert.equal(busy.props.disabled,true);assert.equal(busy.props.isLoading,true);assert.equal(busy.props['aria-label'],'Saving…');
+ h.update({isSaving:false});
  h.find(node=>node.type==='button'&&node.props.children==='Details').props.onClick();
- assert.equal(h.find(node=>node.type==='field'&&node.props.id==='project-title').props.required,true);
- const summary=h.find(node=>node.type==='field'&&node.props.id==='project-summary');assert.equal(summary.props.required,undefined);assert.equal(summary.props.optional,true);
+ const title=h.find(node=>node.type==='field'&&node.props.id==='project-title');assert.equal(title.props.required,true);assert.equal(title.props.requiredIndicator,'parenthesized');
+ const summary=h.find(node=>node.type==='field'&&node.props.id==='project-summary');assert.equal(summary.props.required,undefined);assert.equal(summary.props.optional,true);assert.equal(summary.props.optionalParentheses,true);
  await h.submit();assert.equal(h.calls.at(-1)[0],'save');assert.equal(h.calls.at(-1)[1].summary,'');
 });
 
-test('all fifteen editor files can reorder and a crop updates only the current draft until explicit Save',async()=>{
- const h=harness();assert.equal(nodes(h.render()).filter(node=>node.props.className?.includes('project-edit-file-row')).length,15);
+test('the unified mobile Files grid numbers the draft order and keeps crop and order changes pending until Save',async()=>{
+ const h=harness();h.update({mode:'cover-choice'});
+ const tabs=h.find(node=>node.props['aria-label']==='Edit project sections');
+ assert.deepEqual(React.Children.toArray(tabs.props.children).map(button=>button.props.children),['Details','Files']);
+ assert.equal(React.Children.toArray(tabs.props.children)[1].props['aria-pressed'],true);
+ const fileCards=()=>nodes(h.render()).filter(node=>node.props.className==='project-editor-file-card');
+ assert.equal(fileCards().length,15);
+ assert.equal(h.find(node=>node.type==='published-covers'),undefined);
+ assert.equal(h.find(node=>node.props.className?.includes('project-edit-file-row')),undefined);
  h.find(node=>node.props['aria-label']==='Move Artwork 15 earlier').props.onClick();
  assert.equal(h.editor.attachmentEdits[13].id,'file-15');
+ const moved=nodes(fileCards()[13]);
+ assert.equal(moved.find(node=>node.props.className==='project-editor-file-position').props.children,14);
+ moved.find(node=>node.props['data-project-cover-choice']!==undefined).props.onClick();
+ assert.equal(h.find(node=>node.props['aria-label']==='Use Artwork 15 as the cover').props['aria-pressed'],true);
  h.find(node=>node.type==='button'&&node.props.children==='Edit cover').props.onClick();
- const crop=h.find(node=>node.type==='cover-crop');assert.equal(crop.props.source,'blob:synthetic-1');
+ const crop=h.find(node=>node.type==='cover-crop');assert.equal(crop.props.source,'blob:synthetic-15');
  const frame={x:.2,y:.8,zoom:2,aspectRatio:3/4};crop.props.onSave({frame});
- assert.equal(h.find(node=>node.type==='cover-crop'),undefined);assert.equal(h.editor.attachmentEdits.find(item=>item.id==='file-1').coverFrame,frame);
+ assert.equal(h.find(node=>node.type==='cover-crop'),undefined);assert.equal(h.editor.attachmentEdits.find(item=>item.id==='file-15').coverFrame,frame);
  assert.equal(h.calls.some(call=>call[0]==='save'),false);
  await h.submit();assert.equal(h.calls.filter(call=>call[0]==='save').length,1);assert.equal(h.calls.at(-1)[2][13].id,'file-15');
 });
@@ -60,4 +83,11 @@ test('mobile modal Escape shares guarded close/discard behavior while WEB retain
  h.update({isSaving:true});h.escape();assert.equal(h.find(node=>node.type==='discard'),undefined);assert.equal(h.calls.length,0);
  h.update({isSaving:false,isDirty:false});h.escape();assert.deepEqual(h.calls,[['close']]);
  const web=harness('web');assert.equal(web.render().type,'web-frame');assert.equal(nodes(web.render()).some(node=>node.props['data-mobile-upload-surface']),false);
+ assert.equal(nodes(web.find(node=>node.type==='footer')).find(node=>node.props.type==='submit').props.children,'Save changes');
+ assert.equal(nodes(web.render()).filter(node=>node.props.className?.includes('project-edit-file-row')).length,15);
+ assert.equal(web.find(node=>node.type==='field'&&node.props.id==='project-title').props.requiredIndicator,undefined);
+ assert.equal(web.find(node=>node.type==='field'&&node.props.id==='project-summary').props.optionalParentheses,false);
+ web.update({mode:'cover-choice'});
+ assert.ok(web.find(node=>node.type==='published-covers'));
+ assert.equal(web.find(node=>node.props.className==='project-editor-file-grid'),undefined);
 });

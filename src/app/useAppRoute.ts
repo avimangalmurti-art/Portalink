@@ -307,9 +307,9 @@ export function useRouteNavigator(presentation: Presentation = 'web') {
     search: (query: string, replace = false) => navigate(query ? `${routes.search.path}?q=${encodeURIComponent(query)}` : routes.search.path, {
       replace
     }),
-    profile: (profileId: Id) => navigate(buildPath('profile', {
+    profile: (profileId: Id, revealPublishedProjectId?: Id) => navigate(buildPath('profile', {
       profileId
-    })),
+    }), revealPublishedProjectId ? { state: { revealPublishedProjectId } } : undefined),
     collaboration: (profileId: Id, shared = false) => {
       const current = locationRef.current;
       navigate(buildPath(shared ? 'sharedCollaboration' : 'collaboration', { profileId }), {

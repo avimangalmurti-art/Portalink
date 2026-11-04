@@ -1,4 +1,3 @@
-import { useEntryAgreements } from '../../components/auth/EntryAgreements';
 import { useServices } from '../../contexts/ServicesContext';
 import { createProfileHandle, prepareProfileHandle } from '../../utils/profileHandle';
 import React, { useEffect, useRef, useState } from 'react';
@@ -57,7 +56,7 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
     onSignIn: () => leaveEntry(() => auth.requestAuth('signIn')),
     onForgotPassword: () => auth.requestAuth('forgotPassword'),
     onDismiss: () => leaveEntry(auth.closeAuth),
-    content: <EntryChoices hideProviders onDisagree={() => setEntryStage('welcome')} onEmail={entryStage === 'welcome' ? () => setEntryStage('email') : undefined} ready={!busy} returnPath={props.registrationReturnPath} onSignIn={() => leaveEntry(() => auth.requestAuth('signIn'))}>
+    content: <EntryChoices hideProviders onEmail={entryStage === 'welcome' ? () => setEntryStage('email') : undefined} ready={!busy} returnPath={props.registrationReturnPath} onSignIn={() => leaveEntry(() => auth.requestAuth('signIn'))}>
       {entryStage === 'email' && <div className="entry-inline-form">
         <button type="button" className="entry-back" aria-label="Back to Portalink" disabled={busy} onClick={() => leaveEntry(auth.closeAuth)}><ChevronLeftIcon size={20} aria-hidden="true" />Back</button>
         <h1>Create your account</h1>
@@ -197,7 +196,6 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
   const isMobile = presentation === 'mobile' && !props.compactEntry;
   const auth = useAuth();
   const signUp = useSignUp();
-  const agreements = useEntryAgreements();
   const avatar = useAvatarSelection();
   const registrationId = useRef<string>(crypto.randomUUID());
   const [registrationReturnPath, setRegistrationReturnPath] = useState(() => {
@@ -326,7 +324,6 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
     if (!await confirmHandle() || submittingRef.current) return;
     submittingRef.current = true;
     try {
-      if (props.compactEntry && !await agreements.request()) return;
       await signUp.submit(email, password, { version: 1, id: registrationId.current,
         name: name.trim(), handle: preparedHandle ?? handle, location: location.trim(), isPrivate, accentColor: props.accentColor, systemGray: props.systemGray, hasAvatar: Boolean(avatar.avatar),
         ...(registrationReturnPath ? { returnPath: registrationReturnPath } : {}) }, avatar.avatar);

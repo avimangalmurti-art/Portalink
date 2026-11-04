@@ -42,15 +42,15 @@ export function panImage(position: ImagePosition, size: ImageSize, viewport: Ima
   });
 }
 
-/** Keep the source pixel under a viewport-relative pointer stationary while zooming. */
-export function zoomImage(position: ImagePosition, size: ImageSize, aspectRatio: number, zoom: number, anchor = { x: 0.5, y: 0.5 }): ImagePosition {
+/** Keep a source pixel under the zoom anchor, including when the anchor moves. */
+export function zoomImage(position: ImagePosition, size: ImageSize, aspectRatio: number, zoom: number, anchor = { x: 0.5, y: 0.5 }, destination?: { x: number; y: number }): ImagePosition {
   const current = cropFromPosition(size, aspectRatio, position);
   const next = cropFromPosition(size, aspectRatio, { ...position, zoom });
   const ax = clamp(finite(anchor.x, 0.5), 0, 1);
   const ay = clamp(finite(anchor.y, 0.5), 0, 1);
   return positionFromCrop({ ...next,
-    x: clamp(current.x + ax * (current.width - next.width), 0, 1 - next.width),
-    y: clamp(current.y + ay * (current.height - next.height), 0, 1 - next.height),
+    x: clamp(current.x + ax * current.width - finite(destination?.x, ax) * next.width, 0, 1 - next.width),
+    y: clamp(current.y + ay * current.height - finite(destination?.y, ay) * next.height, 0, 1 - next.height),
   });
 }
 

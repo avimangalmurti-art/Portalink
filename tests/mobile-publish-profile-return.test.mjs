@@ -26,7 +26,7 @@ assert.equal(app.parseDiagnostics.length, 0, 'The production callback must come 
 let publishedCallback;
 const completionFunctions=[];
 function visit(node) {
-  if(ts.isFunctionDeclaration(node)&&['focusPublishedDestination','closePostPublishIdea','openPostPublishedIdea'].includes(node.name?.text))completionFunctions.push(node.getText(app));
+  if(ts.isFunctionDeclaration(node)&&['focusPublishedDestination','closePostPublishIdea','openPostPublishedIdea','showPublishConfirmation','returnToPublishedProfile'].includes(node.name?.text))completionFunctions.push(node.getText(app));
   if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(app) === 'PublishProjectDialog') {
     const attribute = node.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(app) === 'onPublished');
     if (attribute?.initializer && ts.isJsxExpression(attribute.initializer)) publishedCallback = attribute.initializer.expression?.getText(app);
@@ -85,16 +85,17 @@ function harness({ presentation = 'mobile', path = '/p/owner?view=portals#old-wo
 }
 
 for (const [name, options] of [
-  ['ordinary', {}], ['journey', { firstProjectPublisher: true }],
+  ['ordinary', { fromSetup: true }], ['journey', { firstProjectPublisher: true }],
   ['resumed', { resume: true }], ['first', { isFirstProjectPublish: true }],
 ]) test(`MOBILE ${name} publication opens the complete owner profile without reader or old tab state`, () => {
   const h = harness(options);
   h.publish();
   assert.deepEqual(h.navigationCalls.map(call => call.target), ['/p/owner']);
   assert.deepEqual(h.route(), { kind: 'profile', profileId: 'owner' });
-  assert.deepEqual(h.location(), { pathname: '/p/owner', search: '', hash: '', state: null });
+  assert.deepEqual(plain(h.location()), { pathname: '/p/owner', search: '', hash: '', state: { revealPublishedProjectId: 'new-project' } });
   assert.deepEqual(h.states, { isPublishOpen: false, publishTargetCategoryId: null, journeyMadeIn: null });
   assert.equal(h.confirmations[0].projectId, 'new-project');
+  assert.equal(h.completion, null);
   assert.equal(h.redirects.length, 0);
 });
 
@@ -158,21 +159,20 @@ test('completion cannot forge a profile destination when the owner identity is a
   }
 });
 
-test('ordinary New idea completion retains its existing destination beneath the card and its captured CTA routes',()=>{
- for(const presentation of ['mobile','web'])for(const action of ['idea','catalogue','close']){
-  const h=harness({presentation,fromSetup:true});h.publish();
+test('WEB New idea completion retains its existing destination beneath the card and its captured CTA routes',()=>{
+ for(const action of ['idea','catalogue','close']){
+  const h=harness({presentation:'web',fromSetup:true});h.publish();
   assert.equal(h.completion.projectId,'new-project');assert.deepEqual(h.confirmations,[null]);
-  assert.deepEqual(h.route(),presentation==='mobile'?{kind:'profile',profileId:'owner'}:{kind:'project',profileId:'owner',categoryId:'work',projectId:'new-project'});
+  assert.deepEqual(h.route(),{kind:'project',profileId:'owner',categoryId:'work',projectId:'new-project'});
   const count=h.navigationCalls.length;h.complete(action);assert.equal(h.completion,null);
-  assert.deepEqual(h.route(),action==='idea'?{kind:'project',profileId:'owner',categoryId:'work',projectId:'new-project'}:action==='catalogue'?{kind:'profile',profileId:'owner'}:presentation==='mobile'?{kind:'profile',profileId:'owner'}:{kind:'project',profileId:'owner',categoryId:'work',projectId:'new-project'});
-  const alreadyAtDestination=(action==='idea'&&presentation==='web')||(action==='catalogue'&&presentation==='mobile');
-  assert.equal(h.navigationCalls.length,count+(action==='close'||alreadyAtDestination?0:1));
+  assert.deepEqual(h.route(),action==='catalogue'?{kind:'profile',profileId:'owner'}:{kind:'project',profileId:'owner',categoryId:'work',projectId:'new-project'});
+  assert.equal(h.navigationCalls.length,count+(action==='catalogue'?1:0));
  }
 });
 
 test('completion CTA deduplicates only the exact fresh destination and still leaves other paths, queries and hashes',()=>{
- for(const presentation of ['mobile','web'])for(const action of ['idea','catalogue'])for(const suffix of ['', '?view=portals','#old-work','/other']){
-  const h=harness({presentation,fromSetup:true});h.publish();
+ for(const action of ['idea','catalogue'])for(const suffix of ['', '?view=portals','#old-work','/other']){
+  const h=harness({presentation:'web',fromSetup:true});h.publish();
   const target=action==='idea'?routes.buildPath('project',{profileId:'owner',categoryId:'work',projectId:'new-project'}):routes.buildPath('profile',{profileId:'owner'});
   h.setBrowserAddress(target+suffix);const count=h.navigationCalls.length;h.complete(action);
   assert.equal(h.completion,null);assert.equal(h.navigationCalls.length,count+(suffix?1:0));

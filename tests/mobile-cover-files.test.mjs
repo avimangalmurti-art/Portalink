@@ -105,13 +105,21 @@ test('onboarding non-cover files can add a cover and stale picker completion res
  }
 });
 
-test('all fifteen MOBILE files remain selectable as cover while WEB keeps its existing summary',()=>{
+test('all fifteen MOBILE files show their project order and remain selectable as cover while WEB keeps its existing summary',()=>{
  for(const presentation of ['mobile','web']){
   const h=harness(false,'idle',{presentation,count:15});
   const all=nodes(h.render()),thumbnails=all.filter(n=>n.type==='button'&&n.props['aria-label']?.startsWith('Use Artwork'));
   assert.equal(thumbnails.length,presentation==='mobile'?15:4);
   assert.equal(all.find(node=>node.type==='CoverFilmstrip').props.cropInstructions,presentation==='mobile'?'Drag to reposition. Use the slider to zoom.':undefined);
-  if(presentation==='mobile'){thumbnails[14].props.onClick();assert.equal(h.calls.at(-1),'file-15');}
+  const positions=all.filter(n=>n.props.className==='mobile-selected-file-position');
+  if(presentation==='mobile'){
+   assert.deepEqual(positions.map(text),Array.from({length:15},(_,index)=>String(index+1)));
+   assert.equal(thumbnails[14].props['aria-description'],'File 15 of 15');
+   thumbnails[14].props.onClick();assert.equal(h.calls.at(-1),'file-15');
+  }else{
+   assert.equal(positions.length,0);
+   assert.equal(thumbnails[0].props['aria-description'],undefined);
+  }
   all.find(n=>n.type==='button'&&text(n)==='Reorder').props.onClick();
   const sheet=nodes(h.render()).find(n=>n.type==='MobileActionSheet'),picker=nodes(sheet).find(n=>n.type==='MediaPicker');
   assert.equal(sheet.props.layout,presentation==='mobile'?'files':undefined);

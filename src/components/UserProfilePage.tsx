@@ -71,6 +71,7 @@ const ProfileShareDialog = lazyWithMobileRecovery(() => import('../features/shar
  */
 type UserProfilePageProps = {
   publishedProjectId?: string;
+  revealPublishedProjectId?: string;
   /** The canonical record. Read through the profile data boundary, so a saved edit shows immediately. */
   profile: Profile;
   onBack: () => void;
@@ -393,6 +394,7 @@ export function UserProfilePage({
   onBack,
   profile,
   publishedProjectId,
+  revealPublishedProjectId,
   mobilePortalsView,
   mobileContent,
   mobileContentView,
@@ -563,8 +565,9 @@ export function UserProfilePage({
   useEffect(() => {
     if (!isMobile || !showsOwnerTools || profile.isPrivate || offeredHandle.current === profile.id || livePortfolioDismissed(profile.id) || !(readLivePortfolio(profile.id) || publishedProjectId)) return;
     try { if (localStorage.getItem(`portalink.handle-intro:${profile.id}`) === '1') return; } catch { /* Optional convenience. */ }
-    offeredHandle.current = profile.id; setShareAuto(true); setShareOpen(true);
-  }, [isMobile, showsOwnerTools, profile.id, profile.isPrivate, publishedProjectId]);
+    offeredHandle.current = profile.id;
+    if (!revealPublishedProjectId) { setShareAuto(true); setShareOpen(true); }
+  }, [isMobile, showsOwnerTools, profile.id, profile.isPrivate, publishedProjectId, revealPublishedProjectId]);
   const publicProfileLocation = new URL(shareUrl ?? buildPath('sharedProfile', { profileId: profile.id }), PUBLIC_ORIGIN);
   const publicProfileUrl = `${PUBLIC_ORIGIN}${publicProfileLocation.pathname}${publicProfileLocation.search}${publicProfileLocation.hash}`;
   const { profiles: profileServices } = useServices();
@@ -728,6 +731,35 @@ export function UserProfilePage({
     window.addEventListener('scroll', remember, { passive: true });
     return () => { cancelAnimationFrame(frame); stopLayoutRepair(); window.removeEventListener('scroll', remember); };
   }, [isMobileWall, profile.id, screenActive, isMobile, mobileProjectSelected]);
+
+  const revealedProject = useRef<string | null>(null);
+  useEffect(() => {
+    if (!revealPublishedProjectId || revealedProject.current === revealPublishedProjectId || !screenActive
+      || !isMobile || !showsOwnerTools || activeView !== 'projects' || mobileContent || mobileShareOpen) return;
+    if (isJourney) { journey.select('portfolio'); return; }
+    if (!orderedCardProjects.some(project => project.id === revealPublishedProjectId)) return;
+    const wall = profilePageRef.current?.querySelector('.mobile-profile-wall:not([hidden])');
+    if (!wall || wall.closest('[inert], [aria-hidden="true"], .screen-exit')) return;
+    // The wall measures its width before adding tiles, even with cached profile data.
+    let frame = 0;
+    const reveal = () => {
+      const tile = Array.from(wall.querySelectorAll<HTMLElement>('[data-preview-open][data-project-continuity-id]'))
+        .find(element => element.dataset.projectContinuityId === revealPublishedProjectId);
+      if (!tile?.getClientRects().length) return;
+      observer.disconnect();
+      revealedProject.current = revealPublishedProjectId;
+      tile.scrollIntoView({ block: 'center', behavior: 'instant' });
+      tile.focus({ preventScroll: true });
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(reveal);
+    };
+    const observer = new MutationObserver(schedule);
+    observer.observe(wall, { childList: true, subtree: true });
+    schedule();
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [activeView, isJourney, isMobile, journey, mobileContent, mobileShareOpen, orderedCardProjects, revealPublishedProjectId, screenActive, showsOwnerTools]);
 
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;

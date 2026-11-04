@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';import test from 'node:test';import{readFileSync}from'node:fs';import vm from'node:vm';import React from'react';import ts from'typescript';
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
 const portalButton = (all, label) => all.find(node => node.type === 'button' && (node.props['aria-label'] ?? node.props.children) === label);
+const portalPicker = all => all.find(node => node.type === 'button' && node.props['aria-controls'] === 'project-setup-portal-list');
 const portalList = all => all.find(node => node.type === 'ul' && node.props.id === 'project-setup-portal-list');
 const portalChoice = (all, id) => nodes(portalList(all)).find(node => node.type === 'button' && node.props.value === id);
 const newPortalDialog = all => all.find(node => node.type === 'NewCategoryDialog');
@@ -15,7 +16,7 @@ function harness(create=async(name,iconName)=>({id:'created',label:name,iconName
   if (presentation === 'web') { change('Portal', id); return; }
   const all = nodes(render());
   if (id === 'new') { portalButton(all, 'New Portal').props.onClick(); return; }
-  if (portalList(all).props.hidden) portalButton(all, 'Portals').props.onClick();
+  if (portalList(all).props.hidden) portalPicker(all).props.onClick();
   const choice = portalChoice(nodes(render()), id);
   assert.ok(choice, `Available Portal ${id}`);
   choice.props.onClick();
@@ -105,21 +106,22 @@ test('a failed profile refresh retains a non-default existing Portal for confirm
 test('mobile Portals selects an existing Portal while preserving the authored form', async () => {
  const h = harness(undefined, undefined, { initialCategories: [{id:'existing',label:'Design'},{id:'photo',label:'Photography'}] });
  let all = nodes(h.render());
- const portals = portalButton(all, 'Portals'), add = portalButton(all, 'New Portal');
+ const portals = portalPicker(all), add = portalButton(all, 'New Portal');
  assert.equal(portals.props.type, 'button');
  assert.equal(add.props.type, 'button');
  assert.equal(add.props['aria-haspopup'], 'dialog');
  assert.equal(portals.props['aria-controls'], portalList(all).props.id);
  assert.equal(portals.props['aria-expanded'], false);
- assert.equal(nodes(portals).find(node => node.props.id === portals.props['aria-describedby']).props.children, 'Design');
+ assert.equal(portals.props.children.props.children, 'Design');
+ assert.equal(portals.props['aria-label'], 'Design, change portal');
  assert.equal(portalList(all).props.hidden, true);
  assert.equal(all.find(node => node.type === 'select' && node.props['aria-label'] === 'Portal'), undefined);
  assert.equal(all.find(node => node.props.name === 'title').props.autoFocus, true);
  h.change('Title', 'Existing title');
  h.change('Note (optional)', 'Existing note');
- portalButton(nodes(h.render()), 'Portals').props.onClick();
+ portalPicker(nodes(h.render())).props.onClick();
  all = nodes(h.render());
- assert.equal(portalButton(all, 'Portals').props['aria-expanded'], true);
+ assert.equal(portalPicker(all).props['aria-expanded'], true);
  assert.equal(portalList(all).props.hidden, false);
  assert.equal(portalChoice(all, 'existing').props['aria-pressed'], true);
  const photo = portalChoice(all, 'photo');
@@ -128,8 +130,8 @@ test('mobile Portals selects an existing Portal while preserving the authored fo
  assert.equal(photo.props['aria-pressed'], false);
  photo.props.onClick();
  all = nodes(h.render());
- assert.equal(portalButton(all, 'Portals').props['aria-expanded'], false);
- assert.equal(nodes(portalButton(all, 'Portals')).find(node => node.props.id === 'project-setup-selected-portal').props.children, 'Photography');
+ assert.equal(portalPicker(all).props['aria-expanded'], false);
+ assert.equal(portalPicker(all).props.children.props.children, 'Photography');
  assert.equal(portalList(all).props.hidden, true);
  assert.equal(portalChoice(all, 'photo').props['aria-pressed'], true);
  assert.equal(h.calls.length, 0);
@@ -149,10 +151,10 @@ test('mobile New Portal and the desktop select or add action open the canonical 
   h.change('Note (optional)', 'Existing description');
   let all = nodes(h.render());
   if (presentation === 'mobile') {
-   portalButton(all, 'Portals').props.onClick();
+   portalPicker(all).props.onClick();
    portalButton(nodes(h.render()), 'New Portal').props.onClick();
   } else {
-   assert.equal(portalButton(all, 'Portals'), undefined);
+   assert.equal(portalPicker(all), undefined);
    assert.equal(portalButton(all, 'New Portal'), undefined);
    assert.equal(all.find(node => node.props['aria-label'] === 'Portal').props.value, 'existing');
    const action = all.find(node => node.type === 'button' && node.props['aria-label'] === 'Create a Portal');
@@ -221,7 +223,8 @@ test('with zero Portals, Create writes one Portal and Continue separately hands 
   if (presentation === 'mobile') {
    assert.ok(portalButton(all, 'New Portal'));
    assert.equal(all.find(node => node.type === 'footer').props.hidden, true);
-   portalButton(all, 'Portals').props.onClick();
+   assert.equal(portalPicker(all).props.children.props.children, 'Portals');
+   portalPicker(all).props.onClick();
    all = nodes(h.render());
    assert.equal(portalList(all).props.hidden, false);
    assert.ok(nodes(portalList(all)).some(node => node.props.children === 'No portals yet.'));

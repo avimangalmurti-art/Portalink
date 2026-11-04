@@ -9,7 +9,7 @@ import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { usePresentation } from '../../presentation/usePresentation';
 import '../publishing/project-dialog.css';
 
-export function ImageRepositionDialog({ title, onClose, controls, preparing = false, preparationError, onRetryPreparation, mobileAuthoring = false, ...props }: Omit<ImageRepositionerProps, 'startEditing' | 'onCancel'> & { title: string; onClose: () => void; controls?: ReactNode; preparing?: boolean; preparationError?: string | null; onRetryPreparation?: () => void; mobileAuthoring?: boolean }) {
+export function ImageRepositionDialog({ title, onClose, controls, preparing = false, preparationError, onRetryPreparation, mobileAuthoring = false, ...props }: Omit<ImageRepositionerProps, 'startEditing' | 'onCancel' | 'pinchToZoom'> & { title: string; onClose: () => void; controls?: ReactNode; preparing?: boolean; preparationError?: string | null; onRetryPreparation?: () => void; mobileAuthoring?: boolean }) {
   const isMobile = usePresentation() === 'mobile' && mobileAuthoring;
   const ref = useRef<HTMLDivElement>(null);
   const overlayRef = useDialogViewport();
@@ -26,7 +26,7 @@ export function ImageRepositionDialog({ title, onClose, controls, preparing = fa
       </header>
       <div className="image-reposition-body">{preparing ? preparationError ? <ErrorState title="The preview could not be prepared" description={preparationError} onRetry={onRetryPreparation} /> : <LoadingState label="Preparing project preview…" /> : <>
         {controls ? <fieldset disabled={saving} className="m-0 min-w-0 border-0 p-0">{controls}</fieldset> : null}
-        <ImageRepositioner {...props} instructions={isMobile ? 'Drag to reposition. Use the slider to zoom.' : props.instructions} saveLabel={isMobile ? 'Save cover' : props.saveLabel} startEditing onCancel={requestClose} onSavingChange={(value) => { savingRef.current = value; setSaving(value); props.onSavingChange?.(value); }} />
+        <ImageRepositioner {...props} pinchToZoom={isMobile} instructions={isMobile ? 'Drag to reposition. Pinch or use the slider to zoom.' : props.instructions} saveLabel={isMobile ? 'Save cover' : props.saveLabel} startEditing onCancel={requestClose} onSavingChange={(value) => { savingRef.current = value; setSaving(value); props.onSavingChange?.(value); }} />
       </>}</div>
     </div>
   </div></ModalPortal>;

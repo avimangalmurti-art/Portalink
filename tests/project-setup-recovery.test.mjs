@@ -269,7 +269,7 @@ test('removed saved Portal stays explicit until the creator chooses another', ()
    if (presentation === 'mobile') {
     assert.ok(all.some(node => node.props.children === 'Portal unavailable. Choose a Portal.'));
     assert.equal(all.find(node => node.type === 'footer').props.hidden, true);
-    h.click('Portals');
+    all.find(node => node.type === 'button' && node.props['aria-controls'] === 'project-setup-portal-list').props.onClick();
     const choices = nodes(h.render().find(node => node.props.id === 'project-setup-portal-list'));
     assert.equal(choices.some(node => node.props['aria-pressed']), false);
     if (categories.length) {

@@ -14,7 +14,6 @@ function execute(code, imports = {}, globals = {}) {
     { exports, crypto, File, Blob, URL, setTimeout, clearTimeout, ...globals, require(name) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
-    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
     if (name.endsWith('/CatalogWelcome') && !(name in imports)) return { CatalogWelcome: 'catalog-welcome' };
     if (name.endsWith('/catalogWelcomeState') && !(name in imports)) return { hasEnteredCatalogWelcome: () => true, canOfferCatalogWelcome: () => false };
@@ -947,20 +946,24 @@ test('an invalid cached legacy picture exposes recovery and can be restored or d
 });
 
 
-test('one-screen signup validates and submits once without appearance, location, avatar or password confirmation', async () => {
+test('one-screen signup goes straight from valid details to email verification on both platforms', async () => {
  for (const presentation of ['mobile', 'web']) {
   const submitted = [], h = signupRestoreHarness({store:{saved:null},submitted,presentation,compactEntry:true});
   h.render(); await tick(); let tree=h.render();
   assert.equal(signupField(tree,'location'),undefined);
   assert.equal(signupField(tree,'confirmation'),undefined);
+  await tree.props.onSubmit({preventDefault(){}});
+  assert.equal(submitted.length,0);
   signupField(tree,'name').props.onChange('New Creator');
   signupField(tree,'email').props.onChange('new@example.test');
   signupField(tree,'password').props.onChange('synthetic-test-password');
-  tree=h.render(); await tree.props.onSubmit({preventDefault(){}});
+  tree=h.render();
+  await Promise.all([tree.props.onSubmit({preventDefault(){}}),tree.props.onSubmit({preventDefault(){}})]);
   assert.equal(submitted.length,1);
   assert.equal(submitted[0].registration.name,'New Creator');
   assert.equal(submitted[0].registration.location,'');
   assert.equal(submitted[0].registration.handle,'newcreator');
+  assert.ok(formNodes(h.render()).some(node=>node.props?.title==='Check your email'));
   h.unmount();
  }
 });

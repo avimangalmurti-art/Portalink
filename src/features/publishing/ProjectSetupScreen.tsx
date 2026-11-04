@@ -123,9 +123,8 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
     {mobileAuthoring ? <div className="project-setup-mobile-portals">
      <div className="project-setup-portal-buttons">
       <button type="button" ref={portalsButton} className="project-setup-portal-picker" data-ui-control="button" data-control-size="lg" data-control-variant="secondary" data-ui-shape="action"
-       aria-label="Portals" aria-expanded={showPortals} aria-controls="project-setup-portal-list" aria-describedby={selectedPortal?'project-setup-selected-portal':undefined} disabled={busy} onClick={()=>setShowPortals(!showPortals)}>
-       Portals
-       {selectedPortal&&<span id="project-setup-selected-portal">{selectedPortal.label}</span>}
+       aria-label={selectedPortal ? `${selectedPortal.label}, change portal` : undefined} aria-expanded={showPortals} aria-controls="project-setup-portal-list" disabled={busy} onClick={()=>setShowPortals(!showPortals)}>
+       <span>{selectedPortal?.label ?? 'Portals'}</span>
       </button>
       <button type="button" ref={newPortalButton} data-ui-control="button" data-control-size="lg" data-control-variant="secondary" data-ui-shape="action" aria-haspopup="dialog" disabled={busy} onClick={openNewPortal}>New Portal</button>
      </div>
@@ -142,7 +141,9 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
     </div> : <div className="project-setup-portal-choice"><label className="project-setup-row"><span>Portal</span><select aria-label="Portal" data-ui-shape="field" value={portal==='new'?'':portal} onChange={e=>{if(e.target.value==='new')openNewPortal();else setPortal(e.target.value);}} disabled={busy}>{portal==='new'&&<option value="" disabled>Select a Portal</option>}{portal!=='new'&&!selectedPortal&&<option value={portal} disabled>Portal unavailable — choose another</option>}{availableCategories.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}<option value="new">Create a Portal</option></select></label>
      <button type="button" ref={newPortalButton} className="project-setup-add-portal" aria-label="Create a Portal" aria-haspopup="dialog" disabled={busy} onClick={openNewPortal}><PlusIcon size={18} aria-hidden="true"/></button>
     </div>}
-    <label className="project-setup-description"><span>Note <span className="project-setup-optional">(optional)</span></span><textarea data-ui-shape="composer" value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Capture a thought…" rows={2} disabled={busy}/></label>
+    <label className="project-setup-description"><span>Note <span className="project-setup-optional">(optional)</span></span><textarea data-ui-shape="composer" value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Capture a thought…" rows={2} disabled={busy}/>
+     {mobileAuthoring&&<span className="project-setup-note-measure" aria-hidden="true">{summary}{summary.endsWith('\n')?'\u200b':null}</span>}
+    </label>
    </div>
    {error&&<p role="alert">{projectMessage(error)}</p>}
    {storageError&&<p role="alert">{projectMessage(storageError)}</p>}

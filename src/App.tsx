@@ -16,6 +16,7 @@ import { getProjectAspectRatio, getProjectDescription, getProjectMediaLabel } fr
 import type { Id, ProjectLocation, ProjectView } from './types/domain';
 import type { AuthIntent } from './types/auth';
 import type { ViewerRole } from './types/viewer';
+import type { PublishResult } from './types/publishing';
 import { useProjectResolution } from './features/projects/useProjectResolution';
 import { MobileProfileWorkspace } from './presentation/mobile/MobileProfileWorkspace';
 import { CollaborationPage } from './components/profile/CollaborationPage';
@@ -1070,6 +1071,24 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       if (!document.querySelector('[aria-modal="true"]')) mainContentRef.current?.focus({ preventScroll: true });
     });
   }
+  function showPublishConfirmation(result: PublishResult, title: string) {
+    setPublishConfirmation({
+      projectId: result.projectId,
+      message: result.mediaPersisted && !result.sessionOnly
+        ? `${title} published.${result.message ? ` ${result.message}` : ''}`
+        : `${title} added for this session only. Reloading will clear it.`,
+    });
+  }
+  function returnToPublishedProfile(result: PublishResult) {
+    if (auth.viewerProfileId) {
+      if (presentation === 'mobile' && result.projectId) nav.profile(auth.viewerProfileId, result.projectId);
+      else nav.profile(auth.viewerProfileId);
+    }
+  }
+  function completeStudioPublication(result: PublishResult, title: string) {
+    showPublishConfirmation(result, title);
+    returnToPublishedProfile(result);
+  }
   function closePostPublishIdea() {
     setPostPublishIdea(null);
     focusPublishedDestination();
@@ -1431,7 +1450,9 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         nav.to(target, false, viewTransition);
       } : undefined} /> : null;
   const mobileWallScrollKey = `mobile-profile-wall:${auth.user?.id ?? 'guest'}:${viewedProfile?.id}:${isSharedRoute}`;
-  const profilePage = viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} publishedProjectId={firstProjectPublisher && isFirstProjectPublish ? publishConfirmation?.projectId : undefined} onBack={closeUserProfile} mobilePortalsView={portalsPage} mobileWallScrollMemory={{
+  const revealPublishedProjectId = presentation === 'mobile' && isOwnerMode && route.kind === 'profile' && screenNavigationType === 'PUSH'
+    && typeof navigationState?.revealPublishedProjectId === 'string' ? navigationState.revealPublishedProjectId : undefined;
+  const profilePage = viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} publishedProjectId={firstProjectPublisher && isFirstProjectPublish ? publishConfirmation?.projectId : undefined} revealPublishedProjectId={revealPublishedProjectId} onBack={closeUserProfile} mobilePortalsView={portalsPage} mobileWallScrollMemory={{
     read: () => scrollPositionsRef.current.get(mobileWallScrollKey) ?? 0,
     save: top => { scrollPositionsRef.current.set(mobileWallScrollKey, top); }
   }} onMobileViewChange={(view) => {
@@ -1496,7 +1517,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         management.dismissFailure();
         setAttemptedIconName(null);
         setIconPickerCategoryId(null);
-      }} /> : isStudioPageOpen ? (auth.isAuthenticated && !auth.isInitializing && auth.phase !== 'authenticating' && auth.phase !== 'signing-out' ? <StudioPage onNewProject={presentation === 'mobile' ? requestMobilePublish : requestGlobalPublish} key={auth.user?.id} savedRoute={isSavedOpen} onBack={() => nav.back()} onOpenProject={openProjectById} /> : <LoadingState label="Opening Studio…" />) : isPortalSearchOpen ? <PublicPortalSearchPage key={auth.user?.id} onBack={() => nav.back()} /> : isSavedOpen ? <SavedPage key={auth.user?.id} onBack={() => nav.back()} onOpenProject={openProjectById} /> : isActivityOpen ? <ActivityPage key={auth.user?.id} onBack={() => nav.back()} /> : isInsightsOpen ? <InsightsPage key={auth.user?.id} onBack={() => nav.back()} /> : isPortalsOpen ? mobilePortalsWorkspace : isMessagesOpen ? <MessagesPage key={auth.viewerProfileId ?? auth.user?.id ?? 'guest'} onBack={() => nav.back()} initialRecipientId={route.kind === 'messages' ? route.recipientId ?? null : null} initialConversationId={route.kind === 'messages' ? route.conversationId ?? null : null} onConversationChange={(conversationId, replace) => nav.messages(conversationId ?? undefined, replace)} /> : isSearchOpen ? <SearchBrowsePage onBack={() => nav.back()} query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onReturnHome={() => nav.home()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
+      }} /> : isStudioPageOpen ? (auth.isAuthenticated && !auth.isInitializing && auth.phase !== 'authenticating' && auth.phase !== 'signing-out' ? <StudioPage onNewProject={presentation === 'mobile' ? requestMobilePublish : requestGlobalPublish} key={auth.user?.id} savedRoute={isSavedOpen} onBack={() => nav.back()} onOpenProject={openProjectById} onPublishedProject={completeStudioPublication} /> : <LoadingState label="Opening Studio…" />) : isPortalSearchOpen ? <PublicPortalSearchPage key={auth.user?.id} onBack={() => nav.back()} /> : isSavedOpen ? <SavedPage key={auth.user?.id} onBack={() => nav.back()} onOpenProject={openProjectById} /> : isActivityOpen ? <ActivityPage key={auth.user?.id} onBack={() => nav.back()} /> : isInsightsOpen ? <InsightsPage key={auth.user?.id} onBack={() => nav.back()} /> : isPortalsOpen ? mobilePortalsWorkspace : isMessagesOpen ? <MessagesPage key={auth.viewerProfileId ?? auth.user?.id ?? 'guest'} onBack={() => nav.back()} initialRecipientId={route.kind === 'messages' ? route.recipientId ?? null : null} initialConversationId={route.kind === 'messages' ? route.conversationId ?? null : null} onConversationChange={(conversationId, replace) => nav.messages(conversationId ?? undefined, replace)} /> : isSearchOpen ? <SearchBrowsePage onBack={() => nav.back()} query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onReturnHome={() => nav.home()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
           <ActivityCollectionPage key={`${auth.user?.id}:${viewedProfile.id}:${routeActivityKind}`} kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
         </div> : isCollaborationOpen && isProfileRouteReady && viewedProfile ? <CollaborationPage profile={viewedProfile} onBack={() => nav.closeCollaboration(viewedProfile.id, isSharedRoute)} /> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage} projectSelected={activeProjectId !== null}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed startupPending={homeStartupPending && route.kind === 'home'} startupAttempt={homeStartupAttempt} onStartupReady={onHomeStartupReady} emptyAction={{ label: auth.isAuthenticated ? 'Publish a project' : 'Create your catalogue', onClick: requestGlobalPublish }} emptySecondaryAction={{ label: 'Explore the world', onClick: openPortalink }} isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onExploreWorld={openPortalink} onSearchUsers={() => nav.search('')} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true
@@ -1619,7 +1640,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           window.location.assign(`/cite/${encodeURIComponent(citeIntent)}?cite=1`);
           return;
         }
-        const completedIdea = projectSetupMetadata && !firstProjectPublisher && !publishResumeDraft
+        const completedIdea = presentation === 'web' && projectSetupMetadata && !firstProjectPublisher && !publishResumeDraft
           && result.projectId && result.mediaPersisted && !result.sessionOnly
           && auth.isAuthenticated && publishAccountId && publishAccountId === auth.user?.id && auth.viewerProfileId
           && isOwnerMode && viewedProfile?.id === auth.viewerProfileId
@@ -1634,19 +1655,12 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         if (completedIdea) {
           setPostPublishIdea(completedIdea);
           setPublishConfirmation(null);
-        } else {
-          setPublishConfirmation({
-            projectId: result.projectId,
-            message: result.mediaPersisted && !result.sessionOnly
-              ? `${title} published.${result.message ? ` ${result.message}` : ''}`
-              : `${title} added for this session only. Reloading will clear it.`,
-          });
-        }
+        } else showPublishConfirmation(result, title);
         // Mobile finishes on the complete profile, where identity and the refreshed
         // catalogue stay together. WEB retains its existing project-reader return.
         if ((presentation === 'mobile' || firstProjectPublisher) && auth.viewerProfileId) {
           if (firstProjectPublisher && isFirstProjectPublish && result.mediaPersisted && !result.sessionOnly && !viewedProfile?.isPrivate) rememberLivePortfolio(auth.viewerProfileId, result.projectId);
-          nav.profile(auth.viewerProfileId);
+          returnToPublishedProfile(result);
           return;
         }
         // The new work opens where it landed, through the normal viewer.
@@ -1656,7 +1670,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         if (!completedIdea) requestAnimationFrame(() => mainContentRef.current?.focus({ preventScroll: true }));
       }} /></DeferredDialog>
       <PublishConfirmation message={publishConfirmation?.message ?? null} />
-      {postPublishIdea && auth.isAuthenticated && postPublishIdea.accountId === auth.user?.id && postPublishIdea.profileId === auth.viewerProfileId && <DeferredSurface active onClose={closePostPublishIdea}><PostPublishIdeaDialog onClose={closePostPublishIdea} onViewIdea={() => openPostPublishedIdea('idea')} onOpenCatalogue={() => openPostPublishedIdea('catalogue')} /></DeferredSurface>}
+      {presentation === 'web' && postPublishIdea && auth.isAuthenticated && postPublishIdea.accountId === auth.user?.id && postPublishIdea.profileId === auth.viewerProfileId && <DeferredSurface active onClose={closePostPublishIdea}><PostPublishIdeaDialog onClose={closePostPublishIdea} onViewIdea={() => openPostPublishedIdea('idea')} onOpenCatalogue={() => openPostPublishedIdea('catalogue')} /></DeferredSurface>}
 
       {/* Onboarding opens only when a creator surface needs a profile. */}
       {isOnboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <DeferredSurface active onClose={() => { setIsOnboardingOpen(false); deferredIntentRef.current = null; }}><FirstLoginWelcome key={auth.user?.id} accountId={auth.user?.id ?? ''}><ProfileOnboardingDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
@@ -1674,13 +1688,14 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           fulfilIntent(deferred);
           return;
         }
-        if (presentation === 'mobile' && !mobileRegistration) nav.home(true);
-        else openProfile(profileId);
+        if (presentation !== 'mobile' || (mobileRegistration && deferred?.kind === 'my-profile')) openProfile(profileId);
+        else nav.home(true);
       }} /></FirstLoginWelcome></DeferredSurface>}
       {optionalSetupAccount === auth.user?.id && auth.viewerProfileId && !isOnboardingOpen && <DeferredSurface active onClose={() => setOptionalSetupAccount(null)}><OptionalAccountSetup
         theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor}
         highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency}
-        onDone={() => setOptionalSetupAccount(null)} onFirstProject={() => { setOptionalSetupAccount(null); requestGlobalPublish(); }}
+        onDone={() => setOptionalSetupAccount(null)}
+        onFirstProject={presentation === 'web' ? () => { setOptionalSetupAccount(null); requestGlobalPublish(); } : undefined}
       /></DeferredSurface>}
 
       </MobileBackProvider>

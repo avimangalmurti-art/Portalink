@@ -32,7 +32,6 @@ function authService(client, enabled = true) {
   vm.runInNewContext(compile('src/services/supabase/authService.ts'), { exports, Response, require(name) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
-    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
 
     if (name === './client') return { accountDeletionEnabled: enabled, requireSupabase: () => client, clearDeletedAccountStorage: () => client.clearStorage?.() };

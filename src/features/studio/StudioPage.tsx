@@ -15,15 +15,16 @@ import { LoadingState, ErrorState } from '../../components/ui/StateViews';
 import { PublishProjectDialog } from '../publishing/PublishProjectDialog';
 import { discardStudioDraft } from './discardStudioDraft';
 import type { ProjectLocation } from '../../types/domain';
+import type { PublishResult } from '../../types/publishing';
 import { StudioPage as BookmarksList, type ActivityRefreshControl } from './StudioBookmarksList';
 import { StudioDraftsList } from './StudioDraftsList';
 import { StudioWorkbenchHeader } from './StudioWorkbenchView';
 import { newestDraft, type DraftResume } from './workbenchModel';
 import { useWorkbench } from './useWorkbench';
 import './studio-workbench.css';
-type Props={onBack:()=>void;onOpenProject:(id:string,location?:ProjectLocation)=>void;savedRoute?:boolean;onNewProject?:()=>void};
+type Props={onBack:()=>void;onOpenProject:(id:string,location?:ProjectLocation)=>void;savedRoute?:boolean;onNewProject?:()=>void;onPublishedProject?:(result:PublishResult,title:string)=>void};
 const collectionIcons: Record<string, typeof ChartNoAxesColumnIcon> = { overview: ChartNoAxesColumnIcon, drafts: FilePenLineIcon, bookmarks: BookmarkIcon, references: BookOpenIcon, cited: QuoteIcon, activity: BellIcon };
-export function StudioPage({onBack,onOpenProject,onNewProject,savedRoute=false}:Props){
+export function StudioPage({onBack,onOpenProject,onNewProject,onPublishedProject,savedRoute=false}:Props){
  const mobile=usePresentation()==='mobile';
  const auth=useAuth(),services=useServices(),navigate=useNavigate(),[params,setParams]=useSearchParams();
  const requestedCollection=params.get('collection')??(savedRoute?'bookmarks':params.get('category'));
@@ -48,6 +49,7 @@ export function StudioPage({onBack,onOpenProject,onNewProject,savedRoute=false}:
  const collectionHeader=['published','activity','bookmarks','references'].includes(collection??'')||(collection==='drafts'&&!state.loading&&!state.error&&!state.data?.draftsUnavailable);
  useMobileScreenActions(mobile||collectionHeader?null:contextActions('studio',{signedIn:auth.isAuthenticated,owner:true},{handlers:{newProject:onNewProject,drafts,bookmarks,reads}}));
  const closeDraft=()=>{setResume(null);state.retry();};
+ const finishMobileDraft=(result:PublishResult,title:string)=>{closeDraft();onPublishedProject?.(result,title);};
  const content=insightsOverview?<InsightsPage studio onBack={onBack}/>:collection==='cited'||collection==='references'?<StudioCitations mode={collection}/>:collection==='published'||collection==='activity'?<BookmarksList onBack={home} onOpenProject={onOpenProject} onNewProject={onNewProject} onActivityRefreshControl={mobile&&collection==='activity'?registerActivityRefresh:undefined}/>:collection==='bookmarks'?<BookmarksList onBack={home} savedRoute onOpenProject={onOpenProject} onNewProject={onNewProject}/>:state.loading?<section className="mobile-studio studio-workbench">{!mobile&&<StudioWorkbenchHeader onBookmarks={bookmarks} onReads={reads}/>}<div className="studio-workbench-scroll"><LoadingState kind={collection==='drafts'?'studio':'overview'} label="Opening your workbench…"/></div></section>:state.error?<section className="mobile-studio studio-workbench">{!mobile&&<StudioWorkbenchHeader onBookmarks={bookmarks} onReads={reads}/>}<div className="studio-workbench-scroll"><ErrorState title="Studio could not load" description={state.error} onRetry={state.retry}/></div></section>:collection==='drafts'&&state.data?.draftsUnavailable?<ErrorState title="Drafts could not load" onRetry={state.retry}/>:collection==='drafts'?<StudioDraftsList key="drafts" drafts={[...(state.data?.drafts??[])].sort((a,b)=>(b.updatedAt??b.createdAt).localeCompare(a.updatedAt??a.createdAt))} onBack={home} onResume={setResume} onNew={onNewProject} onBookmarks={bookmarks} onReads={reads} onDiscard={async ids=>{for(const id of ids){if(!auth.user?.id||!auth.viewerProfileId)throw new Error('Sign in to discard drafts.');await discardStudioDraft(services,auth.user.id,auth.viewerProfileId,id);}state.retry();}}/>:<StudioOverview profile={profile!} draft={draft} draftsUnavailable={state.data?.draftsUnavailable} onContinue={setResume} onNew={()=>onNewProject?.()}/>;
  return <div className="studio-citation-shell"><nav className="studio-citation-pills" aria-label="Studio collections">{([...(mobile?['activity','overview']:[]),'drafts',...(!mobile?['published']:[]),'bookmarks','references','cited',...(!mobile?['activity']:[])]).map(pill=>{
  const selected=(collection??(mobile?'overview':null))===pill;
@@ -61,5 +63,5 @@ export function StudioPage({onBack,onOpenProject,onNewProject,savedRoute=false}:
   if(savedRoute)navigate('/studio?'+new URLSearchParams({collection:pill,category:pill}));
   else setParams({collection:pill,category:pill});
  }}>{mobile?<><InterfaceIcon icon={collectionIcons[pill]} size="sm" keepColor /><span className="studio-pill-label" aria-hidden="true"><span>{label}</span></span></>:label}</button>;
- })}</nav><ScreenBack action={()=>insightsOverview?onBack():collection?home():onBack()}>{null}</ScreenBack>{content}{resume&&auth.viewerProfileId?<PublishProjectDialog key={resume.id} resumeDraft={resume} isOpen profileId={auth.viewerProfileId} categoryId={resume.categoryId} categoryLabel={profile?.categories.find(c=>c.id===resume.categoryId)?.label??'Work'} onClose={closeDraft} onPublished={closeDraft}/>:null}</div>;
+ })}</nav><ScreenBack action={()=>insightsOverview?onBack():collection?home():onBack()}>{null}</ScreenBack>{content}{resume&&auth.viewerProfileId?<PublishProjectDialog key={resume.id} resumeDraft={resume} isOpen profileId={auth.viewerProfileId} categoryId={resume.categoryId} categoryLabel={profile?.categories.find(c=>c.id===resume.categoryId)?.label??'Work'} onClose={closeDraft} onPublished={mobile?finishMobileDraft:closeDraft}/>:null}</div>;
 }

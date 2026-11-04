@@ -43,3 +43,11 @@ test('production CSS optimization retains both important backdrop overrides for 
  const osPreference=rule=>rule.parent.type==='atrule'&&rule.parent.name==='media'&&/prefers-reduced-transparency\s*:\s*reduce/.test(rule.parent.params);
  assertOpaqueBackdropSurvives(optimizeOnboardingRule(osPreference),osPreference);
 });
+
+test('production CSS keeps the standard blur on the mobile optional setup backdrop',()=>{
+ const source=readFileSync(new URL('../src/components/auth/optional-account-setup.css',import.meta.url));
+ const result=transform({filename:'optional-account-setup.css',code:source,minify:true,targets});
+ const scrim=postcss.parse(result.code.toString()).nodes.find(rule=>rule.selector?.includes('.optional-setup-backdrop') && rule.nodes?.some(node=>node.prop==='backdrop-filter'));
+ assert.match(scrim?.selector ?? '',/\[data-presentation=mobile\]/);
+ assert.ok(scrim.nodes.some(node=>node.prop==='backdrop-filter' && node.value.startsWith('blur(')));
+});

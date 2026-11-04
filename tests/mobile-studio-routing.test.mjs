@@ -37,6 +37,7 @@ function renderRoute(presentation, kind, overrides = {}) {
     routeStateView: null, isControlCenterOpen: false, iconPickerCategoryId: null,
     routeActivityKind: null, viewedProfileId: null, activeCategoryId: null, activeDestination: 'Today',
     nav: { back: () => calls.push('back') }, openProjectById: (...args) => calls.push(['project', ...args]), requestGlobalPublish: () => calls.push('create'), requestMobilePublish: () => calls.push('create'),
+    completeStudioPublication: (...args) => calls.push(['published', ...args]),
     ...overrides,
   });
   for (const name of ['isCollaborationOpen', 'isPortalsOpen', 'isPortalSearchOpen', 'isInsightsOpen', 'isStudioOpen', 'isSavedOpen', 'isMobileStudioOpen', 'isStudioPageOpen', 'inDesignFeature', 'isActivityOpen', 'personalScreen', 'isProtectedRoute', 'isRouteBlocked', 'screenTransitionKey', 'screenMainClassName']) {
@@ -58,7 +59,9 @@ test('mobile Studio and saved alias share one account-scoped workspace with exis
     assert.equal(result.screen.props.onNewProject, result.context.requestMobilePublish);
     result.screen.props.onNewProject();
     result.screen.props.onOpenProject('project-a', { profileId: 'owner', categoryId: 'category-a' });
-    assert.deepEqual(result.calls, ['back', 'create', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }]]);
+    const published = { projectId: 'new-project', mediaPersisted: true, sessionOnly: false };
+    result.screen.props.onPublishedProject(published, 'New work');
+    assert.deepEqual(result.calls, ['back', 'create', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }], ['published', published, 'New work']]);
   }
   assert.equal(studio.screen.props.savedRoute, false);
   assert.equal(saved.screen.props.savedRoute, true);

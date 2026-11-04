@@ -28,7 +28,7 @@ export type ProfileFieldProps = {
    * carried by an asterisk or by colour alone.
    */
   required?: boolean;
-  requiredIndicator?: 'text' | 'asterisk';
+  requiredIndicator?: 'text' | 'asterisk' | 'parenthesized';
   workspace?: boolean;
   clearable?: boolean;
   leadingIcon?: React.ReactNode;
@@ -81,7 +81,10 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
       <label htmlFor={id} className="flex items-baseline gap-1.5 text-[14px] font-medium text-[var(--text-primary)]">
         {label}
         {optional && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">{optionalParentheses ? '(Optional)' : 'Optional'}</span>}
-        {required && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">{requiredIndicator === 'asterisk' ? <><span aria-hidden="true" className="text-[var(--accent-text)]">*</span><span className="sr-only">Required</span></> : 'Required'}</span>}
+        {required && <span className={`text-[12px] font-medium ${requiredIndicator === 'parenthesized' ? 'text-[var(--status-danger)]' : 'text-[var(--text-tertiary)]'}`}>
+          {requiredIndicator === 'asterisk' ? <><span aria-hidden="true" className="text-[var(--accent-text)]">*</span><span className="sr-only">Required</span></>
+            : requiredIndicator === 'parenthesized' ? '(Required)' : 'Required'}
+        </span>}
       </label>
       <div className={workspace && multiline ? "details-editor" : "contents"}>
       {multiline && formatting && <TextFormattingToolbar inputRef={textareaRef} value={value} onChange={onChange} disabled={disabled} maxLength={maxLength} variant={workspace ? "workspace" : "panel"} />}

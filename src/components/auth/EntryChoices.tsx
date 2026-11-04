@@ -3,12 +3,11 @@ import { useServices } from '../../contexts/ServicesContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { readSharedReturnPath } from '../../features/auth/registration';
 import './oneScreenEntry.css';
-import { EntryAgreements, EntryLegal } from './EntryAgreements';
 import { usePresentation, type Presentation } from '../../presentation/usePresentation';
 
-export function EntryChoices({ ready = true, onEmail, onSignIn, children, returnPath, onDisagree, presentation, hideProviders = true }: {
+export function EntryChoices({ ready = true, onEmail, onSignIn, children, returnPath, presentation, hideProviders = true }: {
   ready?: boolean; onEmail?: () => void; onSignIn: () => void;
-  children?: React.ReactNode; returnPath?: string; onDisagree?: () => void; presentation?: Presentation; hideProviders?: boolean;
+  children?: React.ReactNode; returnPath?: string; presentation?: Presentation; hideProviders?: boolean;
 }) {
   const contextualPresentation = usePresentation();
   // The opening scene precedes the app host and already knows its presentation.
@@ -39,7 +38,7 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, children, return
     } finally { starting.current = false; setBusy(false); }
   }
   const emailButton = onEmail && <button className="entry-email" type="button" disabled={!ready || busy} onClick={onEmail}>Continue with email</button>;
-  return <EntryAgreements onDisagree={onDisagree ?? (() => undefined)}>{agreements => <div className="one-screen-entry">
+  return <div className="one-screen-entry">
     {mobile && emailButton}
     {!hideProviders && <div className="entry-providers" aria-label="Sign-in options">
       {(['google', 'apple'] as const).map(provider => {
@@ -47,7 +46,7 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, children, return
         const available = provider === 'google' && Boolean(providers?.google);
         return <div className="entry-provider" key={provider}>
           <button type="button" disabled={!ready || busy || !available}
-            onClick={() => void agreements.request().then(agreed => { if (agreed) return social(provider); })}
+            onClick={() => { void social(provider); }}
             aria-describedby={!available ? `entry-${provider}-availability` : undefined}>
             Continue with {provider === 'google' ? 'Google' : 'Apple'}
           </button>
@@ -63,6 +62,5 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, children, return
     <div className="entry-links">
       <button type="button" disabled={!ready || busy} onClick={onSignIn}>Already have an account? Sign in</button>
     </div>
-    <EntryLegal />
-  </div>}</EntryAgreements>;
+  </div>;
 }
