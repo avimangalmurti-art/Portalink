@@ -1,3 +1,42 @@
+## 2026-11-03 - Mobile Studio and Mission release authorized
+
+The user requested publication of the four pending mobile refinements from the owned `codex/socal-release` branch on live577. The Studio dock uses Shapes, the Mission header matches its sheet, and Insights opens higher with the graph and detail sections in separate grey cards. Three production paths and two documentation paths were reviewed.
+
+All 56 focused checks, typecheck, full lint with zero errors and 111 existing warnings, and the configured client and worker build passed. Both entry graphs passed their configuration guard. The prior presentation boundary test failure in untouched desktop CSS is documented in the Mission handoff. Isolated mobile and desktop browser checks cover the interface changes. The source review path is draft PR148. Archive and production verification receipts follow separately.
+
+## 2026-11-03 - Mobile Studio Insights grey cards
+
+Treated each outlined Insights section as a separate pill. Mobile Studio Insights now uses the secondary panel grey for the existing graph card and the cards for Top projects, Top sources when present, and Your audience. The graph card groups the date and metric row, total, chart, and average. The page itself uses the existing canvas, leaving visible space between cards. The CSS change in `src/features/library/insights.css` uses the existing 32px corners and accessibility outline.
+
+Continued the owned `codex/socal-release` at `b0d7573c278bd3e5bbb0eec810e21374f15265a1` (live577). The prior pending mobile edits and release receipt docs were preserved. All 34 focused Insights and header tests passed. Isolated Chrome at 420 × 912 confirmed the four separate fills in light and dark, with an outline under High Contrast and a solid fill under Reduce Translucency. The filter row and 194px chart matched the earlier mobile spacing. The desktop preview retained its 224px chart and existing card styling. Physical-phone and production behavior are unverified. This change is unpublished. Safe writer handoff.
+
+## 2026-11-03 - Mobile Studio Insights initial height
+
+Moved the date and metric row and graph 32 CSS pixels up at the top of the mobile Studio Insights overview. The gap from the bottom of the Studio buttons to the filter row is now 36px, based on the annotated phone reference. The Studio Insights rail uses 14px bottom padding and its filter surface uses 6px top padding. The rule also covers the filter while the initial reads query loads. The safe area, existing pull-to-refresh feedback, translucent rail and 194px chart are retained.
+
+Continued the owned `codex/socal-release` at `b0d7573c278bd3e5bbb0eec810e21374f15265a1` (live577). Pending Studio icon, Mission header and release receipt edits were preserved. 38 focused Insights, Studio navigation and header tests passed. Isolated Chrome at 420 × 912 measured the row at 156px versus 188px before, with the same shift for the chart. At 390 × 844 the initial date control and loaded row shared the same top, and the selected metric, scrolling and header blur were exercised. Desktop geometry at 1280 × 900 matched the baseline. Physical-phone and production behavior are unverified. Diff check passed. This change is local and ready for deployment. Safe writer handoff.
+
+## 2026-11-03 - Mobile Mission sheet header
+
+Fixed the dark stripe across the Mission heading. The reading sheet uses the raised surface color, and its header now uses that color for the existing blur tint and solid appearance fallbacks. The only production edit for this request is in `src/presentation/mobile/mobile.css`. The selector targets the outer mobile presentation and the sheet surface, preserving the desktop Bio, centered project popup, and full-screen editor.
+
+Continued the owned `codex/socal-release` at `b0d7573c278bd3e5bbb0eec810e21374f15265a1` (live577). The pending Studio dock icon and previous release receipts were preserved. In isolated Chrome at 420 × 912, dark and light header tint matched the sheet, scrolled content activated underlap, and Reduce Translucency and High Contrast used a matching solid fill. Edit opened the full-screen editor. At 1280 × 900 desktop Bio kept its existing material. No physical-phone test. The four focused files reported 37/38 passing. The presentation CSS scope test rejects the existing `@layer` in untouched WEB CSS, already present in live577 at line 41. Diff check passed. This change is unpublished. Safe writer handoff.
+
+## 2026-11-03 - Mobile Studio dock icon
+
+The fourth mobile dock destination now uses the existing Lucide Shapes icon (triangle, rounded square, circle). The screenshot identifies the mobile dock, so the edit is limited to `src/presentation/mobile/MobileNavigation.tsx`. The Studio label, route and active state remain in use. Desktop renders its own Studio button through the existing Sidebar branch.
+
+Continued the owned release branch `codex/socal-release` at `b0d7573c278bd3e5bbb0eec810e21374f15265a1` (live577). Five existing mobile navigation checks passed. The isolated Chrome preview at 420 × 912 showed the correct glyph in the fourth slot, with Studio selected after clicking. Dark appearance also rendered the new glyph. Physical phone verification is pending. This local source change is unpublished. The two prior live577 receipt docs were preserved. Safe writer handoff.
+
+## 2026-11-03 - Slider and mobile Insights refinements published 577
+
+Published https://portalinknetworks.com from `b0d7573c278bd3e5bbb0eec810e21374f15265a1` on `codex/socal-release`. Shorter slider marks and gentle snapping are live on mobile and desktop. The mobile Insights controls share one row and the header uses lighter glass. Graph size and solid accessibility fallbacks are unchanged. GitHub draft PR148 matches the published source; main was not merged.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_41896842dd4c8191ae76af574f20e826`, deployment `appgdep_6aea9b269558819191619db7d173251c` succeeded 2026-11-04T02:40:50.503199+00:00. Public audience, custom domain and runtime revision 2 remain unchanged. The worker, four D1 SQL payloads and 423 public assets are byte identical to live576. No database migration applied; `supabase/pending/retire_reposts.sql` remains unapplied and unpackaged.
+
+138/138 focused tests, typecheck, lint (0 errors; 111 existing warnings), configured build and both entry guards passed. Archive audit matched 642 payloads; production checks matched all four entry routes and 209 JS/CSS assets. Physical-phone and authenticated production behavior are unverified. Receipts: `logs/density-insights-release.json`, plus source, build, archive and live checks under the same prefix. Only these two receipt docs remain dirty. Safe writer handoff.
+
+
 ## 2026-11-03 - Density slider and mobile Insights release authorized
 
 User requested deployment of three pending edits from owned `codex/socal-release` on live576: shorter matching slider marks and gentle snapping on WEB/MOBILE, a single row for the MOBILE Insights date and metric controls, and a lighter translucent MOBILE Insights header. Graph size and existing solid accessibility fallbacks are retained. Exact scope: seven production paths, two existing test paths, and two documentation paths.

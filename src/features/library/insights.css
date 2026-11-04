@@ -123,11 +123,13 @@
 .high-contrast .creator-insights .insights-bar:not([data-zero='true']) { border: 1px solid var(--text-primary); }
 
 [data-presentation='mobile'] .creator-insights { padding: 16px 18px calc(32px + env(safe-area-inset-bottom, 0px)); }
-/* Studio Insights shares the collection header's canvas in both themes. */
+/* The Studio canvas continues behind the individual Insights cards. */
 [data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page,
-[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page .creator-insights,
-[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page .insights-data-surface {
+[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page .creator-insights {
   background: var(--surface-canvas);
+}
+[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page .insights-data-surface {
+  background: var(--background-secondary);
 }
 [data-presentation='mobile'] .creator-insights .insights-period :is(button, select),
 [data-presentation='mobile'] .creator-insights .insights-metrics button { min-height: 44px; }
@@ -163,6 +165,9 @@
   }
 }
 [data-presentation='mobile'] .creator-insights .insights-data-surface { padding: 22px 18px; }
+[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page .insights-data-surface:has(> .insights-period) {
+  padding-top: 6px;
+}
 [data-presentation='mobile'] .creator-insights .insights-ranked-surface { padding: 6px 16px; }
 [data-presentation='mobile'] .creator-insights .insights-section-title { font-size: 21px; }
 [data-presentation='mobile'] .creator-insights .insights-eyebrow { font-size: 18px; }

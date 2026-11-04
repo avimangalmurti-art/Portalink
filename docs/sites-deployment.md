@@ -1,3 +1,18 @@
+## 2026-11-03 - Mobile Studio and Mission release authorized
+
+The user requested publication of the four pending mobile refinements from the owned `codex/socal-release` branch on live577. The Studio dock uses Shapes, the Mission header matches its sheet, and Insights opens higher with the graph and detail sections in separate grey cards. Three production paths and two documentation paths were reviewed.
+
+All 56 focused checks, typecheck, full lint with zero errors and 111 existing warnings, and the configured client and worker build passed. Both entry graphs passed their configuration guard. The prior presentation boundary test failure in untouched desktop CSS is documented in the Mission handoff. Isolated mobile and desktop browser checks cover the interface changes. The source review path is draft PR148. Archive and production verification receipts follow separately.
+
+## 2026-11-03 - Slider and mobile Insights refinements published 577
+
+Published https://portalinknetworks.com from `b0d7573c278bd3e5bbb0eec810e21374f15265a1` on `codex/socal-release`. Shorter slider marks and gentle snapping are live on mobile and desktop. The mobile Insights controls share one row and the header uses lighter glass. Graph size and solid accessibility fallbacks are unchanged. GitHub draft PR148 matches the published source; main was not merged.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_41896842dd4c8191ae76af574f20e826`, deployment `appgdep_6aea9b269558819191619db7d173251c` succeeded 2026-11-04T02:40:50.503199+00:00. Public audience, custom domain and runtime revision 2 remain unchanged. The worker, four D1 SQL payloads and 423 public assets are byte identical to live576. No database migration applied; `supabase/pending/retire_reposts.sql` remains unapplied and unpackaged.
+
+138/138 focused tests, typecheck, lint (0 errors; 111 existing warnings), configured build and both entry guards passed. Archive audit matched 642 payloads; production checks matched all four entry routes and 209 JS/CSS assets. Physical-phone and authenticated production behavior are unverified. Receipts: `logs/density-insights-release.json`, plus source, build, archive and live checks under the same prefix. Only these two receipt docs remain dirty. Safe writer handoff.
+
+
 ## 2026-11-03 - Density slider and mobile Insights release authorized
 
 User requested deployment of three pending edits from owned `codex/socal-release` on live576: shorter matching slider marks and gentle snapping on WEB/MOBILE, a single row for the MOBILE Insights date and metric controls, and a lighter translucent MOBILE Insights header. Graph size and existing solid accessibility fallbacks are retained. Exact scope: seven production paths, two existing test paths, and two documentation paths.

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CircleUserRoundIcon, SearchIcon, MessageCircleIcon, WarehouseIcon } from 'lucide-react';
+import { CircleUserRoundIcon, SearchIcon, MessageCircleIcon, ShapesIcon } from 'lucide-react';
 import { PortalRingIcon } from '../../components/PortalRingIcon';
 import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
@@ -24,7 +24,7 @@ export function MobileNavigation({ onMessages, onProfile, profileHref, isProfile
     { label: 'Explore', icon: SearchIcon, href: buildPath('home'), active: pathname === buildPath('home') },
     { label: 'Messages', icon: MessageCircleIcon, action: () => onMessages(true), active: pathname === buildPath('messages') },
     { label: 'Portal search', icon: PortalRingIcon, href: buildPath('portalSearch'), active: pathname === buildPath('portalSearch') },
-    { label: 'Studio', icon: WarehouseIcon, href: buildPath('studio'), active: pathname === buildPath('studio') || pathname === buildPath('saved') },
+    { label: 'Studio', icon: ShapesIcon, href: buildPath('studio'), active: pathname === buildPath('studio') || pathname === buildPath('saved') },
     { label: 'Profile', icon: CircleUserRoundIcon, href: profileHref, action: onProfile, active: isProfileActive },
   ];
   return <div className="mobile-navigation-layer" data-mobile-navigation-layer=""><div ref={dockRef} className="mobile-floating-navigation"><nav className="mobile-navigation-quick-links" aria-label="Quick navigation"><div className="mobile-navigation-dock">{destinations.map(item => <Destination key={item.label} item={item}/>)}</div></nav></div></div>;
