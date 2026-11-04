@@ -7,10 +7,19 @@
   <style>
     html, body { height: 100%; margin: 0; }
     body { display: flex; align-items: center; justify-content: center; font: 16px -apple-system, system-ui, sans-serif; color: #111; background: #fff; text-align: center; padding: 24px; box-sizing: border-box; }
+    button { margin-top: 16px; font: inherit; padding: 12px 24px; min-height: 44px; border-radius: 999px; border: 1px solid currentColor; background: transparent; color: inherit; }
     @media (prefers-color-scheme: dark) { body { color: #f5f5f5; background: #000; } }
   </style>
 </head>
 <body>
-  <p>Portalink needs an internet connection. Reconnect and reopen the app.</p>
+  <main>
+    <p>Portalink needs an internet connection.</p>
+    <button type="button" id="retry">Try again</button>
+  </main>
+  <script>
+    document.getElementById('retry').addEventListener('click', function () {
+      location.href = 'https://portalinknetworksinc.avimangalmurti566055.chatgpt.site/';
+    });
+  </script>
 </body>
 </html>

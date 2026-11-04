@@ -13,6 +13,8 @@ const config: CapacitorConfig = {
   server: {
     url: devServerUrl || PUBLIC_ORIGIN,
     cleartext: devServerUrl?.startsWith('http://') ?? false,
+    // Shown from the bundled webDir when the remote page fails to load (e.g. offline launch).
+    errorPath: 'index.html',
   },
   ios: {
     contentInset: 'never',
