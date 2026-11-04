@@ -40,8 +40,8 @@ jobs:
             echo "Source: $sha on main" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --state open --json number,headRefOid \
-            --jq ".[] | select(.headRefOid == \"$sha\") | .number" | head -n1)
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" \
+            --jq ".[] | select(.state == \"open\" and .base.ref == \"main\" and .head.sha == \"$sha\") | .number" | head -n1)
           if [ -n "$pr" ]; then
             echo "Source: $sha, head of open PR #$pr against main" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
