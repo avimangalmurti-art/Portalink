@@ -1,3 +1,9 @@
+## 2026-11-04 - VennCo Team roster published 587
+
+Published [Portalink](https://portalinknetworks.com) from `6e45b60bb509ec548c3bbad1265b0b78e797ad91`. Draft [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points at the deployed commit. The public Team roster shows aviwashere and VennCo.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_9c2992bccea48191984df37dc98a30f9` and deployment `appgdep_6aeb9908f83081919c37ec14321d4e6a` succeeded at 2026-11-04T20:44:04.444601+00:00. The 639-file archive kept the worker, four D1 SQL payloads and 419 retained public assets byte for byte, removed four retired portraits and added the supplied JPEG. The custom domain matched four entries and 209 JS/CSS assets, and Team loaded with both portraits at mobile and desktop widths. No migration was applied.
+
 ## 2026-11-04 - Messages, Home and mobile density published 585
 
 Published [Portalink](https://portalinknetworks.com) from `3229383e3a49951f3d83cda361b2699c5edcbe7a`. The release includes the recent Messages preview, reaction, long-press and composer changes, the mobile Home cover loading indicator and the four-project mobile default for Explore and Profile. Draft [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points to the release commit.

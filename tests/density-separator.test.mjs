@@ -25,14 +25,14 @@ test('row slider coalesces previews and commits only the final value on release'
  slider.props.onBlur();assert.deepEqual(commits,[10],'Blur must not save twice');
 });
 
-function touchSlider(presentation='mobile',columns=2,direction='ltr') {
+function touchSlider(presentation='mobile',columns=2,direction='ltr',maxColumns) {
  const frames=new Map(),previews=[],commits=[];let next=0;
  const {DensitySeparator}=sourceModule('src/components/ui/DensitySeparator.tsx',{
   react:{...React,useRef:current=>({current}),useEffect(){},useLayoutEffect(){},startTransition:fn=>fn()},
   '../../utils/projectGridDensity':gridDensity,
   '../../presentation/usePresentation':{usePresentation:()=>presentation},'./density-separator.css':{},
  },{getComputedStyle:()=>({direction}),requestAnimationFrame:fn=>{frames.set(++next,fn);return next;},cancelAnimationFrame:id=>frames.delete(id)});
- const tree=DensitySeparator({columns,label:'Profile content per row',onPreview:value=>previews.push(value),onChange:value=>commits.push(value)}),slider=rangeOf(tree);
+ const tree=DensitySeparator({columns,maxColumns,label:'Profile content per row',onPreview:value=>previews.push(value),onChange:value=>commits.push(value)}),slider=rangeOf(tree);
  const styles=new Map(),input={value:String(columns),style:{setProperty(key,value){styles.set(key,value);}}};slider.ref.current=input;
  const event=(x=100,y=100)=>({pointerId:1,pointerType:presentation==='mobile'?'touch':'mouse',clientX:x,clientY:y,currentTarget:input,stopPropagation(){},preventDefault(){assert.fail('Native scrolling must not be prevented');},setPointerCapture(){assert.fail('Native scrolling must not be captured');}});
  return {tree,slider,input,styles,frames,previews,commits,start:()=>slider.props.onPointerDown(event()),move:(x,y)=>slider.props.onPointerMove(event(x,y)),
@@ -259,6 +259,30 @@ test('tick marks are a separate noninteractive decoration and retain the direct 
   assert.deepEqual(ticks.map(tick=>tick.props.style['--density-tick-position']),Array.from({length:13},(_,index)=>index/12));
   for(const tick of [rail,...ticks]){assert.equal(tick.type,'span');assert.equal(tick.props.tabIndex,undefined);assert.equal(tick.props.onClick,undefined);assert.equal(tick.props.onPointerDown,undefined);}
  }
+});
+
+test('a custom five-column range keeps the tick, hit area, preview and keyboard bounds in sync',()=>{
+ const h=touchSlider('mobile',3,'ltr',5);
+ assert.equal(h.slider.props.min,1);
+ assert.equal(h.slider.props.max,5);
+ assert.equal(h.slider.props.style['--density-position'],.5);
+ const ticks=React.Children.toArray(React.Children.toArray(h.tree.props.children)[1].props.children);
+ assert.deepEqual(ticks.map(tick=>tick.props['data-density-tick']),[1,2,3,4,5]);
+ assert.deepEqual(ticks.map(tick=>tick.props.style['--density-tick-position']),[0,.25,.5,.75,1]);
+
+ h.start();h.move(120,101);h.change(5.6);h.flush();
+ assert.equal(h.input.value,'5');
+ assert.equal(Number(h.styles.get('--density-position')),1);
+ assert.deepEqual(h.previews,[5]);
+ h.end();
+ assert.deepEqual(h.commits,[5]);
+ h.keyDown('ArrowRight');h.flush();h.keyUp();
+ assert.equal(h.input.value,'5');
+ assert.deepEqual(h.commits,[5]);
+ h.keyDown('ArrowLeft');h.flush();h.keyUp();
+ assert.equal(h.input.value,'4');
+ assert.deepEqual(h.previews,[5,4]);
+ assert.deepEqual(h.commits,[5,4]);
 });
 
 test('presentation changes cancel an unpainted range preview before RAF and ignore its later release at equal densities',()=>{

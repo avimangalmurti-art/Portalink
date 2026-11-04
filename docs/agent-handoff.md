@@ -1,8 +1,12 @@
-## 2026-11-04 - VennCo on the Team roster
+## 2026-11-04 - Mobile Portal Search density release candidate
 
-Local and unpublished in `logs/team-vennco` on `codex/team-vennco` from live Sites 586 (`3035520`). The shared Team roster retains aviwashere and replaces kharab, ducktor, jozi and quanda with VennCo. The new image in `public/team/` is the supplied 1024 × 1280 JPEG, copied byte for byte. The four retired public portrait files were removed. The separate Portal Search slider work remains in `logs/mobile-portal-cards-release` and is not part of this task branch.
+The mobile Portal Search slider is integrated on `codex/mobile-portal-density-release` in `logs/team-vennco`, based on live Sites 587 (`6e45b60`). It starts at three portals per row and snaps between one and five. Compact cards bound the visible name to two lines while the link keeps the full name. The release contains the three slider source files and two focused test files. The original work in `logs/mobile-portal-cards-release` remains available as a local reference. No backend changes are required.
 
-All nine focused `professional-entry` checks passed. Chrome opened Team at 420 × 912 and 1280 × 900 and verified both names, decoded portraits and no horizontal overflow. Receipt in `logs/team-roster-qa/receipt.json`. The replacement asset's hash matches the attachment. No release or database change was made.
+## 2026-11-04 - VennCo Team roster published in Sites 587
+
+Live at [Portalink](https://portalinknetworks.com) from `6e45b60bb509ec548c3bbad1265b0b78e797ad91` in `logs/team-vennco` on `codex/team-vennco`. The Team roster now shows aviwashere and VennCo with the supplied portrait. Draft [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points at the deployed commit. The separate Portal Search slider work remains unpublished in `logs/mobile-portal-cards-release`. Use the Sites 587 source when preparing its next release.
+
+All nine focused checks, typecheck, targeted lint and the configured build passed. The archive preserved the worker and four D1 SQL files. The live domain matched four entry routes and 209 JavaScript and CSS assets. Fresh Chrome confirmed both Team cards and the decoded VennCo portrait at 420 × 912 and 1280 × 900. Receipts are in `logs/team-vennco-release-archive-audit.json`, `logs/team-vennco-release-live.json` and `logs/team-roster-live-smoke/receipt.json`. No migration was applied.
 
 ## 2026-11-04 - Even spacing in the project options popup
 

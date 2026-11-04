@@ -4,7 +4,7 @@ import { usePresentation } from '../../presentation/usePresentation';
 import './density-separator.css';
 
 /** The thumb moves freely between nearby magnetic stops; saves use whole columns. */
-export function DensitySeparator({columns,onChange,onPreview,label}:{columns:number;onChange:(value:number)=>void;onPreview?:(value:number)=>void;label:string}) {
+export function DensitySeparator({columns,onChange,onPreview,label,maxColumns=MAX_PROJECT_GRID_COLUMNS}:{columns:number;onChange:(value:number)=>void;onPreview?:(value:number)=>void;label:string;maxColumns?:number}) {
   const presentation=usePresentation(),mobile=presentation==='mobile';
   const scope=useRef({presentation});
   if(scope.current.presentation!==presentation)scope.current={presentation};
@@ -17,14 +17,15 @@ export function DensitySeparator({columns,onChange,onPreview,label}:{columns:num
   const gesture=useRef<{scope:object;value:number;previewed:boolean;onPreview:typeof onPreview}|null>(null);
   const suppressUntilRelease=useRef(false);
   const callbacks=useRef({onChange,onPreview}); callbacks.current={onChange,onPreview};
-  const thumbPosition=(value:number)=>(value-MIN_PROJECT_GRID_COLUMNS)/(MAX_PROJECT_GRID_COLUMNS-MIN_PROJECT_GRID_COLUMNS);
+  const normalize=(value:number)=>Math.min(maxColumns,normalizeProjectGridColumns(value));
+  const thumbPosition=(value:number)=>(value-MIN_PROJECT_GRID_COLUMNS)/(maxColumns-MIN_PROJECT_GRID_COLUMNS);
   const syncThumb=(element:HTMLInputElement,value:number)=>{
-    rawValue.current=Number.isFinite(value)?Math.min(MAX_PROJECT_GRID_COLUMNS,Math.max(MIN_PROJECT_GRID_COLUMNS,value)):columns;
+    rawValue.current=Number.isFinite(value)?Math.min(maxColumns,Math.max(MIN_PROJECT_GRID_COLUMNS,value)):columns;
     if(mobile)element.style.setProperty('--density-position',String(thumbPosition(rawValue.current)));
   };
   const snapPointerValue=(raw:number)=>{
     if(!Number.isFinite(raw))return raw;
-    const value=Math.min(MAX_PROJECT_GRID_COLUMNS,Math.max(MIN_PROJECT_GRID_COLUMNS,raw));
+    const value=Math.min(maxColumns,Math.max(MIN_PROJECT_GRID_COLUMNS,raw));
     // A wider release zone prevents jitter while moving across a stop's edge.
     if(magneticStop.current!==null&&Math.abs(value-magneticStop.current)<=.2+1e-6)return magneticStop.current;
     const nearest=Math.round(value);
@@ -50,7 +51,7 @@ export function DensitySeparator({columns,onChange,onPreview,label}:{columns:num
   },[presentation]);
   useEffect(()=>{if(!dragging.current&&pending.current===null&&input.current){input.current.value=String(columns);rawValue.current=columns;}},[columns,presentation]);
   useEffect(()=>()=>{if(frame.current!==null)cancelAnimationFrame(frame.current);},[]);
-  const beginGesture=(value=columns)=>{gesture.current??={scope:currentScope,value:normalizeProjectGridColumns(value),previewed:false,onPreview:callbacks.current.onPreview};};
+  const beginGesture=(value=columns)=>{gesture.current??={scope:currentScope,value:normalize(value),previewed:false,onPreview:callbacks.current.onPreview};};
   const preview=()=>{
     if(frame.current!==null)return;
     frame.current=requestAnimationFrame(()=>{
@@ -77,7 +78,7 @@ export function DensitySeparator({columns,onChange,onPreview,label}:{columns:num
     if(input.current){input.current.value=String(value);syncThumb(input.current,value);}
     callbacks.current.onChange(value);
   };
-  return <><input ref={input} className="density-separator" type="range" min={MIN_PROJECT_GRID_COLUMNS} max={MAX_PROJECT_GRID_COLUMNS} step="any" defaultValue={columns}
+  return <><input ref={input} className="density-separator" type="range" min={MIN_PROJECT_GRID_COLUMNS} max={maxColumns} step="any" defaultValue={columns}
     style={mobile?{'--density-position':thumbPosition(dragging.current||pending.current!==null?rawValue.current:columns)} as React.CSSProperties:undefined}
     aria-valuetext={`${columns} per row`}
     aria-label={label} onChange={event=>{
@@ -87,7 +88,7 @@ export function DensitySeparator({columns,onChange,onPreview,label}:{columns:num
       if(touch.current?.axis==='vertical'){event.currentTarget.value=String(touch.current.value);syncThumb(event.currentTarget,touch.current.value);return;}
       if(dragging.current)event.currentTarget.value=String(snapPointerValue(Number(event.currentTarget.value)));
       syncThumb(event.currentTarget,Number(event.currentTarget.value));
-      const value=normalizeProjectGridColumns(Number(event.currentTarget.value));
+      const value=normalize(Number(event.currentTarget.value));
       if(pending.current===value)return;
       pending.current=value;
       // Native ranges may change on touch-down, before scroll intent is known.
@@ -99,10 +100,10 @@ export function DensitySeparator({columns,onChange,onPreview,label}:{columns:num
       if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
       beginGesture();
       event.preventDefault();
-      const current=normalizeProjectGridColumns(Number(event.currentTarget.value));
+      const current=normalize(Number(event.currentTarget.value));
       const direction=event.key==='ArrowRight'||event.key==='ArrowUp'?1:-1;
       const rtl=(event.key==='ArrowLeft'||event.key==='ArrowRight')&&getComputedStyle(event.currentTarget).direction==='rtl';
-      const value=normalizeProjectGridColumns(current+(rtl?-direction:direction));
+      const value=normalize(current+(rtl?-direction:direction));
       if(value===current)return;
       event.currentTarget.value=String(value);
       syncThumb(event.currentTarget,value);
@@ -114,7 +115,7 @@ export function DensitySeparator({columns,onChange,onPreview,label}:{columns:num
       magneticStop.current=null;
       beginGesture(Number(event.currentTarget?.value??input.current?.value??columns));
       dragging.current=true;event.stopPropagation();
-      if(mobile&&event.pointerType==='touch')touch.current={id:event.pointerId,x:event.clientX,y:event.clientY,value:normalizeProjectGridColumns(Number(event.currentTarget.value)),axis:'pending'};
+      if(mobile&&event.pointerType==='touch')touch.current={id:event.pointerId,x:event.clientX,y:event.clientY,value:normalize(Number(event.currentTarget.value)),axis:'pending'};
     }} onPointerMove={event=>{
       if(scope.current!==currentScope||suppressUntilRelease.current)return;
       const origin=touch.current;
@@ -126,5 +127,5 @@ export function DensitySeparator({columns,onChange,onPreview,label}:{columns:num
       // No preventDefault or pointer capture: native vertical panning wins.
     }} onPointerUp={event=>{event.stopPropagation();commit();}}
     onPointerCancel={()=>{if(touch.current)cancelTouch();else commit();}} onKeyUp={commit} onBlur={()=>{if(touch.current)cancelTouch();else commit();}}
-    onClick={event=>event.stopPropagation()} /><span className="density-separator-ticks" aria-hidden="true">{Array.from({length:MAX_PROJECT_GRID_COLUMNS-MIN_PROJECT_GRID_COLUMNS+1},(_,index)=><span key={index} data-density-tick={MIN_PROJECT_GRID_COLUMNS+index} style={{'--density-tick-position':index/(MAX_PROJECT_GRID_COLUMNS-MIN_PROJECT_GRID_COLUMNS)} as React.CSSProperties} />)}</span></>;
+    onClick={event=>event.stopPropagation()} /><span className="density-separator-ticks" aria-hidden="true">{Array.from({length:maxColumns-MIN_PROJECT_GRID_COLUMNS+1},(_,index)=><span key={index} data-density-tick={MIN_PROJECT_GRID_COLUMNS+index} style={{'--density-tick-position':thumbPosition(MIN_PROJECT_GRID_COLUMNS+index)} as React.CSSProperties} />)}</span></>;
 }

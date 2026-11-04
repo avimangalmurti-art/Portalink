@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useServices } from '../../contexts/ServicesContext';
 import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
 import { getCategoryIcon } from '../../components/profile/categoryIcons';
+import { DensitySeparator } from '../../components/ui/DensitySeparator';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
@@ -90,6 +91,7 @@ function usePublicPortalDirectory(query: string) {
 /** Public portal identities only; opening a result uses its creator's existing catalogue route. */
 export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
   const isMobile = usePresentation() === 'mobile';
+  const [columns, setColumns] = useState(3);
   const auth = useAuth();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
@@ -101,7 +103,7 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
     setParams(next, { replace: true, state: location.state });
   };
   const hasResults = directory.items.length > 0;
-  return <section data-public-portal-search="" aria-labelledby="public-portal-search-title">
+  return <section data-public-portal-search="" data-compact-portals={isMobile && columns > 3 ? '' : undefined} style={isMobile ? { '--portal-search-columns': columns } as React.CSSProperties : undefined} aria-labelledby="public-portal-search-title">
     <header className="global-control-header public-portal-search-header">
       <div className="public-portal-search-heading">
         <ScreenBack action={onBack} visibleOnMobile><button data-ui-shape={isMobile ? 'icon' : undefined} type="button" onClick={onBack} aria-label="Go back" className="public-portal-back"><InterfaceIcon icon={ChevronLeftIcon} /></button></ScreenBack>
@@ -112,12 +114,15 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
         <span className="sr-only">Search public portals</span>
         <input type="search" value={query} maxLength={80} onChange={event => changeQuery(event.currentTarget.value)} placeholder="Search public portals" disabled={!directory.enabled} />
       </label>
+      {isMobile && directory.enabled && <div className="public-portal-search-density">
+        <DensitySeparator columns={columns} maxColumns={5} onPreview={setColumns} onChange={setColumns} label="Portals per row" />
+      </div>}
     </header>
     <div className="public-portal-search-scroll scrollbar-overlay">
-      {directory.transitioning ? <LoadingState kind="grid" columns={isMobile ? 3 : undefined} label="Opening portal search…" />
+      {directory.transitioning ? <LoadingState kind="grid" columns={isMobile ? columns : undefined} label="Opening portal search…" />
         : !directory.enabled ? <EmptyState title="Sign in to search portals" action={{ label: 'Sign in', onClick: () => auth.requestAuth('signIn') }} />
         : <>
-          {directory.loading && <LoadingState kind="grid" columns={isMobile ? 3 : undefined} label="Loading public portals…" />}
+          {directory.loading && <LoadingState kind="grid" columns={isMobile ? columns : undefined} label="Loading public portals…" />}
           {hasResults && <div className="profile-collection">
             <ul className="profile-collection-grid" aria-label="Public portals" aria-busy={directory.loadingMore}>
               {directory.items.map(portal => <li key={`${portal.profileId}:${portal.id}`}>

@@ -7,6 +7,7 @@ import { deferred } from './helpers/hook-harness.mjs';
 const routes = sourceModule('src/app/routes.ts', { '../components/navigation': { navigationDestinations: [] } });
 const nodes = tree => React.isValidElement(tree) ? [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 const links = tree => nodes(tree).filter(node => node.type === 'route-link');
+const density = tree => nodes(tree).find(node => node.type === 'density-separator');
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props.children === label);
 const portal = (id, profileId = 'creator-a', label = `Portal ${id}`) => ({ id, profileId, label, iconName: 'camera', creator: { id: profileId, name: `Creator ${profileId}`, handle: profileId, avatar: `/${profileId}.jpg` } });
 
@@ -53,6 +54,7 @@ function harness(initialQuery = '', account = 'account-a', options = {}) {
     '../../contexts/ServicesContext': { useServices: () => ({ discovery }) },
     '../../components/profile/CreatorAvatar': { CreatorAvatar: 'creator-avatar' },
     '../../components/profile/categoryIcons': { getCategoryIcon: value => `chosen:${value ?? 'default'}` },
+    '../../components/ui/DensitySeparator': { DensitySeparator: 'density-separator' },
     '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
     '../../components/ui/StateViews': { EmptyState: 'empty', ErrorState: 'error', LoadingState: 'loading' },
     '../../presentation/usePresentation': { usePresentation: () => environment.presentation },
@@ -70,7 +72,7 @@ function harness(initialQuery = '', account = 'account-a', options = {}) {
     get tree() { if (dirty) render(); return tree; },
     get back() { return back; },
     rerender() { dirty = true; return this.tree; },
-    search(query) { nodes(this.tree).find(node => node.type === 'input').props.onChange({ currentTarget: { value: query } }); return this.tree; },
+    search(query) { nodes(this.tree).find(node => node.type === 'input' && node.props.type === 'search').props.onChange({ currentTarget: { value: query } }); return this.tree; },
     runTimers() { const pending = [...timers.values()]; timers.clear(); for (const task of pending) task.callback(); },
     async flush() { for (let index = 0; index < 20; index++) { if (dirty) render(); await Promise.resolve(); } return tree; },
     dispose() { for (const slot of slots) slot?.cleanup?.(); mounted = false; },
@@ -180,6 +182,48 @@ test('switching presentation keeps loaded portal names and canonical links witho
     assert.equal(nodes(tree).find(node => node.props.className === 'profile-collection-name').props.children, 'Portal a');
   }
   assert.equal(h.calls.length, 1); h.dispose();
+});
+
+test('MOBILE portal density previews and commits the same columns for the grid and loading state without refetching', async () => {
+  const h = harness('q=paper', 'account-a', { presentation: 'mobile' });
+  assert.equal(density(h.tree).props.label, 'Portals per row');
+  assert.equal(density(h.tree).props.maxColumns, 5);
+  assert.equal(density(h.tree).props.columns, 3);
+  assert.equal(h.tree.props.style['--portal-search-columns'], 3);
+  assert.equal(nodes(h.tree).find(node => node.type === 'loading').props.columns, 3);
+
+  h.runTimers();
+  h.calls[0].response.resolve({ items: [portal('paper')], nextOffset: 48 });
+  await h.flush();
+  density(h.tree).props.onPreview(5);
+  assert.equal(density(h.tree).props.columns, 5);
+  assert.equal(h.tree.props.style['--portal-search-columns'], 5);
+  density(h.tree).props.onChange(4);
+  assert.equal(density(h.tree).props.columns, 4);
+  assert.equal(h.tree.props.style['--portal-search-columns'], 4);
+  assert.deepEqual(links(h.tree).map(node => node.props.to), ['/p/creator-a/c/paper']);
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.timers.size, 0);
+  assert.deepEqual(h.navigations, []);
+
+  button(h.tree, 'Show more').props.onClick();
+  assert.equal(h.calls[1].offset, 48);
+  h.calls[1].response.resolve({ items: [portal('fold')], nextOffset: null });
+  await h.flush();
+  assert.equal(links(h.tree).length, 2);
+  assert.equal(h.tree.props.style['--portal-search-columns'], 4);
+
+  h.search('photo');
+  assert.equal(nodes(h.tree).find(node => node.type === 'loading').props.columns, 4);
+  h.runTimers();
+  assert.deepEqual(h.calls.map(call => [call.query, call.offset]), [['paper', 0], ['paper', 48], ['photo', 0]]);
+  h.calls[2].response.resolve({ items: [portal('photo')], nextOffset: null });
+  await h.flush();
+  h.environment.presentation = 'web';
+  assert.equal(density(h.rerender()), undefined);
+  assert.equal(h.tree.props.style?.['--portal-search-columns'], undefined);
+  assert.deepEqual(links(h.tree).map(node => node.props.to), ['/p/creator-a/c/photo']);
+  h.dispose();
 });
 
 test('portal name search is debounced and preserved in the canonical URL without a new history entry per key', async () => {

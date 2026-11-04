@@ -48,6 +48,24 @@
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-back { width: 44px; height: 44px; }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-field { width: 100%; }
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-header:has(.public-portal-search-density) { padding-bottom: 0; }
+.public-portal-search-header:has(.public-portal-search-density)::after { content: none; }
+.public-portal-search-density {
+  position: relative;
+  flex: 0 0 calc(100% + 32px);
+  height: 44px;
+  margin: -12px -16px 0;
+}
+.public-portal-search-density::before {
+  content: '';
+  position: absolute;
+  inset-inline: 16px;
+  top: 50%;
+  height: 1px;
+  background: var(--hairline);
+  pointer-events: none;
+}
+[data-presentation='mobile'] .public-portal-search-density > :is(.density-separator, .density-separator-ticks) { bottom: 0; }
 /* The rounded wrapper owns focus; the inner text field adds no second ring. */
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-search-field input:is(:focus, :focus-visible) {
   outline: none !important;
@@ -63,11 +81,12 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .profile-collection-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--portal-search-columns, 3), minmax(0, 1fr));
   gap: 10px;
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link {
   position: relative;
+  width: 100%;
   height: 100%;
   min-height: 134px;
   aspect-ratio: 5 / 7;
@@ -105,6 +124,28 @@
   min-height: 2.6em;
   place-items: center;
   font-size: clamp(12px, 3.45vw, 15px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-compact-portals] .public-portal-link {
+  min-height: 106px;
+  padding: 20px 3px 8px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-compact-portals] .public-portal-mark {
+  min-height: 34px;
+  --interface-icon-xl: clamp(22px, 8vw, 36px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-compact-portals] .public-portal-avatar {
+  top: 4px;
+  inset-inline-end: 4px;
+  width: 18px;
+  height: 18px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-compact-portals] .profile-collection-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  flex: 0 0 auto;
+  overflow: hidden;
+  font-size: 12px;
 }
 #root .codex-shell.high-contrast[data-presentation='mobile'] [data-public-portal-search] .public-portal-link {
   border-color: var(--text-primary);
