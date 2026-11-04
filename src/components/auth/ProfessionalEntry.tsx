@@ -12,10 +12,7 @@ import './professional-entry.css';
 
 const teamMembers = [
   { name: 'aviwashere', image: '/team/aviwashere-299d5a86e64f.jpg', width: 905, height: 1280 },
-  { name: 'kharab', image: '/team/kharab-9a7fa102c121.jpg', width: 1023, height: 1280 },
-  { name: 'ducktor', image: '/team/ducktor-d0ab22eac7a8.jpg', width: 1023, height: 1280 },
-  { name: 'jozi', image: '/team/jozi-630b9e15c22a.jpg', width: 1023, height: 1280 },
-  { name: 'quanda', image: '/team/quanda-40c212fbddcd.jpg', width: 1023, height: 1280 },
+  { name: 'VennCo', image: '/team/vennco-b0888d06a92c.jpg', width: 1024, height: 1280 },
 ];
 
 const companySections = [

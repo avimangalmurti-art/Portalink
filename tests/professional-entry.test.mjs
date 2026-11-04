@@ -169,13 +169,10 @@ test('entry controls follow readiness without enabling account actions before re
   }
 });
 
-test('Team preserves all five original photographs, dimensions and captions on both presentations', () => {
+test('Team shows aviwashere and VennCo with their photographs on both presentations', () => {
   const expected = [
     ['aviwashere', '/team/aviwashere-299d5a86e64f.jpg', 905, 1280],
-    ['kharab', '/team/kharab-9a7fa102c121.jpg', 1023, 1280],
-    ['ducktor', '/team/ducktor-d0ab22eac7a8.jpg', 1023, 1280],
-    ['jozi', '/team/jozi-630b9e15c22a.jpg', 1023, 1280],
-    ['quanda', '/team/quanda-40c212fbddcd.jpg', 1023, 1280],
+    ['VennCo', '/team/vennco-b0888d06a92c.jpg', 1024, 1280],
   ];
   for (const presentation of ['mobile', 'web']) {
     const team = nodes(fixture(true, presentation).render()).find(n => n.props['data-company-section'] === 'team');

@@ -1,3 +1,9 @@
+## 2026-11-04 - VennCo on the Team roster
+
+Local and unpublished in `logs/team-vennco` on `codex/team-vennco` from live Sites 586 (`3035520`). The shared Team roster retains aviwashere and replaces kharab, ducktor, jozi and quanda with VennCo. The new image in `public/team/` is the supplied 1024 × 1280 JPEG, copied byte for byte. The four retired public portrait files were removed. The separate Portal Search slider work remains in `logs/mobile-portal-cards-release` and is not part of this task branch.
+
+All nine focused `professional-entry` checks passed. Chrome opened Team at 420 × 912 and 1280 × 900 and verified both names, decoded portraits and no horizontal overflow. Receipt in `logs/team-roster-qa/receipt.json`. The replacement asset's hash matches the attachment. No release or database change was made.
+
 ## 2026-11-04 - Even spacing in the project options popup
 
 The Edit project and Delete project menu inside the mobile project information popup no longer inherits the inline action group's 16px top margin. The menu uses its existing padding evenly around the controls. Scoped to `follow-content-info.css` on `codex/mobile-message-pdf-preview` from Sites 585 (`3229383`). All 12 focused popup tests and diff check passed. The Chrome CSS fixture confirmed equal 8px top and bottom padding and 44px targets at 420px and 320px. Receipt `logs/mobile-project-owner-menu-qa/receipt.json`. Local and unpublished.
