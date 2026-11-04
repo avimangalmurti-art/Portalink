@@ -1663,17 +1663,18 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         setIsOnboardingOpen(false);
         // Abandoning onboarding abandons the journey it interrupted.
         deferredIntentRef.current = null;
-      }} onComplete={(profileId) => {
+      }} onComplete={(profileId, completedRegistration) => {
         setIsOnboardingOpen(false);
         // Optional setup never replaces an explicit destination or starts publishing.
         const deferred = deferredIntentRef.current;
         deferredIntentRef.current = null;
-        if (auth.user?.id && (!deferred || ['route', 'my-profile'].includes(deferred.kind))) setOptionalSetupAccount(auth.user.id);
+        const mobileRegistration = presentation === 'mobile' && completedRegistration;
+        if (!mobileRegistration && auth.user?.id && (!deferred || ['route', 'my-profile'].includes(deferred.kind))) setOptionalSetupAccount(auth.user.id);
         if (deferred && deferred.kind !== 'my-profile' && deferred.kind !== 'interaction') {
           fulfilIntent(deferred);
           return;
         }
-        if (presentation === 'mobile') nav.home(true);
+        if (presentation === 'mobile' && !mobileRegistration) nav.home(true);
         else openProfile(profileId);
       }} /></FirstLoginWelcome></DeferredSurface>}
       {optionalSetupAccount === auth.user?.id && auth.viewerProfileId && !isOnboardingOpen && <DeferredSurface active onClose={() => setOptionalSetupAccount(null)}><OptionalAccountSetup

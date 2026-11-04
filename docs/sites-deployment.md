@@ -1,3 +1,16 @@
+## 2026-11-03 - Shorter mobile profile setup release
+
+The requested release starts from live579 and contains the delayed mobile signup spinner, direct profile entry after successful setup, and saved form recovery. All 124 focused tests and typecheck passed. The configured production build passed both entry checks. This release uses the existing public Site and bindings, with no migration needed.
+
+## 2026-11-03 - Mobile authoring and Insights published 579
+
+Published https://portalinknetworks.com from `1c0a7854d4fb1969ea0fd471a9e24cb71189561f` on `codex/socal-release`. Mobile Insights uses icon-only metric controls and shows the selected graph title below the count. Project creation and publishing use a continuous surface color. The New project screen covers the catalogue while the keyboard reduces the form viewport. Draft PR148 matches the release source.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_fd578ac613fc81918948aad6aff229a8` and deployment `appgdep_6aeab972d7748191a6149ae18aac0553` succeeded at 2026-11-04T04:50:07.178892+00:00. Production matched four public entry routes and all 209 JS and CSS assets. The archive audit verified 642 files, including the worker, four D1 SQL payloads and 423 public assets compared byte for byte with live578. Runtime revision 2 and public access were confirmed. The separate repost SQL remains unapplied.
+
+103 of 106 focused checks passed. The same three publish completion assertions reproduced against live578 with CSS stubbed. Typecheck, lint with zero errors and 111 existing warnings, the build and both entry graph guards passed. Phone-sized Chrome included a simulated keyboard. Native iOS keyboard rendering and authenticated production actions remain unverified. Receipts are in `logs/mobile-authoring-release.json` and the matching source, build, archive and live files. Only the two receipt docs remain dirty. Safe writer handoff.
+
+
 ## 2026-11-03 - Mobile authoring and Insights release authorized
 
 The user requested publication of the three pending mobile refinements from the owned `codex/socal-release` branch on live578. Mobile Insights uses icon-only metric controls and shows the current metric title under the count. The mobile project authoring frames use a continuous surface color. New project covers the catalogue while its form follows the keyboard viewport.

@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
-test('mobile onboarding enters Home without opening publishing or clearing a saved activation', () => {
+test('mobile onboarding opens the new profile after registration and retains explicit destinations', () => {
  const source = readFileSync(new URL('../src/App.tsx', import.meta.url),'utf8');
  const ast = ts.createSourceFile('App.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
  let callback;
@@ -16,11 +16,20 @@ test('mobile onboarding enters Home without opening publishing or clearing a sav
  }
  visit(ast); assert.ok(callback);
  const calls=[]; const saved={stage:'project',portal:{id:'existing'}};
- const context={setOptionalSetupAccount() {},presentation:'mobile',auth:{user:{id:'account'}},setIsOnboardingOpen:v=>calls.push(['onboarding',v]),deferredIntentRef:{current:null},nav:{home:v=>calls.push(['home',v])},beginActivation:()=>assert.fail('must not begin publishing'),setActivationAccountId:()=>assert.fail('must not open publishing'),readActivation:()=>saved};
- const code=ts.transpileModule(`const complete=${callback.getText(ast)}; complete('profile');`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ const context={setOptionalSetupAccount:id=>calls.push(['optional',id]),presentation:'mobile',auth:{user:{id:'account'}},setIsOnboardingOpen:v=>calls.push(['onboarding',v]),deferredIntentRef:{current:null},nav:{home:v=>calls.push(['home',v])},openProfile:id=>calls.push(['profile',id]),fulfilIntent:intent=>calls.push(['destination',intent.path]),beginActivation:()=>assert.fail('must not begin publishing'),setActivationAccountId:()=>assert.fail('must not open publishing'),readActivation:()=>saved};
+ const code=ts.transpileModule(`(${callback.getText(ast)})('profile', completedRegistration);`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+ context.completedRegistration=false;
  vm.runInNewContext(code,context);
- assert.deepEqual(calls,[['onboarding',false],['home',true]]);
+ assert.deepEqual(calls,[['onboarding',false],['optional','account'],['home',true]]);
  assert.equal(saved.portal.id,'existing');
+ calls.length=0;
+ context.completedRegistration=true;
+ vm.runInNewContext(code,context);
+ assert.deepEqual(calls,[['onboarding',false],['profile','profile']]);
+ calls.length=0;
+ context.deferredIntentRef.current={kind:'route',path:'/share/example'};
+ vm.runInNewContext(code,context);
+ assert.deepEqual(calls,[['onboarding',false],['destination','/share/example']]);
 });
 
 test('first-project profile action opens details without silently creating a portal', async () => {

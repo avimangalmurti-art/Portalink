@@ -1,8 +1,9 @@
 import { useServices } from '../../contexts/ServicesContext';
 import { createProfileHandle } from '../../utils/profileHandle';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, CheckCircle2Icon } from 'lucide-react';
+import { AlertCircleIcon, CheckCircle2Icon, LoaderCircleIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
 import { MobileOnboardingAction } from '../../components/auth/MobileOnboarding';
 import { readRegistrationAvatar, removeRegistrationDraft } from '../auth/registration';
@@ -28,7 +29,7 @@ import { normalizeHandle, validateHandle, validateLocation, validateProfileName,
 type ProfileOnboardingDialogProps = AccountAppearanceProps & {
   isOpen: boolean;
   onDismiss: () => void;
-  onComplete: (profileId: string) => void;
+  onComplete: (profileId: string, completedRegistration?: boolean) => void;
   completionActionLabel?: string;
 };
 export function ProfileOnboardingDialog({
@@ -63,6 +64,22 @@ export function ProfileOnboardingDialog({
   const [requestedHandle, setRequestedHandle] = useState<string | null>(registration?.handle ?? null);
   const handle = normalizeHandle(requestedHandle ?? createProfileHandle(name));
   const [submitPending, setSubmitPending] = useState(false);
+  const recoveryNotice = draftNotice ?? avatar.error;
+  const showRegistrationStatus = draftLoading || (Boolean(registration) && create.isLoading && (!isMobile || !submitPending));
+  const showCompactProgress = isMobile && isOpen && !recoveryNotice && showRegistrationStatus;
+  const progressRef = useRef<HTMLDivElement>(null);
+  const [showProgressMessage, setShowProgressMessage] = useState(false);
+  useModalFocus(showCompactProgress, progressRef, () => {
+    // Profile creation is already in progress.
+  }, true);
+  useEffect(() => {
+    if (!showCompactProgress) {
+      setShowProgressMessage(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowProgressMessage(true), 500);
+    return () => clearTimeout(timer);
+  }, [showCompactProgress]);
   const [handleAvailability, setHandleAvailability] = useState<{ scope: object; status: 'checking' | 'available' | 'taken' | 'error'; message: string } | null>(null);
   const accountId = auth.user?.id ?? null;
   const checkPublicHandle = profiles.checkPublicHandle;
@@ -112,7 +129,7 @@ export function ProfileOnboardingDialog({
   useEffect(() => {
     if ((isMobile || !registration) && create.status === 'success' && create.createdProfile && !completed.current) {
       completed.current = true;
-      onComplete(create.createdProfile.id);
+      onComplete(create.createdProfile.id, Boolean(registration));
     }
   }, [isMobile, registration, create.status, create.createdProfile, onComplete]);
   useEffect(() => {
@@ -175,7 +192,7 @@ export function ProfileOnboardingDialog({
     // Saved desktop registration cleans its draft before continuing.
     if (!isMobile && !completed.current) {
       completed.current = true;
-      onComplete(create.createdProfile.id);
+      onComplete(create.createdProfile.id, true);
     }
   }, [registration, create.status, create.createdProfile, create.avatarPersisted, avatar.avatar, avatar.error, onComplete, isMobile]);
   useEffect(() => {
@@ -198,8 +215,19 @@ export function ProfileOnboardingDialog({
   const isSubmitting = create.isLoading || draftLoading || submitPending;
   const isComplete = create.status === 'success' && create.createdProfile !== null;
   if (isComplete) return null;
+  if (showCompactProgress) return (
+    <div className="fixed inset-0 z-[80] grid place-items-center px-4">
+      <div ref={progressRef} role="dialog" aria-modal="true" aria-label="Profile setup" tabIndex={-1} className="outline-none">
+        <div role="status" className={showProgressMessage ? 'flex items-center gap-3 rounded-full border border-[var(--hairline-strong)] bg-[var(--surface-raised)] px-4 py-3 text-sm text-[var(--text-primary)] shadow-[var(--shadow-pop)]' : undefined}>
+          {showProgressMessage && <>
+            <LoaderCircleIcon className="h-5 w-5 shrink-0 animate-spin" aria-hidden="true" />
+            <span>Setting up your profile…</span>
+          </>}
+        </div>
+      </div>
+    </div>
+  );
   const canSubmit = !isSubmitting;
-  const recoveryNotice = draftNotice ?? avatar.error;
   const handleError = validateHandle(handle);
   const currentAvailability = handleAvailability?.scope === handleScope.current ? handleAvailability : null;
   const handleStatus: ProfileFieldStatus | null = !showHandleStatus ? null : handleError
@@ -246,9 +274,9 @@ export function ProfileOnboardingDialog({
   return <AccountWelcomeSurface profileSetup mobileOnboarding={isMobile} theme={theme} showAppearance={!isMobile} title={registration ? 'Setting up your profile' : 'Create your profile'} accentColor={accentColor} onAccentColorChange={onAccentColorChange}
     highContrast={highContrast} onHighContrastChange={onHighContrastChange} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange}
     busy={isSubmitting} dirty={isDirty} onDismiss={onDismiss}>
-          {(draftLoading || (registration && create.isLoading)) && <p role="status" className="py-4 text-center text-sm text-[var(--text-secondary)]">Finishing your account…</p>}
+          {showRegistrationStatus && <p role="status" className="py-4 text-center text-sm text-[var(--text-secondary)]">Finishing your account…</p>}
           {recoveryNotice && <div className="mb-4 text-sm text-[var(--text-secondary)]"><p role="status">{recoveryNotice}</p>{registration?.hasAvatar && <button type="button" data-ui-shape="action" className="min-h-11 text-[var(--accent-text)]" disabled={isSubmitting} onClick={() => { autoStarted.current = false; touched.current.avatar = false; setDraftLoading(true); setRestoreAttempt(value => value + 1); }}>Restore saved picture</button>}{(missingSavedAvatar || avatar.error) && <button type="button" data-ui-shape="action" className="min-h-11 ml-4 text-[var(--accent-text)]" disabled={isSubmitting} onClick={() => { touched.current.avatar = true; setMissingSavedAvatar(false); setDraftNotice(null); avatar.clear(); }}>Add picture later</button>}</div>}
-          {(draftLoading || (registration && create.isLoading)) ? null : <form onSubmit={submit} noValidate data-onboarding-step={isMobile ? 'profile' : undefined} className="profile-setup-form">
+          {!showRegistrationStatus && <form onSubmit={submit} noValidate data-onboarding-step={isMobile ? 'profile' : undefined} className="profile-setup-form">
               <div className="profile-setup-fields">
 
               {create.status === 'error' && <div ref={errorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed focus:outline-none">

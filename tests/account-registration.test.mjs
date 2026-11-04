@@ -627,7 +627,8 @@ test('email confirmation completes the saved profile once; a missing legacy imag
     const avatar = { avatar: null, error: null, select(file, details) { avatar.avatar = { file, ...details }; }, clear() { avatar.avatar = null; } };
     const create = {status: 'idle', isLoading: false, createdProfile: null, avatarPersisted: mode === 'image', async run(input) {submissions.push(input);}};
     const {ProfileOnboardingDialog} = load('src/features/profile/ProfileOnboardingDialog.tsx', {
-      react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({user: {id: 'a', registration: {...draft, isPrivate: true, systemGray: 'gray4', hasAvatar: mode === 'image' || mode === 'missing'}}})},
+      react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon', LoaderCircleIcon:'Spinner'}, '../../contexts/AuthContext': {useAuth: () => ({user: {id: 'a', registration: {...draft, isPrivate: true, systemGray: 'gray4', hasAvatar: mode === 'image' || mode === 'missing'}}})},
+      '../../hooks/useModalFocus': {useModalFocus() {}},
       '../../components/auth/AccountWelcomeSurface': {AccountWelcomeSurface: 'Surface'},
       '../../components/auth/MobileOnboarding': {MobileOnboardingWelcome:'Welcome', MobileOnboardingAction:'Action'},
       '../auth/registration': {readRegistrationAvatar: async () => mode === 'image' ? {file: image, originalSource: image, crop: {zoom: 2}} : null, removeRegistrationDraft: async key => cleaned.push(key)},
@@ -678,7 +679,7 @@ test('email confirmation completes the saved profile once; a missing legacy imag
   }
 });
 
-function profileResumeHarness({ initialRegistration, readAvatar = async () => null, presentation = 'mobile' } = {}) {
+function profileResumeHarness({ initialRegistration, readAvatar = async () => null, presentation = 'mobile', timerGlobals } = {}) {
   const hooks = hookRuntime(), submissions = [], reads = [], cleaned = [], completed = [];
   let currentRegistration = initialRegistration;
   const avatar = { avatar: null, error: null,
@@ -688,8 +689,9 @@ function profileResumeHarness({ initialRegistration, readAvatar = async () => nu
     async run(input) { submissions.push(input); },
   };
   const { ProfileOnboardingDialog } = load('src/features/profile/ProfileOnboardingDialog.tsx', {
-    react: hooks.react, 'lucide-react': { AlertCircleIcon: 'AlertIcon', CheckCircle2Icon: 'CheckIcon' },
+    react: hooks.react, 'lucide-react': { AlertCircleIcon: 'AlertIcon', CheckCircle2Icon: 'CheckIcon', LoaderCircleIcon: 'Spinner' },
     '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'a', registration: currentRegistration } }) },
+    '../../hooks/useModalFocus': { useModalFocus() {} },
     '../../components/auth/AccountWelcomeSurface': { AccountWelcomeSurface: 'Surface' },
     '../../components/auth/MobileOnboarding': { MobileOnboardingWelcome: 'Welcome', MobileOnboardingAction: 'Action' },
     '../auth/registration': {
@@ -702,7 +704,7 @@ function profileResumeHarness({ initialRegistration, readAvatar = async () => nu
     '../../components/profile/ProfileLocationPicker': { ProfileLocationPicker: 'ProfileLocationPicker' },
     '../../presentation/usePresentation': { usePresentation: () => presentation },
     './useProfileOnboarding': { useAvatarSelection: () => avatar, useCreateProfile: () => create }, './validation': validation,
-  });
+  }, timerGlobals);
   const props = { isOpen: true, accentColor: '#FFFFFF', onAccentColorChange() {}, onDismiss() {}, onComplete: key => completed.push(key) };
   const render = () => hooks.render(() => ProfileOnboardingDialog(props));
   return { render, create, avatar, submissions, reads, cleaned, completed,
@@ -711,6 +713,90 @@ function profileResumeHarness({ initialRegistration, readAvatar = async () => nu
     unmount: hooks.unmount,
   };
 }
+
+test('saved mobile registration shows compact progress only after 500 ms and clears it on completion or recovery', async () => {
+  const saved = { ...draft, isPrivate: true, systemGray: 'gray4' };
+  for (const result of ['fast', 'slow', 'retry', 'web']) {
+    const timers = new Map();
+    let elapsed = 0;
+    const advance = ms => {
+      elapsed += ms;
+      for (const [handle, { due, callback }] of timers) {
+        if (due > elapsed) continue;
+        timers.delete(handle);
+        callback();
+      }
+    };
+    const h = profileResumeHarness({
+      initialRegistration: saved,
+      presentation: result === 'web' ? 'web' : 'mobile',
+      timerGlobals: {
+        setTimeout(callback, delay) {
+          const handle = Symbol();
+          timers.set(handle, { due: elapsed + delay, callback });
+          return handle;
+        },
+        clearTimeout(handle) { timers.delete(handle); },
+      },
+    });
+    const status = tree => formNodes(tree).find(node => node.props?.role === 'status');
+    const initial = h.render();
+    if (result === 'web') {
+      assert.equal(initial.type, 'Surface');
+      assert.equal(initial.props.title, 'Setting up your profile');
+      assert.equal(status(initial).props.children, 'Finishing your account…');
+      assert.equal(timers.size, 0);
+      h.unmount();
+      continue;
+    }
+
+    assert.equal(formNodes(initial).some(node => node.type === 'Surface' || node.type === 'form'), false);
+    assert.equal(formNodes(status(initial)).length, 1, 'The live region starts empty');
+    h.create.isLoading = true;
+    h.create.status = 'loading';
+    await h.settle();
+    assert.equal(h.submissions.length, 1);
+    const { name, handle, location, isPrivate, creationKey, publicAppearance } = h.submissions[0];
+    assert.deepEqual([name, handle, location, isPrivate, creationKey], [saved.name, saved.handle, saved.location, true, id]);
+    assert.equal(publicAppearance.accentColor, saved.accentColor);
+    assert.equal(publicAppearance.systemGray, saved.systemGray);
+    advance(499);
+    assert.equal(formNodes(status(h.render())).length, 1);
+    assert.deepEqual(h.completed, []);
+
+    if (result !== 'fast') {
+      advance(1);
+      const progress = formNodes(status(h.render()));
+      assert.equal(progress.find(node => node.type === 'span').props.children, 'Setting up your profile…');
+      assert.equal(progress.find(node => node.type === 'Spinner').props['aria-hidden'], 'true');
+    }
+
+    h.create.isLoading = false;
+    if (result === 'retry') {
+      h.create.status = 'error';
+      h.create.error = 'The profile could not be saved.';
+      const recovery = h.render();
+      assert.equal(recovery.type, 'Surface');
+      assert.equal(recovery.props.busy, false);
+      assert.equal(status(recovery), undefined);
+      const nodes = formNodes(recovery);
+      assert.equal(nodes.find(node => node.props?.id === 'onboarding-name').props.value, saved.name);
+      assert.equal(nodes.find(node => node.type === 'button' && node.props.children === 'Try again').props.disabled, false);
+      await nodes.find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+      assert.deepEqual(h.submissions.map(input => input.creationKey), [id, id]);
+    }
+
+    h.create.status = 'success';
+    h.create.createdProfile = { id: 'created' };
+    assert.equal(h.render(), null);
+    assert.equal(timers.size, 0);
+    advance(500);
+    assert.equal(h.render(), null);
+    assert.deepEqual(h.completed, ['created']);
+    assert.deepEqual(h.cleaned, [id]);
+    h.unmount();
+  }
+});
 
 test('late registration metadata hydrates untouched fields once and never overwrites edits or auto-submits them', async () => {
   const savedImage = new File(['saved-image'], 'saved.webp', { type: 'image/webp' });

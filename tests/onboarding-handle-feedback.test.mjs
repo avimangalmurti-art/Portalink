@@ -61,6 +61,7 @@ function harness({ presentation = 'mobile', registration, service = true } = {})
     'lucide-react': { AlertCircleIcon: 'AlertCircleIcon', CheckCircle2Icon: 'CheckCircle2Icon' },
     '../../contexts/ServicesContext': { useServices: () => ({ profiles }) },
     '../../contexts/AuthContext': { useAuth: () => auth },
+    '../../hooks/useModalFocus': { useModalFocus() {} },
     '../../utils/profileHandle': profileHandle,
     '../../components/auth/AccountWelcomeSurface': { AccountWelcomeSurface: 'AccountWelcomeSurface' },
     '../../components/auth/MobileOnboarding': { MobileOnboardingAction: 'MobileOnboardingAction' },
