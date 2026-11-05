@@ -23,6 +23,7 @@ const sharedSettings = load('features/sharing/sharedSettings.ts', name => name =
 const panels = load('utils/projectPanelLayout.ts');
 const portalBrowsing = load('components/profile/portalProjectBrowsing.ts');
 const employer = load('features/employer/employer.ts');
+const navButtonTokens = load('data/navButtonTokens.ts');
 const profileId = '11111111-1111-4111-8111-111111111111';
 const profile = { id: profileId, name: 'Creator', links: [], socialLinks: {}, categories: [{ id: 'portal', label: 'Photography' }],
   projects: [{ id: 'work', categoryId: 'portal', title: 'A project', attachments: [] }, { id: 'next', categoryId: 'portal', title: 'Next project', isPinned: true }] };
@@ -258,7 +259,7 @@ function hooks() {
   }
   return { react, render, dispose: () => effects.forEach(effect => effect?.cleanup?.()) };
 }
-function appHarness({ firstVisit = false, catalogueOrigin = null } = {}) {
+function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearance = appearance } = {}) {
   const h = hooks(), assigned = [], replaced = [], navigations = [], queryCalls = [], requests = [];
   const navigate = (path, options) => navigations.push([path, options]);
   let pendingIntent = null;
@@ -300,14 +301,14 @@ function appHarness({ firstVisit = false, catalogueOrigin = null } = {}) {
     if (name === '../app/routes') return routes;
     if (name === '../contexts/AuthContext') return { useAuth: () => state.auth };
     if (name === '../features/profile/useSharedProfileQuery') return { useSharedProfileQuery: (...args) => { queryCalls.push(args); return args[0] ? state.query : { status: 'idle', profile: null }; } };
-    if (name === '../hooks/useDeviceAppearance') return { useDeviceAppearance: () => appearance };
+    if (name === '../hooks/useDeviceAppearance') return { useDeviceAppearance: () => deviceAppearance };
     if (name === '../presentation/usePresentation') return { usePresentation: () => state.presentation };
     if (name === '../features/auth/registration') return registration;
     if (name === '../features/sharing/sharedSettings') return sharedSettings;
     if (name === '../features/auth/interactionIntent') return intents;
     if (name === '../utils/accentTokens') return { resolveAccentTokens: () => ({}) };
     if (name === '../utils/macTokens') return { resolveMacTokens: () => ({}) };
-    if (name === '../data/navButtonTokens') return { resolveNavButtonTokens: () => ({}) };
+    if (name === '../data/navButtonTokens') return navButtonTokens;
     if (name === '../components/ui/DeferredDialog') return { DeferredDialog: 'DeferredDialog', DeferredSurface: 'DeferredSurface', DeferredSurfaceBoundary: 'DeferredSurfaceBoundary' };
     const component = name.split('/').at(-1);
     if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedContextActions', 'SharedSignInBar', 'VisitorProfileGrid', 'SharedPortalPopup'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
@@ -448,7 +449,8 @@ function readerHarness(presentation = 'mobile', width = 390) {
   const state = { project: { ...profile.projects[0], attachments: [] }, width, presentation };
   const { VisitorProjectPage } = load('visitor/VisitorProjectPage.tsx', name => {
     if (name === 'react') return h.react;
-    if (name === 'lucide-react') return { ChevronLeftIcon: 'ChevronLeftIcon', ListIcon: 'ListIcon', XIcon: 'XIcon' };
+    if (name === 'lucide-react') return { ChevronLeftIcon: 'ChevronLeftIcon', ListIcon: 'ListIcon', PanelLeftCloseIcon: 'PanelLeftCloseIcon',
+      PanelLeftOpenIcon: 'PanelLeftOpenIcon', SearchIcon: 'SearchIcon', XIcon: 'XIcon' };
     if (name === '../presentation/usePresentation') return { usePresentation: () => state.presentation };
     if (name === '../components/ui/ResizablePanelHandle') return { useResizablePanelWidth: () => ({ width: 280, preferredWidth: 280 }) };
     if (name === '../features/media/useAssetProcessing') return { useAssetProcessing: () => ({ statuses }) };
@@ -457,10 +459,13 @@ function readerHarness(presentation = 'mobile', width = 390) {
     if (name === '../hooks/useElementSize') return { useElementSize: () => ({ width: state.width, ref: null }) };
     if (name === '../utils/projectPanelLayout') return panels;
     if (name === '../components/media/ProjectMediaViewer') return named('ProjectMediaViewer');
+    if (name === '../components/media/ProjectPagesPerRowControl') return named('ProjectPagesPerRowControl');
     if (name === '../components/ui/InterfaceIcon') return named('InterfaceIcon');
     if (name === '../components/profile/ProjectIndexList') return named('ProjectIndexList');
     if (name === '../components/profile/MobilePortalProjectToolbar') return named('MobilePortalProjectToolbar');
     if (name === '../components/profile/portalProjectBrowsing') return portalBrowsing;
+    if (name === '../features/projects/pageLayout') return load('features/projects/pageLayout.ts');
+    if (name === '../components/profile/web-reader-spacing.css') return {};
     if (name === '../components/ui/StateViews') return { LoadingSkeleton: 'LoadingSkeleton' };
     throw new Error(name);
   }, { requestAnimationFrame: fn => fn() });
@@ -1300,6 +1305,37 @@ test('visitor silently respects creator branding, system theme and an explicit v
  one(tree,'SharedProfileSidebar').props.onThemeChange('light');assert.ok(h.render().props.className.includes('theme-light'));
  const other=appHarness();other.state.query.profile={...other.state.query.profile,publicAppearance:{mode:'auto',accentColor:'#34c759',systemGray:'gray3'}};
  assert.ok(other.render().props.className.includes('theme-light'));
+});
+
+test('WEB shared sidebar uses the viewer gray with the public theme and accent while the shell retains creator branding', () => {
+  const deviceAppearance = { ...appearance, systemGray: 'gray2', highContrast: true, reduceTranslucency: true };
+  const publicAppearance = { mode: 'dark', accentColor: '#34c759', systemGray: 'gray5' };
+  const h = appHarness({ deviceAppearance });
+  h.state.query.profile = { ...profile, publicAppearance };
+  h.state.presentation = 'web';
+  let tree = h.render();
+  const creatorPalette = navButtonTokens.resolveNavButtonTokens('dark', publicAppearance.accentColor, true, true, 'gray5');
+  const viewerPalette = navButtonTokens.resolveNavButtonTokens('dark', publicAppearance.accentColor, true, true, 'gray2');
+  assert.notEqual(viewerPalette['--navigation-surface'], creatorPalette['--navigation-surface']);
+  assert.equal(tree.props.style['--accent-color'], publicAppearance.accentColor);
+  assert.equal(tree.props.style['--navigation-surface'], creatorPalette['--navigation-surface']);
+  assert.deepEqual(json(one(tree, 'SharedProfileSidebar').props.desktopNavigationStyle), json(viewerPalette));
+
+  h.state.location.search = '?settings=1';
+  assert.equal(one(h.render(), 'lazy:../components/ControlCenterPage').props.systemGray, 'gray2');
+
+  h.state.presentation = 'mobile';
+  tree = h.render();
+  assert.equal(tree.props.style['--navigation-surface'], creatorPalette['--navigation-surface']);
+  assert.equal(one(tree, 'SharedProfileSidebar').props.desktopNavigationStyle, undefined);
+  assert.equal(one(tree, 'lazy:../components/ControlCenterPage').props.systemGray, 'gray5');
+
+  h.state.location.search = '';
+  h.state.presentation = 'web';
+  h.state.query.profile = { ...profile, publicAppearance: { ...publicAppearance, systemGray: 'gray2' } };
+  tree = h.render();
+  assert.equal(tree.props.style['--navigation-surface'], viewerPalette['--navigation-surface']);
+  assert.equal(one(tree, 'SharedProfileSidebar').props.desktopNavigationStyle, undefined);
 });
 
 test('legacy preview URLs remain ordinary public catalogues with public appearance and public queries', () => {

@@ -639,12 +639,23 @@ test('authenticated handoff replaces company entry with visible, focus-contained
       assert.equal(view.tree.props.role,'dialog');
       assert.equal(view.tree.props['aria-modal'],true);
       assert.equal(view.tree.props['aria-busy'],true);
+      assert.equal(view.tree.props['aria-label'],'Opening Portalink');
       assert.equal(view.tree.props.tabIndex,-1);
       assert.notEqual(view.tree.props.style?.pointerEvents,'none','Progress must not pass clicks through to the unfinished workspace.');
-      assert.equal(rendered.find(node=>node.type==='h1')?.props.children,'Opening Portalink…');
-      assert.ok(rendered.some(node=>node.type==='p'&&text(node).trim()),'A visible subtitle explains the workspace handoff.');
-      assert.equal(rendered.filter(node=>node.type==='LoadingState').length,1);
-      assert.equal(rendered.find(node=>node.type==='LoadingState').props.kind,'grid');
+      const loadingStates = rendered.filter(node=>node.type==='LoadingState');
+      const spinners = rendered.filter(node=>node.props.className==='premium-media-loading-mark');
+      if (presentation === 'mobile') {
+        assert.equal(rendered.find(node=>node.type==='h1')?.props.children,'Opening Portalink…');
+        assert.ok(rendered.some(node=>node.type==='p'&&text(node).trim()),'A visible subtitle explains the mobile workspace handoff.');
+        assert.equal(loadingStates.length,1);
+        assert.equal(loadingStates[0].props.kind,'grid');
+        assert.equal(spinners.length,0);
+      } else {
+        assert.equal(text(view.tree).trim(),'');
+        assert.equal(loadingStates.length,0);
+        assert.equal(spinners.length,1);
+        assert.equal(spinners[0].props['aria-hidden'],'true');
+      }
       assert.equal(rendered.some(node=>node.props['data-company-entry']!==undefined||node.type==='EntryChoices'||node.type==='button'),false);
       assert.doesNotMatch(text(view.tree),/About|Mission|Sign in/);
       assert.equal(view.media,undefined);

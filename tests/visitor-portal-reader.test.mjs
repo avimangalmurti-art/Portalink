@@ -5,6 +5,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 
 const panels = sourceModule('src/utils/projectPanelLayout.ts');
 const portalBrowsing = sourceModule('src/components/profile/portalProjectBrowsing.ts');
+const pageLayout = sourceModule('src/features/projects/pageLayout.ts');
 const nodes = tree => Array.isArray(tree) ? tree.flatMap(nodes) : React.isValidElement(tree) ? [tree, ...nodes(tree.props.children)] : [];
 const one = (tree, type) => nodes(tree).find(node => node.type === type);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && (node.props['aria-label'] === label || node.props.children === label));
@@ -39,9 +40,10 @@ function fixture(presentation = 'web', { empty = false } = {}) {
   };
   const { VisitorProjectPage } = sourceModule('src/visitor/VisitorProjectPage.tsx', {
     react,
-    'lucide-react': { ChevronLeftIcon: 'back-icon', ListIcon: 'list-icon', XIcon: 'close-icon' },
+    'lucide-react': { ChevronLeftIcon: 'back-icon', ListIcon: 'list-icon', PanelLeftCloseIcon: 'collapse-icon', PanelLeftOpenIcon: 'expand-icon', SearchIcon: 'search-icon', XIcon: 'close-icon' },
     '../presentation/usePresentation': { usePresentation: () => state.presentation },
     '../components/media/ProjectMediaViewer': { ProjectMediaViewer: 'media-viewer' },
+    '../components/media/ProjectPagesPerRowControl': { ProjectPagesPerRowControl: 'page-layout-control' },
     '../components/ui/ResizablePanelHandle': { useResizablePanelWidth: () => ({ width: 280, preferredWidth: 280 }) },
     '../features/media/useAssetProcessing': { useAssetProcessing: attachments => { processingReads.push(attachments); return { statuses: {} }; } },
     '../data/typefaces': { getTypefaceStack: id => `typeface:${id}` },
@@ -53,6 +55,8 @@ function fixture(presentation = 'web', { empty = false } = {}) {
     '../components/profile/ProjectIndexList': { ProjectIndexList: 'project-index' },
     '../components/profile/MobilePortalProjectToolbar': { MobilePortalProjectToolbar: 'portal-toolbar' },
     '../components/profile/portalProjectBrowsing': portalBrowsing,
+    '../features/projects/pageLayout': pageLayout,
+    '../components/profile/web-reader-spacing.css': {},
   }, { requestAnimationFrame: callback => callback() });
   return { state, alpha, beta, calls, processingReads, render() {
     cursor = 0;
@@ -77,9 +81,44 @@ test('WEB portal reader opens its public project index beside the read-only sele
   assert.equal(viewer.props.onPagesPerRowCommit, undefined); assert.equal(viewer.props.onDeleteProject, undefined);
   assert.equal(viewer.props.mobileNavigation, undefined);
   assert.equal(viewer.props.contentTypefaceStack, 'typeface:alpha-face');
+  assert.equal(tree.props['data-web-reader-spacing'], '');
+  assert.equal(nodes(tree.props.children).filter(node => node.type === 'header').length, 1, 'The index toolbar is the only header outside the media viewer');
+  assert.equal(one(tree, 'header'), one(one(tree, 'aside'), 'header'));
+  assert.doesNotMatch(text(one(tree, 'header')), /Alpha project/);
   assert.equal(h.processingReads.every(attachments => attachments.length === 0), true, 'Public media never queries owner job tables');
   button(tree, 'Back').props.onClick(); viewer.props.onClose();
   assert.deepEqual(h.calls, ['back', 'back']);
+});
+
+test('WEB project index adjusts the public media layout for multi-page work without committing an owner change', () => {
+  const h = fixture();
+  h.alpha.attachments = [{ id: 'document', kind: 'document' }];
+  let tree = h.render();
+  assert.equal(one(tree, 'page-layout-control'), undefined, 'Wait for a known page total.');
+  one(tree, 'media-viewer').props.onDocumentPageCountResolved('document', 6);
+  tree = h.render();
+  const slider = one(one(tree, 'header'), 'page-layout-control');
+  assert.equal(slider.props.value, 4);
+  assert.equal(slider.props.onCommit, undefined);
+  slider.props.onChange(2);
+  tree = h.render();
+  assert.equal(one(tree, 'media-viewer').props.pagesPerRow, 2);
+  assert.equal(one(tree, 'page-layout-control').props.value, 2);
+  assert.equal(h.alpha.design.pagesPerRow, 4);
+  button(tree, 'Close project list').props.onClick();
+  tree = h.render();
+  assert.equal(one(tree, 'page-layout-control'), undefined);
+  assert.ok(button(tree, 'Back'), 'The collapsed rail retains Back.');
+  button(tree, 'Project list').props.onClick();
+  assert.equal(one(h.render(), 'page-layout-control').props.value, 2);
+
+  h.beta.pageCount = 1;
+  h.state.project = h.beta;
+  assert.equal(one(h.render(), 'page-layout-control'), undefined);
+  h.state.presentation = 'mobile';
+  h.state.project = h.alpha;
+  assert.equal(one(h.render(), 'page-layout-control'), undefined);
+  assert.equal(h.render().props['data-web-reader-spacing'], undefined);
 });
 
 test('WEB project selection keeps the index and its case-insensitive search mounted', () => {

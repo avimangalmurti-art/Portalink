@@ -257,7 +257,6 @@ function timelineActionsHarness(presentation, viewerRole = 'visitor', followStat
     get model() { return profileModel; }, get bookmarkModel() { return bookmarkModel; }, get bookmarkHtml() { return bookmarkHtml; }, get pressModel() { return pressModel; },
     render() { cursor = 0; bookmarkModel = undefined; tree = exports.UserProfilePage(props); const bookmark = profileNodes(tree).find(node => node.type === CreatorSaveButton); bookmarkHtml = bookmark ? renderToStaticMarkup(bookmark) : ''; return tree; },
     nodes() { return profileNodes(tree); },
-    screenActions() { return actions.mergeContextActions([profileModel, bookmarkModel].filter(Boolean)); },
     button(label) { return h.nodes().find(node => node.type === 'button' && (node.props['aria-label'] === label || node.props.children === label)); },
     openTools() { const button = h.button('Profile options'); if (button && !button.props['aria-expanded']) button.props.onClick(); return h.render(); },
     select(view) { const toggle = h.nodes().find(node => node.type === 'JourneyToggle'); assert.ok(toggle); toggle.props.onChange(view); return h.render(); },
@@ -273,29 +272,21 @@ for (const presentation of ['mobile', 'web']) {
       const initial = h.nodes().find(node => node.props['data-profile-follow'] !== undefined);
       assert.ok(initial); assert.equal(initial.props.onClick, h.follow.onToggle);
       const label = initial.props['aria-label'], selected = initial.props['aria-pressed'];
-      if (presentation === 'mobile') { assert.equal(h.model, null); assert.equal(h.pressModel, null); }
-      else assert.equal(h.model.target.handlers.follow, h.follow.onToggle);
+      assert.equal(h.model, null); assert.equal(h.pressModel, null);
       assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/);
-      if (presentation === 'mobile') assert.equal(h.bookmarkModel, null);
-      else assert.ok(h.bookmarkModel.target.handlers.saveCreator);
+      assert.equal(h.bookmarkModel, null);
       h.select('journey');
       assert.ok(h.nodes().some(node => node.type === 'JourneyView'));
       assert.equal(h.nodes().some(node => node.props['data-profile-follow'] !== undefined), false);
       assert.equal(h.nodes().some(node => node.props.id === 'profile-navigation-tools'), false);
-      if (presentation === 'mobile') assert.equal(h.model, null);
-      else {
-        assert.equal(h.model.target.handlers.follow, undefined);
-        assert.equal([...h.model.primary, ...h.model.groups.flat()].some(action => ['follow', 'saveCreator'].includes(action.id)), false);
-        assert.deepEqual([...h.model.primary, ...h.model.groups.flat()].map(action => action.id), ['share', 'copy'], 'WEB public Timeline keeps its allowed Share and Copy actions.');
-      }
-      assert.equal(h.pressModel, h.model);
+      assert.equal(h.model, null); assert.equal(h.pressModel, null);
       assert.equal(h.bookmarkHtml, ''); assert.equal(h.bookmarkModel, undefined, 'An absent CreatorSaveButton cannot register a save action.');
-      if (presentation === 'web') assert.equal(h.button('Profile options'), undefined);
+      assert.equal(h.button('Profile options'), undefined);
+      assert.ok(h.button('Back to previous screen'));
       h.select('portfolio'); h.openTools();
       const restored = h.nodes().find(node => node.props['data-profile-follow'] !== undefined);
       assert.equal(restored.props['aria-label'], label); assert.equal(restored.props['aria-pressed'], selected); assert.equal(restored.props.onClick, h.follow.onToggle);
-      if (presentation === 'mobile') { assert.equal(h.model, null); assert.equal(h.bookmarkModel, null); }
-      else { assert.equal(h.model.target.handlers.follow, h.follow.onToggle); assert.ok(h.bookmarkModel.target.handlers.saveCreator); }
+      assert.equal(h.model, null); assert.equal(h.bookmarkModel, null);
       assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/);
       assert.deepEqual(h.mutations, [], 'Switching views changes no confirmed follow or bookmark state.');
     }
@@ -307,8 +298,7 @@ for (const presentation of ['mobile', 'web']) {
     assert.match(h.bookmarkHtml, /data-profile-bookmark/);
     h.select('journey');
     assert.equal(h.button('Sign in to follow'), undefined); assert.equal(h.bookmarkHtml, ''); assert.equal(h.bookmarkModel, undefined);
-    if (presentation === 'mobile') assert.equal(h.model, null);
-    else assert.equal(h.model.target.handlers.follow, undefined);
+    assert.equal(h.model, null);
     assert.deepEqual(h.requests, []);
     h.select('portfolio'); h.openTools(); h.button('Sign in to follow').props.onClick();
     assert.deepEqual(h.requests, ['follow-sign-in']);
@@ -327,8 +317,7 @@ for (const presentation of ['mobile', 'web']) {
       if (presentation === 'mobile') assert.equal(h.nodes().some(node => node.props['data-inline-screen-actions'] !== undefined), false, 'No empty options wrapper remains on another creator profile');
       h.select('portfolio'); h.openTools();
       assert.match(h.bookmarkHtml, /data-profile-bookmark/);
-      if (viewerRole === 'visitor' && presentation === 'web') assert.equal(h.model.target.handlers.follow, h.follow.onToggle);
-      else if (viewerRole === 'visitor') assert.equal(h.model, null);
+      if (viewerRole === 'visitor') assert.equal(h.model, null);
       else assert.ok(h.button('Sign in to follow'));
       assert.deepEqual(h.mutations, []); assert.deepEqual(h.requests, []);
     }
@@ -339,24 +328,14 @@ for (const presentation of ['mobile', 'web']) {
       const h = timelineActionsHarness(presentation, 'visitor', followState, { isPrivate: true });
       h.render(); h.openTools();
       assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/);
-      if (presentation === 'mobile') {
-        assert.equal(h.model, null); assert.equal(h.pressModel, null); assert.equal(h.bookmarkModel, null);
-        assert.equal(h.nodes().some(node => node.type === 'mobile-actions'), false);
-        assert.equal(h.button('Profile options'), undefined);
-      } else {
-        assert.ok(h.model, 'WEB Portfolio keeps the main registration even when Follow cannot currently be offered.');
-        assert.equal(h.model.target.handlers.follow, undefined); assert.equal(h.pressModel, h.model);
-        const model = h.screenActions(), available = [...model.primary, ...model.groups.flat()];
-        assert.deepEqual(available.map(action => action.id), ['saveCreator']);
-        assert.equal(available[0].label, 'Unsave creator');
-        assert.equal(available[0].run, h.bookmarkModel.target.handlers.saveCreator, 'The existing independent WEB bookmark registration remains reachable.');
-        assert.ok(h.button('Profile options'));
-      }
+      assert.equal(h.model, null); assert.equal(h.pressModel, null); assert.equal(h.bookmarkModel, null);
+      assert.equal(h.nodes().some(node => node.type === 'mobile-actions'), false);
+      assert.equal(h.button('Profile options'), undefined);
+      assert.ok(h.button('Back to previous screen'));
       h.select('journey');
       assert.equal(h.model, null); assert.equal(h.pressModel, null); assert.equal(h.bookmarkModel, undefined);
       h.select('portfolio'); h.openTools();
-      if (presentation === 'mobile') { assert.equal(h.model, null); assert.equal(h.bookmarkModel, null); assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/); }
-      else assert.equal(h.screenActions().primary[0].id, 'saveCreator');
+      assert.equal(h.model, null); assert.equal(h.bookmarkModel, null); assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/);
       assert.deepEqual(h.mutations, []); assert.deepEqual(h.requests, []);
     }
   });

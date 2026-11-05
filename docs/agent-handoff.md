@@ -1,10 +1,52 @@
-## 2026-11-04 - Mobile Portal Search density release candidate
+## 2026-11-04 - Desktop visitor profile and pending release
 
-The mobile Portal Search slider is integrated on `codex/mobile-portal-density-release` in `logs/team-vennco`, based on live Sites 587 (`6e45b60`). It starts at three portals per row and snaps between one and five. Compact cards bound the visible name to two lines while the link keeps the full name. The release contains the three slider source files and two focused test files. The original work in `logs/mobile-portal-cards-release` remains available as a local reference. No backend changes are required.
+The desktop in-app profile for another creator now uses the mobile return action in the identity header. Follow and Bookmark sit beside the link icons. The Message icon is the contact action, and the duplicate button below the header is removed. The existing Start here project card remains available. Source is on `codex/latest-web-release` in `logs/team-vennco`, based on live Sites 588 (`81c4c7d`). The user authorized publishing this change together with Weekly Reads button parity, the desktop startup spinner, owner profile sheet and clipboard confirmation, shared catalogue sidebar and density, and shared project reader alignment and density. The configured client and worker build and both production bundle guards passed. Publication status is recorded separately. No migration applies.
+
+## 2026-11-04 - Desktop shared project reader aligns with the main reader
+
+Local on `codex/web-shared-project-reader` in `logs/team-vennco` from Sites 588 (`81c4c7d`). Removed the full-width title header from the desktop shared reader and moved Back to the project index. The media and side rails start together. Multi-page projects use the main reader's Pages per row control with viewer-local state, and title remains in project information. Back stays available in the collapsed index and details-only layout. Mobile keeps its existing reader. The change reuses the main reader spacing and control in `VisitorProjectPage.tsx`, `ProfileCategoryPage.tsx`, `ProjectMediaViewer.tsx` and `ProjectPagesPerRowControl.tsx`. Earlier pending edits remain in the checkout. Deployment remains pending.
+
+All 135 focused tests and typecheck passed. Targeted lint reported two existing warnings. Isolated Chrome with fictional projects matched the main reader's top alignment and verified two-to-four-column reflow, single-page handling, Back with the compact index or details open at 680px, and mobile reader controls at 420px. Receipt in `logs/shared-reader-parity-qa/receipt.json`.
+
+## 2026-11-04 - Desktop public catalogue remembers projects per row
+
+Local on `codex/web-public-catalogue-density` in `logs/team-vennco` from Sites 588 (`81c4c7d`). The desktop shared catalogue restores the viewer's last committed projects-per-row value from browser storage, keyed by the public profile ID. The creator's published density is the default until the viewer changes it. Preview gestures do not write storage. Mobile and in-app layout preferences are separate. Changed `useProjectGridDensity.ts`, `VisitorProfileGrid.tsx` and their focused tests. Earlier pending edits remain in the checkout. Deployment remains pending.
+
+All 96 focused tests, typecheck and targeted source lint passed. Isolated Chrome with fictional catalogues verified Settings Back, project reader Back, full reload, a separate catalogue and mobile independence at 420 × 912. Receipt in `logs/shared-catalogue-density-qa/receipt.json`. No migration applies.
+
+## 2026-11-04 - Desktop public catalogue sidebar uses the viewer's System Gray
+
+Local on `codex/public-catalogue-sidebar-gray` in `logs/team-vennco` from Sites 588 (`81c4c7d`). The desktop public sidebar uses the viewer's saved WEB System Gray and the standard navigation contrast tokens in the catalogue's active theme. Shared desktop Settings shows that selected grey. The visitor shell and mobile drawer retain their creator palette. Changed `VisitorApp.tsx`, `SharedProfileSidebar.tsx` and their existing tests. Chrome with a fictional catalogue verified the expanded and collapsed desktop sidebar at 1280px in both themes and the mobile drawer at 420px. Receipts are in `logs/shared-sidebar-grey-qa/receipt.json` and `logs/shared-sidebar-grey-qa/live-receipt.json`. Earlier pending profile, startup and Weekly Reads edits remain in the checkout. Deployment remains pending.
+
+All 95 focused tests and typecheck passed. Targeted source lint reported one existing hook warning. Linting the test mocks directly reports existing empty-function errors.
+
+## 2026-11-04 - Desktop catalogue copy confirmation
+
+Local on `codex/profile-copy-confirmation` in `logs/team-vennco` from Sites 588 (`81c4c7d`). The desktop owner sheet stays open for Copy public catalogue link. It reuses the mobile green check and polite success announcement for two seconds after the confirmed clipboard write. Rejections remain inside the active sheet and can be retried. The existing modal and account scope checks prevent stale feedback. Updated `UserProfilePage.tsx`, `MobileActionSheet.tsx` and their focused regressions. Pending desktop sheet geometry, startup spinner and Weekly Reads edits are retained. Deployment remains pending.
+
+Typecheck and targeted lint passed with one existing lint warning. The two test files passed 128 of 130 cases, with the same two unrelated action-sheet fixture failures as Sites 588. Chrome exercised pending, success, reset, rejection and retry on desktop and confirmed mobile success using a stub clipboard. Receipt in `logs/profile-copy-confirmation-qa/receipt.json`.
+
+## 2026-11-04 - Expanded desktop profile actions sheet
+
+Local on `codex/web-profile-full-sheet` in `logs/team-vennco` from Sites 588 (`81c4c7d`). The desktop owner profile actions open as a full-width bottom sheet at the Mission/Bio expanded height. Desktop omits the resize control and ignores header drags. The existing mobile compact and expand behavior remains in place. Changed `MobileActionSheet.tsx`, `web.css` and the existing context action test. Typecheck, targeted lint and 68 focused checks passed. Isolated Chrome verified full width, 92% height and restored focus at 1280 × 900, scroll access in a 350px-tall window and compact mobile opening and expansion at 420 × 912. Receipt in `logs/web-profile-full-sheet-qa/receipt.json`. The earlier local startup and Weekly Reads edits are present. Deployment remains pending.
+
+## 2026-11-04 - Desktop workspace loading spinner
+
+Local on `codex/desktop-startup-spinner` in `logs/team-vennco` from Sites 588 (`81c4c7d`). The desktop account handoff renders the shared loading spokes at the center of the viewport. The busy dialog keeps its accessible name and focus handling. The mobile handoff retains its existing content. Changed `PortalinkSplashLoader.tsx` and its existing lifecycle test. All 97 focused startup checks and targeted lint passed. Chrome verified exact viewport centering at 1280 × 900 in both themes, reduced motion and mobile baseline parity at 420px. Receipt in `logs/desktop-startup-spinner-qa/receipt.json`. The pending Weekly Reads styling is retained in this checkout. Deployment remains pending.
+
+## 2026-11-04 - Weekly Reads action styling parity
+
+Local in `logs/team-vennco` on `codex/weekly-read-actions-parity` from Sites 588 (`81c4c7d`). The Weekly Reads action row uses the existing mobile 44px pill height and 10px spacing on both presentations. Only `src/features/reads/reads.css` changed. Eight focused Home startup and dismissal checks passed. The real component with fictional reads in Chrome matched pill dimensions, spacing and theme colors at 1280px desktop and 420px mobile. The mobile heart and narrow layout also held at 320px. Receipt in `logs/weekly-note-actions-qa/receipt.json`. Deployment remains pending.
+
+## 2026-11-04 - Mobile Portal Search density published in Sites 588
+
+Published [Portalink](https://portalinknetworks.com) from `81c4c7d017b2e706399ef1fee60c6fbe28efc8b3` on `codex/mobile-portal-density-release` in `logs/team-vennco`. Draft [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points at the deployed commit. Mobile Portal Search starts at three portals per row and snaps between one and five. Compact cards bound the visible name to two lines while the link keeps the full name. The original slider copy in `logs/mobile-portal-cards-release` is superseded by this release.
+
+All 61 focused tests, typecheck, targeted lint, configured build and archive audit passed. Chrome fixtures verified dragging, long names and desktop parity. The live domain matched all four public entry routes and 208 JS/CSS assets. Live Team showed both portraits at mobile and desktop widths. No production sign-in or physical iPhone test was performed. No migration was applied.
 
 ## 2026-11-04 - VennCo Team roster published in Sites 587
 
-Live at [Portalink](https://portalinknetworks.com) from `6e45b60bb509ec548c3bbad1265b0b78e797ad91` in `logs/team-vennco` on `codex/team-vennco`. The Team roster now shows aviwashere and VennCo with the supplied portrait. Draft [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points at the deployed commit. The separate Portal Search slider work remains unpublished in `logs/mobile-portal-cards-release`. Use the Sites 587 source when preparing its next release.
+Published [Portalink](https://portalinknetworks.com) from `6e45b60bb509ec548c3bbad1265b0b78e797ad91` in `logs/team-vennco` on `codex/team-vennco`. The Team roster shows aviwashere and VennCo with the supplied portrait. Sites 588 carries this roster forward.
 
 All nine focused checks, typecheck, targeted lint and the configured build passed. The archive preserved the worker and four D1 SQL files. The live domain matched four entry routes and 209 JavaScript and CSS assets. Fresh Chrome confirmed both Team cards and the decoded VennCo portrait at 420 × 912 and 1280 × 900. Receipts are in `logs/team-vennco-release-archive-audit.json`, `logs/team-vennco-release-live.json` and `logs/team-roster-live-smoke/receipt.json`. No migration was applied.
 

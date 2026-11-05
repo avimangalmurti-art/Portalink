@@ -48,7 +48,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   }, [mobileImageCatalogue, profile.id, categoryId]);
   const [timelineToolbarHost, setTimelineToolbarHost] = useState<HTMLDivElement | null>(null);
   const category = profile.categories.find(item => item.id === categoryId);
-  const density = useProjectGridDensity(profile, false);
+  const density = useProjectGridDensity(profile, false, 'public-catalogue');
   const projects = useMemo(() => categoryId ? profile.projects.filter(project => project.categoryId === categoryId) : profile.projects, [profile.projects, categoryId]);
   const links = resolveProfileLinks(profile.links, profile.socialLinks);
   const items = projects.map(project => ({ key: project.id, ratio: getProjectAspectRatio(project), content:

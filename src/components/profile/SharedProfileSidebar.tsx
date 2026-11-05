@@ -18,6 +18,7 @@ type SharedProfileSidebarProps = {
   mobileNavigationRequest?: object;
   activeCategoryId: string | null;
   theme: AppearanceTheme;
+  desktopNavigationStyle?: React.CSSProperties;
   onThemeChange: (theme: AppearanceTheme) => void;
   onOpenCategory: (categoryId: string) => void;
   onSettingsOpen: () => void;
@@ -35,6 +36,7 @@ export function SharedProfileSidebar({
   mobileNavigationRequest,
   activeCategoryId,
   theme,
+  desktopNavigationStyle,
   onThemeChange,
   onOpenCategory,
   onSettingsOpen
@@ -59,8 +61,9 @@ export function SharedProfileSidebar({
   }, []);
   const compactNavigation = useCompactNavigation(preferredCollapsed, setIsCollapsed);
   const isCollapsed = !isMobile && compactNavigation.collapsed;
+  const sidebarStyle = isMobile ? undefined : isCollapsed ? desktopNavigationStyle : { ...desktopNavigationStyle, width: `${sharedSidebarWidth.width}px` };
   const toggleLabel = isMobile ? 'Close profile navigation' : isCollapsed ? 'Expand navigation' : 'Collapse navigation';
-  const renderSidebar = (closeDrawer?: () => void) => <aside data-mobile-shared-sidebar={isMobile || undefined} data-resizable-panel="" data-collapsed={isCollapsed ? 'true' : 'false'} style={isMobile || isCollapsed ? undefined : { width: `${sharedSidebarWidth.width}px` }} aria-label={`${profile.name} shared profile navigation`} className={`shared-profile-sidebar sidebar-starfield relative flex h-full min-h-0 shrink-0 flex-col bg-transparent transition-[width] duration-[var(--m-fast)] motion-reduce:transition-none ${isCollapsed ? 'w-[48px] sm:w-[52px]' : ''}`}>
+  const renderSidebar = (closeDrawer?: () => void) => <aside data-mobile-shared-sidebar={isMobile || undefined} data-resizable-panel="" data-collapsed={isCollapsed ? 'true' : 'false'} style={sidebarStyle} aria-label={`${profile.name} shared profile navigation`} className={`shared-profile-sidebar sidebar-starfield relative flex h-full min-h-0 shrink-0 flex-col bg-transparent transition-[width] duration-[var(--m-fast)] motion-reduce:transition-none ${isCollapsed ? 'w-[48px] sm:w-[52px]' : ''}`}>
       <div data-shared-navigation-header="" className={`global-control-header shrink-0 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
         <div data-shared-navigation-row="" className={`flex h-full w-full min-w-0 flex-1 items-center ${isCollapsed ? 'justify-center' : 'side-panel-control-row'}`}>
           {!isCollapsed ? <Link onClick={closeDrawer} to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">

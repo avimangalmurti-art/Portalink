@@ -70,6 +70,7 @@ test('active MOBILE and WEB public images expose one named density control direc
   assert.equal(nodes(tree).find(node => node.type === 'profile-links').props.isSharedView, true);
   assert.equal(h.calls[0][0], h.profile);
   assert.equal(h.calls[0][1], false, 'A public slider never enables profile writes');
+  assert.equal(h.calls[0][2], 'public-catalogue', 'The public wall uses its own density preference.');
   assert.equal(tree.props['data-public-image-catalogue'], presentation === 'mobile' ? '' : undefined, 'MOBILE flow and scroll repair retain their existing scope');
  }
 });

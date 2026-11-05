@@ -78,6 +78,23 @@ test('public navigation starts expanded at the compact standard width with the c
   assert.equal(portals(tree).length, 2);
 });
 
+test('viewer navigation tokens reach the expanded and collapsed WEB rail only', () => {
+  const h = harness();
+  const desktopNavigationStyle = { '--navigation-surface': '#202020', '--navigation-foreground': '#ffffff', '--navigation-blur': 'none' };
+  const expanded = h.render({ desktopNavigationStyle });
+  assert.deepEqual({ ...expanded.props.style }, { ...desktopNavigationStyle, width: '280px' });
+
+  toggle(expanded).props.onClick();
+  const collapsed = h.render({ desktopNavigationStyle });
+  assert.equal(collapsed.props['data-collapsed'], 'true');
+  assert.deepEqual({ ...collapsed.props.style }, desktopNavigationStyle);
+
+  h.setPresentation('mobile');
+  const drawer = h.render({ desktopNavigationStyle });
+  assert.equal(drawer.props.desktopNavigationStyle, undefined);
+  assert.equal(nodes(drawer.props.children(() => undefined)).some(node => node.props?.style?.['--navigation-surface'] !== undefined), false);
+});
+
 test('collapse keeps all creator portal icons named, clickable and selected without visible labels', () => {
   const h = harness();
   toggle(h.render()).props.onClick();

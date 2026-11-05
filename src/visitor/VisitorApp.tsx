@@ -246,6 +246,11 @@ export function VisitorApp() {
   const style = useMemo(() => ({ '--accent-color': accentColor, ...resolveAccentTokens(accentColor, theme),
     ...resolveNavButtonTokens(theme, accentColor, highContrast, reduceTranslucency, systemGray), ...resolveMacTokens(accentColor, theme),
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
+  const navigationGray = presentation === 'web' ? appearance.systemGray : systemGray;
+  const desktopNavigationStyle = useMemo(() => {
+    if (navigationGray === systemGray) return undefined;
+    return resolveNavButtonTokens(theme, accentColor, highContrast, reduceTranslucency, navigationGray) as React.CSSProperties;
+  }, [navigationGray, systemGray, theme, accentColor, highContrast, reduceTranslucency]);
   const openProject = (category: string, id: string) => { if (profileId) {
     if (presentation === 'mobile') { setPortalPopup(null); setPortalNavigationRequest(null); }
     if (presentation === 'web' && !projectId && catalogueReady) {
@@ -268,7 +273,7 @@ export function VisitorApp() {
     }} />;
   return <AppPresentation showFloatingActions={!settings && !projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
-      {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode}
+      {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode} desktopNavigationStyle={desktopNavigationStyle}
         mobileNavigationRequest={presentation === 'mobile' && portalNavigationRequest?.scope === catalogueScope ? portalNavigationRequest : undefined}
         onOpenCategory={id => { if (presentation === 'mobile') {
           setPortalNavigationRequest(null);
@@ -296,7 +301,7 @@ export function VisitorApp() {
                 <DeferredSurfaceBoundary active onClose={back} resetKey={location.pathname}>
                   <Suspense fallback={pending}>
                     {settings ? <ControlCenterPage sharedReadOnly theme={theme} appearanceMode={appearance.mode} onAppearanceModeChange={choosePublicMode}
-                      systemGray={systemGray} onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })}
+                      systemGray={navigationGray} onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })}
                       accentColor={accentColor} onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })}
                       highContrast={highContrast} onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })}
                       reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })}

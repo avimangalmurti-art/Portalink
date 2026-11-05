@@ -17,7 +17,7 @@ import { MobilePageContext } from '../../features/media-interactions/MobilePageC
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import type { PagePosition } from './MobileProjectPageCounter';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
+import { UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, ChevronLeftIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { PortalRingIcon } from '../PortalRingIcon';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
@@ -710,6 +710,10 @@ export function ProjectMediaViewer({
         </nav>}
       </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
+            {singlePanel === 'response' && <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
+              className="side-panel-header-control side-panel-header-icon" aria-label="Back" title="Back" onClick={onClose}>
+              <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
+            </button>}
             <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
             </button>

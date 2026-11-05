@@ -800,20 +800,22 @@ test('mobile other-creator profiles omit options and hold actions while preservi
     assert.ok(back); assert.ok(nodes(tree).some(node => node.type === 'ScreenBack' && node.props.action === back.props.onClick)); back.props.onClick();
     assert.deepEqual(calls, [viewerRole === 'visitor' ? 'follow' : 'sign-in', 'collaboration', 'message', 'back']);
   }
-  const web = profileHarness('', { presentation: 'web', viewerRole: 'visitor' });
-  const button = nodes(web.render()).find(node => node.props?.['aria-label'] === 'Profile options');
-  assert.ok(button); assert.equal(button.props['aria-expanded'], false); button.props.onClick();
+  let webBacks = 0;
+  const web = profileHarness('', { presentation: 'web', viewerRole: 'visitor', props: { onBack: () => webBacks++ } });
   const webTree = web.render();
-  assert.equal(nodes(webTree).find(node => node.props?.['aria-label'] === 'Profile options').props['aria-expanded'], true);
-  assert.ok(web.mobileActions); assert.equal(web.mobilePressModel, web.mobileActions);
-  assert.notEqual(nodes(webTree).find(node => node.type === 'CreatorSaveButton').props.registerScreenActions, false);
+  const header = nodes(webTree).find(node => node.props?.className === 'profile-compact-header');
+  const back = nodes(header).find(node => node.props?.['aria-label'] === 'Back to previous screen');
+  assert.ok(back); back.props.onClick(); assert.equal(webBacks, 1);
+  assert.equal(nodes(webTree).some(node => node.props?.['aria-label'] === 'Profile options'), false);
+  assert.equal(web.mobileActions, null); assert.equal(web.mobilePressModel, null);
+  assert.equal(nodes(webTree).find(node => node.type === 'CreatorSaveButton').props.registerScreenActions, false);
 });
 
-test('WEB visitor/shared profiles retain disclosure while MOBILE shared links are immediately available with correct privacy context', () => {
+test('platform visitors see links immediately while WEB shared fallback retains disclosure', () => {
   const links = [{ label:'Website',href:'https://example.com',iconName:'globe' }];
   for (const options of [{presentation:'web',viewerRole:'visitor'}, {presentation:'mobile',isSharedView:true}, {presentation:'web',isSharedView:true}]) {
     const h = profileHarness('', {...options,links});
-    assert.equal(nodes(h.render()).some(node => node.type === 'PlatformGrid'), options.presentation === 'mobile');
+    assert.equal(nodes(h.render()).some(node => node.type === 'PlatformGrid'), options.presentation === 'mobile' || !options.isSharedView);
     const tree = openProfileOptions(h), grid = nodes(tree).find(node => node.type === 'PlatformGrid');
     assert.equal(grid.props.isSharedView, options.isSharedView ?? false);
     assert.deepEqual(Array.from(grid.props.links.slice(0,3),link=>link.action), ['bio','collaboration','message']);
@@ -837,10 +839,12 @@ function openProfileOptions(h) {
   const tree = h.render();
   const toggle = nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options');
   if (toggle) toggle.props.onClick();
-  else {
-    assert.equal(h.isMobile, true, 'WEB retains its existing Profile options disclosure');
+  else if (h.isMobile) {
     if (h.isOwner) assert.ok(h.action('settings'), 'MOBILE owner delegates to the standard floating Actions button');
     else assert.equal(h.mobileActions, null, 'MOBILE other-creator profiles use their direct controls without a context sheet');
+  } else {
+    assert.equal(h.isOwner, false);
+    assert.ok(nodes(tree).some(node => node.props?.['aria-label'] === 'Back to previous screen'), 'WEB visitors use direct header controls.');
   }
   return h.render();
 }
@@ -1007,6 +1011,53 @@ test('WEB owner Share keeps its existing dialog and private profiles cannot disp
   assert.ok(modelAction(privateModel, 'reorder'), 'Privacy does not remove the owner’s existing arrangement capability');
 });
 
+test('WEB owner catalogue copy keeps the sheet open and reports success only after the current clipboard write', async () => {
+  const clipboard = Promise.withResolvers();
+  const copied = [];
+  const h = profileHarness('', { presentation: 'web', onCopy: value => { copied.push(value); return clipboard.promise; },
+    props: { shareUrl: 'https://preview.test/share/owner?view=portals#portfolio' },
+  });
+  const sheet = profileActionSheet(openProfileOptions(h));
+  let completed = false;
+  const pending = Promise.resolve(sheet.props.onAction(modelAction(sheet.props.model, 'copy'))).then(result => { completed = true; return result; });
+  await flush();
+  assert.deepEqual(copied, ['https://portalinknetworks.com/share/owner?view=portals#portfolio']);
+  assert.ok(profileActionSheet(h.render()));
+  assert.equal(completed, false);
+  clipboard.resolve();
+  assert.equal(await pending, true);
+  assert.ok(profileActionSheet(h.render()));
+});
+
+test('WEB owner catalogue copy delegates rejection to its sheet and rejects removed or stale actions', async () => {
+  const clipboard = Promise.withResolvers();
+  let writes = 0;
+  const options = { presentation: 'web', props: {}, onCopy: () => ++writes === 1 ? Promise.reject(new Error('Clipboard denied')) : clipboard.promise };
+  const h = profileHarness('', options);
+  let sheet = profileActionSheet(openProfileOptions(h));
+  const selected = modelAction(sheet.props.model, 'copy');
+  await assert.rejects(Promise.resolve(sheet.props.onAction(selected)), /Clipboard denied/);
+  let tree = h.render();
+  assert.ok(profileActionSheet(tree));
+  assert.equal(nodes(tree).some(node => node.props?.role === 'alert'), false, 'The page does not announce a second copy error');
+
+  options.props.profile = { ...h.profile, isPrivate: true };
+  sheet = profileActionSheet(h.render());
+  assert.equal(modelAction(sheet.props.model, 'copy'), undefined);
+  assert.equal(await sheet.props.onAction({ ...selected, run() { assert.fail('Stale action must not bypass privacy'); } }), false);
+  assert.equal(writes, 1);
+
+  options.props.profile = h.profile;
+  sheet = profileActionSheet(h.render());
+  const stale = sheet.props.onAction(modelAction(sheet.props.model, 'copy'));
+  await flush();
+  assert.equal(writes, 2);
+  options.props.profile = { ...h.profile, id: 'different-profile' };
+  h.render();
+  clipboard.resolve();
+  assert.equal(await stale, false);
+});
+
 test('WEB owner sheet enters existing project reorder and retains Done, Cancel and density behavior', async () => {
   for (const finish of ['Done', 'Cancel']) {
     let saved = 0;
@@ -1037,7 +1088,7 @@ test('WEB owner sheet enters existing project reorder and retains Done, Cancel a
   }
 });
 
-test('WEB visitor/shared disclosure and MOBILE action ownership never mount the new local owner sheet', () => {
+test('visitor and shared profiles never mount the desktop owner action sheet', () => {
   for (const options of [
     { presentation: 'web', viewerRole: 'visitor' }, { presentation: 'web', viewerRole: 'guest' },
     { presentation: 'web', viewerRole: 'owner', isSharedView: true },
@@ -1048,11 +1099,14 @@ test('WEB visitor/shared disclosure and MOBILE action ownership never mount the 
     const tree = openProfileOptions(h);
     assert.equal(profileActionSheet(tree), undefined);
     assert.equal(nodes(tree).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);
-    if (options.presentation === 'web') {
+    if (options.presentation === 'web' && options.isSharedView) {
       const toggle = nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options');
       assert.equal(toggle.props['aria-haspopup'], undefined);
       assert.equal(toggle.props['aria-controls'], 'profile-navigation-tools');
       assert.equal(toggle.props['aria-expanded'], true);
+      assert.ok(nodes(tree).find(node => node.type === 'PlatformGrid'));
+    } else if (options.presentation === 'web') {
+      assert.ok(nodes(tree).some(node => node.props?.['aria-label'] === 'Back to previous screen'));
       assert.ok(nodes(tree).find(node => node.type === 'PlatformGrid'));
     } else if (options.viewerRole === 'owner') {
       assert.equal(h.mobileActions.kind, 'profile'); assert.equal(h.mobileActions.viewer.owner, true);
@@ -1386,19 +1440,19 @@ test('profile header loads current totals before opening any list and discards s
 });
 
 
-test('mobile visitor profile keeps Message in link icons without duplicating it in Actions; WEB is preserved', () => {
+test('visitor profiles keep Message in link icons without duplicating it below the header', () => {
   for (const presentation of ['mobile', 'web']) {
     let messages = 0;
     const onMessage = () => messages++;
     const h = profileHarness('', {presentation, viewerRole:'visitor', isAuthenticated:true, props:{onMessage}});
-    const tree = openProfileOptions(h);
+    const tree = h.render();
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
     assert.ok(grid.props.links.some(link => link.action === 'message'));
     grid.props.onMessage(); assert.equal(messages, 1);
     const introduction = nodes(tree).find(node => node.type === 'EmployerOverview');
     assert.ok(introduction);
-    assert.equal(introduction.props.onMessage, presentation === 'mobile' ? undefined : onMessage);
-    if (presentation === 'mobile') assert.equal(h.action('message'), undefined);
+    assert.equal(introduction.props.onMessage, undefined);
+    assert.equal(h.action('message'), undefined);
   }
 });
 
@@ -1416,19 +1470,28 @@ test('mobile nested profile headers retain Portfolio/Journey and return to the s
   }
 });
 
-test('mobile connection profiles expose icon Back and return through history to the selected list; WEB stays unchanged', () => {
-  for (const kind of ['followers', 'following']) {
-    const h = profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'mobile', window:{history:{state:{idx:2}}}});
-    const back = nodes(h.render()).find(node => node.props['aria-label'] === 'Back to previous screen');
-    assert.ok(back); back.props.onClick({detail:1});
-    assert.equal(h.navigation.at(-1).target, -1);
-    const direct = profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'mobile', window:{history:{state:{idx:0}}}});
-    nodes(direct.render()).find(node => node.props['aria-label'] === 'Back to previous screen').props.onClick({detail:1});
-    assert.equal(direct.navigation.at(-1).target, `/p/source?view=${kind}`);
-    assert.equal(direct.navigation.at(-1).options.replace, true);
-    assert.equal(nodes(profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'web'}).render()).some(node => node.props['data-connections-back'] !== undefined), false);
+test('visitor profile Back returns to search or the selected connections list on WEB and MOBILE', () => {
+  const searchPath = '/search?q=creator';
+  for (const presentation of ['web', 'mobile']) {
+    for (const [query, fallback] of [
+      [`fromSearch=${encodeURIComponent(searchPath)}`, searchPath],
+      ...['followers', 'following'].map(kind => [`fromConnections=source&connectionList=${kind}`, `/p/source?view=${kind}`]),
+    ]) {
+      for (const idx of [0, 2]) {
+        const h = profileHarness(query, { presentation, viewerRole: 'visitor', window: { history: { state: { idx } } } });
+        const tree = nodes(h.render());
+        const backs = tree.filter(node => node.props['aria-label'] === 'Back to previous screen');
+        assert.equal(backs.length, 1);
+        assert.equal(tree.some(node => node.props['data-search-back'] !== undefined || node.props['data-connections-back'] !== undefined), false);
+        backs[0].props.onClick();
+        assert.equal(h.navigation.at(-1).target, idx ? -1 : fallback);
+        assert.equal(h.navigation.at(-1).options?.replace, idx ? undefined : true);
+      }
+    }
   }
-  assert.equal(nodes(profileHarness('', {presentation:'mobile'}).render()).some(node => node.props['data-connections-back'] !== undefined), false);
+  const owner = profileHarness('fromConnections=source&connectionList=following', { presentation: 'web' });
+  assert.ok(nodes(owner.render()).some(node => node.props['aria-label'] === 'Profile options'));
+  assert.equal(nodes(owner.render()).some(node => node.props['aria-label'] === 'Back to previous screen'), false);
 });
 
 test('confirmed mutuals can list both connection directions',async()=>{

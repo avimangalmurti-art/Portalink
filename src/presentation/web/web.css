@@ -78,6 +78,18 @@
   }
 }
 
+#root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-owner-profile-actions] {
+  inset-inline: 0;
+  width: 100%;
+  height: 92%;
+  max-height: calc(100% - max(40px, env(safe-area-inset-top, 0px)));
+}
+
+#root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-owner-profile-actions] > header {
+  padding-top: 16px;
+  touch-action: auto;
+}
+
 #root .codex-shell[data-presentation='web']:is(.reduce-translucency, .high-contrast) .mobile-context-sheet[data-owner-profile-actions] {
   background: var(--surface-raised) !important;
 }

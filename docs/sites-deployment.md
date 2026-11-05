@@ -1,3 +1,9 @@
+## 2026-11-04 - Mobile Portal Search density published 588
+
+Published [Portalink](https://portalinknetworks.com) from `81c4c7d017b2e706399ef1fee60c6fbe28efc8b3`. Draft [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points at the deployed source. Mobile Portal Search defaults to three portals per row and adjusts from one to five.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_ea45bf565bc08191bee9a4a90a66716a` and deployment `appgdep_6aeb9bb820d48191a32cf9c357e214b8` succeeded at 2026-11-04T20:55:30.088895+00:00. The audited archive retained all 420 public assets, the worker and four D1 SQL files byte for byte. Receipts in `logs/team-vennco/logs/` use the `mobile-portal-density-release` prefix. No migration was applied.
+
 ## 2026-11-04 - VennCo Team roster published 587
 
 Published [Portalink](https://portalinknetworks.com) from `6e45b60bb509ec548c3bbad1265b0b78e797ad91`. Draft [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points at the deployed commit. The public Team roster shows aviwashere and VennCo.

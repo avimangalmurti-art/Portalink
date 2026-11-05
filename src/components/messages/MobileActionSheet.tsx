@@ -17,6 +17,7 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   const [dragging,setDragging]=useState(false);
   const [interacted,setInteracted]=useState(false);
   const [copyState, setCopyState] = useState<'idle' | 'pending' | 'copied'>('idle');
+  const [copyError, setCopyError] = useState('');
   const copyAttempt = useRef(0), copyPending = useRef(false);
   const copyResetTimer = useRef<number | null>(null);
   useEffect(() => () => {
@@ -26,19 +27,22 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   }, []);
   const dialogRef = useRef<HTMLDivElement>(null), viewportRef = useDialogViewport(), titleId = useId();
   const ownerProfile = layout === 'actions' && model.kind === 'profile' && Boolean(model.viewer?.owner);
+  const canResize = mobile || (!onboardingFiles && !ownerProfile);
   // File management starts expanded so the reorder grid has room to scroll.
   const [expanded, setExpanded] = useState(mobile ? layout === 'files' : ownerProfile);
   const dismiss = () => motion.close(onClose, viewportRef.current);
   const start = useRef<{x:number;y:number;id:number;rest:number;offset:number} | null>(null);
   const dragged = useRef(false);
   const cancelDrag = () => { start.current = null; setDragging(false); setDragY(0); };
-  const inlineCopy = (action: ContextAction) => mobile && model.kind === 'profile' && action.id === 'copy';
+  const showsInlineCopy = model.kind === 'profile' && (mobile || ownerProfile);
+  const inlineCopy = (action: ContextAction) => showsInlineCopy && action.id === 'copy';
   const activate = async (action: ContextAction, viewport?: HTMLElement | null) => {
     if (!inlineCopy(action)) { motion.close(() => onAction(action), viewport); return; }
     if (copyPending.current) return;
     copyPending.current = true;
     const attempt = ++copyAttempt.current;
     if (copyResetTimer.current !== null) { window.clearTimeout(copyResetTimer.current); copyResetTimer.current = null; }
+    setCopyError('');
     setCopyState('pending');
     try {
       const copied = await onAction(action);
@@ -49,8 +53,11 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
         copyResetTimer.current = null;
         if (copyAttempt.current === attempt) setCopyState('idle');
       }, 2000);
-    } catch {
-      if (copyAttempt.current === attempt) setCopyState('idle');
+    } catch (error) {
+      if (copyAttempt.current === attempt) {
+        setCopyState('idle');
+        setCopyError(error instanceof Error ? error.message : 'Could not copy the link. Please try again.');
+      }
     } finally {
       if (copyAttempt.current === attempt) copyPending.current = false;
     }
@@ -62,7 +69,7 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   return <ModalPortal><div data-presentation={onboardingFiles ? presentation : 'mobile'} data-onboarding-files-manager={onboardingFiles || undefined} data-sheet-layout={layout === 'files' ? layout : undefined} ref={viewportRef} data-motion-scrim="" data-motion-closing={motion.closing || undefined} className="mobile-context-scrim modal-scrim" style={{...(ownerProfile ? {top:'var(--dialog-viewport-top, 0px)',bottom:'auto'} : {bottom:0}),height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)dismiss();}}>
     <div data-ui-surface="sheet" data-owner-profile-actions={ownerProfile || undefined} data-onboarding-files-manager={onboardingFiles || undefined} data-sheet-layout={layout === 'files' ? layout : undefined} ref={dialogRef} className="mobile-context-sheet" data-expanded={expanded} data-motion-sheet="" data-motion-closing={motion.closing || undefined} data-sheet-dragging={dragging || undefined} data-sheet-interacted={interacted || undefined} style={{['--sheet-drag-y' as string]:`${dragY}px`}} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
       <header onPointerDown={e=>{
-        if(onboardingFiles&&!mobile)return;
+        if(!canResize)return;
         if(!e.isPrimary||e.button!==0||start.current)return;
         if(e.target instanceof Element&&e.target.closest('button:not(.mobile-context-resize)'))return;
         const dialog = dialogRef.current, viewport = viewportRef.current;
@@ -98,7 +105,7 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
         else if(delta<=-40&&expanded)setExpanded(false);
         else if(delta<-64){setDragY(Math.max(0,from.offset-delta)-from.rest);dismiss();}
       }} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}>
-        {(!onboardingFiles||mobile)&&<button type="button" className="mobile-context-resize" aria-label={expanded?'Collapse actions':'Expand actions'} aria-expanded={expanded} onClick={e=>{
+        {canResize&&<button type="button" className="mobile-context-resize" aria-label={expanded?'Collapse actions':'Expand actions'} aria-expanded={expanded} onClick={e=>{
           if(dragged.current&&e.detail!==0){dragged.current=false;return;}
           dragged.current=false;
           setInteracted(true);
@@ -110,7 +117,8 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
         {beforeActions}
         {model.primary.length>0&&<div className="mobile-context-primary" style={{gridTemplateColumns:`repeat(${model.primary.length}, minmax(0, 1fr))`}}>{model.primary.map(action=><button type="button" key={action.id} aria-busy={inlineCopy(action) && copyState === 'pending' || undefined} aria-disabled={inlineCopy(action) && copyState === 'pending' || undefined} onClick={event=>void activate(action,event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}>{actionIcon(action)}<span>{action.label}</span></button>)}</div>}
         {model.groups.map((group,i)=><div className="mobile-context-group" key={i}>{group.map(action=><button type="button" key={action.id} data-destructive={action.destructive||undefined} data-keep-color={action.destructive?'':undefined} aria-busy={inlineCopy(action) && copyState === 'pending' || undefined} aria-disabled={inlineCopy(action) && copyState === 'pending' || undefined} onClick={event=>void activate(action,event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><span>{action.label}</span>{actionIcon(action)}</button>)}</div>)}
-        {mobile && model.kind === 'profile' && <span className="sr-only" role="status" aria-live="polite">{copyState === 'copied' ? 'Public catalogue link copied' : ''}</span>}
+        {showsInlineCopy && <span className="sr-only" role="status" aria-live="polite">{copyState === 'copied' ? 'Public catalogue link copied' : ''}</span>}
+        {showsInlineCopy && copyError && <p className="px-2 py-2 text-sm text-[var(--text-secondary)]" role="alert">{copyError}</p>}
         {!beforeActions && model.primary.length === 0 && model.groups.length === 0 && !children && <p className="px-2 py-4 text-sm text-[var(--text-secondary)]">No additional actions on this screen.</p>}
         {children}
       </div>

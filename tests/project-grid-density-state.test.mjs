@@ -281,3 +281,36 @@ test('read-only visitors retain independent local slots and never save an owner 
   visitor.present('mobile'); await visitor.flush(); assert.equal(visitor.value.columns, 5);
   assert.equal(s.writes.length, 0); assert.equal(s.invalidations, 0);
 });
+
+test('shared WEB catalogue restores committed density across remounts and browser reloads', async () => {
+  const saved = new Map(), storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) };
+  const s = setup({ storage });
+  const creator = { ...s.records.owner };
+  const shared = s.mount(creator, false, 'public-catalogue');
+  assert.equal(shared.value.columns, 2, 'The first visit uses the creator layout.');
+  shared.update({ ...creator, projectGridColumns: 3 });
+  await shared.flush();
+  assert.equal(shared.value.columns, 3, 'Creator layout updates apply until the visitor chooses a density.');
+  shared.value.previewColumns(5);
+  assert.equal(shared.value.columns, 5);
+  assert.equal(saved.size, 0, 'Opening a catalogue or previewing the slider does not persist.');
+  shared.value.setColumns(5);
+  shared.dispose();
+
+  const returned = s.mount(creator, false, 'public-catalogue');
+  assert.equal(returned.value.columns, 5);
+  returned.update({ ...creator, projectGridColumns: 7 });
+  await returned.flush();
+  assert.equal(returned.value.columns, 5);
+  returned.value.previewColumns(9);
+  returned.dispose();
+
+  const fresh = setup({ storage });
+  assert.equal(fresh.mount(creator, false, 'public-catalogue').value.columns, 5, 'An abandoned preview does not replace the committed value.');
+  assert.equal(fresh.mount({ ...s.records.other }, false, 'public-catalogue').value.columns, 8);
+  assert.equal(fresh.mount(creator, false, 'public-catalogue', 'mobile').value.columns, 4);
+  assert.equal(fresh.mount(creator, false).value.columns, 2, 'The in-app profile does not read the shared preference.');
+  assert.deepEqual([...saved], [['portalink.public-catalogue-grid-columns:web:owner', '5']]);
+  assert.deepEqual(s.writes, []);
+  assert.equal(s.invalidations, 0);
+});

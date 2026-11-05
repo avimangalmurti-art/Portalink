@@ -396,11 +396,13 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       exit={{ opacity: 0 }}
       transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : motionSeconds('base'), ease: motionCurve() }}
     >
-      {openingWorkspace && <div className="portalink-opening-workspace">
-        <h1>Opening Portalink…</h1>
-        <p>Getting your workspace ready.</p>
-        <div className="portalink-opening-preview"><LoadingState kind="grid" label="Opening Portalink…" /></div>
-      </div>}
+      {openingWorkspace && (presentation === 'web'
+        ? <span className="premium-media-loading-mark" aria-hidden="true" />
+        : <div className="portalink-opening-workspace">
+            <h1>Opening Portalink…</h1>
+            <p>Getting your workspace ready.</p>
+            <div className="portalink-opening-preview"><LoadingState kind="grid" label="Opening Portalink…" /></div>
+          </div>)}
       {!openingWorkspace && !sceneLanding?.hideMedia && <div className="portalink-splash-media" aria-hidden="true" style={{ '--portalink-media-ratio': mediaWidth / mediaHeight } as React.CSSProperties}>
         <div className="portalink-splash-frame">
           <img src={SPLASH_POSTER_DATA_URL} alt="" aria-hidden="true" width={mediaWidth} height={mediaHeight} decoding="sync" className="portalink-splash-asset" />

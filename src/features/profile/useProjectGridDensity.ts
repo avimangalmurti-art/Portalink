@@ -80,11 +80,11 @@ async function savePending(state: DensityState, service: ProfileService, id: str
   }
 }
 
-/** WEB keeps the authored profile layout; MOBILE and Home have separate device preferences. */
+/** Authored WEB layouts and viewer density preferences are kept separately. */
 export function useProjectGridDensity(
   profile: Pick<Profile, 'id' | 'projectGridColumns'> | null,
   canSave: boolean,
-  scope: 'profile' | 'home' = 'profile',
+  scope: 'profile' | 'home' | 'public-catalogue' = 'profile',
 ) {
   const { profiles } = useServices();
   const { invalidateProfiles } = useProfileData();
@@ -94,6 +94,8 @@ export function useProjectGridDensity(
   // The existing Home key belongs to WEB so its saved choice survives this split.
   const homeKey = `portalink.home-grid-columns:${isMobile ? 'mobile:' : ''}${profileId ?? 'guest'}`;
   const mobileProfileKey = `portalink.profile-grid-columns:mobile:${profileId ?? 'guest'}`;
+  const publicCatalogueKey = scope === 'public-catalogue' && !isMobile && profileId
+    ? `portalink.public-catalogue-grid-columns:web:${profileId}` : null;
   const saveProfile = canSave && scope === 'profile' && !isMobile;
   const canonicalColumns = normalizeProjectGridColumns(profile?.projectGridColumns);
   const [, render] = useState(0);
@@ -110,7 +112,10 @@ export function useProjectGridDensity(
       : ownerState(profiles, profileId, canonicalColumns);
     let visitor = visitorStates.get(presentation);
     if (!visitor) {
-      visitor = createState(isMobile ? storedColumns(mobileProfileKey) ?? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS : canonicalColumns);
+      const savedPublicColumns = publicCatalogueKey ? storedColumns(publicCatalogueKey) : undefined;
+      visitor = createState(isMobile ? storedColumns(mobileProfileKey) ?? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS
+        : savedPublicColumns ?? canonicalColumns);
+      visitor.localChoice = savedPublicColumns !== undefined;
       visitorStates.set(presentation, visitor);
     }
     return visitor;
@@ -150,13 +155,15 @@ export function useProjectGridDensity(
     state.saveError = null;
     if (scope === 'home') {
       try { localStorage.setItem(homeKey, String(next)); } catch { /* Keep the in-memory choice. */ }
+    } else if (publicCatalogueKey) {
+      try { localStorage.setItem(publicCatalogueKey, String(next)); } catch { /* Keep the in-memory choice. */ }
     } else if (isMobile && canSave && profileId) {
       try { localStorage.setItem(mobileProfileKey, String(next)); } catch { /* Keep the in-memory choice. */ }
     }
     if (saveProfile && profileId) state.pending = next;
     notify(state);
     if (saveProfile && profileId) void savePending(state, profiles, profileId, invalidateProfiles);
-  }, [state, saveProfile, profileId, profiles, invalidateProfiles, scope, homeKey, isMobile, canSave, mobileProfileKey]);
+  }, [state, saveProfile, profileId, profiles, invalidateProfiles, scope, homeKey, publicCatalogueKey, isMobile, canSave, mobileProfileKey]);
 
   const retry = useCallback(() => {
     if (!saveProfile || !profileId || !state.saveError) return;

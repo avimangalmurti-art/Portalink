@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { ChevronLeftIcon, ListIcon, XIcon } from 'lucide-react';
+import { ChevronLeftIcon, ListIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, XIcon } from 'lucide-react';
 import type { Profile, Project } from '../types/domain';
 import { usePresentation } from '../presentation/usePresentation';
 import { ProjectMediaViewer } from '../components/media/ProjectMediaViewer';
+import { ProjectPagesPerRowControl } from '../components/media/ProjectPagesPerRowControl';
 import { useResizablePanelWidth } from '../components/ui/ResizablePanelHandle';
 import { useAssetProcessing } from '../features/media/useAssetProcessing';
 import { getTypefaceStack } from '../data/typefaces';
@@ -14,6 +15,8 @@ import { allocateProjectPanels, type ProjectPanel } from '../utils/projectPanelL
 import { ProjectIndexList } from '../components/profile/ProjectIndexList';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from '../components/profile/MobilePortalProjectToolbar';
 import { sortPortalProjects, type PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
+import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from '../features/projects/pageLayout';
+import '../components/profile/web-reader-spacing.css';
 
 /** Uses the canonical media viewer without importing owner workspace/editors. */
 export function VisitorProjectPage({ profile, project, categoryId, loading = false, onBack, onBackToProfile, onSelect, browsing }: {
@@ -29,7 +32,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
     currentScope.current = { profileId: profile.id, projectId: project?.id ?? null };
   }
   const readerScope = currentScope.current;
-  const defaultPagesPerRow = project?.design?.pagesPerRow ?? 3;
+  const defaultPagesPerRow = normalizePagesPerRow(project?.design?.pagesPerRow ?? DEFAULT_PAGES_PER_ROW);
   type ReaderState = { scope: typeof readerScope; focused: boolean; pagesPerRow: number; resolvedCounts: Record<string, number> };
   const [readerState, setReaderState] = useState<ReaderState>({ scope: readerScope, focused: false, pagesPerRow: defaultPagesPerRow, resolvedCounts: {} });
   const { focused, pagesPerRow, resolvedCounts } = readerState.scope === readerScope ? readerState
@@ -73,17 +76,36 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   };
   const layout = allocateProjectPanels(workspace.width, indexOpen, railOpen, 240, rail.preferredWidth, 240, lastPanel, lastPanel);
   const indexExpanded = isMobile ? indexOpen : layout.indexOpen;
+  const webBack = <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
+    className="side-panel-header-control side-panel-header-icon" aria-label="Back" title="Back" onClick={onBack}>
+    <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
+  </button>;
   const index = <aside data-project-index-panel="" data-collapsed={!indexExpanded} data-shared-navigation-panel="" className="ps-panel relative flex h-full min-h-0 shrink-0 flex-col" style={isMobile ? undefined : { width: layout.indexWidth, display: layout.indexWidth === 0 ? 'none' : undefined }}>
-    {isMobile && indexExpanded && category ? <MobilePortalProjectToolbar category={category} onBack={onBackToProfile} sharedReadOnly browsingControls
+    {!isMobile ? <header data-shared-navigation-header="" className="ps-panel-toolbar global-control-header shrink-0">
+      <div data-project-index-toolbar="" data-shared-navigation-row="" className={`side-panel-control-row h-full min-w-0 flex-1 ${indexExpanded ? 'side-panel-content-inset' : 'justify-center'}`}>
+        {indexExpanded && webBack}
+        <button ref={indexOpener} data-project-index-toggle="" data-structural-toggle="" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
+          className="side-panel-header-control side-panel-header-icon" type="button"
+          aria-label={indexExpanded ? 'Close project list' : 'Project list'} aria-expanded={indexExpanded} onClick={() => changeIndex(!indexExpanded)}>
+          <InterfaceIcon icon={indexExpanded ? PanelLeftCloseIcon : PanelLeftOpenIcon} mirroredInRtl />
+        </button>
+        {indexExpanded && <span aria-hidden="true" className="min-w-0 flex-1" />}
+        {indexExpanded && pageCount !== null && pageCount > 1 && <ProjectPagesPerRowControl value={pagesPerRow} onChange={setPagesPerRow} />}
+      </div>
+    </header> : indexExpanded && category ? <MobilePortalProjectToolbar category={category} onBack={onBackToProfile} sharedReadOnly browsingControls
       layout={mobileLayout} onLayout={onLayout} sort={mobileSort} onSort={onSort} />
     : <header data-shared-navigation-header="" className={`global-control-header side-panel-control-row shrink-0 ${indexExpanded ? 'px-2' : 'justify-center'}`}>
       {indexExpanded && <span className="min-w-0 flex-1 truncate px-2">{category?.label ?? 'Projects'}</span>}
-      <button ref={isMobile ? undefined : indexOpener} data-project-index-toggle="" type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
+      <button data-project-index-toggle="" type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
         aria-label={indexExpanded ? 'Close project list' : 'Project list'} aria-expanded={indexExpanded} onClick={() => changeIndex(!indexExpanded)}><InterfaceIcon icon={indexExpanded ? XIcon : ListIcon} /></button>
     </header>}
+    {!isMobile && !indexExpanded && <div data-project-index-back="" className="side-panel-control-row shrink-0 justify-center">{webBack}</div>}
     {indexExpanded && !isMobile && <div className="project-index-search side-panel-control-stack side-panel-content-inset shrink-0">
-      <div className="text-control-shell side-panel-primary-control flex items-center px-3"><input type="search" value={indexQuery} onChange={event => setIndexQuery(event.target.value)}
-        placeholder="Search projects" aria-label={`Search projects in ${category?.label ?? 'this portal'}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" /></div>
+      <div data-ui-shape="field" className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
+        <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
+        <input type="search" value={indexQuery} onChange={event => setIndexQuery(event.target.value)}
+          placeholder="Search projects" aria-label={`Search projects in ${category?.label ?? 'this portal'}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+      </div>
     </div>}
     {indexExpanded && <nav data-project-index-list="" aria-label={`${category?.label ?? 'Project'} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
       <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={mobileLayout} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
@@ -93,8 +115,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
       {!visibleProjects.length && <p className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]">{categoryProjects.length ? `No projects match “${indexQuery.trim()}”.` : 'No published projects in this portal.'}</p>}
     </nav>}
   </aside>;
-  return <div className="relative flex h-full min-h-0 w-full flex-col" data-shared-project-reader="" data-mobile-project-view={isMobile ? '' : undefined}>
-    {!isMobile && <header className="global-control-header side-panel-control-row px-2"><button type="button" className="side-panel-primary-control px-3" onClick={onBack}>Back</button><span className="min-w-0 truncate px-2">{project?.title ?? category?.label ?? 'Projects'}</span></header>}
+  return <div className="relative flex h-full min-h-0 w-full flex-col" data-shared-project-reader="" data-web-reader-spacing={!isMobile ? '' : undefined} data-mobile-project-view={isMobile ? '' : undefined}>
     {isMobile && !indexOpen && !focused && <>
       <button type="button" className="mobile-project-back" aria-label="Go back" onClick={onBack}><InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl /></button>
     </>}

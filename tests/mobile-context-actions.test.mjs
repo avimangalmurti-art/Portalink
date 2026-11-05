@@ -142,10 +142,10 @@ const clickAction=(h,row)=>row.props.onClick({currentTarget:{closest:()=>h.viewp
 const actionGlyph=row=>nodes(row).find(node=>node.type==='InterfaceIcon');
 const profileCopyModel=owner=>contextActions('profile',{signedIn:true,owner},{handlers:{copy(){}}});
 
-test('MOBILE profile catalogue copy confirms only successful completion, blocks duplicate taps and restores its icon',async()=>{
- for(const owner of[true,false]){
+test('MOBILE profile and WEB owner catalogue copy confirm only success, block duplicate activation and restore the icon',async()=>{
+ for(const [presentation,owner] of [['mobile',true],['mobile',false],['web',true]]){
   const copy=deferredCopy();let writes=0;
-  const h=sheetHarness({model:profileCopyModel(owner),onAction:()=>{writes++;return copy.promise;}});
+  const h=sheetHarness({presentation,model:profileCopyModel(owner),onAction:()=>{writes++;return copy.promise;}});
   const row=actionRow(h,'Copy public catalogue link');
   assert.equal(actionGlyph(row).props.icon,'CopyIcon');
   clickAction(h,row);clickAction(h,row);
@@ -180,22 +180,39 @@ test('MOBILE profile copy failures and non-success results never show a confirma
  assert.equal(actionGlyph(actionRow(h,'Copy public catalogue link')).props.icon,'CopyIcon');assert.equal(h.timers.size,0);h.dispose();
 });
 
+test('WEB owner clipboard rejection stays in the sheet with a retryable error and no false confirmation',async()=>{
+ const rejected=deferredCopy();let writes=0;
+ const h=sheetHarness({presentation:'web',model:profileCopyModel(true),onAction:()=>++writes===1?rejected.promise:Promise.resolve(true)});
+ const row=()=>actionRow(h,'Copy public catalogue link');
+ clickAction(h,row());rejected.reject(new Error('Clipboard denied'));await h.flush();
+ assert.equal(actionGlyph(row()).props.icon,'CopyIcon');
+ assert.equal(row().props['aria-busy'],undefined);
+ assert.match(String(nodes(h.dialog()).find(node=>node.props.role==='alert')?.props.children),/copy|clipboard/i);
+ assert.equal(h.motions.length,0);assert.equal(h.timers.size,0);
+ clickAction(h,row());await h.flush();
+ assert.equal(writes,2);assert.equal(actionGlyph(row()).props.icon,'CheckIcon');
+ assert.equal(nodes(h.dialog()).some(node=>node.props.role==='alert'),false);
+ h.dispose();
+});
+
 test('closing a profile copy sheet clears its timer and ignores clipboard completion after unmount',async()=>{
- for(const finishBeforeClose of[false,true]){
-  const copy=deferredCopy(),h=sheetHarness({model:profileCopyModel(true),onAction:()=>copy.promise});
+ for(const [presentation,finish] of [['mobile','pending'],['mobile','copied'],['web','pending'],['web','copied'],['web','rejected']]){
+  const copy=deferredCopy(),h=sheetHarness({presentation,model:profileCopyModel(true),onAction:()=>copy.promise});
   clickAction(h,actionRow(h,'Copy public catalogue link'));
-  if(finishBeforeClose){copy.resolve(true);await h.flush();h.render();assert.equal(h.timers.size,1);}
+  if(finish==='copied'){copy.resolve(true);await h.flush();h.render();assert.equal(h.timers.size,1);}
   h.escape();h.dispose();assert.ok(h.calls.includes('close'));assert.equal(h.timers.size,0);
-  if(!finishBeforeClose){copy.resolve(true);await h.flush();}
+  if(finish==='pending')copy.resolve(true);
+  if(finish==='rejected')copy.reject(new Error('Clipboard denied after closing'));
+  await h.flush();
   h.advance(3000);assert.equal(h.lateWrites,0);assert.equal(h.timers.size,0);
  }
- const reopened=sheetHarness({model:profileCopyModel(true)});
+ const reopened=sheetHarness({presentation:'web',model:profileCopyModel(true)});
  assert.equal(actionGlyph(actionRow(reopened,'Copy public catalogue link')).props.icon,'CopyIcon');reopened.dispose();
 });
 
-test('WEB and non-profile-copy actions retain motion-close delegation without copy feedback',async()=>{
- for(const[presentation,kind,id]of[['web','profile','copy'],['mobile','shared','copy'],['mobile','profile','share']]){
-  let runs=0;const model=contextActions(kind,{signedIn:true,owner:true},{handlers:{[id](){}}});
+test('WEB visitor copy and other actions retain motion-close delegation without copy feedback',async()=>{
+ for(const[presentation,kind,id,owner]of[['web','profile','copy',false],['web','profile','share',true],['mobile','shared','copy',true],['mobile','profile','share',true]]){
+  let runs=0;const model=contextActions(kind,{signedIn:true,owner},{handlers:{[id](){}}});
   const action=[...model.primary,...model.groups.flat()].find(item=>item.id===id);
   const h=sheetHarness({presentation,model,onAction:()=>{runs++;return Promise.resolve(true);}});
   clickAction(h,actionRow(h,action.label));await h.flush();
@@ -345,10 +362,15 @@ test('mobile owner profile actions open compact and expand only after an explici
  const reopened=sheetHarness({model});assert.equal(reopened.dialog().props['data-expanded'],false);assert.equal(reopened.resizeButton().props['aria-expanded'],false);
 });
 
-test('WEB owner profile actions retain their existing expanded entry state',()=>{
+test('WEB owner profile actions open expanded without resize controls or header drag',()=>{
  const model=contextActions('profile',{signedIn:true,owner:true},{handlers});
  const h=sheetHarness({model,presentation:'web'});
- assert.equal(h.dialog().props['data-expanded'],true);assert.equal(h.resizeButton().props['aria-expanded'],true);
+ assert.equal(h.dialog().props['data-expanded'],true);
+ assert.equal(h.resizeButton(),undefined);
+ h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:690});h.pointer('onPointerUp',{clientY:690});
+ assert.equal(h.dialog().props['data-expanded'],true);
+ assert.equal(h.dialog().props['data-sheet-dragging'],undefined);
+ assert.deepEqual(h.measurements,{viewport:0,panel:0});
 });
 
 test('expanded profile New project and last Settings row delegate the same real context callbacks',()=>{
