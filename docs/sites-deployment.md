@@ -1,3 +1,9 @@
+## Sites 592 - All pending appearance changes published
+
+Published [Portalink](https://portalinknetworks.com) from `90b2dfaa5667436c415bdb5bf2d3fdd9e8305897`. Includes independent High Contrast/Translucency on the platform and shared catalogues, permanent slider contrast, and mobile Portal Search creator-badge scaling.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_4d7d031e9bb88191b407fb4c8b89765f` and deployment `appgdep_6aecd69d551881919353d6cb1a1e1098` succeeded at `2026-11-05T19:19:04.352248+00:00`. Public access and runtime revision 2 were retained. The configured production build, both entry guards and 165 focused tests passed. The 638-file archive preserved all 420 public assets, the worker and four D1 SQL payloads against Sites 591. Live custom-domain checks matched four entry routes and all 208 JavaScript/CSS assets. No migration was applied. Receipt prefix: `logs/independent-appearance-release-*`; source, browser evidence and limits are recorded in the handoff. GitHub integration remains separate.
+
 ## Sites 591 - All pending appearance and loading changes published
 
 Published [Portalink](https://portalinknetworks.com) from `b9d8d0a9abb62924f535304d217ff04ec7e01911`. The release includes desktop PDF page loaders, glossy profile-image preview backdrops on both entries and screen sizes, and High Contrast/Translucency shortcuts in both shared catalogue headers.
