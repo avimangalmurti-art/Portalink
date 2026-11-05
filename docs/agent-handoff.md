@@ -1,3 +1,9 @@
+## GitHub updated through Sites 592
+
+The user requested all latest changes on GitHub. Fast-forwarded the existing `codex/socal-release` review branch for [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) from `50157e8` to `dfc42683e2beb047cd5fd7c3bbaaee4cdcb88429`, preserving all four missing Sites 591/592 source and receipt commits. This includes the exact live application source `90b2dfaa5667436c415bdb5bf2d3fdd9e8305897`. Independent review found no unexpected backend, worker, SQL, public-asset, dependency, credential or private-QA changes. The PR description now covers both additional releases and their validation.
+
+This documentation-only synchronization note follows the release receipt commit. The website remains Sites 592, with no further deployment or migration. GitHub `main` remains `5c3f7f22870bbe168258b6231d75a4e6718aae1e`; PR 148 is open and unmerged. Current-head GitHub CI is separate from the earlier Sites 590 Quality run (web/worker jobs passed, full Node suite had 46 known baseline failures on each OS). The local focused checks, production build and browser-fixture evidence remain recorded below. Ignored `logs/github-sites592-sync.json` records the final remote head verification.
+
 ## Sites 592 published all pending appearance changes
 
 Published [Portalink](https://portalinknetworks.com) from source `90b2dfaa5667436c415bdb5bf2d3fdd9e8305897` on `codex/independent-appearance-controls`. The release includes every pending application edit: independent High Contrast/Translucency across platform/shared MOBILE/WEB, permanent slider contrast and mobile Portal Search creator-badge scaling. Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_4d7d031e9bb88191b407fb4c8b89765f`, deployment `appgdep_6aecd69d551881919353d6cb1a1e1098`, succeeded at `2026-11-05T19:19:04.352248+00:00`. Public access and runtime revision 2 were retained.
