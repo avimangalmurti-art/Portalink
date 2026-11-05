@@ -126,14 +126,15 @@ test('a profile-only observer can opt into its ancestor scroller and clear glass
  assert.equal(ancestor.dataset.mobileScrollUnderlap,undefined);
 });
 
-test('a static dialog toolbar keeps its material and reading offset across scrolling, resize and cleanup',()=>{
+for (const presentation of ['mobile','web']) test(`a static ${presentation} dialog toolbar keeps its material and reading offset across scrolling, resize and cleanup`,()=>{
  let mount;
+ let discoveryCount=0, contentSearches=0, mutate;
  const frames=[],listeners=new Map(),windowListeners=new Map(),localExports={};
  const style=()=>{const values=new Map();return {getPropertyValue:key=>values.get(key)??'',setProperty:(key,value)=>values.set(key,value),removeProperty:key=>values.delete(key)}};
  const row={closest:()=>null,getBoundingClientRect:()=>bounds(60-body.scrollTop,180-body.scrollTop)};
- const root={parentElement:null,children:[],getBoundingClientRect:()=>bounds(0,912),contains:node=>node===root||node===toolbar||node===body||node===contents,computed:{display:'flex',flexDirection:'column',overflowY:'visible',overflowX:'visible'},querySelectorAll:selector=>selector.startsWith('header,')?[toolbar]:selector.startsWith('[data-screen-scroll]')?[body,contents]:[],addEventListener:(event,fn)=>listeners.set(event,fn),removeEventListener:event=>listeners.delete(event)};
+ const root={dataset:{presentation},parentElement:null,children:[],getBoundingClientRect:()=>bounds(0,912),contains:node=>node===root||node===toolbar||node===body||node===contents,computed:{display:'flex',flexDirection:'column',overflowY:'visible',overflowX:'visible'},querySelectorAll:selector=>{if(selector.startsWith('header,')){discoveryCount++;return [toolbar];}return selector.startsWith('[data-screen-scroll]')?[body,contents]:[];},addEventListener:(event,fn)=>listeners.set(event,fn),removeEventListener:event=>listeners.delete(event)};
  const toolbar={parentElement:root,children:[],dataset:{},style:style(),computed:{position:'static',display:'block',overflowY:'visible',overflowX:'visible'},contains:node=>node===toolbar,closest:()=>null,matches:()=>false,getBoundingClientRect:()=>bounds(0,60)};
- const body={parentElement:root,children:[],dataset:{},style:style(),scrollTop:0,computed:{display:'block',position:'static',overflowY:'auto',overflowX:'visible',marginTop:'0px',paddingTop:'12px',scrollPaddingTop:'auto'},contains:node=>node===body,closest:()=>null,matches:()=>false,querySelectorAll:()=>[row],getBoundingClientRect:()=>bounds(body.dataset.fixedHeaderUnderlap!==undefined?0:60,912)};
+ const body={parentElement:root,children:[],dataset:{},style:style(),scrollTop:0,computed:{display:'block',position:'static',overflowY:'auto',overflowX:'visible',marginTop:'0px',paddingTop:'12px',scrollPaddingTop:'auto'},contains:node=>node===body||node===row,closest:()=>null,matches:()=>false,querySelectorAll:()=>{contentSearches++;return [row];},getBoundingClientRect:()=>bounds(body.dataset.fixedHeaderUnderlap!==undefined?0:60,912)};
  const contents={...body,parentElement:body,dataset:{},style:style(),computed:{...body.computed,display:'contents'},getBoundingClientRect:()=>bounds(0,0)};
  root.children=[toolbar,body];
  const computed=node=>({...node.computed,...(node.dataset?.headerMaterialStatic!==undefined?{position:'relative'}:{})});
@@ -141,7 +142,7 @@ test('a static dialog toolbar keeps its material and reading offset across scrol
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{
   exports:localExports,require:name=>name==='react'?{useLayoutEffect:fn=>{mount=fn}}:layout,getComputedStyle:computed,
   document:{scrollingElement:null},window:{addEventListener:(event,fn)=>windowListeners.set(event,fn),removeEventListener:event=>windowListeners.delete(event)},
-  requestAnimationFrame:fn=>{frames.push(fn);return frames.length},cancelAnimationFrame(){},MutationObserver:class{observe(){}disconnect(){}},ResizeObserver:class{observe(){}unobserve(){}disconnect(){}},
+  requestAnimationFrame:fn=>{frames.push(fn);return frames.length},cancelAnimationFrame(){},MutationObserver:class{constructor(callback){mutate=callback;}observe(){}disconnect(){}},ResizeObserver:class{observe(){}unobserve(){}disconnect(){}},
  });
  localExports.useMobileHeaderMaterial(true,'/dialog',{current:root});
  const cleanup=mount();
@@ -151,8 +152,14 @@ test('a static dialog toolbar keeps its material and reading offset across scrol
  body.scrollTop=80;listeners.get('scroll')();frames.shift()();
  assert.equal(toolbar.dataset.mobileHeaderUnderlap,'true','The generic toolbar survives the first actual scroll');
  assert.equal(toolbar.dataset.headerMaterialStatic,'');
+ body.scrollTop=90;listeners.get('scroll')();frames.shift()();
+ assert.equal(discoveryCount,presentation==='web'?1:3,'Desktop reuses the header and scroller discovery on stable scroll');
+ assert.equal(contentSearches,presentation==='web'?1:2,'Desktop reuses the first content node');
+ mutate();frames.shift()();
+ assert.equal(discoveryCount,presentation==='web'?2:4,'A changed layout invalidates header discovery');
+ assert.equal(contentSearches,presentation==='web'?2:3,'A changed layout invalidates content discovery');
  windowListeners.get('resize')();frames.shift()();
- assert.equal(body.scrollTop,80);
+ assert.equal(body.scrollTop,90);
  assert.equal(toolbar.dataset.mobileHeaderUnderlap,'true');
  cleanup();
  assert.equal(toolbar.dataset.mobileHeaderUnderlap,undefined);

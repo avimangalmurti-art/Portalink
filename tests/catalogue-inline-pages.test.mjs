@@ -204,7 +204,7 @@ test('keyboard page selection stays bounded and never becomes cross-project navi
   assert.equal(model.inlineKeyboardPage('Enter', 2, 5), null);
 });
 
-function inlineRendererFixture({ active = true, width = 388, attachments, selected = 1, metadataComplete = true, projectFields = {} } = {}) {
+function inlineRendererFixture({ active = true, width = 388, attachments, selected = 1, metadataComplete = true, projectFields = {}, presentation = 'mobile' } = {}) {
   const react = { ...React, useEffect() {}, useMemo: read => read(), useCallback: fn => fn,
     useRef: initial => ({ current: initial }), useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}] };
   const noop = () => null;
@@ -213,7 +213,7 @@ function inlineRendererFixture({ active = true, width = 388, attachments, select
     react, 'react-router-dom': { Link: noop },
     '../../features/profile/cataloguePagePosition': position,
     '../../hooks/useElementSize': { useElementSize: () => ({ ref: { current: null }, width, height: 388 }) },
-    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
+    '../../presentation/usePresentation': { usePresentation: () => presentation },
     '../media/ImageAttachment': { ImagePage: noop }, '../media/AttachmentRenderer': { AttachmentRenderer: noop },
     '../ui/StateViews': { ErrorState: noop },
     '../../utils/projectContinuity': { getProjectContinuityArtwork: () => undefined, projectContinuityStyle: () => ({}) },
@@ -232,6 +232,20 @@ function inlineRendererFixture({ active = true, width = 388, attachments, select
   walk(tree);
   return { tree, nodes, calls, opened, swipes };
 }
+
+test('mobile card count follows the selected real page and omits unresolved totals and desktop cards', () => {
+  const attachments = [file('first', 'image', 0), file('second', 'image', 1), file('third', 'image', 2)];
+  const projectFields = { cover: '/thumbnail.webp', coverThumbnail: { sourceAttachmentId: 'first' } };
+  const counter = fixture => fixture.nodes.find(node => node.props.className === 'inline-project-page-counter');
+  for (const selected of [0, 1, 2]) {
+    const badge = counter(inlineRendererFixture({ attachments, projectFields, selected }));
+    assert.equal(badge.props.children.join(''), `${selected + 1} / 3`);
+    assert.equal(badge.props['aria-hidden'], 'true', 'The existing live announcement owns accessible page updates');
+  }
+  for (const options of [{ presentation: 'web' }, { metadataComplete: false }, { attachments: [], selected: 0 }]) {
+    assert.equal(counter(inlineRendererFixture(options)), undefined);
+  }
+});
 
 test('the final cover-deduplicated slide list controls pagination totals and whether swiping is enabled', () => {
   const first = file('first', 'image', 0), second = file('second', 'image', 1);

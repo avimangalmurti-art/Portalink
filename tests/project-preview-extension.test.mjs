@@ -69,7 +69,10 @@ test('shared bitmap cards do not load the animated extension on WEB or MOBILE, e
       assert.equal(cover.props.allowVideoFallback, false);
       nodes(tree).find(node => node.props['data-preview-open'] !== undefined).props.onClick({});
       assert.ok(nodes(tree).some(node => node.type === 'details'), 'Description behavior remains in the artwork');
-      if (presentation === 'mobile') nodes(tree).find(node => node.props.className?.startsWith('mobile-preview-details')).props.onClick({ stopPropagation() { /* No parent event in this component harness. */ } });
+      if (presentation === 'mobile') nodes(tree).find(node => node.props.className?.startsWith('mobile-preview-details')).props.onClick({
+        preventDefault() { /* No native navigation in this component harness. */ },
+        stopPropagation() { /* No parent event in this component harness. */ },
+      });
     }
     assert.equal(h.openCount(), 2);
     assert.equal(h.detailsCount(), presentation === 'mobile' ? 2 : 0);
@@ -85,11 +88,10 @@ test('one-column cards select the inline surface and information popup while den
     assert.ok(inline); assert.equal(inline.props.project, project);
     assert.equal(tree.props['data-expanded'], false);
     const frame = nodes(tree).find(node => node.props['data-packing-base'] !== undefined);
-    const info = nodes(tree).find(node => node.props.className === 'inline-preview-info');
+    const info = nodes(tree).find(node => node.props.className?.startsWith('mobile-preview-details'));
     assert.ok(info); assert.equal(info.props['aria-haspopup'], 'dialog');
-    assert.equal(nodes(info).find(node => node.type === 'interface-icon').props.icon, 'info-circle');
-    assert.equal(nodes(tree).some(node => node.props.className?.startsWith('mobile-preview-details')), false);
-    let stopped = false; info.props.onClick({ stopPropagation() { stopped = true; } });
+    assert.equal(nodes(info).find(node => node.type === 'interface-icon').props.icon, 'horizontal-dots');
+    let stopped = false; info.props.onClick({ preventDefault() {}, stopPropagation() { stopped = true; } });
     assert.equal(stopped, true); assert.equal(h.detailsCount(), 1); assert.equal(h.openCount(), 0);
     const selected = { index: 2, key: 'page-two', attachmentId: 'image-two', page: 2 };
     inline.props.onSelect(selected);
@@ -98,7 +100,7 @@ test('one-column cards select the inline surface and information popup while den
     assert.equal(nodes(tree).some(node => node.type === h.LazyExtension && node.props.onSelect), false);
     assert.deepEqual(nodes(tree).find(node => node.props['data-packing-base'] !== undefined).props.style, frame.props.style);
     const dots = nodes(tree).find(node => node.props.className?.startsWith('mobile-preview-details'));
-    assert.equal(Boolean(dots), presentation === 'mobile');
+    assert.ok(dots);
     if (dots) assert.equal(nodes(dots).find(node => node.type === 'interface-icon').props.icon, 'horizontal-dots');
     h.setInline(true);
     for (const props of [{ cover: React.createElement('span', {}, 'Saved page') }, { disabled: true }]) {
@@ -122,9 +124,21 @@ test('ordinary cards request their extension with the same creator/actions and o
   assert.equal(extension.props.onOpenComments, onOpenComments);
   assert.equal(extension.props.onWarmCreator, onWarmCreator);
   assert.equal(extension.props.creatorHref, '/share/creator');
+  assert.equal(extension.props.deferUntilExpanded, false);
   assert.ok(!h.imports.includes('./ProjectPreviewExtension'));
   assert.equal((await h.loadExtension()).default, 'loaded-extension');
   assert.ok(h.imports.includes('./ProjectPreviewExtension'));
+});
+
+test('deferred WEB detail loading reaches the extension while one-column and MOBILE cards keep their entry behavior', () => {
+  const web = cardHarness('web');
+  const props = { deferDesktopDetails: true };
+  const extension = nodes(web.render(props)).find(node => node.type === web.LazyExtension);
+  assert.equal(extension.props.deferUntilExpanded, true);
+  web.setInline(true);
+  assert.equal(nodes(web.render(props)).some(node => node.type === web.LazyExtension && 'deferUntilExpanded' in node.props), false);
+  const mobile = cardHarness('mobile');
+  assert.equal(nodes(mobile.render(props)).some(node => node.type === mobile.LazyExtension), false);
 });
 
 function extensionHarness(reducedMotion = false) {
@@ -195,4 +209,25 @@ test('extension retains reduced motion, canonical metrics, custom controls and c
   creatorButton.props.onClick(); creatorButton.props.onFocus(); creatorButton.props.onPointerEnter();
   assert.equal(opens, 1); assert.equal(warms, 2);
   assert.equal(nodes(tree).find(node => node.type === 'avatar').props.avatar, creator.avatar);
+});
+
+test('Home deferred details mount on first expansion and remain mounted through collapse and reopening', () => {
+  const h = extensionHarness(), props = { deferUntilExpanded: true };
+  let tree = h.render(props); h.layout();
+  assert.equal(tree.props.animate.height, 0);
+  assert.equal(nodes(tree).some(node => ['metrics', 'avatar', 'name'].includes(node.type)), false,
+    'Collapsed Home cards cannot mount the network-backed metrics or avatar');
+  const onOpenComments = () => undefined, onOpenCreator = () => undefined;
+  tree = h.render({ ...props, expanded: true, onOpenComments, onOpenCreator }); h.layout();
+  assert.equal(nodes(tree).find(node => node.type === 'metrics').props.onOpenComments, onOpenComments);
+  assert.equal(h.element.inert, false);
+  assert.equal(nodes(tree).find(node => node.props['aria-label'] === "Open Portalite's profile").props.onClick, onOpenCreator);
+  tree = h.render(props); h.layout();
+  assert.equal(h.element.inert, true);
+  assert.equal(nodes(tree).some(node => node.type === 'metrics'), true,
+    'Closing preserves resolved detail children for the next preview');
+  tree = h.render({ ...props, expanded: true }); h.layout();
+  assert.equal(h.element.inert, false);
+  assert.equal(tree.props.animate.opacity, 1);
+  assert.equal(nodes(tree).find(node => node.type === 'name').props.active, true);
 });

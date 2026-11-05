@@ -19,8 +19,9 @@ import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from '../features/project
 import '../components/profile/web-reader-spacing.css';
 
 /** Uses the canonical media viewer without importing owner workspace/editors. */
-export function VisitorProjectPage({ profile, project, categoryId, loading = false, onBack, onBackToProfile, onSelect, browsing }: {
+export function VisitorProjectPage({ profile, project, categoryId, loading = false, onBack, onBackToProfile, onSelect, browsing, desktopNavigationStyle }: {
   profile: Profile; project: Project | null; categoryId?: string; loading?: boolean; onBack: () => void; onBackToProfile: () => void; onSelect: (id: string) => void; browsing?: PortalProjectBrowsing;
+  desktopNavigationStyle?: React.CSSProperties;
 }) {
   const isMobile = usePresentation() === 'mobile';
   const [indexOpen, setIndexOpen] = useState(!isMobile), [railOpen, setRailOpen] = useState(false);
@@ -80,7 +81,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
     className="side-panel-header-control side-panel-header-icon" aria-label="Back" title="Back" onClick={onBack}>
     <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
   </button>;
-  const index = <aside data-project-index-panel="" data-collapsed={!indexExpanded} data-shared-navigation-panel="" className="ps-panel relative flex h-full min-h-0 shrink-0 flex-col" style={isMobile ? undefined : { width: layout.indexWidth, display: layout.indexWidth === 0 ? 'none' : undefined }}>
+  const index = <aside data-project-index-panel="" data-collapsed={!indexExpanded} data-shared-navigation-panel="" className="ps-panel relative flex h-full min-h-0 shrink-0 flex-col" style={isMobile ? undefined : { ...desktopNavigationStyle, width: layout.indexWidth, display: layout.indexWidth === 0 ? 'none' : undefined }}>
     {!isMobile ? <header data-shared-navigation-header="" className="ps-panel-toolbar global-control-header shrink-0">
       <div data-project-index-toolbar="" data-shared-navigation-row="" className={`side-panel-control-row h-full min-w-0 flex-1 ${indexExpanded ? 'side-panel-content-inset' : 'justify-center'}`}>
         {indexExpanded && webBack}
@@ -125,6 +126,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
       {project ? <ProjectMediaViewer key={project.id} creator={profile} projectId={project.id} projectTitle={project.title} projectSummary={project.summary}
         publishedAt={project.publishedAt} credits={project.credits} attachments={attachments} pageCount={pageCount} onDocumentPageCountResolved={resolvePageCount}
         contentTypefaceStack={getTypefaceStack(project.design?.typefaceId ?? 'default')} pagesPerRow={pagesPerRow} onPagesPerRowChange={setPagesPerRow} onPageFocusModeChange={setFocused}
+        sharedDesktopRailStyle={isMobile ? undefined : desktopNavigationStyle}
         processing={processing} responseRailWidth={{ ...rail, width: isMobile ? rail.width : layout.responseWidth }} singlePanel={isMobile ? null : layout.singlePanel}
         isRailOpen={isMobile ? railOpen : layout.responseOpen} onRailOpenChange={open => { setRailOpen(open); setLastPanel(open ? 'response' : null); }} isOwner={false} readOnlyShare onClose={onBack}
         mobileNavigation={isMobile ? { indexOpener, index, isIndexOpen: indexOpen, onOpenIndex: () => changeIndex(true), onCloseIndex: () => changeIndex(false), onBack } : undefined} />

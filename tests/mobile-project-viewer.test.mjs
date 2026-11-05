@@ -316,9 +316,8 @@ function assertFocusedControls(h, tree, focused) {
     'Only the focused renderer owns its counter while a page is focused');
   assert.equal(nodes(tree).some(node => node.props.className === 'mobile-content-action-bar'), !focused,
     'The normal project dock must not overlap the focused media controls');
-  const documentReading = nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment.kind === 'document';
-  assert.equal(h.swipeCalls.at(-1).enabled, !focused && !documentReading,
-    'Overview Back gestures yield to focused pages and document reading');
+  assert.equal(h.swipeCalls.at(-1).enabled, !focused,
+    'Overview Back gestures remain available for documents and yield to focused pages');
 }
 
 test('restored MOBILE image focus survives child-before-parent passive effects in workspace and public readers', () => {
@@ -383,12 +382,15 @@ test('leaving MOBILE image focus restores normal controls and switching attachme
 test('WEB focus lifecycle retains its existing rail without MOBILE controls', () => {
   for (const readOnlyShare of [false, true]) {
     const reports = [], h = harness({ lifecycle: true, mobile: false, mediaKind: 'image', readOnlyShare, search: '?media=first&page=2&view=page' });
-    const props = { onPageFocusModeChange: value => reports.push(value) };
+    const sharedDesktopRailStyle = { '--navigation-surface': '#eeeeee' };
+    const props = { sharedDesktopRailStyle, onPageFocusModeChange: value => reports.push(value) };
     for (const focused of [true, false]) {
       const tree = h.commitFocusedPage(focused, props);
       assert.equal(withProp(tree, 'data-immersive').props['data-immersive'], String(focused));
       assert.equal(reports.at(-1), focused);
-      assert.ok(withProp(tree, 'data-project-response-rail'), 'The existing desktop rail remains mounted');
+      const rail = withProp(tree, 'data-project-response-rail');
+      assert.ok(rail, 'The existing desktop rail remains mounted');
+      assert.equal(rail.props.style['--navigation-surface'], readOnlyShare ? sharedDesktopRailStyle['--navigation-surface'] : undefined);
       assert.equal(nodes(tree).some(node => node.type === MobileProjectPageCounter || node.props.className === 'mobile-content-action-bar'), false);
     }
   }
@@ -399,6 +401,9 @@ test('overview swipe Back remains available on public mobile content but is disa
   shared.render();
   assert.equal(shared.swipeCalls.at(-1).enabled, true);
   assert.equal(shared.swipeCalls.at(-1).onBack, shared.onBack);
+  const document = harness({ mediaKind: 'document' });
+  document.render();
+  assert.equal(document.swipeCalls.at(-1).enabled, true, 'Vertical document overview accepts a centre swipe Back');
   const web = harness({ mobile: false });
   web.render();
   assert.equal(web.swipeCalls.at(-1).enabled, false);

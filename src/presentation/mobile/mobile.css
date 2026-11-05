@@ -3440,12 +3440,6 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   aspect-ratio: var(--page-loading-ratio, 8.5 / 11);
 }
 
-/* Live PDF loaders fill their page and stay beneath the opening loader mask. */
-#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader] [data-project-page-number] > .premium-media-placeholder.absolute {
-  position: absolute;
-  z-index: 0;
-}
-
 /* The opening loader fills the phone, not just the future page rectangle.
    Keep the page's layout reservation; paint below the fixed controls. Once any
    page is ready, later lazy pages and retries must never cover readable work.

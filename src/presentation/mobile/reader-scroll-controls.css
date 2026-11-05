@@ -1,4 +1,16 @@
 /* Shared by the separate platform and public entries; only MOBILE changes. */
+/* Fill the reserved PDF page, above its canvas and beneath the opening mask. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader] [data-project-page-number] > .premium-media-placeholder.absolute {
+  position: absolute;
+  z-index: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-project-page-number] > .premium-media-placeholder.absolute {
+  background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-project-page-number] > .premium-media-placeholder.absolute::after {
+  content: none;
+}
+
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator] > .mobile-project-page-counter[data-mobile-project-page-count] {
   --navigation-control-transition: transform var(--m-base) var(--m-enter), background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
   transition: var(--navigation-control-transition);

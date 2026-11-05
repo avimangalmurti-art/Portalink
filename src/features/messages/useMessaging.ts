@@ -784,6 +784,9 @@ export function useMessaging({
     } finally { if (activeRef.current?.id === conversation.id || activeRef.current === null) setPendingAction(null); }
   }, [messaging]);
 
+  const isReactionPending = useCallback((messageId: Id) => pendingReactions.get(messageId) === threadOwnerGeneration,
+    [pendingReactions, threadOwnerGeneration]);
+
   return {
     status,
     conversations,
@@ -808,7 +811,7 @@ export function useMessaging({
     isSavingPreferences,
     pendingAction,
     pendingMessageId,
-    isReactionPending: (messageId: Id) => pendingReactions.get(messageId) === threadOwnerGeneration,
+    isReactionPending,
     error,
     dismissError: () => { setError(null); if (mobileContinuity) setThreadFailure(null); },
     retryThread,

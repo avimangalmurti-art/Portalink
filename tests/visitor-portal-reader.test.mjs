@@ -61,7 +61,7 @@ function fixture(presentation = 'web', { empty = false } = {}) {
   return { state, alpha, beta, calls, processingReads, render() {
     cursor = 0;
     return VisitorProjectPage({ profile: state.profile, project: state.project, categoryId: state.categoryId, loading: state.loading,
-      onBack: () => calls.push('back'), onBackToProfile: () => calls.push('profile'), onSelect: id => calls.push(id), browsing: state.browsing });
+      onBack: () => calls.push('back'), onBackToProfile: () => calls.push('profile'), onSelect: id => calls.push(id), browsing: state.browsing, desktopNavigationStyle: state.desktopNavigationStyle });
   } };
 }
 
@@ -119,6 +119,26 @@ test('WEB project index adjusts the public media layout for multi-page work with
   h.state.project = h.alpha;
   assert.equal(one(h.render(), 'page-layout-control'), undefined);
   assert.equal(h.render().props['data-web-reader-spacing'], undefined);
+});
+
+test('shared WEB navigation colors reach the two reader rails without recoloring the media surface', () => {
+  const h = fixture();
+  const palette = { '--navigation-surface': '#eeeeee' };
+  h.state.desktopNavigationStyle = palette;
+  let tree = h.render();
+  assert.equal(tree.props.style, undefined);
+  assert.equal(one(tree, 'aside').props.style['--navigation-surface'], palette['--navigation-surface']);
+  assert.equal(one(tree, 'media-viewer').props.sharedDesktopRailStyle, palette);
+
+  button(tree, 'Close project list').props.onClick();
+  tree = h.render();
+  assert.equal(one(tree, 'aside').props.style['--navigation-surface'], palette['--navigation-surface']);
+  assert.equal(one(tree, 'aside').props.style.width, 52);
+
+  h.state.presentation = 'mobile';
+  tree = h.render();
+  assert.equal(one(tree, 'media-viewer').props.sharedDesktopRailStyle, undefined);
+  assert.equal(one(tree, 'media-viewer').props.mobileNavigation.index.props.style, undefined);
 });
 
 test('WEB project selection keeps the index and its case-insensitive search mounted', () => {

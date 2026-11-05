@@ -43,6 +43,8 @@ type Props = {
   sizes?: string;
   priority?: ImagePriority;
   showCoverLoading?: boolean;
+  /** Home can wait for an actual preview before resolving hidden detail data. */
+  deferDesktopDetails?: boolean;
   allowPdfFallback?: boolean;
   allowVideoFallback?: boolean;
   disabled?: boolean;
@@ -58,7 +60,7 @@ type Props = {
 
 /** Artwork stays fixed; each presentation places the extension over the next row. */
 export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescription, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
-  label = `Open ${project.title}`, contentTypeLabel, href, onCollapse, className = '', sizes, priority = false, showCoverLoading, disabled = false,
+  label = `Open ${project.title}`, contentTypeLabel, href, onCollapse, className = '', sizes, priority = false, showCoverLoading, deferDesktopDetails = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio, sharedCoverFallback = false, allowPdfFallback = true, allowVideoFallback = true }: Props) {
   const [popupOpen, setPopupOpen] = useState(false);
   const [selection, setSelection] = useState({ projectId: project.id, position: getCataloguePagePosition(project.id) });
@@ -120,6 +122,6 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
     {!isMobile && !inlinePages && hasExtension && <Suspense fallback={null}><ProjectPreviewExtension expanded={preview.expanded} creator={creator}
       projectId={project.id} creatorHref={creatorHref} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator}
       onOpenComments={onOpenComments} showCreator={showCreator} showEngagementMetrics={showEngagementMetrics}
-      metrics={metrics} footerEnd={footerEnd} /></Suspense>}
+      metrics={metrics} footerEnd={footerEnd} deferUntilExpanded={deferDesktopDetails} /></Suspense>}
   </article>;
 }

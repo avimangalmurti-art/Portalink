@@ -24,12 +24,27 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
   const activeRef = useRef(active);
   activeRef.current = active;
   const [, refreshRecent] = useState(0);
-  const recent = auth.isAuthenticated ? readRecentAccounts(auth.user?.id) : EMPTY_ACCOUNTS;
   const term = query.trim();
+  const recent = auth.isAuthenticated && (mobile || !term) ? readRecentAccounts(auth.user?.id) : EMPTY_ACCOUNTS;
   const account = auth.isAuthenticated ? auth.user?.id ?? null : null;
   const scope = useMemo(() => ({ term, discovery, mobile, account, canSearch }), [term, discovery, mobile, account, canSearch]);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
+  const hoverWarmTimer = useRef<number | null>(null);
+  const cancelHoverWarm = useCallback(() => {
+    if (hoverWarmTimer.current !== null) window.clearTimeout(hoverWarmTimer.current);
+    hoverWarmTimer.current = null;
+  }, []);
+  useEffect(() => cancelHoverWarm, [scope, active, onWarmCreator, cancelHoverWarm]);
+  const warmOnPointer = (id: string, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!onWarmCreator) return;
+    if (mobile || event.pointerType === 'touch' || event.pointerType === 'pen') { onWarmCreator(id); return; }
+    cancelHoverWarm();
+    hoverWarmTimer.current = window.setTimeout(() => {
+      hoverWarmTimer.current = null;
+      if (scopeRef.current === scope && activeRef.current) onWarmCreator(id);
+    }, 120);
+  };
   const request = useRef(0);
   const busy = useRef(false);
   const section = useRef<HTMLElement>(null);
@@ -157,7 +172,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
       {loading ? <LoadingState label="Searching accounts…" /> : null}
       {current && result.status === 'error' ? <ErrorState title="Accounts could not be searched" description="Check your connection and try again." onRetry={() => { if (mobile) { const control = document.activeElement; if (control instanceof HTMLElement && section.current?.contains(control) && control.matches('button')) preserveRemovedControlFocus(control); } setAttempt(value => value + 1); }} /> : null}
       <ul ref={list} aria-label={term ? "Search results" : "Recent accounts"} data-mobile-contact-group={mobile ? '' : undefined} className="inset-row-group inset-row-group-icons account-search-list">{(term ? people : recent).map(person => {
-        const row = <><button type="button" className={`flex ${mobile ? '-my-3.5 min-w-0 flex-1 self-stretch px-0 py-3.5 focus-visible:ring-inset' : 'min-h-16 w-full rounded-xl px-2 py-3'} items-center gap-3 text-left hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`} onClick={() => { if (auth.isAuthenticated) rememberAccount(auth.user?.id, person); onOpenCreator(person.id); }} onPointerEnter={auth.isAuthenticated ? () => onWarmCreator?.(person.id) : undefined} onFocus={auth.isAuthenticated ? () => onWarmCreator?.(person.id) : undefined}>
+        const row = <><button type="button" className={`flex ${mobile ? '-my-3.5 min-w-0 flex-1 self-stretch px-0 py-3.5 focus-visible:ring-inset' : 'min-h-16 w-full rounded-xl px-2 py-3'} items-center gap-3 text-left hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`} onClick={() => { cancelHoverWarm(); if (auth.isAuthenticated) rememberAccount(auth.user?.id, person); onOpenCreator(person.id); }} onPointerEnter={auth.isAuthenticated ? event => warmOnPointer(person.id, event) : undefined} onPointerLeave={!mobile ? cancelHoverWarm : undefined} onFocus={auth.isAuthenticated ? () => { cancelHoverWarm(); onWarmCreator?.(person.id); } : undefined}>
           <span className={mobile ? 'h-10 w-10 shrink-0 text-[12px]' : 'h-11 w-11 shrink-0 overflow-hidden rounded-xl'}><CreatorAvatar name={person.name} avatar={person.avatar} className="h-full w-full" /></span>
           <span className={`min-w-0${mobile ? ' flex-1' : ''}`}><strong className={`block truncate${mobile ? ' text-[14px] font-semibold leading-5' : ''}`}>{person.name}</strong>{mobile ? <span className="mt-0.5 block truncate text-[12px] leading-4 text-[var(--text-secondary)]">{[person.kind, person.location].filter(Boolean).join(' · ')}</span> : <><span className="block truncate text-sm text-[var(--text-secondary)]">{person.kind}</span>{person.location ? <span className="block truncate text-sm text-[var(--text-secondary)]">{person.location}</span> : null}</>}</span>
         </button>{mobile && !term && <button type="button" aria-label={`Remove ${person.name} from recent accounts`} data-ui-control="icon" data-control-size="md" data-control-variant="ghost" className="-my-0.5 shrink-0" onClick={() => { forgetAccount(auth.user?.id, person.id); refreshRecent(value => value + 1); }}><XIcon aria-hidden="true" size={20} /></button>}</>;

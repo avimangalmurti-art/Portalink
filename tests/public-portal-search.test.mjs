@@ -87,10 +87,11 @@ test('the portal directory keeps one visible Back control and registers its acti
   assert.equal(wrapper.props.action, back[0].props.onClick);
   for (const [presentation, active, enabled, shouldRegister] of [['mobile', true, true, true], ['mobile', false, true, false], ['mobile', true, false, false], ['web', true, true, false]]) {
     const effects = [], registered = [];
-    const navigation = { register(action) { registered.push(action); return () => {}; } };
+    const navigation = { register(action) { registered.push(action); return () => {}; }, registerSwipe() { return () => {}; } };
     const { ScreenBack } = sourceModule('src/presentation/mobile/MobileBackNavigation.tsx', {
       react: { ...React, createContext: initial => ({ initial }), useContext: context => context.initial === null ? navigation : { active, enabled }, useLayoutEffect: effect => effects.push(effect) },
       '../usePresentation': { usePresentation: () => presentation },
+      './useMobileBackSwipe': { useMobileBackSwipe() {} },
     });
     const rendered = ScreenBack(wrapper.props); effects.forEach(effect => effect());
     assert.equal(registered.length, shouldRegister ? 1 : 0, `${presentation}/${active}/${enabled}`);

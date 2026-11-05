@@ -65,6 +65,14 @@
     scroll-padding-top: var(--fixed-header-scroll-padding) !important;
   }
 
+  /* Reader headers share the rail at rest. Keep matching material if content scrolls behind one. */
+  #root .codex-shell[data-presentation='web'] [data-shared-project-reader] [data-shared-navigation-header] {
+    --fixed-header-canvas: var(--nav-button-background, var(--surface-canvas));
+  }
+  #root .codex-shell[data-presentation='web'] [data-shared-project-reader] [data-shared-navigation-header][data-mobile-header-underlap='false']::before {
+    content: none !important;
+  }
+
   /* The profile popup shares the mobile sheet's single glass surface. */
   #root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-owner-profile-actions] > header[data-mobile-header-underlap]::before {
     inset: 0 0 -16px !important;

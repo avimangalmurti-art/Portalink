@@ -7,7 +7,7 @@ import { contextActions } from '../presentation/mobile/contextActions';
 import { useMenuFocus } from '../hooks/useMenuFocus';
 import { ScreenBack, useMobileScreenActive } from '../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../presentation/usePresentation';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIcon, MessageSquarePlusIcon, MoreHorizontalIcon, PaperclipIcon, PencilIcon, PlusIcon, SearchIcon, SendIcon, SettingsIcon, Trash2Icon, Volume2Icon, VolumeXIcon, XIcon } from 'lucide-react';
 import { buildPath } from '../app/routes';
@@ -347,16 +347,18 @@ export function MessagesPage({
     });
   }
 
-  function retryMessage(messageId: Id) {
-    if (!isMobile && mobileDraftOwner.current !== draftOwner) return messaging.retryMessage(messageId);
-    const message = messaging.messages.find(item => item.id === messageId);
+  const retryQueuedMessage = messaging.retryMessage;
+  const threadMessages = messaging.messages;
+  const retryMessage = useCallback((messageId: Id) => {
+    if (!isMobile && mobileDraftOwner.current !== draftOwner) return retryQueuedMessage(messageId);
+    const message = threadMessages.find(item => item.id === messageId);
     const key = JSON.stringify([draftOwner, activeId, message?.body.trim()]);
     const acknowledge = failedDraftSends.current.get(key);
-    return messaging.retryMessage(messageId).then(sent => {
+    return retryQueuedMessage(messageId).then(sent => {
       if (sent) { failedDraftSends.current.delete(key); acknowledge?.(); }
       return sent;
     });
-  }
+  }, [isMobile, draftOwner, activeId, threadMessages, retryQueuedMessage]);
 
   async function loadEarlier() {
     const conversationId = activeId;
@@ -406,6 +408,22 @@ export function MessagesPage({
 
   const conversation = messaging.activeConversation;
   const participantId = conversation?.participant.id;
+  const messageListProps = useMemo(() => ({
+    messages: messaging.messages,
+    viewerProfileId: auth.viewerProfileId,
+    canInteract: !isMessageRequest && !conversation?.participant.isDeleted,
+    participantReadAt: isMessageRequest ? null : conversation?.participantReadAt ?? null,
+    pendingMessageId: messaging.pendingMessageId,
+    isReactionPending: messaging.isReactionPending,
+    onRetry: retryMessage,
+    onEdit: messaging.editMessage,
+    onDelete: messaging.deleteMessage,
+    onReact: messaging.toggleReaction,
+  }), [messaging.messages, auth.viewerProfileId, isMessageRequest, conversation?.participant.isDeleted, conversation?.participantReadAt,
+    messaging.pendingMessageId, messaging.isReactionPending, retryMessage, messaging.editMessage, messaging.deleteMessage, messaging.toggleReaction]);
+  // Draft typing leaves the desktop thread element intact. Message changes and
+  // pending actions replace it, while the mobile path keeps its current render.
+  const desktopMessages = useMemo(() => <MessageList key={activeId} {...messageListProps} />, [activeId, messageListProps]);
   useMobileScreenActions(contextActions(conversation ? 'conversation' : 'messages', { signedIn: auth.isAuthenticated }, { title: conversation ? conversation.participant.name : 'Messages', handlers: conversation ? {
     viewProfile: participantId ? () => navigate(buildPath('profile', { profileId: participantId })) : undefined,
     mute: () => messaging.setMuted(!conversation.isMuted),
@@ -535,7 +553,7 @@ export function MessagesPage({
                     <button data-ui-shape="action" data-control-size="md" type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}
                 {!messaging.isLoadingThread && !mobileThreadError && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]">{isMobile && isMessageRequest ? <p className="text-[14px] leading-6 text-[var(--text-secondary)]">Send one text-only invitation to chat. You can send more messages and attachments after they accept.</p> : <EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} />}</div> : null}
-                <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest && !messaging.activeConversation.participant.isDeleted} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} isReactionPending={messaging.isReactionPending} onRetry={retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
+                {isMobile ? <MessageList key={activeId} {...messageListProps} /> : desktopMessages}
                 {hasNewBelow ? <button data-ui-shape="action" data-control-size="md" type="button" onClick={scrollToLatest} className="sticky bottom-2 mx-auto mt-3 flex items-center gap-2 rounded-full bg-[var(--surface-raised)] px-3 py-2 text-[12px] font-semibold text-[var(--accent-text)] shadow-lg ring-1 ring-[var(--hairline)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowDownIcon} />New messages</button> : null}
               </div>
 

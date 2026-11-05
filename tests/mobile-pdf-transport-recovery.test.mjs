@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import {sourceModule} from './helpers/source-module.mjs';
 
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 function nodes(tree) {
@@ -26,11 +27,19 @@ function cachedDocument(task, name = 'document', count = 5) {
   };
 }
 
-function fixture({ mobile = true, focusedPage = 3 } = {}) {
+function fixture({ mobile = true, focusedPage = 3, observe = false } = {}) {
   const slots = [], effects = [], tasks = [], errors = [], memoryWrites = [], preview = [];
   const timers = new Map(); let nextTimer = 0, cursor = 0, dirty = true, tree, mounted = true;
   const host = { scrollTop: 321, scrollLeft: 89, focus() {} };
   const memory = { focusedPageNumber: focusedPage, scrollTop: 321, scrollLeft: 89 };
+  const observers = [];
+  class Observer {
+    targets = new Set(); disconnected = false;
+    constructor(callback, options) { this.callback = callback; this.options = options; observers.push(this); }
+    observe(target) { this.targets.add(target); }
+    unobserve(target) { this.targets.delete(target); }
+    disconnect() { this.disconnected = true; }
+  }
   const same = (a, b) => a && b && a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
   const effect = (run, deps) => {
     const index = cursor++, prior = slots[index];
@@ -57,10 +66,11 @@ function fixture({ mobile = true, focusedPage = 3 } = {}) {
   const code = ts.transpileModule(readFileSync(new URL('../src/components/media/PdfImageDocument.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText;
-  vm.runInNewContext(code, { exports, console, URLSearchParams,
+  vm.runInNewContext(code, { exports, console, URLSearchParams, ...(observe ? { IntersectionObserver: Observer } : {}),
     window: { location: { search: '' }, setTimeout(callback, delay) { timers.set(++nextTimer, { callback, delay }); return nextTimer; }, clearTimeout(id) { timers.delete(id); } },
     require(path) {
       if (path === 'react') return react;
+      if (path === './pageRenderQueue') return sourceModule('src/components/media/pageRenderQueue.ts');
       if (path === './PdfPage') return { loadPdfJs: async () => pdfjs, pdfSourceOptions: source => ({ url: source }) };
       if (path === './useSinglePageZoom') return { useSinglePageZoom: () => 2.25 };
       if (path === './useFocusedPageSwipe') return { useFocusedPageSwipe: () => ({ isMobile: mobile, swipeStyle: { transform: 'translate3d(0,0,0)' }, swipeHandlers: {} }) };
@@ -80,7 +90,7 @@ function fixture({ mobile = true, focusedPage = 3 } = {}) {
       await Promise.resolve();
     }
   }
-  return { tasks, errors, memoryWrites, preview, host, timers, flush,
+  return { tasks, errors, memoryWrites, preview, host, timers, observers, flush,
     get tree() { return tree; }, pages() { return nodes(tree).filter(node => node.type?.name === 'PdfImagePage'); },
     resolve(index, name = 'document', count = 5) { const doc = cachedDocument(tasks[index], name, count); tasks[index].resolve(doc); return doc; },
     async render(next) { props = { ...props, ...next }; dirty = true; await flush(); },
@@ -183,6 +193,43 @@ test('initial load failure still reaches the existing fallback and WEB receives 
   const web = fixture({ mobile: false }); await web.flush(); web.resolve(0); await web.flush();
   assert.equal(web.pages()[0].props.onRecoverDocument, undefined); assert.equal(web.pages()[0].props.retainCanvasWhileLoading, false);
   assert.equal(web.tasks.length, 1); web.dispose();
+});
+
+test('WEB overview shares one observer rooted in its reader and can directly load a distant visible page', async () => {
+  const f = fixture({ mobile: false, focusedPage: null, observe: true });
+  await f.flush(); f.resolve(0, 'long-document', 101); await f.flush();
+  const pages = f.pages(); assert.equal(pages.length, 101);
+  const observePage = pages[0].props.observeOverviewPage;
+  assert.equal(typeof observePage, 'function');
+  assert.ok(pages.every(page => page.props.observeOverviewPage === observePage));
+  const first = {}, distant = {}, updates = [];
+  const stopFirst = observePage(first, near => updates.push(['first', near]));
+  const stopDistant = observePage(distant, near => updates.push(['distant', near]));
+  assert.equal(f.observers.length, 1);
+  const observer = f.observers[0];
+  assert.equal(observer.options.root, f.host);
+  assert.equal(observer.options.rootMargin, '240px 0px');
+  observer.callback([{ target: distant, isIntersecting: true }, { target: first, isIntersecting: false }]);
+  assert.deepEqual(updates, [['distant', true], ['first', false]]);
+  stopFirst(); assert.equal(observer.disconnected, false);
+  stopDistant(); assert.equal(observer.disconnected, true);
+  observer.callback([{ target: distant, isIntersecting: true }]);
+  assert.equal(updates.length, 2, 'Detached readers ignore queued visibility callbacks');
+  const stopAgain = observePage(first, () => undefined);
+  assert.equal(f.observers.length, 2, 'Returning from focused view creates a fresh reader observer');
+  stopAgain(); f.dispose();
+});
+
+test('only WEB overview receives the desktop scheduler and unsupported observers preserve access', async () => {
+  for (const settings of [{ mobile: true, focusedPage: null }, { mobile: false, focusedPage: 3 }]) {
+    const f = fixture(settings); await f.flush(); f.resolve(0); await f.flush();
+    assert.ok(f.pages().every(page => page.props.observeOverviewPage === undefined)); f.dispose();
+  }
+  const legacy = fixture({ mobile: false, focusedPage: null });
+  await legacy.flush(); legacy.resolve(0); await legacy.flush();
+  const updates = [];
+  legacy.pages()[0].props.observeOverviewPage({}, near => updates.push(near));
+  assert.deepEqual(updates, [true]); legacy.dispose();
 });
 
 /** A tiny valid two-page PDF, created entirely in memory for the installed PDF.js API. */

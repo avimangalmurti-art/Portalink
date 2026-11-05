@@ -233,11 +233,44 @@ test('signed-in MOBILE and WEB search retains account history, creator prewarmin
     assert.ok(h.field);assert.equal(h.requests.length,0);assert.ok(h.recentCalls.every(([kind,account])=>kind==='read'&&account==='account-a'));
     h.query('Creator');h.runTimers();await h.flush();assert.equal(h.rows.length,30);
     const result=h.find(node=>node.type==='button'&&nodes(node).some(child=>child.type==='strong'));
-    result.props.onPointerEnter();result.props.onFocus();assert.deepEqual(h.warmed,['Creator-0','Creator-0']);
+    result.props.onPointerEnter({pointerType:'mouse'});if(mode==='web')h.runTimers();result.props.onFocus();assert.deepEqual(h.warmed,['Creator-0','Creator-0']);
     result.props.onClick();assert.deepEqual(h.visits,['Creator-0']);assert.deepEqual(h.recentCalls.filter(([kind])=>kind==='write').map(([kind,account,person])=>[kind,account,person.id]),[['write','account-a','Creator-0']]);
     h.find(node=>node.type==='button'&&node.props['aria-label']==='Back').props.onClick();assert.deepEqual(h.backCalls,['back']);
     h.query('');assert.deepEqual(h.rows,[]);h.unmount();
   }
+});
+
+test('desktop pointer sweeps avoid profile reads while dwell and keyboard intent still prewarm', async () => {
+  const h = fixture(() => Promise.resolve(people()), { mode: 'web' });
+  const recentReads = h.recentCalls.length;
+  h.query('Creator'); h.runTimers(); await h.flush();
+  assert.equal(h.recentCalls.length, recentReads, 'An active desktop query does not parse recent-account storage.');
+  const results = nodes(h.render()).filter(node => node.type === 'button' && nodes(node).some(child => child.type === 'strong'));
+  for (const result of results) {
+    result.props.onPointerEnter({ pointerType: 'mouse' });
+    result.props.onPointerLeave();
+  }
+  h.runTimers();
+  assert.deepEqual(h.warmed, []);
+  results[0].props.onPointerEnter({ pointerType: 'mouse' });
+  h.runTimers();
+  assert.deepEqual(h.warmed, ['Creator-0']);
+  results[1].props.onPointerEnter({ pointerType: 'mouse' });
+  results[1].props.onFocus();
+  assert.deepEqual(h.warmed, ['Creator-0', 'Creator-1']);
+  h.runTimers();
+  assert.deepEqual(h.warmed, ['Creator-0', 'Creator-1'], 'Keyboard focus cancels its pending pointer warm.');
+  results[2].props.onPointerEnter({ pointerType: 'mouse' });
+  h.query('Another'); h.runTimers(); await h.flush();
+  assert.deepEqual(h.warmed, ['Creator-0', 'Creator-1'], 'A query change cancels the old row warm.');
+  const current = h.find(node => node.type === 'button' && nodes(node).some(child => child.type === 'strong'));
+  current.props.onPointerEnter({ pointerType: 'mouse' });
+  h.active(false); h.runTimers();
+  assert.deepEqual(h.warmed, ['Creator-0', 'Creator-1']);
+  h.active(true);
+  current.props.onPointerEnter({ pointerType: 'mouse' });
+  h.unmount(); h.runTimers();
+  assert.deepEqual(h.warmed, ['Creator-0', 'Creator-1']);
 });
 
 test('signed-in MOBILE pagination preserves rows through failure and retries the same account-search offset', async () => {

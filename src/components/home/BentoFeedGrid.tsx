@@ -152,8 +152,9 @@ function BentoCell({
   useLayoutEffect(() => {
     const element = contentRef.current;
     if (element) {
-      setHeight(element.getBoundingClientRect().height);
-      onMeasure(cellKey, element.getBoundingClientRect().height, element.querySelector('[data-packing-base]')?.getBoundingClientRect().height ?? element.getBoundingClientRect().height);
+      const measuredHeight = element.getBoundingClientRect().height;
+      setHeight(measuredHeight);
+      onMeasure(cellKey, measuredHeight, element.querySelector('[data-packing-base]')?.getBoundingClientRect().height ?? measuredHeight);
     }
   }, [span, cellKey, onMeasure]);
   useEffect(() => {

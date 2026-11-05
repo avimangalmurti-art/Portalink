@@ -1324,7 +1324,17 @@ test('WEB shared sidebar uses the viewer gray with the public theme and accent w
   h.state.location.search = '?settings=1';
   assert.equal(one(h.render(), 'lazy:../components/ControlCenterPage').props.systemGray, 'gray2');
 
+  h.state.location.search = '';
+  h.state.location.pathname = `/share/${profileId}/c/portal/work`;
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  const currentReader = () => nodes(h.render()).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
+  assert.deepEqual(json(currentReader().props.desktopNavigationStyle), json(viewerPalette));
   h.state.presentation = 'mobile';
+  assert.equal(currentReader().props.desktopNavigationStyle, undefined);
+
+  h.state.route = { kind: 'sharedProfile', profileId };
+  h.state.location.pathname = `/share/${profileId}`;
+  h.state.location.search = '?settings=1';
   tree = h.render();
   assert.equal(tree.props.style['--navigation-surface'], creatorPalette['--navigation-surface']);
   assert.equal(one(tree, 'SharedProfileSidebar').props.desktopNavigationStyle, undefined);

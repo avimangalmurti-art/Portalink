@@ -22,20 +22,31 @@ type PageProgress = {
 };
 
 /** Private Studio presentation over the same account collections as Saved/Inbox. */
-export function useStudioData(category: StudioCategory = 'bookmarks', tab: StudioBookmarkTab = 'projects', { mobileActivity = false }: { mobileActivity?: boolean } = {}) {
+export function useStudioData(category: StudioCategory = 'bookmarks', tab: StudioBookmarkTab = 'projects', { mobileActivity = false, prioritizeActiveCollection = false }: { mobileActivity?: boolean; prioritizeActiveCollection?: boolean } = {}) {
   const auth = useAuth();
   const account = auth.user?.id ?? null;
   const services = useServices();
   const engagementStore = useEngagementStore();
   const { revision } = useProfileData();
+  const activeCollection = category === 'bookmarks' ? tab : category;
+  const visited = useMemo(() => ({ account, prioritizeActiveCollection, collections: new Set<StudioCategory | StudioBookmarkTab>() }), [account, prioritizeActiveCollection]);
+  useEffect(() => {
+    if (visited.account && visited.prioritizeActiveCollection) visited.collections.add(activeCollection);
+  }, [activeCollection, visited]);
+  // Open the current view first on desktop. Keep collections that have already
+  // been opened live so switching back retains their results and pagination.
+  const wants = (collection: StudioCategory | StudioBookmarkTab) => !prioritizeActiveCollection || activeCollection === collection || visited.collections.has(collection);
+  const wantsPublished = wants('published');
+  const wantsCreators = wants('creators');
+  const wantsPages = wants('pages');
   const publishedScope = useMemo(() => ({ profileId: auth.viewerProfileId, revision }), [auth.viewerProfileId, revision]);
-  const publishedQuery = useCallback(() => publishedScope.profileId ? services.profiles.getProfile(publishedScope.profileId) : Promise.resolve(null), [publishedScope, services.profiles]);
-  const creatorsQuery = useCallback(() => loadSavedCreators(services.creatorSaves, services.profiles), [services.creatorSaves, services.profiles]);
-  const pagesQuery = useCallback(() => loadSavedPageBatch(services.projects, null), [services.projects]);
+  const publishedQuery = useCallback(() => wantsPublished && publishedScope.profileId ? services.profiles.getProfile(publishedScope.profileId) : Promise.resolve(null), [publishedScope, services.profiles, wantsPublished]);
+  const creatorsQuery = useCallback(() => wantsCreators ? loadSavedCreators(services.creatorSaves, services.profiles) : Promise.resolve([]), [services.creatorSaves, services.profiles, wantsCreators]);
+  const pagesQuery = useCallback(() => wantsPages ? loadSavedPageBatch(services.projects, null) : Promise.resolve(null), [services.projects, wantsPages]);
   const published = useAccountQuery(publishedQuery);
   const creators = useAccountQuery(creatorsQuery);
   const pages = useAccountQuery(pagesQuery);
-  const savedProjects = useActivityCollection('save', auth.isAuthenticated);
+  const savedProjects = useActivityCollection('save', auth.isAuthenticated && wants('projects'));
   const activity = useNotifications({ mobileContinuity: mobileActivity });
 
   const scope = useMemo(() => ({ account, services, removed: new Set<string>(), pending: new Set<string>(), error: null as string | null }), [account, services]);

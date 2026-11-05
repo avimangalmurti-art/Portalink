@@ -190,6 +190,7 @@ export function HomeFeed({
       onWarmCreator={onWarmCreator}
       priority={startupPending && !locationId ? scrollRestored ? 'viewport' : false : index < 2}
       showCoverLoading={isMobile && !locationId}
+      deferDesktopDetails={!isMobile && !locationId}
     />,
   }));
 

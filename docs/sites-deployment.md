@@ -1,3 +1,7 @@
+## 2026-11-04 - Desktop and shared catalogue updates published 589
+
+Published [Portalink](https://portalinknetworks.com) from `dcb2779759d86a95c4225fb8cbded20364d0b708`. Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_cefc7410b2bc8191911209868574d7c7` and deployment `appgdep_6aebe60f04308191b8fa2439764be47a` succeeded at `2026-11-05T02:12:43.453834+00:00`. Public access and runtime revision 2 were retained. The 638-file archive retained the worker and all four D1 SQL files, and the custom domain matched four entry routes and 208 JS/CSS assets. No migration was applied. Receipts use the `latest-web-release` prefix in `logs/team-vennco/logs`.
+
 ## 2026-11-04 - Mobile Portal Search density published 588
 
 Published [Portalink](https://portalinknetworks.com) from `81c4c7d017b2e706399ef1fee60c6fbe28efc8b3`. Draft [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) points at the deployed source. Mobile Portal Search defaults to three portals per row and adjusts from one to five.

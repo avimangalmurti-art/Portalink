@@ -91,6 +91,15 @@
  background: var(--surface-pressed);
 }
 
+/* Use the existing contrast ink for the dividers and project edges. */
+#root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) .mobile-portal-index-preferences {
+ border-block-color: var(--content-preview-edge-color, color-mix(in srgb, var(--text-primary) 20%, transparent));
+}
+#root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) [data-project-index-list] .project-index-row {
+ outline: 1px solid var(--content-preview-edge-color, transparent);
+ outline-offset: -1px;
+}
+
 [data-presentation='mobile'] [data-centered-project] [data-engagement-action] { min-height: 64px; color: var(--text-primary); background: var(--surface-sunken); border-radius: 12px; }
 [data-presentation='mobile'] [data-centered-project] [data-engagement-action] > span { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 [data-presentation='mobile'] .project-popup-owner-actions { display: grid; gap: 8px; margin-top: 16px; }

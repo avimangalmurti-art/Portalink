@@ -15,7 +15,7 @@ function compile(path, require, extra = {}) {
 
 function backHarness() {
   const contexts = new Map();
-  let presentation = 'mobile', cleanup;
+  let presentation = 'mobile', cleanup, swipeBack;
   const react = { ...React,
     createContext(value) { const context = React.createContext(value); contexts.set(context, value); return context; },
     useContext: context => contexts.get(context),
@@ -24,7 +24,7 @@ function backHarness() {
     useMemo: fn => fn(),
     useLayoutEffect: effect => { cleanup?.(); cleanup = effect(); },
   };
-  const api = compile('../src/presentation/mobile/MobileBackNavigation.tsx', name => name === 'react' ? react : { usePresentation: () => presentation });
+  const api = compile('../src/presentation/mobile/MobileBackNavigation.tsx', name => name === 'react' ? react : name === './useMobileBackSwipe' ? { useMobileBackSwipe(_enabled, action) { swipeBack = action; } } : { usePresentation: () => presentation });
   let fallbackCalls = 0;
   const provider = api.MobileBackProvider({ onBack: () => fallbackCalls++, children: null });
   contexts.set(provider.type._context, provider.props.value);
@@ -34,6 +34,7 @@ function backHarness() {
       contexts.set(scope.type._context, scope.props.value);
     },
     presentation(value) { presentation = value; },
+    swipe() { swipeBack(); },
     dispose() { cleanup?.(); },
     get fallbackCalls() { return fallbackCalls; },
   };
@@ -49,6 +50,28 @@ test('sidebar delegates to the current page and falls back after that page unmou
   h.dispose();
   h.navigation.back();
   assert.equal(h.fallbackCalls, 1);
+});
+
+test('centre swipes follow the visible screen Back action without hiding its controls or changing sidebar delegation', () => {
+  const h = backHarness(); let calls = 0;
+  h.scope(true, false);
+  const child = React.createElement('button', { onClick: () => calls++ }, 'Back');
+  const rendered = h.ScreenBack({ action: () => calls++, children: child });
+  assert.equal(rendered.props.children, child);
+  h.swipe(); assert.equal(calls, 1);
+  h.navigation.back(); assert.equal(h.fallbackCalls, 1);
+  h.dispose(); h.swipe(); assert.equal(h.fallbackCalls, 2);
+});
+
+test('clearing an outgoing gesture action preserves the newer active action and restores an earlier nested action', () => {
+  const h = backHarness(), calls = [];
+  const releaseOld = h.navigation.registerSwipe(() => calls.push('old'));
+  const releaseNew = h.navigation.registerSwipe(() => calls.push('new'));
+  releaseOld(); h.swipe(); assert.deepEqual(calls, ['new']);
+  const releaseNested = h.navigation.registerSwipe(() => calls.push('nested'));
+  h.swipe(); releaseNested(); h.swipe();
+  assert.deepEqual(calls, ['new', 'nested', 'new']);
+  releaseNew(); h.swipe(); assert.equal(h.fallbackCalls, 1);
 });
 
 test('a visible mobile Back control can opt in without losing its active-screen registration', () => {
@@ -116,7 +139,7 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
       slots[i] ??= { value: typeof initialValue === 'function' ? initialValue() : initialValue };
       return [slots[i].value, next => { slots[i].value = typeof next === 'function' ? next(slots[i].value) : next; }];
     },
-    useRef: value => ({ current: value }), useMemo: fn => fn(), useEffect() {},
+    useRef: value => ({ current: value }), useMemo: fn => fn(), useCallback: callback => callback, useEffect() {},
   };
   const props = { onBack: () => exits++, onConversationChange: (...args) => routeChanges.push(args), ...initial };
   const messaging = {

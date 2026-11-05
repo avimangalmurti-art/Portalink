@@ -194,27 +194,61 @@ test('a pending notification acknowledgement cannot start a foreground refresh t
   assert.equal(hook.value.status, 'success'); hook.dispose();
 });
 
-function studioHarness({ category = 'bookmarks', tab = 'projects', mobileActivity, activityOverrides = {}, more = async () => ({ items: [], nextCursor: null }), remove = async () => {}, unsave = async () => ({}) } = {}) {
+function studioHarness({ category = 'bookmarks', tab = 'projects', mobileActivity, prioritizeActiveCollection, activityOverrides = {}, more = async () => ({ items: [], nextCursor: null }), remove = async () => {}, unsave = async () => ({}) } = {}) {
   const auth = { user: { id: 'one' }, viewerProfileId: creator.id, isAuthenticated: true };
   const queries = [{ data: creator, loading: false, fetchedAt: 100, retry() {} },
     { data: [{ id: creator.id, profile: creator }], loading: false, fetchedAt: 150, retry() {} },
     { data: { items: [pageEntry], nextCursor: 'cursor-one' }, loading: false, fetchedAt: 200, retry() {} }];
   let queryIndex = 0;
   const refreshed = [], queryRetries = [], notificationOptions = [];
+  const queryCallbacks = [], reads = [];
+  let savedProjectsEnabled;
   queries.forEach((query, index) => { query.retry = () => queryRetries.push(index); });
   const activity = { status: 'success', notifications: [notification], updatedAt: 175, pendingIds: new Set(), markRead: async () => true, retry() { queryRetries.push('activity-retry'); }, refresh: async () => true, isRefreshing: false, ...activityOverrides };
-  const services = { profiles: {}, projects: {}, creatorSaves: { setCreatorSave: async () => true }, engagement: { setEngagement: unsave } };
-  const hook = hookHarness(new URL('../src/features/studio/useStudioData.ts', import.meta.url), 'useStudioData', services, auth, [category, tab, { mobileActivity }], { revision: 0 }, {
+  const services = { profiles: { getProfile: async () => { reads.push('published'); return creator; } }, projects: {}, creatorSaves: { setCreatorSave: async () => true }, engagement: { setEngagement: unsave } };
+  const hook = hookHarness(new URL('../src/features/studio/useStudioData.ts', import.meta.url), 'useStudioData', services, auth, [category, tab, { mobileActivity, prioritizeActiveCollection }], { revision: 0 }, {
     '../../contexts/EngagementContext': { useEngagementStore: () => ({ refresh: id => refreshed.push(id) }) },
-    '../engagement/useActivityCollection': { useActivityCollection: () => ({ phase: 'ready', items: [{ project: oldProject, creator }], updatedAt: 125, retry() { queryRetries.push('saved-projects'); } }) },
-    '../library/useAccountQuery': { useAccountQuery: () => queries[queryIndex++ % 3] },
-    '../library/collectionQueries': { loadSavedCreators() {}, loadSavedPageBatch: (_projects, cursor) => more(cursor) },
+    '../engagement/useActivityCollection': { useActivityCollection: (_kind, enabled) => { savedProjectsEnabled = enabled; return { phase: 'ready', items: [{ project: oldProject, creator }], updatedAt: 125, retry() { queryRetries.push('saved-projects'); } }; } },
+    '../library/useAccountQuery': { useAccountQuery: callback => { const index = queryIndex++ % 3; queryCallbacks[index] = callback; return queries[index]; } },
+    '../library/collectionQueries': { async loadSavedCreators() { reads.push('creators'); return []; }, loadSavedPageBatch: (_projects, cursor) => { reads.push('pages'); return more(cursor); } },
     '../library/savedPages': { savedPageKey, removeSavedPage: remove },
     '../messages/useNotifications': { useNotifications: options => { notificationOptions.push(options); return activity; } },
     './studioModel': model,
   });
-  return { hook, auth, queries, refreshed, queryRetries, notificationOptions, activity };
+  return { hook, auth, queries, refreshed, queryRetries, notificationOptions, activity, queryCallbacks, reads, isSavedProjectsEnabled: () => savedProjectsEnabled };
 }
+
+test('desktop Studio starts collection reads on first visit and retains already opened collections for this account', async () => {
+  const { hook, auth, queryCallbacks, reads, isSavedProjectsEnabled } = studioHarness({ category: 'published', prioritizeActiveCollection: true });
+  const options = { prioritizeActiveCollection: true };
+  await hook.flush();
+  await Promise.all(queryCallbacks.map(read => read()));
+  assert.deepEqual(reads, ['published']);
+  assert.equal(isSavedProjectsEnabled(), false);
+  const published = queryCallbacks[0];
+
+  hook.options(['bookmarks', 'pages', options]); await hook.flush();
+  assert.equal(queryCallbacks[0], published, 'The previously visited collection keeps its query and result');
+  await Promise.all(queryCallbacks.slice(1).map(read => read()));
+  assert.deepEqual(reads, ['published', 'pages']);
+  hook.options(['bookmarks', 'projects', options]); await hook.flush();
+  assert.equal(isSavedProjectsEnabled(), true);
+
+  auth.user = { id: 'two' }; hook.options(['activity', 'projects', options]); await hook.flush();
+  await Promise.all(queryCallbacks.map(read => read()));
+  assert.deepEqual(reads, ['published', 'pages']);
+  assert.equal(isSavedProjectsEnabled(), false);
+  hook.dispose();
+});
+
+test('mobile Studio retains its previous collection reads', async () => {
+  const { hook, queryCallbacks, reads, isSavedProjectsEnabled } = studioHarness({ category: 'activity', mobileActivity: true });
+  await hook.flush();
+  await Promise.all(queryCallbacks.map(read => read()));
+  assert.deepEqual(reads, ['published', 'creators', 'pages']);
+  assert.equal(isSavedProjectsEnabled(), true);
+  hook.dispose();
+});
 
 test('Studio data defaults to bookmarked projects and reports only the selected collection state', async () => {
   const { hook, queries } = studioHarness();

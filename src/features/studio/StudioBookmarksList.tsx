@@ -67,7 +67,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const tab = location.tab;
   const collectionTitle = category[0].toUpperCase() + category.slice(1);
   const mobileActivity = mobile && category === 'activity';
-  const data = useStudioData(category, tab, { mobileActivity: mobile });
+  const data = useStudioData(category, tab, mobile ? { mobileActivity: true } : { prioritizeActiveCollection: true });
   const refreshStudio = data.refresh;
   const management = useProjectManagement(auth.viewerProfileId);
   const [query, setQuery] = useState('');
@@ -119,9 +119,32 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   }, [refreshStudio, management.editor.result]);
   const citationRows=useRef(data.rows);citationRows.current=data.rows;
   const citationRowKey=data.rows.map(row=>row.id).join('|');
-  useEffect(()=>{if(!auth.viewerProfileId)return;let live=true;void (async()=>{const records=await listCitations({outgoing:auth.viewerProfileId!});const external=category==='published'?await externalReferences({profileId:auth.viewerProfileId!}):[];const labels:Record<string,string>={};for(const row of citationRows.current){if(row.kind==='published'){const count=records.filter(c=>c.citing_project_id===row.project.id).length+external.filter(c=>c.project_id===row.project.id).length;if(count>0)labels[row.id]=`${count} references`;}else if(row.kind==='saved-page'){const id=await resolvePageId(row.target.attachmentId,row.target.pageIndex)??row.target.attachmentId;const match=records.find(c=>c.cited_item_id===id);if(match){const project=await citationProject(match.citing_project_id);if(project)labels[row.id]=`Cited in «${project.title}»`;}}}if(live)setCitationLabels(labels);})().catch(()=>undefined);return()=>{live=false;};},[citationRowKey,data.updatedAt,auth.viewerProfileId,citeItem,category,externalReferences]);
+  useEffect(()=>{
+    if(!auth.viewerProfileId || !mobile && !citationRows.current.some(row=>row.kind==='published'||row.kind==='saved-page')) return;
+    let live=true;
+    void (async()=>{
+      const records=await listCitations({outgoing:auth.viewerProfileId!});
+      const external=category==='published'?await externalReferences({profileId:auth.viewerProfileId!}):[];
+      const labels:Record<string,string>={};
+      for(const row of citationRows.current){
+        if(row.kind==='published'){
+          const count=records.filter(c=>c.citing_project_id===row.project.id).length+external.filter(c=>c.project_id===row.project.id).length;
+          if(count>0)labels[row.id]=`${count} references`;
+        }else if(row.kind==='saved-page'){
+          const id=await resolvePageId(row.target.attachmentId,row.target.pageIndex)??row.target.attachmentId;
+          const match=records.find(c=>c.cited_item_id===id);
+          if(match){
+            const project=await citationProject(match.citing_project_id);
+            if(project)labels[row.id]=`Cited in «${project.title}»`;
+          }
+        }
+      }
+      if(live)setCitationLabels(labels);
+    })().catch(()=>undefined);
+    return()=>{live=false;};
+  },[citationRowKey,data.updatedAt,auth.viewerProfileId,citeItem,category,externalReferences,mobile]);
   const visibleRows = useMemo(() => filterStudioRows(data.rows, query), [data.rows, query]);
-  useActivityScrollAnchor({ enabled: mobileActivity, active, scope: activityScope, list: scroller, rowsKey: visibleRows.map(row => row.id).join('|') });
+  useActivityScrollAnchor({ enabled: mobileActivity, active, scope: activityScope, list: scroller, rowsKey: mobileActivity ? visibleRows.map(row => row.id).join('|') : '' });
   useLayoutEffect(() => {
     const node = feedback.current;
     if (!mobileActivity || !active || !node) return;

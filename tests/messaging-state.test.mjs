@@ -301,10 +301,14 @@ test('rapid reaction taps share one write per message and a later tap can remove
   });
   await hook.flush();
   await hook.value.openConversation(a);
+  const settledPendingCheck = hook.value.isReactionPending;
+  hook.rerender();
+  assert.equal(hook.value.isReactionPending, settledPendingCheck, 'Unchanged thread renders retain the pending-state callback.');
   const add = hook.value.toggleReaction('first', '❤');
   assert.equal(await hook.value.toggleReaction('first', '❤'), false);
   const differentMessage = hook.value.toggleReaction('second', '❤');
   await hook.flush();
+  assert.notEqual(hook.value.isReactionPending, settledPendingCheck);
   assert.equal(hook.value.isReactionPending('first'), true);
   assert.equal(hook.value.isReactionPending('second'), true);
   second.resolve([]);

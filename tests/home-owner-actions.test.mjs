@@ -37,3 +37,22 @@ test('Home supplies management only to authenticated owner cards', () => {
     assert.equal(vm.runInNewContext(expression, { isAuthenticated, viewerProfileId, view: { creator: { id: creatorId } }, management: 'owner-management' }), expected ? 'owner-management' : undefined);
   }
 });
+
+test('only desktop Home defers attached preview details, and the feed card forwards that choice', () => {
+  const source = readFileSync(new URL('../src/components/home/HomeFeed.tsx', import.meta.url), 'utf8');
+  const file = ts.createSourceFile('HomeFeed.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let expression;
+  function visit(node) {
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(file) === 'ProjectFeedCard') {
+      expression = node.attributes.properties.find(prop => prop.name?.getText(file) === 'deferDesktopDetails').initializer.expression.getText(file);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  for (const isMobile of [false, true]) for (const locationId of [undefined, 'city']) {
+    assert.equal(vm.runInNewContext(expression, { isMobile, locationId }), !isMobile && !locationId);
+  }
+  const view = { project: { id: 'project', categoryId: 'portal', title: 'Work' }, creator: { id: 'creator', name: 'Creator' } };
+  const card = ProjectFeedCard({ view, deferDesktopDetails: true, onOpenProject() {}, onOpenCreator() {} });
+  assert.equal(card.props.deferDesktopDetails, true);
+});

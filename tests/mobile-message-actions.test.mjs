@@ -36,7 +36,7 @@ function stateReact(runEffects = false) {
       if (!previous || dependencies.some((value, i) => value !== previous.dependencies[i])) {
         pendingEffects.push(() => { previous?.cleanup?.(); slots[index] = { dependencies, cleanup: effect() }; });
       }
-    }, useMemo: fn => fn(), useId: () => 'message-actions-title',
+    }, useMemo: fn => fn(), useCallback: callback => callback, useId: () => 'message-actions-title',
     useRef(initial) { return slots[cursor++] ??= { current: initial }; },
     useState(initial) {
       const index = cursor++;

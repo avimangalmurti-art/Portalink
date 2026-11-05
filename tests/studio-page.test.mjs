@@ -23,7 +23,8 @@ const rows = [
 
 function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, presentation = headerHost ? 'mobile' : 'web', hideBack = false, citations = [], extraRows = [], initialRows = rows, deleteActivity = async targets => targets.map(row => row.id) } = {}) {
   let params = new URLSearchParams(initialSearch), cursor = 0, dirty = true, effects = [], tree;
-  const slots = [], history = [], calls = [], frames = [];
+  const slots = [], history = [], calls = [], frames = [], citationReads = [];
+  const references = { externalReferences: async () => [] };
   const currentRows = [...initialRows, ...extraRows].map(row => row.kind === 'activity' ? { ...row, notification: { ...row.notification } } : row);
   const auth = { user: { id: 'a' }, viewerProfileId: 'me', isAuthenticated: true };
   const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
@@ -55,10 +56,10 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     '../citations/publicOrigin': { PUBLIC_ORIGIN: 'https://portalinknetworks.com' },
     '../../presentation/usePresentation': {usePresentation:()=>presentation},
     './StudioEmptyState': {StudioEmptyState:'studio-empty'},
-    '../references/useReferences':{useReferences:()=>({externalReferences:async()=>[]})},
+    '../references/useReferences':{useReferences:()=>references},
     '../references/ExportSheet':{ExportSheet:'export-sheet'},
     '../sharing/InternalContentShare': {useInternalContentShare:()=>target=>calls.push(['share',target])},
-    '../citations/service': {listCitations:async()=>citations,resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
+    '../citations/service': {listCitations:async filter=>{citationReads.push(filter);return citations;},resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
     '../citations/CiteSheet': {CiteSheet:'cite-sheet'},
     '../../components/text/textFormatting': {plainFormattedText:s=>s},
     '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
@@ -83,13 +84,32 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
   };
   const { StudioPage } = load('../src/features/studio/StudioBookmarksList.tsx', name => { assert.ok(name in deps, name); return deps[name]; }, { requestAnimationFrame: callback => frames.push(callback), window: { location: { origin: 'https://portalink.test' } }, navigator: {}, document: { querySelector: () => null, activeElement: null }, HTMLElement: class {} });
   function render() { let renders = 0; while (dirty) { assert.ok(++renders < 20, 'render settles'); cursor = 0; dirty = false; effects = []; tree = StudioPage({ headerHost, hideBack, savedRoute, onBack: () => calls.push(['back']), onOpenProject: id => calls.push(['open', id]) }); effects.forEach(effect => effect()); } return tree; }
-  return { get nodes() { return nodes(render()); }, history, calls, frames, data,
+  return { get nodes() { return nodes(render()); }, history, calls, frames, data, citationReads,
     button(label) { return this.nodes.find(node => node.type === 'button' && node.props['aria-label'] === label); },
     setSearch(value) { params = new URLSearchParams(value); dirty = true; },
     setAccount(id) { auth.user = id ? { id } : null; dirty = true; },
     rerender() { dirty = true; return render(); },
   };
 }
+
+test('desktop Studio loads citation labels only for rows that can display them', async () => {
+  for (const initialSearch of ['category=activity', 'category=bookmarks&tab=projects', 'category=bookmarks&tab=creators']) {
+    const page = pageHarness({ initialSearch });
+    void page.nodes;
+    assert.deepEqual(page.citationReads, []);
+  }
+  const empty = pageHarness({ initialSearch: 'category=published', initialRows: [] });
+  void empty.nodes;
+  assert.deepEqual(empty.citationReads, []);
+  const published = pageHarness({ initialSearch: 'category=published', citations: [{ citing_project_id: 'p1' }] });
+  void published.nodes;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(published.citationReads.length, 1);
+  assert.equal(published.nodes.find(node => node.type === 'studio-row').props.referenceCount, 1);
+  const mobile = pageHarness({ initialSearch: 'category=activity', presentation: 'mobile' });
+  void mobile.nodes;
+  assert.equal(mobile.citationReads.length, 1, 'The mobile collection retains its existing query path.');
+});
 
 test('selection shows its toolbar, unsaves only bookmarks, then exits', async () => {
   const page = pageHarness({ initialSearch: 'category=bookmarks' });

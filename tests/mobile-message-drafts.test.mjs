@@ -79,6 +79,7 @@ function composerFixture({ mobile = true, account = 'account-a', store = storage
     useState(initial) { const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[i].value, next => { slots[i].value = typeof next === 'function' ? next(slots[i].value) : next; dirty = true; }]; },
     useRef(initial) { return slots[cursor++] ??= { current: initial }; },
     useMemo(fn, deps) { const i = cursor++; if (!same(slots[i]?.deps, deps)) slots[i] = { deps, value: fn() }; return slots[i].value; },
+    useCallback(callback, deps) { return react.useMemo(() => callback, deps); },
     useEffect(fn, deps) { const i = cursor++, old = slots[i]; if (!same(old?.deps, deps)) { slots[i] = { deps }; effects.push(() => { old?.cleanup?.(); slots[i].cleanup = fn(); }); } },
   };
   const auth = { isAuthenticated: true, user: { id: account }, viewerProfileId: 'profile-a', loginSession: {} };
@@ -101,7 +102,13 @@ function composerFixture({ mobile = true, account = 'account-a', store = storage
   const api = sourceModule('src/components/MessagesPage.tsx', imports, { window, document, sessionStorage: legacy });
   function render() { for (let count = 0; count < 15 && dirty; count++) { cursor = 0; effects = []; dirty = false; tree = api.MessagesPage({ onBack() {} }); effects.forEach(fn => fn()); } return tree; }
   function textarea() { return nodes(render()).find(node => node.type === 'textarea'); }
+  function findThreadElement(node) {
+    if (Array.isArray(node)) return node.map(findThreadElement).find(Boolean);
+    if (!React.isValidElement(node)) return undefined;
+    return node.type?.name === 'MessageList' ? node : findThreadElement(node.props.children);
+  }
   return { auth, messaging, store, legacy, drafts,
+    threadElement: () => findThreadElement(render()),
     get text() { return textarea().props.value; },
     type(text) { textarea().props.onChange({ target: { value: text } }); render(); },
     pressReturn({ isComposing = false } = {}) {
@@ -123,6 +130,32 @@ function composerFixture({ mobile = true, account = 'account-a', store = storage
     async flush() { await Promise.resolve(); await Promise.resolve(); render(); },
   };
 }
+
+test('desktop composer typing reuses the thread element until message or action state changes', () => {
+  const desktop = composerFixture({ mobile: false });
+  desktop.messaging.messages = Array.from({ length: 1000 }, (_, index) => ({ id: `message-${index}`, body: `Message ${index}` }));
+  desktop.refresh();
+  const thread = desktop.threadElement();
+  for (const draft of ['a', 'a draft', 'a draft with more text']) {
+    desktop.type(draft);
+    assert.equal(desktop.threadElement(), thread);
+  }
+  desktop.messaging.messages = [...desktop.messaging.messages, { id: 'new-message', body: 'New message' }];
+  desktop.refresh();
+  const received = desktop.threadElement();
+  assert.notEqual(received, thread);
+  desktop.messaging.pendingMessageId = 'message-1';
+  desktop.refresh();
+  assert.notEqual(desktop.threadElement(), received);
+  const pending = desktop.threadElement();
+  desktop.messaging.isReactionPending = id => id === 'message-2';
+  desktop.refresh();
+  assert.notEqual(desktop.threadElement(), pending);
+  desktop.setMobile(true);
+  const mobileThread = desktop.threadElement();
+  desktop.type('Mobile draft');
+  assert.notEqual(desktop.threadElement(), mobileThread, 'Mobile keeps rendering the current thread beside its draft.');
+});
 
 test('mobile Return keeps typing while desktop Enter submits outside IME composition', () => {
   const mobile = composerFixture();
@@ -170,6 +203,7 @@ test('retrying a failed mobile message clears its original draft but preserves l
     f.send(); await f.flush();
     f.messaging.messages = [{ id: 'failed', body: 'original', deliveryState: 'failed' }];
     f.messaging.retryMessage = async () => true;
+    f.refresh();
     if (editAfterFailure) f.type('replacement');
     await f.retry('failed'); await f.flush();
     assert.equal(f.text, editAfterFailure ? 'replacement' : '');
@@ -233,6 +267,7 @@ test('failed WEB send keeps the mobile recovery copy; successful WEB Retry retir
     assert.equal(f.drafts.readMobileMessageDrafts('account-a').thread, 'Mobile draft');
     f.messaging.messages = [{ id: 'failed-web', body: 'Mobile draft', deliveryState: 'failed' }];
     const retry = deferred(); f.messaging.retryMessage = () => retry.promise;
+    f.refresh();
     const completion = f.retry('failed-web');
     if (newerMobileText) { f.setMobile(true); f.type('New mobile text'); }
     else f.type('New web text');

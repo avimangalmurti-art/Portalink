@@ -5,9 +5,10 @@ const STATIONARY = '.profile-header-region, .mobile-home-search-header, .portali
 const HEADERS = `header, ${STATIONARY}, .journey-calendar-header, .account-welcome-heading`;
 const SCROLLERS = '[data-screen-scroll], [class*="scroll"], [class*="overflow-y"], [data-mobile-scroll-end], [data-mobile-screen-underlay], [data-profile-pulling]';
 const SCREEN = '[role="dialog"], [data-profile-page], [data-messages-page], .studio-citation-shell, [data-mobile-home-search], .app-screen-layer, [data-screen-scroll]';
+const CONTENT = 'li, img, canvas, video, p, h1, h2, h3, input, textarea, button, a, [data-studio-row]';
 
 /** The material reacts to vertical content overlap, never horizontal tab scrolling. */
-export function headerHasUnderlap(header: HTMLElement, scroller: HTMLElement, scope: HTMLElement, viewportBounds?: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right' | 'width' | 'height'>) {
+export function headerHasUnderlap(header: HTMLElement, scroller: HTMLElement, scope: HTMLElement, viewportBounds?: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right' | 'width' | 'height'>, contentByScroller?: Map<HTMLElement, HTMLElement>) {
   if (scroller.scrollTop <= 1 || (!scroller.contains(header) && !scope.contains(scroller))) return false;
   const h = header.getBoundingClientRect();
   const bounds = viewportBounds ?? scroller.getBoundingClientRect();
@@ -22,7 +23,9 @@ export function headerHasUnderlap(header: HTMLElement, scroller: HTMLElement, sc
   const s = { top, bottom, left, right, width: right - left, height: bottom - top };
   if (!h.height || s.height <= 0 || s.width <= 0 || h.right <= s.left || h.left >= s.right || h.bottom <= s.top || h.top >= s.bottom) return false;
   const contentRoot = scroller.contains(scope) ? scope : scroller;
-  const firstContent = Array.from(contentRoot.querySelectorAll<HTMLElement>('li, img, canvas, video, p, h1, h2, h3, input, textarea, button, a, [data-studio-row]')).find(node => {
+  const cached = contentByScroller?.get(scroller);
+  const cachedRect = cached && contentRoot.contains(cached) ? cached.getBoundingClientRect() : undefined;
+  const firstContent = cachedRect?.width && cachedRect.height ? cached : Array.from(contentRoot.querySelectorAll<HTMLElement>(CONTENT)).find(node => {
     // Journey's calendar stays pinned below the profile header. Its month input
     // is header foreground; the agenda determines when work reaches the glass.
     if (header.contains(node) || node.closest('.sr-only, [hidden], [role="menu"], [role="status"], .journey-calendar-header')) return false;
@@ -30,6 +33,7 @@ export function headerHasUnderlap(header: HTMLElement, scroller: HTMLElement, sc
     const rect = node.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
   });
+  if (firstContent) contentByScroller?.set(scroller, firstContent);
   // Ignore the blank gap before the first row. Once the content has reached the
   // header, keep the material steady through the gaps between subsequent rows.
   if (!firstContent || firstContent.getBoundingClientRect().top >= h.bottom) return false;
@@ -50,11 +54,9 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
     let layoutCleanups: Array<() => void> = [];
     const resized = new Set<HTMLElement>();
     const marked = new Set<HTMLElement>();
+    const desktopContent = new Map<HTMLElement, Map<HTMLElement, HTMLElement>>();
     const resizeObserver = new ResizeObserver(() => { layoutDirty = true; schedule(); });
-    const refresh = () => {
-      frame = 0;
-      const offsets = layoutDirty ? new Map(Array.from(root.querySelectorAll<HTMLElement>(SCROLLERS)).map(node => [node, node.scrollTop])) : null;
-      if (layoutDirty) { layoutCleanups.forEach(cleanup => cleanup()); layoutCleanups = []; }
+    const readLayout = () => {
       const scrollers = Array.from(root.querySelectorAll<HTMLElement>(SCROLLERS)).filter(node => {
         const style = getComputedStyle(node);
         // display:contents has no scrollport: padding there would disappear and
@@ -90,6 +92,23 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
       });
       // A region paints once; nested toolbar headers remain foreground only.
       const headers = candidates.filter(node => !candidates.some(parent => parent !== node && parent.contains(node)));
+      const fades = root.querySelectorAll<HTMLElement>('.scroll-edge-fade, .feed-edge-fade');
+      return { scrollers, documentScroller, headers, fades };
+    };
+    let desktopLayout: ReturnType<typeof readLayout> | undefined;
+    const refresh = () => {
+      frame = 0;
+      const desktop = root.dataset?.presentation === 'web';
+      const offsets = layoutDirty ? new Map(Array.from(root.querySelectorAll<HTMLElement>(SCROLLERS)).map(node => [node, node.scrollTop])) : null;
+      if (layoutDirty) {
+        layoutCleanups.forEach(cleanup => cleanup()); layoutCleanups = [];
+        desktopContent.clear();
+        desktopLayout = undefined;
+      }
+      // Geometry still follows scroll every frame. Discovering the screen's
+      // headers, panes and content nodes is only needed when its layout changes.
+      const layout = desktop ? desktopLayout ??= readLayout() : readLayout();
+      const { scrollers, documentScroller, headers, fades } = layout;
       if (layoutDirty) {
         layoutCleanups.push(applyHeaderScrollUnderlaps(scrollers.flatMap(scroller => headerScrollUnderlaps(headers, scroller, root))));
         offsets?.forEach((top, node) => { if (node.scrollTop !== top) node.scrollTop = top; });
@@ -102,30 +121,44 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
           if (resized.has(node)) { resizeObserver.unobserve(node); resized.delete(node); }
         }
       }
+      const scrollersWithUnderlap = desktop ? new Set<HTMLElement>() : undefined;
       for (const node of scrollers) {
-        node.dataset.mobileScrollTop = String(node.scrollTop <= 1);
-        node.dataset.mobileScrollUnderlap = 'false';
-        node.dataset.mobileScrollHasHeader = String(headers.some(header => node.contains(header)));
+        const atTop = String(node.scrollTop <= 1);
+        const hasHeader = String(headers.some(header => node.contains(header)));
+        if (!desktop || node.dataset.mobileScrollTop !== atTop) node.dataset.mobileScrollTop = atTop;
+        if (!desktop) node.dataset.mobileScrollUnderlap = 'false';
+        if (!desktop || node.dataset.mobileScrollHasHeader !== hasHeader) node.dataset.mobileScrollHasHeader = hasHeader;
         marked.add(node);
       }
-      for (const node of root.querySelectorAll<HTMLElement>('.scroll-edge-fade, .feed-edge-fade')) {
-        node.dataset.mobileScrollHasHeader = String(headers.some(header => node.contains(header)));
+      for (const node of fades) {
+        const hasHeader = String(headers.some(header => node.contains(header)));
+        if (!desktop || node.dataset.mobileScrollHasHeader !== hasHeader) node.dataset.mobileScrollHasHeader = hasHeader;
         marked.add(node);
       }
       for (const header of headers) {
         if (getComputedStyle(header).position === 'static') header.dataset.headerMaterialStatic = '';
         if (!resized.has(header)) { resizeObserver.observe(header); resized.add(header); }
         const scope = header.closest<HTMLElement>(SCREEN) ?? header.parentElement ?? root;
+        let contentByScroller = desktopContent.get(header);
+        if (desktop && !contentByScroller) {
+          contentByScroller = new Map();
+          desktopContent.set(header, contentByScroller);
+        }
         let underlap = false;
         for (const scroller of scrollers) {
           if (header.closest('[role="dialog"]') !== scroller.closest('[role="dialog"]')) continue;
-          if (headerHasUnderlap(header, scroller, scope, scroller === documentScroller ? {top:0,left:0,right:window.innerWidth,bottom:window.innerHeight,width:window.innerWidth,height:window.innerHeight} : undefined)) {
-            scroller.dataset.mobileScrollUnderlap = 'true';
+          if (headerHasUnderlap(header, scroller, scope, scroller === documentScroller ? {top:0,left:0,right:window.innerWidth,bottom:window.innerHeight,width:window.innerWidth,height:window.innerHeight} : undefined, desktop ? contentByScroller : undefined)) {
+            if (scrollersWithUnderlap) scrollersWithUnderlap.add(scroller);
+            else scroller.dataset.mobileScrollUnderlap = 'true';
             underlap = true;
           }
         }
-        header.dataset.mobileHeaderUnderlap = String(underlap);
+        if (!desktop || header.dataset.mobileHeaderUnderlap !== String(underlap)) header.dataset.mobileHeaderUnderlap = String(underlap);
         marked.add(header);
+      }
+      if (scrollersWithUnderlap) for (const node of scrollers) {
+        const underlap = String(scrollersWithUnderlap.has(node));
+        if (node.dataset.mobileScrollUnderlap !== underlap) node.dataset.mobileScrollUnderlap = underlap;
       }
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(refresh); };
@@ -135,7 +168,7 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
     window.addEventListener('resize', reconcile);
     window.addEventListener('scroll', schedule, true);
     const observer = new MutationObserver(reconcile);
-    observer.observe(root, {childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden']});
+    observer.observe(root, {childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'data-presentation']});
     return () => {
       root.removeEventListener('scroll', schedule, true);
       window.removeEventListener('resize', reconcile);

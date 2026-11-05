@@ -84,6 +84,7 @@ function InlineAttachmentPage({ project, slide, current, active, onCount }: {
 
 /** One project only. The surrounding wall continues to own vertical navigation. */
 export function InlineProjectPages({ project, active, cover, position, onSelect, onOpen, href, label, ownerId, metadataComplete = false }: Props) {
+  const isMobile = usePresentation() === 'mobile';
   const { ref, width } = useElementSize<HTMLDivElement>();
   const [near, setNear] = useState(false);
   const [documentCounts, setDocumentCounts] = useState<Record<string, number>>({});
@@ -185,6 +186,7 @@ export function InlineProjectPages({ project, active, cover, position, onSelect,
         </div>;
       })}
     </div>
+    {isMobile && !unresolved && slides.length > 1 && <span className="inline-project-page-counter" aria-hidden="true">{selected + 1} / {slides.length}</span>}
     {slides.length > 1 && !unresolved && pagination.length > 0 && <div className="inline-project-pagination" role="slider" aria-label={`Pages in ${project.title}`} data-inline-project-control=""
       aria-valuemin={1} aria-valuemax={slides.length} aria-valuenow={selected + 1} aria-valuetext={selectedDescription}
       aria-orientation="horizontal" aria-disabled={!active || undefined} tabIndex={active ? 0 : -1}
