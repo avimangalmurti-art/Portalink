@@ -1,3 +1,9 @@
+## Sites 591 - All pending appearance and loading changes published
+
+Published [Portalink](https://portalinknetworks.com) from `b9d8d0a9abb62924f535304d217ff04ec7e01911`. The release includes desktop PDF page loaders, glossy profile-image preview backdrops on both entries and screen sizes, and High Contrast/Translucency shortcuts in both shared catalogue headers.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_8bc487c4977481918a8aa83b4a5976b8` and deployment `appgdep_6aeca6bee89881918208879420bce25c` succeeded at `2026-11-05T15:54:50.870966+00:00`. Public access and runtime revision 2 were retained. The configured build and both bundle guards passed. The 638-file archive preserved all 420 public assets, the worker and four D1 SQL payloads byte for byte against live 590. The custom domain matched four entry routes and all 208 JavaScript/CSS assets. All 80 focused tests passed; existing verification limits are in the handoff. No migration was applied. Receipt prefix: `logs/appearance-loading-release-*`.
+
 ## 2026-11-04 - Desktop performance and mobile updates published 590
 
 Published [Portalink](https://portalinknetworks.com) from `50ed26917c2b968dcadba9ed41277a1ccbf3d9bf`. The release includes all pending desktop performance and shared reader appearance work, mobile PDF loading and portal contrast, the inline page counter, and centre-swipe Back.
