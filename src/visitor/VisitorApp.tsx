@@ -260,6 +260,11 @@ export function VisitorApp() {
     }
     projectReturn.open(withCataloguePageTarget(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)), id, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), id);
   } };
+  const catalogueAppearanceControls = {
+    highContrast, reduceTranslucency,
+    onHighContrastChange: (value: boolean) => appearance.chooseAppearance({ highContrast: value }),
+    onReduceTranslucencyChange: (value: boolean) => appearance.chooseAppearance({ reduceTranslucency: value }),
+  };
   const pending = <LoadingSkeleton kind={projectId || webCategoryRoute ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…"/>;
   const profileOnboarding = <ProfileOnboardingDialog key={auth.user?.id} isOpen theme={theme} systemGray={systemGray}
     onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}
@@ -294,7 +299,7 @@ export function VisitorApp() {
                 {presentation === 'mobile' && catalogue.profile && <DeferredSurfaceBoundary active={catalogueReady} onClose={back} resetKey={catalogueScope}>
                   <Suspense fallback={catalogueReady ? pending : null}>
                     <VisitorProfileGrid key={`catalogue:${catalogueScope}`} profile={catalogue.profile} categoryId={null}
-                      active={catalogueReady} onCaptureOpener={projectReturn.captureOpener} onOpen={openProject} onBack={back} onMessage={openMessages}
+                      active={catalogueReady} appearanceControls={catalogueAppearanceControls} onCaptureOpener={projectReturn.captureOpener} onOpen={openProject} onBack={back} onMessage={openMessages}
                       onCollaboration={() => { if (catalogue.profile) navigate(buildPath('sharedCollaboration', { profileId: catalogue.profile.id })); }} />
                   </Suspense>
                 </DeferredSurfaceBoundary>}
@@ -315,7 +320,7 @@ export function VisitorApp() {
                       : presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId) ? <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
                       : webCategoryRoute ? webCategoryReady && !firstCategoryProjectId ? <VisitorProjectPage key={`${profile.id}/${categoryId}`} profile={profile} project={null} categoryId={categoryId ?? undefined} onBack={back} desktopNavigationStyle={desktopNavigationStyle}
                         onBackToProfile={back} onSelect={id => { if (categoryId) openProject(categoryId, id); }} /> : pending
-                      : presentation === 'mobile' ? null : <VisitorProfileGrid key={`${profile.id}/${categoryId ?? ''}`} profile={profile} categoryId={categoryId} onOpen={openProject} onBack={back} onMessage={openMessages}
+                      : presentation === 'mobile' ? null : <VisitorProfileGrid key={`${profile.id}/${categoryId ?? ''}`} profile={profile} categoryId={categoryId} appearanceControls={catalogueAppearanceControls} onOpen={openProject} onBack={back} onMessage={openMessages}
                         onCollaboration={openMessages} />}
                   </Suspense>
                 </DeferredSurfaceBoundary>

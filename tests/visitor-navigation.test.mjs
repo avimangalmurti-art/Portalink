@@ -545,7 +545,7 @@ test('shared links start on Portfolio and keep Journey one tap away', () => {
   assert.equal(create()('creator', true).view, 'portfolio');
 });
 
-function visitorProfileHarness({ presentation = 'web', showJourney = false } = {}) {
+function visitorProfileHarness({ presentation = 'web', showJourney = false, appearanceControls } = {}) {
   const h = hooks(), followed = [], layoutRepair = [], state = { own: true, signedIn: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio', active: true };
   const profileDom = { inert: false };
   const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London', showJourney };
@@ -573,12 +573,53 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
     return named(name.split('/').at(-1));
   });
   const render = () => h.render(() => {
-    const tree = VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, active: state.active, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() { state.categoryId = null; } });
+    const tree = VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, active: state.active, appearanceControls, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() { state.categoryId = null; } });
     tree.ref.current = profileDom; // React attaches the host before layout effects run.
     return tree;
   });
   return { render, state, followed, bioProfile, profileDom, layoutRepair, dispose: h.dispose };
 }
+
+test('public MOBILE and WEB headers expose two switches with positive translucency state', () => {
+  for (const presentation of ['mobile', 'web']) {
+  const controls = { highContrast: false, reduceTranslucency: false,
+    onHighContrastChange(value) { controls.highContrast = value; },
+    onReduceTranslucencyChange(value) { controls.reduceTranslucency = value; } };
+  const h = visitorProfileHarness({ presentation, appearanceControls: controls });
+  const switches = () => nodes(h.render()).filter(node => node.type === 'AppearanceSwitch');
+  assert.deepEqual(switches().map(node => node.props.label), ['High Contrast', 'Translucency']);
+  assert.deepEqual(switches().map(node => node.props.isOn), [false, true]);
+  switches()[0].props.onToggle();
+  switches()[1].props.onToggle();
+  assert.deepEqual(switches().map(node => node.props.isOn), [true, false]);
+  switches()[0].props.onToggle();
+  switches()[1].props.onToggle();
+  assert.deepEqual(switches().map(node => node.props.isOn), [false, true]);
+  assert.equal(nodes(visitorProfileHarness({ presentation }).render()).some(node => node.type === 'AppearanceSwitch'), false);
+  }
+});
+
+test('public catalogue shortcuts update the same appearance state as settings without changing routes', () => {
+  for (const presentation of ['mobile', 'web']) {
+  const changes = [];
+  const deviceAppearance = { ...appearance, chooseAppearance(patch) { changes.push(patch); Object.assign(deviceAppearance, patch); } };
+  const h = appHarness({ deviceAppearance }); h.state.presentation = presentation;
+  const controls = () => one(h.render(), 'VisitorProfileGrid').props.appearanceControls;
+  controls().onHighContrastChange(true);
+  controls().onReduceTranslucencyChange(true);
+  assert.deepEqual(json(changes), [{ highContrast: true }, { reduceTranslucency: true }]);
+  assert.ok(h.render().props.className.includes('high-contrast'));
+  assert.ok(h.render().props.className.includes('reduce-translucency'));
+  assert.equal(h.navigations.length, 0);
+  h.state.location.search = '?settings=1';
+  const settings = one(h.render(), 'lazy:../components/ControlCenterPage');
+  assert.equal(settings.props.highContrast, true);
+  assert.equal(settings.props.reduceTranslucency, true);
+  h.state.location.search = '';
+  assert.equal(controls().highContrast, true);
+  assert.equal(controls().reduceTranslucency, true);
+  }
+});
 
 test('public image catalogue repair owns only the active MOBILE grid and releases Timeline, portal, hidden and unmounted views', () => {
   const h = visitorProfileHarness({ presentation: 'mobile', showJourney: true });

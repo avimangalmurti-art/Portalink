@@ -6,6 +6,7 @@ import { useJourneySelection } from '../features/journey/useJourneySelection';
 import React, { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Profile } from '../types/domain';
 import { ProfileAvatar } from '../components/profile/ProfileAvatar';
+import { AppearanceSwitch } from '../components/ui/AppearanceSwitch';
 import { PlatformGrid } from '../components/profile/PlatformGrid';
 import { JustifiedImageWall } from '../components/profile/JustifiedImageWall';
 import { ProjectPreviewCard } from '../components/profile/ProjectPreviewCard';
@@ -24,9 +25,14 @@ const ProfileBioSheet = lazy(() => import('../features/profile/ProfileBioSheet')
 const ProfileCollectionGrid = lazy(() => import('../components/profile/ProfileCollectionGrid').then(module => ({ default: module.ProfileCollectionGrid })));
 
 /** Read-only composition of the same identity, artwork, density and preview UI. */
-export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboration, onMessage, onBack, active = true, onCaptureOpener }: {
+export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboration, onMessage, onBack, active = true, onCaptureOpener, appearanceControls }: {
   profile: Profile; categoryId: string | null; onOpen: (categoryId: string, projectId: string) => void; onCollaboration: () => void; onMessage: () => void; onBack?: () => void;
   active?: boolean; onCaptureOpener?: React.MouseEventHandler<HTMLDivElement>;
+  appearanceControls?: {
+    highContrast: boolean; reduceTranslucency: boolean;
+    onHighContrastChange: (enabled: boolean) => void;
+    onReduceTranslucencyChange: (enabled: boolean) => void;
+  };
 }) {
   const [bioOpen, setBioOpen] = useState(false);
   useEffect(() => { if (!active) setBioOpen(false); }, [active]);
@@ -74,7 +80,12 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             </div>
           </div>
         </div>
-
+        {appearanceControls && <div className="public-profile-appearance-controls flex shrink-0 flex-col" role="group" aria-label="Catalogue appearance">
+          <AppearanceSwitch label="High Contrast" isOn={appearanceControls.highContrast}
+            onToggle={() => appearanceControls.onHighContrastChange(!appearanceControls.highContrast)} />
+          <AppearanceSwitch label="Translucency" isOn={!appearanceControls.reduceTranslucency}
+            onToggle={() => appearanceControls.onReduceTranslucencyChange(!appearanceControls.reduceTranslucency)} />
+        </div>}
       </header>
       {!isJourney && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">

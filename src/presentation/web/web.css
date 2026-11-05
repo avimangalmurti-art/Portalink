@@ -1,5 +1,16 @@
 /* WEB frame: preserve the existing desktop geometry and shared appearance tokens.
    Keep every selector scoped; :where adds no specificity to the existing rules. */
+
+/* PDF loaders fill the reserved page instead of becoming a strip above it. */
+#root .codex-shell[data-presentation='web'] [data-project-page-number] > .premium-media-placeholder.absolute {
+  position: absolute;
+  z-index: 0;
+  background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='web'] [data-project-page-number] > .premium-media-placeholder.absolute::after {
+  content: none;
+}
+
 .codex-shell:where([data-presentation='web']) [data-web-gallery-controls] {
   display: flex;
 }

@@ -1559,6 +1559,11 @@
   gap: 8px;
 }
 
+/* The switches occupy the header's trailing column, replacing its options reserve. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .profile-compact-header:has(> .public-profile-appearance-controls) .profile-identity-copy {
+  padding-inline-end: 0;
+}
+
 #root .codex-shell[data-presentation='mobile'] .profile-link-icons {
   direction: ltr;
   flex-direction: row;
