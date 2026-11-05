@@ -1,3 +1,7 @@
+## 2026-11-04 - GitHub updated to the published Sites 590 source
+
+The user requested all latest changes on GitHub. The existing `codex/socal-release` branch in `avimangalmurti-art/Portalink` now includes deployed application commit `50ed26917c2b968dcadba9ed41277a1ccbf3d9bf` and the separate Sites 590 publication receipt commit `2514c026ff56f014f5bc0aa1ffe14d118decf4b1`. This final handoff entry records the synchronization. [PR 148](https://github.com/avimangalmurti-art/Portalink/pull/148) remains the open review path into `main`; its title and description describe the published release and verification limits. The push was a fast-forward from `81c4c7d`, with application files matching the deployed source. GitHub `main` remains at `5c3f7f2` pending review and merge. No application rebuild or deployment is needed for these documentation receipts.
+
 ## 2026-11-04 - All pending changes published in Sites 590
 
 Published [Portalink](https://portalinknetworks.com) from `50ed26917c2b968dcadba9ed41277a1ccbf3d9bf`. The source mirror contains all pending desktop performance, shared reader grey, Weekly Reads background, mobile PDF loader, portal contrast, inline page counter, and centre-swipe Back changes. Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_14095f948c4c8191aeb14845dce8096c` and deployment `appgdep_6aec27743d30819188c0fd57086a2051` succeeded at `2026-11-05T06:51:42.660865+00:00`, November 4 in America/Los_Angeles. Public access and runtime revision 2 were retained.
