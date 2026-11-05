@@ -1,3 +1,9 @@
+## 2026-11-04 - Desktop performance and mobile updates published 590
+
+Published [Portalink](https://portalinknetworks.com) from `50ed26917c2b968dcadba9ed41277a1ccbf3d9bf`. The release includes all pending desktop performance and shared reader appearance work, mobile PDF loading and portal contrast, the inline page counter, and centre-swipe Back.
+
+Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_14095f948c4c8191aeb14845dce8096c` and deployment `appgdep_6aec27743d30819188c0fd57086a2051` succeeded at `2026-11-05T06:51:42.660865+00:00`, November 4 in America/Los_Angeles. Public access and runtime revision 2 were retained. The archive audit checked 638 files and byte parity for 420 public assets, the worker and four D1 SQL files against live 589. The live domain matched four entry routes and all 208 JS/CSS assets. No migration was applied. Receipt prefix is `logs/all-latest-changes-*`; validation and physical-device limits are in the current handoff.
+
 ## 2026-11-04 - Desktop and shared catalogue updates published 589
 
 Published [Portalink](https://portalinknetworks.com) from `dcb2779759d86a95c4225fb8cbded20364d0b708`. Sites version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_cefc7410b2bc8191911209868574d7c7` and deployment `appgdep_6aebe60f04308191b8fa2439764be47a` succeeded at `2026-11-05T02:12:43.453834+00:00`. Public access and runtime revision 2 were retained. The 638-file archive retained the worker and all four D1 SQL files, and the custom domain matched four entry routes and 208 JS/CSS assets. No migration was applied. Receipts use the `latest-web-release` prefix in `logs/team-vennco/logs`.
