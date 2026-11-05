@@ -1353,9 +1353,6 @@
   backdrop-filter: none;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header):where(.high-contrast *)::before {
-  background: var(--codex-workspace-bg);
-}
 
 #root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header):where(.reduce-translucency *)::before {
   bottom: 0;
@@ -2531,7 +2528,7 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   padding-bottom: 28px;
 }
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-public-image-catalogue] > .profile-header-region:has(> .density-separator)::after {
-  content: ''; position: absolute; inset-inline: 16px; bottom: 0; height: 1px; background: var(--hairline); pointer-events: none;
+  content: ''; position: absolute; inset-inline: 16px; bottom: 0; height: 1px; background: var(--slider-edge, var(--hairline)); pointer-events: none;
 }
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-public-image-catalogue] > .profile-header-region:has(> .density-separator) #profile-navigation-tools::after {
   content: none;
@@ -2586,7 +2583,7 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel > .shared-profile-sidebar {
   background: transparent !important;
 }
-#root .codex-shell[data-public-portfolio][data-presentation='mobile']:is(.reduce-translucency, .high-contrast) .mobile-shared-drawer-panel[role='dialog'] {
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'].reduce-translucency .mobile-shared-drawer-panel[role='dialog'] {
   background: var(--surface-raised) !important;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -2625,14 +2622,14 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer>div {display:flex;flex-direction:column;gap:8px;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer :is(button,a) {display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:44px;padding:8px;border-radius:12px;color:var(--text-secondary);}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer button {flex:1;}
-#root .codex-shell[data-public-portfolio][data-presentation='mobile']:is(.reduce-translucency,.high-contrast) .mobile-shared-drawer-scrim {-webkit-backdrop-filter:none;backdrop-filter:none;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'].reduce-translucency .mobile-shared-drawer-scrim {-webkit-backdrop-filter:none;backdrop-filter:none;}
 @media(prefers-reduced-transparency:reduce) {
  #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-scrim {-webkit-backdrop-filter:none;backdrop-filter:none;}
 }
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portals-list {margin:0;padding:0;list-style:none;background:transparent;border-radius:0;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals[data-portals-layout='grid'] .mobile-portals-list {padding:12px;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {-webkit-backdrop-filter:blur(22px) saturate(125%)!important;backdrop-filter:blur(22px) saturate(125%)!important;}
-#root .codex-shell[data-public-portfolio][data-presentation='mobile']:is(.reduce-translucency,.high-contrast) .mobile-shared-drawer-panel[role='dialog'] {-webkit-backdrop-filter:none!important;backdrop-filter:none!important;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'].reduce-translucency .mobile-shared-drawer-panel[role='dialog'] {-webkit-backdrop-filter:none!important;backdrop-filter:none!important;}
 @media(prefers-reduced-transparency:reduce) {#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {-webkit-backdrop-filter:none!important;backdrop-filter:none!important;}}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel > .shared-mobile-portals {height:100%!important;max-height:100%;overflow:hidden;}
 

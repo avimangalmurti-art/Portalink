@@ -126,10 +126,10 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
 #root .codex-shell [data-ui-surface].mobile-context-sheet .mobile-context-heading {
   gap: 12px;
 }
-/* Readability is explicit in both accessibility modes; the existing modal
+/* Reduced translucency makes the panel solid; the existing modal
    scrim continues to separate content even when panel glass becomes solid. */
-#root .codex-shell:is(.high-contrast, .reduce-translucency) [data-ui-surface],
-#root .codex-shell:is(.high-contrast, .reduce-translucency) [data-ui-surface].follow-info-panel {
+#root .codex-shell.reduce-translucency [data-ui-surface],
+#root .codex-shell.reduce-translucency [data-ui-surface].follow-info-panel {
   --ui-popup-surface: var(--surface-raised);
   background: var(--surface-raised) !important;
   backdrop-filter: none !important;

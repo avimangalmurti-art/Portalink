@@ -128,7 +128,7 @@ export function ProfessionalEntry({ ready = true, embedded = false, onCreate, on
             onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
             onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}
             onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })} />
-          {highContrast && <p className="professional-entry-appearance-note" role="status">High contrast keeps controls opaque.</p>}
+          {highContrast && <p className="professional-entry-appearance-note" role="status">High contrast strengthens text and borders.</p>}
         </div>
       </details>
     </li>

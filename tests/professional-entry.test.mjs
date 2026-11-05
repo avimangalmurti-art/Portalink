@@ -134,7 +134,7 @@ test('both entry presentations apply appearance tokens through the same persiste
   assert.equal(tree.props.style['--accent-primary'], '#BF5AF2', 'Accent resolves for the selected dark theme');
   assert.equal(tree.props.style['--navigation-blur'], 'none');
   assert.equal(tree.props.style['--navigation-surface'], '#3A3A3C');
-  assert.equal(nodes(tree).some(n => n.props.role === 'status' && words(n) === 'High contrast keeps controls opaque.'), true);
+  assert.equal(nodes(tree).some(n => n.props.role === 'status' && words(n) === 'High contrast strengthens text and borders.'), true);
   assert.deepEqual(JSON.parse(JSON.stringify(h.appearanceCalls)), [{ mode: 'dark' }, { accentColor: '#A550D8' }, { highContrast: true }, { reduceTranslucency: true }, { systemGray: 'gray4' }]);
   assert.deepEqual(h.calls, []);
   assert.ok(h.presentationCalls.every(mode => mode === presentation));

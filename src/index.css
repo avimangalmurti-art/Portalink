@@ -3848,7 +3848,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   /* White-foreground media controls retain their permanent dark material. */
   background-color: #141416 !important;
 }
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+@media (prefers-reduced-transparency: reduce) {
   [data-material]:not([data-material='content']):not([data-material='media-control']):not([data-material='media-overlay']),
   body > [role='menu']:not([data-material='content']),
   body > [role='listbox']:not([data-material='content']),
@@ -5706,7 +5706,7 @@ body.reduce-translucency [data-themed-portal] { background: var(--surface-raised
 #root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) > :is(header, nav, .global-control-header, [data-mobile-portal-project-header]) {
   background:transparent;
 }
-#root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
+#root .codex-shell[data-presentation='mobile'].reduce-translucency :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
   background:var(--surface-raised) !important;
   -webkit-backdrop-filter:none !important;
   backdrop-filter:none !important;
@@ -5780,6 +5780,9 @@ body.reduce-translucency [data-themed-portal] { background: var(--surface-raised
 #root .codex-shell[data-presentation='mobile'] :is(.profile-navigation-header, .mobile-home-search-header, [data-inbox-controls])::after {
   content:''; position:absolute; inset-inline:16px; bottom:0;
   height:1px; background:var(--hairline); pointer-events:none;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header:has(> .density-separator)::after {
+  background: var(--slider-edge, var(--hairline));
 }
 #root .codex-shell[data-presentation='mobile'] .inset-row-group [data-studio-row]:not([data-selected]) [data-studio-row-surface] { background:transparent !important; }
 #root .codex-shell[data-presentation='mobile'] .reads-actors.inset-row-group > li,

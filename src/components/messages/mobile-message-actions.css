@@ -131,7 +131,7 @@
 .mobile-message-context-stack button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; }
 .mobile-message-context-stack button:active { background: var(--surface-hover); }
 
-.codex-shell:is(.reduce-translucency, .high-contrast) :is(.mobile-message-context-reactions, .mobile-message-context-actions) {
+.codex-shell.reduce-translucency :is(.mobile-message-context-reactions, .mobile-message-context-actions) {
   background: var(--surface-raised);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;

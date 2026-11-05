@@ -3,8 +3,8 @@
 .density-separator::-moz-range-track { height:1px; background:transparent; border:0; }
 .density-separator::-moz-range-progress { background:transparent; }
 /* Include borders in the same thumb travel used by the stop marks. */
-.density-separator::-webkit-slider-thumb { box-sizing:border-box; appearance:none; -webkit-appearance:none; width:18px; height:18px; margin-top:-8.5px; border:1px solid var(--hairline-strong); border-radius:50%; background:var(--hairline); box-shadow:0 1px 3px rgb(0 0 0 / 12%); }
-.density-separator::-moz-range-thumb { box-sizing:border-box; width:18px; height:18px; border:1px solid var(--hairline-strong); border-radius:50%; background:var(--hairline); box-shadow:0 1px 3px rgb(0 0 0 / 12%); }
+.density-separator::-webkit-slider-thumb { box-sizing:border-box; appearance:none; -webkit-appearance:none; width:18px; height:18px; margin-top:-8.5px; border:1px solid var(--slider-edge); border-radius:50%; background:var(--slider-thumb); box-shadow:0 1px 3px rgb(0 0 0 / 12%); }
+.density-separator::-moz-range-thumb { box-sizing:border-box; width:18px; height:18px; border:1px solid var(--slider-edge); border-radius:50%; background:var(--slider-thumb); box-shadow:0 1px 3px rgb(0 0 0 / 12%); }
 [data-presentation='mobile'] .density-separator::-webkit-slider-thumb { width:30px; border-radius:999px; }
 [data-presentation='mobile'] .density-separator::-moz-range-thumb { width:30px; border-radius:999px; }
 .density-separator:focus-visible { outline:2px solid var(--focus-ring); outline-offset:0; border-radius:8px; }
@@ -23,7 +23,7 @@
   height: 44px;
   pointer-events: none;
 }
-.density-separator-ticks > span { flex: none; width: var(--density-tick-width); height: 6px; background: var(--hairline); }
+.density-separator-ticks > span { flex: none; width: var(--density-tick-width); height: 6px; background: var(--slider-edge); }
 [data-presentation='mobile'] .density-separator-ticks { --density-thumb-width: 30px; }
 /* Keep the native range and its position, but only the 44px handle target owns
    touches. The rest of this transparent strip passes through to the catalogue. */

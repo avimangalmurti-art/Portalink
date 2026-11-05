@@ -75,7 +75,7 @@
   padding: 0 12px 12px;
 }
 
-.codex-shell:is(.reduce-translucency, .high-contrast) .portal-project-popup-layer > .shared-portal-popup {
+.codex-shell.reduce-translucency .portal-project-popup-layer > .shared-portal-popup {
   background: var(--surface-raised);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;

@@ -49,7 +49,7 @@
 [data-follow-info-layer][data-reduce-motion] :is(.follow-info-overlay, .follow-info-panel) { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { [data-follow-info-layer] .follow-info-overlay, [data-follow-info-layer] .follow-info-panel { animation: none !important; } }
 @media (prefers-reduced-transparency: reduce) { [data-follow-info-layer] .follow-info-panel { background: var(--surface-raised); backdrop-filter: none; } }
-.codex-shell:is(.reduce-translucency,.high-contrast) [data-follow-info-layer] .follow-info-panel { background: var(--surface-raised); backdrop-filter: none; }
+.codex-shell.reduce-translucency [data-follow-info-layer] .follow-info-panel { background: var(--surface-raised); backdrop-filter: none; }
 /* Visibility keeps the mounted reader and all geometry/state intact; hidden controls cannot hit-test. */
 body:has([data-follow-info-layer]:not([data-closing])) #root .codex-shell[data-presentation='mobile'] :is(.mobile-project-back, [data-mobile-page-navigator], [data-project-response-rail], .mobile-navigation-layer, .mobile-context-floating, .global-control-header, [data-project-file-strip]) { visibility: hidden !important; pointer-events: none !important; }
 

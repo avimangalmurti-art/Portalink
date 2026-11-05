@@ -16,6 +16,7 @@ import { MobileContextProvider } from './mobile/MobileContextActions';
 import './web/web.css';
 import './navigation.css';
 import './controls.css';
+import './sliders.css';
 import './surfaces.css';
 import './reduced-translucency.css';
 import './mobile/shapes.css';

@@ -62,7 +62,7 @@
   inset-inline: 16px;
   top: 50%;
   height: 1px;
-  background: var(--hairline);
+  background: var(--slider-edge, var(--hairline));
   pointer-events: none;
 }
 [data-presentation='mobile'] .public-portal-search-density > :is(.density-separator, .density-separator-ticks) { bottom: 0; }
@@ -113,11 +113,15 @@
   place-items: center;
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar {
+  --portal-avatar-size: calc(72px / var(--portal-search-columns, 3));
   top: 8px;
   inset-inline-end: 8px;
   bottom: auto;
-  width: 24px;
-  height: 24px;
+  width: var(--portal-avatar-size);
+  height: var(--portal-avatar-size);
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar > .squircle {
+  font-size: calc(var(--portal-avatar-size) / 2);
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .profile-collection-name {
   display: grid;
@@ -136,8 +140,6 @@
 #root .codex-shell[data-presentation='mobile'] [data-compact-portals] .public-portal-avatar {
   top: 4px;
   inset-inline-end: 4px;
-  width: 18px;
-  height: 18px;
 }
 #root .codex-shell[data-presentation='mobile'] [data-compact-portals] .profile-collection-name {
   display: -webkit-box;

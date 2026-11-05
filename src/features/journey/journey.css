@@ -80,7 +80,7 @@
 #root .codex-shell[data-presentation='web'] :is(.scroll-edge-fade, .feed-edge-fade)[data-mobile-scroll-has-header='true']:has([data-profile-journey]) {
   mask-image: none !important; -webkit-mask-image: none !important;
 }
-#root .codex-shell[data-presentation='web']:is(.reduce-translucency, .high-contrast) [data-profile-journey] > .profile-header-region::before {
+#root .codex-shell[data-presentation='web'].reduce-translucency [data-profile-journey] > .profile-header-region::before {
   bottom: 0; background: var(--surface-canvas, var(--codex-workspace-bg));
   -webkit-backdrop-filter: none; backdrop-filter: none; mask-image: none; -webkit-mask-image: none;
 }

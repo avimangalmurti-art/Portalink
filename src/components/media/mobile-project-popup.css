@@ -34,7 +34,7 @@
 @media (prefers-reduced-transparency: reduce) {
  [data-presentation='mobile'] [data-centered-project] .mobile-project-description-sheet { background: var(--surface-raised) !important; backdrop-filter: none; }
 }
-#root .codex-shell:is(.reduce-translucency, .high-contrast) [data-centered-project] .mobile-project-description-sheet { background: var(--surface-raised) !important; backdrop-filter: none; }
+#root .codex-shell.reduce-translucency [data-centered-project] .mobile-project-description-sheet { background: var(--surface-raised) !important; backdrop-filter: none; }
 
 [data-presentation='mobile'] [data-centered-project] .project-description-heading { padding-top: 12px; }
 [data-presentation='mobile'] [data-centered-project] .project-description-details { border-top: 1px solid var(--hairline); padding-top: 20px; }
@@ -45,7 +45,7 @@
  backdrop-filter: blur(22px) saturate(125%); -webkit-backdrop-filter: blur(22px) saturate(125%);
  box-shadow: var(--shadow-pop);
 }
-#root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) { background: var(--surface-raised) !important; backdrop-filter: none; }
+#root .codex-shell[data-presentation='mobile'].reduce-translucency :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) { background: var(--surface-raised) !important; backdrop-filter: none; }
 @media (prefers-reduced-transparency: reduce) {
  #root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) { background: var(--surface-raised) !important; backdrop-filter: none; }
 }

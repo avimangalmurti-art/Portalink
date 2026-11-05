@@ -45,7 +45,7 @@
 .journey-month-calendar-dots > span:nth-child(3) { opacity: 0.45; }
 .journey-month-calendar-dots > span[data-work-category='citation'] { background: var(--text-secondary); }
 .journey-month-calendar-screen button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.journey-month-calendar-overlay:where(.reduce-translucency *, .high-contrast *) .journey-month-calendar-toolbar { background: var(--surface-canvas); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.journey-month-calendar-overlay:where(.reduce-translucency *) .journey-month-calendar-toolbar { background: var(--surface-canvas); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .journey-month-calendar-overlay[data-presentation='mobile'] { padding: 0; background: var(--surface-canvas); }
 .journey-month-calendar-overlay[data-presentation='mobile'] .journey-month-calendar-screen { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; }
 .journey-month-calendar-overlay[data-presentation='mobile'] .journey-month-calendar-toolbar {

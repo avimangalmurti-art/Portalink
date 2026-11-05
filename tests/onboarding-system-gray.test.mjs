@@ -52,7 +52,7 @@ test('the real account card visibly resolves all six grays with readable resting
         assert.equal(style['--optional-setup-surface'],gray[theme]);
         assert.equal(card.props['data-setup-high-contrast'],highContrast || undefined);
         const material = style['--optional-setup-material'];
-        if (highContrast || reduceTranslucency) assert.equal(material,gray[theme]);
+        if (reduceTranslucency) assert.equal(material,gray[theme]);
         else {
           assert.match(material,/^rgba\(.*0\.92\)$/);
           for (const backdrop of [0,255]) assert.ok(contrast(composite(material,backdrop),style['--optional-setup-foreground']) >= 4.5);

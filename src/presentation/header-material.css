@@ -50,7 +50,7 @@
     mask-image: none !important;
     -webkit-mask-image: none !important;
   }
-  #root .codex-shell:is(.reduce-translucency, .high-contrast)[data-presentation] [data-mobile-header-underlap]::before {
+  #root .codex-shell.reduce-translucency[data-presentation] [data-mobile-header-underlap]::before {
     background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;

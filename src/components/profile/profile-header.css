@@ -48,7 +48,7 @@
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
     mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
   }
-  #root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) .profile-header-region[data-mobile-header-underlap]::before {
+  #root .codex-shell[data-presentation='mobile'].reduce-translucency .profile-header-region[data-mobile-header-underlap]::before {
     bottom: 0 !important;
     background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
     -webkit-mask-image: none !important;
@@ -171,7 +171,7 @@
   width: calc(100% - 24px);
   height: 36px;
   margin: 0 12px;
-  background: linear-gradient(var(--hairline), var(--hairline)) center / 100% 1px no-repeat !important;
+  background: linear-gradient(var(--slider-edge, var(--hairline)), var(--slider-edge, var(--hairline))) center / 100% 1px no-repeat !important;
 }
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .density-separator::-webkit-slider-thumb { width: 18px; height: 18px; }
 #root .codex-shell[data-presentation='web'] [data-web-profile-header] .density-separator::-moz-range-thumb { width: 18px; height: 18px; }

@@ -29,7 +29,7 @@
   width: 100%;
   height: 36px;
   margin: 0;
-  background: linear-gradient(var(--hairline), var(--hairline)) center / 100% 1px no-repeat !important;
+  background: linear-gradient(var(--slider-edge, var(--hairline)), var(--slider-edge, var(--hairline))) center / 100% 1px no-repeat !important;
 }
 .codex-shell:where([data-presentation='web']) [data-web-gallery-controls] .density-separator-ticks {
   inset-inline: calc((var(--density-thumb-width) - var(--density-tick-width)) / 2);
@@ -109,7 +109,7 @@
   touch-action: auto;
 }
 
-#root .codex-shell[data-presentation='web']:is(.reduce-translucency, .high-contrast) .mobile-context-sheet[data-owner-profile-actions] {
+#root .codex-shell[data-presentation='web'].reduce-translucency .mobile-context-sheet[data-owner-profile-actions] {
   background: var(--surface-raised) !important;
 }
 

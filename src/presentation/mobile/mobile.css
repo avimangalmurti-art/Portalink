@@ -1983,7 +1983,7 @@
   scroll-padding-bottom: 8px;
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page:where(.reduce-translucency *, .high-contrast *) {
+#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page:where(.reduce-translucency *) {
   background: var(--surface-raised);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -2043,7 +2043,7 @@
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
     mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
   }
-  #root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
+  #root .codex-shell[data-presentation='mobile'].reduce-translucency :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
     bottom: 0 !important;
     background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
     -webkit-mask-image: none !important;
@@ -2073,9 +2073,6 @@
   backdrop-filter: none;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header):where(.high-contrast *)::before {
-  background: var(--codex-workspace-bg);
-}
 
 #root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header):where(.reduce-translucency *)::before {
   bottom: 0;
@@ -3539,7 +3536,7 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { --sheet-rest-y: 0px; }
 /* Layout settles once; gestures and expansion move the same panel with transform. */
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-sheet-dragging] { padding-bottom: max(16px, var(--safe-area-bottom)); }
-#root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) .mobile-context-sheet { background: var(--surface-raised) !important; }
+#root .codex-shell[data-presentation='mobile'].reduce-translucency .mobile-context-sheet { background: var(--surface-raised) !important; }
 @media (prefers-reduced-transparency: reduce) {
   #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet { background: var(--surface-raised) !important; }
 }
@@ -5168,7 +5165,7 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
   inset-inline: 16px;
   top: 50%;
   height: 1px;
-  background: var(--hairline);
+  background: var(--slider-edge, var(--hairline));
   pointer-events: none;
 }
 #root .codex-shell[data-presentation='mobile'] [data-city-project-density] > :is(.density-separator, .density-separator-ticks) { bottom: 0; }
@@ -5909,7 +5906,7 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
 
 /* Profile's adjustable hairline retains the existing 1px neutral divider. */
 #root .codex-shell[data-presentation='mobile'] .profile-header-region:has(> .density-separator)::after {
-  content:''; position:absolute; inset-inline:16px; bottom:0; height:1px; background:var(--hairline); pointer-events:none;
+  content:''; position:absolute; inset-inline:16px; bottom:0; height:1px; background:var(--slider-edge, var(--hairline)); pointer-events:none;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-header-region:has(> .density-separator) .profile-navigation-header::after { content:none; }
 
