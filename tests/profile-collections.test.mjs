@@ -184,6 +184,7 @@ test('collection tiles navigate to real portals/profiles and keep labels outside
 function profileHarness(search = '', options = {}) {
   let params = new URLSearchParams(search);
   const navigation = [];
+  const densityCalls = [];
   const surfaceOwner = React.createContext({});
   let cursor = 0;
   const slots = [];
@@ -241,18 +242,29 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/contextActions')) return contextActions;
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: options.editorProjectId ?? null } }) };
     if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
-    if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
+    if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: (...args) => { densityCalls.push(args); return density; } };
     if (name.endsWith('/projectGridDensity')) return gridDensity;
     if (name.endsWith('/profileLinks')) return { ...linkHelpers, resolveProfileLinks: () => linkHelpers.resolveProfileLinks(options.links ?? [], {}) };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
   }, { URL, URLSearchParams, Error, requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: options.window ? Object.assign(options.window, { location: { origin: 'https://portalink.test' } }) : { location: { origin: 'https://portalink.test' }, scrollTo() {}, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
   const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [], showJourney: options.showJourney, isPrivate: options.isPrivate ?? false };
-  return { navigation, projectOrder, density, surfaceOwner, profile, isMobile: options.presentation === 'mobile', isOwner: (options.viewerRole ?? 'owner') === 'owner' && !options.isSharedView, get mobileActions() { return mobileActions; }, get mobilePressModel() { return mobilePressModel; }, action: id => [...(mobileActions?.primary ?? []), ...(mobileActions?.groups.flat() ?? [])].find(action => action.id === id), flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
+  return { navigation, projectOrder, density, densityCalls, surfaceOwner, profile, isMobile: options.presentation === 'mobile', isOwner: (options.viewerRole ?? 'owner') === 'owner' && !options.isSharedView, get mobileActions() { return mobileActions; }, get mobilePressModel() { return mobilePressModel; }, action: id => [...(mobileActions?.primary ?? []), ...(mobileActions?.groups.flat() ?? [])].find(action => action.id === id), flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
     return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props, ...updates });
   } };
 }
+
+test('main-app shared catalogue routes use public density without enabling owner writes', () => {
+  for (const presentation of ['mobile', 'web']) for (const viewerRole of ['owner', 'member', 'guest']) {
+    const shared = profileHarness('', { presentation, viewerRole, isSharedView: true });
+    shared.render();
+    assert.deepEqual(shared.densityCalls.at(-1), [shared.profile, false, 'public-catalogue']);
+    const privateProfile = profileHarness('', { presentation, viewerRole });
+    privateProfile.render();
+    assert.deepEqual(privateProfile.densityCalls.at(-1), [privateProfile.profile, viewerRole === 'owner', 'profile']);
+  }
+});
 
 test('mobile header keeps its Journey choice while hiding counts and links until Portfolio returns', () => {
   const h = profileHarness('', { presentation: 'mobile' });

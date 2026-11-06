@@ -1,4 +1,15 @@
 /* Shared by the separate platform and public entries; only MOBILE changes. */
+/* Return with the main dock's quick fade, retaining the existing hide motion. */
+#root .codex-shell[data-presentation='mobile']:not([data-project-reading]) [data-project-reading-control] {
+  transition: opacity var(--m-fast) var(--m-enter), visibility 0s;
+}
+#root .codex-shell[data-presentation='mobile']:not([data-project-scrolling]) .mobile-project-back:not(.mobile-project-portal-preview) {
+  --navigation-control-transition: opacity var(--m-fast) var(--m-enter), visibility 0s;
+}
+#root .codex-shell[data-presentation='mobile']:not([data-project-scrolling]) [data-mobile-page-navigator] > .mobile-project-page-counter[data-mobile-project-page-count] {
+  --navigation-control-transition: transform var(--m-fast) var(--m-enter), background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
+}
+
 /* Fill the reserved PDF page, above its canvas and beneath the opening mask. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader] [data-project-page-number] > .premium-media-placeholder.absolute {
   position: absolute;

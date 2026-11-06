@@ -1,10 +1,15 @@
 /** Extend an existing column scroller beneath its stationary sibling headers.
  * Sticky headers already inside the scroller need no layout adjustment. */
-export function headerScrollUnderlaps(headers: HTMLElement[], scroller: HTMLElement, root: HTMLElement) {
+export function headerScrollUnderlaps(headers: HTMLElement[], scroller: HTMLElement, root: HTMLElement, stopAtPositionedBoundary = false) {
   const connections: Array<{ branch: HTMLElement; scroller: HTMLElement; height: number; headers: HTMLElement[] }> = [];
   let branch = scroller;
   for (let parent = branch.parentElement; parent && root.contains(parent); branch = parent, parent = parent.parentElement) {
-    if (scroller.contains(parent) || ['fixed', 'absolute'].includes(getComputedStyle(branch).position)) continue;
+    if (scroller.contains(parent)) continue;
+    if (['fixed', 'absolute'].includes(getComputedStyle(branch).position)) {
+      // A detached WEB overlay must not offset the page outside its own layout.
+      if (stopAtPositionedBoundary) break;
+      continue;
+    }
     const style = getComputedStyle(parent);
     if (!style.display.includes('flex') || style.flexDirection !== 'column') continue;
     const siblings = Array.from(parent.children) as HTMLElement[];

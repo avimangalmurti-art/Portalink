@@ -1,7 +1,6 @@
 import { useEffect, type RefObject } from 'react';
+import { createNavigationScrollSettling, NAVIGATION_SCROLL_IDLE_DELAY } from './navigationScrollSettling';
 
-// Let short reading pauses settle before bringing interface chrome back.
-const SCROLL_IDLE_DELAY = 700;
 // Match the page renderer's double-tap window without delaying the first tap.
 const DOUBLE_TAP_WINDOW = 320;
 
@@ -22,7 +21,7 @@ const controlsSelector = [
 ].join(',');
 
 /** One mobile reading state for app chrome and the media's native controls.
- * A single artwork tap toggles chrome; scrolling hides it through short pauses.
+ * A single artwork tap toggles chrome; scrolling returns it like the main dock.
  */
 export function useProjectScrollActivity(enabled: boolean, pathname: string, navigation: RefObject<HTMLElement | null>) {
   useEffect(() => {
@@ -31,6 +30,8 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     let hidden = false, scrolling = false, scrollIntent = false;
     let idleTimer: number | undefined;
     let idleDeadline: number | undefined;
+    let scrollingTarget: EventTarget | null = null;
+    const motion = createNavigationScrollSettling();
     let counterPress: number | undefined;
     let pendingTap: { target: Element; x: number; y: number; time: number; hidden: boolean; idleDeadline: number | undefined } | null = null;
     let gesture: { id: number; x: number; y: number; time: number; moved: boolean; stage: boolean; tap: boolean;
@@ -69,9 +70,9 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
         if (!videos.has(video)) { videos.set(video, video.controls); video.controls = false; }
       });
     };
-    const restore = () => {
-      clearTap(); clearIdle();
-      hidden = false; scrolling = false; scrollIntent = false;
+    const show = () => {
+      if (!hidden && !scrolling) return;
+      hidden = false; scrolling = false;
       counterPress = undefined;
       frame.removeAttribute('data-project-reading');
       frame.removeAttribute('data-project-scrolling');
@@ -85,17 +86,41 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
         video.controls = requested === null ? previous : requested === 'true';
       }); videos.clear();
     };
-    const waitForIdle = () => {
+    const restore = () => {
+      clearTap(); clearIdle();
+      scrollIntent = false;
+      scrollingTarget = null;
+      motion.reset();
+      show();
+    };
+    const waitForIdle = (forceFallback = false) => {
       clearIdle();
-      idleDeadline = performance.now() + SCROLL_IDLE_DELAY;
-      idleTimer = window.setTimeout(restore, SCROLL_IDLE_DELAY);
+      if (counterPress !== undefined) return;
+      // Retain the deadline for double-tap reconciliation even when native
+      // scrollend owns the return. Counter release uses a short fallback.
+      idleDeadline = performance.now() + NAVIGATION_SCROLL_IDLE_DELAY;
+      if (forceFallback || !scrollingTarget || !('onscrollend' in scrollingTarget)) {
+        idleTimer = window.setTimeout(restore, NAVIGATION_SCROLL_IDLE_DELAY);
+      }
     };
     const releaseCounter = () => {
       if (counterPress === undefined) return;
       counterPress = undefined;
-      if (scrolling) waitForIdle();
+      if (scrolling) {
+        // A late native scrollend must not relocate the counter after release
+        // but before its click. Activation or the bounded fallback owns return.
+        scrollingTarget = null;
+        motion.reset();
+        waitForIdle(true);
+      }
     };
     const hide = (duringScroll = false) => {
+      if (!duringScroll) {
+        // An explicit reading tap owns its visibility beyond native momentum.
+        scrollingTarget = null;
+        scrollIntent = false;
+        motion.reset();
+      }
       hidden = true;
       scrolling = duringScroll;
       syncControls();
@@ -107,9 +132,18 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       const documentOverview = event.target === document && Boolean(frame.querySelector('[data-mobile-page-reader]:not(:has([data-mobile-focused-view]))'));
       if (!scrollIntent || (!documentOverview && !inStage(event.target)) || modalOpen() ||
         frame.querySelector('.mobile-project-back:focus-visible, [data-project-reading-control]:focus-visible, [data-project-reading-control] :focus-visible')) return;
+      const surface = documentOverview ? document.scrollingElement : event.target;
+      if (!(surface instanceof HTMLElement) ||
+        (surface.scrollHeight <= surface.clientHeight + 1 && surface.scrollWidth <= surface.clientWidth + 1)) return;
       clearTap();
-      hide(true);
+      const settling = motion.update(event.target, surface, event.timeStamp);
+      if (settling && counterPress === undefined) show();
+      else hide(true);
+      scrollingTarget = event.target;
       waitForIdle();
+    };
+    const scrollEnd = (event: Event) => {
+      if (event.target === scrollingTarget && counterPress === undefined) restore();
     };
     const wheel = (event: WheelEvent) => {
       clearTap();
@@ -121,6 +155,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       if (!event.isPrimary) { gesture = null; scrollIntent = false; return; }
       if (event.button !== 0 || !inFrame(event.target) || modalOpen()) { gesture = null; return; }
       scrollIntent = false;
+      motion.reset();
       if (scrolling && event.target.closest('[data-mobile-project-page-count]')) {
         // Never move the newly reachable counter between press and release,
         // even when the reading pause expires under a held finger.
@@ -197,6 +232,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     const observer = new MutationObserver(() => { if (hidden && modalOpen()) restore(); syncControls(); });
     observer.observe(frame, { childList: true, subtree: true });
     document.addEventListener('scroll', scroll, { capture: true, passive: true });
+    document.addEventListener('scrollend', scrollEnd, { capture: true, passive: true });
     document.addEventListener('wheel', wheel, { capture: true, passive: true });
     // Observe the original content gesture alongside nonmodal navigation;
     // closing navigation does not consume the page's scroll or tap intent.
@@ -211,6 +247,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       observer.disconnect(); restore();
       controls.forEach((_, element) => element.removeAttribute('data-project-reading-control'));
       document.removeEventListener('scroll', scroll, true);
+      document.removeEventListener('scrollend', scrollEnd, true);
       document.removeEventListener('wheel', wheel, true);
       window.removeEventListener('pointerdown', down, true);
       document.removeEventListener('pointermove', move, true);

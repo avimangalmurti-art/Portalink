@@ -57,6 +57,7 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
     const desktopContent = new Map<HTMLElement, Map<HTMLElement, HTMLElement>>();
     const resizeObserver = new ResizeObserver(() => { layoutDirty = true; schedule(); });
     const readLayout = () => {
+      const stopAtPositionedBoundary = root.dataset?.presentation === 'web';
       const scrollers = Array.from(root.querySelectorAll<HTMLElement>(SCROLLERS)).filter(node => {
         const style = getComputedStyle(node);
         // display:contents has no scrollport: padding there would disappear and
@@ -88,7 +89,7 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
         const dialogToolbar = parentStyle?.display?.includes('flex') && parentStyle.flexDirection === 'column' &&
           (parent?.matches?.('[role="dialog"]') || parentStyle.position === 'fixed');
         // A flex-column toolbar is stationary even though its CSS position is static.
-        return dialogToolbar || (position !== 'static' && node.matches(STATIONARY)) || scrollers.some(scroller => headerScrollUnderlaps(visibleHeaders, scroller, root).some(connection => connection.headers.includes(node)));
+        return dialogToolbar || (position !== 'static' && node.matches(STATIONARY)) || scrollers.some(scroller => headerScrollUnderlaps(visibleHeaders, scroller, root, stopAtPositionedBoundary).some(connection => connection.headers.includes(node)));
       });
       // A region paints once; nested toolbar headers remain foreground only.
       const headers = candidates.filter(node => !candidates.some(parent => parent !== node && parent.contains(node)));
@@ -110,7 +111,7 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
       const layout = desktop ? desktopLayout ??= readLayout() : readLayout();
       const { scrollers, documentScroller, headers, fades } = layout;
       if (layoutDirty) {
-        layoutCleanups.push(applyHeaderScrollUnderlaps(scrollers.flatMap(scroller => headerScrollUnderlaps(headers, scroller, root))));
+        layoutCleanups.push(applyHeaderScrollUnderlaps(scrollers.flatMap(scroller => headerScrollUnderlaps(headers, scroller, root, desktop))));
         offsets?.forEach((top, node) => { if (node.scrollTop !== top) node.scrollTop = top; });
         layoutDirty = false;
       }

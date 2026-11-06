@@ -7,6 +7,7 @@ import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
 import { usePresentation, type Presentation } from '../../presentation/usePresentation';
 
 const DEFAULT_MOBILE_PROJECT_GRID_COLUMNS = 4;
+const DEFAULT_PUBLIC_CATALOGUE_PROJECT_GRID_COLUMNS = { mobile: 2, web: 7 };
 
 type DensityState = {
   columns: number;
@@ -94,8 +95,8 @@ export function useProjectGridDensity(
   // The existing Home key belongs to WEB so its saved choice survives this split.
   const homeKey = `portalink.home-grid-columns:${isMobile ? 'mobile:' : ''}${profileId ?? 'guest'}`;
   const mobileProfileKey = `portalink.profile-grid-columns:mobile:${profileId ?? 'guest'}`;
-  const publicCatalogueKey = scope === 'public-catalogue' && !isMobile && profileId
-    ? `portalink.public-catalogue-grid-columns:web:${profileId}` : null;
+  const publicCatalogueKey = scope === 'public-catalogue' && profileId
+    ? `portalink.public-catalogue-grid-columns:${presentation}:${profileId}` : null;
   const saveProfile = canSave && scope === 'profile' && !isMobile;
   const canonicalColumns = normalizeProjectGridColumns(profile?.projectGridColumns);
   const [, render] = useState(0);
@@ -107,14 +108,15 @@ export function useProjectGridDensity(
       return ownerState(profiles, `home:${presentation}:${profileId ?? 'guest'}`,
         storedColumns(homeKey) ?? (isMobile ? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS : undefined));
     }
-    if (canSave && profileId) return isMobile
+    if (scope === 'profile' && canSave && profileId) return isMobile
       ? ownerState(profiles, `profile:mobile:${profileId}`, storedColumns(mobileProfileKey) ?? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS)
       : ownerState(profiles, profileId, canonicalColumns);
     let visitor = visitorStates.get(presentation);
     if (!visitor) {
       const savedPublicColumns = publicCatalogueKey ? storedColumns(publicCatalogueKey) : undefined;
-      visitor = createState(isMobile ? storedColumns(mobileProfileKey) ?? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS
-        : savedPublicColumns ?? canonicalColumns);
+      visitor = createState(scope === 'public-catalogue'
+        ? savedPublicColumns ?? DEFAULT_PUBLIC_CATALOGUE_PROJECT_GRID_COLUMNS[presentation]
+        : isMobile ? storedColumns(mobileProfileKey) ?? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS : canonicalColumns);
       visitor.localChoice = savedPublicColumns !== undefined;
       visitorStates.set(presentation, visitor);
     }
@@ -133,7 +135,7 @@ export function useProjectGridDensity(
 
   const { columns, saving, saveError } = state;
   useEffect(() => {
-    if (scope === 'home' || isMobile || state.previewing) return;
+    if (scope === 'home' || scope === 'public-catalogue' || isMobile || state.previewing) return;
     if (state.localChoice) {
       // Ignore old refetches until the service has echoed the latest confirmed
       // owner choice. Visitors' local zoom is never written to the profile.

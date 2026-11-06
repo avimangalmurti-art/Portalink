@@ -460,7 +460,7 @@ export function UserProfilePage({
   // reach a profile that bypassed projects, publishing, and the media services
   // entirely, and that vanished on reload. Media now enters only through the
   // publishing flow.
-  const density = useProjectGridDensity(profile, showsOwnerTools && !isSharedView);
+  const density = useProjectGridDensity(profile, showsOwnerTools && !isSharedView, isSharedView ? 'public-catalogue' : 'profile');
   const columnsPerRow = density.columns;
   const projectManagement = useProjectManagement(showsOwnerTools ? profile.id : null);
   const [isReorderingProjects, setIsReorderingProjects] = useState(false);

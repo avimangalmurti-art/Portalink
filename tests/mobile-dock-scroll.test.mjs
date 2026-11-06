@@ -18,12 +18,16 @@ function harness(nativeScrollEnd = false) {
   const document = { scrollingElement: new Element(), querySelector: () => modal, activeElement: { matches: () => editor },
     addEventListener(type, fn) { listeners.set(type, fn); }, removeEventListener(type, fn) { assert.equal(listeners.get(type),fn); listeners.delete(type); } };
   if(nativeScrollEnd) document.onscrollend=null;
+  const settling = {};
+  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/presentation/mobile/navigationScrollSettling.ts', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText, { exports: settling });
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/presentation/mobile/useMobileDockScroll.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, HTMLElement: Element,
     window: { setTimeout(fn, delay) { const id = ++serial; timers.set(id, {fn, at:now+delay}); return id; }, clearTimeout(id) { timers.delete(id); } },
     document,
-    require: () => ({ useEffect(fn,next) { if (!deps || next.some((v,i)=>v!==deps[i])) { effect=fn; deps=next; } } }),
+    require: name => name === './navigationScrollSettling' ? settling : { useEffect(fn,next) { if (!deps || next.some((v,i)=>v!==deps[i])) { effect=fn; deps=next; } } },
   });
   return { dock, timers, listeners, Element, document,
     render(enabled = true, path = '/') { exports.useMobileDockScroll(enabled,path,ref); if(effect) {cleanup?.(); cleanup=effect(); effect=null;} },

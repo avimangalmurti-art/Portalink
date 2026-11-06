@@ -33,6 +33,7 @@ function fixture(initial = {}) {
     '../features/journey/JourneyToggle': { JourneyToggle: 'journey-toggle' },
     '../features/journey/useJourneySelection': { useJourneySelection: () => ({ view: state.view, select(value) { state.view = value; } }) },
     '../components/profile/ProfileAvatar': { ProfileAvatar: 'profile-avatar' },
+    '../components/ui/AppearanceSwitch': { AppearanceSwitch: 'appearance-switch' },
     '../components/profile/PlatformGrid': { PlatformGrid: 'profile-links' },
     '../components/profile/JustifiedImageWall': { JustifiedImageWall: 'image-wall' },
     '../components/profile/ProjectPreviewCard': { ProjectPreviewCard: 'project-card' },

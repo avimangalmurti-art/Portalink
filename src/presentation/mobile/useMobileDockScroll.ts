@@ -1,11 +1,6 @@
 import { useEffect, type RefObject } from 'react';
+import { createNavigationScrollSettling, NAVIGATION_SCROLL_IDLE_DELAY } from './navigationScrollSettling';
 
-// Scrollend restores immediately; this short fallback covers older browsers.
-const IDLE_DELAY = 100;
-// Speeds are CSS pixels/ms. Reveal during the slow tail without flickering.
-const SETTLE_SPEED = 0.18;
-const RESUME_SPEED = 0.35;
-const SETTLE_DURATION = 48;
 const excluded = '.mobile-navigation-layer, [data-mobile-project-view], [role="dialog"], [role="menu"], [inert], .screen-exit, [aria-hidden="true"], input, textarea, select, [contenteditable="true"]';
 
 /** Browsing hides only the dock; project reading owns its separate tap-to-reveal state. */
@@ -21,13 +16,9 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
     let scrollingTarget: EventTarget | null = null;
     let previousInert = false;
     let gesture: { id: number; x: number; y: number } | null = null;
-    let sample: { target: EventTarget | null; x: number; y: number; time: number } | null = null;
-    let wasFast = false;
-    let slowSince: number | undefined;
-    let settling = false;
+    const motion = createNavigationScrollSettling();
     const overlayOpen = () => Boolean(document.querySelector('[aria-modal="true"], [role="menu"]'));
     const eligible = (target: EventTarget | null): target is HTMLElement => target instanceof HTMLElement && frame.contains(target) && !target.closest(excluded);
-    const resetMotion = () => { sample = null; wasFast = false; slowSince = undefined; settling = false; };
     const show = () => {
       if (!hidden) return;
       hidden = false;
@@ -40,7 +31,7 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
       timer = undefined;
       intent = false;
       scrollingTarget = null;
-      resetMotion();
+      motion.reset();
       show();
     };
     const scroll = (event: Event) => {
@@ -50,21 +41,7 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
         document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') ||
         ((target as HTMLElement).scrollHeight <= (target as HTMLElement).clientHeight + 1 && (target as HTMLElement).scrollWidth <= (target as HTMLElement).clientWidth + 1)) return;
       const surface = target as HTMLElement;
-      if (sample?.target !== event.target) resetMotion();
-      if (sample && event.timeStamp > sample.time) {
-        const distance = Math.hypot(surface.scrollLeft - sample.x, surface.scrollTop - sample.y);
-        const speed = distance / (event.timeStamp - sample.time);
-        if (speed > SETTLE_SPEED) {
-          wasFast = true;
-          slowSince = undefined;
-          if (speed > RESUME_SPEED) settling = false;
-        } else if (distance > 0 && wasFast && !settling) {
-          slowSince ??= sample.time;
-          if (event.timeStamp - slowSince >= SETTLE_DURATION) settling = true;
-        }
-      }
-      sample = { target: event.target, x: surface.scrollLeft, y: surface.scrollTop, time: event.timeStamp };
-      if (settling) show();
+      if (motion.update(event.target, surface, event.timeStamp)) show();
       else {
         if (!hidden) { previousInert = dock.inert; hidden = true; dock.inert = true; }
         dock.setAttribute('data-scrolling', '');
@@ -73,7 +50,7 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
       scrollingTarget = event.target;
       window.clearTimeout(timer);
       if (scrollingTarget && !('onscrollend' in scrollingTarget)) {
-        timer = window.setTimeout(restore, IDLE_DELAY);
+        timer = window.setTimeout(restore, NAVIGATION_SCROLL_IDLE_DELAY);
       }
     };
     const scrollEnd = (event: Event) => {
@@ -84,7 +61,7 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
     };
     const down = (event: PointerEvent) => {
       intent = false;
-      resetMotion();
+      motion.reset();
       gesture = event.isPrimary && event.button === 0 && eligible(event.target) && !overlayOpen()
         ? { id: event.pointerId, x: event.clientX, y: event.clientY } : null;
     };

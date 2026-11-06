@@ -104,3 +104,43 @@ test('independent panes compensate the same outer toolbar without moving their s
   cleanup();
   assert.deepEqual(left.dataset, {}); assert.deepEqual(right.dataset, {});
 });
+
+test('WEB description scrollers cannot pull the surrounding catalogue under its sticky profile header', () => {
+  for (const position of ['absolute', 'fixed']) {
+    const root = node(0, 900, { display: 'flex', flexDirection: 'column' });
+    const header = node(0, 240, { position: 'sticky' });
+    const content = node(240, 900), frame = node(240, 500, { position: 'relative' });
+    const overlay = node(240, 500, { position }), description = node(252, 488);
+    root.append(header, content); content.append(frame); frame.append(overlay); overlay.append(description);
+    const web = headerScrollUnderlaps([header], description, root, true);
+    assert.equal(web.length, 0, 'An artwork overlay owns no part of the outer page layout');
+    const cleanup = applyHeaderScrollUnderlaps(web);
+    assert.equal(content.dataset.fixedHeaderUnderlap, undefined);
+    assert.equal(description.dataset.fixedHeaderContent, undefined);
+    cleanup();
+    const mobile = headerScrollUnderlaps([header], description, root);
+    assert.equal(mobile.length, 1, 'The default MOBILE policy is preserved');
+    assert.equal(mobile[0].branch, content);
+    assert.equal(mobile[0].height, 240);
+  }
+});
+
+test('WEB fixed dialogs retain their internal header underlap without shifting the page behind them', () => {
+  const root = node(0, 900, { display: 'flex', flexDirection: 'column' });
+  const profileHeader = node(0, 240, { position: 'sticky' }), page = node(240, 900);
+  const dialog = node(200, 850, { position: 'fixed', display: 'flex', flexDirection: 'column' });
+  const toolbar = node(200, 260), scroll = node(260, 850);
+  root.append(profileHeader, page); page.append(dialog); dialog.append(toolbar, scroll);
+  const web = headerScrollUnderlaps([profileHeader, toolbar], scroll, root, true);
+  assert.equal(web.length, 1);
+  assert.equal(web[0].branch, scroll);
+  assert.equal(web[0].height, 60);
+  assert.deepEqual(Array.from(web[0].headers), [toolbar]);
+  const cleanup = applyHeaderScrollUnderlaps(web);
+  assert.equal(scroll.dataset.fixedHeaderUnderlap, '');
+  assert.equal(scroll.style.getPropertyValue('--fixed-header-content-height'), '60px');
+  assert.equal(page.dataset.fixedHeaderUnderlap, undefined);
+  cleanup();
+  assert.equal(headerScrollUnderlaps([profileHeader, toolbar], scroll, root).length, 2,
+    'The default MOBILE connections remain unchanged');
+});

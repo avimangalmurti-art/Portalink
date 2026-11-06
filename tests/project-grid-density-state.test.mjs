@@ -287,10 +287,10 @@ test('shared WEB catalogue restores committed density across remounts and browse
   const s = setup({ storage });
   const creator = { ...s.records.owner };
   const shared = s.mount(creator, false, 'public-catalogue');
-  assert.equal(shared.value.columns, 2, 'The first visit uses the creator layout.');
+  assert.equal(shared.value.columns, 7, 'A fresh desktop shared catalogue starts at seven projects per row.');
   shared.update({ ...creator, projectGridColumns: 3 });
   await shared.flush();
-  assert.equal(shared.value.columns, 3, 'Creator layout updates apply until the visitor chooses a density.');
+  assert.equal(shared.value.columns, 7, 'Creator layout updates do not replace the shared-catalogue default.');
   shared.value.previewColumns(5);
   assert.equal(shared.value.columns, 5);
   assert.equal(saved.size, 0, 'Opening a catalogue or previewing the slider does not persist.');
@@ -307,10 +307,41 @@ test('shared WEB catalogue restores committed density across remounts and browse
 
   const fresh = setup({ storage });
   assert.equal(fresh.mount(creator, false, 'public-catalogue').value.columns, 5, 'An abandoned preview does not replace the committed value.');
-  assert.equal(fresh.mount({ ...s.records.other }, false, 'public-catalogue').value.columns, 8);
-  assert.equal(fresh.mount(creator, false, 'public-catalogue', 'mobile').value.columns, 4);
+  assert.equal(fresh.mount({ ...s.records.other }, false, 'public-catalogue').value.columns, 7);
+  assert.equal(fresh.mount(creator, false, 'public-catalogue', 'mobile').value.columns, 2);
   assert.equal(fresh.mount(creator, false).value.columns, 2, 'The in-app profile does not read the shared preference.');
   assert.deepEqual([...saved], [['portalink.public-catalogue-grid-columns:web:owner', '5']]);
   assert.deepEqual(s.writes, []);
   assert.equal(s.invalidations, 0);
+});
+
+test('shared catalogue defaults and committed viewer choices are independent on mobile and desktop', async () => {
+  const saved = new Map([['portalink.profile-grid-columns:mobile:owner', '9']]);
+  const storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) };
+  const creator = { id: 'owner', projectGridColumns: 11 };
+  const s = setup({ storage, records: { owner: creator } });
+  const shared = s.mount(creator, false, 'public-catalogue', 'mobile');
+  assert.equal(shared.value.columns, 2, 'A private mobile profile preference is not a public viewer choice.');
+  await shared.flush();
+  assert.equal(saved.size, 1, 'Opening defaults writes neither preference nor profile.');
+  shared.value.setColumns(3); await shared.flush();
+  assert.equal(saved.get('portalink.public-catalogue-grid-columns:mobile:owner'), '3');
+  shared.present('web'); await shared.flush();
+  assert.equal(shared.value.columns, 7);
+  shared.value.setColumns(5); await shared.flush();
+  shared.present('mobile'); await shared.flush();
+  assert.equal(shared.value.columns, 3);
+  shared.value.previewColumns(12); await shared.flush();
+  shared.dispose();
+
+  const fresh = setup({ storage, records: { owner: creator } });
+  assert.equal(fresh.mount(creator, false, 'public-catalogue', 'mobile').value.columns, 3, 'Reload keeps the committed mobile choice, not a preview.');
+  assert.equal(fresh.mount(creator, false, 'public-catalogue').value.columns, 5, 'The existing desktop key retains its viewer choice.');
+  assert.equal(fresh.mount(creator, true, 'profile', 'mobile').value.columns, 9, 'Private mobile profile density stays separate.');
+  assert.equal(fresh.mount(creator, true, 'profile').value.columns, 11, 'Authored desktop profile density is preserved.');
+  assert.equal(fresh.mount(creator, true, 'home', 'mobile').value.columns, 4, 'The platform Home default is unchanged.');
+  assert.equal(saved.get('portalink.profile-grid-columns:mobile:owner'), '9');
+  assert.equal(creator.projectGridColumns, 11);
+  assert.deepEqual(s.writes, []); assert.deepEqual(fresh.writes, []);
+  assert.equal(s.invalidations, 0); assert.equal(fresh.invalidations, 0);
 });
