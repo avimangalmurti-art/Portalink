@@ -1,3 +1,9 @@
+## Sites 593 - All pending WEB navigation and presentation updates published
+
+Published [Portalink](https://portalinknetworks.com) from `101d67eec15a4919b8397a4986ec59365baf8353`. Includes desktop project switching in place, inline Settings/Appearance/Account Security, Portal Search controls/cards/public chooser, fixed profile/shared-catalogue/Home/Settings headers, and project details/popup appearance fixes.
+
+Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_72cbafd378cc819193a783316a196098` and deployment `appgdep_6aed4d9b0cec8191be7162fded7ecd49` succeeded at `2026-11-06T03:46:46.963067+00:00`, November 5 Pacific. Public access and runtime revision 2 were retained. All 369 selected focused checks, typecheck, lint and the configured production build passed, with documented existing warning/test-fixture limits. The 638-file archive preserved all 420 public assets, the existing worker and four D1 SQL payloads against Sites 592. Live custom-domain checks matched four entry-route asset sets and all 208 JavaScript/CSS files. No SQL or separate media-worker deployment was performed. Receipt prefix: `logs/pending-web-release-*`; browser evidence and limits are in the handoff. GitHub review integration remains a separate state.
+
 ## Sites 592 - All pending appearance changes published
 
 Published [Portalink](https://portalinknetworks.com) from `90b2dfaa5667436c415bdb5bf2d3fdd9e8305897`. Includes independent High Contrast/Translucency on the platform and shared catalogues, permanent slider contrast, and mobile Portal Search creator-badge scaling.
