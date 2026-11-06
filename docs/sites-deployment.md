@@ -1,3 +1,9 @@
+## Sites 594 - All pending website and mobile changes published
+
+Published [Portalink](https://portalinknetworks.com) from `1cb84e799f94b903967dc49b22f2fb689da664e3`. Includes the WEB dense-catalogue scroll fix, shared catalogue defaults of MOBILE 2 / WEB 7 with retained viewer choices, WEB project text/details-button scaling and MOBILE reader navigation return timing.
+
+Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_7e7694ba6b4c8191848fa1caf3aa1679` and deployment `appgdep_6aee0a3a15288191b8939699724d3d39` succeeded at `2026-11-06T17:11:34.105014+00:00`. Existing public access and runtime revision 2 remain. All 176 selected release checks, typecheck, lint and the configured production build/entry guards pass, with the existing CSS-audit and physical-device limits in the handoff. The 638-file archive preserved all 420 public assets, the worker and four D1 SQL payloads against Sites 593. Live verification matched four entry routes and all 208 JavaScript/CSS assets with zero failures. No SQL, separate media-worker deployment or GitHub push/merge was performed. Receipt prefix: `logs/all-platform-release-*`.
+
 ## Sites 593 - All pending WEB navigation and presentation updates published
 
 Published [Portalink](https://portalinknetworks.com) from `101d67eec15a4919b8397a4986ec59365baf8353`. Includes desktop project switching in place, inline Settings/Appearance/Account Security, Portal Search controls/cards/public chooser, fixed profile/shared-catalogue/Home/Settings headers, and project details/popup appearance fixes.
