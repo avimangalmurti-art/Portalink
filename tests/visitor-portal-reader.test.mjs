@@ -60,7 +60,7 @@ function fixture(presentation = 'web', { empty = false } = {}) {
   }, { requestAnimationFrame: callback => callback() });
   return { state, alpha, beta, calls, processingReads, render() {
     cursor = 0;
-    return VisitorProjectPage({ profile: state.profile, project: state.project, categoryId: state.categoryId, loading: state.loading,
+    return VisitorProjectPage({ profile: state.profile, project: state.project, categoryId: state.categoryId, loading: state.loading, pendingProjectId: state.pendingProjectId,
       onBack: () => calls.push('back'), onBackToProfile: () => calls.push('profile'), onSelect: id => calls.push(id), browsing: state.browsing, desktopNavigationStyle: state.desktopNavigationStyle });
   } };
 }
@@ -210,6 +210,60 @@ test('an uncached WEB project shows reader loading while retaining the portal in
   assert.equal(one(tree, 'media-viewer').props.pagesPerRow, 2);
   assert.equal(one(tree, 'input').props.value, 'BETA');
   assert.equal(one(tree, 'project-index').props.activeProjectId, 'beta');
+});
+
+test('WEB pending selection keeps its canonical toolbar, index highlight and reader scope without showing media', () => {
+  const h = fixture(); h.alpha.pageCount = 9; h.beta.pageCount = 7;
+  const old = one(h.render(), 'media-viewer');
+  old.props.onPagesPerRowChange(6);
+  h.state.project = null; h.state.categoryId = 'work'; h.state.loading = true; h.state.pendingProjectId = 'beta';
+  let tree = h.render();
+  assert.equal(one(tree, 'project-index').props.activeProjectId, 'beta');
+  assert.equal(one(tree, 'page-layout-control').props.value, 2);
+  assert.equal(one(tree, 'media-viewer'), undefined);
+  assert.ok(one(tree, 'loading-skeleton'));
+  one(tree, 'page-layout-control').props.onChange(5);
+  old.props.onPagesPerRowChange(13); old.props.onDocumentPageCountResolved('document', 99);
+  assert.equal(one(h.render(), 'page-layout-control').props.value, 5, 'Prior-reader callbacks cannot overwrite the pending project');
+  h.state.project = h.beta; h.state.loading = false; h.state.pendingProjectId = undefined;
+  tree = h.render();
+  assert.equal(one(tree, 'media-viewer').props.pagesPerRow, 5, 'Pending and resolved versions of the same project share the reader scope');
+  assert.equal(one(tree, 'media-viewer').props.pageCount, 7);
+  assert.equal(one(tree, 'project-index').props.activeProjectId, 'beta');
+  assert.ok(h.processingReads.every(attachments => attachments.length === 0));
+});
+
+test('WEB pending metadata never borrows prior page totals or infers them from unconfirmed attachments', () => {
+  for (const count of [undefined, 0, -1, NaN, Infinity]) {
+    const h = fixture(); h.alpha.attachments = [{ id: 'document', kind: 'document' }];
+    const old = one(h.render(), 'media-viewer'); old.props.onDocumentPageCountResolved('document', 99);
+    assert.equal(one(h.render(), 'media-viewer').props.pageCount, 99);
+    h.beta.pageCount = count; h.beta.attachments = [{ id: 'unconfirmed', kind: 'document', metadata: { pageCount: 123 } }];
+    h.state.project = null; h.state.categoryId = 'work'; h.state.loading = true; h.state.pendingProjectId = 'beta';
+    const tree = h.render();
+    assert.equal(one(tree, 'project-index').props.activeProjectId, 'beta');
+    assert.equal(one(tree, 'page-layout-control'), undefined);
+    assert.equal(one(tree, 'media-viewer'), undefined);
+    assert.ok(one(tree, 'loading-skeleton'));
+  }
+});
+
+test('pending metadata is limited to a visible project in this WEB portal and leaves MOBILE unchanged', () => {
+  for (const pendingProjectId of ['unknown', 'hidden', 'elsewhere']) {
+    const h = fixture(); h.state.project = null; h.state.categoryId = 'work'; h.state.loading = true; h.state.pendingProjectId = pendingProjectId;
+    const tree = h.render();
+    assert.equal(one(tree, 'project-index').props.activeProjectId, null);
+    assert.equal(one(tree, 'page-layout-control'), undefined);
+    assert.equal(one(tree, 'media-viewer'), undefined);
+  }
+  const privateProfile = fixture(); privateProfile.state.profile.isPrivate = true;
+  privateProfile.state.project = null; privateProfile.state.categoryId = 'work'; privateProfile.state.loading = true; privateProfile.state.pendingProjectId = 'beta';
+  assert.equal(one(privateProfile.render(), 'project-index').props.activeProjectId, null);
+  const mobile = fixture('mobile'); mobile.beta.pageCount = 7;
+  mobile.state.project = null; mobile.state.categoryId = 'work'; mobile.state.loading = true;
+  const before = JSON.stringify(mobile.render());
+  mobile.state.pendingProjectId = 'beta';
+  assert.equal(JSON.stringify(mobile.render()), before);
 });
 
 test('MOBILE keeps its closed index, portal toolbar and close-after-selection behavior', () => {

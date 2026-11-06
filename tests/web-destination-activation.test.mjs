@@ -105,7 +105,7 @@ const appSource=ts.createSourceFile('App.tsx',readFileSync(new URL('../src/App.t
 function appBranch(kind,presentation='web',authenticated=true){
  const callbacks=[],model=routeHarness('/'+kind).routing,context=vm.createContext({React,route:{kind},presentation,pathname:'/'+kind,
   auth:{isAuthenticated:authenticated,isInitializing:false,phase:authenticated?'authenticated':'unauthenticated',user:authenticated?{id:'account-a'}:null,requestAuth:value=>callbacks.push(['auth',value])},PROTECTED_ROUTE_KINDS:model.PROTECTED_ROUTE_KINDS,describeRoute:model.describeRoute,
-  isSharedRoute:false,isProfileEditorRoute:false,activeCategory:null,isSearchOpen:false,isMessagesOpen:false,isControlCenterOpen:false,iconPickerCategoryId:null,routeStateView:null,routeActivityKind:null,isProfileRouteReady:false,viewedProfile:null,viewedProfileId:null,activeCategoryId:null,activeDestination:'Today',openingProjectId:null,
+  isSharedRoute:false,isProfileEditorRoute:false,activeCategory:null,isSearchOpen:false,isMessagesOpen:false,isControlCenterOpen:false,iconPickerCategoryId:null,routeStateView:null,routeActivityKind:null,isProfileRouteReady:false,viewedProfile:null,viewedProfileId:null,activeCategoryId:null,activeDestination:'Today',openingProjectId:null,isWebReaderLoading:false,
   StudioPage:'studio',PublicPortalSearchPage:'portal-search',SavedPage:'saved',EmptyState:'gate',LoadingState:'loading',LoadingSkeleton:'skeleton',DeferredSurfaceBoundary:'deferred',RouteError:'route-error',
   nav:{back:()=>callbacks.push('back'),home:()=>callbacks.push('home')},requestMobilePublish:()=>callbacks.push('mobile-create'),requestGlobalPublish:()=>callbacks.push('web-create'),openProjectById:(...args)=>callbacks.push(['project',...args]),
  });

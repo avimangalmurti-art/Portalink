@@ -43,6 +43,8 @@ type ProfileCategoryPageProps = {
    */
   viewerRole: ViewerRole;
   activeProjectId: string | null;
+  /** WEB keeps its confirmed index while selected project media is fetched. */
+  readerLoading?: boolean;
   /** Returns to the screen used to enter this portal. */
   onBack: () => void;
   /** Leaves this portal for the viewed creator's portal collection. */
@@ -77,6 +79,7 @@ export function ProfileCategoryPage({
   category,
   viewerRole,
   activeProjectId,
+  readerLoading = false,
   onBack,
   onBackToPortals,
   onMobileIndexOpenChange,
@@ -91,6 +94,7 @@ export function ProfileCategoryPage({
 }: ProfileCategoryPageProps) {
   // Mobile panels are local to the portal and independent of WEB preferences.
   const isMobile = usePresentation() === 'mobile';
+  const isReaderLoading = !isMobile && readerLoading;
   const mobileIndexOnly = isMobile && activeProjectId === null;
   const [mobilePanel, setMobilePanel] = useState<ProjectPanel | null>(null);
   useEffect(() => { setMobilePanel(null); }, [category.id, isMobile]);
@@ -222,14 +226,14 @@ export function ProfileCategoryPage({
     activeProject?.id ?? null,
     activeProject?.design?.pagesPerRow ?? 3
   );
-  const activeAttachments = useMemo(() => activeProject ? resolveProjectAttachments(activeProject, category) : [], [activeProject, category]);
+  const activeAttachments = useMemo(() => activeProject && !isReaderLoading ? resolveProjectAttachments(activeProject, category) : [], [activeProject, category, isReaderLoading]);
   // Use the same authorized/visibility-filtered portal order as its index.
   // Scrolling never fetches another creator or exposes hidden projects.
   const portalVideos = useMemo(() => isMobile ? projects.filter(project => Boolean(project.attachments?.length)).flatMap(project => resolveProjectAttachments(project, category)
     .filter(attachment => attachment.kind === 'video')
     .map(attachment => ({ projectId: project.id, projectTitle: project.title, attachment }))) : [], [isMobile, projects, category]);
   useEffect(() => {
-    if (!activeProject) return undefined;
+    if (!activeProject || isReaderLoading) return undefined;
     const activeIndex = projects.findIndex((project) => project.id === activeProject.id);
     const adjacentProjects = [projects[activeIndex - 1], projects[activeIndex + 1]]
       .filter((project): project is typeof activeProject => Boolean(project));
@@ -240,7 +244,7 @@ export function ProfileCategoryPage({
       }
     }, 160);
     return () => window.clearTimeout(timer);
-  }, [activeProject, category, projects]);
+  }, [activeProject, category, projects, isReaderLoading]);
   const processing = useAssetProcessing(activeAttachments);
   const [resolvedDocumentPageCounts, setResolvedDocumentPageCounts] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -578,7 +582,9 @@ export function ProfileCategoryPage({
           management.deletion.cancel();
           onSelectProject(null);
         }} />}
-      {!mobileIndexOnly && !showsOwnerTools && (arrangement.isLoading || arrangement.loadError) ? <section className="flex min-w-0 flex-1 items-center justify-center px-4" aria-label="Loading project">
+      {isReaderLoading ? <section data-project-reader-loading="" style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-4" role="status" aria-live="polite" aria-label="Loading project">
+        <span className="premium-media-loading-mark" aria-hidden="true" />
+      </section> : !mobileIndexOnly && !showsOwnerTools && (arrangement.isLoading || arrangement.loadError) ? <section className="flex min-w-0 flex-1 items-center justify-center px-4" aria-label="Loading project">
         {arrangement.isLoading ? <LoadingState label="Loading projects…" /> : <RouteError kind="network" creatorHandle={profile.handle} onBack={onBack} onHome={() => window.location.assign('/')} onCreator={() => window.location.assign(`${sharedReadOnly ? '/share' : '/p'}/${encodeURIComponent(profile.id)}`)} />}
       </section> : activeProject ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent" aria-label={`${activeProject.title} files`}>
           {/* Presentation follows each file's own media kind, never this

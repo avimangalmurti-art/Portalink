@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeftIcon, SearchIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,6 +12,7 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StateV
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { PublicPortalSummary } from '../../types/portals';
+import { WebPortalSearchPopup } from './WebPortalSearchPopup';
 import './public-portal-search.css';
 
 function uniquePortals(items: PublicPortalSummary[]) {
@@ -92,30 +93,42 @@ function usePublicPortalDirectory(query: string) {
 export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
   const isMobile = usePresentation() === 'mobile';
   const [columns, setColumns] = useState(3);
+  const [webColumns, setWebColumns] = useState(6);
   const auth = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
   const directory = usePublicPortalDirectory(query);
+  const webPopupScope = useMemo(() => ({ account: auth.user?.id ?? null, login: auth.loginSession, query, isMobile }), [auth.user?.id, auth.loginSession, query, isMobile]);
+  const [webSelection, setWebSelection] = useState<{ scope: typeof webPopupScope; portal: PublicPortalSummary } | null>(null);
+  const currentPopup = useRef({ scope: webPopupScope, selection: webSelection, enabled: directory.enabled });
+  currentPopup.current = { scope: webPopupScope, selection: webSelection, enabled: directory.enabled };
+  const selectedPortal = !isMobile && directory.enabled && webSelection?.scope === webPopupScope ? webSelection.portal : null;
+  useEffect(() => {
+    if (isMobile || !directory.enabled || webSelection?.scope !== webPopupScope) setWebSelection(null);
+  }, [isMobile, directory.enabled, webPopupScope, webSelection]);
+  const displayedColumns = isMobile ? columns : webColumns;
+  const setDisplayedColumns = isMobile ? setColumns : setWebColumns;
   const changeQuery = (value: string) => {
     const next = new URLSearchParams(params);
     if (value) next.set('q', value); else next.delete('q');
     setParams(next, { replace: true, state: location.state });
   };
   const hasResults = directory.items.length > 0;
-  return <section data-public-portal-search="" data-compact-portals={isMobile && columns > 3 ? '' : undefined} style={isMobile ? { '--portal-search-columns': columns } as React.CSSProperties : undefined} aria-labelledby="public-portal-search-title">
+  return <section data-public-portal-search="" data-compact-portals={isMobile && columns > 3 ? '' : undefined} style={{ '--portal-search-columns': displayedColumns } as React.CSSProperties} aria-labelledby="public-portal-search-title">
     <header className="global-control-header public-portal-search-header">
       <div className="public-portal-search-heading">
         <ScreenBack action={onBack} visibleOnMobile><button data-ui-shape={isMobile ? 'icon' : undefined} type="button" onClick={onBack} aria-label="Go back" className="public-portal-back"><InterfaceIcon icon={ChevronLeftIcon} /></button></ScreenBack>
-        <h1 id="public-portal-search-title">Portal search</h1>
+        <h1 id="public-portal-search-title" className={!isMobile ? 'sr-only' : undefined}>Portal search</h1>
       </div>
       <label className="public-portal-search-field">
         <InterfaceIcon icon={SearchIcon} size="sm" />
         <span className="sr-only">Search public portals</span>
         <input type="search" value={query} maxLength={80} onChange={event => changeQuery(event.currentTarget.value)} placeholder="Search public portals" disabled={!directory.enabled} />
       </label>
-      {isMobile && directory.enabled && <div className="public-portal-search-density">
-        <DensitySeparator columns={columns} maxColumns={5} onPreview={setColumns} onChange={setColumns} label="Portals per row" />
+      {directory.enabled && <div className="public-portal-search-density">
+        <DensitySeparator columns={displayedColumns} maxColumns={isMobile ? 5 : 13} onPreview={setDisplayedColumns} onChange={setDisplayedColumns} label="Portals per row" />
       </div>}
     </header>
     <div className="public-portal-search-scroll scrollbar-overlay">
@@ -126,10 +139,15 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
           {hasResults && <div className="profile-collection">
             <ul className="profile-collection-grid" aria-label="Public portals" aria-busy={directory.loadingMore}>
               {directory.items.map(portal => <li key={`${portal.profileId}:${portal.id}`}>
-                <Link to={buildPath('profileCategory', { profileId: portal.profileId, categoryId: portal.id })} data-ui-shape={isMobile ? 'row' : undefined} className="profile-collection-link public-portal-link" title={`${portal.label} — ${portal.creator.name}`} aria-label={`${portal.label} — ${portal.creator.name}`}>
+                <Link to={buildPath('profileCategory', { profileId: portal.profileId, categoryId: portal.id })} data-ui-shape="row" className="profile-collection-link public-portal-link" title={`${portal.label} — ${portal.creator.name}`} aria-label={`${portal.label} — ${portal.creator.name}`}
+                  aria-haspopup={!isMobile ? 'dialog' : undefined} onClick={!isMobile ? event => {
+                    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+                    event.preventDefault();
+                    setWebSelection({ scope: webPopupScope, portal });
+                  } : undefined}>
                   <span className="public-portal-mark" aria-hidden="true">
-                    <span className={isMobile ? 'public-portal-glyph' : 'profile-collection-tile squircle'} style={!isMobile && portal.creator.accentColor ? { backgroundColor: portal.creator.accentColor } : undefined}>
-                      <InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor style={{ color: isMobile ? portal.creator.accentColor || 'var(--text-secondary)' : 'var(--public-portal-icon-ink)' }} />
+                    <span className="public-portal-glyph">
+                      <InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor style={{ color: portal.creator.accentColor || 'var(--text-secondary)' }} />
                     </span>
                     <span className="public-portal-avatar"><CreatorAvatar name={portal.creator.name} avatar={portal.creator.avatar} className="h-full w-full text-[12px]" /></span>
                   </span>
@@ -144,5 +162,13 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
           {!directory.error && directory.nextOffset !== null && <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary" className="public-portal-pagination" disabled={directory.loadingMore} onClick={() => void directory.loadMore()}>Show more</button>}
         </>}
     </div>
+    {selectedPortal && webSelection && <WebPortalSearchPopup key={`${selectedPortal.profileId}:${selectedPortal.id}`} portal={selectedPortal} onClose={() => {
+      setWebSelection(current => current === webSelection ? null : current);
+    }} onSelect={(profileId, categoryId, projectId) => {
+      const current = currentPopup.current;
+      if (!current.enabled || current.scope !== webPopupScope || current.selection !== webSelection || profileId !== selectedPortal.profileId || categoryId !== selectedPortal.id) return;
+      setWebSelection(null);
+      navigate(buildPath('project', { profileId, categoryId, projectId }));
+    }} />}
   </section>;
 }

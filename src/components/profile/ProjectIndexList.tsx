@@ -37,6 +37,8 @@ type ProjectIndexListProps = {
   mobileReorderFromMenu?: boolean;
   /** MOBILE changes only the presentation of this same navigation list. */
   mobileLayout?: 'list' | 'grid';
+  /** Explicit WEB chooser adaptation; ordinary desktop indexes stay unchanged. */
+  readOnlyBrowsing?: boolean;
   onReorder: (projects: ProjectEntry[]) => void;
   onToggleHidden: (projectId: string) => void;
   onTogglePinned: (projectId: string) => void;
@@ -84,6 +86,7 @@ export function ProjectIndexList({
   mobileReorderDisabled = false,
   mobileReorderFromMenu = false,
   mobileLayout = 'list',
+  readOnlyBrowsing = false,
   onReorder,
   onToggleHidden,
   onTogglePinned,
@@ -135,12 +138,12 @@ export function ProjectIndexList({
 
   // A visitor reads a published index, so it is a plain list with no handles.
   if (!isOwner) {
-    return <div data-mobile-project-layout={isMobile ? mobileLayout : undefined}>
+    return <div data-mobile-project-layout={isMobile ? mobileLayout : undefined} data-web-project-layout={!isMobile && readOnlyBrowsing ? mobileLayout : undefined}>
         {pinned.length > 0 && <>
             <SectionHeading label="Pinned" icon={PinIcon} />
             <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
               {pinned.map((project) => <li key={project.id}>
-                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} onSelect={() => onSelect(project.id)} />
+                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} previewLabel={!isMobile && readOnlyBrowsing} onSelect={() => onSelect(project.id)} />
                 </li>)}
             </ul>
           </>}
@@ -148,7 +151,7 @@ export function ProjectIndexList({
             {pinned.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
             <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
               {rest.map((project) => <li key={project.id}>
-                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} onSelect={() => onSelect(project.id)} />
+                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} previewLabel={!isMobile && readOnlyBrowsing} onSelect={() => onSelect(project.id)} />
                 </li>)}
             </ul>
           </>}
@@ -244,6 +247,7 @@ function ProjectLink({
   isActive,
   isHidden = false,
   sharedReadOnly = false,
+  previewLabel = false,
   onSelect
 
 
@@ -253,11 +257,11 @@ function ProjectLink({
 
 
 
-}: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;sharedReadOnly?: boolean;onSelect: () => void;}) {
+}: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;sharedReadOnly?: boolean;previewLabel?: boolean;onSelect: () => void;}) {
   const isMobile = usePresentation() === 'mobile';
   return <div className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-[var(--m-fast)] ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
       <button data-preview-open="" type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
-        {isMobile ? <MobileProjectLabel project={project} isActive={isActive} sharedReadOnly={sharedReadOnly} /> : <span data-font-preview="" style={{
+        {isMobile || previewLabel ? <MobileProjectLabel project={project} isActive={isActive} sharedReadOnly={sharedReadOnly} /> : <span data-font-preview="" style={{
         fontFamily: typefaceStack
       }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>}
       </button>

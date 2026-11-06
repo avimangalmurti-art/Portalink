@@ -1031,6 +1031,19 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(selections.length, selectionCount + 1);
   currentRoute = { kind: 'project', profileId: 'owner', categoryId: 'portal', projectId: 'work' };
   tree = render({ ...props, isIndexCollapsed: false });
+  tree = render({ ...props, isIndexCollapsed: false, readerLoading: true });
+  assert.ok(withProp(tree, 'data-project-index-panel'), 'Uncached WEB media keeps its project index mounted');
+  assert.ok(withProp(tree, 'data-project-reader-loading'));
+  assert.equal(withProp(tree, 'data-project-reader-loading').props.role, 'status');
+  assert.ok(nodes(withProp(tree, 'data-project-reader-loading')).some(node => node.props.className === 'premium-media-loading-mark'), 'Only the existing system loading glyph appears inside the pending reader');
+  assert.equal(nodes(tree).find(node => node.type === Viewer), undefined, 'Pending WEB media never shows a previous project');
+  presentation = 'mobile';
+  tree = render({ ...props, isIndexCollapsed: false, readerLoading: true });
+  assert.equal(withProp(tree, 'data-project-reader-loading'), undefined, 'The WEB pending-reader contract cannot change MOBILE');
+  assert.ok(nodes(tree).find(node => node.type === Viewer));
+  presentation = 'web';
+  tree = render({ ...props, isIndexCollapsed: false });
+  assert.ok(nodes(tree).find(node => node.type === Viewer), 'Resolved WEB media returns in the existing workspace');
   // A WEB query must never become an invisible MOBILE filter after resizing.
   for (const query of ['needle', 'no-matching-project']) {
     const search = nodes(tree).find(node => node.props.type === 'search');

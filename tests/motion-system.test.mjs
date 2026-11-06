@@ -70,6 +70,7 @@ test('deferred dock handlers retain dock motion and other links use push motion'
  class ElementStub{closest(selector){return selector==='.mobile-navigation-dock'?this:null;}}
  const react={...React,useContext:()=>context,useLayoutEffect:fn=>fn(),useMemo:fn=>fn(),useRef:value=>({current:value})};
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  '../usePresentation':{usePresentation:()=> 'mobile'},
   '../../features/profile/profileLeaveGuard':{interceptProfileNavigation:()=>false},
   '../../features/publishing/mobileAuthoringHistory':{replaceMobileAuthoringDestination:()=>false},
   './navigationContext':{ImmediateNavigationContext:{Provider:'immediate-provider'}},
@@ -82,7 +83,7 @@ test('deferred dock handlers retain dock motion and other links use push motion'
  timers.forEach(fn=>fn());navigator.push('/p/creator');assert.deepEqual(modes,['dock','push']);
 });
 
-function profileNavigation(initial='/p/creator',motion){
+function profileNavigation(initial='/p/creator',motion,presentation='web'){
  const url=new URL(initial,'https://example.test'),location={pathname:url.pathname,search:url.search,hash:url.hash};
  const calls=[],modes=[],notifications=[],listeners=new Map(),timers=new Map();let timer=0,interruptions=0;
  const window={location:{href:url.href},setTimeout:(fn)=>{timers.set(++timer,fn);return timer;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:(name,fn)=>{if(listeners.get(name)===fn)listeners.delete(name);}};
@@ -91,6 +92,7 @@ function profileNavigation(initial='/p/creator',motion){
  const context={navigator:{createHref:href,push:(...args)=>commit('push',...args),replace:(...args)=>commit('replace',...args),go:delta=>calls.push(['go',delta])}};
  const react={...React,useContext:()=>context,useLayoutEffect:fn=>fn(),useMemo:fn=>fn(),useRef:value=>({current:value})};
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  '../usePresentation':{usePresentation:()=>presentation},
   '../../features/profile/profileLeaveGuard':{interceptProfileNavigation:()=>false},
   '../../features/publishing/mobileAuthoringHistory':{replaceMobileAuthoringDestination:()=>false},
   './navigationContext':{ImmediateNavigationContext:{Provider:'immediate-provider'}},
@@ -139,6 +141,53 @@ test('real destinations and unrelated profile query changes retain their existin
   const h=profileNavigation(from);h.navigator.push(to);assert.deepEqual(h.modes,['push'],`${from} -> ${to}`);
  }
  const tabs=profileNavigation('/p/creator?collection=one');tabs.navigator.replace('/p/creator?collection=two');assert.deepEqual(tabs.modes,['tabs']);
+});
+
+test('WEB same-portal project selection updates the route immediately and preserves router arguments',()=>{
+ for(const root of ['/p/creator','/share/creator','/avima.work'])for(const action of ['push','replace']){
+  const h=profileNavigation(`${root}/c/portal/one?media=old#reader`);
+  const destination={pathname:`${root}/c/portal/two`,search:'?media=new&page=3&view=focused',hash:'#reader'};
+  const state={fromIndex:true},options={viewTransition:true,preventScrollReset:true};
+  h.navigator[action](destination,state,options);
+  assert.deepEqual(h.modes,[]);assert.equal(h.interruptions,1);
+  assert.deepEqual(h.notifications,['portalink-before-navigation']);
+  assert.equal(h.calls[0][0],action);assert.equal(h.calls[0][1],destination);
+  assert.equal(h.calls[0][2],state);assert.equal(h.calls[0][3],options);
+  assert.equal(h.location.pathname,destination.pathname);assert.equal(h.location.search,destination.search);
+ }
+});
+
+test('WEB Settings disclosures update inline while MOBILE retains section navigation motion',()=>{
+ for(const root of ['/settings','/settings/','/appearance','/appearance/','/share/creator?settings=1','/avima.work?settings=1'])for(const action of ['push','replace']){
+  const separator=root.includes('?')?'&':'?';
+  const h=profileNavigation(root);
+  for(const search of ['section=appearance','section=appearance&panel=system-grey','section=account&security=1',''])h.navigator[action](root+(search?separator+search:''));
+  assert.deepEqual(h.modes,[]);assert.equal(h.interruptions,4);
+  assert.deepEqual(h.calls.map(call=>call[0]),Array(4).fill(action));
+ }
+ for(const action of ['push','replace']){
+  const h=profileNavigation('/settings',undefined,'mobile');
+  h.navigator[action]('/settings?section=appearance');
+  assert.deepEqual(h.modes,['push']);assert.equal(h.interruptions,0);
+ }
+});
+
+test('first reader entry, cross-portal destinations, MOBILE and external URLs keep their existing navigation',()=>{
+ for(const [from,to,presentation] of [
+  ['/p/creator/c/portal','/p/creator/c/portal/one','web'],
+  ['/p/creator/c/portal/one','/p/creator/c/other/two','web'],
+  ['/p/creator/c/portal/one','/p/other/c/portal/two','web'],
+  ['/p/creator/c/portal/one','/share/creator/c/portal/two','web'],
+  ['/search/c/portal/one','/search/c/portal/two','web'],
+  ['/p/creator/c/portal/one','https://external.test/p/creator/c/portal/two','web'],
+  ['/p/creator/c/portal/one','/p/creator/c/portal/two','mobile'],
+  ['/share/creator/c/portal/one','/share/creator/c/portal/two','mobile'],
+  ['/share/creator','/share/creator?settings=1&section=appearance','web'],
+  ['/share/creator?settings=1&section=appearance','/share/creator','web'],
+ ]){
+  const h=profileNavigation(from,undefined,presentation);h.navigator.push(to);
+  assert.deepEqual(h.modes,['push'],`${presentation}: ${from} -> ${to}`);assert.equal(h.interruptions,0);
+ }
 });
 
 test('profile controls preserve directional back and forward history navigation',async()=>{
@@ -193,6 +242,7 @@ test('Cite dismisses a fast downward drag even before the move state renders',()
 test('standalone citation previews get motion defaults without requiring a router',()=>{
  let locationReads=0;
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  '../usePresentation':{usePresentation:()=> 'web'},
   '../../features/profile/profileLeaveGuard':{interceptProfileNavigation:()=>false},
   '../../features/publishing/mobileAuthoringHistory':{replaceMobileAuthoringDestination:()=>false},
   './navigationContext':{ImmediateNavigationContext:{Provider:'immediate-provider'}},

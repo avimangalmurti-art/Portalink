@@ -19,21 +19,26 @@ import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from '../features/project
 import '../components/profile/web-reader-spacing.css';
 
 /** Uses the canonical media viewer without importing owner workspace/editors. */
-export function VisitorProjectPage({ profile, project, categoryId, loading = false, onBack, onBackToProfile, onSelect, browsing, desktopNavigationStyle }: {
-  profile: Profile; project: Project | null; categoryId?: string; loading?: boolean; onBack: () => void; onBackToProfile: () => void; onSelect: (id: string) => void; browsing?: PortalProjectBrowsing;
+export function VisitorProjectPage({ profile, project, categoryId, loading = false, pendingProjectId, onBack, onBackToProfile, onSelect, browsing, desktopNavigationStyle }: {
+  profile: Profile; project: Project | null; categoryId?: string; loading?: boolean; pendingProjectId?: string; onBack: () => void; onBackToProfile: () => void; onSelect: (id: string) => void; browsing?: PortalProjectBrowsing;
   desktopNavigationStyle?: React.CSSProperties;
 }) {
   const isMobile = usePresentation() === 'mobile';
+  // WEB may keep confirmed index metadata while the selected media is loading.
+  // It never becomes reader media or supplies unconfirmed attachment counts.
+  const pendingProject = !isMobile && !profile.isPrivate && loading && !project && pendingProjectId && categoryId
+    ? profile.projects.find(item => item.id === pendingProjectId && item.categoryId === categoryId && item.isPubliclyVisible !== false) : undefined;
+  const selectedProjectId = project?.id ?? pendingProject?.id ?? null;
   const [indexOpen, setIndexOpen] = useState(!isMobile), [railOpen, setRailOpen] = useState(false);
   const [lastPanel, setLastPanel] = useState<ProjectPanel | null>(null);
   // WEB keeps the category's index mounted when selection changes. Media state
   // belongs to the selected project, including late document callbacks.
-  const currentScope = useRef({ profileId: profile.id, projectId: project?.id ?? null });
-  if (currentScope.current.profileId !== profile.id || currentScope.current.projectId !== (project?.id ?? null)) {
-    currentScope.current = { profileId: profile.id, projectId: project?.id ?? null };
+  const currentScope = useRef({ profileId: profile.id, projectId: selectedProjectId });
+  if (currentScope.current.profileId !== profile.id || currentScope.current.projectId !== selectedProjectId) {
+    currentScope.current = { profileId: profile.id, projectId: selectedProjectId };
   }
   const readerScope = currentScope.current;
-  const defaultPagesPerRow = normalizePagesPerRow(project?.design?.pagesPerRow ?? DEFAULT_PAGES_PER_ROW);
+  const defaultPagesPerRow = normalizePagesPerRow((project ?? pendingProject)?.design?.pagesPerRow ?? DEFAULT_PAGES_PER_ROW);
   type ReaderState = { scope: typeof readerScope; focused: boolean; pagesPerRow: number; resolvedCounts: Record<string, number> };
   const [readerState, setReaderState] = useState<ReaderState>({ scope: readerScope, focused: false, pagesPerRow: defaultPagesPerRow, resolvedCounts: {} });
   const { focused, pagesPerRow, resolvedCounts } = readerState.scope === readerScope ? readerState
@@ -60,6 +65,10 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   const processing = useAssetProcessing([]);
   const rail = useResizablePanelWidth({ id: 'shared-project-details-standard', defaultWidth: panelLayoutDefaults.sharedDetails, minWidth: 240, maxWidth: 440, viewportReserve: 420 });
   const pageCount = useMemo(() => {
+    if (pendingProject) {
+      const count = pendingProject.pageCount;
+      return typeof count === 'number' && Number.isFinite(count) && count > 0 ? count : null;
+    }
     if (project?.pageCount && project.pageCount > 0) return project.pageCount;
     const documents = attachments.filter(item => item.kind === 'document');
     if (documents.length) {
@@ -68,7 +77,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
       return counts.every(count => count > 0) ? counts.reduce((sum, count) => sum + count, 0) : null;
     }
     return attachments.length > 0 && attachments.every(item => item.kind === 'image') ? attachments.length : null;
-  }, [project?.pageCount, attachments, processing.statuses, resolvedCounts]);
+  }, [project?.pageCount, pendingProject, attachments, processing.statuses, resolvedCounts]);
   const resolvePageCount = useCallback((id: string, count: number) => updateReader(current => current.resolvedCounts[id] === count ? current
     : { ...current, resolvedCounts: { ...current.resolvedCounts, [id]: count } }), [updateReader]);
   const changeIndex = (open: boolean) => {
@@ -110,7 +119,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
     </div>}
     {indexExpanded && <nav data-project-index-list="" aria-label={`${category?.label ?? 'Project'} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
       <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={mobileLayout} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
-        typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.isPinned).map(item => item.id)} activeProjectId={project?.id ?? null} isOwner={false} sharedReadOnly
+        typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.isPinned).map(item => item.id)} activeProjectId={selectedProjectId} isOwner={false} sharedReadOnly
         onReorder={() => undefined} onToggleHidden={() => undefined} onTogglePinned={() => undefined}
         onSelect={id => { if (isMobile) changeIndex(false); onSelect(id); }} />
       {!visibleProjects.length && <p className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]">{categoryProjects.length ? `No projects match “${indexQuery.trim()}”.` : 'No published projects in this portal.'}</p>}

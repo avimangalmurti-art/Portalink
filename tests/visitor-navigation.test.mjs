@@ -202,6 +202,26 @@ test('public MOBILE popup changes local list/grid and Recent/Name/Saved order wi
   assert.deepEqual(calls, ['close', ['work', 'beta']]);
 });
 
+test('WEB Portal Search opts into working local sort and layout without changing ordinary desktop popup behavior', () => {
+  const f = portalPopupFixture('web');
+  const projects = [{ id: 'z', categoryId: 'work', title: 'Zebra', publishedAt: '2026-01-01' }, { id: 'a', categoryId: 'work', title: 'Apple', publishedAt: '2026-01-02' }];
+  const props = { profile: { id: 'creator', categories: [{ id: 'work', label: 'Work' }], projects }, categoryId: 'work', onClose() {}, onSelect() {} };
+  let tree = f.PortalProjectPopup(props);
+  assert.equal(one(tree, 'MobilePortalProjectToolbar').props.browsingControls, false);
+  assert.equal(one(tree, 'ProjectIndexList').props.readOnlyBrowsing, false);
+  assert.deepEqual(Array.from(one(tree, 'ProjectIndexList').props.projects, item => item.id), ['z', 'a']);
+  props.desktopBrowsing = true; tree = f.PortalProjectPopup(props);
+  assert.equal(one(tree, 'MobilePortalProjectToolbar').props.browsingControls, true);
+  assert.equal(one(tree, 'ProjectIndexList').props.readOnlyBrowsing, true);
+  assert.deepEqual(Array.from(one(tree, 'ProjectIndexList').props.projects, item => item.id), ['a', 'z']);
+  one(tree, 'MobilePortalProjectToolbar').props.onLayout('grid');
+  one(tree, 'MobilePortalProjectToolbar').props.onSort('saved'); tree = f.PortalProjectPopup(props);
+  assert.equal(one(tree, 'ProjectIndexList').props.mobileLayout, 'grid');
+  assert.deepEqual(Array.from(one(tree, 'ProjectIndexList').props.projects, item => item.id), ['z', 'a']);
+  assert.equal(one(tree, 'ProjectIndexList').props.isOwner, false);
+  assert.equal(one(tree, 'ProjectIndexList').props.sharedReadOnly, true);
+});
+
 test('an empty public portal explains that no projects have been published without fabricating rows', () => {
   for (const presentation of ['mobile', 'web']) {
     const f = portalPopupFixture(presentation);

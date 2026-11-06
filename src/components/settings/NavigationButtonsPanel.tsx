@@ -10,6 +10,7 @@ import { AppearanceSwitch } from '../ui/AppearanceSwitch';
 import { resetResizablePanelLayout } from '../ui/ResizablePanelHandle';
 
 type NavigationButtonsPanelProps = {
+  inline?: boolean;
   selectedSection?: AppearanceSection | null;
   onSectionOpen?: (section: AppearanceSection) => void;
   theme: AppearanceTheme;
@@ -44,6 +45,7 @@ function swatchSurface(color: string): React.CSSProperties {
 }
 
 export function NavigationButtonsPanel({
+  inline = false,
   selectedSection = null,
   onSectionOpen,
   theme,
@@ -91,6 +93,7 @@ export function NavigationButtonsPanel({
           title="System grey"
           summary={`${activeSystemGray.label.replace('Gray', 'Grey')} · ${theme} mode`}
           active={selectedSection} section='system-grey'
+          inline={inline}
           onOpen={() => onSectionOpen?.('system-grey')}
         >
           <SettingsGroup title="Grey intensity">
@@ -157,6 +160,7 @@ export function NavigationButtonsPanel({
           title="Appearance"
           summary={`${activeAppearance} · ${activeAccent.label}${highContrast ? ' · High contrast' : ''}`}
           active={selectedSection} section='appearance'
+          inline={inline}
           onOpen={() => onSectionOpen?.('appearance')}
         >
           <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
@@ -254,7 +258,7 @@ export function NavigationButtonsPanel({
           </div>
         </AppearanceNavigationSection>
 
-        {!selectedSection && <div className="flex items-center">
+        {(!selectedSection || inline) && <div className="flex items-center">
               <button
                 type="button"
                 onClick={() => {
@@ -273,9 +277,16 @@ export function NavigationButtonsPanel({
   );
 }
 
-function AppearanceNavigationSection({id, title, summary, active, section, onOpen, children}: {
-  id: string; title: string; summary: string; active: AppearanceSection | null; section: AppearanceSection; onOpen: () => void; children: React.ReactNode;
+function AppearanceNavigationSection({id, title, summary, active, section, onOpen, children, inline = false}: {
+  id: string; title: string; summary: string; active: AppearanceSection | null; section: AppearanceSection; onOpen: () => void; children: React.ReactNode; inline?: boolean;
 }) {
+  if (inline) return <section className="overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-inset)]" data-appearance-dropdown={section}>
+    <button type="button" onClick={onOpen} aria-expanded={active === section} aria-controls={`${id}-content`} className="side-panel-control-row side-panel-content-inset min-h-16 w-full py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+      <span className="min-w-0 flex-1"><span className="block text-[14px] font-medium text-[var(--text-primary)]">{title}</span><span className="mt-0.5 block truncate text-[12px] text-[var(--text-tertiary)]">{summary}</span></span>
+      <InterfaceIcon icon={ChevronRightIcon} size="sm" weight="regular" mirroredInRtl className={`settings-chevron shrink-0${active === section ? ' settings-chevron-expanded' : ''}`} />
+    </button>
+    {active === section && <div id={`${id}-content`} className="p-2 sm:p-3">{children}</div>}
+  </section>;
   if (active) return active === section ? <section className="overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-inset)]"><div id={`${id}-content`} className="p-2 sm:p-3">{children}</div></section> : null;
   return <section className="overflow-hidden rounded-[12px] border border-transparent bg-[var(--surface-inset)]">
     <button type="button" onClick={onOpen} className="side-panel-control-row side-panel-content-inset min-h-16 w-full py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">

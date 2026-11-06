@@ -16,6 +16,6 @@ test('Studio row omits all chip markup and zero text when references are zero',(
  const html=renderToStaticMarkup(row);assert.doesNotMatch(html,/references|>0</);assert.match(html,/12 Oct/);
 });
 
-test('Appearance settings contains only routed rows and no accordion toggles',()=>{
- const source=readFileSync(new URL('../src/components/settings/NavigationButtonsPanel.tsx',import.meta.url),'utf8');assert.doesNotMatch(source,/aria-expanded|aria-controls|ChevronDownIcon|AccordionSection/);assert.match(source,/onSectionOpen\?\.\('system-grey'\)/);assert.match(source,/onSectionOpen\?\.\('appearance'\)/);assert.match(source,/icon=\{ChevronRightIcon\}/);
+test('Appearance settings opts into WEB dropdowns while retaining the default routed rows',()=>{
+ const source=readFileSync(new URL('../src/components/settings/NavigationButtonsPanel.tsx',import.meta.url),'utf8');assert.match(source,/inline = false/);assert.match(source,/if \(inline\) return[\s\S]*aria-expanded[\s\S]*aria-controls/);assert.match(source,/if \(active\) return active === section/);assert.match(source,/onSectionOpen\?\.\('system-grey'\)/);assert.match(source,/onSectionOpen\?\.\('appearance'\)/);assert.match(source,/icon=\{ChevronRightIcon\}/);
 });

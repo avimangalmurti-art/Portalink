@@ -102,6 +102,7 @@ function profileRender(overrides = {}) {
     personalScreen: null, isControlCenterOpen: false, iconPickerCategoryId: null, inDesignFeature: null,
     isMessagesOpen: false, isSearchOpen: false, routeActivityKind: null, activeCategoryId: null,
     categoryPage: null, isPortalsOpen: false, canShowOwnPortalsWorkspace: false, nav: { home() {} },
+    isWebReaderLoading: false,
     ...overrides,
   });
   for (const name of appBoundaries) {

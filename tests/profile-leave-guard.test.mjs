@@ -324,6 +324,7 @@ test('actual MotionNavigation routes push, replace and go through the guard and 
   const context = { navigator: original };
   const react = { ...React, useContext: target => target === navigationContext ? context : null, useRef: value => ({ current: value }), useLayoutEffect: () => undefined, useMemo: compute => compute() };
   const { MotionNavigation } = sourceModule('src/presentation/motion/MotionNavigation.tsx', {
+    '../usePresentation': { usePresentation: () => 'web' },
     react, 'react-dom': { flushSync: action => action() }, 'framer-motion': { MotionConfig: 'motion', useReducedMotion: () => false },
     'react-router-dom': { UNSAFE_NavigationContext: navigationContext, useLocation: () => location },
     './ImageMotion': { ImageMotion: 'image-motion' }, './motion': { motionUpdate: action => action(), interruptNavigationMotion() {}, motionMs: () => 200, motionSeconds: () => .2, motionCurve: () => 'linear' },

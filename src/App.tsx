@@ -465,6 +465,9 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const sharedProfileQuery = useSharedProfileQuery(isSharedRoute ? viewedProfileId : null,
     route.kind === 'sharedProject' ? route.projectId : null, routeCategoryId);
   const viewedProfileQuery = isSharedRoute ? sharedProfileQuery : ordinaryProfileQuery;
+  // Follow state is scoped to the viewed creator. Recheck access before reusing
+  // a previously confirmed WEB index while its next project is loading.
+  const follows = useFollows(auth.isAuthenticated || isSharedRoute ? viewedProfileId : null);
   const startupShellReady = !auth.viewerProfileId || ['ready', 'error', 'not-found'].includes(viewedProfileQuery.status);
   useEffect(() => {
     if (homeStartupPending && route.kind === 'home') onHomeStartupShellReady?.(startupShellReady);
@@ -476,7 +479,34 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     lastStartupAttempt.current = homeStartupAttempt;
     if (homeStartupAttempt > 0) retryStartupProfile();
   }, [homeStartupAttempt, homeStartupPending, retryStartupProfile]);
-  const viewedProfile = viewedProfileQuery.profile;
+  // A same-portal WEB selection replaces only its reader while media resolves.
+  // Never carry an index across account, creator, portal or access boundaries.
+  const confirmedWebReader = useRef<{ scope: string; profile: NonNullable<typeof viewedProfileQuery.profile> } | null>(null);
+  const webReaderScope = presentation === 'web' && !auth.isInitializing && auth.phase !== 'authenticating' && auth.phase !== 'signing-out'
+    && (isSharedRoute || (auth.isAuthenticated && auth.phase === 'authenticated'))
+    && (route.kind === 'category' || route.kind === 'project' || route.kind === 'sharedCategory' || route.kind === 'sharedProject') && routeProfileId && routeCategoryId
+    ? JSON.stringify([auth.user?.id ?? null, auth.viewerProfileId, auth.phase, isSharedRoute, routeProfileId, routeCategoryId]) : null;
+  const canRetainWebReader = (profile: NonNullable<typeof viewedProfileQuery.profile>) => profile.id === routeProfileId
+    && profile.categories.some(category => category.id === routeCategoryId)
+    && !(profile.isPrivate && auth.viewerProfileId !== profile.id && follows.isResolving)
+    && canAccessProfile({ profile, viewerProfileId: auth.viewerProfileId, isConfirmedFollower: follows.isFollowing, isSharedRoute });
+  if (!webReaderScope || confirmedWebReader.current?.scope !== webReaderScope
+    || viewedProfileQuery.status === 'error' || viewedProfileQuery.status === 'not-found' || viewedProfileQuery.status === 'idle'
+    || (confirmedWebReader.current && !canRetainWebReader(confirmedWebReader.current.profile))) {
+    confirmedWebReader.current = null;
+  }
+  if (webReaderScope && viewedProfileQuery.status === 'ready') {
+    const readyProfile = viewedProfileQuery.profile;
+    const confirmed = readyProfile && canRetainWebReader(readyProfile)
+      && (!activeProjectId || readyProfile.projects.some(project => project.id === activeProjectId && project.categoryId === routeCategoryId && (!isSharedRoute || project.isPubliclyVisible !== false)));
+    confirmedWebReader.current = confirmed ? { scope: webReaderScope, profile: readyProfile } : null;
+  }
+  const retainedWebReaderProfile = webReaderScope && activeProjectId && viewedProfileQuery.status === 'loading'
+    && confirmedWebReader.current?.scope === webReaderScope
+    && confirmedWebReader.current.profile.projects.some(project => project.id === activeProjectId && project.categoryId === routeCategoryId && (!isSharedRoute || project.isPubliclyVisible !== false))
+    ? confirmedWebReader.current.profile : null;
+  const isWebReaderLoading = Boolean(retainedWebReaderProfile);
+  const viewedProfile = retainedWebReaderProfile ?? viewedProfileQuery.profile;
   // Pointer, touch, or keyboard intent can arrive a beat before navigation.
   // Warm the same canonical profile query the destination consumes so the
   // click does not start a duplicate request or flash an avoidable empty state.
@@ -534,12 +564,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const isOwnerProfileRefreshing = route.kind === 'profile' &&
     auth.isAuthenticated && auth.phase === 'authenticated' && viewedProfileQuery.status === 'loading' &&
     viewedProfile !== null && auth.viewerProfileId === viewedProfile.id;
-  const isProfileRouteReady = routeProfileId !== null && (viewedProfileQuery.status === 'ready' || isOwnerProfileRefreshing) && viewedProfile !== null;
+  const isProfileRouteReady = routeProfileId !== null && (viewedProfileQuery.status === 'ready' || isOwnerProfileRefreshing || isWebReaderLoading) && viewedProfile !== null;
   const activeCategoryId = isProfileRouteReady ? routeCategoryId : null;
-  // Follow state and its request lifecycle live in the feature hook, resolved for
-  // the profile currently being viewed. Keying it to that profile is what stops a
-  // pending or failed request following the viewer to the next creator.
-  const follows = useFollows(auth.isAuthenticated || isSharedRoute ? viewedProfileId : null);
   // An account can exist without a profile; creator surfaces onboard instead.
   const onboardingStatus = useProfileOnboardingStatus();
   useEffect(() => {
@@ -1419,7 +1445,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   : routeItemId && !selectedApp && (!routeItemResolution || routeItemResolution.state === 'loading') ? <LoadingState label="Opening item…" />
   : routeItemId && routeItemResolution?.state === 'not-found' ? <RouteError kind="not-found" onBack={nav.back} onHome={nav.home} />
   : routeItemId && routeItemResolution?.state === 'error' ? <RouteError kind="network" onBack={nav.back} onHome={nav.home} />
-  : routeProfileId && viewedProfileQuery.status === 'loading' && !isOwnerProfileRefreshing ? <LoadingSkeleton kind={openingProjectId ? 'reader' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening profile…" />
+  : routeProfileId && viewedProfileQuery.status === 'loading' && !isOwnerProfileRefreshing && !isWebReaderLoading ? <LoadingSkeleton kind={openingProjectId ? 'reader' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening profile…" />
   : routeProfileId && viewedProfileQuery.status === 'not-found' ? <RouteError kind="not-found" onBack={nav.back} onHome={nav.home} />
   : routeProfileId && viewedProfileQuery.status === 'error' ? <RouteError kind={routeErrorKind(viewedProfileQuery.error)} onBack={nav.back} onHome={nav.home} />
   : isPrivateProfileAccessResolving ? <LoadingState label="Checking profile access…" />
@@ -1443,7 +1469,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const screenMainClassName = `scroll-edge-fade is-at-top min-h-0 w-full flex-1 ${isProfileEditorRoute || activeCategory || isSearchOpen || isMessagesOpen || isStudioPageOpen || isPortalSearchOpen || inDesignFeature ? 'overflow-hidden' : 'overflow-y-auto'} ${activeCategory ? '' : 'mono-icons'}`;
   const screenAriaLabel = isCollaborationOpen ? `${viewedProfile?.name ?? 'Creator'} collaboration` : isControlCenterOpen ? 'Settings' : isProfileEditorRoute ? 'Edit profile' : personalScreen ?? inDesignFeature ?? (isMessagesOpen ? 'Messages' : isSearchOpen ? 'Search and browse' : activeCategory ? `${viewedProfile?.name ?? 'Catalogue'} · ${activeCategory.label}${isSharedRoute ? ' · shared read-only view' : ''}` : (route.kind === 'profile' || route.kind === 'sharedProfile') && viewedProfile ? `${viewedProfile.name} profile${isSharedRoute ? ' · shared read-only view' : ''}` : selectedApp ? `${selectedApp.name} details` : `${activeDestination} content`);
   const portalsPage = <PortalsPage key={`${auth.user?.id ?? 'guest'}:${viewedProfileId ?? 'setup'}`} profileQuery={viewedProfileQuery} profileContext={route.kind === 'profile'} onboardingStatus={onboardingStatus} management={management} accentColor={interfaceAccentColor} theme={interfaceTheme} onChangeCategoryIcon={setIconPickerCategoryId} onContinue={continueToPortals} onSelectCategory={selectProfileCategory} onBack={returnFromPortalCollection} />;
-  const categoryPage = activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} onBack={returnFromPortal} onBackToPortals={returnToPortalCollection} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
+  const categoryPage = activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} readerLoading={isWebReaderLoading} onBack={returnFromPortal} onBackToPortals={returnToPortalCollection} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
         const target = discoveryReturn.path;
         const viewTransition = activeProjectId ? beginProjectContinuity(activeProjectId, 'return') : false;
         setDiscoveryReturn(null);
