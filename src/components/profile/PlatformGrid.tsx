@@ -22,21 +22,22 @@ export function PlatformGrid({
   onCollaboration?: () => void;
   onMessage?: () => void;
 }) {
-  return <ul aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
+  return <ul role="list" aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
       {links.map((link, index) => {
         if (isProfileLinkAction(link.action)) {
           if (link.hidden || (isSharedView && (link.action === 'collaboration' || link.action === 'message'))) return null;
           const action = { bio: onOpenBio, collaboration: onCollaboration, message: onMessage }[link.action];
           const Icon = { bio: InfoIcon, collaboration: HandshakeIcon, message: MessagesSquareIcon }[link.action];
-          return <li key={link.action} className="list-none"><button type="button" onClick={action} disabled={!action} aria-label={link.label} title={link.label} aria-haspopup={link.action === 'bio' ? 'dialog' : undefined}
-            className={`${TILE_CLASS} rounded-[10px] transition-colors duration-150 hover:text-[var(--accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45`}>
+          const control = <li key={link.action} className="list-none"><button type="button" onClick={action} disabled={!action} aria-label={link.label} title={link.label} aria-haspopup={link.action === 'bio' ? 'dialog' : undefined}
+            className={`${TILE_CLASS} rounded-[10px] transition-colors duration-[var(--m-fast)] hover:text-[var(--accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45`}>
             <Icon aria-hidden="true" className="h-[22px] w-[22px]" />
           </button></li>;
+          return control;
         }
         const Icon = getCategoryIcon(link.iconName ?? 'globe');
         const href = profileLinkHref(link.href);
         return <li key={`${link.label}-${link.href}-${index}`} className="list-none">
-          <a href={href} target="_blank" rel="noreferrer" className={`${TILE_CLASS} rounded-[10px] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:text-[var(--accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-solid)] motion-reduce:transition-none`} title={`${link.label} — ${link.href}`} aria-label={`${link.label}: ${link.href}`}>
+          <a href={href} target="_blank" rel="noreferrer" className={`${TILE_CLASS} rounded-[10px] transition-colors duration-[var(--m-fast)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:text-[var(--accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-solid)] motion-reduce:transition-none`} title={`${link.label} — ${link.href}`} aria-label={`${link.label}: ${link.href}`}>
             <Icon className="relative z-10 h-[18px] w-[18px]" />
           </a>
         </li>;

@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -30,6 +31,7 @@ function harness() {
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/profile/PreviewCreatorName.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
     if (name === 'react') return react;
     if (name === 'framer-motion') return { useReducedMotion: () => reducedMotion };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
@@ -63,7 +65,7 @@ test('overflow starts revealing immediately and stops exactly at the end of the 
   assert.equal(frames[0].transform, 'translateX(0)');
   assert.equal(frames.at(-1).transform, 'translateX(-80px)');
   assert.equal(options.delay, undefined);
-  assert.equal(options.duration, 80 / 22 * 1000 + 1200);
+  assert.equal(options.duration, 260);
   assert.equal(options.direction, 'alternate');
   assert.deepEqual(h.observers[0].targets, [h.viewport, h.text]);
   h.observers[0].callback();
@@ -108,4 +110,32 @@ test('reduced motion wraps the full name while WEB retains its existing static l
   assert.match(web.props.className, /truncate/);
   assert.equal(web.props.children, 'Portalink Networks Inc.');
   assert.equal(h.animations.length, 1);
+});
+
+test('connection names pause at both ends and move at a reading pace', () => {
+  const h = harness(); const tree = h.render({ centered: true, className: 'block w-full [font:inherit]' });
+  assert.match(tree.props.className, /\[font:inherit\]/);
+  assert.doesNotMatch(tree.props.className, /text-\[11px\]/);
+  assert.equal(tree.props['data-name-centered'], '');
+  const { frames, options } = h.animations[0];
+  assert.equal(options.duration, 80 / 22 * 1000 + 2400);
+  assert.equal(frames[0].transform, frames[1].transform);
+  assert.equal(frames[2].transform, frames[3].transform);
+  assert.equal(frames[1].offset * options.duration, 1200);
+  assert.equal(options.easing, 'linear');
+  assert.equal(frames[1].easing, 'ease-in-out');
+  h.observers[0].callback(); assert.equal(h.animations.length, 1);
+  h.setReducedMotion(true); const reduced = h.render({ centered: true, className: 'block w-full [font:inherit]' });
+  assert.equal(h.animations[0].cancelled, true);
+  assert.equal(reduced.props['data-name-reduced-motion'], '');
+  assert.match(reduced.props.className, /whitespace-normal/);
+  assert.match(reduced.props.className, /\[font:inherit\]/);
+});
+
+test('short connection names remain centered and still; desktop stays unchanged', () => {
+  const h = harness(); h.text.scrollWidth = 80;
+  assert.equal(h.render({ centered: true }).props['data-name-centered'], '');
+  assert.equal(h.animations.length, 0);
+  h.setPresentation('web');
+  assert.equal(h.render({ centered: true }).props['data-name-centered'], undefined);
 });

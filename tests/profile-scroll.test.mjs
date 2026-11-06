@@ -93,7 +93,7 @@ test('project and comment clicks remain intact after removing scroll containment
   const tree = ProjectHoverDetails({ projectId: 'project', summary: 'Summary',
     onOpen: () => calls.push('project'), onOpenComments: () => calls.push('comments') });
   nodes(tree).find((node) => node.props?.['data-project-hover-description'] !== undefined).props.onClick();
-  const extension = PreviewMetrics({ counts: { like: 0, save: 0, repost: 0 }, commentCount: 0, onOpenComments: () => calls.push('comments') });
+  const extension = PreviewMetrics({ counts: { like: 0, save: 0 }, commentCount: 0, onOpenComments: () => calls.push('comments') });
   let stopped = false;
   assert.equal(nodes(tree).some((node) => node.props?.['data-project-preview-metrics'] !== undefined), false);
   nodes(extension).find((node) => node.props?.['aria-label'] === 'Open comments (0)').props.onClick({ stopPropagation() { stopped = true; } });
@@ -118,7 +118,7 @@ function zoomHarness(enabled = true) {
   };
   const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
   const density = compile('../src/utils/projectGridDensity.ts', () => ({}));
-  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : name.endsWith('/projectGridDensity') ? density : react, {
+  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : name.endsWith('/projectGridDensity') ? density : name.endsWith('/usePresentation') ? { usePresentation: () => 'mobile' } : react, {
     window: { setTimeout: () => 1, clearTimeout() {} },
   });
   const listeners = new Map();
@@ -169,7 +169,7 @@ test('phone pinches resize only overview content, stay bounded, and ignore singl
   h.listeners.get('touchstart')({ touches: touches(100) });
   assert.equal(move(125).prevented, true);
   assert.equal(h.state[0].columns, 3);
-  move(10000); assert.equal(h.state[0].columns, 2);
+  move(10000); assert.equal(h.state[0].columns, 1);
   move(1); assert.equal(h.state[0].columns, 13);
   move(100); assert.equal(h.state[0].columns, 4, 'Reversing a pinch restores its starting size');
   h.listeners.get('touchend')();

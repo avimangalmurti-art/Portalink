@@ -5,9 +5,11 @@ import type { AsyncStatus, Id } from '../../types/domain';
 import type { ConversationSummary, DirectMessage, MessageCursor, MessagePage, MessagingPermission, MessagingPreferences } from '../../types/messages';
 
 type ThreadCache = { messages: DirectMessage[]; before: MessageCursor | null };
+type ThreadRefresh = { conversationId: Id; version: number; generation: number; promise: Promise<boolean> };
 type MessagingOptions = {
   initialRecipientId?: Id | null;
   initialConversationId?: Id | null;
+  mobileContinuity?: boolean;
   onConversationChange?: (conversationId: Id | null, replace?: boolean) => void;
 };
 
@@ -29,9 +31,15 @@ function friendlyError(caught: unknown, fallback: string): string {
   return message && message.length <= 180 ? message : fallback;
 }
 
+function isTemporaryThreadFailure(caught: unknown): boolean {
+  // The service deliberately exposes public Errors, without database/status codes.
+  return caught instanceof Error && caught.message === 'Messages could not reach the network. Check your connection and try again.';
+}
+
 export function useMessaging({
   initialRecipientId = null,
   initialConversationId = null,
+  mobileContinuity = false,
   onConversationChange,
 }: MessagingOptions = {}) {
   const { messaging } = useServices();
@@ -55,7 +63,11 @@ export function useMessaging({
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const [pendingAction, setPendingAction] = useState<'accept' | 'delete-request' | 'mute' | 'archive' | 'block' | 'report' | null>(null);
   const [pendingMessageId, setPendingMessageId] = useState<Id | null>(null);
+  const [pendingReactions, setPendingReactions] = useState<ReadonlyMap<Id, number>>(() => new Map());
+  const reactionRequests = useRef(new Map<Id, number>());
   const [error, setError] = useState<string | null>(null);
+  const [threadFailure, setThreadFailure] = useState<{ generation: number; conversationId: Id; message: string } | null>(null);
+  const [refreshingThread, setRefreshingThread] = useState<{ generation: number; version: number; conversationId: Id } | null>(null);
   const initialRecipientRef = useRef<string | null>(null);
   const initialConversationRef = useRef<string | null>(null);
   const activeRef = useRef<ConversationSummary | null>(null);
@@ -70,6 +82,52 @@ export function useMessaging({
   const retryFiles = useRef(new Map<Id, File[]>());
   const typingStopTimer = useRef<number | null>(null);
   const isTypingBroadcastRef = useRef(false);
+  const mounted = useRef(true);
+  const threadRefresh = useRef<ThreadRefresh | null>(null);
+  const rejectedThreads = useRef(new Map<Id, number>());
+  const refreshAfterPresentationChange = useRef(false);
+  const threadScope = useRef({ owner: auth.user?.id, profile: auth.viewerProfileId, session: auth.loginSession, messaging, mobileContinuity, generation: 0, ownerGeneration: 0 });
+  const previousScope = threadScope.current;
+  if (previousScope.owner !== auth.user?.id || previousScope.profile !== auth.viewerProfileId || previousScope.session !== auth.loginSession || previousScope.messaging !== messaging || previousScope.mobileContinuity !== mobileContinuity) {
+    const ownerChanged = previousScope.owner !== auth.user?.id || previousScope.profile !== auth.viewerProfileId || previousScope.session !== auth.loginSession || previousScope.messaging !== messaging;
+    threadScope.current = { owner: auth.user?.id, profile: auth.viewerProfileId, session: auth.loginSession, messaging, mobileContinuity, generation: previousScope.generation + 1, ownerGeneration: previousScope.ownerGeneration + (ownerChanged ? 1 : 0) };
+    if (previousScope.mobileContinuity || mobileContinuity) {
+      requestVersion.current += 1;
+      threadRefresh.current = null;
+      rejectedThreads.current.clear();
+      if (ownerChanged) {
+        threadCache.current.clear();
+        activeRef.current = null;
+        initialConversationRef.current = null;
+        initialRecipientRef.current = null;
+      } else refreshAfterPresentationChange.current = true;
+    }
+  }
+  const threadGeneration = threadScope.current.generation;
+  const threadOwnerGeneration = threadScope.current.ownerGeneration;
+  const resetMobileThread = mobileContinuity || previousScope.mobileContinuity;
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      requestVersion.current += 1;
+      threadRefresh.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!resetMobileThread) return;
+    setThreadFailure(null);
+    setRefreshingThread(null);
+    setIsLoadingThread(false);
+    setIsLoadingOlder(false);
+    if (!activeRef.current) {
+      setActiveConversation(null);
+      setMessages([]);
+      setOlderCursor(null);
+    }
+  }, [resetMobileThread, threadGeneration]);
 
   const applyConversationPage = useCallback((next: ConversationSummary[], append: boolean, replace = false) => {
     setConversations((current) => {
@@ -135,7 +193,104 @@ export function useMessaging({
     }
   }, [auth.viewerProfileId, messaging]);
 
+  const rejectMobileThread = useCallback((conversationId: Id, generation: number) => {
+    rejectedThreads.current.set(conversationId, generation);
+    threadCache.current.delete(conversationId);
+    setMessages([]);
+    setOlderCursor(null);
+    setIsLoadingOlder(false);
+    // Reject any older-page response that was already in flight too.
+    requestVersion.current += 1;
+    setRefreshingThread(null);
+    setIsLoadingThread(false);
+  }, []);
+
+  const refreshMobileThread = useCallback((conversationId: Id, version: number): Promise<boolean> => {
+    const isCurrent = () => mounted.current && threadScope.current.mobileContinuity && threadScope.current.generation === threadGeneration && requestVersion.current === version && activeRef.current?.id === conversationId;
+    if (!isCurrent()) return Promise.resolve(false);
+    const existing = threadRefresh.current;
+    if (existing?.conversationId === conversationId && existing.version === version && existing.generation === threadGeneration) return existing.promise;
+    const identity = { conversationId, version, generation: threadGeneration };
+    setRefreshingThread(identity);
+    setIsLoadingThread(!threadCache.current.has(conversationId));
+    const baseline = threadCache.current.get(conversationId);
+    const flight: ThreadRefresh = { ...identity, promise: Promise.resolve(false) };
+    threadRefresh.current = flight;
+    flight.promise = Promise.resolve().then(async () => {
+      if (!isCurrent()) return false;
+      try {
+        let page = await messaging.listMessages(conversationId, { limit: 100 });
+        while (isCurrent() && page.before) {
+          // Older pagination may finish while this refresh is pending. Cover the
+          // current oldest loaded record before replacing the fetched range.
+          const oldestLoaded = threadCache.current.get(conversationId)?.messages.find((message) => !message.id.startsWith('local-'));
+          if (!oldestLoaded || page.before.createdAt < oldestLoaded.createdAt || (page.before.createdAt === oldestLoaded.createdAt && page.before.id <= oldestLoaded.id)) break;
+          const older = await messaging.listMessages(conversationId, { before: page.before, limit: 100 });
+          page = { messages: mergeMessages(older.messages, page.messages), before: older.before };
+        }
+        if (!isCurrent()) return false;
+        const cache = threadCache.current.get(conversationId);
+        const changedDuringRefresh = (cache?.messages ?? []).filter((message) => !baseline?.messages.includes(message));
+        const next = mergeMessages(reconcileMessagePage(cache?.messages ?? [], page), changedDuringRefresh);
+        threadCache.current.set(conversationId, { messages: next, before: page.before });
+        setMessages(next);
+        setOlderCursor(page.before);
+        rejectedThreads.current.delete(conversationId);
+        setThreadFailure(null);
+        return true;
+      } catch (caught) {
+        if (!isCurrent()) return false;
+        setThreadFailure({ generation: threadGeneration, conversationId, message: friendlyError(caught, 'This conversation could not be loaded.') });
+        if (!isTemporaryThreadFailure(caught)) rejectMobileThread(conversationId, threadGeneration);
+        return false;
+      } finally {
+        if (threadRefresh.current === flight) {
+          threadRefresh.current = null;
+          if (isCurrent()) {
+            setRefreshingThread(null);
+            setIsLoadingThread(false);
+          }
+        }
+      }
+    });
+    return flight.promise;
+  }, [messaging, rejectMobileThread, threadGeneration]);
+
+  const loadWebThread = useCallback(async (conversationId: Id, version: number, cached: ThreadCache | undefined) => {
+    try {
+      const page = await messaging.listMessages(conversationId, { limit: 50 });
+      if (requestVersion.current !== version || activeRef.current?.id !== conversationId) return;
+      const next = reconcileMessagePage(threadCache.current.get(conversationId)?.messages ?? [], page);
+      const before = cached ? cached.before : page.before;
+      threadCache.current.set(conversationId, { messages: next, before });
+      setMessages(next);
+      setOlderCursor(before);
+    } catch (caught) {
+      if (requestVersion.current === version && activeRef.current?.id === conversationId) {
+        setMessages([]);
+        setOlderCursor(null);
+        setError(friendlyError(caught, 'This conversation could not be loaded.'));
+      }
+    } finally {
+      if (requestVersion.current === version) setIsLoadingThread(false);
+    }
+  }, [messaging]);
+
+  useEffect(() => {
+    if (!refreshAfterPresentationChange.current) return;
+    refreshAfterPresentationChange.current = false;
+    const conversationId = activeRef.current?.id;
+    if (!conversationId) return;
+    if (mobileContinuity) void refreshMobileThread(conversationId, requestVersion.current);
+    else {
+      const cached = threadCache.current.get(conversationId);
+      setIsLoadingThread(!cached);
+      void loadWebThread(conversationId, requestVersion.current, cached);
+    }
+  }, [loadWebThread, mobileContinuity, refreshMobileThread, threadGeneration]);
+
   const openConversation = useCallback(async (conversation: ConversationSummary, options: { replaceHistory?: boolean } = {}) => {
+    if ((mobileContinuity || threadScope.current.mobileContinuity) && (!mounted.current || threadScope.current.generation !== threadGeneration)) return;
     const version = ++requestVersion.current;
     startingRequestVersion.current += 1;
     setStartingCreatorId(null);
@@ -150,25 +305,14 @@ export function useMessaging({
     setPendingAction(null);
     setPendingMessageId(null);
     setError(null);
+    setThreadFailure(null);
     onConversationChangeRef.current?.(conversation.id, options.replaceHistory ?? false);
-    try {
-      const page = await messaging.listMessages(conversation.id, { limit: 50 });
-      if (requestVersion.current !== version || activeRef.current?.id !== conversation.id) return;
-      const next = reconcileMessagePage(threadCache.current.get(conversation.id)?.messages ?? [], page);
-      const before = cached ? cached.before : page.before;
-      threadCache.current.set(conversation.id, { messages: next, before });
-      setMessages(next);
-      setOlderCursor(before);
-    } catch (caught) {
-      if (requestVersion.current === version && activeRef.current?.id === conversation.id) {
-        setMessages([]);
-        setOlderCursor(null);
-        setError(friendlyError(caught, 'This conversation could not be loaded.'));
-      }
-    } finally {
-      if (requestVersion.current === version) setIsLoadingThread(false);
+    if (mobileContinuity) {
+      await refreshMobileThread(conversation.id, version);
+      return;
     }
-  }, [messaging]);
+    await loadWebThread(conversation.id, version, cached);
+  }, [loadWebThread, mobileContinuity, refreshMobileThread, threadGeneration]);
 
   const closeConversation = useCallback((replaceHistory = true) => {
     requestVersion.current += 1;
@@ -181,8 +325,18 @@ export function useMessaging({
     setIsLoadingThread(false);
     setIsLoadingOlder(false);
     setError(null);
+    setThreadFailure(null);
+    setRefreshingThread(null);
+    threadRefresh.current = null;
     onConversationChangeRef.current?.(null, replaceHistory);
   }, []);
+
+  const renderedThreadVersion = requestVersion.current;
+  const renderedConversationId = activeConversation?.id ?? null;
+  const retryThread = useCallback((): Promise<boolean> => {
+    if (!mobileContinuity || !renderedConversationId || renderedThreadVersion !== requestVersion.current || activeRef.current?.id !== renderedConversationId) return Promise.resolve(false);
+    return refreshMobileThread(renderedConversationId, renderedThreadVersion);
+  }, [mobileContinuity, refreshMobileThread, renderedConversationId, renderedThreadVersion]);
 
   const startConversation = useCallback(async (profileId: Id) => {
     const version = ++startingRequestVersion.current;
@@ -204,11 +358,13 @@ export function useMessaging({
   }, [applyConversationPage, messaging, openConversation]);
 
   const placeMessage = useCallback((conversationId: Id, updater: (current: DirectMessage[]) => DirectMessage[]) => {
+    if ((mobileContinuity || threadScope.current.mobileContinuity) && threadScope.current.ownerGeneration !== threadOwnerGeneration) return;
+    if (threadScope.current.mobileContinuity && rejectedThreads.current.get(conversationId) === threadScope.current.generation) return;
     const cache = threadCache.current.get(conversationId) ?? { messages: [], before: null };
     const next = updater(cache.messages);
     threadCache.current.set(conversationId, { ...cache, messages: next });
     if (activeRef.current?.id === conversationId) setMessages(next);
-  }, []);
+  }, [mobileContinuity, threadOwnerGeneration]);
 
   const sendMessage = useCallback(async (body: string, attachments: File[] = [], retryId?: Id) => {
     const conversation = activeRef.current;
@@ -258,7 +414,9 @@ export function useMessaging({
   const loadOlderMessages = useCallback(async () => {
     const conversation = activeRef.current;
     if (!conversation || !olderCursor || isLoadingOlder) return false;
+    if (threadScope.current.mobileContinuity && rejectedThreads.current.get(conversation.id) === threadScope.current.generation) return false;
     const version = requestVersion.current;
+    const scope = threadScope.current;
     setIsLoadingOlder(true);
     try {
       const page = await messaging.listMessages(conversation.id, { before: olderCursor, limit: 50 });
@@ -270,12 +428,17 @@ export function useMessaging({
       setOlderCursor(page.before);
       return true;
     } catch (caught) {
-      if (version === requestVersion.current) setError(friendlyError(caught, 'Older messages could not be loaded.'));
+      if (version === requestVersion.current) {
+        if (scope.mobileContinuity) {
+          setThreadFailure({ generation: scope.generation, conversationId: conversation.id, message: friendlyError(caught, 'Older messages could not be loaded.') });
+          if (!isTemporaryThreadFailure(caught)) rejectMobileThread(conversation.id, scope.generation);
+        } else setError(friendlyError(caught, 'Older messages could not be loaded.'));
+      }
       return false;
     } finally {
       if (version === requestVersion.current) setIsLoadingOlder(false);
     }
-  }, [isLoadingOlder, messaging, olderCursor]);
+  }, [isLoadingOlder, messaging, olderCursor, rejectMobileThread]);
 
   const editMessage = useCallback(async (messageId: Id, body: string) => {
     const conversationId = activeRef.current?.id;
@@ -310,16 +473,28 @@ export function useMessaging({
   const toggleReaction = useCallback(async (messageId: Id, emoji: string) => {
     const conversationId = activeRef.current?.id;
     if (!conversationId || activeRef.current?.status === 'request' || messageId.startsWith('local-')) return false;
-    setPendingMessageId(messageId);
+    const ownerGeneration = threadScope.current.ownerGeneration;
+    const requests = reactionRequests.current;
+    if (requests.get(messageId) === ownerGeneration) return false;
+    requests.set(messageId, ownerGeneration);
+    setPendingReactions(new Map(requests));
     setError(null);
     try {
       const reactions = await messaging.toggleReaction(messageId, emoji);
+      if (!mounted.current || threadScope.current.ownerGeneration !== ownerGeneration) return false;
       placeMessage(conversationId, (current) => current.map((message) => message.id === messageId ? { ...message, reactions } : message));
       return true;
     } catch (caught) {
-      if (activeRef.current?.id === conversationId) setError(friendlyError(caught, 'This reaction could not be updated.'));
+      if (mounted.current && threadScope.current.ownerGeneration === ownerGeneration && activeRef.current?.id === conversationId) {
+        setError(friendlyError(caught, 'This reaction could not be updated.'));
+      }
       return false;
-    } finally { if (activeRef.current?.id === conversationId) setPendingMessageId(null); }
+    } finally {
+      if (requests.get(messageId) === ownerGeneration) {
+        requests.delete(messageId);
+        if (mounted.current) setPendingReactions(new Map(requests));
+      }
+    }
   }, [messaging, placeMessage]);
 
   const searchConversations = useCallback((query: string) => messaging.searchConversations(query, { limit: 50 }), [messaging]);
@@ -336,16 +511,17 @@ export function useMessaging({
     if (!initialConversationId || initialConversationRef.current === initialConversationId) return;
     initialConversationRef.current = initialConversationId;
     if (activeRef.current?.id === initialConversationId) return;
+    const version = requestVersion.current;
     let current = true;
     void messaging.getConversation(initialConversationId).then((conversation) => {
-      if (!current) return;
+      if (!current || (mobileContinuity && version !== requestVersion.current)) return;
       applyConversationPage([conversation], false);
       void openConversation(conversation, { replaceHistory: true });
     }).catch((caught) => {
-      if (current) setError(friendlyError(caught, 'This conversation is no longer available.'));
+      if (current && (!mobileContinuity || version === requestVersion.current)) setError(friendlyError(caught, 'This conversation is no longer available.'));
     });
     return () => { current = false; };
-  }, [applyConversationPage, initialConversationId, messaging, openConversation]);
+  }, [applyConversationPage, initialConversationId, messaging, mobileContinuity, openConversation]);
 
   useEffect(() => {
     if (initialConversationId || !initialConversationRef.current) return;
@@ -356,6 +532,11 @@ export function useMessaging({
     setMessages([]);
     setOlderCursor(null);
     setError(null);
+    setThreadFailure(null);
+    setRefreshingThread(null);
+    threadRefresh.current = null;
+    setIsLoadingThread(false);
+    setIsLoadingOlder(false);
   }, [initialConversationId]);
 
   useEffect(() => {
@@ -388,6 +569,8 @@ export function useMessaging({
     let refreshTimer: number | undefined;
     const accept = (incoming: DirectMessage) => {
       if (!current || incoming.conversationId !== conversationId) return;
+      if ((mobileContinuity || threadScope.current.mobileContinuity) && (!mounted.current || threadScope.current.generation !== threadGeneration)) return;
+      if (mobileContinuity && rejectedThreads.current.get(conversationId) === threadGeneration) return;
       setIsParticipantTyping(false);
       placeMessage(conversationId, (existing) => mergeMessages(existing, [{ ...incoming, deliveryState: 'sent' }]));
       void loadConversations({ background: true });
@@ -396,6 +579,18 @@ export function useMessaging({
       if (!current || document.visibilityState !== 'visible' || activeRef.current?.id !== conversationId) return;
       if (refreshing) { refreshAgain = true; return; }
       refreshing = true;
+      if (mobileContinuity) {
+        try {
+          const success = await refreshMobileThread(conversationId, requestVersion.current);
+          if (!current) return;
+          if (success) void loadConversations({ background: true });
+          else { connected = false; setIsRealtimeConnected(false); }
+        } finally {
+          refreshing = false;
+          if (refreshAgain && current) { refreshAgain = false; void refresh(); }
+        }
+        return;
+      }
       const baseline = threadCache.current.get(conversationId);
       const oldestLoaded = baseline?.messages.find((message) => !message.id.startsWith('local-'));
       try {
@@ -432,7 +627,7 @@ export function useMessaging({
     const onVisible = () => { void refresh(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { current = false; unsubscribe(); window.clearTimeout(refreshTimer); window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
-  }, [activeConversationId, loadConversations, messaging, placeMessage]);
+  }, [activeConversationId, loadConversations, messaging, mobileContinuity, placeMessage, refreshMobileThread, threadGeneration]);
 
   useEffect(() => {
     const conversationId = activeConversationId;
@@ -589,16 +784,22 @@ export function useMessaging({
     } finally { if (activeRef.current?.id === conversation.id || activeRef.current === null) setPendingAction(null); }
   }, [messaging]);
 
+  const isReactionPending = useCallback((messageId: Id) => pendingReactions.get(messageId) === threadOwnerGeneration,
+    [pendingReactions, threadOwnerGeneration]);
+
   return {
     status,
     conversations,
     nextConversationOffset,
-    activeConversation,
-    messages,
+    activeConversation: activeRef.current ? activeConversation : null,
+    messages: activeRef.current ? messages : [],
     unreadCount,
     requestCount,
-    hasOlderMessages: olderCursor !== null,
+    hasOlderMessages: activeRef.current !== null && olderCursor !== null,
     isLoadingThread,
+    threadLoadError: mobileContinuity && threadFailure?.generation === threadGeneration && threadFailure.conversationId === activeConversation?.id ? threadFailure.message : null,
+    threadUnavailable: mobileContinuity && activeConversation !== null && rejectedThreads.current.get(activeConversation.id) === threadGeneration,
+    isRefreshingThread: mobileContinuity && refreshingThread?.generation === threadGeneration && refreshingThread.version === requestVersion.current && refreshingThread.conversationId === activeConversation?.id,
     isLoadingOlder,
     isLoadingMoreConversations,
     isStarting: startingCreatorId !== null,
@@ -610,8 +811,10 @@ export function useMessaging({
     isSavingPreferences,
     pendingAction,
     pendingMessageId,
+    isReactionPending,
     error,
-    dismissError: () => setError(null),
+    dismissError: () => { setError(null); if (mobileContinuity) setThreadFailure(null); },
+    retryThread,
     retry: () => loadConversations(),
     loadMoreConversations: () => loadConversations({ append: true }),
     openConversation,

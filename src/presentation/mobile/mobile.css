@@ -1,94 +1,10 @@
+/* Activity owns its full-width result viewport inside Studio's fixed shell. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > [data-studio-activity] > [data-studio-scroll] {
+  overflow-y: auto !important;
+}
+
 /* MOBILE starts with the existing compact frame, independently editable here.
    This is not a decision about future mobile navigation or feature availability. */
-/* The startup layer exists before the app host and carries the same scope. */
-[data-presentation='mobile'].portalink-startup-wait {
-  height: var(--mobile-launch-height, 100dvh);
-  min-height: var(--mobile-launch-height, 100dvh);
-  background-color: #f8fdfc;
-  overflow: hidden;
-}
-[data-presentation='mobile'].portalink-splash {
-  background-color: #f8fdfc;
-  height: var(--mobile-launch-height, 100dvh);
-  min-height: var(--mobile-launch-height, 100dvh);
-  overscroll-behavior: none;
-}
-
-[data-presentation='mobile'].portalink-splash .portalink-splash-media {
-  width: 100vw;
-  height: var(--mobile-launch-height, 100dvh);
-  max-height: var(--mobile-launch-height, 100dvh);
-  object-fit: contain;
-}
-
-/* A looping welcome above reachable account actions, on the same surface. */
-[data-presentation='mobile'].portalink-splash[data-share-landing] {
-  outline: none;
-  background: #f8fdfc !important;
-  height: var(--mobile-launch-height, 100dvh);
-  min-height: 0;
-  grid-template-rows: minmax(0, 1fr) auto;
-  padding-top: max(12px, env(safe-area-inset-top, 0px));
-  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-}
-[data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  max-height: 100%;
-  object-fit: contain;
-}
-@media (min-height: 561px) {
-  /* The supplied clip contains generous blank margins around the artwork. */
-  [data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media { transform: scale(1.4); }
-}
-[data-presentation='mobile'] .mobile-share-landing-actions {
-  position: relative;
-  z-index: 1;
-  grid-area: 2 / 1;
-  width: 78%;
-  max-width: 420px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  color: #071326;
-  font-family: 'IBM Plex Sans', sans-serif;
-}
-[data-presentation='mobile'] .mobile-share-create {
-  min-height: clamp(52px, 6.8dvh, 60px);
-  width: 100%;
-  border-radius: 999px;
-  border: 1.5px solid #071326;
-  font-size: 20px;
-  font-weight: 500;
-}
-[data-presentation='mobile'] .mobile-share-create { background: #071326; color: #fff; }
-[data-presentation='mobile'].portalink-splash[data-share-landing] .mobile-share-secondary {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 4px;
-  border: 0;
-  box-shadow: none;
-}
-[data-presentation='mobile'].portalink-splash[data-share-landing] .mobile-share-secondary button {
-  min-height: 44px;
-  -webkit-appearance: none;
-  appearance: none;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  text-decoration: none;
-  color: #6f7682;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 24px;
-  letter-spacing: normal;
-}
-[data-presentation='mobile'] .mobile-share-landing-actions button:focus-visible { outline: 2px solid #071326; outline-offset: 4px; }
-[data-presentation='mobile'] .mobile-share-landing-actions button:disabled { opacity: .55; cursor: wait; }
-
 /* Bare actions need a shape before their pressed/focus fill appears. Keep this
    fallback weaker than explicit circles, pills, and component corner rules.
    Body-portalled menus carry the same presentation scope as the app. */
@@ -684,7 +600,7 @@
   pointer-events: none;
   touch-action: pan-y;
   opacity: 1;
-  transition: none;
+  transition: opacity var(--m-fast) var(--m-enter), visibility 0s;
 }
 
 /* Keep the installed capsule low without extending its containing layer past
@@ -708,7 +624,7 @@
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling] * {
@@ -717,20 +633,20 @@
 
 /* Reading hides only interface surfaces. Keep all geometry and artwork intact. */
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control] {
-  transition: opacity 160ms ease, visibility 0s;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) * {
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: visibility 0s 160ms;
+  transition: visibility var(--m-fast) var(--m-base);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -739,11 +655,13 @@
   }
 }
 
-/* Six full touch targets share one centered, responsive capsule. */
+/* Five full touch targets share one centered, responsive capsule. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
+  transform: scale(.85);
+  transform-origin: center bottom;
   width: var(--mobile-control-group-width);
   flex: 0 1 var(--mobile-control-group-width);
-  min-width: calc(4 * var(--mobile-control-target) + 3 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
+  min-width: calc(5 * var(--mobile-control-target) + 4 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
   max-width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -753,12 +671,18 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: repeat(4, minmax(var(--mobile-control-target), 1fr));
+  grid-template-columns: repeat(5, minmax(var(--mobile-control-target), 1fr));
   min-width: 0;
   height: var(--mobile-dock-size);
   padding: var(--mobile-control-inset);
   gap: var(--mobile-control-gap);
   pointer-events: auto;
+}
+
+@media (max-width: 319px) {
+  #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
+    transform: none;
+  }
 }
 
 /* One glass capsule material for vertical and horizontal navigation. */
@@ -772,6 +696,7 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
+  position: relative;
   display: grid;
   min-width: 0;
   min-height: var(--mobile-control-target);
@@ -781,13 +706,23 @@
   border: 0;
 }
 
+/* Keep a 44px touch height while the visible capsule and icons shrink to 85%. */
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: max(100%, calc(44px / .85));
+  transform: translateY(-50%);
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
   border-radius: 999px !important;
   background: transparent !important;
   color: var(--text-primary) !important;
   box-shadow: var(--mobile-navigation-item-shadow, none) !important;
   transform: none !important;
-  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  transition: background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter), box-shadow var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination[aria-current='page'] {
@@ -807,6 +742,10 @@
   background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised)) !important;
 }
 
+/* The Portal search centre follows the viewer's selected accent. */
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination .portal-ring-dot {
+  fill: var(--accent-primary) !important;
+}
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination [data-interface-icon-frame] {
   --interface-icon-size: 24px;
 }
@@ -894,6 +833,11 @@
   background: transparent;
   text-align: left;
   touch-action: manipulation;
+}
+
+/* Portal identity glyphs follow the chosen accent; row controls stay neutral. */
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page .mobile-portal-row > [data-interface-icon-frame]:first-child {
+  color: var(--accent-text) !important;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-portal-row:is(:hover, :active) {
@@ -1103,7 +1047,7 @@
   width: auto !important;
   max-width: none;
   overflow: hidden;
-  animation: mobile-project-panel-enter 180ms ease-out;
+  animation: mobile-project-panel-enter var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] {
@@ -1299,7 +1243,7 @@
   flex: 0 0 46px;
   width: 46px;
   height: 46px;
-  border-radius: 10px;
+  border-radius: var(--project-thumbnail-radius, 12px);
   overflow: hidden;
   background: var(--surface-sunken);
 }
@@ -1309,7 +1253,7 @@
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--project-card-copy-gap, 4px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-title {
@@ -1325,7 +1269,8 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-date {
   font-size: 12px;
-  line-height: 1.3;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
 
@@ -1360,8 +1305,8 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > button {
   flex-direction: column;
   align-items: stretch;
-  padding: 10px 10px 40px;
-  gap: 8px;
+  padding: 10px 10px 48px;
+  gap: var(--project-card-media-gap, 8px);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-cover {
@@ -1371,10 +1316,22 @@
   aspect-ratio: 1;
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > div.absolute {
+/* Reserve the metadata track even when no publication date exists. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-copy {
+  display: grid;
+  font-size: 14px;
+  grid-template-rows: minmax(2.6em, auto) 1.2em;
+}
+/* Reserve two title lines so short and wrapped titles share a date baseline. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-title {
+  min-height: 2.6em;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] [data-project-row-actions] {
   top: auto;
-  bottom: 0;
-  right: 4px;
+  bottom: var(--project-card-action-inset, 4px);
+  right: var(--project-card-action-inset, 4px);
+  width: 44px;
+  height: 44px;
 }
 
 [data-presentation='mobile'] [data-mobile-media-comments]:has([data-mobile-project-popup-content]) {
@@ -1599,8 +1556,8 @@
   color: var(--text-primary);
   box-shadow: 0 -8px 36px rgb(0 0 0 / 18%);
   outline: none;
-  transition: height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: project-description-arrive 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: height var(--m-slow) var(--m-enter);
+  animation: project-description-arrive var(--m-slow) var(--m-enter);
 }
 /* Override generic floating-dialog paint and all-corner rounding only here. */
 #root .codex-shell [data-presentation='mobile'] .mobile-project-description-sheet {
@@ -1622,6 +1579,10 @@
 }
 [data-presentation='mobile'] .project-description-grabber span { width: 36px; height: 5px; border-radius: 99px; background: var(--text-tertiary); opacity: 0.6; }
 [data-presentation='mobile'] .project-description-heading { position: relative; z-index: 1; display: flex; align-items: center; flex: none; gap: 4px; padding: 0 12px 10px 20px; background: transparent; }
+/* The Mission sheet header shares the sheet's raised surface tint. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-description-sheet[data-ui-surface='sheet'] > .project-description-heading {
+  --fixed-header-canvas: var(--surface-raised);
+}
 [data-presentation='mobile'] .project-description-heading h2 { flex: 1; min-width: 0; margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; }
 [data-presentation='mobile'] .project-description-heading > button,
 [data-presentation='mobile'] .project-description-menu > button { flex: none; width: 44px; height: 44px; margin: 0; padding: 0; display: grid; place-items: center; line-height: 1; border-radius: 50%; }
@@ -1905,15 +1866,14 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-engagement-bar {
-  width: var(--mobile-control-group-width) !important;
   gap: var(--mobile-control-gap);
   padding: var(--mobile-control-inset);
   border-radius: 999px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-action {
-  height: var(--mobile-control-target);
-  min-width: var(--mobile-control-target);
+  height: 44px;
+  min-width: 44px;
   border-radius: 999px;
   flex-direction: column;
   gap: 2px;
@@ -1944,6 +1904,9 @@
   inset: 0;
   z-index: 40;
   pointer-events: none;
+  background: rgb(0 0 0 / 18%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-dismiss {
@@ -1994,12 +1957,33 @@
   background: transparent;
 }
 
+/* The floating chooser owns its inset and glass; full-page header spacing and
+   cross-profile underlap offsets must not move its toolbar into the panel. */
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page {
+  --mobile-content-safe-top: 0px;
+}
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > [data-mobile-safe-header] {
+    top: 0 !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > [data-mobile-safe-header][data-mobile-header-underlap]::before {
+    content: none !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > .mobile-portals-scroll[data-fixed-header-underlap] {
+    margin-top: var(--fixed-header-margin, 0px) !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > .mobile-portals-scroll[data-fixed-header-content] {
+    padding-top: var(--fixed-header-padding, 0px) !important;
+    scroll-padding-top: var(--fixed-header-scroll-padding, 0px) !important;
+  }
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > .mobile-portals-scroll {
   padding: 0 0 8px;
   scroll-padding-bottom: 8px;
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page:where(.reduce-translucency *, .high-contrast *) {
+#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page:where(.reduce-translucency *) {
   background: var(--surface-raised);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -2049,15 +2033,46 @@
   }
 }
 
+/* Home and City match Profile's material through the phone's safe edges; only
+   the lower decorative edge fades. Controls retain their existing safe inset. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
+    inset: calc(0px - var(--safe-area-top, 0px)) calc(0px - var(--safe-area-right, 0px)) -20px calc(0px - var(--safe-area-left, 0px)) !important;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) var(--interface-glass-opacity, 78%), transparent) !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
+  }
+  #root .codex-shell[data-presentation='mobile'].reduce-translucency :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
+    bottom: 0 !important;
+    background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    #root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
+      bottom: 0 !important;
+      background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+      -webkit-mask-image: none !important;
+      mask-image: none !important;
+    }
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    #root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, [data-city-header])[data-mobile-header-underlap]::before {
+      bottom: 0 !important;
+      background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+      -webkit-mask-image: none !important;
+      mask-image: none !important;
+    }
+  }
+}
+
 #root .codex-shell[data-presentation='mobile'] .profile-header-region > header {
   background: transparent !important;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header):where(.high-contrast *)::before {
-  background: var(--codex-workspace-bg);
-}
 
 #root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header):where(.reduce-translucency *)::before {
   bottom: 0;
@@ -2362,7 +2377,7 @@
 /* Public profiles have no engagement footer. Keep the card's base rounded
    when its redundant creator row is omitted on mobile. */
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-has-extension='false'][data-expanded='true'] :is(.project-card-frame, .project-preview-artwork, .project-preview-description) {
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--project-thumbnail-radius, 12px) var(--project-thumbnail-radius, 12px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-mobile-project-card] {
@@ -2385,7 +2400,10 @@
   color: #fff;
   border: 0;
   padding: 4px;
+  min-width: 0 !important;
+  min-height: 0 !important;
   max-width: 100%;
+  max-height: 100%;
   box-sizing: border-box;
 }
 
@@ -2738,7 +2756,12 @@
   pointer-events: auto;
   border: 0;
   cursor: pointer;
-  transition: transform 160ms ease;
+  transition: var(--navigation-control-transition);
+}
+
+/* Keep counter placement instant when shared navigation styles load later. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter[data-mobile-project-page-count] {
+  --navigation-control-transition: background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
@@ -3164,7 +3187,7 @@
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition: background-color var(--m-fast) var(--m-enter), color var(--m-fast) var(--m-enter);
 }
 /* Override the shared soft-selected toggle rule for Mail-style categories. */
 #root .codex-shell[data-presentation='mobile'] .studio-category[aria-pressed='true'] { background: var(--accent-primary) !important; color: var(--accent-foreground) !important; }
@@ -3173,14 +3196,14 @@
 #root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--mobile-control-gap);
+  gap: var(--cdx-dense-gap);
   margin-top: 9px;
-  padding: var(--mobile-control-inset);
+  padding: 0;
   border-radius: 999px;
-  background: var(--surface-sunken);
+  background: transparent;
 }
-#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs button { min-height: var(--mobile-control-target); border-radius: 999px; font-size: 13px; color: var(--text-secondary); }
-#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs [aria-pressed='true'] { background: var(--surface-raised); color: var(--text-primary); box-shadow: 0 1px 3px rgb(0 0 0 / 8%); font-weight: 600; }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs button { height: 44px; min-height: 44px; padding-inline: 12px; border: 1px solid transparent; border-radius: 999px; background: transparent; font-size: 14px; font-weight: 500; color: var(--text-secondary); }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs [aria-pressed='true'] { background: var(--control-selected-surface); color: var(--control-selected-text); box-shadow: none; font-weight: 600; }
 
 #root .codex-shell[data-presentation='mobile'] .studio-content {
   flex: 1;
@@ -3207,6 +3230,81 @@
 #root .codex-shell[data-presentation='mobile'] .studio-bulk-actions { display: flex; align-items: center; gap: var(--mobile-control-gap); min-width: 0; flex: 1; overflow-x: auto; }
 #root .codex-shell[data-presentation='mobile'] .studio-bulk-actions button { display: flex; align-items: center; justify-content: center; gap: var(--mobile-control-group-gap); flex: none; min-height: var(--mobile-control-target); padding: 0 10px; border-radius: 999px; white-space: nowrap; font-size: 12px; color: var(--accent-text); }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-hint { padding: 0 8px; font-size: 12px; color: var(--text-tertiary); }
+
+/* Activity uses one canvas and one grouped surface instead of stacked grey tiles. */
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-list {
+  background: var(--surface-sunken);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] :is([data-studio-row-surface], [data-studio-row-surface] > button[aria-pressed]) {
+  background: transparent !important;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-row-fallback {
+  background: transparent;
+  color: var(--text-secondary);
+}
+/* Activity selection stays in one aligned row with reachable read/delete actions. */
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-summary {
+  gap: var(--mobile-control-group-gap);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-summary button {
+  padding-inline: 12px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar {
+  --text-secondary: var(--text-primary);
+  box-sizing: border-box;
+  inset-inline-start: max(var(--mobile-navigation-inset-start), (100% - var(--mobile-control-group-width)) / 2);
+  inset-inline-end: max(var(--mobile-navigation-inset-end), (100% - var(--mobile-control-group-width)) / 2);
+  flex-flow: row nowrap;
+  min-height: var(--mobile-dock-size);
+  height: auto;
+  padding: calc(var(--mobile-control-inset) - 1px);
+  border-color: var(--hairline);
+  background: linear-gradient(var(--surface-sunken), var(--surface-sunken)), var(--surface-canvas);
+  color: var(--text-primary);
+  box-shadow: var(--navigation-shadow);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar > button {
+  width: var(--mobile-control-target);
+  height: var(--mobile-control-target);
+  padding: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions {
+  flex-flow: row nowrap;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--mobile-control-target);
+  height: auto;
+  gap: 4px;
+  overflow: visible;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions button {
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--mobile-control-target);
+  padding-inline: 6px;
+  gap: 4px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: normal;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--mobile-control-target);
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-primary);
+}
 #root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar:where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true']) *) { visibility: hidden; }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio button:disabled { opacity: .45; }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -3262,6 +3360,19 @@
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-profile-wall, .mobile-portals-scroll) {
   padding-bottom: var(--mobile-content-safe-bottom);
 }
+/* A catalogue is document content, not a shrinking pane beside its header.
+   Keep the whole wall in block flow even when dense rows fit one screen. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-page][data-mobile-catalogue-spacing],
+#root .codex-shell[data-presentation='mobile'] [data-profile-page][data-mobile-catalogue-spacing] > #profile-content {
+  display: block;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-page][data-mobile-catalogue-spacing] > #profile-content > .mobile-profile-wall {
+  height: auto;
+  overflow: visible;
+}
 #root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar { position: fixed; }
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay {
   position: fixed;
@@ -3273,6 +3384,11 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] {
   height: var(--mobile-viewport-height, 100dvh);
   min-height: 0;
+}
+/* Installed iOS can retain a launch-sized 100vh after its visible area shrinks.
+   Bound single-page controls to the same settled viewport as the dock. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view]:has([data-mobile-focused-view]):where(html[data-standalone] *) {
+  height: min(100dvh, var(--mobile-dock-viewport-height, 100dvh));
 }
 #root .codex-shell[data-presentation='mobile'] #messages-thread-panel:not(.hidden) {
   height: calc(var(--mobile-viewport-height, 100dvh) - var(--mobile-sidebar-header) - var(--safe-area-top));
@@ -3323,7 +3439,11 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 
 /* The opening loader fills the phone, not just the future page rectangle.
    Keep the page's layout reservation; paint below the fixed controls. Once any
-   page is ready, later lazy pages and retries must never cover readable work. */
+   page is ready, later lazy pages and retries must never cover readable work.
+   Its single indicator replaces the page glyph only while this mask is active. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view])) .premium-media-loading-mark {
+  visibility: hidden;
+}
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::before {
   --opening-loader-fill: color-mix(in srgb, var(--surface-sunken) 86%, var(--surface-raised));
   content: '';
@@ -3348,8 +3468,21 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   border-top-color: var(--text-secondary);
   border-radius: 50%;
   pointer-events: none;
-  animation: premium-media-spin 800ms linear infinite;
+  animation: premium-media-spin var(--m-loading-spin) linear infinite;
 }
+
+@supports ((mask-image: none) or (-webkit-mask-image: none)) {
+  #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::after {
+    border: 0;
+    border-radius: 0;
+    background: var(--text-secondary);
+    -webkit-mask: var(--loading-indicator-mask) center / contain no-repeat;
+    mask: var(--loading-indicator-mask) center / contain no-repeat;
+    forced-color-adjust: none;
+    animation: premium-media-spin var(--m-loading-spin) steps(8) infinite;
+  }
+}
+.app-viewport--reduce-motion [data-mobile-page-reader]::after { animation: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]::after { animation: none; }
@@ -3367,14 +3500,15 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 #root .codex-shell[data-presentation='mobile'] [data-document-reading-view]:not(:has([data-mobile-focused-view])) [data-document-reader-header] {
   position: fixed;
 }
-/* Focused readers keep the same canvas at the status/home-indicator edges.
-   Their footer clears the shared account bar, including enlarged text. */
+/* Focused controls have their own rows; reclaim the normal reader's action
+   clearance while keeping the safe area and shared account bar clear. */
 #root .codex-shell[data-presentation='mobile'] [data-project-stage] { background-color: var(--codex-workspace-bg); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
-  padding-bottom: var(--mobile-dock-bottom);
+  --focused-safe-bottom: max(8px, var(--safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--focused-safe-bottom);
 }
 #root .codex-shell[data-presentation='mobile'].shared-portalink-shell [data-mobile-focused-view] {
-  padding-bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px);
+  padding-bottom: calc(var(--focused-safe-bottom) + var(--shared-sign-in-height, 0px) + 16px);
 }
 /* Context sheets share the app's appearance and material tokens on body portals. */
 [data-presentation='mobile'].mobile-context-scrim { position: fixed; inset-inline: 0; top: auto; bottom: 0; padding: 0; box-sizing: border-box; z-index: 100; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; background: rgb(0 0 0 / 46%); }
@@ -3386,22 +3520,41 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 }
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet {
   position: absolute; bottom: 0; margin-block: 0;
-  display: flex; flex-direction: column; height: 75%;
+  overflow: hidden;
+  --sheet-rest-y: max(0px, calc(var(--dialog-viewport-height, 100dvh) * .25 - max(16px, var(--safe-area-top))));
+  display: flex; flex-direction: column; height: calc(100% - max(16px, var(--safe-area-top)));
   max-height: calc(100% - max(16px, var(--safe-area-top)));
   width: min(100%, 480px); border: 1px solid var(--hairline);
   border-color: var(--context-outline, var(--hairline)) !important;
-  border-radius: 28px 28px 0 0 !important;
-  background: var(--material-regular) !important; color: var(--text-primary);
+  border-radius: var(--ui-popup-radius, 24px) var(--ui-popup-radius, 24px) 0 0 !important;
+  /* Resolve the shared material recipe in this sheet's active theme. */
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 78%), transparent) !important; color: var(--text-primary);
   box-shadow: 0 -8px 40px rgb(0 0 0 / 18%) !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
-  outline: none; padding-bottom: max(16px, var(--safe-area-bottom));
+  outline: none; padding-bottom: calc(max(16px, var(--safe-area-bottom)) + var(--sheet-rest-y));
 }
-#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { height: calc(100% - max(16px, var(--safe-area-top))); }
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { --sheet-rest-y: 0px; }
+/* Layout settles once; gestures and expansion move the same panel with transform. */
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-sheet-dragging] { padding-bottom: max(16px, var(--safe-area-bottom)); }
 #root .codex-shell[data-presentation='mobile'].reduce-translucency .mobile-context-sheet { background: var(--surface-raised) !important; }
 @media (prefers-reduced-transparency: reduce) {
   #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet { background: var(--surface-raised) !important; }
 }
 [data-presentation='mobile'] .mobile-context-sheet header { flex: none; padding: 0 20px 16px; touch-action: none; user-select: none; }
+/* The sheet already owns its glass tint. Its pinned title blurs scrolling
+   actions without adding an opaque rectangle or a second surface colour. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] .mobile-context-sheet > header[data-mobile-header-underlap]::before {
+    inset: 0 0 -16px !important;
+    background: transparent !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+  }
+  #root .codex-shell[data-presentation='mobile'] .mobile-context-sheet > header[data-mobile-header-underlap='false']::before {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
 [data-presentation='mobile'] .mobile-context-resize { display: grid; place-items: center; width: 72px; height: 44px; margin: 0 auto; border-radius: 999px; cursor: ns-resize; }
 [data-presentation='mobile'] .mobile-context-handle { width: 36px; height: 4px; border-radius: 8px; background: var(--text-tertiary); }
 [data-presentation='mobile'] .mobile-context-heading { display: flex; align-items: center; gap: 12px; }
@@ -3411,18 +3564,18 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 [data-presentation='mobile'] .mobile-context-heading > button { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--surface-sunken); }
 [data-presentation='mobile'] .mobile-context-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px; }
 [data-presentation='mobile'] .mobile-context-primary { display: grid; gap: 8px; margin-bottom: 16px; }
-[data-presentation='mobile'] .mobile-context-primary button { display: flex; min-height: 86px; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 12px 6px; border-radius: 18px; background: var(--surface-sunken); font-size: 12px; font-weight: 600; }
+[data-presentation='mobile'] .mobile-context-primary button { display: flex; min-height: 68px; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px 6px; border-radius: 18px; background: var(--surface-sunken); font-size: 12px; font-weight: 600; }
 [data-presentation='mobile'] .mobile-context-group { border-radius: 18px; overflow: hidden; margin-bottom: 12px; background: var(--surface-sunken); }
-[data-presentation='mobile'] .mobile-context-group button { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 52px; padding: 12px 16px; font-size: 15px; text-align: start; }
+[data-presentation='mobile'] .mobile-context-group button { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 48px; padding: 10px 16px; font-size: 15px; text-align: start; }
 [data-presentation='mobile'] .mobile-context-group button + button { border-top: 1px solid var(--hairline); }
 [data-presentation='mobile'] .mobile-context-group button[data-destructive] { color: var(--status-danger); }
 [data-presentation='mobile'] .mobile-context-sheet button:focus-visible, [data-presentation='mobile'] .mobile-context-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; }
 [data-presentation='mobile'] .mobile-context-sheet button:active { background: var(--surface-hover); }
-#root .codex-shell[data-presentation='mobile'].high-contrast .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 2px; }
+#root .codex-shell[data-presentation='mobile'].high-contrast .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 1px; }
 @media (prefers-contrast: more) {
-  [data-presentation='mobile'] .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 2px; }
+  [data-presentation='mobile'] .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 1px; }
 }
-[data-presentation='mobile'] .mobile-context-sheet button,
+[data-presentation='mobile'] .mobile-context-sheet button:not(.mobile-context-resize),
 [data-presentation='mobile'] .mobile-context-group { box-shadow: inset 0 0 0 var(--context-outline-width, 0px) var(--context-outline, transparent); }
 [data-presentation='mobile'] .mobile-context-sheet .mobile-context-group button { border-radius: 0; box-shadow: none; }
 [data-presentation='mobile'] .mobile-context-group button + button { border-top: var(--context-outline-width, 1px) solid var(--context-outline, var(--hairline)); }
@@ -3449,16 +3602,11 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   --navigation-item-surface: var(--navigation-pressed-surface);
   --navigation-item-foreground: var(--navigation-pressed-foreground);
 }
-/* The document scrolls in the continuous reader; focused media and its index
-   can scroll internally. Hide only their indicators, never scrolling itself. */
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)),
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body,
+/* Keep local zoom/index indicators separate from the document's edge scrollbar. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view],
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] * {
   scrollbar-width: none;
 }
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *))::-webkit-scrollbar,
-html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body::-webkit-scrollbar,
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view]::-webkit-scrollbar,
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] *::-webkit-scrollbar {
   display: none;
@@ -3616,22 +3764,28 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .mobile-insights-page > header { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--hairline); }
 [data-presentation='mobile'] .mobile-insights-page > header h1 { grid-column: 2; text-align: center; font-size: 22px; font-weight: 650; }
 [data-presentation='mobile'] .mobile-insights-page > header button { border-radius: 50%; background: var(--surface-inset); width: 40px; height: 40px; }
-[data-presentation='mobile'] .mobile-insights-content { padding: 12px 18px calc(32px + env(safe-area-inset-bottom, 0px)); }
+[data-presentation='mobile'] .mobile-insights-content { --insights-series: var(--accent-primary); padding: 12px 18px calc(32px + env(safe-area-inset-bottom, 0px)); }
+[data-presentation='mobile'] .mobile-insights-content[data-insights-metric='finished'] { --insights-series: color-mix(in srgb, var(--accent-primary) 35%, var(--status-success)); }
+[data-presentation='mobile'] .mobile-insights-content[data-insights-metric='saved'] { --insights-series: color-mix(in srgb, var(--accent-primary) 35%, var(--status-info)); }
 [data-presentation='mobile'] .mobile-insights-content button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 [data-presentation='mobile'] .mobile-insights-period { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 [data-presentation='mobile'] .mobile-insights-period > select { min-height: 44px; padding: 12px 16px; border-radius: 4px; background: var(--surface-inset); color: var(--text-primary); font-size: 15px; font-weight: 600; }
 [data-presentation='mobile'] .mobile-insights-period button, [data-presentation='mobile'] .mobile-insights-section header button { min-height: 44px; padding: 8px 0 8px 12px; color: var(--text-secondary); font-size: 13px; }
 [data-presentation='mobile'] .mobile-insights-period button:disabled { opacity: .5; }
-[data-presentation='mobile'] .mobile-insights-headline { margin: 28px 0 24px; font-size: clamp(30px, 8.3vw, 36px); line-height: 1.08; letter-spacing: -.045em; font-weight: 700; overflow-wrap: anywhere; }
+[data-presentation='mobile'] .mobile-insights-headline { display: grid; margin: 28px 0 24px; font-size: clamp(30px, 8.3vw, 36px); line-height: 1.08; letter-spacing: -.045em; font-weight: 700; overflow-wrap: anywhere; }
+/* Size for every real metric headline; only the selected one is visible or announced. */
+[data-presentation='mobile'] .mobile-insights-headline > span { grid-area: 1 / 1; min-width: 0; }
+[data-presentation='mobile'] .mobile-insights-headline > span[aria-hidden='true'] { visibility: hidden; }
 [data-presentation='mobile'] .mobile-insights-metrics { display: flex; gap: 8px; flex-wrap: wrap; }
 [data-presentation='mobile'] .mobile-insights-metrics button { display: flex; justify-content: center; align-items: center; gap: 6px; flex: 1 1 auto; min-height: 44px; border-radius: 999px; padding: 8px 12px; font-size: 12px; background: var(--surface-inset); color: var(--text-secondary); white-space: nowrap; }
+[data-presentation='mobile'] .mobile-insights-metrics button [data-interface-icon-frame] { --interface-icon-size: 16px; }
 #root .codex-shell[data-presentation='mobile'] .mobile-insights-metrics button[aria-pressed='true'] { background: var(--text-primary) !important; color: var(--text-inverse) !important; }
 [data-presentation='mobile'] .mobile-insights-chart-caption { display: flex; justify-content: space-between; gap: 12px; margin: 34px 0 18px; font-size: 13px; }
 [data-presentation='mobile'] .mobile-insights-chart-caption > span { color: var(--text-secondary); }
 [data-presentation='mobile'] .mobile-insights-chart { display: flex; align-items: stretch; gap: 10px; height: 210px; padding-top: 20px; }
 [data-presentation='mobile'] .mobile-insights-chart > button { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-[data-presentation='mobile'] .mobile-insights-bar-track { position: relative; display: block; width: 100%; max-width: 32px; flex: 1; background: var(--surface-inset); }
-[data-presentation='mobile'] .mobile-insights-bar { position: absolute; inset-inline: 35%; bottom: 0; background: var(--accent, var(--accent-primary)); border-radius: 3px 3px 0 0; }
+[data-presentation='mobile'] .mobile-insights-bar-track { position: relative; display: block; width: 100%; max-width: 32px; flex: 1; background: color-mix(in srgb, var(--insights-series) 12%, var(--surface-inset)); }
+[data-presentation='mobile'] .mobile-insights-bar { position: absolute; inset-inline: 35%; bottom: 0; background: var(--accent-primary); background-image: linear-gradient(to top, var(--accent-text), var(--insights-series)); border-radius: 3px 3px 0 0; }
 [data-presentation='mobile'] .mobile-insights-bar-count { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); font-size: 11px; color: var(--text-secondary); }
 [data-presentation='mobile'] .mobile-insights-bar-label { font-size: 12px; color: var(--text-secondary); }
 [data-presentation='mobile'] .mobile-insights-note, [data-presentation='mobile'] .mobile-insights-empty { color: var(--text-secondary); font-size: 12px; line-height: 1.55; margin-top: 16px; }
@@ -3657,7 +3811,6 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .mobile-insights-audience > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--hairline); }
 [data-presentation='mobile'] .mobile-insights-audience dt { font-size: 15px; }
 [data-presentation='mobile'] .mobile-insights-audience dd { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
-[data-presentation='mobile'] .mobile-insights-map { width: 100%; height: auto; margin-top: 24px; fill: var(--text-tertiary); opacity: .35; }
 
 /* Share Portfolio replaces the profile canvas on phones. */
 [data-presentation='mobile'] .portfolio-share-page { display: flex; width: 100%; height: var(--dialog-viewport-height, 100dvh); padding-top: var(--mobile-content-safe-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--surface-canvas); }
@@ -3718,6 +3871,13 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 20px), transparent);
   text-overflow: clip;
 }
+
+/* Keep connection labels centered beneath their avatar; overflowing text starts at its beginning. */
+[data-presentation='mobile'] .profile-collection-name [data-name-centered] { text-align: center; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered] > span { margin-inline: auto; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-overflow] > span { margin-inline: 0; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-reduced-motion],
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-reduced-motion] > span { white-space: normal; }
 
 /* The headerless inbox still needs status-bar clearance for Search. */
 #root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] { padding-top: calc(var(--mobile-content-safe-top, env(safe-area-inset-top, 0px)) + 12px); }
@@ -3829,6 +3989,54 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   box-shadow: none;
 }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble='incoming'] { background: var(--surface-sunken); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble]:has(> [data-message-body] > [data-shared-page-only]):not(:has(> ul, > p)) {
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble][data-message-editing] {
+  width: min(100%, 380px);
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+}
+[data-message-editing] > :is([data-message-meta], [data-message-reactions]) { display: none; }
+[data-mobile-message-edit] {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: end;
+  gap: 8px;
+}
+[data-mobile-message-edit] > button {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+[data-mobile-message-edit] > button:disabled { opacity: .45; }
+[data-mobile-message-edit] > textarea {
+  width: 100%;
+  min-height: 44px;
+  max-height: 112px;
+  padding: 10px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 22px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  field-sizing: content;
+  font-size: 16px;
+  line-height: 22px;
+  resize: none;
+}
+[data-mobile-message-edit] > textarea:focus {
+  border-color: var(--hairline-strong);
+  outline: none !important;
+}
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble] > p { font-size: 16px; line-height: 1.4; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-meta] {
   position: absolute;
@@ -3894,6 +4102,39 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row][data-message-failed] { margin-bottom: 52px; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not(:has(> label))::before { left: 0; }
 
+/* Regular chats keep the editable surface between the separate touch targets. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] form:has(> [data-message-composer]:not([data-invitation-composer])) {
+  padding-inline: max(8px, var(--safe-area-left, 0px)) max(8px, var(--safe-area-right, 0px));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer]) {
+  min-height: var(--mobile-control-target);
+  padding: 0;
+  gap: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer])::before {
+  content: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer]) > label {
+  background: transparent;
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer]) > textarea {
+  --message-line-height: 24px;
+  --message-field-padding: calc((var(--mobile-control-target) - var(--message-line-height)) / 2);
+  max-height: clamp(var(--mobile-control-target), calc(var(--dialog-viewport-height, 100dvh) * .36), calc(5 * var(--message-line-height) + 2 * var(--message-field-padding)));
+  padding: var(--message-field-padding) 12px;
+  line-height: var(--message-line-height);
+  background-color: var(--surface-inset) !important;
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-tertiary) transparent;
+  overscroll-behavior-y: contain;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not([data-invitation-composer]) > textarea:focus {
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  outline: none !important;
+}
+
 /* Focused portfolio sharing uses the visible viewport without the main dock. */
 #root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) .portfolio-share-page) .mobile-navigation-layer { display: none; }
 #root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) .portfolio-share-page) .codex-workspace { padding-bottom: 0; }
@@ -3918,7 +4159,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .share-public-address > p { font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; min-height: 40px; }
 [data-presentation='mobile'] .share-address-skeleton { display: block; height: 40px; background: var(--surface-sunken); border-radius: 6px; }
 [data-presentation='mobile'] .share-main-actions { gap: 10px; }
-[data-presentation='mobile'] .share-main-actions button { display: flex; min-height: 56px; padding: 12px 10px; font-size: 13px; line-height: 1.3; border-radius: 13px; white-space: normal; }
+[data-presentation='mobile'] .share-main-actions button { display: flex; min-height: 48px; padding: 10px 10px; font-size: 13px; line-height: 1.3; border-radius: 13px; white-space: normal; }
 [data-presentation='mobile'] .share-main-actions svg { flex-shrink: 0; }
 [data-presentation='mobile'] .share-explanation { border-top: 1px solid var(--hairline); padding-top: 22px; margin-top: 12px; display: flex; align-items: center; gap: 14px; font-size: 12px; line-height: 1.5; }
 [data-presentation='mobile'] .share-explanation > svg { flex-shrink: 0; }
@@ -4021,7 +4262,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .share-handle-validation span { flex: 1; }
 [data-presentation='mobile'] .share-qr-skeleton { width: 82%; height: 82%; background: #ededed; border-radius: 8px; }
 [data-presentation='mobile'] .share-note-field textarea { resize: none; }
-[data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color 120ms ease, background-color 120ms ease; }
+[data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color var(--m-fast) var(--m-enter), background-color var(--m-fast) var(--m-enter); }
 @media (prefers-reduced-motion: reduce) { [data-presentation='mobile'] .portfolio-share-dialog * { transition: none !important; animation: none !important; } }
 
 /* Compact relationship controls match the mobile profile reference. */
@@ -4297,12 +4538,13 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   margin-inline-start:auto;
   text-align:right;
 }
-/* Conversation groups sit inside the page gutters, rather than edge to edge. */
-#root .codex-shell[data-presentation='mobile'] [data-messages-page] ul.inset-row-group:has(.message-contact-row) {
-  box-sizing:border-box;
-  width:calc(100% - 32px);
-  margin-inline:16px;
-  padding-inline:0;
+/* Search and conversations share one joined-list frame. */
+#root .codex-shell[data-presentation='mobile'] .inset-row-group[data-mobile-contact-group]:not(:empty) {
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  margin-inline: 16px;
+  padding-inline: 0;
+  overflow: hidden;
 }
 
 /* Account search keeps its back control below the system status area. */
@@ -4343,18 +4585,14 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .mobile-project-editor-screen > header { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; padding-bottom: 16px; }
 [data-presentation='mobile'] .mobile-project-editor-screen > header button { width: 44px; height: 44px; display: grid; place-items: center; }
 [data-presentation='mobile'] .mobile-project-editor-screen h1 { text-align: center; font-size: 20px; font-weight: 600; }
-[data-presentation='mobile'] .project-editor-sections { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 4px; }
+[data-presentation='mobile'] .project-editor-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 4px; }
 [data-presentation='mobile'] .project-editor-sections button { min-height: 44px; border-radius: 14px; background: var(--surface-sunken); font-weight: 600; }
 [data-presentation='mobile'] .project-editor-sections button[aria-pressed='true'] { background: var(--control-rest-surface); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
 [data-presentation='mobile'] .mobile-project-editor-screen [hidden] { display: none !important; }
-[data-presentation='mobile'] .mobile-project-editor-screen .project-form-actions { position: sticky; bottom: 0; background: var(--surface-canvas); padding-top: 12px; }
-[data-presentation='mobile'] .mobile-project-editor-screen .project-form-actions > div > button[type='submit'] { width: 100%; }
-[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-cancel { display: none; }
 [data-presentation='mobile'] .mobile-project-editor-screen #project-summary { min-height: 240px; }
 
 [data-presentation='mobile'] .mobile-project-editor-screen { box-sizing: border-box; }
 [data-presentation='mobile'] .mobile-project-editor-screen #project-editor-form { padding-bottom: 100px; }
-[data-presentation='mobile'] .mobile-project-editor-screen .project-form-actions { position: absolute; inset-inline: 20px; bottom: max(12px, env(safe-area-inset-bottom, 0px)); margin: 0; }
 
 /* Leave clear space between account search and the fixed action control. */
 #root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-header > label { margin-top: 12px; }
@@ -4420,8 +4658,13 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] [data-mobile-profile-back] { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--navigation-surface); color: var(--navigation-foreground); box-shadow: var(--navigation-shadow, none); }
 [data-presentation='mobile'] [data-mobile-profile-back]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
-/* Recent accounts use the same inset grouped surface as conversation rows. */
-#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-list { width: calc(100% - 32px); margin-inline: 16px; padding-inline: 0; }
+/* Search keeps header spacing while its shared contact group owns the gutters. */
+#root .codex-shell[data-presentation='mobile'] [data-account-search] { padding-inline: 0; }
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-header { margin-inline: 20px; }
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-results {
+  margin-inline: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-results > :not(.account-search-list) { margin-inline: 20px; }
 /* Arrival clearance belongs to the scrolling content, so work still passes
    beneath the profile's existing 20px fade after the user scrolls. */
 #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(> .profile-header-region) > #profile-content:not(.mobile-profile-workspace-content),
@@ -4435,28 +4678,40 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile'] .studio-section-title > #studio-attention {
   margin: 0;
 }
-/* Reserve the visitor actions' column; added links wrap within the left column. */
+/* Reserve Follow/Save only beside the primary icons; later links use a full row. */
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools > .side-panel-control-row:has(> [data-profile-visitor-actions]) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: start;
-  column-gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  column-gap: 0;
+  row-gap: 0;
 }
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) [data-mobile-profile-links] {
-  width: 100%;
-  min-width: 0;
-  grid-column: 1;
+  display: contents;
 }
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools [data-profile-visitor-actions] {
-  grid-column: 2;
-  grid-row: 1;
-  align-self: start;
+  order: 1;
+  min-height: 44px;
+  align-items: center;
   flex-wrap: nowrap;
   margin: 0;
+  margin-inline-start: auto;
 }
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) .profile-link-icons {
-  width: 100%;
-  max-width: 100%;
+  display: contents;
+}
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) .profile-link-icons > li {
+  flex: 0 0 44px;
+  order: 0;
+}
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) .profile-link-icons::after {
+  content: '';
+  flex: 0 0 100%;
+  height: 0;
+  order: 2;
+}
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) .profile-link-icons > li:nth-child(n + 4) {
+  order: 3;
+  margin-top: 8px;
 }
 /* Resolve the reader's top anchor once, before descendant safe-area overrides. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] {
@@ -4619,7 +4874,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(.profile-return-handle) {
-  transition: transform 180ms ease-out;
+  transition: transform var(--m-base) var(--m-enter);
 }
 #root .codex-shell[data-presentation='mobile'] [data-profile-page][data-profile-pulling] {
   transform: translate3d(0, var(--profile-pull-offset, 0px), 0);
@@ -4632,16 +4887,16 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 /* Mobile portal creation is a screen; only its icon catalog scrolls. */
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) {
   padding: 0; z-index: 100; background: var(--surface-canvas);
 }
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen-form {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) .new-portal-screen-form {
   width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
   border-radius: 0; box-shadow: none; background: var(--surface-canvas);
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen [data-portal-icon-scroll] {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) [data-portal-icon-scroll] {
   overscroll-behavior-y: contain;
 }
 #root .codex-shell[data-presentation='mobile'] .new-portal-pinned-controls {
@@ -4654,13 +4909,14 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   background: var(--surface-canvas); backdrop-filter: none; -webkit-backdrop-filter: none;
 }
 
-/* A mobile document has no full-height scrollbar; internal scrollers retain theirs. */
-html:has(.codex-shell[data-presentation='mobile']),
-html:has(.codex-shell[data-presentation='mobile']) body {
+/* An open modal owns its indicator; the background document must not reserve
+   a second scrollbar gutter beside a full-width screen or sheet. */
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)),
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)) body {
   scrollbar-width: none;
 }
-html:has(.codex-shell[data-presentation='mobile'])::-webkit-scrollbar,
-html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *))::-webkit-scrollbar,
+html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='alertdialog'], dialog[open])[aria-modal='true']:not([hidden], [hidden] *, [inert], [inert] *, [aria-hidden='true'], [aria-hidden='true'] *, .screen-exit *)) body::-webkit-scrollbar {
   display: none;
 }
 
@@ -4704,7 +4960,7 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-home-search-header .mobile-screen-action-row {
-  display: grid; grid-template-columns: repeat(5, minmax(44px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(3, minmax(44px, 1fr)); gap: 8px;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-home-header-button {
   display: flex; align-items: center; justify-content: center;
@@ -4883,8 +5139,42 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   line-height: 1.2;
 }
 
+/* The city joins Home/Profile's document scroll. Its containing block must grow
+   with the artwork so the sticky title stays pinned through the final row. */
+#root .codex-shell[data-presentation='mobile'] :is([data-city-page], [data-city-feed], [data-city-feed] > .feed-starfield) {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  flex-basis: auto;
+}
+/* Keep the city title and results in document flow, without a nested pane
+   pulling the first row back underneath the header as content loads. */
+#root .codex-shell[data-presentation='mobile'] [data-city-page] { display: block; }
+#root .codex-shell[data-presentation='mobile'] [data-city-feed] > .feed-starfield > .feed-edge-fade {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-city-project-density] {
+  position: relative;
+  height: 44px;
+  margin-bottom: 12px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-city-project-density]::before {
+  content: '';
+  position: absolute;
+  inset-inline: 16px;
+  top: 50%;
+  height: 1px;
+  background: var(--slider-edge, var(--hairline));
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-city-project-density] > :is(.density-separator, .density-separator-ticks) { bottom: 0; }
+
 /* Equal side slots center the location in the screen, not the leftover row. */
 #root .codex-shell[data-presentation='mobile'] [data-city-header] {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   gap: 8px;
@@ -4980,6 +5270,19 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
   background: var(--surface-canvas); overflow-x: auto; overflow-y: hidden;
 }
+/* Insights matches Home's lighter navigation glass; controls stay fully opaque. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell:has(> .mobile-insights-page) > .studio-citation-pills {
+  padding-bottom: 14px;
+  --fixed-header-opacity: var(--interface-glass-opacity, 78%);
+}
+/* Other Studio collections retain their clear canvas; Insights uses shared header glass. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'] .studio-citation-shell:not(:has(> .mobile-insights-page)) > .studio-citation-pills[data-mobile-header-underlap]::before {
+    background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
 #root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-workbench > .studio-workbench-header:has(.studio-hub-heading) {
   display: none;
 }
@@ -5027,18 +5330,17 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 [data-presentation='mobile'] [data-link-icon-form] { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; box-shadow: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 [data-presentation='mobile'] [data-link-icon-pinned] { background: var(--surface-raised); padding-bottom: 16px; }
 
-
 /* Studio header reference: circular Back/actions, pill Select/Done on one row. */
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) { justify-content: space-between; gap: 12px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back) { display: grid; place-items: center; flex: 0 0 48px; width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--navigation-shadow); margin: 0 auto 0 0; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back) span { display: none; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back) span:not([data-interface-icon-frame]) { display: none; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back) svg { width: 24px; height: 24px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) { height: 48px; min-width: 100px; padding: 0 20px; margin: 0; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--navigation-shadow); font-size: 16px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] { position: static !important; inset: auto; flex: 0 0 48px; width: 48px; height: 48px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: var(--navigation-shadow); }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header { flex: 0 0 48px; }
 /* Profile editing owns Back/Save; shell actions must not overlap Save. */
-#root .codex-shell[data-presentation='mobile']:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-floating { display: none !important; }
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) .profile-editor-page[data-presentation='mobile']) .mobile-context-floating { display: none !important; }
 [data-presentation='mobile'] .profile-link-details { scroll-margin-top: 100px; }
 
 /* Paint below the visible-viewport sheet too: iOS can leave a bottom inset
@@ -5141,12 +5443,9 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   border: 0 !important; box-shadow: none !important;
   backdrop-filter: none; -webkit-backdrop-filter: none;
 }
-#root .codex-shell[data-presentation='mobile'].high-contrast :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"] {
-  border: 2px solid var(--text-primary) !important;
-}
-@media (prefers-contrast: more), (forced-colors: active) {
+@media (forced-colors: active) {
   #root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"] {
-    border: 2px solid currentColor !important;
+    border: 1px solid currentColor !important;
   }
 }
 
@@ -5177,4 +5476,1118 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .mobile-home-header-button[aria-current='page'] {
   background: var(--navigation-surface, var(--surface-selected));
   color: var(--navigation-foreground, var(--text-primary));
+}
+
+/* Keep Profile's hover surface and ellipsis in the same screen-action frame. */
+#root .codex-shell[data-presentation='mobile'] .profile-header-options {
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  right: var(--mobile-screen-action-right);
+  left: auto;
+  width: var(--explore-action-width);
+  height: 44px;
+  min-height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options .mobile-context-slot {
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+
+/* Home's grey hover/press surface uses the same frame as its ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Studio's grey action surface follows the ellipsis across header states. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] {
+  position: fixed !important;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 48px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Messages paints its grey action surface in the ellipsis button's own frame. */
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Insights keeps its grey action surface centered on the ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Account Explore/Search keeps the floating ellipsis and grey surface together. */
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Settings keeps the grey action surface and floating ellipsis in one frame. */
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Saved/Activity library screens keep their grey floating surface on the ellipsis. */
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Project reader screen actions keep the grey surface on the floating ellipsis. */
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Conversation options paints its grey surface inside the centered touch frame. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options'] {
+  position: static;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options']:is(:hover, :active) {
+  background: var(--surface-hover) !important;
+}
+
+/* Home conformance: measured, inset artwork; other feed/profile surfaces retain their spacing. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] > .feed-edge-fade {
+  min-width: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content] {
+  padding-top: var(--mobile-content-safe-top);
+  min-width: 0;
+}
+
+/* Cancel only the artwork's inherited half-rem inset, then use fixed pixel gutters.
+   This week's existing scroller spacing remains unchanged, including larger text. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-home-grid] {
+  margin-inline: -0.5rem;
+  width: calc(100% + 1rem);
+  padding-inline: 16px;
+}
+
+/* Content navigation stays in its established bottom pill, including owner readers. */
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating { display: none; }
+/* Explore/Home has restored its own safe-area header. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content]:has(> .mobile-home-search-header) {
+  padding-top: 0;
+}
+
+/* Private analytics owns one viewport: safe header, then scrolling results. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page {
+  width:100%;min-width:0;
+  height:var(--mobile-viewport-height,100dvh);
+  max-height:var(--mobile-viewport-height,100dvh);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header {
+  box-sizing:border-box;
+  height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  min-height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  max-height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  padding-top:var(--mobile-screen-action-top);
+  padding-bottom:12px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-scroll {
+  min-width:0;
+  padding-bottom:calc(var(--mobile-dock-clearance,88px) + var(--safe-area-bottom,env(safe-area-inset-bottom,0px)));
+}
+
+/* Only loading surfaces: finished layouts and desktop geometry stay unchanged. */
+#root [data-presentation='mobile'] [data-loading-layout] {min-width:0;overflow:hidden;}
+#root [data-presentation='mobile'] [data-loading-layout] .legacy-loading-shapes {display:none;}
+#root [data-presentation='mobile'] [data-loading-layout] .screen-loading-shapes {display:block;padding:12px 16px calc(var(--mobile-content-safe-bottom,104px) + 16px);}
+#root [data-presentation='mobile'] [data-loading-layout='profile'] {padding-top:var(--safe-area-top,0px);}
+#root [data-presentation='mobile'] [data-loading-layout] .motion-skeleton {display:block;border-radius:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-title {width:64%;height:18px;margin-bottom:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-subtitle {width:80%;height:12px;margin-bottom:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-metadata {width:40%;height:10px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-identity {display:flex;align-items:center;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-identity>div {flex:1;min-width:0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-avatar {width:76px;height:76px;flex-shrink:0;border-radius:18px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-inline-tabs {display:flex;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-tab {width:60px;height:14px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-counts {display:flex;gap:12px;margin:16px 0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-counts>span {flex:1;height:14px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-links {display:flex;gap:10px;margin-bottom:20px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-links>span {width:40px;height:40px;border-radius:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-project-grid {display:grid;grid-template-columns:repeat(var(--loading-columns,2),minmax(0,1fr));gap:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-cover {width:100%;aspect-ratio:1;border-radius:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-caption {width:70%;height:10px;margin:8px 0 12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-item-list {display:grid;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-item-row {display:flex;gap:12px;align-items:center;min-height:76px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-item-row>div {flex:1;min-width:0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-thumbnail {width:56px;height:68px;flex-shrink:0;border-radius:12px;}
+#root [data-presentation='mobile'] [data-loading-layout='messages'] .loading-avatar {width:48px;height:48px;border-radius:50%;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-overview {display:grid;gap:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-overview>div {padding:18px;border-radius:18px;border:1px solid var(--hairline);}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-action {width:112px;height:38px;border-radius:999px;margin-top:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-metric-pills {display:flex;gap:8px;margin:20px 0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-metric-pills>span {flex:1;height:44px;border-radius:999px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-chart {display:flex;gap:10px;height:210px;margin-bottom:24px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-audience {display:grid;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-audience>div {display:flex;align-items:center;justify-content:space-between;height:50px;gap:24px;border-bottom:1px solid var(--hairline);}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey {display:grid;gap:24px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey>div {display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-date {height:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-title {grid-column:2;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-conversation {display:grid;gap:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-conversation>span {width:68%;height:56px;border-radius:18px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-conversation>span:nth-child(even) {justify-self:end;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-headline {width:90%;height:68px;margin:24px 0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-chart>span {flex:1;border-radius:4px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-audience .loading-subtitle {width:45%;margin:0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-count {width:32px;height:22px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-cover {width:92px;height:92px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-date {width:76px;margin-bottom:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-year {width:70px;height:24px;}
+
+#root [data-presentation='mobile'] [data-loading-layout='journey'] {padding-top:0;}
+
+/* Compact Timeline: one left edge and a shared first-line center for dates/actions. */
+#root .codex-shell[data-presentation='mobile'] .journey-view[data-timeline-order] { padding: 12px 22px 36px; }
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar { margin-bottom: 20px; }
+#root .codex-shell[data-presentation='mobile'] .journey-order { gap: 8px; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button { min-height: 44px; padding: 0 10px; background: transparent !important; color: var(--text-secondary) !important; font-size: 14px; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button::before { content: ''; position: absolute; inset: 10px 0; border-radius: 7px; background: var(--surface-sunken); z-index: -1; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button { isolation: isolate; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button[aria-pressed='true'] { color: var(--surface-canvas) !important; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button[aria-pressed='true']::before { background: var(--text-primary); }
+#root .codex-shell[data-presentation='mobile'] .journey-year h2 { align-items: center; gap: 18px; margin-bottom: 12px; font-size: 28px; }
+#root .codex-shell[data-presentation='mobile'] .journey-year-count { font-size: 12px; line-height: 1.4; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 12px 0; }
+#root .codex-shell[data-presentation='mobile'] .journey-title { font-size: 18px; line-height: 1.35; }
+#root .codex-shell[data-presentation='mobile'] .journey-date { padding-top: 0; font-size: 13px; line-height: 24.3px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry[data-has-options] .journey-entry-copy { padding-right: 30px; }
+#root .codex-shell[data-presentation='mobile'] .journey-project-options { top: 2.15px; right: -10px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry .journey-portal { position: relative; isolation: isolate; min-height: 24px; margin-top: 2px; padding: 2px 0; font-size: 13px; line-height: 20px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry .journey-portal::before { content: ''; position: absolute; inset: 0 0 -20px; z-index: -1; }
+
+/* Timeline owner actions sit beside ordering controls and scroll on narrow phones. */
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar { gap: 4px 8px; flex-wrap: wrap; overflow: visible; }
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar > * { flex-shrink: 0; }
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar-action { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: var(--shape-compact); background: var(--surface-sunken); color: var(--text-primary); }
+/* Studio Overview embeds the existing Insights page without collection padding. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page { flex: 1; padding: 0; overflow: hidden; }
+
+/* Overview must follow browser-chrome changes rather than a cached app height.
+   Its nested Insights panel shares this viewport instead of allocating another. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell:has(> .mobile-insights-page) {
+  height: 100dvh;
+  min-height: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  flex: 1 1 0px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page > .mobile-insights-scroll {
+  flex: 1 1 0px;
+}
+
+/* Profile portal chooser: taller, raised glass frame; the library scrolls inside. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page {
+  top: max(24px, env(safe-area-inset-top, 0px)) !important;
+  transform: translateX(-50%) !important;
+  height: min(82dvh, 780px) !important;
+  max-height: calc(100% - max(24px, env(safe-area-inset-top, 0px)) - 24px) !important;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portals-list {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  padding: 12px; border-radius: 0; background: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item {
+  display: flex; align-items: flex-start; min-width: 0; border: 1px solid var(--hairline);
+  border-radius: 16px; background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item::before { content: none; }
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row {
+  flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px;
+  min-height: 150px; width: 100%; padding: 20px 10px 16px 16px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-label { flex: none; font-size: 14px; line-height: 1.4; }
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > :last-child { display: none; }
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-rename { flex-wrap: wrap; padding: 12px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-rename input { flex: 1 1 100%; }
+
+/* Search occupies the top header; the globe centers in the remaining canvas. */
+#root .codex-shell[data-presentation='mobile'] .portalink-world { display:flex; height:100dvh; min-height:0; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header { padding-top:max(12px,env(safe-area-inset-top,0px)); }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .portalink-world-search { align-self:auto; margin:0 auto; pointer-events:auto; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-stage { flex:1; min-height:0; padding-bottom:var(--mobile-dock-clearance,88px); container-type:size; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-stage > [role='group'] {
+  transform: none;
+  /* The keyboard changes the visible viewport, not the planet's scale. Keep
+     the height limit tied to the stable screen while retaining width fitting. */
+  width: min(100cqw, calc(100svh - max(12px, env(safe-area-inset-top, 0px)) - 56px - var(--mobile-dock-clearance, 88px)), 720px);
+  max-width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within { justify-content:flex-start; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within .location-search-results { position:relative; top:auto; min-height:0; flex:1; display:flex; flex-direction:column; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within .location-search-results ul { max-height:none; min-height:0; overflow-y:auto; flex:1; }
+
+/* Card artwork owns the space; labels wrap only between complete words. */
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item {position:relative;padding-inline-end:0;}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-options {position:absolute;top:4px;inset-inline-end:4px;z-index:2;}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row {display:grid;grid-template-rows:minmax(96px,1fr) auto;justify-items:center;align-items:center;gap:12px;width:100%;min-height:212px;padding:36px 10px 16px;text-align:center;}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child {width:clamp(72px,20vw,104px);height:clamp(72px,20vw,104px);min-width:0;min-height:0;}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child > svg {width:100%;height:100%;}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-label {width:100%;min-width:0;text-align:center;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;line-height:1.4;}
+
+/* The Portals popup owns the foreground actions while it is open. */
+#root .codex-shell[data-presentation='mobile']:has(.mobile-profile-portal-overlay > .mobile-portals-page) .mobile-context-floating {display:none;}
+
+/* Studio collection pills stay above every collection's independently scrolling content. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills {
+  flex: 0 0 auto;
+  padding-top: var(--mobile-screen-action-top);
+  padding-bottom: 30px;
+  border-bottom: 1px solid var(--hairline);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills button[aria-pressed='true'] {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--accent-foreground);
+}
+/* Studio collections keep their icon; the current collection reveals its label. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills > button[data-studio-pill] {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0;
+  min-width: 44px; height: 44px; white-space: nowrap;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-pills > button[data-studio-pill] > [data-interface-icon-frame] { --interface-icon-size: 20px; }
+#root .codex-shell[data-presentation='mobile'] .studio-citation-pills .studio-pill-label {
+  display: grid; grid-template-columns: 0fr; opacity: 0;
+  transition: grid-template-columns var(--m-base) var(--m-enter), opacity var(--m-base) var(--m-enter);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-pills .studio-pill-label > span {
+  min-width: 0; overflow: hidden; white-space: nowrap; text-indent: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-pills button[aria-pressed='true'] .studio-pill-label {
+  grid-template-columns: 1fr; opacity: 1;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-pills .studio-pill-label:where(.reduce-motion *, .app-viewport--reduce-motion *) { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell[data-presentation='mobile'] .studio-citation-pills .studio-pill-label { transition: none; }
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-mobile-shell-header {
+  padding-top: 8px;
+  min-height: 68px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell:has(> .mobile-insights-page) > .studio-mobile-shell-header {
+  display: none;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page > header {
+  flex: none;
+  padding-top: 8px;
+}
+
+/* Profile's adjustable hairline retains the existing 1px neutral divider. */
+#root .codex-shell[data-presentation='mobile'] .profile-header-region:has(> .density-separator)::after {
+  content:''; position:absolute; inset-inline:16px; bottom:0; height:1px; background:var(--slider-edge, var(--hairline)); pointer-events:none;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-region:has(> .density-separator) .profile-navigation-header::after { content:none; }
+
+/* Keep the glyph in its thumbnail corner even when a dense row is below 44px. */
+#root .codex-shell[data-presentation='mobile'] .mobile-preview-details > [data-interface-icon-frame] {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+#root .codex-shell[data-presentation='mobile'] .journey-popular-heading {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;}
+#root .codex-shell[data-presentation='mobile'] .journey-popular-heading .journey-title {flex:1 1 150px;min-width:0;}
+#root .codex-shell[data-presentation='mobile'] .journey-popularity {display:inline-flex;align-items:center;gap:6px;flex:none;font-size:13px;line-height:1.5;color:var(--text-secondary);font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+/* Measure the refresh band from the resting Home controls. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] > .home-pull-indicator {position:absolute;z-index:11;inset-inline:0;top:var(--mobile-screen-action-top);height:24px;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;}
+#root .codex-shell[data-presentation='mobile'] .home-pull-indicator > .premium-media-loading-mark {width:22px;height:22px;}
+/* A legacy PDF cover's crop transforms its artwork, not its loading mark. */
+#root .codex-shell[data-presentation='mobile'] [data-home-grid] [data-project-cover-loading] {
+  transform: var(--cover-loading-counter-transform, none);
+  transform-origin: var(--cover-loading-transform-origin, center);
+}
+#root .codex-shell[data-presentation='mobile'] .home-pull-indicator:not([data-active='true']) .premium-media-loading-mark {animation-play-state:paused;}
+#root .codex-shell[data-presentation='mobile'] .home-pull-indicator:where(.reduce-motion *, .app-viewport--reduce-motion *) .premium-media-loading-mark {animation:none;}
+#root .codex-shell[data-presentation='mobile'] .home-pull-indicator[data-refresh-reduced='true'] .premium-media-loading-mark {animation:none;}
+
+/* Studio owns one viewport; only its result regions may scroll, not the document. */
+html:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .studio-citation-shell),
+body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .studio-citation-shell) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: none;
+}
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active:has(.studio-citation-shell) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer > main:has(> [data-screen-scroll] > .studio-citation-shell) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding-block: 0;
+}
+
+/* Profile return shares the identity band without reserving a separate row. */
+#root .codex-shell[data-presentation='mobile'] .profile-return-navigation {
+  flex: none;
+  height: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-return-back {
+  position: fixed;
+  top: var(--safe-area-top, env(safe-area-inset-top, 0px));
+  inset-inline-start: auto;
+  inset-inline-end: var(--mobile-navigation-inset-end);
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  touch-action: manipulation;
+}
+
+/* Studio collection pills replace the obscured screen-level options trigger. */
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer.screen-active .studio-citation-shell) .mobile-context-floating,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-mobile-shell-header, .studio-workbench-header, .mobile-insights-page > header) :is(.mobile-context-button, [data-inline-screen-actions]) {
+  display: none !important;
+}
+
+/* World search is one stationary canvas; only its city list scrolls. */
+html:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world),
+body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: none;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--dialog-viewport-top, 0px);
+  height: var(--dialog-viewport-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header {
+  flex: none;
+  padding-bottom: 12px;
+  background: #000 !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  inset-inline: var(--mobile-navigation-inset-start, 16px);
+  height: 1px;
+  background: #d1d1d6;
+  pointer-events: none;
+}
+/* World search uses the same rounded Back surface as other mobile destinations. */
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .global-control-header::after {
+  display: none;
+}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .world-view-back {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: var(--navigation-surface, var(--nav-button-background));
+  color: var(--navigation-foreground, var(--nav-button-text));
+  box-shadow: var(--navigation-shadow, none);
+  text-decoration: none;
+}
+@layer portalink-interface-shapes {
+  #root .codex-shell[data-presentation='mobile'] .portalink-world-header .world-view-back {
+    border-radius: 14px !important;
+  }
+}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .world-view-back:focus-visible {
+  outline: 2px solid var(--navigation-focus-ring, var(--focus-ring));
+  outline-offset: 2px;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header .portalink-world-search,
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header .portalink-world-search:focus-within {
+  position: relative;
+  inset: auto;
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 520px;
+  height: 44px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: block;
+  background: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header:has(.portalink-world-search:focus-within) .global-control-header {
+  display: none;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search .location-search {
+  display: block;
+  height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search input {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  font-size: 16px;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search .location-search-results {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 8px);
+  bottom: auto;
+  order: initial;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: max(100px, calc(var(--dialog-viewport-height, 100dvh) - 110px));
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--hairline);
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search .location-search-results ul {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* The result group owns its one surface; generic menu material must not
+     repaint the inner list with the surrounding appearance's other palette. */
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search .location-search-results li {
+  color: var(--text-primary) !important;
+  -webkit-text-fill-color: currentColor;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search .location-search-results li small {
+  color: var(--text-secondary);
+  -webkit-text-fill-color: currentColor;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .scroll-edge-fade:has(.portalink-world) {
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+
+/* Holding a message opens actions rather than Safari text selection/callouts. */
+[data-presentation='mobile'] [data-message-hold] :is(p, time),
+[data-presentation='mobile'] [data-message-hold] [data-shared-content-preview] [data-preview-open],
+[data-presentation='mobile'] [data-message-date],
+[data-presentation='mobile'] [data-message-options-preview],
+[data-presentation='mobile'] [data-message-options-preview] :is(p, time) {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Reorder mode replaces profile chrome with two clear, stationary actions. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .profile-compact-header > :not(.mobile-profile-reorder-actions),
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .profile-header-region > :not(.profile-compact-header):not([data-profile-reorder-controls]) {
+  display: none !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .profile-compact-header {
+  display: block;
+  min-height: 0;
+  height: 56px;
+  padding: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions {
+  position: relative;
+  top: auto;
+  inset-inline: auto;
+  margin-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
+  z-index: 60;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: center;
+  height: 56px;
+  background: var(--surface-canvas);
+  font-size: 16px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions > button {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions > button:first-child {
+  background: var(--accent-primary);
+  color: var(--accent-foreground);
+}
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer.screen-active [data-profile-reordering]) .mobile-context-floating {
+  display: none;
+}
+/* The artwork already owns the high-contrast edge. A second ring beneath it
+   would show through transparent covers while opaque covers hide it. */
+#root .codex-shell[data-presentation='mobile'].high-contrast .profile-project-reorder-card {
+  --tw-ring-color: transparent;
+}
+@media (prefers-contrast: more) {
+  #root .codex-shell[data-presentation='mobile'] .profile-project-reorder-card {
+    --tw-ring-color: transparent;
+  }
+}
+
+/* Studio dividers share the content inset instead of spanning the viewport. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-page > header {
+  position: relative;
+  border-bottom: 0 !important;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills::after,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-page > header::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--mobile-navigation-inset-start, 16px) var(--mobile-screen-action-right, 16px);
+  bottom: 0;
+  height: 1px;
+  background: var(--hairline);
+  border: 0;
+  pointer-events: none;
+}
+
+/* A single page owns its viewport controls, independent of nested body insets. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
+  --focused-control-top: calc(max(var(--safe-area-top, 0px), env(safe-area-inset-top, 0px)) + 8px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > :is(.premium-viewer-exit-control, [data-focused-page-count]) {
+  position: fixed;
+  top: var(--focused-control-top);
+  z-index: 65;
+  min-height: 44px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none;
+}
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer.screen-active [data-mobile-focused-view]) .mobile-context-floating button.mobile-context-button {
+  top: calc(max(var(--safe-area-top, 0px), env(safe-area-inset-top, 0px)) + 8px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: var(--surface-canvas) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Studio tabs identify the collection; its controls stay beside the content. */
+/* Keep the divider stationary during horizontal scrolling. The opaque header
+   material resets all background properties, so retain this decorative layer. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills {
+  background-image: linear-gradient(var(--hairline), var(--hairline)) !important;
+  background-size: calc(100% - var(--mobile-navigation-inset-start, 16px) - var(--mobile-screen-action-right, 16px)) 1px !important;
+  background-position: var(--mobile-navigation-inset-start, 16px) bottom !important;
+  background-repeat: no-repeat !important;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills::after { content: none; }
+/* These collection controls already have an 8px inset of their own. Keep one
+   16px gap below the tabs instead of stacking the page divider clearances. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills:has(> :is([data-studio-pill='activity'], [data-studio-pill='bookmarks'], [data-studio-pill='references'])[aria-pressed='true']) {
+  padding-bottom: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills:has(> :is([data-studio-pill='activity'], [data-studio-pill='bookmarks'], [data-studio-pill='references'])[aria-pressed='true']) + * {
+  padding-top: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-inline-toolbar, .studio-drafts-inline-controls) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-inline-toolbar .studio-search {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .references-tab > .studio-content {
+  padding-top: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-drafts-instruction {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-secondary);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-inline-toolbar, .studio-drafts-inline-controls) :is(.studio-text-control, .studio-drafts-control) {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 64px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-selection-back, .studio-drafts-inline-controls .studio-drafts-back) {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+  box-shadow: none;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-selection-back, .studio-drafts-inline-controls .studio-drafts-back) svg {
+  width: 24px;
+  height: 24px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citations-list > h2 {
+  display: none;
+}
+
+/* Collection forms and empty states share Studio's quiet control treatment. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-content, .studio-workbench-scroll) {
+  padding-inline: var(--mobile-navigation-inset-start, 16px) var(--mobile-screen-action-right, 16px);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-search {
+  min-height: 44px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-search input {
+  min-width: 0;
+  min-height: 42px;
+  font-size: 16px;
+  outline: none !important;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .references-tab-heading {
+  margin-block: 12px 16px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .references-tab-heading button,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-period :is(button, select) {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 200px;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--type-body-size, 16px);
+  line-height: var(--type-body-leading, 24px);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-empty-state p { margin: 0; max-width: 46ch; }
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-empty-title {
+  color: var(--text-primary);
+  font-size: var(--type-title-2-size, 17px);
+  font-weight: 500;
+  line-height: var(--type-title-2-leading, 22px);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-drafts-list:empty { display: none; }
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citations-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px var(--mobile-screen-action-right, 16px) var(--mobile-dock-clearance, 104px) var(--mobile-navigation-inset-start, 16px);
+}
+
+/* Draw inbox search focus inside its rounded shell so header clipping cannot cut it off. */
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] .text-control-shell:focus-within {
+  border: 1px solid var(--focus-ring) !important;
+  box-shadow: inset 0 0 0 1px var(--focus-ring) !important;
+  outline: none !important;
+}
+
+/* Contrast strengthens ink without changing the mobile system border weight. */
+#root .codex-shell[data-presentation='mobile'].high-contrast {
+  --content-preview-edge-width: 1px;
+}
+@media (prefers-contrast: more) {
+  #root .codex-shell[data-presentation='mobile'] { --content-preview-edge-width: 1px; }
+}
+
+/* Single-column Explore content labels remain specific to the feed. */
+#root .codex-shell[data-presentation='mobile'] .mobile-feed-content-type { display: none; }
+#root .codex-shell[data-presentation='mobile'] [data-project-grid-columns='1'] .explore-feed-card .mobile-feed-content-type {
+  display: block; position: absolute; top: 8px; right: 8px; z-index: 4;
+  max-width: calc(100% - 16px); padding: 6px 10px;
+  border-radius: 999px; background: var(--surface-sunken); color: var(--text-primary);
+  font-size: 12px; line-height: 16px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Mobile authoring: opaque task surfaces, one body scroller, reachable controls. */
+#root .codex-shell[data-presentation='mobile'] .mobile-upload-surface-backdrop {
+  position: fixed; inset: 0; height: max(100%, 100lvh); z-index: 80;
+  pointer-events: none; background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface]:is(.project-form-screen, .mobile-project-editor-screen) {
+  z-index: 80; top: var(--dialog-viewport-top, 0px); bottom: auto;
+  height: var(--dialog-viewport-height, 100dvh); max-height: none; min-height: 0;
+  padding: calc(max(0px, var(--safe-area-top, env(safe-area-inset-top, 0px)) - var(--dialog-viewport-top, 0px)) + 12px) var(--ui-surface-inset, 20px) max(12px, env(safe-area-inset-bottom, 0px));
+  background: var(--surface-canvas) !important; color: var(--text-primary); overflow: hidden;
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important; outline: none;
+}
+#root .codex-shell[data-presentation='mobile'] .project-form-screen > header h1:focus { outline: none !important; }
+/* The scrollport reaches the screen edge; its content keeps the existing inset. */
+#root .codex-shell[data-presentation='mobile'] .project-form-screen > [data-mobile-publish] {
+  margin-inline: calc(-1 * var(--ui-surface-inset, 20px));
+  padding-top: var(--ui-surface-gap, 16px);
+}
+#root .codex-shell[data-presentation='mobile'] .project-form-screen > [data-mobile-publish] > .mobile-publish-body {
+  padding-inline: var(--ui-surface-inset, 20px);
+}
+#root .codex-shell[data-presentation='mobile'] .project-form-screen > [data-mobile-publish] > .mobile-publish-actions {
+  margin-inline: var(--ui-surface-inset, 20px);
+}
+#root .codex-shell[data-presentation='mobile'] :is(.project-form-screen, .mobile-project-editor-screen) > .project-form-content:not([data-mobile-publish]) {
+  margin-inline: calc(-1 * var(--ui-surface-inset, 20px));
+  padding-inline: var(--ui-surface-inset, 20px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header {
+  flex: none; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 12px;
+  padding-bottom: 12px; margin-bottom: 0; border-bottom: 1px solid var(--hairline);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen > header {
+  grid-template-columns: 52px minmax(0, 1fr) 52px;
+  border-bottom: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header > button {
+  flex: 0 0 44px; display: grid; place-items: center; width: 44px; height: 44px;
+  border-radius: 50%; border: 1px solid var(--hairline); background: var(--surface-sunken); color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen > header > button.project-editor-header-save {
+  width: 52px;
+  padding-inline: 6px;
+}
+[data-presentation='mobile'] .project-editor-save-feedback {
+  flex: none;
+  display: grid;
+  gap: 4px;
+  padding-bottom: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] h1 { margin: 0; min-width: 0; text-align: center; font-size: var(--ui-surface-title-size, 20px); line-height: 1.35; font-weight: 600; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header p { font-size: 13px; margin-top: 4px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen #project-editor-form {
+  padding-bottom: 0; scroll-padding-block: 16px; overflow-x: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-form-details { flex: none; gap: 20px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-access { display: flex; align-items: center; gap: 12px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-access select { min-height: 44px; padding-inline: 12px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen #project-summary { min-height: 200px; font-size: 16px; line-height: 1.5; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-form-media--edit > .project-media-list { max-height: none; overflow: visible; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-file-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: max-content;
+  gap: 12px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: visible;
+}
+[data-presentation='mobile'] .project-editor-file-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+[data-presentation='mobile'] .project-editor-file-preview {
+  position: relative;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--ui-row-radius);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+[data-presentation='mobile'] .project-editor-file-preview > :is(img, video, .pdf-page-viewport) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+[data-presentation='mobile'] .project-editor-file-preview[aria-pressed='true'] { border-color: var(--accent-primary); }
+[data-presentation='mobile'] .project-editor-file-preview:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; }
+[data-presentation='mobile'] .project-editor-cover-mark {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-end: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--ui-icon-radius);
+  background: var(--accent-primary);
+  color: var(--accent-foreground);
+  pointer-events: none;
+}
+[data-presentation='mobile'] .project-editor-file-position {
+  margin: 0;
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+[data-presentation='mobile'] .project-editor-file-actions {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 2px;
+}
+[data-presentation='mobile'] .project-editor-file-actions > button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  width: min(100%, 44px);
+  min-height: 44px;
+  padding: 0;
+}
+[data-presentation='mobile'] .project-editor-file-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+[data-presentation='mobile'] .project-editor-file-tools > button { min-width: 0; min-height: 44px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen :is(input, textarea, select) { font-size: 16px; }
+
+/* File management keeps the shared sheet material and its full-height list. */
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-sheet-layout='files'] > .mobile-context-body {
+  flex: 1 1 0; min-height: 0; display: flex; overflow: hidden; padding-inline: 0;
+}
+#root .codex-shell [data-presentation='mobile'] [data-sheet-layout='files'] .mobile-context-heading > button {
+  width: auto; min-width: 64px; min-height: 44px; padding-inline: 12px;
+  border-radius: var(--ui-control-radius, 12px); font-size: 14px; font-weight: 600;
+}
+#root .codex-shell [data-presentation='mobile'] .mobile-reorder-files {
+  flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px;
+}
+#root .codex-shell [data-presentation='mobile'] .mobile-reorder-summary { flex: none; margin: 0; color: var(--text-secondary); font-size: 13px; }
+#root .codex-shell [data-presentation='mobile'] :is(.mobile-reorder-summary, [data-mobile-file-manager] [data-file-manager-header]) {
+  padding-inline: 16px;
+}
+#root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+#root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] > .project-media-selection {
+  flex: 1 1 0; min-height: 0; overflow: hidden;
+}
+#root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] .project-media-list {
+  flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior-y: contain; padding: 0 16px 8px;
+}
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] {
+  display: grid; grid-template-columns: 20px 44px minmax(0, 1fr) 44px; gap: 4px 8px;
+  padding: 8px 12px; border: 1px solid var(--hairline); border-radius: var(--ui-menu-radius, 16px);
+}
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > [data-file-order] { grid-column: 1; grid-row: 1; text-align: center; font-size: 13px; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > :is(img, span:not([data-file-order])) { grid-column: 2; grid-row: 1; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > div.min-w-0 { grid-column: 3; grid-row: 1; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > div.shrink-0 { grid-column: 4; grid-row: 1; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] > .mobile-file-row-actions { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] .mobile-file-reorder-controls { display: flex; flex: none; gap: 4px; margin-left: auto; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] .mobile-file-quality { flex: 1; min-width: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] .mobile-file-quality summary { display: list-item; list-style-position: inside; min-height: 44px; padding-block: 12px; cursor: pointer; color: var(--text-secondary); }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] .mobile-file-quality summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--ui-control-radius, 12px); }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] .mobile-file-quality p { margin: 0; padding-bottom: 8px; }
+#root .codex-shell [data-presentation='mobile'] [data-media-file-row] :is(.mobile-file-reorder-controls button, button[aria-haspopup='menu']) {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+  border: 1px solid var(--hairline); background: var(--surface-sunken);
+}
+#root .codex-shell [data-presentation='mobile'] [data-mobile-file-manager] [data-file-manager-header] button { min-height: 44px; min-width: 44px; }
+
+/* Cover adjustments use the same full-screen workspace and active appearance. */
+#root .codex-shell[data-presentation='mobile'] .image-reposition-overlay[data-mobile-upload-surface='cover'] {
+  padding: 0; background: var(--surface-canvas); z-index: 90;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog {
+  width: 100%; max-width: none; height: 100%; max-height: 100%; border: 0;
+  border-radius: 0 !important; box-shadow: none !important; border: 0 !important; background: var(--surface-canvas) !important;
+  padding-top: calc(max(0px, var(--safe-area-top, env(safe-area-inset-top, 0px)) - var(--dialog-viewport-top, 0px)) + 12px);
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog > header { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; padding: 0 var(--ui-surface-inset, 20px) 12px; border-bottom: 1px solid var(--hairline); min-height: 44px; gap: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog > header h2 { grid-column: 2; grid-row: 1; text-align: center; font-size: var(--ui-surface-title-size, 20px); line-height: 1.35; font-weight: 600; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog > header button { grid-column: 1; grid-row: 1; width: 44px; height: 44px; min-height: 44px; border-radius: 50% !important; border: 1px solid var(--hairline) !important; background: var(--surface-sunken) !important; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-body { padding: var(--ui-surface-gap, 16px) var(--ui-surface-inset, 20px) 0; gap: var(--ui-surface-gap, 16px); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-body select { min-height: 44px; max-width: 65%; font-size: 14px; border-radius: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner { flex: 1 0 auto; min-height: 420px; gap: 16px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-stage { flex: 1 0 240px; min-height: 220px; padding: 12px; border: 1px solid var(--hairline); border-radius: var(--ui-popup-radius, 24px); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner input[type='range'] { min-height: 44px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner button { min-height: 44px; min-width: 44px; border-radius: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child { padding-top: 12px; border-top: 1px solid var(--hairline); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child { flex-wrap: nowrap; gap: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child > button { min-height: 48px; font-size: 16px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child > button:first-child { min-width: 88px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child > button:last-child { flex: 1; }
+@media (max-height: 600px) {
+  #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface] > header { padding-bottom: 8px; }
 }

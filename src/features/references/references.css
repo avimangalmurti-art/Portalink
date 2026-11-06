@@ -1,0 +1,23 @@
+.reference-backdrop{z-index:170}.reference-sheet{display:grid;gap:16px;overflow-wrap:anywhere}.reference-sheet label{display:grid;gap:8px}.reference-sheet textarea,.reference-sheet select{font:inherit;font-size:16px;min-height:44px;width:100%;min-width:0;background:var(--surface-control,#282828);color:inherit;border:1px solid #7776;border-radius:12px;padding:12px}.reference-sheet textarea{resize:vertical}.reference-preview{padding:16px;border-radius:16px;background:var(--surface-sunken,#111);display:grid;gap:8px}.reference-preview p{margin:0}.reference-preview small{opacity:.7}.reference-export-actions{display:grid;gap:10px}.references-tab-heading{display:flex;align-items:center;gap:12px}.references-tab-heading h2{flex:1}.references-tab-heading button,.studio-overview button{min-height:44px;border-radius:14px;padding:8px 14px;border:1px solid var(--hairline);background:var(--surface-control);color:var(--text-primary)}.reference-source{font-size:12px;opacity:.65}.external-reference-copy{flex:1;min-width:0;overflow-wrap:anywhere}.external-reference-copy p{margin:4px 0}.studio-overview{display:grid;align-content:start;gap:16px}.studio-overview>section{padding:20px;border:1px solid var(--hairline);border-radius:20px;background:var(--surface-sunken)}.studio-overview h2{margin:0 0 12px;font-size:18px}.studio-overview p{margin:0 0 12px}.studio-overview-export{display:grid;gap:10px}.reference-project-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Reserve a quiet feedback track; failures keep their exact export action. */
+.export-feedback { min-height:28px; margin-top:16px; }
+.export-recovery { display:grid; gap:12px; padding:16px; border:1px solid var(--hairline-strong); border-radius:16px; background:var(--surface-sunken); }
+.export-recovery p { margin:0; overflow-wrap:anywhere; }
+.export-recovery button { justify-self:start; min-height:44px; }
+
+#root .codex-shell .reference-sheet[aria-labelledby='export-heading'] { background:var(--surface-raised); color:var(--text-primary); padding:var(--ui-surface-inset,24px); padding-bottom:max(var(--ui-surface-inset,24px),env(safe-area-inset-bottom)); }
+
+/* Keep the phone reference controls readable on the themed sheet. */
+#root .codex-shell[data-presentation='mobile'] .reference-sheet[aria-labelledby='reference-heading'] > header > button,
+#root .codex-shell[data-presentation='mobile'] .reference-sheet[aria-labelledby='reference-heading'] > button {
+  background: var(--control-rest-surface, var(--surface-sunken));
+  color: var(--control-text, var(--text-primary));
+  border-color: var(--control-border, var(--hairline));
+}
+#root .codex-shell[data-presentation='mobile'] .reference-sheet[aria-labelledby='reference-heading'] > header > button:disabled,
+#root .codex-shell[data-presentation='mobile'] .reference-sheet[aria-labelledby='reference-heading'] > button:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  opacity: 1;
+}

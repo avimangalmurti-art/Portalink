@@ -163,9 +163,6 @@ export const reachMetrics: ReachMetric[] = [{
     label: 'Top track — Night Shift',
     value: '6,204 plays'
   }, {
-    label: 'Reposts',
-    value: '318'
-  }, {
     label: 'Avg. completion',
     value: '68%'
   }, {

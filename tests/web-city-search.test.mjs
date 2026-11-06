@@ -179,10 +179,11 @@ test('WEB and MOBILE expose the same directory search while retaining their glob
     });
     const render = () => { cursor = 0; return PortalinkPage({ onBack() {}, onSelectCity: item => visits.push(item), live: {} }); };
     const search = () => nodes(render()).find(node => node.type === 'LocationSearch');
-    assert.equal(search().props.label, 'Find a place'); assert.equal(search().props.above, true);
+    assert.equal(search().props.label, 'Search cities'); assert.equal(search().props.hideLabel,true); assert.equal(search().props.resultLimit,5); assert.equal(search().props.citiesOnly,true); assert.equal(search().props.above, undefined);
+    assert.ok(nodes(nodes(render()).find(n=>n.type==='header')).some(n=>n.type==='LocationSearch'));
     search().props.onChange('Oak'); assert.equal(search().props.value, 'Oak');
-    search().props.onSelect(sample[0]); assert.deepEqual(visits, presentation === 'web' ? [sample[0]] : []);
-    if(presentation === 'mobile') { search().props.onConfirm(sample[0]); assert.deepEqual(visits,[sample[0]]); }
+    search().props.onSelect(sample[0]); assert.deepEqual(visits, [sample[0]], 'Choosing a city goes straight to its content in both presentations');
+    assert.equal(search().props.onConfirm, undefined, 'The mobile world must not pause at an intermediate globe confirmation');
     assert.equal(search().props.value, 'Oakland, California, US');
     const globe = nodes(render()).find(node => node.props.role === 'group');
     assert.match(globe.props.className, presentation === 'mobile' ? /w-full max-w-\[min\(72vh,720px\)\]/ : /100cqw,100cqh,720px/);
@@ -191,6 +192,7 @@ test('WEB and MOBILE expose the same directory search while retaining their glob
     const done = nodes(render()).find(node => node.props.className === 'portalink-search-done');
     assert.equal(Boolean(done), false);
     assert.equal(search().props.blurOnSelect, presentation === 'mobile');
+    assert.ok(!search().props.keepFocusOnSelect, 'Direct city navigation must not keep the mobile keyboard open');
     if (done) { let blurred = false; done.props.onClick({ currentTarget: { blur() { blurred = true; } } }); assert.equal(blurred, true); }
   }
 });

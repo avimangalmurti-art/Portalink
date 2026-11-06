@@ -11,14 +11,22 @@ export type PdfPageProxy = Awaited<ReturnType<PdfDocument['getPage']>>;
 
 let pdfJsPromise: Promise<PdfJs> | null = null;
 
-export async function loadPdfJs(): Promise<PdfJs> {
+export async function loadPdfJs(recoverFailedImport = false): Promise<PdfJs> {
   if (!pdfJsPromise) {
     pdfJsPromise = import('pdfjs-dist').then((pdfjs) => {
       pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
       return pdfjs;
     });
   }
-  return pdfJsPromise;
+  const pending = pdfJsPromise;
+  if (!recoverFailedImport) return pending;
+  try {
+    return await pending;
+  } catch (error) {
+    // MOBILE can retry a disconnected engine download on the next real return.
+    if (pdfJsPromise === pending) pdfJsPromise = null;
+    throw error;
+  }
 }
 
 export function pdfSourceOptions(source: string, previewOnly = false) {
@@ -38,10 +46,13 @@ type PdfPageProps = {
   onRenderFailure?: () => void;
   label: string;
   pageNumber?: number;
+  strictPageNumber?: boolean;
   onPageCountChange?: (pageCount: number) => void;
   className?: string;
   fit?: 'contain' | 'cover';
   objectPosition?: string;
+  showLoadingIndicator?: boolean;
+  usePageAspectRatio?: boolean;
 };
 
 /**
@@ -52,8 +63,11 @@ type PdfPageProps = {
  */
 export function PdfPage({
   source, onRenderFailure,
+  showLoadingIndicator = false,
+  usePageAspectRatio = false,
   label,
   pageNumber = 1,
+  strictPageNumber = false,
   onPageCountChange,
   className = '',
   fit = 'contain',
@@ -95,13 +109,17 @@ export function PdfPage({
     setStatus('loading');
 
     void (async () => {
-      const pdfjs = await loadPdfJs();
+      const pdfjs = await loadPdfJs(strictPageNumber);
       if (cancelled) {
         return;
       }
       loadingTask = pdfjs.getDocument(pdfSourceOptions(source, true));
       const document = await loadingTask.promise;
       onPageCountChange?.(document.numPages);
+      // Explicit message pages must never silently display a different page.
+      if (strictPageNumber && (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > document.numPages)) {
+        throw new Error('Requested page is unavailable');
+      }
       const nextPage = await document.getPage(Math.min(pageNumber, document.numPages));
       if (!cancelled) {
         setPage(nextPage);
@@ -116,7 +134,7 @@ export function PdfPage({
       cancelled = true;
       void loadingTask?.destroy();
     };
-  }, [onPageCountChange, pageNumber, shouldRender, source]);
+  }, [onPageCountChange, pageNumber, shouldRender, source, strictPageNumber]);
 
   useEffect(() => {
     if (!shouldRender) {
@@ -204,9 +222,16 @@ export function PdfPage({
 
   useEffect(() => { if (status === 'failed') onRenderFailure?.(); }, [status, onRenderFailure]);
 
-  return <div ref={hostRef} role="img" aria-label={label} aria-busy={status === 'loading'} className={`pdf-page-viewport relative bg-white ${className}`}>
-      {status !== 'ready' && <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
-          <FileTextIcon className="h-6 w-6" />
+  const pageSize = usePageAspectRatio ? page?.getViewport({ scale: 1 }) : undefined;
+  const pageLayout = usePageAspectRatio ? {
+    height: 'auto',
+    aspectRatio: pageSize ? `${pageSize.width} / ${pageSize.height}` : '4 / 3',
+  } : undefined;
+  return <div ref={hostRef} style={pageLayout} role="img" aria-label={label} aria-busy={status === 'loading'} className={`pdf-page-viewport relative ${status === 'loading' && showLoadingIndicator ? 'bg-[var(--surface-canvas)]' : 'bg-white'} ${className}`}>
+      {status !== 'ready' && <span data-project-cover-loading={status === 'loading' && showLoadingIndicator ? '' : undefined} aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
+          {status === 'loading' && showLoadingIndicator
+            ? <span className="premium-media-loading-mark" />
+            : <FileTextIcon className="h-6 w-6" />}
         </span>}
       <div className="pdf-page-wrapper">
         <canvas ref={canvasRef} style={fit === 'cover' ? { width: '100%', height: '100%', objectFit: 'cover', objectPosition } : undefined} className={`pdf-page-canvas ${status === 'ready' ? 'opacity-100' : 'opacity-0'}`} />

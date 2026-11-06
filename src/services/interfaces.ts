@@ -1,4 +1,5 @@
 import type { ShareAddress, HandleResolution, PortfolioCard } from '../features/sharing/shareModel';
+import type {ReferencesService} from '../features/references/useReferences';
 /**
  * The engineering boundary.
  *
@@ -21,6 +22,7 @@ import type { AccountDeletionCapability, AccountSecurityCapability, AccountSecur
 import type { CreateProfileInput, CreateProfileResult } from '../types/profile';
 import type { GeographicResult } from '../types/geography';
 import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscovery, HomeFeedMode, ProjectFeedCursor } from '../types/discovery';
+import type { PublicPortalPage } from '../types/portals';
 import type { ConversationPage, ConversationSummary, DirectMessage, MessageCursor, MessagePage, MessageParticipant, MessageReaction, MessagingPreferences } from '../types/messages';
 import type { SaveInsights } from '../types/creatorSaves';
 
@@ -40,9 +42,16 @@ export interface AuthService {
   /** A lookup failure can clear a stale identity without pretending the user signed out. */
   onAuthStateChange(listener: (session: AuthSession | null, error?: AuthError) => void): () => void;
   signIn(input: SignInInput): Promise<AuthSession>;
+  getSocialProviders?(): Promise<{ google: boolean; apple: boolean }>;
+  signInWithOAuth?(provider: 'google' | 'apple', returnPath?: string): Promise<void>;
   /** Never returns a session when the address must be confirmed first. */
   signUp(input: SignUpInput): Promise<SignUpResult>;
-  signOut(): Promise<void>;
+  signOut(scope?: 'local' | 'global'): Promise<void>;
+  /** Ends every other session while keeping this browser signed in. */
+  signOutOtherSessions(accountId: Id): Promise<void>;
+  listAccountSessions(accountId: Id, cursor?: import('../types/auth').AccountSessionCursor): Promise<import('../types/auth').AccountSessionPage>;
+  /** Only a different session owned by this account; this session uses local logout. */
+  revokeAccountSession(accountId: Id, sessionId: Id): Promise<boolean>;
   requestPasswordReset(input: PasswordResetRequestInput): Promise<PasswordResetRequestResult>;
   /** The context a recovery link establishes, or null if it is missing/expired. */
   getRecoverySession(): Promise<AuthRecoverySession | null>;
@@ -119,13 +128,19 @@ export interface AuthService {
  * in a parallel onboarding layer, so onboarding and later profile editing share
  * one model, one validation vocabulary, and one service boundary.
  */
+export type TimelinePair = { id: string; then: string; now: string };
 export interface ProfileService {
+  listTimelinePairs?(profileId: Id): Promise<TimelinePair[]>;
+  addTimelinePair?(profileId: Id, thenId: Id, nowId: Id): Promise<void>;
+  removeTimelinePair?(profileId: Id, pairId: Id): Promise<void>;
   /**
    * Rejects when the id names no profile. Absence must be an error rather than a
    * substituted record: a caller resolving a creator by id has to be able to
    * distinguish "no such profile" from a profile it can open.
    */
   getProfile(profileId: Id): Promise<Profile>;
+  /** Identity, portfolio structure and covers; originals resolve when a project opens. */
+  getProfileOverview?(profileId: Id): Promise<Profile>;
   /** Public-only grid bundle, isolated from the owner's fuller profile cache. */
   getSharedProfile?(profileId: Id): Promise<Profile>;
   /** A lightweight layout read/write for Home; never a partial Profile cache entry. */
@@ -328,6 +343,8 @@ export interface DiscoveryService {
    */
   listLocationProjects(locationId: Id): Promise<ProjectView[]>;
   listAccountsToExplore(): Promise<FeedCreator[]>;
+  /** Public, unhidden portals and their creator identities; includes empty portals. */
+  listPublicPortals(query?: string, offset?: number): Promise<PublicPortalPage>;
   /** Public account identities only, searched on the server before pagination. */
   searchAccounts?(query: string, offset?: number): Promise<FeedCreator[]>;
 }
@@ -416,7 +433,7 @@ export interface CommentService {
 }
 
 /**
- * Project engagement: like, save, repost.
+ * Project engagement: like and save.
  *
  * This is the ONE authority on those facts. An earlier `ActivityService` also
  * claimed them — a second contract over the same domain, which could only ever
@@ -442,6 +459,7 @@ export interface CommentService {
  * 4. **`setEngagement` is idempotent.** Asking for a state the viewer is already
  *    in must succeed without double-counting.
  * 5. **A count that cannot be reported is `null`, never `0`.**
+ * 6. Unsupported runtime kinds are refused before authentication or data access.
  */
 export interface EngagementService {
   listProjectParticipants?(projectId: Id, kind: EngagementKind, offset?: number): Promise<Array<{ id: Id; name: string; avatar: string }>>;
@@ -453,8 +471,12 @@ export interface EngagementService {
   listEngagedProjectIds(kind: EngagementKind): Promise<Id[]>;
   listSavedProjectEntries?(): Promise<Array<{projectId: Id; savedAt: string}>>;
 }
+/** The exact inbox revision selected by the viewer, not its source content. */
+export type NotificationDeleteTarget = Pick<Notification, 'id' | 'timestamp'>;
 export interface NotificationService {
   listNotifications(): Promise<Notification[]>;
+  /** Return only the exact revisions confirmed removed from this account's inbox. */
+  deleteNotifications(targets: readonly NotificationDeleteTarget[]): Promise<NotificationDeleteTarget[]>;
   markRead(notificationId: Id): Promise<void>;
   markAllRead(): Promise<void>;
   subscribeToNotifications(onChange: () => void, onStatus?: (connected: boolean) => void): () => void;
@@ -517,6 +539,7 @@ export interface GeographyService {
 
 /** The single registry components resolve services from. */
 export type Services = {
+  references?: ReferencesService;
   reads?: import('../features/reads/readSignal').ReadSignalService;
   // `auth` is the only authority on who is signed in.
   auth: AuthService;

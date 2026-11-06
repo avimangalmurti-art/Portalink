@@ -1,7 +1,158 @@
 /* WEB frame: preserve the existing desktop geometry and shared appearance tokens.
    Keep every selector scoped; :where adds no specificity to the existing rules. */
+
+/* Keep each page's existing controls above the content in its own scrollport.
+   Nested search, reader and message panes already have stationary headers. */
+#root .codex-shell[data-presentation='web'] [data-profile-page] > .profile-header-region {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex-shrink: 0;
+  isolation: isolate;
+}
+#root .codex-shell[data-presentation='web'] :is(.settings-page > .settings-page-header, [data-feed-scroll-content] [data-web-gallery-controls]) {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  isolation: isolate;
+}
+
+/* PDF loaders fill the reserved page instead of becoming a strip above it. */
+#root .codex-shell[data-presentation='web'] [data-project-page-number] > .premium-media-placeholder.absolute {
+  position: absolute;
+  z-index: 0;
+  background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='web'] [data-project-page-number] > .premium-media-placeholder.absolute::after {
+  content: none;
+}
+
 .codex-shell:where([data-presentation='web']) [data-web-gallery-controls] {
-  display: none;
+  display: flex;
+}
+.codex-shell:where([data-presentation='web']) .web-gallery-density-range {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+}
+.codex-shell:where([data-presentation='web']) [data-web-gallery-controls] .density-separator {
+  position: absolute;
+  inset: 0;
+  display: block;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: 36px;
+  margin: 0;
+  background: linear-gradient(var(--slider-edge, var(--hairline)), var(--slider-edge, var(--hairline))) center / 100% 1px no-repeat !important;
+}
+.codex-shell:where([data-presentation='web']) [data-web-gallery-controls] .density-separator-ticks {
+  inset-inline: calc((var(--density-thumb-width) - var(--density-tick-width)) / 2);
+  bottom: 0;
+  height: 36px;
+}
+
+/* Portal Search's dividers use one canvas-backed grey even when the sidebar
+   uses a different System Grey. Keep the existing line positions and widths. */
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer:not([inert]) [data-public-portal-search]) .sidebar-surface > .global-control-header::after {
+  background: linear-gradient(var(--hairline), var(--hairline)), var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer:not([inert]) [data-public-portal-search]) .sidebar-surface > .sidebar-account-footer {
+  position: relative;
+  border-top-color: transparent !important;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer:not([inert]) [data-public-portal-search]) .sidebar-surface > .sidebar-account-footer::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: -1px;
+  height: 1px;
+  background: linear-gradient(var(--hairline), var(--hairline)), var(--surface-canvas);
+  pointer-events: none;
+}
+
+/* Activated Studio tabs use the shared control palette in either appearance. */
+#root .codex-shell[data-presentation='web'] .studio-citation-pills > button {
+  background: var(--control-rest-surface, var(--surface-sunken));
+  color: var(--control-text, var(--text-primary));
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-pills > button[aria-pressed='true'] {
+  background: var(--control-selected-surface, var(--surface-selected));
+  color: var(--control-selected-text, var(--text-primary));
+}
+
+/* The sidebar's destination buttons stay below its company header. Only the
+   portal list scrolls, so neither its outer body nor its list needs underlap. */
+@layer portalink-header-material {
+  /* The sidebar already paints its navigation surface; its header shares it. */
+  #root .codex-shell[data-presentation='web'] .sidebar-surface > .global-control-header[data-mobile-header-underlap]::before {
+    content: none !important;
+  }
+
+  #root .codex-shell[data-presentation='web'] .sidebar-surface > [aria-label='Navigation and work'][data-fixed-header-underlap] {
+    margin-top: var(--fixed-header-margin) !important;
+  }
+
+  #root .codex-shell[data-presentation='web'] .sidebar-surface > [aria-label='Navigation and work'] .sidebar-scroll-fade[data-fixed-header-content] {
+    padding-top: var(--fixed-header-padding) !important;
+    scroll-padding-top: var(--fixed-header-scroll-padding) !important;
+  }
+
+  /* Public navigation uses the same single rail surface and bounded list. */
+  #root .codex-shell.shared-portalink-shell[data-presentation='web'] .shared-profile-sidebar > [data-shared-navigation-header][data-mobile-header-underlap]::before {
+    content: none !important;
+  }
+  #root .codex-shell.shared-portalink-shell[data-presentation='web'] .shared-profile-sidebar > #shared-profile-portals[data-fixed-header-underlap] {
+    margin-top: var(--fixed-header-margin) !important;
+  }
+  #root .codex-shell.shared-portalink-shell[data-presentation='web'] .shared-profile-sidebar > #shared-profile-portals[data-fixed-header-content] {
+    padding-top: var(--fixed-header-padding) !important;
+    scroll-padding-top: var(--fixed-header-scroll-padding) !important;
+  }
+
+  /* Reader headers share the rail at rest. Keep matching material if content scrolls behind one. */
+  #root .codex-shell[data-presentation='web'] [data-shared-project-reader] [data-shared-navigation-header] {
+    --fixed-header-canvas: var(--nav-button-background, var(--surface-canvas));
+  }
+  #root .codex-shell[data-presentation='web'] [data-shared-project-reader] [data-shared-navigation-header][data-mobile-header-underlap='false']::before {
+    content: none !important;
+  }
+
+  /* The profile popup shares the mobile sheet's single glass surface. */
+  #root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-owner-profile-actions] > header[data-mobile-header-underlap]::before {
+    inset: 0 0 -16px !important;
+    background: transparent !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) !important;
+  }
+  #root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-owner-profile-actions] > header[data-mobile-header-underlap='false']::before {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+#root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-owner-profile-actions] {
+  inset-inline: 0;
+  width: 100%;
+  height: 92%;
+  max-height: calc(100% - max(40px, env(safe-area-inset-top, 0px)));
+}
+
+#root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-owner-profile-actions] > header {
+  padding-top: 16px;
+  touch-action: auto;
+}
+
+#root .codex-shell[data-presentation='web'].reduce-translucency .mobile-context-sheet[data-owner-profile-actions] {
+  background: var(--surface-raised) !important;
+}
+
+/* The creator name is a header link, while portal rows keep their selection. */
+#root .codex-shell.shared-portalink-shell[data-presentation='web'] .shared-profile-sidebar > [data-shared-navigation-header] [data-shared-profile-home] {
+  --navigation-selected-surface: transparent;
+  --navigation-selected-foreground: var(--navigation-foreground);
 }
 
 .codex-shell:where([data-presentation='web']) .codex-workspace {
@@ -24,7 +175,11 @@
   inset-inline: 0;
   top: 100%;
   z-index: 1;
+  border-radius: var(--ui-row-radius, 14px);
   box-shadow: 0 10px 20px rgb(0 0 0 / 16%);
+}
+.codex-shell:where([data-presentation='web']) .project-preview-extension-content {
+  border-radius: inherit;
 }
 
 /* Raise the packing wrapper too: motion/DnD transforms can form a stacking

@@ -4,11 +4,9 @@
 .employer-facts > div { padding: 12px; border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface-sunken); min-width: 0; }
 .employer-facts dt, .employer-eyebrow { font-size: var(--type-caption-size,12px); text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); }
 .employer-facts dd { margin: 4px 0 0; font-size: var(--type-body-sm-size,14px); line-height: 1.4; overflow-wrap: anywhere; }
-.employer-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.employer-actions > * { padding-inline: 16px; text-decoration: none; text-align: center; }
 .employer-contact p { margin: 8px 0 0; color: var(--text-secondary); font-size: var(--type-caption-size,12px); }
-.employer-start { display: flex; gap: 14px; align-items: center; text-align: left; min-width: 0; width: 100%; padding: 14px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface-sunken); color: var(--text-primary); }
-.employer-start-cover { flex: 0 0 92px; width: 92px; height: 112px; border-radius: 10px; overflow: hidden; }
+.employer-start { display: flex; gap: 14px; align-items: center; text-align: left; min-width: 0; width: 100%; padding: 14px; border: 1px solid var(--hairline); border-radius: 9px; background: var(--surface-sunken); color: var(--text-primary); }
+.employer-start-cover { flex: 0 0 92px; width: 92px; height: 112px; border-radius: 5px; overflow: hidden; }
 .employer-start-copy { display: grid; gap: 5px; min-width: 0; }
 .employer-start-copy strong { font-size: var(--type-body-size,16px); line-height: 1.35; }
 .employer-start-copy > span:last-child { color: var(--text-secondary); font-size: var(--type-caption-size,12px); line-height: 1.5; }
@@ -21,7 +19,7 @@
 .portfolio-pdf-cover-preview { padding:24px; border-radius:14px; background:#fff; color:#111; border:1px solid #ddd; }
 .portfolio-pdf-preview-covers { display:flex; gap:8px; margin:18px 0; }
 .portfolio-pdf-preview-covers img { width:calc((100% - 16px)/3); height:105px; object-fit:contain; background:#f5f5f5; }
-@media (max-width:639px) { .employer-facts { grid-template-columns:repeat(2,minmax(0,1fr)); } .employer-actions > * { flex:1 1 140px; } }
+@media (max-width:639px) { .employer-facts { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 
 .portfolio-pdf-options fieldset { display: grid; gap: 8px; }
 .portfolio-pdf-options > p { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }

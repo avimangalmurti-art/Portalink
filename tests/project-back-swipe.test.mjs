@@ -9,7 +9,10 @@ function harness(presentation = 'mobile') {
   let cursor = 0, effectCursor = 0;
   class Element {
     constructor(values = {}) { Object.assign(this, { parentElement: null, clientWidth: 390, scrollWidth: 390, overflowX: 'visible' }, values); }
-    closest(selector) { return selector === 'video' ? this.video ?? null : this.control ? this : null; }
+    closest(selector) {
+      if (selector === 'video') return this.video ?? null;
+      return this.control || this.focused && selector.includes('[data-mobile-focused-view]') || this.focusedScroll && selector.includes('[data-focused-page-scroll]') ? this : null;
+    }
     contains(target) { return !target.outside; }
     addEventListener(name, callback, options) { listeners.set(name, { callback, options }); }
     removeEventListener(name, callback) { if (listeners.get(name)?.callback === callback) listeners.delete(name); }
@@ -74,6 +77,25 @@ test('short, leftward, diagonal and vertical gestures retain scrolling without B
 
 test('a quick rightward flick can return without requiring a long thumb reach', () => {
   const h = harness(); h.render(); h.start(); h.move(130); h.end(136, 200, { timeStamp: 80 });
+  assert.deepEqual(h.calls, ['back']);
+});
+
+test('document overview canvas accepts a short centre swipe while focused page turns and zoom panning remain owned by the page', () => {
+  const h = harness(), handlers = h.render();
+  const overviewCanvas = new h.Element({ parentElement: h.surface });
+  h.start({ target: overviewCanvas, touches: [h.point(195)] });
+  assert.equal(h.move(225).prevented, true);
+  h.end(231, 200, { timeStamp: 80 });
+  assert.deepEqual(h.calls, ['back']);
+
+  for (const target of [new h.Element({ focused: true }), new h.Element({ focusedScroll: true })]) {
+    h.start({ target, touches: [h.point(195)] });
+    assert.equal(h.move(260).prevented, undefined);
+    const up = h.event([], { pointerType: 'touch' });
+    handlers.onPointerUpCapture(up);
+    assert.equal(up.stopped, undefined);
+    h.end(280);
+  }
   assert.deepEqual(h.calls, ['back']);
 });
 

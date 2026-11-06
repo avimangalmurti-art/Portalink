@@ -266,7 +266,7 @@ export function resolveNavButtonTokens(appearance: NavAppearance, accent: string
   const navigationRest = solidNavigationSurface(tokens.background, canvas);
   const navigationHover = solidNavigationSurface(tokens.hover, canvas);
   const navigationPressed = solidNavigationSurface(tokens.pressed, canvas);
-  const opaqueNavigation = highContrast || reduceTranslucency;
+  const opaqueNavigation = reduceTranslucency;
   const material = (surface: string) => opaqueNavigation ? surface : `rgba(${hexRgb(surface).join(', ')}, 0.92)`;
   // Match the project capsule: lift the gray in Dark and deepen it in Light.
   // Selection stays visibly neutral; only its contrast-checked ink uses accent.

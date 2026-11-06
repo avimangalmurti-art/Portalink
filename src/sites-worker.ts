@@ -1,3 +1,7 @@
+import {handleReferenceResolve} from './server/referenceResolver';
+import { PUBLIC_ORIGIN } from './features/citations/publicOrigin';
+import { publicOriginRedirect } from './server/publicOriginRedirect';
+import {handlePortfolioExport} from './server/portfolioExport';
 import { handleCitation, citationLicenseResponse } from './server/citation';
 import { readPortfolioCard } from './server/sharedPreview';
 import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
@@ -31,10 +35,12 @@ interface D1Database {
 interface SitesEnvironment {
   ASSETS: StaticAssets
   DB?: D1Database
+  PORTFOLIO_PDF_WORKER_URL?: string
+  PORTFOLIO_PDF_WORKER_SECRET?: string
   RUM_OWNER_PROFILE_ID?: string
 }
 
-type EngagementKind = 'like' | 'save' | 'repost'
+type EngagementKind = 'like' | 'save'
 type AuthenticatedUser = {
   id: string
   email?: string
@@ -49,7 +55,7 @@ type Target = {
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim() ?? ''
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? ''
-const ENGAGEMENT_KINDS: EngagementKind[] = ['like', 'save', 'repost']
+const ENGAGEMENT_KINDS: EngagementKind[] = ['like', 'save']
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
@@ -116,6 +122,19 @@ async function authenticatedUser(request: Request, required: boolean): Promise<A
   if (!user || typeof user.id !== 'string' || !user.id) {
     throw json({ error: 'Account verification is temporarily unavailable.' }, 503)
   }
+  // Auth's JWT verification alone does not establish that its session row is
+  // still active. D1 requests use the same uncached check as the Data API.
+  let sessionCheck: Response
+  try {
+    sessionCheck = await fetch(`${SUPABASE_URL}/rest/v1/rpc/require_active_account_session`, {
+      method: 'POST', headers: { authorization, apikey: SUPABASE_KEY, 'content-type': 'application/json' },
+      body: '{}', signal: AbortSignal.timeout(8_000),
+    })
+  } catch { throw json({ error: 'Account verification is temporarily unavailable.' }, 503) }
+  if (sessionCheck.status === 401 || sessionCheck.status === 403) {
+    throw json({ error: 'Your session has ended. Sign in again to continue.' }, 401)
+  }
+  if (!sessionCheck.ok) throw json({ error: 'Account verification is temporarily unavailable.' }, 503)
   return user
 }
 
@@ -213,6 +232,7 @@ async function interactionRecords(db: D1Database, targets: Target[], user: Authe
       SELECT e.project_id, e.attachment_id, e.page_index, e.kind, COUNT(*) AS total,
         MAX(CASE WHEN e.account_id = ? THEN 1 ELSE 0 END) AS own
       FROM requested r JOIN media_engagements e USING(project_id, attachment_id, page_index)
+      WHERE e.kind IN ('like', 'save')
       GROUP BY e.project_id, e.attachment_id, e.page_index, e.kind`)
       .bind(...values, user?.id ?? '').all<{ project_id: string; attachment_id: string; page_index: number; kind: EngagementKind; total: number; own: number }>(),
     db.prepare(`${requested}, ranked AS (
@@ -223,9 +243,9 @@ async function interactionRecords(db: D1Database, targets: Target[], user: Authe
   ]);
   return targets.map((target) => {
     const matches = (row: { project_id: string; attachment_id: string; page_index: number }) => row.project_id === target.projectId && row.attachment_id === target.attachmentId && row.page_index === target.pageIndex;
-    const counts = { like: 0, save: 0, repost: 0 };
-    const engaged = { like: false, save: false, repost: false };
-    for (const row of (engagements.results ?? []).filter(matches)) {
+    const counts = { like: 0, save: 0 };
+    const engaged = { like: false, save: false };
+    for (const row of (engagements.results ?? []).filter(row => matches(row) && ENGAGEMENT_KINDS.includes(row.kind))) {
       counts[row.kind] = Number(row.total);
       engaged[row.kind] = Boolean(row.own);
     }
@@ -373,7 +393,12 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
 const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
+    const officialRedirect = publicOriginRedirect(request);
+    if (officialRedirect) return officialRedirect;
     if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
+    if(url.pathname==='/api/references/resolve')return handleReferenceResolve(request,authenticatedUser);
+    const exportProfile=/^\/api\/exports\/portfolio\/([^/]+)$/.exec(url.pathname);
+    if(exportProfile)return handlePortfolioExport(request,exportProfile[1],environment,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const license = citationLicenseResponse(url.pathname); if (license) return license;
     if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}
@@ -413,7 +438,7 @@ const worker = {
     if (url.pathname.startsWith('/api/portfolio-card/')) {
       if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
       try {
-        const card = await readPortfolioCard(url.pathname.slice('/api/portfolio-card/'.length), url.origin, { supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY });
+        const card = await readPortfolioCard(url.pathname.slice('/api/portfolio-card/'.length), PUBLIC_ORIGIN, { supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY });
         return json(card ?? { error: 'Public preview is not available yet.' }, card ? 200 : 404);
       } catch { return json({ error: 'Public preview is temporarily unavailable.' }, 503); }
     }
@@ -446,7 +471,7 @@ const worker = {
     }
     if (address.resolution) for (const name of ['content-length','content-encoding','etag','last-modified']) headers.delete(name);
     if (address.unavailable) headers.set('retry-after', '30');
-    const shell = new Response(request.method === 'HEAD' ? null : address.resolution ? injectShareResolution(await response.text(), address.resolution, url.origin + url.pathname) : response.body, { status: address.unavailable ? 503 : address.missing && handleFromPath(url.pathname) ? 404 : response.status, headers });
+    const shell = new Response(request.method === 'HEAD' ? null : address.resolution ? injectShareResolution(await response.text(), address.resolution, PUBLIC_ORIGIN + url.pathname) : response.body, { status: address.unavailable ? 503 : address.missing && handleFromPath(url.pathname) ? 404 : response.status, headers });
     if (!navigation || !shared || !LINK_PREVIEW_CRAWLER.test(request.headers.get('user-agent') ?? '')) return shell;
     return withSharedPreview(shell, request, {
       supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY,

@@ -1,0 +1,71 @@
+/* Slider paint is always opaque and legible. Appearance preferences still own
+   the surrounding surface; these tokens never change general text or dividers. */
+:root,
+.theme-light {
+  --slider-track: #737373;
+  --slider-thumb: #f5f5f3;
+  --slider-edge: #171717;
+  --slider-fill: #171717;
+  --slider-color-scheme: light;
+}
+.theme-dark {
+  --slider-track: #737373;
+  --slider-thumb: #171717;
+  --slider-edge: #f5f5f3;
+  --slider-fill: #f5f5f3;
+  --slider-color-scheme: dark;
+}
+
+/* Keep each native range's platform sizing and appearance. Accent and scheme
+   also cover browser-owned thumb paint when custom pseudo paint is ignored. */
+:where(.codex-shell, [data-themed-portal], [data-presentation]) input[type='range']:not(.density-separator) {
+  accent-color: var(--slider-fill) !important;
+  color-scheme: var(--slider-color-scheme);
+}
+/* Only the explicitly custom legacy zoom range accepts track/thumb paint.
+   Native controls keep their OS-rounded track and thumb instead of receiving
+   rectangular backgrounds on their internal platform widgets. */
+:where(.codex-shell, [data-themed-portal], [data-presentation]) input.zoom-range[type='range']::-webkit-slider-runnable-track {
+  background-color: var(--slider-track) !important;
+  box-shadow: 0 0 0 1px var(--slider-edge);
+}
+:where(.codex-shell, [data-themed-portal], [data-presentation]) input.zoom-range[type='range']::-moz-range-track {
+  background-color: var(--slider-track) !important;
+  box-shadow: 0 0 0 1px var(--slider-edge);
+}
+:where(.codex-shell, [data-themed-portal], [data-presentation]) input.zoom-range[type='range']::-moz-range-progress {
+  background-color: var(--slider-fill) !important;
+}
+:where(.codex-shell, [data-themed-portal], [data-presentation]) input.zoom-range[type='range']::-webkit-slider-thumb {
+  background-color: var(--slider-thumb) !important;
+  border-color: var(--slider-edge) !important;
+  box-shadow: 0 0 0 1px var(--slider-edge);
+}
+:where(.codex-shell, [data-themed-portal], [data-presentation]) input.zoom-range[type='range']::-moz-range-thumb {
+  background-color: var(--slider-thumb) !important;
+  border-color: var(--slider-edge) !important;
+  box-shadow: 0 0 0 1px var(--slider-edge);
+}
+
+/* Interactive audio keeps its diagnostic bars and attention colours. Only its
+   seeking rail and playhead use the slider contract. */
+:where(.codex-shell, [data-themed-portal], [data-presentation]) [data-media-seek-track] {
+  background-color: var(--slider-track);
+  box-shadow: 0 0 0 1px var(--slider-edge);
+}
+:where(.codex-shell, [data-themed-portal], [data-presentation]) [data-media-seek-thumb] {
+  border-color: var(--slider-edge);
+}
+
+/* Pagination is also an app-owned slider over unpredictable artwork. A solid
+   backing and opposite-tone selected dot keep it readable in either theme. */
+:where(.codex-shell, [data-themed-portal], [data-presentation]) .inline-project-pagination[role='slider'] > .inline-project-dots {
+  background: #171717;
+  box-shadow: 0 0 0 1px #f5f5f3;
+}
+:where(.codex-shell, [data-themed-portal], [data-presentation]) .inline-project-pagination[role='slider'] .inline-project-dot {
+  background: #737373;
+}
+:where(.codex-shell, [data-themed-portal], [data-presentation]) .inline-project-pagination[role='slider'] .inline-project-dot[data-selected='true'] {
+  background: #f5f5f3;
+}

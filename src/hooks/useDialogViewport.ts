@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 /** Follow the visible screen, including mobile browser chrome and keyboards. */
-export function useDialogViewport<T extends HTMLElement = HTMLDivElement>(enabled = true) {
+export function useDialogViewport<T extends HTMLElement = HTMLDivElement>(enabled = true, trackAuthoringKeyboard = false) {
   const ref = useRef<T>(null);
   useEffect(() => {
     if (!enabled) return;
@@ -11,6 +11,10 @@ export function useDialogViewport<T extends HTMLElement = HTMLDivElement>(enable
     const update = () => {
       overlay.style.setProperty('--dialog-viewport-height', `${viewport?.height ?? window.innerHeight}px`);
       overlay.style.setProperty('--dialog-viewport-top', `${viewport?.offsetTop ?? 0}px`);
+      if (trackAuthoringKeyboard && viewport && Math.abs(viewport.scale - 1) <= 0.01) {
+        // Toolbars can resize or pan the visible viewport without opening the keyboard.
+        overlay.toggleAttribute('data-authoring-keyboard-open', window.innerHeight - viewport.height >= 100);
+      }
     };
     update();
     viewport?.addEventListener('resize', update);
@@ -20,7 +24,8 @@ export function useDialogViewport<T extends HTMLElement = HTMLDivElement>(enable
       viewport?.removeEventListener('resize', update);
       viewport?.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
+      if (trackAuthoringKeyboard) overlay.removeAttribute('data-authoring-keyboard-open');
     };
-  }, [enabled]);
+  }, [enabled, trackAuthoringKeyboard]);
   return ref;
 }

@@ -1,5 +1,5 @@
+import { motionSeconds } from '../../presentation/motion/motion';
 import { MobileProjectPopup } from '../media/MobileProjectPopup';
-import { useMobileProjectContext } from '../../presentation/mobile/useMobileProjectContext';
 import { useMenuFocus } from '../../hooks/useMenuFocus';
 import React, { lazy, Suspense, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -14,6 +14,7 @@ import { usePresentation } from '../../presentation/usePresentation';
 import type { MobileReorderList as MobileReorderListType, MobileReorderActivator, MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
 import { ProjectCover } from '../media/ProjectCover';
 import { getProjectCoverPreview } from '../../utils/projectPresentation';
+const ProjectExportSheet=lazy(()=>import('../../features/references/ExportSheet').then(module=>({default:module.ExportSheet})));
 const MobileReorderList = lazy(() => import('../../presentation/mobile/MobileReorderList').then(module => ({ default: module.MobileReorderList }))) as unknown as typeof MobileReorderListType;
 type ProjectIndexListProps = {
   profileId?: string;
@@ -36,6 +37,8 @@ type ProjectIndexListProps = {
   mobileReorderFromMenu?: boolean;
   /** MOBILE changes only the presentation of this same navigation list. */
   mobileLayout?: 'list' | 'grid';
+  /** Explicit WEB chooser adaptation; ordinary desktop indexes stay unchanged. */
+  readOnlyBrowsing?: boolean;
   onReorder: (projects: ProjectEntry[]) => void;
   onToggleHidden: (projectId: string) => void;
   onTogglePinned: (projectId: string) => void;
@@ -83,6 +86,7 @@ export function ProjectIndexList({
   mobileReorderDisabled = false,
   mobileReorderFromMenu = false,
   mobileLayout = 'list',
+  readOnlyBrowsing = false,
   onReorder,
   onToggleHidden,
   onTogglePinned,
@@ -134,12 +138,12 @@ export function ProjectIndexList({
 
   // A visitor reads a published index, so it is a plain list with no handles.
   if (!isOwner) {
-    return <div data-mobile-project-layout={isMobile ? mobileLayout : undefined}>
+    return <div data-mobile-project-layout={isMobile ? mobileLayout : undefined} data-web-project-layout={!isMobile && readOnlyBrowsing ? mobileLayout : undefined}>
         {pinned.length > 0 && <>
             <SectionHeading label="Pinned" icon={PinIcon} />
             <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
               {pinned.map((project) => <li key={project.id}>
-                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} onSelect={() => onSelect(project.id)} />
+                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} previewLabel={!isMobile && readOnlyBrowsing} onSelect={() => onSelect(project.id)} />
                 </li>)}
             </ul>
           </>}
@@ -147,7 +151,7 @@ export function ProjectIndexList({
             {pinned.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
             <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
               {rest.map((project) => <li key={project.id}>
-                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} onSelect={() => onSelect(project.id)} />
+                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} previewLabel={!isMobile && readOnlyBrowsing} onSelect={() => onSelect(project.id)} />
                 </li>)}
             </ul>
           </>}
@@ -238,12 +242,12 @@ function MobileProjectLabel({ project, isActive, sharedReadOnly = false }: { pro
 
 /** The shared row body: a tinted fill and weight mark the current document. */
 function ProjectLink({
-  profileId,
   project,
   typefaceStack,
   isActive,
   isHidden = false,
   sharedReadOnly = false,
+  previewLabel = false,
   onSelect
 
 
@@ -253,12 +257,11 @@ function ProjectLink({
 
 
 
-}: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;sharedReadOnly?: boolean;onSelect: () => void;}) {
+}: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;sharedReadOnly?: boolean;previewLabel?: boolean;onSelect: () => void;}) {
   const isMobile = usePresentation() === 'mobile';
-  const press = useMobileProjectContext(project, profileId);
-  return <div {...press} className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-150 ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
+  return <div className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-[var(--m-fast)] ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
       <button data-preview-open="" type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
-        {isMobile ? <MobileProjectLabel project={project} isActive={isActive} sharedReadOnly={sharedReadOnly} /> : <span data-font-preview="" style={{
+        {isMobile || previewLabel ? <MobileProjectLabel project={project} isActive={isActive} sharedReadOnly={sharedReadOnly} /> : <span data-font-preview="" style={{
         fontFamily: typefaceStack
       }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>}
       </button>
@@ -266,7 +269,6 @@ function ProjectLink({
 }
 function ProjectRow({
   profileId,
-  contextDisabled,
   project,
   typefaceStack,
   typefaceId,
@@ -283,7 +285,6 @@ function ProjectRow({
   onTogglePinned,
   onSelect,
   onEdit,
-  onChangeCover,
   onTypefaceChange,
   onDelete,
 
@@ -302,8 +303,8 @@ function ProjectRow({
 }: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;dragDisabled?: boolean;onReorderStart?: () => void;onReorderEnd?: () => void;reorderActivator?: MobileReorderActivator;reorderActions?: MobileReorderActions;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onChangeCover?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
   const isMobile = usePresentation() === 'mobile';
   const dragControls = useDragControls();
-  const press = useMobileProjectContext(project, profileId, { edit: onEdit, cover: onChangeCover, delete: onDelete, visibility: contextDisabled ? undefined : onToggleHidden }, Boolean(reorderActivator));
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [exportOpen,setExportOpen]=useState(false),[citationStatus,setCitationStatus]=useState('');
   const [popupOpen, setPopupOpen] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -329,8 +330,8 @@ function ProjectRow({
     };
   }, [isMenuOpen, positionMenu]);
 
-  const body = <div ref={rowRef} {...press} className="relative">
-      <div className={`side-panel-row project-index-row ps-list-item group/row relative overflow-hidden rounded-[8px] transition-colors duration-150 ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
+  const body = <div ref={rowRef} className="relative">
+      <div className={`side-panel-row project-index-row ps-list-item group/row relative overflow-hidden rounded-[8px] transition-colors duration-[var(--m-fast)] ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
         {isDraggable && <span aria-hidden="true" data-project-drag-handle="" onPointerDown={(event) => { if (!dragDisabled) dragControls.start(event); }} className="ml-1 flex h-full w-3 shrink-0 touch-none cursor-grab items-center justify-center text-[var(--text-tertiary)] active:cursor-grabbing">
             <GripVerticalIcon className="h-3 w-3" />
           </span>}
@@ -342,16 +343,18 @@ function ProjectRow({
 
         {/* Matches the portal-row control: hidden until hover/focus, round hit
             surface, and held visible while its menu is open. */}
-        <div data-project-row-actions="" className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${isMobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
-          <button ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" data-static-icon="" data-row-menu="" onClick={() => isMobile ? setPopupOpen(true) : setIsMenuOpen((open) => !open)} aria-haspopup={isMobile ? "dialog" : "menu"} aria-expanded={isMobile ? popupOpen : isMenuOpen} aria-label={`Options for ${project.title}`} className={`flex ${isMobile ? 'h-11 w-11' : 'h-6 w-6'} items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
-            <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
+        <div data-project-row-actions="" className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-[var(--m-fast)] ease-[var(--m-enter)] motion-reduce:transition-none ${isMobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
+          <button data-ui-shape="icon" data-control-size="sm" ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" data-static-icon="" data-row-menu="" onClick={() => isMobile ? setPopupOpen(true) : setIsMenuOpen((open) => !open)} aria-haspopup={isMobile ? "dialog" : "menu"} aria-expanded={isMobile ? popupOpen : isMenuOpen} aria-label={`Options for ${project.title}`} className="flex items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <InterfaceIcon icon={MoreHorizontalIcon} size={isMobile ? "lg" : "md"} style={{'--interface-icon-size': isMobile ? '20px' : '16px'} as React.CSSProperties} weight="medium" />
           </button>
         </div>
       </div>
 
+      {isActive&&exportOpen&&profileId&&<Suspense fallback={null}><ProjectExportSheet profileId={profileId} projectId={project.id} onClose={()=>setExportOpen(false)}/></Suspense>}
+      {isActive&&citationStatus&&<span role="status">{citationStatus}</span>}
       {isMobile && popupOpen && <MobileProjectPopup project={project} creatorId={profileId} contextHandlers={{ edit: onEdit, delete: onDelete }} onClose={() => setPopupOpen(false)} onOptions={() => setIsMenuOpen(true)} />}
       {createPortal(<AnimatePresence>
-        {isMenuOpen && <motion.div ref={menuRef} tabIndex={-1} style={position ?? { visibility: 'hidden' }} role="menu" initial={{
+        {isMenuOpen && <motion.div ref={menuRef} tabIndex={-1} data-presentation={isMobile ? 'mobile' : 'web'} style={position ?? { visibility: 'hidden' }} role="menu" initial={{
         opacity: 0,
         y: -4
       }} animate={{
@@ -361,14 +364,14 @@ function ProjectRow({
         opacity: 0,
         y: -4
       }} transition={{
-        duration: 0.14
+        duration: motionSeconds('fast')
       }} className="fixed z-[45] w-48 max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.22)]">
             {[[reorderActions?.moveUp, 'Move up'], [reorderActions?.moveDown, 'Move down']].map(([action, label]) => typeof action === 'function' && <button key={String(label)} type="button" role="menuitem" onClick={() => { setIsMenuOpen(false); action(); }} className="flex min-h-11 w-full items-center rounded-lg px-2 text-left text-sm hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{String(label)}</button>)}
             {onEdit && <button type="button" role="menuitem" onClick={() => {
           triggerRef.current?.focus();
           onEdit();
           setIsMenuOpen(false);
-        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
                 Edit project…
               </button>}
@@ -376,24 +379,26 @@ function ProjectRow({
             <button type="button" role="menuitem" onClick={() => {
           onTogglePinned();
           setIsMenuOpen(false);
-        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               {isPinned ? <PinOffIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <PinIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isPinned ? 'Unpin' : 'Pin'}
             </button>
             <button type="button" role="menuitem" onClick={() => {
           onToggleHidden();
           setIsMenuOpen(false);
-        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               {isHidden ? <EyeIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <EyeOffIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isHidden ? 'Make visible' : 'Hide'}
             </button>
+            {isActive&&profileId&&<button type="button" role="menuitem" className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px]" onClick={()=>{setIsMenuOpen(false);setExportOpen(true);}}>Export</button>}
+            {isActive&&profileId&&onEdit&&project.attachments?.some(attachment=>attachment.kind==='image'||attachment.kind==='document')&&<button type="button" role="menuitem" className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px]" onClick={()=>{setIsMenuOpen(false);const attachment=project.attachments?.find(item=>item.kind==='image'||item.kind==='document');if(attachment)void import('../../features/references/ownCitation').then(module=>module.ownPageCitation(profileId,project.id,attachment.id,0)).then(text=>navigator.clipboard.writeText(text)).then(()=>setCitationStatus('Citation copied.')).catch(()=>setCitationStatus('Citation could not be copied.'));}}>Copy citation</button>}
             {/* These act on the published record itself, through the project
              management boundary — not on a local copy of it. */}
             {onDelete && <button type="button" data-keep-color="" role="menuitem" onClick={() => {
           triggerRef.current?.focus();
           onDelete();
           setIsMenuOpen(false);
-        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--status-danger)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--status-danger)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
                 Delete project…
               </button>}

@@ -76,12 +76,10 @@ test('all public header controls share fixed geometry without pressed-state move
   assert.equal((parseInt(tokens['--shared-header-height']) - parseInt(tokens['--shared-header-control'])) / 2, 10);
 });
 
-test('information glyph stays on the header centerline without losing Plex Mono', () => {
+test('project information uses the shared icon frame within the centered header control', () => {
   const source = read('../src/components/media/ProjectMediaViewer.tsx');
-  assert.match(source, /data-shared-info-glyph=""[^\n]+IBM Plex Mono/);
-  const glyph = declarations(`${scope} [data-shared-navigation-header] [data-shared-info-glyph]`);
-  assert.equal(glyph['font-size'], '12px');
-  assert.equal(glyph['line-height'], '1');
+  assert.match(source, /<InterfaceIcon icon=\{InfoIcon\} size="lg" \/>/);
+  assert.equal(source.includes('data-shared-info-glyph'), false);
 });
 
 test('project header omits duplicate page totals but retains layout controls and project information', () => {
@@ -89,13 +87,17 @@ test('project header omits duplicate page totals but retains layout controls and
   const source = read(path);
   assert.equal(attributes(path, 'data-shared-page-count').result.length, 0);
   assert.ok(!source.includes('activePageLabel'));
-  assert.match(source, /Pages\/row \{pageLayoutDraft\}/);
-  assert.match(source, /<label className="[^"]*relative[^"]*h-full[^"]*items-center[^"]*"[^>]*>[\s\S]*data-pages-per-row-slider=""/);
-  assert.match(source, /data-pages-per-row-slider=""[\s\S]*data-pages-per-row-label=""/);
-  assert.match(source, /data-pages-per-row-label="" className="[^"]*absolute[^"]*top-\[calc\(50%\+11px\)\][^"]*text-\[8px\][^"]*text-\[var\(--text-secondary\)\]/);
-  assert.match(source, /aria-label="Pages per row"/);
-  assert.match(source, /min=\{MIN_PAGES_PER_ROW\}/);
-  assert.match(source, /max=\{MAX_PAGES_PER_ROW\}/);
+  assert.match(source, /<ProjectPagesPerRowControl value=\{pageLayoutDraft\}[\s\S]*?onCommit=\{commitPageLayout\}/);
+  const sharedReader = read('../src/visitor/VisitorProjectPage.tsx');
+  assert.match(sharedReader, /<ProjectPagesPerRowControl value=\{pagesPerRow\} onChange=\{setPagesPerRow\} \/>/);
+  const slider = read('../src/components/media/ProjectPagesPerRowControl.tsx');
+  assert.match(slider, /Pages\/row \{value\}/);
+  assert.match(slider, /<label className="[^"]*relative[^"]*h-full[^"]*items-center[^"]*"[^>]*>[\s\S]*data-pages-per-row-slider=""/);
+  assert.match(slider, /data-pages-per-row-slider=""[\s\S]*data-pages-per-row-label=""/);
+  assert.match(slider, /data-pages-per-row-label="" className="[^"]*absolute[^"]*top-\[calc\(50%\+11px\)\][^"]*text-\[8px\][^"]*text-\[var\(--text-secondary\)\]/);
+  assert.match(slider, /aria-label="Pages per row"/);
+  assert.match(slider, /min=\{MIN_PAGES_PER_ROW\}/);
+  assert.match(slider, /max=\{MAX_PAGES_PER_ROW\}/);
   assert.match(source, /pageCount=\{activePageCount\}/);
   const viewer = read('../src/components/media/ProjectMediaViewer.tsx');
   assert.match(viewer, />Pages<\/dt><dd[^>]*>\{pageCount\}/);

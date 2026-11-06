@@ -1,4 +1,5 @@
 import { sourceModule } from './helpers/source-module.mjs';
+import { publicOriginFixture, publicRedirectFixture } from './helpers/public-origin-fixture.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -15,7 +16,10 @@ function load(path, imports = {}, globals = {}) {
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
   vm.runInNewContext(code, { exports, TextDecoder, TextEncoder, crypto, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
+      if (id.endsWith('/publicOrigin')) return publicOriginFixture;
+      if (id.endsWith('/publicOriginRedirect')) return publicRedirectFixture;
       if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
+      if (id === './server/referenceResolver' || id === './server/portfolioExport') return {};
       if (id === './server/citation') return { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } };
     if (id === './features/sharing/shareModel') return load('../src/features/sharing/shareModel.ts');
       if (id === './server/shareAddress') return load('../src/server/shareAddress.ts', {'../features/sharing/shareModel':load('../src/features/sharing/shareModel.ts')}, globals);
@@ -52,6 +56,7 @@ function database() {
 function workerFor(db) {
   const worker = load('../src/sites-worker.ts', {}, {
     fetch: async (url, init) => {
+      if (new URL(url).pathname === '/rest/v1/rpc/require_active_account_session') return new Response(null, { status: 204 });
       if (new URL(url).pathname === '/rest/v1/projects') {
         return Response.json([{ id: 'project', category: { id: 'portal' }, attachments: [
           { id: 'original/file.pdf', kind: 'document', position: 0, page_count: 8 },
@@ -112,7 +117,7 @@ test('signed-out and expired sessions cannot list or remove page bookmarks', asy
   } finally { db.sqlite.close(); }
 });
 
-test('removing one page is idempotent and leaves other pages, accounts, likes and reposts untouched', async () => {
+test('removing one page is idempotent and preserves other pages, accounts, likes and historical repost rows', async () => {
   const { db, request } = await readyDb();
   try {
     add(db, 'alice', 0); add(db, 'alice', 1); add(db, 'bob', 0); add(db, 'alice', 0, 'like'); add(db, 'alice', 0, 'repost');
@@ -120,6 +125,7 @@ test('removing one page is idempotent and leaves other pages, accounts, likes an
     assert.equal((await request(savedPath, { method: 'DELETE', body })).status, 200);
     assert.equal((await request(savedPath, { method: 'DELETE', body })).status, 200);
     assert.equal(db.sqlite.prepare('SELECT count(*) AS n FROM media_engagements').get().n, 4);
+    assert.equal(db.sqlite.prepare("SELECT count(*) AS n FROM media_engagements WHERE kind='repost'").get().n, 1);
     const alice = await (await request(savedPath)).json();
     const bob = await (await request(savedPath, { account: 'bob' })).json();
     assert.equal(alice.items[0].pageIndex, 1); assert.equal(bob.items.length, 1);
@@ -224,4 +230,13 @@ test('Saved tab handlers replace history, retain their URL selection, and leave 
       assert.equal(router.state.location.pathname + router.state.location.search, '/saved?tab=pages', 'Forward restores the last selected collection');
     } finally { router.dispose(); }
   }
+});
+
+test('saved links explicitly request single-page mode and never match another attachment preview',()=>{
+ const mixed={...view,project:{...view.project,attachments:[{...view.project.attachments[0],metadata:{pageCount:8,renderedPages:[{attachmentId:'other-document',withinDocumentIndex:5,sourceUrl:'wrong-page'},{attachmentId:target.attachmentId,withinDocumentIndex:5,sourceUrl:'correct-page'}]}}]}};
+ const item=presentation(target,mixed);
+ assert.equal(item.source,'correct-page');assert.equal(new URL(item.href,'https://site.test').searchParams.get('view'),'page');
+ const without={...mixed,project:{...mixed.project,attachments:[{...mixed.project.attachments[0],metadata:{pageCount:8,renderedPages:[{attachmentId:'other-document',withinDocumentIndex:5,sourceUrl:'wrong-page'}]}}]}};
+ assert.equal(presentation(target,without).source,'original-pdf');assert.equal(presentation(target,without).pageNumber,5);
+ assert.equal(presentation({...target,attachmentId:'image-one',pageIndex:2},view),null);
 });

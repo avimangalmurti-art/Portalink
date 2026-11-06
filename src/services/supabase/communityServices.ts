@@ -3,11 +3,12 @@ import type {
   CommentService,
   EngagementService,
   NotificationService,
+  NotificationDeleteTarget,
   SocialService,
 } from '../interfaces';
 import type { Comment, ProjectComments } from '../../types/comments';
 import { CommentServiceError, validateCommentBody } from '../../types/comments';
-import type { EngagementKind, ProjectEngagement } from '../../types/engagement';
+import type { ProjectEngagement } from '../../types/engagement';
 import { EngagementServiceError } from '../../types/engagement';
 import type { FollowRequest, FollowState, Notification } from '../../types/domain';
 import { SocialServiceError } from '../../types/social';
@@ -300,18 +301,19 @@ async function legacyEngagementSummary(projectId: string): Promise<ProjectEngage
   const [summary, own] = await Promise.all([
     requireSupabase().rpc('project_engagement_summary', { p_project_id: projectId }),
     accountId
-      ? requireSupabase().from('project_engagement').select('kind').eq('project_id', projectId).eq('account_id', accountId)
+      ? requireSupabase().from('project_engagement').select('kind').eq('project_id', projectId).eq('account_id', accountId).in('kind', ['like', 'save'])
       : Promise.resolve({ data: [], error: null }),
   ]);
   if (summary.error) throw new EngagementServiceError('network', summary.error.message);
   if (own.error) throw new EngagementServiceError('network', own.error.message);
   const counts = summary.data as unknown as { like_count: number; save_count: number; repost_count: number } | null;
-  const kinds = new Set(((own.data ?? []) as unknown as Array<{ kind: EngagementKind }>).map((row) => row.kind));
+  // Older deployments still return retired summary fields alongside active kinds.
+  const kinds = new Set(((own.data ?? []) as unknown as Array<{ kind: string }>).map((row) => row.kind));
   return {
     projectId,
     isLiked: kinds.has('like'),
     isSaved: kinds.has('save'),
-    isReposted: kinds.has('repost'),
+    isReposted: false,
     likeCount: Number(counts?.like_count ?? 0),
     saveCount: Number(counts?.save_count ?? 0),
     repostCount: Number(counts?.repost_count ?? 0),
@@ -375,6 +377,7 @@ async function engagementSummary(projectId: string): Promise<ProjectEngagement> 
 
 export const supabaseEngagementService: EngagementService = {
   async listProjectParticipants(projectId, kind, offset = 0) {
+    if (kind !== 'like' && kind !== 'save') throw new EngagementServiceError('permission_denied', 'This engagement action is unavailable.');
     const { data, error } = await requireSupabase().rpc('project_engagement_participants', { p_project_id: projectId, p_kind: kind, p_offset: offset });
     if (error) throw new EngagementServiceError('network', 'People who engaged could not be loaded.');
     return (data ?? []).map((row: { profile_id: string; name: string; avatar_url: string }) => ({ id: row.profile_id, name: row.name, avatar: row.avatar_url }));
@@ -382,6 +385,7 @@ export const supabaseEngagementService: EngagementService = {
   getProjectEngagement: engagementSummary,
   getProjectEngagements: engagementSummaries,
   async setEngagement(mutation) {
+    if (mutation.kind !== 'like' && mutation.kind !== 'save') throw new EngagementServiceError('permission_denied', 'This engagement action is unavailable.');
     if(mutation.kind === 'like' && !likesCapability) throw new EngagementServiceError('permission_denied','Likes are unavailable.');
     const accountId = await currentAccountId(false);
     if (!accountId) throw new EngagementServiceError('unauthenticated', 'Sign in before engaging with work.');
@@ -402,6 +406,7 @@ export const supabaseEngagementService: EngagementService = {
     return (data ?? []).map(row=>({projectId: String(row.project_id),savedAt:String(row.created_at)}));
   },
   async listEngagedProjectIds(kind) {
+    if (kind !== 'like' && kind !== 'save') throw new EngagementServiceError('permission_denied', 'This activity collection is unavailable.');
     const accountId = await currentAccountId(false);
     if (!accountId) throw new EngagementServiceError('unauthenticated', 'Sign in to see your activity.');
     const { data, error } = await requireSupabase().from('project_engagement').select('project_id')
@@ -412,6 +417,27 @@ export const supabaseEngagementService: EngagementService = {
 };
 
 export const supabaseNotificationService: NotificationService = {
+  async deleteNotifications(targets) {
+    if (!targets.length) return [];
+    if (targets.length > 200 || targets.some(target => !target || typeof target.id !== 'string' || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(target.id)
+      || typeof target.timestamp !== 'string' || !Number.isFinite(Date.parse(target.timestamp)))) throw new Error('Invalid notification selection.');
+    const selected = [...new Map(targets.map(({ id, timestamp }) => [JSON.stringify([id, timestamp]), { id, timestamp }])).values()];
+    const accountId = await currentAccountId(true);
+    const results: Array<PromiseSettledResult<NotificationDeleteTarget | null>> = [];
+    for (let offset = 0; offset < selected.length; offset += 8) {
+      if (offset && await currentAccountId(false) !== accountId) return [];
+      results.push(...await Promise.allSettled(selected.slice(offset, offset + 8).map(async target => {
+        const { data, error } = await requireSupabase().from('notifications').delete()
+          .eq('account_id', accountId).eq('id', target.id).eq('created_at', target.timestamp).select('id');
+        if (error) throw new Error(error.message);
+        return (data ?? []).some(row => row.id === target.id) ? target : null;
+      })));
+    }
+    if (await currentAccountId(false) !== accountId) return [];
+    const removed: NotificationDeleteTarget[] = results.flatMap(result => result.status === 'fulfilled' && result.value ? [result.value] : []);
+    if (!removed.length && results.every(result => result.status === 'rejected')) throw new Error('Notifications could not be deleted. Please try again.');
+    return removed;
+  },
   async listNotifications(): Promise<Notification[]> {
     const accountId = await currentAccountId(false);
     if (!accountId) return [];

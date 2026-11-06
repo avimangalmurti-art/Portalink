@@ -1,7 +1,28 @@
-<!-- 2026-10-07: 0003 applied once via approved production SQL Editor; citation/notification cascade lifecycle verified and test rows deleted. File moved unchanged to migrations; CLI ledger untouched. No publish; Studio acceptance issue remains. -->
-<!-- 2026-10-07: 202610070001 and 202610070002 applied manually through production SQL Editor in order with explicit approval; October 6 backup selected. Files moved to migrations. CLI ledger unchanged. App acceptance incomplete; no publish. See agent-handoff.md. -->
-<!-- October 1, 2026: 202610010001_profile_connection_counts.sql applied separately with explicit user approval. Existing Supabase project; transaction success, aggregate totals/execute grants/inaccessible-profile null and public REST RPC verified. No user rows or ledger changed; frontend remains unpublished. See agent-handoff.md. -->
-# Migration status register
+## Pending review — retire new repost writes (2026-11-03)
+
+`supabase/pending/retire_reposts.sql` is **unapplied**. The requested repost removal is implemented locally in both presentations, project/page action boundaries, activity routes, discovery signals and the existing Sites worker. The pending SQL adds one invoker trigger to reject new or retargeted project repost rows while preserving historical rows, tables, policies, grants and supported interactions. It does not delete data, alter the legacy summary RPC contract, or modify migration history.
+
+The exact pending SQL SHA256 is `6a84565d20a243b4f054ffff1814bd0500f11514426b5c16abc35daafb646ece`. Two disposable PGlite checks executed the SQL twice, verified historical-data preservation, rejected inserts/upserts/conversions/retargets, allowed like/save operations, and retained RLS/table ACLs with restricted trigger-function access. No live database inspection/application is claimed. Apply only after separate explicit SQL authorization, live-schema preflight and review of this exact file. Source/Sites publication remains separate and pending; see the current handoff.
+
+## Applied - multiple Timeline Then/Now pairs (2026-10-15)
+
+User explicitly approved this one additive migration and publication. Applied the exact reviewed transaction (SHA256 8b9207074546f5343da627ab62b28a2f7c75a48e81a7b8f6fcf9153463cbc842) to the existing project via its authenticated SQL Editor. The unchanged applied SQL is now supabase/migrations/202610150002_profile_timeline_pairs.sql; its original UNAPPLIED comment is retained for byte-identical provenance. Preflight confirmed table absence and compatible references/functions. Postflight confirmed RLS, three policies, owner insert/delete grants, anon/authenticated select, constraints/FKs and ordering index. Existing profiles.then_now remains jsonb; no existing pairs or other user records were changed. No other migration or ledger repair applied. Combined publication is separate and pending below.
+
+## Applied — one project per row (2026-10-15)
+
+[202610150001_profile_project_grid_one_column.sql](../supabase/migrations/202610150001_profile_project_grid_one_column.sql) was applied once through the authenticated SQL Editor of the existing Portalink Networks production project after the user explicitly approved the single rule change and publication. The selected project was compared with the existing local configuration before any query. Read-only catalog preflight confirmed the September27 saved-density constraint2–13, smallint/NOTNULL/default2 and RLS enabled. The exact reviewed transaction (SHA256c425fc53486932cb3f9ecdacbbaa1b16772580ee2162e1f62724234e5f1e0335) replaced only `profiles_project_grid_columns_check` with1–13 and updated its comment. SQL Editor returned “Success. No rows returned.” Postflight confirmed1–13, unchanged smallint/NOTNULL/default2/RLS, and byte-identical policy/grant metadata hashes. No user rows, project ordering, policies, grants, other migrations or migration ledger were changed. Application occurred around2026-10-15T07:02Z (October15 00:02Pacific); the reviewed pending file was then moved unchanged into migrations.
+
+Isolated PGlite tests verify both the original restriction and repeated forward application, owner1/public reads, denied non-owner writes, invalid0/14/NULL rejection, and retained rows/defaults/order/policies/grants/RLS. Actual production account-layout saves were not exercised. Database application and website/source publication are separate states; see the current handoff for the release receipt.
+
+## Pending review — external references (2026-10-12)
+
+`supabase/pending/external_references.sql` is **unapplied**. It adds the requested
+separate reference table, project/date index, owner CRUD and existing-project
+visibility reads, with server-stamped immutable creation dates. Disposable
+PGlite ownership/public/private-role checks pass. It does not write citations or
+notifications. Apply only this file after explicit approval; no migration ledger
+repair or unrelated migration execution is authorized. See
+[the task review package](references-and-exports.md).
 
 ## September 30, 2026 — Sites279 live; edge cache verified
 
@@ -203,3 +224,5 @@ select version from supabase_migrations.schema_migrations order by version;
 Record future verification results here without storing secrets or user data. Until that inspection occurs, the unknown and historically recorded statuses above remain deliberately unresolved.
 
 2026-10-05: Prepared 202610050001_mutual_profile_connections.sql for owner/accepted-mutual list access. UNAPPLIED; requires explicit database deployment authorization and real permission validation before claiming live support.
+
+2026-10-12: explicitly approved immediate session revocation SQL applied once to existing production Supabase project; inventoried202610120002_immediate_account_session_revocation.sql. Catalog31restrictive policies/hook and rollback-only live/session isolation checks pass;zero test residue. No unrelated migration/history repair. See immediate-session-revocation.md and release handoff.
