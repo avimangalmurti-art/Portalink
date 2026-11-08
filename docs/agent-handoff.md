@@ -1,3 +1,9 @@
+## Sites 595 - Mobile reader, Home and Messages published
+
+Published source `248e30462830a69430584b9fe08e6010768ab30e` from `codex/web-in-place-navigation`. GitHub [PR #148](https://github.com/avimangalmurti-art/Portalink/pull/148) was verified open against `main` at that exact source before publication. The release includes circular project navigation feedback contained within its pill, a clear weekly reads action row during loading, icon-only inline reactions with counts in message options, and pill-shaped text bubbles.
+
+All 68 selected checks, typecheck, lint and the production build passed. Lint reported 111 warnings and zero errors. Both production bundle guards passed. Isolated Chrome checks and physical-device limits are recorded below. The deployed archive kept all 420 public assets, the Sites worker and four D1 SQL payloads byte-identical to Sites 594. The custom domain verified all 4 entry routes and 208 JavaScript and CSS assets. No migration or separate media-worker deployment is pending for this release. Ignored release receipts use `logs/mobile-polish-release-*`.
+
 ## Mobile text bubbles use pill corners
 
 Local on `codex/web-in-place-navigation` from `ead537f` with the pending changes below. `src/presentation/mobile/shapes.css` applies the system 24px chat curve to text-only bubbles, producing rounded ends on single lines and a bounded curve on wrapped text. The scope covers both directions and excludes attachment, share, editing and deleted-user surfaces.

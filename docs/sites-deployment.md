@@ -1,3 +1,9 @@
+## Sites 595 - Mobile reader, Home and Messages published
+
+Published [Portalink](https://portalinknetworks.com) from `248e30462830a69430584b9fe08e6010768ab30e`, verified before publication in open [PR #148](https://github.com/avimangalmurti-art/Portalink/pull/148) against `main`. The release contains the mobile reader navigation pill, weekly reads loading background, inline reaction icons and text bubble changes.
+
+Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_62d2cbf299f48191b1d6ff14c2aad5b9` and deployment `appgdep_6af104593ab48191a50c592cd9383967` succeeded at `2026-11-08T23:23:15.129015+00:00`. Public access and runtime revision 2 were retained. The 638-file archive preserved the 420 public assets, existing worker and four D1 SQL payloads against Sites 594. The custom domain served the expected asset references on all 4 entry routes and matched all 208 JavaScript and CSS assets. Focused validation and device limits are in the handoff. Receipt prefix is `logs/mobile-polish-release-*`.
+
 ## Sites 594 - All pending website and mobile changes published
 
 Published [Portalink](https://portalinknetworks.com) from `1cb84e799f94b903967dc49b22f2fb689da664e3`. Includes the WEB dense-catalogue scroll fix, shared catalogue defaults of MOBILE 2 / WEB 7 with retained viewer choices, WEB project text/details-button scaling and MOBILE reader navigation return timing.
