@@ -33,6 +33,10 @@
 }
 .reads-weekly > div > [data-ui-control='button'] { --ui-control-height: 44px; }
 .reads-weekly-character { display: none; }
+/* The decorative image must not paint a loading surface behind the actions. */
+[data-presentation='mobile'] .reads-weekly > div:has(> .reads-weekly-character) {
+  background: transparent;
+}
 [data-presentation='mobile'] .reads-weekly-metrics { list-style: disc; padding-inline-start: 24px; margin: 8px 0; font-size: 22px; font-weight: 650; }
 [data-presentation='mobile'] .reads-weekly-character {
   display: block;

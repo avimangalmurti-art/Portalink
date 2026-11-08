@@ -60,6 +60,13 @@
     border-radius: var(--mobile-component-radius) !important;
   }
 
+  /* Use the chat curve for text pills, including messages that wrap. */
+  [data-presentation='mobile'] [data-mobile-chat] [data-message-bubble]:has(> [data-message-body]):not(:has(
+    > ul, > p, > [data-message-body] > [data-shared-content-preview]
+  )) {
+    border-radius: var(--ui-composer-radius) !important;
+  }
+
   [data-presentation='mobile'] .inset-row-group:not(:where([data-mobile-contact-group], [data-messages-page] ul:has(> li > .message-contact-row))) > :first-child {
     border-start-start-radius: var(--mobile-component-radius) !important;
     border-start-end-radius: var(--mobile-component-radius) !important;

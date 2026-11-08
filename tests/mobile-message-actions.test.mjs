@@ -132,6 +132,20 @@ test('MOBILE opens contextual message options and uses existing reaction, edit a
   assert.equal(h.button('Unsend'), undefined);
 });
 
+test('MOBILE shows reaction icons without counts while WEB keeps its count', () => {
+  const mobile = listHarness();
+  const love = mobile.button('Love');
+  assert.equal(love.props['aria-pressed'], true);
+  assert.equal(love.props.children.props.fill, 'currentColor');
+  assert.equal(React.Children.count(love.props.children), 1);
+  love.props.onClick();
+  assert.deepEqual(mobile.calls, [['react', 'message-1', '❤']]);
+
+  const desktop = listHarness('web');
+  const desktopLove = desktop.button('Love: 2. Selected');
+  assert.equal(React.Children.toArray(desktopLove.props.children.props.children).join(''), '❤ 2');
+});
+
 test('MOBILE permissions, pending state and removed or local messages keep their interaction restrictions', () => {
   for (const overrides of [{ canInteract: false }, { messages: [{ ...ownMessage, id: 'local-message' }] }, { messages: [{ ...ownMessage, isRemoved: true }] }]) {
     assert.equal(listHarness('mobile', overrides).button('Message options'), undefined);
@@ -258,6 +272,10 @@ test('the anchored options support focus dismissal and editing for the sender', 
   assert.equal(reactions.length, 3, 'All supported icon reactions are visible without duplicates');assert.deepEqual(reactions.map(node=>node.props['aria-label']),['Remove Love','React with Applause','React with Sparkle']);assert.ok(reactions.every(node=>!React.Children.toArray(node.props.children).some(child=>typeof child==='string'&&/[❤👏✨]/u.test(child))));
   assert.equal(reactions[0].props['aria-label'], 'Remove Love');
   assert.equal(reactions[0].props['aria-pressed'], true);
+  const count = nodes(reactions[0]).find(node => node.props.id && node.props.id === reactions[0].props['aria-describedby']);
+  assert.equal(count?.props.children, 2, 'The options show the count and associate it with the reaction');
+  assert.equal(count.props['aria-hidden'], undefined);
+  assert.equal(reactions[1].props['aria-describedby'], undefined);
   const stack = nodes(tree).find(node => node.props['data-message-context-stack'] !== undefined);
   assert.deepEqual(React.Children.toArray(stack.props.children).slice(0, 3).map(node => node.props.className), [
     'mobile-message-context-reactions', 'mobile-message-context-bubble', 'mobile-message-context-actions',

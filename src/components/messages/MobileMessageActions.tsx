@@ -1,6 +1,6 @@
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MESSAGE_REACTION_OPTIONS } from './messageReactionIcons';
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useId, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { CopyIcon } from 'lucide-react';
 import type { DirectMessage } from '../../types/messages';
@@ -30,6 +30,7 @@ export function MobileMessageActions({ message, isMine, pending, anchor, onClose
   const previewRef = useRef<HTMLDivElement>(null);
   const pressedInside = useRef(false);
   const [copyFailed, setCopyFailed] = useState(false);
+  const reactionCountPrefix = useId();
   const model = contextActions('message', { signedIn: true }, { title: 'Message options', handlers: {
     editMessage: isMine && !pending ? onEdit : undefined,
     unsend: isMine && !pending ? onRequestUnsend : undefined,
@@ -101,11 +102,12 @@ export function MobileMessageActions({ message, isMine, pending, anchor, onClose
     <div ref={boundsRef} className="mobile-message-context-bounds">
       <div ref={dialogRef} data-message-context-stack="" data-message-context-side={isMine ? 'outgoing' : 'incoming'} className="mobile-message-context-stack" role="dialog" aria-modal="true" aria-label={model.title} tabIndex={-1}>
         <div data-message-context-reactions="" role="group" aria-label="Message reactions" className="mobile-message-context-reactions">
-          {MESSAGE_REACTION_OPTIONS.map(option => {
+          {MESSAGE_REACTION_OPTIONS.map((option, index) => {
             const reaction = message.reactions?.find(item => item.emoji === option.value);
-            return <button key={option.value} type="button" disabled={pending} aria-label={`${reaction?.isMine ? 'Remove' : 'React with'} ${option.label}`} aria-pressed={reaction?.isMine ?? false} onClick={() => { close(); onReact(option.value); }}>
+            const countId = reaction?.count ? `${reactionCountPrefix}-${index}` : undefined;
+            return <button key={option.value} type="button" disabled={pending} aria-label={`${reaction?.isMine ? 'Remove' : 'React with'} ${option.label}`} aria-describedby={countId} aria-pressed={reaction?.isMine ?? false} onClick={() => { close(); onReact(option.value); }}>
               <InterfaceIcon icon={option.icon} size="lg" />
-              {reaction?.count ? <span aria-hidden="true">{reaction.count}</span> : null}
+              {countId && <span id={countId}>{reaction?.count}</span>}
             </button>;
           })}
         </div>

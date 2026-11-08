@@ -247,9 +247,10 @@
     border-radius: var(--ui-icon-radius) !important;
   }
 
-  /* Portal view controls and relationship actions keep their system shapes
+  /* Reader/portal controls and relationship actions keep their system shapes
      above the phone's compact fallback, including lazy public portal views. */
   [data-presentation='mobile'][data-presentation] :is(
+    .mobile-content-action-bar > button,
     .mobile-portal-index-view-controls > button.mobile-portal-index-control,
     .mobile-portals-page > header > button.mobile-portal-action,
     [data-profile-visitor-actions] [data-profile-bookmark] > button

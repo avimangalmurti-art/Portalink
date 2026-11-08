@@ -1,3 +1,23 @@
+## Mobile text bubbles use pill corners
+
+Local on `codex/web-in-place-navigation` from `ead537f` with the pending changes below. `src/presentation/mobile/shapes.css` applies the system 24px chat curve to text-only bubbles, producing rounded ends on single lines and a bounded curve on wrapped text. The scope covers both directions and excludes attachment, share, editing and deleted-user surfaces.
+
+All 33 focused message checks and diff check passed. The isolated Chrome fixture verified 44px single-line pills, wrapped text, attachment/share/edit selector exclusions, long-press reaction counts and the desktop 18px radius. Receipt and screenshot are in ignored `logs/mobile-message-pill-qa`. Sites 594 remains the current published release.
+
+## Mobile weekly card and message reaction refinements
+
+Local on `codex/web-in-place-navigation` from `ead537f`, alongside the pending reader pill fix below. `src/features/reads/reads.css` keeps the weekly card action row clear while the decorative image waits. `src/components/MessagesPage.tsx` and `src/presentation/mobile/mobile.css` render icon-only mobile reactions with transparent touch feedback and the existing tap targets. The mobile message options in `src/components/messages/MobileMessageActions.tsx` associate each visible count with its reaction for screen readers. `tests/mobile-message-actions.test.mjs` covers counts in the options, mobile icon-only rendering and the desktop count.
+
+All 57 focused Home and message checks, typecheck and diff check passed. Isolated Chrome reproduced the weekly card strip with a held image request, then verified transparent light and dark mobile rows with the same button geometry and a matching desktop comparison. The message fixture verified transparent icons at rest and when pressed, the 44px vertical hit area, counts on a native touch hold and desktop counts. Fixture data and browser emulation cover these checks. Receipts are in ignored `logs/weekly-mobile-action-paint-qa` and `logs/mobile-reaction-icons-qa`. The source edits are local. Sites 594 is the current published release.
+
+## MOBILE project navigation uses circular feedback inside its pill - local
+
+Continuing on `codex/web-in-place-navigation` from `ead537f` (Sites 594 application source plus receipt). MOBILE-only micro edit: `src/presentation/controls.css` adds the three `.mobile-content-action-bar` buttons to the existing important circular-control group, overriding the phone's generic 3px fallback. `src/presentation/mobile/reader-scroll-controls.css` gives only that inner action bar a capsule radius and clips its contents. The outer response rail retains visible overflow so expanded engagement can remain above the pill. Existing 44px targets, colours, timing, actions and WEB presentation remain unchanged; both main/public entries receive the shared CSS.
+
+All 11 existing control/main-navigation tests, diff check and optimized baseline/current fixture builds pass. Seven isolated Chrome cases cover main/public MOBILE light/dark, main dock and both WEB entries: circular center/corner hit testing, native held-touch feedback for all three buttons, unchanged geometry/paint tokens and callbacks, inset keyboard focus and reachable engagement content above the bar. Main dock and WEB geometry/PNGs match baseline exactly; no runtime/console errors. Screenshots were visually reviewed. Receipts are in ignored `logs/reader-pill-shape-qa`; focused output is `logs/reader-pill-shape-tests.log`. Services/artwork/actions used a representative fixture with real presentation/navigation CSS; no live account or physical iPhone/Safari proof is claimed. This CSS micro edit postdates the production build, so rebuild before publication.
+
+The edit remains local/uncommitted and unpublished. Sites 594 remains live; no GitHub push/merge, deployment, migration or worker change was performed.
+
 ## Sites 594 published all pending website and mobile changes
 
 Published [Portalink](https://portalinknetworks.com) from source `1cb84e799f94b903967dc49b22f2fb689da664e3` on `codex/web-in-place-navigation`. Includes the WEB dense-scroll correction, public catalogue defaults of MOBILE 2 / WEB 7 with saved viewer preferences, WEB project-description/three-dot scaling and MOBILE reader controls returning with the main navigation timing. The supported source helper sealed and pushed this exact source to the existing Sites mirror. Public access and runtime revision 2 were retained. This publication did not push or merge GitHub, apply SQL or deploy separate media workers.

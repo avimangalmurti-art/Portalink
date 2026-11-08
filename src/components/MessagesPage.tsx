@@ -762,14 +762,15 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                 {!message.id.startsWith('local-') && !message.isRemoved && canInteract ? <div data-message-reactions="" className="mt-2 flex flex-wrap items-center gap-1">
                     {(message.reactions ?? []).map(reaction => {
                       const option = messageReactionOption(reaction.emoji);
-                      const sharedReaction = isMobile && reaction.isMine && reaction.count === 2;
-                      const label = sharedReaction ? `${option.label}: you and the other participant`
+                      const label = isMobile ? option.label
                         : `${option.label}: ${reaction.count}${reaction.isMine ? '. Selected' : ''}`;
                       return <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={isPending} onClick={() => void onReact(message.id, reaction.emoji)}
-                        className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${isMobile ? 'inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px]' : ''} ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`}
+                        data-ui-shape={isMobile ? 'icon' : undefined}
+                        className={isMobile ? 'inline-flex items-center justify-center min-h-[44px] min-w-[44px]'
+                          : `rounded-full px-2 py-0.5 text-[12px] ring-1 ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`}
                         aria-label={label}>
-                        {isMobile ? <InterfaceIcon icon={option.icon} size="sm" fill={reaction.emoji === '❤' && reaction.isMine ? 'currentColor' : undefined} /> : reaction.emoji}
-                        {' '}{sharedReaction ? 'You + 1' : reaction.count}
+                        {isMobile ? <InterfaceIcon icon={option.icon} size="sm" weight={reaction.isMine ? 'semibold' : 'regular'} fill={reaction.emoji === '❤' && reaction.isMine ? 'currentColor' : undefined} />
+                          : <>{reaction.emoji}{' '}{reaction.count}</>}
                       </button>;
                     })}
                     {isMobile ? <button type="button" aria-label="Message options" aria-haspopup="dialog" aria-expanded={actionsId === message.id} disabled={isPending || editingId === message.id || deleteId === message.id} onClick={event => openActions(message.id, event.currentTarget)} className="sr-only focus:not-sr-only focus:absolute focus:right-0 focus:bottom-0 focus:h-11 focus:w-11 focus:rounded-full focus:bg-[var(--surface-raised)] focus:text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-current"><InterfaceIcon icon={MoreHorizontalIcon} /></button> : <>

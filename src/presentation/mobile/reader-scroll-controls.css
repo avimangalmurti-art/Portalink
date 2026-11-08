@@ -1,4 +1,10 @@
 /* Shared by the separate platform and public entries; only MOBILE changes. */
+/* Contain reader-button feedback without clipping engagement above the rail. */
+#root .codex-shell[data-presentation='mobile'] .mobile-content-action-bar {
+  border-radius: var(--ui-capsule-radius);
+  overflow: hidden;
+}
+
 /* Return with the main dock's quick fade, retaining the existing hide motion. */
 #root .codex-shell[data-presentation='mobile']:not([data-project-reading]) [data-project-reading-control] {
   transition: opacity var(--m-fast) var(--m-enter), visibility 0s;

@@ -4061,7 +4061,8 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   padding: 2px 8px;
   border: 0;
   border-radius: 999px;
-  background: var(--surface-sunken);
+  background: transparent !important;
+  -webkit-tap-highlight-color: transparent;
   color: var(--text-primary);
   box-shadow: none;
   font-size: 12px;
