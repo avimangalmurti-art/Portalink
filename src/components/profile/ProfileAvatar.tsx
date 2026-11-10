@@ -47,6 +47,7 @@ function AvatarLoop({ src, poster, paused, onError, onBlocked }: { src: string; 
 
 function ProfileAvatarPreview({ name, avatar, videoSrc, paused, onVideoError, onVideoBlocked, onClose, inlinePreview, previewHost }: { name: string; avatar?: string | null; videoSrc?: string; paused: boolean; onVideoError: () => void; onVideoBlocked: () => void; onClose: () => void; inlinePreview: boolean; previewHost?: React.RefObject<HTMLElement> }) {
   const presentation = usePresentation();
+  const captionStyle = presentation === 'mobile' && !inlinePreview ? 'font-[700] text-white' : 'font-medium text-[var(--text-primary)]';
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [avatar]);
   const titleId = useId();
@@ -80,7 +81,7 @@ function ProfileAvatarPreview({ name, avatar, videoSrc, paused, onVideoError, on
         <div data-avatar-preview-image="" className="squircle relative overflow-hidden bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]" style={{ width: 'clamp(260px, 64vw, 420px)', height: 'clamp(260px, 64vw, 420px)' }}>
           {videoSrc ? <AvatarLoop src={videoSrc} poster={avatar} paused={paused} onError={onVideoError} onBlocked={onVideoBlocked} /> : avatar && !imageFailed ? <ResponsiveImage src={avatar} alt={`${name} profile image`} onError={() => setImageFailed(true)} priority width={840} height={840} sizes="(min-width: 800px) 420px, 64vw" className="block h-full w-full object-cover" /> : <CreatorAvatar name={name} shape="squircle" className="h-full w-full text-[160px]" />}
         </div>
-        <figcaption id={titleId} className="mt-4 break-words px-2 pb-1 text-center font-sans text-large font-medium leading-tight tracking-[-0.02em] text-[var(--text-primary)]" style={{ maxWidth: 'min(84vw, 520px)' }}>{name}</figcaption>
+        <figcaption id={titleId} className={`mt-4 break-words px-2 pb-1 text-center font-sans text-large leading-tight tracking-[-0.02em] ${captionStyle}`} style={{ maxWidth: 'min(84vw, 520px)' }}>{name}</figcaption>
       </figure>
     </div></>;
   // A welcome card can create a containing block through its glass material.

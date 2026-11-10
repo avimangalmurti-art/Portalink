@@ -1,3 +1,7 @@
+## 2026-11-10 — MOBILE avatar preview caption
+
+Local branch `codex/mobile-avatar-caption` in `logs/mobile-avatar-caption`, based on verified GitHub `main` at `4173ab397942f3854f3b2f4b061b87c51ac88113`. `ProfileAvatar.tsx` makes the name white and bold in the mobile avatar preview on profiles and shared catalogues. The inline welcome preview retains theme-aware text for its light accessibility backdrop. All 20 focused avatar tests, changed-file lint and diff check passed. Chromium verified white text at weight 700 at 420 × 912 in light, dark and shared-style mobile previews, with inline welcome and desktop controls also passing. Evidence is in ignored `logs/avatar-caption-qa`. Source is local. Publication and physical iPhone verification are pending.
+
 ## 2026-11-10 — Combined MOBILE profile, portal, Reads and preview release
 
 Release checkout `logs/mobile-ui-polish-599` on `codex/mobile-ui-polish-599`, based on Sites 598 source `e34c2aa43c30f5e751163f9ca58e6f2667a1883b`, above GitHub `main` at `3f2c9e8c59cf8a8a443f6b26d9ac9bdd7565ca54`. The eight verified task checkouts are preserved. The combined change touches 11 application files and six focused test files.
