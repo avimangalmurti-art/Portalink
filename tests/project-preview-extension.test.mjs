@@ -17,8 +17,14 @@ function load(name, require) {
 function nodes(node) {
   return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 }
+function textContent(node) {
+  return React.isValidElement(node) ? React.Children.toArray(node.props.children).map(textContent).join('') : String(node);
+}
 const creator = { id: 'creator', name: 'Portalite', avatar: '/avatar.webp' };
 const project = { id: 'project', title: 'Report', summary: 'Published research', cover: '/cover.webp', coverAlt: 'Report cover' };
+const detailsButton = node => node.type === 'button' && node.props['aria-label'] === `Show details for ${project.title}`;
+const artworkFrame = node => node.props['data-packing-base'] !== undefined;
+const mobileInfo = node => node.props['data-mobile-project-info'] !== undefined;
 
 function cardHarness(presentation = 'mobile') {
   const imports = [];
@@ -46,6 +52,7 @@ function cardHarness(presentation = 'mobile') {
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 0.75, getProjectCoverPreview: () => undefined };
     if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}), getProjectContinuityArtwork: () => project.cover, beginProjectContinuity() {} };
     if (name.endsWith('/ProjectCover')) return { ProjectCover: 'cover' };
+    if (name === './CreatorAvatar') return { CreatorAvatar: 'creator-avatar' };
     if (name === './ProjectHoverDetails') return { ProjectHoverDetails: 'details' };
     if (name === './ProjectPreviewExtension') return { ProjectPreviewExtension: 'loaded-extension' };
     return {};
@@ -87,10 +94,15 @@ test('one-column cards select the inline surface and information popup while den
     const inline = nodes(tree).find(node => node.type === h.LazyExtension && node.props.onSelect);
     assert.ok(inline); assert.equal(inline.props.project, project);
     assert.equal(tree.props['data-expanded'], false);
-    const frame = nodes(tree).find(node => node.props['data-packing-base'] !== undefined);
-    const info = nodes(tree).find(node => node.props.className?.startsWith('mobile-preview-details'));
-    assert.ok(info); assert.equal(info.props['aria-haspopup'], 'dialog');
+    const frame = nodes(tree).find(artworkFrame);
+    assert.ok(nodes(frame).some(node => node.type === h.LazyExtension && node.props.onSelect), 'The carousel stays within the artwork frame');
+    const [info, duplicate] = nodes(tree).filter(detailsButton);
+    assert.ok(info); assert.equal(duplicate, undefined);
+    assert.equal(info.props['aria-haspopup'], 'dialog');
     assert.equal(nodes(info).find(node => node.type === 'interface-icon').props.icon, 'horizontal-dots');
+    assert.equal(nodes(frame).some(detailsButton), presentation === 'web');
+    assert.equal(nodes(tree).some(mobileInfo), presentation === 'mobile');
+    assert.ok(info.props.className.includes(presentation === 'mobile' ? 'mobile-project-info-menu' : 'mobile-preview-details'));
     let stopped = false; info.props.onClick({ preventDefault() {}, stopPropagation() { stopped = true; } });
     assert.equal(stopped, true); assert.equal(h.detailsCount(), 1); assert.equal(h.openCount(), 0);
     const selected = { index: 2, key: 'page-two', attachmentId: 'image-two', page: 2 };
@@ -98,14 +110,97 @@ test('one-column cards select the inline surface and information popup while den
     tree = h.render(); assert.equal(nodes(tree).find(node => node.type === h.LazyExtension && node.props.onSelect).props.position, selected);
     h.setInline(false); tree = h.render();
     assert.equal(nodes(tree).some(node => node.type === h.LazyExtension && node.props.onSelect), false);
-    assert.deepEqual(nodes(tree).find(node => node.props['data-packing-base'] !== undefined).props.style, frame.props.style);
-    const dots = nodes(tree).find(node => node.props.className?.startsWith('mobile-preview-details'));
-    assert.ok(dots);
-    if (dots) assert.equal(nodes(dots).find(node => node.type === 'interface-icon').props.icon, 'horizontal-dots');
+    assert.equal(nodes(tree).some(mobileInfo), false);
+    const denseFrame = nodes(tree).find(artworkFrame);
+    assert.deepEqual(denseFrame.props.style, frame.props.style);
+    const dots = nodes(denseFrame).find(detailsButton);
+    assert.ok(dots?.props.className.includes('mobile-preview-details'));
+    assert.equal(nodes(dots).find(node => node.type === 'interface-icon').props.icon, 'horizontal-dots');
     h.setInline(true);
     for (const props of [{ cover: React.createElement('span', {}, 'Saved page') }, { disabled: true }]) {
-      assert.equal(nodes(h.render(props)).some(node => node.type === h.LazyExtension && node.props.onSelect), false);
+      const card = nodes(h.render(props));
+      assert.equal(card.some(node => node.type === h.LazyExtension && node.props.onSelect), false);
+      assert.equal(card.some(mobileInfo), false);
+      const button = nodes(card.find(artworkFrame)).find(detailsButton);
+      if (props.disabled) assert.equal(button, undefined);
+      else assert.ok(button?.props.className.includes('mobile-preview-details'));
     }
+  }
+});
+
+test('the mobile info row follows the artwork with squircle attribution and available project metadata', () => {
+  const h = cardHarness(); h.setInline(true);
+  const publishedAt = '2026-10-14T12:00:00.000Z';
+  const shared = { showCreator: false, showEngagementMetrics: false, creatorHref: '/share/creator' };
+  const tree = h.render({ ...shared, project: { ...project, publishedAt } });
+  const children = React.Children.toArray(tree.props.children);
+  const frameIndex = children.findIndex(artworkFrame);
+  assert.ok(frameIndex >= 0);
+  const row = children[frameIndex + 1];
+  assert.ok(row && mobileInfo(row), 'Info follows the artwork as an article child');
+  const elements = nodes(row);
+  const avatar = elements.find(node => node.type === 'creator-avatar');
+  assert.equal(avatar?.props.shape, 'squircle');
+  assert.equal(avatar?.props.name, creator.name);
+  assert.equal(avatar?.props.avatar, creator.avatar);
+  assert.ok(textContent(row).includes(project.title));
+  assert.ok(textContent(row).includes(creator.name));
+  assert.equal(elements.find(node => node.type === 'time')?.props.dateTime, publishedAt);
+  assert.equal(elements.filter(detailsButton).length, 1);
+  for (const date of [undefined, 'not a date']) {
+    const undated = nodes(h.render({ ...shared, project: { ...project, publishedAt: date } })).find(mobileInfo);
+    assert.equal(nodes(undated).some(node => node.type === 'time'), false);
+  }
+
+  const explore = nodes(h.render({ className: 'explore-feed-card', contentTypeLabel: 'PDF' }));
+  assert.ok(textContent(explore.find(mobileInfo)).includes('PDF'));
+  assert.equal(textContent(explore.find(artworkFrame)).includes('PDF'), false);
+});
+
+test('the mobile squircle opens its creator without invoking artwork or project details', () => {
+  const h = cardHarness(); h.setInline(true);
+  const calls = [];
+  const onOpenCreator = () => calls.push('open creator');
+  const onWarmCreator = () => calls.push('warm creator');
+  const infoElements = props => nodes(nodes(h.render(props)).find(mobileInfo));
+  const avatarAction = elements => {
+    const actions = elements.filter(node => node.props['aria-label'] === `Open ${creator.name}'s profile`);
+    assert.equal(actions.length, 1);
+    const [action] = actions;
+    assert.ok(action.props.className.includes('mobile-project-info-creator'));
+    const children = React.Children.toArray(action.props.children);
+    assert.equal(children.length, 1);
+    assert.equal(children[0].type, 'creator-avatar');
+    assert.equal(children[0].props.shape, 'squircle');
+    assert.equal(action.props.onPointerEnter, onWarmCreator);
+    assert.equal(action.props.onFocus, onWarmCreator);
+    return action;
+  };
+
+  const elements = infoElements({ onOpenCreator, onWarmCreator, creatorHref: '/share/creator' });
+  const avatar = avatarAction(elements);
+  assert.equal(avatar.type, 'button');
+  assert.equal(avatar.props.type, 'button');
+  avatar.props.onPointerEnter();
+  avatar.props.onFocus();
+  avatar.props.onClick({ preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual(calls, ['warm creator', 'warm creator', 'open creator']);
+  assert.equal(h.openCount(), 0);
+  assert.equal(h.detailsCount(), 0);
+
+  const menu = elements.find(detailsButton);
+  menu.props.onClick({ preventDefault() {}, stopPropagation() {} });
+  assert.equal(h.detailsCount(), 1);
+  assert.equal(h.openCount(), 0);
+  assert.deepEqual(calls, ['warm creator', 'warm creator', 'open creator']);
+
+  for (const [props, destination] of [
+    [{ showCreator: false, creatorHref: '/share/creator' }, '/share/creator'],
+    [{}, `/p/${creator.id}`],
+  ]) {
+    const link = avatarAction(infoElements({ ...props, onWarmCreator }));
+    assert.equal(link.type, 'link');
+    assert.equal(link.props.to, destination);
   }
 });
 

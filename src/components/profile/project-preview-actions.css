@@ -19,6 +19,58 @@
   }
 }
 
+/* Keep the compact information row in the card's flow below its artwork. */
+[data-presentation='mobile'] .mobile-project-info {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 44px;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 2px 12px 4px;
+  color: var(--text-primary);
+}
+[data-presentation='mobile'] .mobile-project-info-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+[data-presentation='mobile'] .mobile-project-info-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+[data-presentation='mobile'] :is(.mobile-project-info-creator, .mobile-project-info-menu) {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--ui-icon-radius);
+  background: transparent;
+  color: var(--text-primary);
+  padding: 0;
+}
+[data-presentation='mobile'] .mobile-project-info-creator {
+  /* Enlarge the touch target around the squircle without shifting the title. */
+  margin: -4px;
+}
+[data-presentation='mobile'] .mobile-project-info-menu:active {
+  background: var(--control-pressed-surface);
+}
+[data-presentation='mobile'] :is(.mobile-project-info-creator, .mobile-project-info-menu):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
 /* Follow each packed card's width as density changes, without JS measurement.
    Readability and click-target limits keep the extremes usable. */
 #root .codex-shell[data-presentation='web'] .project-preview-card {

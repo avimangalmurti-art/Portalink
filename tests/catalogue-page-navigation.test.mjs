@@ -162,6 +162,7 @@ test('real preview-card href uses the presentation-specific image target and pre
       '../../features/profile/useInlineProjectContent': { useInlineProjectContent: ({ project }) => ({ project, metadataComplete: true }) },
       './inlineProjectPageModel': { normalizeInlineProjectPosition: (_project, selected) => selected, inlinePositionMatches: () => true },
       './ProjectPageBrowsingContext': { useInlineProjectPages: () => false },
+      './CreatorAvatar': { CreatorAvatar: 'creator-avatar' },
       '../media/ProjectCover': { ProjectCover: 'cover' }, './ProjectHoverDetails': { ProjectHoverDetails: 'details' },
       '../ui/InterfaceIcon': { InterfaceIcon: 'icon' }, '../media/MobileProjectPopup': { MobileProjectPopup: 'popup' },
       '../media/warmDocumentRenderer': { warmProjectDocumentRenderer() {} }, './project-preview-actions.css': {},
