@@ -26,6 +26,10 @@ An independent diff comparison matched all ten application files and five test f
 
 Local branch `codex/mobile-avatar-caption` in `logs/mobile-avatar-caption`, based on verified GitHub `main` at `4173ab397942f3854f3b2f4b061b87c51ac88113`. `ProfileAvatar.tsx` makes the name white and bold in the mobile avatar preview on profiles and shared catalogues. The inline welcome preview retains theme-aware text for its light accessibility backdrop. All 20 focused avatar tests, changed-file lint and diff check passed. Chromium verified white text at weight 700 at 420 × 912 in light, dark and shared-style mobile previews, with inline welcome and desktop controls also passing. Evidence is in ignored `logs/avatar-caption-qa`. Source is local. Publication and physical iPhone verification are pending.
 
+## 2026-11-10 — PR #149 incorporates the Sites 599 main merge
+
+Task checkout `logs/ios149-main-4173ab3` on `codex/ios149-main-4173ab3` merges GitHub `main` at `4173ab397942f3854f3b2f4b061b87c51ac88113` into the existing iOS shell head `30f4e0d8d3a07f0ecd2b5aa8f06cf9efcea8c980`. The launch URL, app-bound domain and offline retry still use `portalinknetworks.com`. The native shell's source and the web application tree from `main` are preserved. Physical launch with a development-signed iPhone build remains the next gate. Auth email links still need Universal Links and device validation before TestFlight.
+
 ## 2026-11-10 — Combined MOBILE profile, portal, Reads and preview release
 
 Release checkout `logs/mobile-ui-polish-599` on `codex/mobile-ui-polish-599`, based on Sites 598 source `e34c2aa43c30f5e751163f9ca58e6f2667a1883b`, above GitHub `main` at `3f2c9e8c59cf8a8a443f6b26d9ac9bdd7565ca54`. The eight verified task checkouts are preserved. The combined change touches 11 application files and six focused test files.
@@ -75,6 +79,16 @@ Follow-up: the squircle avatar is an independent 44px creator control. It uses t
 Local task branch `codex/mobile-single-card-info` in `logs/mobile-single-card-info`, based on GitHub `main` at `d89cb1bc7ccdb7d0a234bad3bf492582d341b85d`. The shared `ProjectPreviewCard` adds a MOBILE one-column information row immediately below its artwork, for Explore, Profile and shared catalogues. The row uses the system `CreatorAvatar` squircle, project title, creator and valid publication date, and the existing project-details menu in a 44px button. Explore's content-type label sits in the row so it cannot overlap the page count. The existing carousel retains its artwork page count, swipe dots and gestures. WEB, denser grids, custom covers and disabled/reorder cards use their established controls. Open counts are available through private Read Insights and are not exposed by the cards.
 
 Typecheck, diff check and all 212 focused project, catalogue, renderer and presentation checks passed. Tests verify the new row, shared attribution, absent/invalid dates, menu handoff, and opposite-platform controls. Isolated Chrome with actual card, carousel, wall and popup components verified the 36px squircle, 44px menu, touch swipe and details popup at 420px and 320px, including dark shared-style cards. WEB one-column and MOBILE two-column artwork, menu and packing matched baseline. The fixtures used fictional artwork and services. Physical iPhone and live-account verification are pending. Receipts and screenshots are in ignored `logs/mobile-single-card-info-qa`. Source edits are local and await a separate publication request.
+
+## PR #149 main update and iOS launch origin
+
+Task worktree `logs/ios149-launch` on `codex/ios149-launch`, integrating `main` at `d89cb1bc7ccdb7d0a234bad3bf492582d341b85d` and prior PR #149 head `faa0731eb32a1efcb121f356cd9bb7f3d5392ab7`. The iOS startup URL, `WKAppBoundDomains` and offline retry fallback now agree on `portalinknetworks.com`. `CAP_SERVER_URL` remains available for development. The only merge conflict was this handoff, which preserves the main and original iOS entries. Added a focused origin regression test. A physical iPhone launch must be verified via an accessible Mac and development-signed build before starting TestFlight. This Windows worktree has no Xcode or connected device.
+
+## 2026-11-04 - ALL iOS Capacitor shell (user-approved native start), unpublished
+
+Devin owned branch devin/capacitor-ios-shell from github/main 5c3f7f2 in its own VM checkout. User explicitly chose a Capacitor wrapper over an Expo rebuild for App Store delivery. Added @capacitor/core, @capacitor/ios, @capacitor/cli 8.5.3 (exact), capacitor.config.ts, ios/ Xcode project (Swift Package Manager), native/shell offline fallback page, npm run ios:sync, and .github/workflows/ios.yml (unsigned simulator build on macos-15, excludes autosave/**). The app loads the hosted PUBLIC_ORIGIN so Auth callbacks, share links, /api worker routes and the media service worker keep their origin; WKAppBoundDomains lists that host so WKWebView service workers work. CAP_SERVER_URL at sync time points a dev build at a live-reload server. Bundle ID com.portalinknetworks.app is a placeholder pending user confirmation.
+
+typecheck passes; lint 0 errors/111 existing warnings; build with CI fixture env passes. Xcode build unverified locally (Linux); relies on the iOS workflow. No signing, TestFlight, store submission, SQL, Sites publish or worker deploy. WEB/MOBILE source unchanged.
 
 ## GitHub backlog and release merge readiness
 
