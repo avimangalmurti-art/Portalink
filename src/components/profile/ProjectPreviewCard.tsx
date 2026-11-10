@@ -10,6 +10,7 @@ import { getProjectAspectRatio, getProjectCoverPreview } from '../../utils/proje
 import { beginProjectContinuity, getProjectContinuityArtwork, projectContinuityStyle } from '../../utils/projectContinuity';
 import { ProjectCover } from '../media/ProjectCover';
 import { ProjectHoverDetails } from './ProjectHoverDetails';
+import { CreatorAvatar } from './CreatorAvatar';
 import type { ImagePriority } from '../ui/ResponsiveImage';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { warmProjectDocumentRenderer } from '../media/warmDocumentRenderer';
@@ -22,6 +23,7 @@ import './project-preview-actions.css';
 
 const InlineProjectPages = lazy(() => import('./InlineProjectPages').then(module => ({ default: module.InlineProjectPages })));
 const ProjectPreviewExtension = lazy(() => import('./ProjectPreviewExtension').then(module => ({ default: module.ProjectPreviewExtension })));
+const publishedDateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 
 type Props = {
   /** Retained catalogues keep their layout/state but cannot own body popups. */
@@ -68,6 +70,9 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
   const isMobile = usePresentation() === 'mobile';
   // Explicit saved-page/custom artwork keeps its own navigation contract.
   const inlinePages = useInlineProjectPages() && !cover && !disabled;
+  const showMobileInfo = isMobile && inlinePages;
+  const publishedDate = showMobileInfo && project.publishedAt ? new Date(project.publishedAt) : null;
+  const publishedLabel = publishedDate && Number.isFinite(publishedDate.getTime()) ? publishedDateFormat.format(publishedDate) : null;
   // On phones artwork opens the work on its first tap. Details have a separate
   // control at every mobile grid density.
   const preview = useContentPreview(disabled, isMobile || inlinePages ? 0 : 80, isMobile || inlinePages);
@@ -103,6 +108,18 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
   const artwork = <span className="project-preview-image absolute inset-0 block">
     {cover ?? <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} showLoadingIndicator={showCoverLoading} allowPdfFallback={allowPdfFallback} allowVideoFallback={allowVideoFallback} fallbackAttachments={sharedCoverFallback ? project.attachments : undefined} />}
   </span>;
+  const creatorAvatar = showMobileInfo && <CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" />;
+  const creatorProps = {
+    className: 'mobile-project-info-creator',
+    'aria-label': `Open ${creator.name}'s profile`,
+    onPointerEnter: onWarmCreator,
+    onFocus: onWarmCreator,
+    onClick: (event: React.MouseEvent<HTMLElement>) => preview.open(event, () => onOpenCreator?.()),
+  };
+  const detailsButton = !disabled && <button type="button" data-ui-shape={showMobileInfo ? 'icon' : inlinePages ? 'capsule' : undefined} data-keep-color=""
+    className={showMobileInfo ? 'mobile-project-info-menu' : 'mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]'}
+    aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={popupOpen}
+    onClick={event => { event.preventDefault(); event.stopPropagation(); setPopupOpen(true); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>;
   return <article ref={preview.ref} {...preview.events} data-project-preview="" data-inline-project-pages={inlinePages || undefined} data-mobile-project-card={isMobile ? '' : undefined} data-expanded={inlinePages ? false : preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
     <div data-packing-base="" className="project-card-frame individual-content-outline relative w-full" style={{ aspectRatio: aspectRatio ?? getProjectAspectRatio(project), height: 'var(--project-cover-height, auto)' }}>
       {inlinePages && content.metadataComplete ? <Suspense fallback={targetHref ? <Link to={targetHref} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}>
@@ -112,12 +129,23 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
       </Suspense> : targetHref ? <Link to={targetHref} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}
       {inlinePages && content.error && <button type="button" data-ui-shape="capsule" className="inline-project-retry" onClick={event => { event.preventDefault(); event.stopPropagation(); content.retry(); }}>Retry loading pages</button>}
       {!inlinePages && <ProjectHoverDetails summary={project.summary} href={targetHref} onOpen={(event) => { if(isMobile) { event.preventDefault(); event.stopPropagation(); setPopupOpen(true); } else preview.open(event, href ? () => undefined : onOpen); }} className="project-preview-description" />}
-      {!disabled && <button type="button" data-ui-shape={inlinePages ? 'capsule' : undefined} data-keep-color="" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-        aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={popupOpen}
-        onClick={event => { event.preventDefault(); event.stopPropagation(); setPopupOpen(true); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>}
-      {isMobile && contentTypeLabel && <span className="mobile-feed-content-type">{contentTypeLabel}</span>}
+      {!showMobileInfo && detailsButton}
+      {isMobile && !showMobileInfo && contentTypeLabel && <span className="mobile-feed-content-type">{contentTypeLabel}</span>}
       {editor}
     </div>
+    {showMobileInfo && <div data-mobile-project-info="" className="mobile-project-info">
+      {onOpenCreator ? <button type="button" {...creatorProps}>{creatorAvatar}</button>
+        : <Link to={creatorHref ?? `/p/${creator.id}`} {...creatorProps}>{creatorAvatar}</Link>}
+      <div className="min-w-0">
+        <h3 className="mobile-project-info-title">{project.title}</h3>
+        <p className="mobile-project-info-meta">
+          <span className="truncate">{creator.name}</span>
+          {publishedLabel && <span><span aria-hidden="true">· </span><time dateTime={project.publishedAt}>{publishedLabel}</time></span>}
+          {contentTypeLabel && <span className="truncate"><span aria-hidden="true">· </span>{contentTypeLabel}</span>}
+        </p>
+      </div>
+      {detailsButton}
+    </div>}
     {active && popupOpen && <MobileProjectPopup project={project} creator={creator} onEditDescription={onEditDescription} contextHandlers={contextHandlers} onClose={() => setPopupOpen(false)} onOpenComments={onOpenComments} />}
     {!isMobile && !inlinePages && hasExtension && <Suspense fallback={null}><ProjectPreviewExtension expanded={preview.expanded} creator={creator}
       projectId={project.id} creatorHref={creatorHref} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator}
