@@ -46,6 +46,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
   const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
   const react = { ...React,
+    useId: () => 'project-response-content',
     useEffect: (effect, deps) => schedule('passive', effect, deps),
     useLayoutEffect: (effect, deps) => schedule('layout', effect, deps),
     useCallback(fn, deps) {
@@ -709,6 +710,41 @@ test('WEB does not receive the combined mobile controls or change its response l
   assert.equal(nodes(tree).some(node => node.type === MobileProjectPageCounter), false);
 });
 
+test('desktop viewers can select Info and Comments directly from the expanded response rail', () => {
+  const h = harness({ mobile: false });
+  const projectSummary = 'The creator describes how the project was made.';
+  const expanded = { isRailOpen: true, responseRailWidth: { width: 380 }, projectSummary };
+  const labeledControl = (tree, label) => nodes(tree).find(node => node.type === 'button' &&
+    React.Children.toArray(node.props.children).some(child => child === label || (React.isValidElement(child) && child.props.children === label)));
+  let tree = h.render(expanded);
+  assert.equal(labeledControl(tree, 'Info').props['aria-pressed'], false);
+  assert.equal(labeledControl(tree, 'Comments').props['aria-pressed'], true);
+  const contentId = labeledControl(tree, 'Info').props['aria-controls'];
+  assert.ok(contentId);
+  assert.equal(labeledControl(tree, 'Comments').props['aria-controls'], contentId);
+  const content = () => nodes(tree).find(node => node.props.id === contentId);
+  assert.ok(nodes(content()).some(node => node.type === CommentThreadView));
+  assert.ok(nodes(tree).some(node => node.type === EngagementBar));
+
+  labeledControl(tree, 'Info').props.onClick();
+  tree = h.render(expanded);
+  assert.equal(labeledControl(tree, 'Info').props['aria-pressed'], true);
+  assert.equal(labeledControl(tree, 'Comments').props['aria-pressed'], false);
+  assert.ok(nodes(content()).some(node => node.props.text === projectSummary));
+  assert.equal(nodes(content()).some(node => node.type === CommentThreadView), false);
+
+  labeledControl(tree, 'Comments').props.onClick();
+  tree = h.render(expanded);
+  assert.equal(labeledControl(tree, 'Comments').props['aria-pressed'], true);
+  assert.ok(nodes(tree).some(node => node.type === CommentThreadView));
+
+  for (const other of [h.render({ isRailOpen: false }), h.render({ ...expanded, isOwner: true }),
+    harness({ mobile: false, readOnlyShare: true }).render(expanded), harness({ mobile: true }).render(expanded)]) {
+    assert.equal(labeledControl(other, 'Info'), undefined);
+    assert.equal(labeledControl(other, 'Comments'), undefined);
+  }
+});
+
 test('mobile overview uses the reading rail and real-page counter, while focused pages and panels own their controls', () => {
   const h = harness();
   let tree = h.render();
@@ -862,6 +898,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   const Viewer = () => null;
   const Index = () => null;
   const IndexPortal = () => null;
+  const PageDensity = () => null;
   let arrangementRead = {}, typographyRead = {};
   const react = { ...React, useState(initial) {
       const i = cursor++;
@@ -888,6 +925,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ ref: { current: null }, width: workspaceWidth }) };
     if (name.endsWith('/ResizablePanelHandle')) return { ResizablePanelHandle: () => null, useResizablePanelWidth: () => ({ preferredWidth: 315 }) };
     if (name.endsWith('/ProjectMediaViewer')) return { ProjectMediaViewer: Viewer };
+    if (name.endsWith('/ProjectPagesPerRowControl')) return { ProjectPagesPerRowControl: PageDensity };
     if (name.endsWith('/MobileProjectIndexPortal')) return { MobileProjectIndexPortal: IndexPortal };
     if (name.endsWith('/ProjectIndexList')) return { ProjectIndexList: Index };
     if (name.endsWith('/MobilePortalProjectToolbar')) return { MobilePortalProjectToolbar };
@@ -1093,6 +1131,31 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.deepEqual(Array.from(webIndex.projects, project => project.id), ['work', 'second']);
   assert.equal(webIndex.mobileReorderFromMenu, false);
   assert.equal(webIndex.mobileReorderDisabled, false);
+  const webProps = { ...props, isIndexCollapsed: false };
+  const slider = () => nodes(tree).find(node => node.type === PageDensity);
+  const viewer = () => nodes(tree).find(node => node.type === Viewer);
+  typographyRead = { savingProjectId: 'work', setPagesPerRow: () => assert.fail('A viewer cannot save the creator layout') };
+  tree = render(webProps);
+  assert.equal(slider().props.value, 3);
+  assert.equal(slider().props.onCommit, undefined);
+  assert.equal(slider().props.saving, false);
+  slider().props.onChange(5);
+  tree = render(webProps);
+  assert.equal(slider().props.value, 5);
+  assert.equal(viewer().props.pagesPerRow, 5);
+  assert.equal(viewer().props.onPagesPerRowCommit, undefined);
+
+  tree = render({ ...webProps, viewerRole: 'owner' });
+  assert.equal(typeof slider().props.onCommit, 'function');
+  assert.equal(slider().props.saving, true);
+  tree = render({ ...webProps, sharedReadOnly: true });
+  assert.equal(slider(), undefined, 'The public reader owns its own slider');
+  typographyRead = {};
+  tree = render({ ...webProps, profile: { ...props.profile, projects: [
+    { ...props.profile.projects[0], pageCount: 1 }, props.profile.projects[1],
+  ] } });
+  assert.equal(slider(), undefined, 'Single-page work has no row density control');
+
   currentRoute = { kind: 'category', profileId: 'owner', categoryId: 'portal' };
   tree = render({ ...props, activeProjectId: null, isIndexCollapsed: false });
   assert.deepEqual(selections.at(-1), ['work', true], 'WEB retains its saved-order first-project selection');

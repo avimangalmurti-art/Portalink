@@ -38,24 +38,27 @@
   #root .codex-shell .profile-compact-header[data-expanded] .profile-summary-counts { font-size: 12px; }
 }
 
-/* One continuous material reaches the phone's safe edges; only its lower
-   decorative edge fades. Foreground controls keep their existing safe inset. */
+/* Shared catalogues use the same frosted tint and soft edge on WEB and MOBILE.
+   On phones the material also reaches past the foreground's safe inset. */
 @layer portalink-header-material {
-  #root .codex-shell[data-presentation='mobile'] .profile-header-region[data-mobile-header-underlap]::before {
-    inset: calc(0px - var(--safe-area-top, 0px)) calc(0px - var(--safe-area-right, 0px)) -20px calc(0px - var(--safe-area-left, 0px)) !important;
+  #root .codex-shell:is([data-presentation='mobile'], [data-presentation='web']:where([data-public-portfolio])) .profile-header-region[data-mobile-header-underlap]::before {
+    inset: 0 0 -20px !important;
     border-radius: 0;
     background: color-mix(in srgb, var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) var(--interface-glass-opacity, 78%), transparent) !important;
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
     mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent) !important;
   }
-  #root .codex-shell[data-presentation='mobile'].reduce-translucency .profile-header-region[data-mobile-header-underlap]::before {
+  #root .codex-shell[data-presentation='mobile'] .profile-header-region[data-mobile-header-underlap]::before {
+    inset: calc(0px - var(--safe-area-top, 0px)) calc(0px - var(--safe-area-right, 0px)) -20px calc(0px - var(--safe-area-left, 0px)) !important;
+  }
+  #root .codex-shell:is([data-presentation='mobile'], [data-presentation='web']:where([data-public-portfolio])).reduce-translucency .profile-header-region[data-mobile-header-underlap]::before {
     bottom: 0 !important;
     background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
     -webkit-mask-image: none !important;
     mask-image: none !important;
   }
   @media (prefers-reduced-transparency: reduce) {
-    #root .codex-shell[data-presentation='mobile'] .profile-header-region[data-mobile-header-underlap]::before {
+    #root .codex-shell:is([data-presentation='mobile'], [data-presentation='web']:where([data-public-portfolio])) .profile-header-region[data-mobile-header-underlap]::before {
       bottom: 0 !important;
       background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
       -webkit-mask-image: none !important;
@@ -63,7 +66,7 @@
     }
   }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    #root .codex-shell[data-presentation='mobile'] .profile-header-region[data-mobile-header-underlap]::before {
+    #root .codex-shell:is([data-presentation='mobile'], [data-presentation='web']:where([data-public-portfolio])) .profile-header-region[data-mobile-header-underlap]::before {
       bottom: 0 !important;
       background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
       -webkit-mask-image: none !important;

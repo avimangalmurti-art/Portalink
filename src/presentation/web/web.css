@@ -28,6 +28,17 @@
   content: none;
 }
 
+/* Center the controls over the bottom of their own page without changing hover motion. */
+#root .codex-shell[data-presentation='web'] [data-project-page-number] > .media-item-engagement {
+  inset-inline: 0;
+  width: max-content;
+  margin-inline: auto;
+  align-items: center;
+}
+#root .codex-shell[data-presentation='web'] [data-project-page-number] > .media-item-engagement :is([data-media-controls-row], .media-item-engagement-bar) {
+  justify-content: center;
+}
+
 .codex-shell:where([data-presentation='web']) [data-web-gallery-controls] {
   display: flex;
 }

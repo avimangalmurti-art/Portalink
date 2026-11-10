@@ -287,10 +287,10 @@ test('shared WEB catalogue restores committed density across remounts and browse
   const s = setup({ storage });
   const creator = { ...s.records.owner };
   const shared = s.mount(creator, false, 'public-catalogue');
-  assert.equal(shared.value.columns, 7, 'A fresh desktop shared catalogue starts at seven projects per row.');
+  assert.equal(shared.value.columns, 10, 'A fresh desktop shared catalogue starts at ten projects per row.');
   shared.update({ ...creator, projectGridColumns: 3 });
   await shared.flush();
-  assert.equal(shared.value.columns, 7, 'Creator layout updates do not replace the shared-catalogue default.');
+  assert.equal(shared.value.columns, 10, 'Creator layout updates do not replace the shared-catalogue default.');
   shared.value.previewColumns(5);
   assert.equal(shared.value.columns, 5);
   assert.equal(saved.size, 0, 'Opening a catalogue or previewing the slider does not persist.');
@@ -307,7 +307,7 @@ test('shared WEB catalogue restores committed density across remounts and browse
 
   const fresh = setup({ storage });
   assert.equal(fresh.mount(creator, false, 'public-catalogue').value.columns, 5, 'An abandoned preview does not replace the committed value.');
-  assert.equal(fresh.mount({ ...s.records.other }, false, 'public-catalogue').value.columns, 7);
+  assert.equal(fresh.mount({ ...s.records.other }, false, 'public-catalogue').value.columns, 10);
   assert.equal(fresh.mount(creator, false, 'public-catalogue', 'mobile').value.columns, 2);
   assert.equal(fresh.mount(creator, false).value.columns, 2, 'The in-app profile does not read the shared preference.');
   assert.deepEqual([...saved], [['portalink.public-catalogue-grid-columns:web:owner', '5']]);
@@ -327,7 +327,7 @@ test('shared catalogue defaults and committed viewer choices are independent on 
   shared.value.setColumns(3); await shared.flush();
   assert.equal(saved.get('portalink.public-catalogue-grid-columns:mobile:owner'), '3');
   shared.present('web'); await shared.flush();
-  assert.equal(shared.value.columns, 7);
+  assert.equal(shared.value.columns, 10);
   shared.value.setColumns(5); await shared.flush();
   shared.present('mobile'); await shared.flush();
   assert.equal(shared.value.columns, 3);

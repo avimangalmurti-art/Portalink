@@ -1,3 +1,13 @@
+## 2026-11-10 — Combined WEB reader and catalogue release
+
+Release worktree `logs/desktop-reader-catalogue-release` on `codex/desktop-reader-catalogue-release`, based on GitHub `main` at `b47f47878c4ce3f7efbf1381a0bfde1ccf7d4df7`. That base has the same tree as Sites 600. The six individual worktrees remain available.
+
+- Desktop hover surfaces in Timeline, Studio and project lists use the sidebar's rounded treatment. The shared catalogue header and avatar previews use the mobile frosted treatment, honoring reduced transparency preferences.
+- The desktop shared catalogue opens at 10 projects per row for new visitors. Saved choices and the mobile default of two retain priority.
+- In the desktop project reader, viewers can set pages per row locally and switch between labeled Info and Comments controls. Each page's engagement controls are centered.
+
+An independent diff comparison matched all ten application files and five test files to the six task checkouts. Typecheck, lint with 111 existing warnings and zero errors, and the production build with both entry bundle guards passed. Browser evidence is in the individual worktrees' ignored QA logs. The combined regression, GitHub and deployment receipts are recorded in the release worktree's ignored `logs` directory. The existing Sites project and D1 binding are retained. No database migration, separate worker or iOS release is required.
+
 ## 2026-11-10 — MOBILE avatar preview caption
 
 Local branch `codex/mobile-avatar-caption` in `logs/mobile-avatar-caption`, based on verified GitHub `main` at `4173ab397942f3854f3b2f4b061b87c51ac88113`. `ProfileAvatar.tsx` makes the name white and bold in the mobile avatar preview on profiles and shared catalogues. The inline welcome preview retains theme-aware text for its light accessibility backdrop. All 20 focused avatar tests, changed-file lint and diff check passed. Chromium verified white text at weight 700 at 420 × 912 in light, dark and shared-style mobile previews, with inline welcome and desktop controls also passing. Evidence is in ignored `logs/avatar-caption-qa`. Source is local. Publication and physical iPhone verification are pending.
