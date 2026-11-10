@@ -41,6 +41,7 @@ type PdfImageDocumentProps = {
   pageViewToggleRequest?: number;
   readingMode?: boolean;
   verticalReading?: boolean;
+  manageReadingScroll?: boolean;
   readerPageRequest?: {page:number; sequence:number} | null;
   onReaderRequestHandled?: (sequence:number) => void;
 };
@@ -406,7 +407,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onPreviewDocument, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0, readingMode = false, verticalReading = false, readerPageRequest = null, onReaderRequestHandled }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onPreviewDocument, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0, readingMode = false, verticalReading = false, manageReadingScroll = true, readerPageRequest = null, onReaderRequestHandled }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -602,7 +603,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     if (focusedPageNumber !== null) scrollRootRef.current?.focus({ preventScroll: true });
   }, [focusedPageNumber]);
   const linkedPage = linkedPageNumber();
-  useDocumentReadingScroll(isMobile && focusedPageNumber === null && pageCount > 0, scrollRootRef, memoryKey, verticalReading && linkedPage !== null ? Math.min(pageCount, linkedPage) : null);
+  useDocumentReadingScroll(manageReadingScroll && isMobile && focusedPageNumber === null && pageCount > 0, scrollRootRef, memoryKey, verticalReading && linkedPage !== null ? Math.min(pageCount, linkedPage) : null);
   useLayoutEffect(() => {
     if (isMobile || focusedPageNumber !== null) return;
     const element = scrollRootRef.current;

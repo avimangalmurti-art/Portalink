@@ -26,6 +26,7 @@ import { useProjectManagement } from '../../features/projects/useProjectManageme
 import { DeferredDialog } from '../ui/DeferredDialog';
 import { useHomeStartupReadiness } from './useHomeStartupReadiness';
 import { useMobileFeedResume } from '../../presentation/mobile/useMobileFeedResume';
+import type { InstalledHomeOpening } from '../../app/homeStartup';
 
 const ProjectEditorDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.ProjectEditorDialog })));
 const DeleteProjectDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.DeleteProjectDialog })));
@@ -54,6 +55,7 @@ type HomeFeedProps = {
   startupPending?: boolean;
   startupAttempt?: number;
   onStartupReady?: (ready: boolean) => void;
+  installedHomeOpening?: InstalledHomeOpening | null;
 };
 
 const FEED_SCROLL_PREFIX = 'portalink.feedScroll.';
@@ -100,6 +102,7 @@ export function HomeFeed({
   startupPending = false,
   startupAttempt = 0,
   onStartupReady,
+  installedHomeOpening,
 }: HomeFeedProps) {
   const isMobile = usePresentation() === 'mobile';
   const screenActive = useMobileScreenActive();
@@ -108,7 +111,8 @@ export function HomeFeed({
   const navigate = useNavigate();
   const routeLocation = useLocation();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
-  const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile });
+  const activeHomeOpening = showMobileSearch && screenActive ? installedHomeOpening : null;
+  const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile, revalidateOnOpen: activeHomeOpening?.refresh });
   const { viewerProfileId, isAuthenticated, user } = useAuth();
   const management = useProjectManagement(isAuthenticated ? viewerProfileId : null);
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
@@ -203,6 +207,20 @@ export function HomeFeed({
   // real scroll surface once its cards exist, so Back lands
   // on the work the viewer left instead of quietly returning them to the top.
   useLayoutEffect(() => {
+    if (activeHomeOpening) {
+      latestScrollTopRef.current = 0;
+      writeFeedScroll(scrollMemoryKey, 0);
+      if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+      if (autoScrollRef.current) autoScrollRef.current.scrollTop = 0;
+      hasRestoredScrollRef.current = true;
+      setScrollRestored(true);
+      if (activeHomeOpening.refresh) {
+        cancelRecovery();
+        setHasReloaded(true);
+      }
+      activeHomeOpening.complete();
+      return;
+    }
     if (isMobile && coldResume.handled) {
       hasRestoredScrollRef.current = !coldResume.restoring;
       setScrollRestored(!coldResume.restoring);
@@ -226,7 +244,7 @@ export function HomeFeed({
     };
     frame = requestAnimationFrame(restore);
     return () => { cancelAnimationFrame(frame); if (!completed) hasRestoredScrollRef.current = false; };
-  }, [feed.status, projects.length, layoutReady, isMobile, canOwnScroll, coldResume.handled, coldResume.restoring]);
+  }, [feed.status, projects.length, layoutReady, isMobile, canOwnScroll, coldResume.handled, coldResume.restoring, activeHomeOpening, scrollMemoryKey, cancelRecovery]);
 
   useLayoutEffect(() => {
     if (!isMobile || !canOwnScroll) return;

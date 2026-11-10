@@ -263,6 +263,7 @@ export function mobileResumeDestination(record: MobileResumeRecord): string {
 
 export type MobileResumeSessionInput = {
   mobile: boolean;
+  restoreOnLaunch?: boolean;
   accountId: string | null;
   authReady: boolean;
   pathname: string;
@@ -282,7 +283,7 @@ export class MobileResumeSession {
   private identityChangedEntry: string | null = null;
   constructor(initial: MobileResumeSessionInput) {
     this.opening = { ...initial };
-    this.consumed = !initial.mobile || initial.pathname !== '/' || Boolean(initial.search || initial.hash);
+    this.consumed = !initial.mobile || initial.restoreOnLaunch === false || initial.pathname !== '/' || Boolean(initial.search || initial.hash);
   }
   update(input: MobileResumeSessionInput, read: (accountId: string) => MobileResumeRecord | null = readMobileResume): string | null {
     const sameOpening = input.locationKey === this.opening.locationKey && input.pathname === this.opening.pathname && (input.search ?? '') === (this.opening.search ?? '') && (input.hash ?? '') === (this.opening.hash ?? '');

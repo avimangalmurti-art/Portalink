@@ -37,12 +37,12 @@ test('MOBILE portal header uses its real icon/name, one Back action, and an opti
   const h = harness();
   let tree = h.render();
   const heading = nodes(tree).find(node => node.type === 'h2');
+  const title = nodes(heading).find(node => node.type === 'scrolling-title');
   assert.equal(heading.props.title, 'Photography');
-  assert.equal(heading.props.children.type, 'scrolling-title');
-  assert.equal(heading.props.children.props.name, 'Photography');
-  assert.equal(heading.props.children.props.centered, true);
-  assert.equal(heading.props.children.props.active, true);
-  assert.ok(nodes(tree).find(node => node.type === InterfaceIcon && node.props.icon === Camera));
+  assert.equal(title.props.name, 'Photography');
+  assert.equal(title.props.centered, true);
+  assert.equal(title.props.active, true);
+  assert.ok(nodes(heading).find(node => node.type === InterfaceIcon && node.props.icon === Camera));
   assert.equal(control(tree, 'Add a new project to Photography'), undefined);
   control(tree, 'Back to portals').props.onClick();
   assert.deepEqual(h.calls, [['back']]);
@@ -85,7 +85,7 @@ test('public project navigation opts into local browsing controls without owner 
   assert.equal(control(tree, 'Sort projects'), undefined, 'Unrelated read-only callers retain their default.');
   h.props.browsingControls = true;
   tree = h.render();
-  assert.equal(nodes(tree).find(node => node.type === 'h2').props.children.props.name, 'Photography');
+  assert.equal(nodes(tree).find(node => node.type === 'scrolling-title').props.name, 'Photography');
   control(tree, 'Back to profile').props.onClick();
   assert.deepEqual(h.calls, [['back']]);
   for (const name of ['Back to portals', 'Pages per row', 'Add a new project to Photography']) assert.equal(control(tree, name), undefined);

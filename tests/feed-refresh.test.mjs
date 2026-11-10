@@ -152,6 +152,44 @@ test('returning during the initial feed request joins it instead of issuing anot
   assert.equal(h.value.isRefreshing, false); h.dispose();
 });
 
+test('an installed Home reopen starts one fresh read even with an unfinished older request', async () => {
+  const { h, requests } = setup();
+  await h.flush();
+  h.remount([undefined, { revalidateOnOpen: true }]);
+  await h.flush();
+  assert.equal(requests.length, 2);
+  h.options([]);
+  await h.flush();
+  assert.equal(requests.length, 2, 'Consuming the opening joins the fresh read');
+  requests[1].resolve(home('fresh'));
+  requests[0].resolve(home('stale'));
+  await h.flush();
+  assert.equal(h.value.projects[0].project.id, 'fresh');
+  h.dispose();
+});
+
+test('an installed Home reopen keeps its fallback until the fresh first page arrives', async () => {
+  const { h, requests } = setup();
+  const cursor = { publishedAt: '2026-09-01', id: 'first' };
+  await h.flush();
+  requests[0].resolve({ ...home('first'), nextCursor: cursor });
+  await h.flush();
+  h.value.loadMore();
+  await h.flush();
+  requests[1].resolve(home('older'));
+  await h.flush();
+  h.options([undefined, { revalidateOnOpen: true }]);
+  await h.flush();
+  assert.deepEqual(Array.from(h.value.projects, view => view.project.id), ['first', 'older']);
+  assert.equal(requests[2].cursor, undefined);
+  requests[2].resolve({ ...home('fresh'), nextCursor: cursor });
+  await h.flush();
+  assert.equal(requests.length, 3, 'Previously paged content does not delay the fresh first page');
+  assert.equal(h.value.projects.length, 1);
+  assert.equal(h.value.projects[0].project.id, 'fresh');
+  h.dispose();
+});
+
 test('returning during an explicit refresh retains cards and joins the refresh already in progress', async () => {
   const { h, requests } = setup(); await h.flush();
   requests[0].resolve(home('before-refresh')); await h.flush();

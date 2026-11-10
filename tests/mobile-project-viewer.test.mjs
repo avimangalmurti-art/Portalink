@@ -10,6 +10,7 @@ const pageLayout = sourceModule('src/features/projects/pageLayout.ts', {});
 const portalBrowsing = sourceModule('src/components/profile/portalProjectBrowsing.ts');
 
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
+const ImagePage = () => null;
 const MobileProjectPageCounter = () => null;
 const FollowContentInfoPopup = () => null;
 const MobileVideoSequence = () => null;
@@ -81,6 +82,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions(model, priority, onOpen) { screenActions.push({model,priority,onOpen}); } };
     if (name.endsWith('/MediaInteractionBar')) return { MediaInteractionBar: 'media-interaction-bar' };
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
+    if (name.endsWith('/ImageAttachment')) return { ImagePage };
     if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
     if (name.endsWith('/MobileVideoFrame')) return { MobileVideoFrame };
     if (name.endsWith('/MobileProjectPageCounter')) return { MobileProjectPageCounter };
@@ -377,6 +379,72 @@ test('leaving MOBILE image focus restores normal controls and switching attachme
     assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment.id, 'second');
     assert.equal(reports.at(-1), false);
   }
+});
+
+test('MOBILE opens the cover and PDF in one vertical reader on both project routes', () => {
+  for (const readOnlyShare of [false, true]) {
+    const h = harness({ lifecycle: true, mediaKind: 'image', readOnlyShare });
+    const [cover, pdf] = mixedCoverPdf(h.attachments);
+    const scope = readOnlyShare ? 'shared' : 'workspace';
+    h.viewerMemory.set(`${scope}:project:project`, { activeAttachmentId: cover.id });
+    const tree = h.commitFocusedPage(false, { attachments: [cover, pdf] });
+    const stage = withProp(tree, 'data-project-stage');
+    const [image, document] = nodes(stage).filter(node => node.type === ImagePage || node.type === AttachmentRenderer);
+    assert.equal(image.props.attachment, cover);
+    assert.equal(document.props.attachment, pdf);
+    assert.equal(document.props.verticalReading, true);
+    assert.equal(document.props.manageReadingScroll, false, 'The stage owns overview scroll before the PDF loads');
+    assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
+    const counter = nodes(tree).find(node => node.type === MobileProjectPageCounter);
+    assert.notEqual(counter.props.surfaceRef, stage.ref, 'The PDF navigator excludes the cover from PDF page numbering');
+    assert.equal(counter.props.scope, `project:${pdf.id}`);
+    const focused = h.commitFocusedPage(true);
+    assert.equal(withProp(focused, 'data-project-cover-images').props.hidden, true);
+    assert.equal(withProp(h.commitFocusedPage(false), 'data-project-cover-images').props.hidden, false);
+  }
+});
+
+function mixedCoverPdf([cover, pdf]) {
+  return [
+    { ...cover, sourceUrl: '/cover.png', typeLabel: 'Image', isCover: true },
+    { ...pdf, kind: 'document', sourceUrl: '/report.pdf', typeLabel: 'PDF' }
+  ];
+}
+
+test('MOBILE continuous reading keeps appendix images below the PDF and respects a PDF cover', () => {
+  const h = harness({ mediaKind: 'image' });
+  const [cover, pdf] = mixedCoverPdf(h.attachments);
+  const appendix = { ...cover, id: 'appendix', isCover: false };
+  const tree = h.render({ attachments: [cover, pdf, appendix] });
+  const stage = withProp(tree, 'data-project-stage');
+  assert.deepEqual(nodes(stage).filter(node => node.type === ImagePage || node.type === AttachmentRenderer)
+    .map(node => node.props.attachment.id), [cover.id, pdf.id, appendix.id]);
+  const pdfCover = h.render({ attachments: [{ ...pdf, isCover: true }, { ...cover, isCover: false }] });
+  assert.equal(withProp(pdfCover, 'data-project-cover-images'), undefined);
+});
+
+test('WEB file switching and explicit MOBILE page links keep their own attachment target', () => {
+  for (const [mobile, search, active] of [
+    [false, '', 'first'],
+    [true, '?media=first&page=1', 'first'],
+    [true, '?media=second&page=1&view=page', 'second'],
+  ]) {
+    const h = harness({ mobile, search, mediaKind: 'image' });
+    const tree = h.render({ attachments: mixedCoverPdf(h.attachments) });
+    assert.equal(withProp(tree, 'data-project-cover-images'), undefined);
+    assert.ok(withProp(tree, 'data-project-file-strip'));
+    const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
+    assert.equal(renderer.props.attachment.id, active);
+    assert.equal(renderer.props.verticalReading, mobile && active === 'first');
+  }
+  const linked = harness({ mediaKind: 'image', search: '?media=second&page=2' });
+  const tree = linked.render({ attachments: mixedCoverPdf(linked.attachments) });
+  assert.ok(withProp(tree, 'data-project-cover-images'));
+  assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
+  const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
+  assert.equal(renderer.props.attachment.id, 'second');
+  assert.equal(renderer.props.verticalReading, true);
+  assert.equal(renderer.props.manageReadingScroll, true, 'The document still restores the exact linked PDF page');
 });
 
 test('WEB focus lifecycle retains its existing rail without MOBILE controls', () => {

@@ -127,7 +127,7 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
           onSelect={next => { rememberCataloguePagePosition(project.id, next); setSelection({ projectId: project.id, position: next }); }}
           onOpen={event => event ? openProps.onClick(event) : onOpen()} />
       </Suspense> : targetHref ? <Link to={targetHref} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}
-      {inlinePages && content.error && <button type="button" data-ui-shape="capsule" className="inline-project-retry" onClick={event => { event.preventDefault(); event.stopPropagation(); content.retry(); }}>Retry loading pages</button>}
+      {!isMobile && inlinePages && content.error && <button type="button" data-ui-shape="capsule" className="inline-project-retry" onClick={event => { event.preventDefault(); event.stopPropagation(); content.retry(); }}>Retry loading pages</button>}
       {!inlinePages && <ProjectHoverDetails summary={project.summary} href={targetHref} onOpen={(event) => { if(isMobile) { event.preventDefault(); event.stopPropagation(); setPopupOpen(true); } else preview.open(event, href ? () => undefined : onOpen); }} className="project-preview-description" />}
       {!showMobileInfo && detailsButton}
       {isMobile && !showMobileInfo && contentTypeLabel && <span className="mobile-feed-content-type">{contentTypeLabel}</span>}
@@ -141,7 +141,6 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
         <p className="mobile-project-info-meta">
           <span className="truncate">{creator.name}</span>
           {publishedLabel && <span><span aria-hidden="true">· </span><time dateTime={project.publishedAt}>{publishedLabel}</time></span>}
-          {contentTypeLabel && <span className="truncate"><span aria-hidden="true">· </span>{contentTypeLabel}</span>}
         </p>
       </div>
       {detailsButton}

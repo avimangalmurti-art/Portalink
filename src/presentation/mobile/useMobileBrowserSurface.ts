@@ -3,6 +3,9 @@ import type { Presentation } from '../usePresentation';
 import { PORTALINK_SPLASH_EXIT_EVENT } from '../../app/splashLifecycle';
 
 const welcomeSelector = '[data-portalink-splash][data-presentation="mobile"]:not([aria-hidden="true"]) .professional-entry';
+const inviteSplashSelector = 'html[data-invite-launch] #portalink-preboot, [data-portalink-invite-splash]:not([aria-hidden="true"])';
+const visibleOpeningSurface = () => document.querySelector<HTMLElement>(inviteSplashSelector)
+  ?? document.querySelector<HTMLElement>(welcomeSelector);
 
 /** Keep the phone's surrounding canvas in the same appearance as the page. */
 export function useMobileBrowserSurface(presentation: Presentation, appearance: CSSProperties | undefined) {
@@ -25,14 +28,14 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
     }
     const attributes = tags.map(tag => ({ content: tag.getAttribute('data-portalink-theme-original') ?? tag.getAttribute('content'), media: tag.getAttribute('media') }));
 
-    let activeWelcome: HTMLElement | null = null;
+    let activeOpening: HTMLElement | null = null;
     const sync = () => {
       if (!frameRef.current) return;
       // The visible welcome owns its canvas, including explicit appearance choices.
       // Otherwise retain the committed frame, including public creator branding.
-      activeWelcome = document.querySelector<HTMLElement>(welcomeSelector);
-      const style = getComputedStyle(activeWelcome ?? frameRef.current);
-      const color = activeWelcome ? style.backgroundColor : style.getPropertyValue('--codex-workspace-bg').trim();
+      activeOpening = visibleOpeningSurface();
+      const style = getComputedStyle(activeOpening ?? frameRef.current);
+      const color = activeOpening ? style.backgroundColor : style.getPropertyValue('--codex-workspace-bg').trim();
       if (!color) return;
       surfaces.forEach(element => element.style.setProperty('background-color', color));
       // App/VisitorApp own the document scheme across presentations. Only the
@@ -45,13 +48,14 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
     const visible = () => { if (document.visibilityState === 'visible') sync(); };
     syncRef.current = sync;
     sync();
-    // Welcome can mount outside this frame without changing its appearance prop.
+    // An opening surface can mount outside this frame without changing its appearance prop.
     // Only a change of visible surface repaints; ordinary feed mutations do not.
     const observer = new MutationObserver(records => {
-      if (document.querySelector(welcomeSelector) !== activeWelcome
-        || records.some(record => record.target === activeWelcome && record.attributeName === 'data-entry-theme')) sync();
+      if (visibleOpeningSurface() !== activeOpening
+        || records.some(record => record.target === activeOpening && record.attributeName === 'data-entry-theme')) sync();
     });
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-hidden', 'data-presentation', 'data-entry-theme'] });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true,
+      attributeFilter: ['aria-hidden', 'data-presentation', 'data-entry-theme', 'data-portalink-invite-splash'] });
     const system = window.matchMedia?.('(prefers-color-scheme: dark)');
     if (system?.addEventListener) system.addEventListener('change', sync);
     else system?.addListener?.(sync);

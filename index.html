@@ -178,6 +178,13 @@
         html:root:has(#portalink-preboot, [data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']), [data-presentation='mobile'].portalink-startup-wait) body {
           background-color: var(--portalink-welcome-canvas, var(--portalink-mobile-opening-canvas, #fdffff)) !important;
         }
+        /* The invite uses the light artwork canvas through the video handoff. */
+        html:root:is([data-invite-launch]:has(#portalink-preboot), :has([data-portalink-invite-splash]:not([aria-hidden='true']))),
+        html:root:is([data-invite-launch]:has(#portalink-preboot), :has([data-portalink-invite-splash]:not([aria-hidden='true']))) body {
+          --portalink-mobile-opening-canvas: #fdffff;
+          background-color: #fdffff !important;
+          color-scheme: light !important;
+        }
         /* Legacy iOS navigator.standalone is marked before the body is parsed. */
         html:root[data-standalone], html:root[data-standalone] body, html:root[data-standalone] #root {
           height: auto;
@@ -243,6 +250,9 @@
         root.toggleAttribute('data-standalone', window.matchMedia?.('(display-mode: standalone)').matches
           || window.navigator.standalone === true);
         const presentation = window.matchMedia?.('(max-width: 639px)').matches ? 'mobile' : 'web';
+        const inviteLaunch = presentation === 'mobile' && window.location.pathname === '/'
+          && new URLSearchParams(window.location.search).get('welcome') === '1';
+        root.toggleAttribute('data-invite-launch', inviteLaunch);
         let mode = 'auto';
         try {
           let stored = window.localStorage.getItem('portalinknetworks.deviceAppearanceMode');
@@ -259,7 +269,7 @@
         root.dataset.appearance = resolved;
         root.style.colorScheme = resolved;
         if (presentation === 'mobile') {
-          const color = resolved === 'dark' ? '#000000' : '#ffffff';
+          const color = inviteLaunch ? '#fdffff' : resolved === 'dark' ? '#000000' : '#ffffff';
 
           document.querySelectorAll('meta[name="theme-color"]').forEach(tag => {
             tag.setAttribute('data-portalink-theme-original', tag.getAttribute('content'));

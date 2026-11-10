@@ -600,22 +600,29 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false, appe
   return { render, state, followed, bioProfile, profileDom, layoutRepair, dispose: h.dispose };
 }
 
-test('public MOBILE and WEB headers expose two switches with positive translucency state', () => {
+test('the public header shows only High Contrast on MOBILE and also offers Translucency on WEB', () => {
   for (const presentation of ['mobile', 'web']) {
-  const controls = { highContrast: false, reduceTranslucency: false,
-    onHighContrastChange(value) { controls.highContrast = value; },
-    onReduceTranslucencyChange(value) { controls.reduceTranslucency = value; } };
-  const h = visitorProfileHarness({ presentation, appearanceControls: controls });
-  const switches = () => nodes(h.render()).filter(node => node.type === 'AppearanceSwitch');
-  assert.deepEqual(switches().map(node => node.props.label), ['High Contrast', 'Translucency']);
-  assert.deepEqual(switches().map(node => node.props.isOn), [false, true]);
-  switches()[0].props.onToggle();
-  switches()[1].props.onToggle();
-  assert.deepEqual(switches().map(node => node.props.isOn), [true, false]);
-  switches()[0].props.onToggle();
-  switches()[1].props.onToggle();
-  assert.deepEqual(switches().map(node => node.props.isOn), [false, true]);
-  assert.equal(nodes(visitorProfileHarness({ presentation }).render()).some(node => node.type === 'AppearanceSwitch'), false);
+    const controls = { highContrast: false, reduceTranslucency: false,
+      onHighContrastChange(value) { controls.highContrast = value; },
+      onReduceTranslucencyChange(value) { controls.reduceTranslucency = value; } };
+    const h = visitorProfileHarness({ presentation, appearanceControls: controls });
+    const switches = () => nodes(h.render()).filter(node => node.type === 'AppearanceSwitch');
+    const isMobile = presentation === 'mobile';
+    assert.deepEqual(switches().map(node => node.props.label), isMobile ? ['High Contrast'] : ['High Contrast', 'Translucency']);
+    assert.deepEqual(switches().map(node => node.props.isOn), isMobile ? [false] : [false, true]);
+    switches()[0].props.onToggle();
+    assert.equal(switches()[0].props.isOn, true);
+    assert.equal(controls.reduceTranslucency, false);
+    switches()[0].props.onToggle();
+    assert.equal(switches()[0].props.isOn, false);
+    if (!isMobile) {
+      switches()[1].props.onToggle();
+      assert.equal(switches()[1].props.isOn, false);
+      switches()[1].props.onToggle();
+      assert.equal(switches()[1].props.isOn, true);
+    }
+    assert.equal(nodes(visitorProfileHarness({ presentation }).render()).some(node => node.type === 'AppearanceSwitch'), false);
+    h.dispose();
   }
 });
 

@@ -41,7 +41,7 @@ export function ImagePage({
   focusMemoryKey,
   onToggleFocus
 
-}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;isMobile?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;inlinePreview?: boolean;focusMemoryKey?: string;onToggleFocus: (attachmentId: string) => void;}) {
+}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;isMobile?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;inlinePreview?: boolean;focusMemoryKey?: string;onToggleFocus?: (attachmentId: string) => void;}) {
   const hostRef = useRef<HTMLLIElement>(null);
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
@@ -113,14 +113,15 @@ export function ImagePage({
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
-  return <li ref={hostRef} data-inline-page-image={inlinePreview || undefined} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused && !inlinePreview ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={inlinePreview ? attachment.displayName : `${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={isFocused ? undefined : (event) => {
+  const canFocus = !isFocused && Boolean(onToggleFocus);
+  return <li ref={hostRef} data-inline-page-image={inlinePreview || undefined} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused && !inlinePreview ? '' : undefined} role={canFocus ? 'button' : undefined} tabIndex={canFocus ? 0 : undefined} aria-pressed={canFocus ? false : undefined} aria-label={!onToggleFocus ? undefined : inlinePreview ? attachment.displayName : `${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={!canFocus ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
     // follow-on event instead of immediately toggling the image back.
     if (performance.now() - lastTouchToggleAtRef.current < 500) return;
-    onToggleFocus(attachment.id);
-  }} onPointerUp={isFocused ? undefined : (event) => {
+    onToggleFocus?.(attachment.id);
+  }} onPointerUp={!canFocus ? undefined : (event) => {
     if (event.pointerType !== 'touch') return;
     const now = performance.now();
     const previous = lastTouchRef.current;
@@ -130,13 +131,13 @@ export function ImagePage({
       event.preventDefault();
       lastTouchRef.current = null;
       lastTouchToggleAtRef.current = now;
-      onToggleFocus(attachment.id);
+      onToggleFocus?.(attachment.id);
     }
-  }} onKeyDown={isFocused ? undefined : (event) => {
+  }} onKeyDown={!canFocus ? undefined : (event) => {
     if (event.target !== event.currentTarget) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      onToggleFocus(attachment.id);
+      onToggleFocus?.(attachment.id);
     }
   }} className={`${isFocused ? 'flex h-full min-h-0 w-full items-start justify-start overflow-auto overscroll-contain' : 'block touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
     aspectRatio: `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}`

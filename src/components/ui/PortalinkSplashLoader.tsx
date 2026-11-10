@@ -15,12 +15,13 @@ const PRIMARY_LOAD_TIMEOUT_MS = 10_000;
 const FALLBACK_CYCLE_MS = 1500;
 
 /** Startup plays once; the mobile welcome screen loops until an action is chosen. */
-export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, timedIntro = false, landing, welcomeMedia = false, welcomeHandoff = false }: {
+export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, timedIntro = false, inviteOpening = false, landing, welcomeMedia = false, welcomeHandoff = false }: {
   onComplete?: () => void;
   stillOnly?: boolean;
   hidden?: boolean;
   /** Initial mobile session restoration/returning user, never the guest welcome. */
   timedIntro?: boolean;
+  inviteOpening?: boolean;
   /** Reuse the looping Hello World media inside the sign-in form, without a launch overlay. */
   welcomeMedia?: boolean;
   /** Leaving the white welcome scene for the app, including a completed sign-in. */
@@ -377,6 +378,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     <motion.div
       ref={landingRef}
       data-portalink-splash={welcomeMedia ? undefined : 'true'}
+      data-portalink-invite-splash={presentation === 'mobile' && inviteOpening && !sceneLanding && !welcomeHandoff && !openingWorkspace ? '' : undefined}
       data-presentation={presentation}
       data-share-landing={sceneLanding ? 'true' : undefined}
       data-entry-form={sceneLanding?.hideMedia || undefined}

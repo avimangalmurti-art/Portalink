@@ -22,13 +22,16 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
 }) {
   const isMobile = usePresentation() === 'mobile';
   const active = useMobileScreenActive();
+  const categoryIcon = <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" className="mobile-portal-index-icon" />;
   return <header className="mobile-portal-index-toolbar">
-    <div className="mobile-portal-index-heading">
+    <div className={`mobile-portal-index-heading${isMobile ? ' !grid grid-cols-[44px_minmax(0,1fr)_44px]' : ''}`}>
       <button type="button" onClick={onBack} aria-label={backLabel ?? (sharedReadOnly ? 'Back to profile' : 'Back to portals')} className="mobile-portal-index-control">
         <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
       </button>
-      <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" className="mobile-portal-index-icon" />
-      <h2 title={category.label}>{isMobile ? <PreviewCreatorName name={category.label} active={active} centered className="block w-full [font:inherit]" /> : category.label}</h2>
+      {!isMobile && categoryIcon}
+      <h2 title={category.label} className={isMobile ? 'flex items-center justify-center gap-2' : undefined}>
+        {isMobile ? <>{categoryIcon}<PreviewCreatorName name={category.label} active={active} centered className="block !flex-initial [font:inherit]" /></> : category.label}
+      </h2>
       {onCreate && <button type="button" onClick={onCreate} aria-label={`Add a new project to ${category.label}`} className="mobile-portal-index-control">
         <InterfaceIcon icon={PlusIcon} size="lg" />
       </button>}
