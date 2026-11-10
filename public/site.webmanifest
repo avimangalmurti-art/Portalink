@@ -8,16 +8,40 @@
   "theme_color": "#0b0c0f",
   "icons": [
     {
-      "src": "/icons/portalink-app-192-62b9d2e7.png",
+      "src": "/icons/icon-192x192.png?v=00fb097093f3",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/portalink-app-512-62b9d2e7.png",
+      "src": "/icons/icon-512x512.png?v=9fec0f5239d4",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-1024x1024.png?v=8bd4946a4ab2",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192x192.png?v=b4615013e7e9",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png?v=a512927b20b6",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-1024x1024.png?v=67b825264a6e",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
