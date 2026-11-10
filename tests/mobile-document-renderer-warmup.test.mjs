@@ -66,6 +66,7 @@ function fixture({ presentation = 'mobile', project: nextProject = {}, ...props 
     '../../hooks/useContentPreview': preview,
     '../../utils/projectPresentation': { getProjectAspectRatio: () => 0.75, getProjectCoverPreview: () => undefined },
     '../../utils/projectContinuity': { projectContinuityStyle: () => ({}), getProjectContinuityArtwork: () => undefined, beginProjectContinuity() {} },
+    './CreatorAvatar': { CreatorAvatar: 'creator-avatar' },
     '../media/ProjectCover': { ProjectCover: 'project-cover' }, './ProjectHoverDetails': { ProjectHoverDetails: 'hover-details' },
     '../ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' }, '../media/warmDocumentRenderer': { warmProjectDocumentRenderer: warm.warm },
     './project-preview-actions.css': {},
