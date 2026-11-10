@@ -1,3 +1,9 @@
+## Browser favicon squircle
+
+Task checkout `logs/portalite-favicon-squircle` on `codex/portalite-favicon-squircle`, based on GitHub `main` at `0430ec45544c0c702d688ba474bc599e6d369df5`. Applied the existing avatar squircle curve to the alpha channel of the four browser favicon PNGs and all four ICO frames. The original dimensions and RGB pixels were verified, and the main, catalogue and citation HTML entries use new content-hash versions. The Apple touch images and web app manifest were checked against the shipped files.
+
+Production build, both entry bundle checks, 33 focused tests, and 35 local HTTP requests passed. The in-app browser loaded the new favicon metadata and rendered the 96px favicon with the squircle silhouette. Local receipts are in `logs/favicon-qa`. Live publication is pending.
+
 ## 2026-11-10 — ALL browser and installed-app icon package
 
 Task checkout `logs/portalite-icon-package` on `codex/portalite-icon-package`, based on GitHub `main` at `3eb84cdcf5fcafee2fb41bb140281b940d9d4cc2`. Installed the supplied corrected Portalite artwork as 15 byte-identical PNG/ICO exports in `public`. Updated favicon and four Apple touch-icon links in `index.html`, `share.html` and `cite.html`. Merged six standard/maskable icons into `public/site.webmanifest` while preserving all existing app identity and launch configuration. Every icon and manifest URL uses the established content-hash query version.
