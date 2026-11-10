@@ -20,12 +20,14 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, ChevronLeftIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { PortalRingIcon } from '../PortalRingIcon';
 import { AttachmentRenderer } from './AttachmentRenderer';
+import { ImagePage } from './ImageAttachment';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
 import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
 import { useNavigationOutsideTap } from '../../presentation/mobile/useNavigationOutsideTap';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
 import { MobileProjectPageCounter } from './MobileProjectPageCounter';
 import { jumpToProjectPage } from './projectPageScroll';
+import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 
 import type { ProjectManagement } from '../../features/projects/useProjectManagement';
 import type { PdfDocument } from './PdfPage';
@@ -155,9 +157,8 @@ export function ProjectMediaViewer({
   const viewerMemoryScope = readOnlyShare ? 'shared' : 'workspace';
   const viewerMemoryKey = `${viewerMemoryScope}:project:${projectId}`;
   const attachmentIdsKey = attachments.map((attachment) => attachment.id).join('|');
-  const deepLinkedAttachmentId = typeof window === 'undefined'
-    ? null
-    : new URLSearchParams(window.location.search).get('media');
+  const mediaQuery = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
+  const deepLinkedAttachmentId = mediaQuery?.get('media') ?? null;
   const resolveInitialAttachment = () => deepLinkedAttachmentId && attachments.some(attachment => attachment.id === deepLinkedAttachmentId)
     ? deepLinkedAttachmentId : readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null;
   const [selection, setSelection] = useState(() => ({ scope: viewerMemoryKey, id: resolveInitialAttachment() }));
@@ -263,7 +264,19 @@ export function ProjectMediaViewer({
   const sendContent = useInternalContentShare();
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/') + window.location.search + window.location.hash, PUBLIC_ORIGIN).href;
   const shareProject = () => sendContent({title:projectTitle,url:publicUrl,onSent:()=>setIsProjectShared(true)});
-  const active = attachments.find((item) => item.id === activeId) ?? attachments[0];
+  const selected = attachments.find((item) => item.id === activeId) ?? attachments[0];
+  const singlePageNumber = Number(mediaQuery?.get('page'));
+  const isSavedSinglePage = mediaQuery?.get('view') === 'page' && deepLinkedAttachmentId === selected?.id
+    && Number.isInteger(singlePageNumber) && singlePageNumber >= 1;
+  const imagePages = attachments.filter((item) => item.kind === 'image');
+  // In the mobile overview the artwork introduces the PDF in the same scroll.
+  // Explicit image and focused page links retain their attachment target.
+  const coveredDocument = isMobileViewer && !isSavedSinglePage && imagePages.length > 0
+    && imagePages.length === attachments.length - 1
+    && !imagePages.some((item) => item.id === deepLinkedAttachmentId)
+    ? attachments.find((item) => item.kind === 'document' && !item.isCover)
+    : undefined;
+  const active = coveredDocument ?? selected;
   // Reset before the attachment's passive effect restores its focused page.
   // A passive reset here could overwrite that report and expose both toolbars.
   useLayoutEffect(() => {
@@ -287,13 +300,9 @@ export function ProjectMediaViewer({
    * one piece rather than as separate files to step between — a photo essay is
    * one work, not five attachments.
    */
-  const singlePageQuery = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
-  const singlePageNumber = Number(singlePageQuery?.get('page'));
-  const isSavedSinglePage = singlePageQuery?.get('view') === 'page' && singlePageQuery.get('media') === active?.id && Number.isInteger(singlePageNumber) && singlePageNumber >= 1;
   const isDocumentReading = isMobileViewer && !isSavedSinglePage && active?.kind === 'document';
   const isVerticalReading = isMobileViewer && !isSavedSinglePage && (active?.kind === 'document' || active?.kind === 'image');
   const isReadingHeader = isDocumentReading || (readOnlyShare && isVerticalReading);
-  const imagePages = attachments.filter((item) => item.kind === 'image');
   const previewScope = `${projectId}:${active?.id ?? ''}`;
   // Remember each reader's explicit choice for this work and file.
   const densityMemoryKey = `${viewerMemoryKey}:density:${active?.kind === 'image' ? 'images' : active?.id ?? ''}`;
@@ -362,6 +371,15 @@ export function ProjectMediaViewer({
     : active?.kind === 'document' && documentPageCount !== 1;
   const publishedLabel = formatPublishedDate(publishedAt);
   const densitySurfaceRef = useRef<HTMLDivElement>(null);
+  const coveredDocumentRef = useRef<HTMLDivElement>(null);
+  const pageSurfaceRef = coveredDocument ? coveredDocumentRef : densitySurfaceRef;
+  const hasDocumentPageLink = deepLinkedAttachmentId === coveredDocument?.id
+    && Number.isInteger(singlePageNumber) && singlePageNumber >= 1;
+  const stageOwnsReadingScroll = Boolean(coveredDocument) && !hasDocumentPageLink;
+  // Start remembering the complete flow as soon as the cover mounts, so a
+  // PDF that finishes loading later cannot reset an in-progress scroll.
+  useDocumentReadingScroll(stageOwnsReadingScroll && !isImmersive, densitySurfaceRef,
+    `${viewerMemoryKey}:cover-pdf:${coveredDocument?.id ?? ''}`);
   const backSwipe = useProjectBackSwipe(densitySurfaceRef, {
     enabled: isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && !mobilePopup && active?.kind !== 'model3d',
     scope: `${projectId}:${active?.id ?? ''}`,
@@ -603,21 +621,40 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>;
-  const activeMedia = active ? <AttachmentRenderer verticalReading={isVerticalReading} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+  const activeMedia = active ? <AttachmentRenderer verticalReading={isVerticalReading} manageReadingScroll={!stageOwnsReadingScroll} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
         }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={showEngagement} isOwner={isOwner && !readOnlyShare} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia;
+  const cover = imagePages.find((image) => image.isCover) ?? imagePages[0];
+  const documentIndex = coveredDocument ? attachments.indexOf(coveredDocument) : -1;
+  const beforeDocument = coveredDocument
+    ? [cover, ...attachments.slice(0, documentIndex).filter((image) => image !== cover)]
+    : [];
+  const afterDocument = coveredDocument
+    ? attachments.slice(documentIndex + 1).filter((image) => image !== cover)
+    : [];
+  const renderReadingImages = (images: ProjectAttachment[]) => images.length > 0 && (
+    <ol data-project-cover-images="" hidden={isImmersive} className="m-0 list-none p-0">
+      {images.map((image) => {
+        const pageNumber = imagePages.indexOf(image) + 1;
+        return <ImagePage key={image.id} projectId={projectId} attachment={image}
+          pageNumber={pageNumber} pageCount={imagePages.length}
+          priorityCount={image === cover ? pageNumber : 0} isMobile showMediaInteractions={false} />;
+      })}
+    </ol>
+  );
   return <MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
-      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} showProgress={isReadingHeader && !isImmersive} segmentedProgress={!readOnlyShare} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(densitySurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
+      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} showProgress={isReadingHeader && !isImmersive} segmentedProgress={!readOnlyShare} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(pageSurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={pageSurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
 
       {showEngagement && isMobileViewer && !isImmersive && active?.kind === 'document' && pageTarget && <MediaInteractionBar key={`${previewScope}:${currentPage}`} target={pageTarget} contextOnly isOwner={isOwner && !readOnlyShare} pageCount={contextPosition?.total ?? pageCount ?? undefined} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
+          {renderReadingImages(beforeDocument)}
           {isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
             videos={videoSequence.entries} creator={creator} activeId={`${projectId}:${active.id}`} onSelect={entry => {
               updateViewerMemory(`${viewerMemoryScope}:project:${entry.projectId}`, { activeAttachmentId: entry.attachment.id });
@@ -628,7 +665,10 @@ export function ProjectMediaViewer({
               processing={entry.projectId === projectId ? {
                 state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
                 isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),
-              } : undefined} onClose={onClose} />} /> : isMobileViewer && active?.kind === 'video' ? <div className="mobile-video-single"><MobileVideoFrame creator={creator} sourceTitle={projectTitle}>{activeMedia}</MobileVideoFrame></div> : activeMedia}
+              } : undefined} onClose={onClose} />} /> : isMobileViewer && active?.kind === 'video' ? <div className="mobile-video-single"><MobileVideoFrame creator={creator} sourceTitle={projectTitle}>{activeMedia}</MobileVideoFrame></div>
+            : coveredDocument ? <div ref={coveredDocumentRef} className={isImmersive ? 'h-full min-h-0' : undefined}>{activeMedia}</div>
+            : activeMedia}
+          {renderReadingImages(afterDocument)}
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
@@ -646,7 +686,7 @@ export function ProjectMediaViewer({
         {/* Images collapse to a single entry, because they are now read as pages
            of one piece — listing each of them here would offer a way to step
            through something that is already continuous. */}
-        {switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="side-panel-control-row side-panel-content-inset shrink-0 overflow-x-auto border-t border-[var(--hairline)] py-2">
+        {!coveredDocument && switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="side-panel-control-row side-panel-content-inset shrink-0 overflow-x-auto border-t border-[var(--hairline)] py-2">
           {switchable.map((attachment) => {
           const Icon = KIND_ICONS[attachment.kind];
           // Any image being shown means the whole image sequence is being shown,

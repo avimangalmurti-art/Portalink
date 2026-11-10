@@ -4280,8 +4280,6 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   min-height: 38px;
   border: 0;
   border-radius: 14px !important;
-  background: var(--profile-relationship-surface) !important;
-  color: var(--text-primary) !important;
   padding: 0;
 }
 /* Extend the hit area without enlarging the reference's visible controls. */
@@ -4295,6 +4293,12 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   font-size: 14px;
   font-weight: 600;
   justify-content: center;
+  background: var(--profile-relationship-surface) !important;
+  color: var(--text-primary) !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-follow='following'] {
+  background: var(--accent-primary) !important;
+  color: var(--accent-foreground) !important;
 }
 #root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark] {
   position: relative;
@@ -4312,6 +4316,8 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 #root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark] > button {
   width: 58px;
   min-width: 58px;
+  background: transparent !important;
+  color: var(--text-primary) !important;
 }
 #root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark] svg {
   width: 24px;

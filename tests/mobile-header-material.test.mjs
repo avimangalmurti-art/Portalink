@@ -104,7 +104,7 @@ test('a profile-only observer can opt into its ancestor scroller and clear glass
  const ancestor={closest:()=>null,style:{overflowY:'auto',overflowX:'visible'},dataset:{},scrollTop:80,contains:()=>true,getBoundingClientRect:()=>bounds(0,912)};
  const row={closest:()=>null,getBoundingClientRect:()=>bounds(40,180)};
  const profileRoot={parentElement:ancestor,contains:()=>true,querySelectorAll:selector=>selector.startsWith('header, ')?[profileHeader]:selector.startsWith('li, ')?[row]:[],addEventListener:()=>{},removeEventListener:()=>{}};
- const profileHeader={style:{position:'sticky',top:'0px'},dataset:{},contains:()=>false,matches:()=>true,closest:selector=>selector.startsWith('[data-profile-page]')?profileRoot:null,getBoundingClientRect:()=>bounds(0,100)};
+ const profileHeader={style:{position:'sticky',top:'0px'},dataset:{},contains:()=>false,matches:selector=>selector.split(', ').includes('.profile-header-region'),closest:selector=>selector.startsWith('[data-profile-page]')?profileRoot:null,getBoundingClientRect:()=>bounds(0,100)};
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{
   exports:localExports,require:name=>name==='react'?({useLayoutEffect:fn=>{installedEffect=fn;}}):underlap,getComputedStyle:node=>node.style,
   document:{scrollingElement:null},window:{addEventListener:(event,callback)=>windowListeners.set(event,callback),removeEventListener:event=>windowListeners.delete(event)},

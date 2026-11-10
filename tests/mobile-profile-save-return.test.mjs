@@ -133,6 +133,19 @@ function fixture(options = {}) {
   };
 }
 
+test('MOBILE Save appears only for a changed draft and Back stays available when clean', async () => {
+  const h = await fixture().ready();
+  assert.equal(h.button('Save'), undefined);
+  assert.equal(h.button('Back').props['data-control-variant'], 'ghost');
+  await h.changeName();
+  assert.equal(h.button('Save').props.disabled, false);
+  await h.changeName(profile('owner').name);
+  assert.equal(h.button('Save'), undefined);
+  assert.equal(h.button('Back').props.disabled, false);
+  assert.equal(h.writes.length, 0);
+  h.unmount();
+});
+
 test('MOBILE Save stays truthful while the actual profile service is pending', async () => {
   const h = await fixture().ready(); await h.changeName('  Updated name  '); h.submit(); await h.flush();
   assert.equal(h.writes.length, 1); assert.equal(h.writes[0].id, 'owner'); assert.deepEqual(h.writes[0].input, { name: 'Updated name' });
@@ -143,7 +156,9 @@ test('MOBILE Save stays truthful while the actual profile service is pending', a
 });
 
 test('WEB retains its existing confirmed-success status and 700 ms return delay', async () => {
-  const h = await fixture({ presentation: 'web' }).ready(); await h.changeName(); h.submit();
+  const h = await fixture({ presentation: 'web' }).ready();
+  assert.equal(h.button('Save').props.disabled, true);
+  await h.changeName(); h.submit();
   h.writes[0].resolve(); await h.flush();
   assert.equal(h.editor.phase, 'saved'); assert.equal(text(h.find(node => node.props.role === 'status')), 'Profile updated.'); assert.equal(h.saved.length, 0);
   assert.deepEqual(h.scheduled.map(timer => timer.delay), [700]); h.advance(699); assert.equal(h.saved.length, 0); h.advance(1); assert.equal(h.saved.length, 1); assert.equal(h.invalidations.length, 1); assert.equal(h.cached.length, 0);

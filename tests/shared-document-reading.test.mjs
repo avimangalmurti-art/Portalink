@@ -95,11 +95,11 @@ test('live PDF overview fits width even when the page is taller than the viewpor
 
 test('saved-page links choose the actual single-page viewer on mobile while normal reading stays vertical',()=>{
  const file=ts.createSourceFile('viewer.tsx',read('../src/components/media/ProjectMediaViewer.tsx'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
- const names=['singlePageQuery','singlePageNumber','isSavedSinglePage','isDocumentReading','isVerticalReading'];const initializers=new Map();
+ const names=['mediaQuery','deepLinkedAttachmentId','singlePageNumber','isSavedSinglePage','isDocumentReading','isVerticalReading'];const initializers=new Map();
  function visit(node){if(ts.isVariableDeclaration(node)&&names.includes(node.name.getText(file)))initializers.set(node.name.getText(file),node.initializer.getText(file));ts.forEachChild(node,visit);}visit(file);
  assert.equal(initializers.size,names.length);
  const code=names.map(name=>`const ${name}=${initializers.get(name)};`).join('\n')+'result={isSavedSinglePage,isDocumentReading,isVerticalReading};';
- const evaluate=(search,kind='document',isMobileViewer=true)=>{const scope={window:{location:{search}},URLSearchParams,active:{id:'document',kind},isMobileViewer};vm.runInNewContext(code,scope);return scope.result;};
+ const evaluate=(search,kind='document',isMobileViewer=true)=>{const attachment={id:'document',kind};const scope={window:{location:{search}},URLSearchParams,active:attachment,selected:attachment,isMobileViewer};vm.runInNewContext(code,scope);return scope.result;};
  assert.equal(evaluate('?media=document&page=23&view=page').isSavedSinglePage,true);
  assert.equal(evaluate('?media=document&page=23&view=page').isVerticalReading,false);
  assert.equal(evaluate('?media=document&page=2&view=page','image').isVerticalReading,false);

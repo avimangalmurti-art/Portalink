@@ -8,6 +8,7 @@ import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
 import { getCategoryIcon } from '../../components/profile/categoryIcons';
 import { DensitySeparator } from '../../components/ui/DensitySeparator';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
+import { ResponsiveImage } from '../../components/ui/ResponsiveImage';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../../presentation/usePresentation';
@@ -138,22 +139,34 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
           {directory.loading && <LoadingState kind="grid" columns={isMobile ? columns : undefined} label="Loading public portals…" />}
           {hasResults && <div className="profile-collection">
             <ul className="profile-collection-grid" aria-label="Public portals" aria-busy={directory.loadingMore}>
-              {directory.items.map(portal => <li key={`${portal.profileId}:${portal.id}`}>
-                <Link to={buildPath('profileCategory', { profileId: portal.profileId, categoryId: portal.id })} data-ui-shape="row" className="profile-collection-link public-portal-link" title={`${portal.label} — ${portal.creator.name}`} aria-label={`${portal.label} — ${portal.creator.name}`}
-                  aria-haspopup={!isMobile ? 'dialog' : undefined} onClick={!isMobile ? event => {
-                    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-                    event.preventDefault();
-                    setWebSelection({ scope: webPopupScope, portal });
-                  } : undefined}>
-                  <span className="public-portal-mark" aria-hidden="true">
-                    <span className="public-portal-glyph">
-                      <InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor style={{ color: portal.creator.accentColor || 'var(--text-secondary)' }} />
+              {directory.items.map(portal => {
+                const creatorName = portal.creator.name?.trim() || portal.creator.handle?.trim();
+                const byline = creatorName ? `by ${creatorName}` : null;
+                const mobileLabel = byline ? `${portal.label} ${byline}` : portal.label;
+                const cardLabel = isMobile ? mobileLabel : `${portal.label} — ${portal.creator.name}`;
+                const backdropAvatar = isMobile ? portal.creator.avatar?.trim() : null;
+                return <li key={`${portal.profileId}:${portal.id}`}>
+                  <Link to={buildPath('profileCategory', { profileId: portal.profileId, categoryId: portal.id })} data-ui-shape="row" className="profile-collection-link public-portal-link" title={cardLabel} aria-label={cardLabel}
+                    aria-haspopup={!isMobile ? 'dialog' : undefined} onClick={!isMobile ? event => {
+                      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+                      event.preventDefault();
+                      setWebSelection({ scope: webPopupScope, portal });
+                    } : undefined}>
+                    {backdropAvatar && <ResponsiveImage key={backdropAvatar} src={backdropAvatar} decorative className="public-portal-avatar-backdrop"
+                      onLoad={({ currentTarget }) => { currentTarget.dataset.portalAvatarReady = ''; }} />}
+                    <span className="public-portal-mark" aria-hidden="true">
+                      <span className="public-portal-glyph">
+                        <InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor style={{ color: portal.creator.accentColor || 'var(--text-secondary)' }} />
+                      </span>
+                      {!isMobile && <span className="public-portal-avatar"><CreatorAvatar name={portal.creator.name} avatar={portal.creator.avatar} className="h-full w-full text-[12px]" /></span>}
                     </span>
-                    <span className="public-portal-avatar"><CreatorAvatar name={portal.creator.name} avatar={portal.creator.avatar} className="h-full w-full text-[12px]" /></span>
-                  </span>
-                  <span className="profile-collection-name">{portal.label}</span>
-                </Link>
-              </li>)}
+                    {isMobile ? <span className="public-portal-caption">
+                      <span className="profile-collection-name">{portal.label}</span>
+                      {byline && <span className="public-portal-creator-name">{byline}</span>}
+                    </span> : <span className="profile-collection-name">{portal.label}</span>}
+                  </Link>
+                </li>;
+              })}
             </ul>
           </div>}
           {directory.error && <ErrorState title={hasResults ? 'More portals could not be loaded' : 'Public portals could not be loaded'} description={directory.error} onRetry={hasResults && directory.nextOffset !== null ? () => void directory.loadMore() : directory.retry} />}

@@ -17,7 +17,6 @@
 /* Keep shared hover and opaque accessibility fills above this gentle rest surface. */
 .public-portal-mark > :where(.profile-collection-tile) { background: var(--surface-sunken); }
 .public-portal-avatar { position: absolute; inset-inline-end: -6px; bottom: -6px; width: 28px; height: 28px; border: 2px solid var(--surface-canvas); border-radius: 26%; background: var(--surface-canvas); }
-.public-portal-creator-name { display: block; max-width: 100%; color: var(--text-secondary); font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
 .public-portal-pagination { display: block; width: fit-content; margin: 16px auto 0; text-align: center; }
 #root .codex-shell[data-presentation='web'] [data-public-portal-search] .profile-collection-grid {
   grid-template-columns: repeat(var(--portal-search-columns, 6), minmax(0, 1fr));
@@ -195,12 +194,43 @@
   min-height: 134px;
   aspect-ratio: 5 / 7;
   gap: 6px;
-  padding: 22px 6px 10px;
+  padding: 8px 6px 9px;
   border: 1px solid var(--hairline);
   background: var(--surface-raised);
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link:active {
   background: var(--surface-hover);
+}
+/* The extra crop keeps the blur filled to the rounded edge of the card. */
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link:has(> .public-portal-avatar-backdrop) {
+  isolation: isolate;
+  overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar-backdrop {
+  position: absolute;
+  inset: -24px;
+  z-index: -1;
+  width: calc(100% + 48px);
+  height: calc(100% + 48px);
+  max-width: none;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar-backdrop[data-portal-avatar-ready] {
+  opacity: .22;
+  filter: var(--material-blur-regular, blur(24px) saturate(125%));
+  /* Soften the tint behind the title and byline to preserve text contrast. */
+  -webkit-mask-image: linear-gradient(#000 30%, rgb(0 0 0 / 50%) 70%);
+  mask-image: linear-gradient(#000 30%, rgb(0 0 0 / 50%) 70%);
+}
+.reduce-translucency [data-public-portal-search] .public-portal-avatar-backdrop {
+  display: none;
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  [data-public-portal-search] .public-portal-avatar-backdrop {
+    display: none;
+  }
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-mark {
   position: static;
@@ -216,42 +246,43 @@
   display: grid;
   place-items: center;
 }
-#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar {
-  --portal-avatar-size: calc(72px / var(--portal-search-columns, 3));
-  top: 8px;
-  inset-inline-end: 8px;
-  bottom: auto;
-  width: var(--portal-avatar-size);
-  height: var(--portal-avatar-size);
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-caption {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 2px;
 }
-#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar > .squircle {
-  font-size: calc(var(--portal-avatar-size) / 2);
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-caption > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .profile-collection-name {
-  display: grid;
-  min-height: 2.6em;
-  place-items: center;
   font-size: clamp(12px, 3.45vw, 15px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-creator-name {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 #root .codex-shell[data-presentation='mobile'] [data-compact-portals] .public-portal-link {
   min-height: 106px;
-  padding: 20px 3px 8px;
+  padding: 8px 3px;
+  gap: 4px;
 }
 #root .codex-shell[data-presentation='mobile'] [data-compact-portals] .public-portal-mark {
   min-height: 34px;
   --interface-icon-xl: clamp(22px, 8vw, 36px);
 }
-#root .codex-shell[data-presentation='mobile'] [data-compact-portals] .public-portal-avatar {
-  top: 4px;
-  inset-inline-end: 4px;
-}
 #root .codex-shell[data-presentation='mobile'] [data-compact-portals] .profile-collection-name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  flex: 0 0 auto;
-  overflow: hidden;
   font-size: 12px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-compact-portals] .public-portal-caption > .public-portal-creator-name {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 #root .codex-shell.high-contrast[data-presentation='mobile'] [data-public-portal-search] .public-portal-link {
   border-color: var(--text-primary);

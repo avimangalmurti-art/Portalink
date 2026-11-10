@@ -26,7 +26,7 @@ function events() {
 function harness(withMetadata = true) {
   const tags = [];
   const media = events(), observers = [];
-  let welcome = null;
+  let welcome = null, inviteSplash = null;
   class MutationObserver {
     constructor(callback) { this.callback = callback; this.active = false; observers.push(this); }
     observe() { this.active = true; }
@@ -42,7 +42,7 @@ function harness(withMetadata = true) {
   if (withMetadata) tags.push(meta({ content: '#ffffff', media: '(prefers-color-scheme: light)' }),
     meta({ content: '#000000', media: '(prefers-color-scheme: dark)' }));
   const document = { ...events(), visibilityState: 'visible', documentElement: { dataset: {}, style: style() }, body: { style: style() },
-    querySelector: () => welcome,
+    querySelector: selector => selector.includes('data-portalink-invite-splash') ? inviteSplash : welcome,
     querySelectorAll: selector => { assert.equal(selector, 'meta[name="theme-color"]'); return tags; },
     createElement: () => meta(), head: { appendChild: tag => tags.push(tag) } };
   const window = { ...events(), matchMedia: () => media }, slots = [], pendingEffects = [], frame = {};
@@ -52,7 +52,7 @@ function harness(withMetadata = true) {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText;
   vm.runInNewContext(source, { exports, document, window, MutationObserver, getComputedStyle: element => {
-    if (element === welcome) return { backgroundColor: welcome.color, colorScheme: welcome.scheme };
+    if (element === welcome || element === inviteSplash) return { backgroundColor: element.color, colorScheme: element.scheme };
     assert.equal(element, frame);
     return { getPropertyValue: name => { assert.equal(name, '--codex-workspace-bg'); return token; }, colorScheme };
   },
@@ -68,6 +68,7 @@ function harness(withMetadata = true) {
     } });
   return { document, window, tags, media, observers,
     setWelcome(color, scheme = 'dark') { welcome = color ? { color, scheme } : null; },
+    setInviteSplash(visible) { inviteSplash = visible ? { color: 'rgb(253, 255, 255)', scheme: 'light' } : null; },
     changeWelcome(color, scheme) { welcome.color = color; welcome.scheme = scheme; return welcome; },
     mutate: (records = []) => observers.filter(observer => observer.active).forEach(observer => observer.callback(records)),
     setColor: (color, scheme = color === '#ffffff' ? 'light' : 'dark') => { token = color; colorScheme = scheme; },
@@ -106,6 +107,20 @@ test('an explicit welcome appearance choice immediately updates the browser canv
   const writes = h.document.body.style.writes.length;
   h.mutate([{ target, attributeName: 'aria-expanded' }]);
   assert.equal(h.document.body.style.writes.length, writes, 'Opening sections must not repaint the canvas');
+  h.dispose();
+});
+
+test('the visible invite splash keeps the browser light until the next surface takes over', () => {
+  const h = harness();
+  h.setInviteSplash(true);
+  h.setWelcome('rgb(44, 44, 46)', 'dark');
+  h.render('mobile');
+  assert.equal(h.document.body.style.colorScheme, 'light');
+  assert.ok(h.tags.every(tag => tag.getAttribute('content') === 'rgb(253, 255, 255)'));
+  h.setInviteSplash(false);
+  h.mutate();
+  assert.equal(h.document.body.style.colorScheme, 'dark');
+  assert.ok(h.tags.every(tag => tag.getAttribute('content') === 'rgb(44, 44, 46)'));
   h.dispose();
 });
 
@@ -289,19 +304,23 @@ test('platform preserves saved appearance while visitor silently follows system 
   for (const entry of ['index.html', 'share.html']) {
     const html = readFileSync(new URL(`../${entry}`, import.meta.url), 'utf8');
     const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].find(([, code]) => code.includes('data-portalink-theme-original'))[1];
-    for (const mobile of [true, false]) for (const mode of ['light', 'dark', 'auto']) for (const dark of [true, false]) {
+    for (const mobile of [true, false]) for (const mode of ['light', 'dark', 'auto']) for (const dark of [true, false]) for (const welcomeLink of [true, false]) {
       const tags = ['#ffffff', '#000000'].map(content => {
         const attrs = new Map([['content', content]]);
         return { getAttribute: key => attrs.get(key), setAttribute: (key, value) => attrs.set(key, value) };
       });
-      const root = { dataset: {}, style: {}, toggleAttribute() {} };
-      vm.runInNewContext(script, { document: { documentElement: root, querySelectorAll: () => tags }, window: {
+      const attributes = new Map();
+      const root = { dataset: {}, style: {}, toggleAttribute: (name, value) => attributes.set(name, value) };
+      vm.runInNewContext(script, { URLSearchParams, document: { documentElement: root, querySelectorAll: () => tags }, window: {
         matchMedia: query => ({ matches: query.includes('639px') ? mobile : query.includes('dark') ? dark : false }),
-        location: { pathname: '/share/fixture' }, navigator: {},
+        location: welcomeLink ? { pathname: '/', search: '?welcome=1' } : { pathname: '/share/fixture', search: '' }, navigator: {},
         localStorage: { getItem: key => key.includes('interfaceAppearance') ? JSON.stringify({ mode }) : null },
       } });
       const resolved = entry === 'share.html' ? (dark ? 'dark' : 'light') : mode === 'auto' ? dark ? 'dark' : 'light' : mode;
-      assert.deepEqual(tags.map(tag => tag.getAttribute('content')), (mobile || entry === 'share.html') ? [resolved === 'dark' ? '#000000' : '#ffffff', resolved === 'dark' ? '#000000' : '#ffffff'] : ['#ffffff', '#000000']);
+      const invite = entry === 'index.html' && mobile && welcomeLink;
+      const color = invite ? '#fdffff' : resolved === 'dark' ? '#000000' : '#ffffff';
+      assert.equal(Boolean(attributes.get('data-invite-launch')), invite);
+      assert.deepEqual(tags.map(tag => tag.getAttribute('content')), (mobile || entry === 'share.html') ? [color, color] : ['#ffffff', '#000000']);
       if (mobile || entry === 'share.html') assert.equal(root.dataset.appearance, resolved);
     }
   }
