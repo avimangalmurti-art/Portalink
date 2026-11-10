@@ -11,6 +11,7 @@ import { multipartSource, readMultipartSpec } from './multipartMedia';
 import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
 import { deriveProjectRelevance } from '../../domain/discovery/ranking';
 import { requireSupabase } from './client';
+import { requireDirectoryAccount } from './requireDirectoryAccount';
 import { signedMediaUrls } from './mediaUrlCache';
 import { coverThumbnailWithUrls, readCoverThumbnail } from './coverThumbnailReads';
 import { readSharedProfileBundle } from './sharedProfileBundle';
@@ -366,7 +367,7 @@ async function hydrateProjects(
   }));
 }
 
-async function loadProfiles(profileId?: string, publicOnly = false): Promise<Profile[]> {
+async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: 'full' | 'overview' = 'full'): Promise<Profile[]> {
   const client = requireSupabase();
   let profileQuery = client.from('profiles').select('*').order('created_at', { ascending: false });
   if (profileId) profileQuery = profileQuery.eq('id', profileId);
@@ -383,6 +384,12 @@ async function loadProfiles(profileId?: string, publicOnly = false): Promise<Pro
   if (profileRows.length === 0) return [];
 
   const profileIds = profileRows.map((row) => row.id);
+  const ownerIds = !publicOnly ? profileRows.filter(row => row.account_id === viewerAccountId).map(row => row.id) : [];
+  // The private pair can travel alongside the portfolio without delaying media
+  // preparation. Capture early failures now and consume them at the pair boundary.
+  const pairRequest = ownerIds.length ? Promise.allSettled([
+    client.from('profile_journey_pairs').select('profile_id,pair').in('profile_id', ownerIds),
+  ]) : null;
   const [categoryResult, projectResult] = await Promise.all([
     client.from('portfolio_categories').select('*').in('profile_id', profileIds).order('position'),
     client.from('projects').select('*').in('profile_id', profileIds).order('published_at', { ascending: false }),
@@ -392,13 +399,43 @@ async function loadProfiles(profileId?: string, publicOnly = false): Promise<Pro
   const categoryRows = ((categoryResult.data ?? []) as unknown as CategoryRow[]).filter(row => !publicOnly || !row.is_hidden);
   const publicCategoryIds = new Set(categoryRows.map(row => row.id));
   const projectRows = ((projectResult.data ?? []) as unknown as ProjectRow[]).filter(row => !publicOnly || (!row.is_hidden && publicCategoryIds.has(row.category_id)));
-  const projectIds = projectRows.map((row) => row.id);
+  // Overview bitmaps already contain the selected page and crop. Their source
+  // attachments are only needed by an opened reader or editor, never this grid.
+  const projectIds = projectRows
+    .filter(row => mediaMode !== 'overview' || !readCoverThumbnail(row.cover_thumbnail, row.profile_id, row.id))
+    .map((row) => row.id);
   const attachmentResult = projectIds.length > 0
     ? await client.from('project_attachments').select('*').in('project_id', projectIds).order('position')
     : { data: [], error: null };
   if (attachmentResult.error) throw new Error(attachmentResult.error.message);
-  const attachmentRows = (attachmentResult.data ?? []) as unknown as AttachmentRow[];
-  const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows, publicOnly ? 'cover' : 'full');
+  let attachmentRows = (attachmentResult.data ?? []) as unknown as AttachmentRow[];
+  if (mediaMode === 'overview') {
+    // Legacy projects still retain their original-cover compatibility. Prepare
+    // just the chosen cover (or established image/first-file fallback), rather
+    // than every original and every PDF page across the creator's portfolio.
+    const byProject = new Map<string, AttachmentRow[]>();
+    attachmentRows.forEach(row => {
+      const attachments = byProject.get(row.project_id) ?? [];
+      attachments.push(row);
+      byProject.set(row.project_id, attachments);
+    });
+    attachmentRows = projectRows.flatMap(project => {
+      const attachments = byProject.get(project.id) ?? [];
+      const cover = attachments.find(row => row.is_cover && row.storage_path)
+        ?? attachments.find(row => resolveStoredMediaKind(row.kind as ProjectAttachment['kind'], row.file_name, row.mime_type) === 'image' && row.storage_path)
+        ?? attachments[0];
+      return cover ? [cover] : [];
+    });
+  }
+  const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows, mediaMode === 'overview' || publicOnly ? 'cover' : 'full');
+  if (mediaMode === 'overview') {
+    projectsById.forEach(project => {
+      // The authenticated wall also uses `cover` to decide whether a published
+      // project has artwork. A stored bitmap is that artwork, not an empty tile.
+      project.cover ||= project.coverThumbnail?.variants.find(variant => variant.size === 800)?.sourceUrl
+        ?? project.coverThumbnail?.variants.find(variant => variant.sourceUrl)?.sourceUrl ?? '';
+    });
+  }
 
   const projectsByProfile = new Map<string, Project[]>();
   profileIds.forEach((currentProfileId) => {
@@ -415,11 +452,12 @@ async function loadProfiles(profileId?: string, publicOnly = false): Promise<Pro
       .filter((project): project is Project => Boolean(project)));
   });
 
-  const ownerIds = !publicOnly ? profileRows.filter(row => row.account_id === viewerAccountId).map(row => row.id) : [];
   const privatePairs = new Map<string, unknown>();
   let privatePairsAvailable = false;
-  if (ownerIds.length) {
-    const result = await client.from('profile_journey_pairs').select('profile_id,pair').in('profile_id', ownerIds);
+  if (pairRequest) {
+    const [pair] = await pairRequest;
+    if (pair.status === 'rejected') throw pair.reason;
+    const result = pair.value;
     const missing = result.error && ['42P01', 'PGRST205'].includes(result.error.code) && /profile_journey_pairs/.test(result.error.message);
     if (result.error && !missing) throw new Error(result.error.message);
     if (!result.error) {
@@ -469,7 +507,7 @@ async function loadProfiles(profileId?: string, publicOnly = false): Promise<Pro
   });
 }
 
-export const supabaseProfileReadService: Required<Pick<ProfileService, 'getProjectGridLayout' | 'getProfile' | 'getSharedProfile' | 'getProfileForAccount' | 'listProfiles'>> = {
+export const supabaseProfileReadService: Required<Pick<ProfileService, 'getProjectGridLayout' | 'getProfile' | 'getProfileOverview' | 'getSharedProfile' | 'getProfileForAccount' | 'listProfiles'>> = {
 async getProjectGridLayout(profileId) {
     const { data, error } = await requireSupabase().from('profiles').select('id,project_grid_columns').eq('id', profileId).single();
     if (error) throwProfileError(error, 'Your project layout could not be loaded.');
@@ -479,6 +517,12 @@ async getProjectGridLayout(profileId) {
 async getProfile(profileId) {
     const profiles = await loadProfiles(profileId);
     const profile = profiles[0];
+    if (!profile) throw new ProfileServiceError('not_found', 'That creator profile could not be found.');
+    return profile;
+  },
+
+async getProfileOverview(profileId) {
+    const profile = (await loadProfiles(profileId, false, 'overview'))[0];
     if (!profile) throw new ProfileServiceError('not_found', 'That creator profile could not be found.');
     return profile;
   },
@@ -522,7 +566,8 @@ async getProfileForAccount(accountId) {
     return row ? this.getProfile(row.id) : null;
   },
 
-listProfiles() {
+async listProfiles() {
+    await requireDirectoryAccount();
     return loadProfiles();
   }
 };

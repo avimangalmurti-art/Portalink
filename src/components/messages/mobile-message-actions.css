@@ -1,0 +1,151 @@
+.mobile-message-context {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgb(0 0 0 / 42%);
+}
+
+.codex-shell:has([data-message-options-preview]) [data-message-context-selected] { opacity: 0; }
+
+.mobile-message-context-bounds {
+  --context-top-gutter: max(12px, var(--safe-area-top, 0px));
+  --context-bottom-gutter: max(12px, var(--safe-area-bottom, 0px));
+  --context-left-gutter: max(12px, var(--safe-area-left, 0px));
+  --context-right-gutter: max(12px, var(--safe-area-right, 0px));
+  position: absolute;
+  top: calc(var(--message-viewport-top, 0px) + var(--context-top-gutter));
+  left: calc(var(--message-viewport-left, 0px) + var(--context-left-gutter));
+  width: max(0px, calc(var(--message-viewport-width, 100vw) - var(--context-left-gutter) - var(--context-right-gutter)));
+  height: max(0px, calc(var(--message-viewport-height, 100dvh) - var(--context-top-gutter) - var(--context-bottom-gutter)));
+  pointer-events: none;
+}
+
+.mobile-message-context-stack {
+  position: absolute;
+  top: var(--message-context-top, 0px);
+  left: var(--message-context-inset, 0px);
+  width: min(calc(100% - var(--message-context-inset, 0px)), max(224px, var(--message-anchor-width, 0px)));
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+/* Opening the menu focuses the container; only its controls need a visible focus ring. */
+.mobile-message-context-stack:focus-visible { outline: none !important; }
+
+.mobile-message-context-stack[data-message-context-side='outgoing'] {
+  left: auto;
+  right: var(--message-context-inset, 0px);
+  align-items: flex-end;
+}
+
+.mobile-message-context-stack > * { flex: none; max-width: 100%; pointer-events: auto; }
+
+.mobile-message-context-reactions,
+.mobile-message-context-actions {
+  color: var(--text-primary);
+  border: 1px solid var(--hairline-strong);
+  background: var(--material-regular, var(--surface-raised));
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+  backdrop-filter: blur(18px) saturate(115%);
+}
+
+.mobile-message-context-reactions {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.mobile-message-context-reactions button {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1px;
+  width: 52px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.mobile-message-context-reactions button[aria-pressed='true'] {
+  background: var(--surface-hover);
+  color: var(--accent-text);
+}
+.mobile-message-context-reactions button:disabled { opacity: .5; }
+
+.mobile-message-context-bubble {
+  width: fit-content;
+  max-width: min(100%, max(80px, var(--message-anchor-width, 280px)));
+  max-height: max(64px, calc(var(--message-viewport-height, 100dvh) * .42));
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: 22px;
+  padding: 10px 14px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+[data-message-context-side='outgoing'] .mobile-message-context-bubble {
+  background: var(--accent-primary);
+  color: var(--accent-foreground);
+}
+
+.mobile-message-context-bubble:has(img) { width: var(--message-anchor-width, 280px); }
+.mobile-message-context-bubble img { display: block; width: 100%; height: auto; }
+.mobile-message-context-bubble p + img { margin-top: 8px; border-radius: 8px; }
+.mobile-message-context-bubble small { display: block; font-size: 12px; opacity: .75; }
+[data-message-context-side] .mobile-message-context-bubble[data-artwork-only] { padding: 0; background: transparent; border-radius: var(--mobile-component-radius, 8px); }
+
+.mobile-message-context-actions {
+  width: 224px;
+  overflow: hidden;
+  border-radius: var(--ui-popup-radius, 24px);
+}
+
+.mobile-message-context-actions button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 14px;
+  text-align: start;
+  font-size: 15px;
+}
+
+.mobile-message-context-actions button + button { border-top: 1px solid var(--hairline); }
+.mobile-message-context-actions button[data-destructive] { color: var(--status-danger); }
+.mobile-message-context-actions p { padding: 0 14px 8px; font-size: 12px; }
+.mobile-message-context-stack button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; }
+.mobile-message-context-stack button:active { background: var(--surface-hover); }
+
+.codex-shell.reduce-translucency :is(.mobile-message-context-reactions, .mobile-message-context-actions) {
+  background: var(--surface-raised);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.codex-shell.high-contrast :is(.mobile-message-context-reactions, .mobile-message-context-actions, .mobile-message-context-bubble) { border: 1px solid currentColor; }
+
+@media (prefers-reduced-transparency: reduce) {
+  .mobile-message-context-reactions,
+  .mobile-message-context-actions { background: var(--surface-raised); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-message-context-stack { animation: mobile-message-context-appear 130ms ease-out; }
+  @keyframes mobile-message-context-appear {
+    from { opacity: 0; transform: scale(.98); }
+  }
+}

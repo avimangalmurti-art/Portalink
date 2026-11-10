@@ -4,6 +4,10 @@ import { useProfileData } from '../../contexts/ProfileDataContext';
 import type { ProfileService } from '../../services/interfaces';
 import type { Profile } from '../../types/domain';
 import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
+import { usePresentation, type Presentation } from '../../presentation/usePresentation';
+
+const DEFAULT_MOBILE_PROJECT_GRID_COLUMNS = 4;
+const DEFAULT_PUBLIC_CATALOGUE_PROJECT_GRID_COLUMNS = { mobile: 2, web: 7 };
 
 type DensityState = {
   columns: number;
@@ -11,16 +15,17 @@ type DensityState = {
   saveError: string | null;
   pending: number | null;
   localChoice: boolean;
+  previewing: boolean;
   listeners: Set<() => void>;
 };
 
 function createState(columns: unknown): DensityState {
   return { columns: normalizeProjectGridColumns(columns), saving: false, saveError: null,
-    pending: null, localChoice: false, listeners: new Set() };
+    pending: null, localChoice: false, previewing: false, listeners: new Set() };
 }
 
-// Home and Profile share outstanding owner writes across route unmounts. A
-// remount must neither show an old cached density nor race the previous save.
+// Preserve outstanding profile writes and separate Home choices across route
+// unmounts without racing saves or resetting a device preference.
 const ownerStates = new WeakMap<ProfileService, Map<string, DensityState>>();
 
 function ownerState(service: ProfileService, id: string, columns: unknown): DensityState {
@@ -33,6 +38,16 @@ function ownerState(service: ProfileService, id: string, columns: unknown): Dens
 
 function notify(state: DensityState) {
   state.listeners.forEach(listener => listener());
+}
+
+function storedColumns(key: string): number | undefined {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return undefined;
+    const columns = Number(stored);
+    return Number.isFinite(columns) ? columns : undefined;
+  }
+  catch { return undefined; }
 }
 
 async function savePending(state: DensityState, service: ProfileService, id: string, invalidateProfiles: () => void) {
@@ -66,23 +81,51 @@ async function savePending(state: DensityState, service: ProfileService, id: str
   }
 }
 
-/** One saved owner layout for Home, Profile and public profile visitors. */
+/** Authored WEB layouts and viewer density preferences are kept separately. */
 export function useProjectGridDensity(
   profile: Pick<Profile, 'id' | 'projectGridColumns'> | null,
   canSave: boolean,
+  scope: 'profile' | 'home' | 'public-catalogue' = 'profile',
 ) {
   const { profiles } = useServices();
   const { invalidateProfiles } = useProfileData();
+  const presentation = usePresentation();
+  const isMobile = presentation === 'mobile';
   const profileId = profile?.id ?? null;
+  // The existing Home key belongs to WEB so its saved choice survives this split.
+  const homeKey = `portalink.home-grid-columns:${isMobile ? 'mobile:' : ''}${profileId ?? 'guest'}`;
+  const mobileProfileKey = `portalink.profile-grid-columns:mobile:${profileId ?? 'guest'}`;
+  const publicCatalogueKey = scope === 'public-catalogue' && profileId
+    ? `portalink.public-catalogue-grid-columns:${presentation}:${profileId}` : null;
+  const saveProfile = canSave && scope === 'profile' && !isMobile;
   const canonicalColumns = normalizeProjectGridColumns(profile?.projectGridColumns);
   const [, render] = useState(0);
-  const state = useMemo(() => canSave && profileId
-    ? ownerState(profiles, profileId, canonicalColumns)
-    : createState(canonicalColumns),
+  // A new profile/service starts a new visitor view; resizing keeps both slots.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const visitorStates = useMemo(() => new Map<Presentation, DensityState>(), [profiles, profileId, canSave, scope]);
+  const state = useMemo(() => {
+    if (scope === 'home') {
+      return ownerState(profiles, `home:${presentation}:${profileId ?? 'guest'}`,
+        storedColumns(homeKey) ?? (isMobile ? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS : undefined));
+    }
+    if (scope === 'profile' && canSave && profileId) return isMobile
+      ? ownerState(profiles, `profile:mobile:${profileId}`, storedColumns(mobileProfileKey) ?? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS)
+      : ownerState(profiles, profileId, canonicalColumns);
+    let visitor = visitorStates.get(presentation);
+    if (!visitor) {
+      const savedPublicColumns = publicCatalogueKey ? storedColumns(publicCatalogueKey) : undefined;
+      visitor = createState(scope === 'public-catalogue'
+        ? savedPublicColumns ?? DEFAULT_PUBLIC_CATALOGUE_PROJECT_GRID_COLUMNS[presentation]
+        : isMobile ? storedColumns(mobileProfileKey) ?? DEFAULT_MOBILE_PROJECT_GRID_COLUMNS : canonicalColumns);
+      visitor.localChoice = savedPublicColumns !== undefined;
+      visitorStates.set(presentation, visitor);
+    }
+    return visitor;
+  },
   // Canonical refreshes hydrate below; they must not recreate a visitor pinch
   // or discard an owner write when the profile cache is invalidated.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [profiles, profileId, canSave]);
+  [profiles, profileId, canSave, scope, presentation, visitorStates]);
 
   useEffect(() => {
     const listener = () => render(revision => revision + 1);
@@ -92,6 +135,7 @@ export function useProjectGridDensity(
 
   const { columns, saving, saveError } = state;
   useEffect(() => {
+    if (scope === 'home' || scope === 'public-catalogue' || isMobile || state.previewing) return;
     if (state.localChoice) {
       // Ignore old refetches until the service has echoed the latest confirmed
       // owner choice. Visitors' local zoom is never written to the profile.
@@ -102,25 +146,41 @@ export function useProjectGridDensity(
       state.columns = canonicalColumns;
       notify(state);
     }
-  }, [state, canonicalColumns, canSave, columns, saving, saveError]);
+  }, [state, canonicalColumns, canSave, columns, saving, saveError, scope, isMobile]);
 
   const setColumns = useCallback((value: number) => {
     const next = normalizeProjectGridColumns(value);
-    if (state.columns === next && !state.saveError) return;
+    if (state.columns === next && !state.saveError && !state.previewing) return;
+    state.previewing = false;
     state.columns = next;
     state.localChoice = true;
     state.saveError = null;
-    if (canSave && profileId) state.pending = next;
+    if (scope === 'home') {
+      try { localStorage.setItem(homeKey, String(next)); } catch { /* Keep the in-memory choice. */ }
+    } else if (publicCatalogueKey) {
+      try { localStorage.setItem(publicCatalogueKey, String(next)); } catch { /* Keep the in-memory choice. */ }
+    } else if (isMobile && canSave && profileId) {
+      try { localStorage.setItem(mobileProfileKey, String(next)); } catch { /* Keep the in-memory choice. */ }
+    }
+    if (saveProfile && profileId) state.pending = next;
     notify(state);
-    if (canSave && profileId) void savePending(state, profiles, profileId, invalidateProfiles);
-  }, [state, canSave, profileId, profiles, invalidateProfiles]);
+    if (saveProfile && profileId) void savePending(state, profiles, profileId, invalidateProfiles);
+  }, [state, saveProfile, profileId, profiles, invalidateProfiles, scope, homeKey, publicCatalogueKey, isMobile, canSave, mobileProfileKey]);
 
   const retry = useCallback(() => {
-    if (!canSave || !profileId || !state.saveError) return;
+    if (!saveProfile || !profileId || !state.saveError) return;
     state.saveError = null;
     state.pending = state.columns;
     void savePending(state, profiles, profileId, invalidateProfiles);
-  }, [state, canSave, profileId, profiles, invalidateProfiles]);
+  }, [state, saveProfile, profileId, profiles, invalidateProfiles]);
 
-  return { columns, setColumns, saving, saveError, retry };
+  const previewColumns = useCallback((value: number) => {
+    const next = normalizeProjectGridColumns(value);
+    state.previewing = true;
+    state.localChoice = true;
+    if (state.columns === next) return;
+    state.columns = next;
+    notify(state);
+  }, [state]);
+  return { columns, setColumns, previewColumns, saving, saveError, retry };
 }

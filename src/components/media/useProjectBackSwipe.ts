@@ -4,7 +4,7 @@ import { navigationSwipe } from '../../presentation/mobile/useNavigationSwipe';
 import { markMobileBackNavigation } from '../../presentation/mobile/backNavigationTransition';
 
 type Gesture = { id: number; x: number; y: number; time: number; horizontal: boolean };
-const controls = 'button, a, input, textarea, select, [contenteditable="true"], audio, iframe, model-viewer, [role="slider"], [role="menu"], [role="dialog"], [role="alertdialog"], [data-media-interaction]';
+const controls = 'button, a, input, textarea, select, [contenteditable="true"], audio, iframe, model-viewer, [role="slider"], [role="menu"], [role="dialog"], [role="alertdialog"], [data-media-interaction], [data-mobile-focused-view], [data-focused-page-scroll]';
 
 /** Overview content swipes Back; focused pages, scrolling and media controls own their gestures. */
 export function useProjectBackSwipe(surfaceRef: RefObject<HTMLElement>, { enabled, scope, onBack }: {

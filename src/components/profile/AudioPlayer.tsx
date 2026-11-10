@@ -94,16 +94,16 @@ export function AudioPlayer({
               </div>
 
               <div className="mt-4 flex items-center justify-center gap-3">
-                <button type="button" onClick={() => skip(-15)} aria-label="Back 15 seconds" className="flex h-9 items-center gap-1 rounded-[9px] px-2 text-[12px] font-semibold tabular-nums text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button type="button" onClick={() => skip(-15)} aria-label="Back 15 seconds" className="flex h-9 items-center gap-1 rounded-[9px] px-2 text-[12px] font-semibold tabular-nums text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <RotateCcwIcon className="h-4 w-4" aria-hidden="true" />
                   15
                 </button>
-                <button type="button" onClick={() => setIsPlaying((playing) => !playing)} aria-label={isPlaying ? 'Pause' : 'Play'} className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--accent-foreground)] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" style={{
+                <button type="button" onClick={() => setIsPlaying((playing) => !playing)} aria-label={isPlaying ? 'Pause' : 'Play'} className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--accent-foreground)] transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" style={{
               backgroundColor: 'var(--accent-color)'
             }}>
                   {isPlaying ? <PauseIcon className="h-[18px] w-[18px]" aria-hidden="true" /> : <PlayIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
                 </button>
-                <button type="button" onClick={() => skip(15)} aria-label="Forward 15 seconds" className="flex h-9 items-center gap-1 rounded-[9px] px-2 text-[12px] font-semibold tabular-nums text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button type="button" onClick={() => skip(15)} aria-label="Forward 15 seconds" className="flex h-9 items-center gap-1 rounded-[9px] px-2 text-[12px] font-semibold tabular-nums text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   15
                   <RotateCwIcon className="h-4 w-4" aria-hidden="true" />
                 </button>

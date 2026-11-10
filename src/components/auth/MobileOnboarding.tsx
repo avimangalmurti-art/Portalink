@@ -8,9 +8,10 @@ import { Button } from '../ui/Button';
 
 export type MobileSignupStep = 'appearance' | 'account' | 'profile' | 'verification';
 
-export function MobileOnboardingAppearance(props: AccountAppearanceProps & { children?: React.ReactNode; showPreview?: boolean }) {
+export function MobileOnboardingAppearance(props: AccountAppearanceProps & { children?: React.ReactNode; showPreview?: boolean; idPrefix?: string }) {
   const theme = props.theme ?? 'dark';
   const selected = findNavAccent(props.accentColor);
+  const prefix = props.idPrefix ?? 'onboarding';
   return <div className="mobile-onboarding-appearance">
     {/* Preview the same neutral material as navigation without making the form
         itself translucent over the page behind it. */}
@@ -32,8 +33,8 @@ export function MobileOnboardingAppearance(props: AccountAppearanceProps & { chi
         </button>)}
       </div>
     </fieldset>
-    <div className="mobile-onboarding-switch"><label htmlFor="onboarding-contrast">High contrast</label><AppearanceSwitch id="onboarding-contrast" label="High contrast" isOn={props.highContrast} onToggle={() => props.onHighContrastChange(!props.highContrast)} /></div>
-    <div className="mobile-onboarding-switch"><label htmlFor="onboarding-translucency">Reduce translucency</label><AppearanceSwitch id="onboarding-translucency" label="Reduce translucency" isOn={props.reduceTranslucency} onToggle={() => props.onReduceTranslucencyChange(!props.reduceTranslucency)} /></div>
+    <div className="mobile-onboarding-switch"><label htmlFor={`${prefix}-contrast`}>High contrast</label><AppearanceSwitch id={`${prefix}-contrast`} label="High contrast" isOn={props.highContrast} onToggle={() => props.onHighContrastChange(!props.highContrast)} /></div>
+    <div className="mobile-onboarding-switch"><label htmlFor={`${prefix}-translucency`}>Reduce translucency</label><AppearanceSwitch id={`${prefix}-translucency`} label="Reduce translucency" isOn={props.reduceTranslucency} onToggle={() => props.onReduceTranslucencyChange(!props.reduceTranslucency)} /></div>
     {props.children}
   </div>;
 }

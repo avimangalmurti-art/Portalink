@@ -27,7 +27,7 @@ export function SessionStatusBanner({
     return <div data-session-status="" role="alert" className="flex items-start gap-2 border-b border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-[var(--content-gutter)] py-2.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
         <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1">
-          {auth.error?.message ?? 'Your session could not be checked.'} Until it can be read, you are browsing as a visitor.
+          {auth.error?.message ?? 'Your session could not be checked.'} Check your connection and try again.
         </span>
         <Button size="sm" onClick={auth.retryInitialize}>Check again</Button>
       </div>;

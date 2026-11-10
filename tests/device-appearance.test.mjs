@@ -27,7 +27,7 @@ test('public mobile appearance previews and persists without rewriting platform 
 });
 const scopedKey = scope => `portalinknetworks.interfaceAppearance.${scope}`;
 const saved = (storage, scope = 'web') => JSON.parse(storage.get(scopedKey(scope)));
-function harness({ dark = false, legacy = false, storage = new Map(), blockedStorage = false, mediaAvailable = true, server = false, namespace = 'platform' } = {}) {
+function harness({ dark = false, legacy = false, storage = new Map(), blockedStorage = false, mediaAvailable = true, server = false, namespace = 'platform', eventHub } = {}) {
   let cursor = 0;
   const slots = [];
   const mediaListeners = new Set(), windowListeners = new Map(), documentListeners = new Map();
@@ -45,8 +45,16 @@ function harness({ dark = false, legacy = false, storage = new Map(), blockedSto
       setItem(key, value) { if (blockedStorage) throw Error('Blocked'); storage.set(key, value); },
     },
     matchMedia: mediaAvailable ? () => media : undefined,
-    addEventListener: (key, fn) => windowListeners.set(key, fn),
-    removeEventListener: key => windowListeners.delete(key),
+    CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
+    dispatchEvent: event => {
+      for (const listener of eventHub?.get(event.type) ?? [windowListeners.get(event.type)].filter(Boolean)) listener(event);
+      return true;
+    },
+    addEventListener(key, fn) {
+      windowListeners.set(key, fn);
+      if (eventHub) { if (!eventHub.has(key)) eventHub.set(key, new Set()); eventHub.get(key).add(fn); }
+    },
+    removeEventListener(key, fn) { windowListeners.delete(key); eventHub?.get(key)?.delete(fn); },
   };
   const document = { visibilityState: 'visible', addEventListener: (key, fn) => documentListeners.set(key, fn), removeEventListener: key => documentListeners.delete(key) };
   const globals = server ? {} : { window, document };
@@ -70,6 +78,31 @@ function harness({ dark = false, legacy = false, storage = new Map(), blockedSto
   };
 }
 
+test('fresh device accents start Pink while saved and legacy colour choices remain intact', () => {
+  for (const dark of [false, true]) {
+    const h = harness({ dark });
+    for (const presentation of ['web', 'mobile']) {
+      assert.equal(h.render(presentation).accentColor, '#FF375F');
+      assert.equal(h.render(presentation).theme, dark ? 'dark' : 'light');
+    }
+    h.dispose();
+  }
+  for (const [entries, web, mobile] of [
+    [[['portalinknetworks.accentColor', '#007AFF']], '#007AFF', '#007AFF'],
+    [[[scopedKey('mobile'), JSON.stringify({ accentColor: '#0A84FF' })]], '#FF375F', '#0A84FF'],
+    [[[scopedKey('web'), JSON.stringify({ accentColor: '#BF5AF2' })]], '#BF5AF2', '#FF375F'],
+  ]) {
+    const storage = new Map(entries), h = harness({ storage });
+    assert.equal(h.render('web').accentColor, web);
+    assert.equal(h.render('mobile').accentColor, mobile);
+    h.dispose();
+    const returning = harness({ storage });
+    assert.equal(returning.render('web').accentColor, web);
+    assert.equal(returning.render('mobile').accentColor, mobile);
+    returning.dispose();
+  }
+});
+
 test('device defaults follow the OS rather than legacy account mode; explicit device overrides remain available', () => {
   for (const dark of [false, true]) {
     const h = harness({ dark, storage: new Map([['portalinknetworks.appearanceMode', dark ? 'light' : 'dark']]) });
@@ -80,6 +113,31 @@ test('device defaults follow the OS rather than legacy account mode; explicit de
     assert.equal(h.render().theme, 'light');
     assert.equal(saved(h.storage).mode, 'light');
     h.dispose();
+  }
+});
+
+test('welcome and mounted app share same-document choices without affecting WEB or public preferences', () => {
+  for (const blockedStorage of [false, true]) {
+    const storage = new Map(), eventHub = new Map();
+    const home = harness({ storage, eventHub, blockedStorage });
+    const app = harness({ storage, eventHub, blockedStorage });
+    const publicView = harness({ storage, eventHub, blockedStorage, namespace: 'public' });
+    home.render('mobile'); app.render('mobile'); publicView.render('mobile');
+    const originalWeb = JSON.stringify(app.render('web'));
+    home.render('mobile').chooseAppearance({ mode: 'dark', accentColor: '#BF5AF2', highContrast: true, reduceTranslucency: true });
+    home.render('mobile');
+    const resumed = app.render('mobile');
+    assert.equal(resumed.mode, 'dark');
+    assert.equal(resumed.accentColor, '#BF5AF2');
+    assert.equal(resumed.highContrast, true);
+    assert.equal(resumed.reduceTranslucency, true);
+    assert.equal(JSON.stringify(app.render('web')), originalWeb, 'A mobile home choice must not rewrite WEB');
+    assert.equal(publicView.render('mobile').mode, 'auto', 'Public appearance has its own scope');
+    app.render('mobile').chooseMode('light'); app.render('mobile');
+    assert.equal(home.render('mobile').mode, 'light', 'App choices also update a mounted welcome');
+    if (!blockedStorage) assert.equal(harness({ storage }).render('mobile').mode, 'light', 'A new visit retains the choice');
+    home.dispose(); app.dispose(); publicView.dispose();
+    assert.ok([...eventHub.values()].every(listeners => listeners.size === 0));
   }
 });
 

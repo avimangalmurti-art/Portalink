@@ -11,7 +11,7 @@ import type { NavigationDestination } from '../components/navigation';
  * a pasted URL resolves the same record for everyone.
  */
 
-export type RouteId = 'home' | 'discovery' | 'search' | 'profile' | 'profileEditor' | 'collaboration' | 'sharedCollaboration' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
+export type RouteId = 'home' | 'discovery' | 'search' | 'portalSearch' | 'profile' | 'profileEditor' | 'collaboration' | 'sharedCollaboration' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
 export type RouteDefinition = {
   id: RouteId;
   path: string;
@@ -42,7 +42,7 @@ export const routes: Record<RouteId, RouteDefinition> = {
     id: 'profile',
     path: '/p/:profileId',
     params: ['profileId'],
-    description: 'A creator profile: identity, stats, and portfolio categories.'
+    description: 'A creator profile: identity, stats, and catalogue categories.'
   },
   collaboration: {
     id: 'collaboration',
@@ -66,7 +66,7 @@ export const routes: Record<RouteId, RouteDefinition> = {
     id: 'profileCategory',
     path: '/p/:profileId/c/:categoryId',
     params: ['profileId', 'categoryId'],
-    description: 'One portfolio category, presented in its declared format.'
+    description: 'One catalogue category, presented in its declared format.'
   },
   project: {
     id: 'project',
@@ -110,6 +110,12 @@ export const routes: Record<RouteId, RouteDefinition> = {
     params: ['locationId'],
     description: 'A location page and its live sessions.'
   },
+  portalSearch: {
+    id: 'portalSearch',
+    path: '/portal-search',
+    params: ['q'],
+    description: 'Search and browse public portals with their creator identities. Requires an account.'
+  },
   portals: {
     id: 'portals',
     path: '/portals',
@@ -126,7 +132,7 @@ export const routes: Record<RouteId, RouteDefinition> = {
     id: 'studio',
     path: '/studio',
     params: [],
-    description: 'Reserved Studio product destination while the feature is being designed.'
+    description: 'Private creator workbench, drafts, published work, saved content, references, and activity.'
   },
   messages: {
     id: 'messages',
@@ -152,7 +158,7 @@ export const routes: Record<RouteId, RouteDefinition> = {
     id: 'activity',
     path: '/p/:profileId/activity/:activityKind',
     params: ['profileId', 'activityKind'],
-    description: "One engagement collection — likes, saved, reposts. Private to the profile's own account; `activityKind` is likes|saved|reposts."
+    description: "One engagement collection — likes or saved. Private to the profile's own account; `activityKind` is likes|saved."
   }
 };
 

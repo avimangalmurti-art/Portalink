@@ -1,17 +1,21 @@
 import type { Id } from './domain';
 
 /**
- * Project engagement: like, save, and repost.
+ * Project engagement: like and save.
  *
- * One vocabulary for all three, because they are the same shape of fact — a
+ * One vocabulary for both, because they are the same shape of fact — a
  * viewer's relationship to a project, plus a public total — and modelling them
- * separately is how three subtly different state machines end up in the product.
+ * separately is how different state machines end up in the product.
  *
  * Comments, notifications, messaging, reporting, and shares are deliberately NOT
  * here. Nothing in this file implies they exist.
  */
-export type EngagementKind = 'like' | 'save' | 'repost';
-export const ENGAGEMENT_KINDS: readonly EngagementKind[] = ['like', 'save', 'repost'];
+export type EngagementKind = 'like' | 'save';
+export const ENGAGEMENT_KINDS: readonly EngagementKind[] = ['like', 'save'];
+/** Runtime inputs may outlive a feature's removal. Validate before auth or I/O. */
+export function isEngagementKind(kind: unknown): kind is EngagementKind {
+  return kind === 'like' || kind === 'save';
+}
 
 /**
  * A project's engagement as the service reports it.
@@ -26,9 +30,11 @@ export type ProjectEngagement = {
   /** The viewer's own state. False for a guest, who has engaged with nothing. */
   isLiked: boolean;
   isSaved: boolean;
+  /** Legacy summary wire field; retained for backend compatibility only. */
   isReposted: boolean;
   likeCount: number | null;
   saveCount: number | null;
+  /** Legacy summary wire field; never an active engagement kind. */
   repostCount: number | null;
 };
 
@@ -70,24 +76,22 @@ export function isRetryableEngagementCode(code: EngagementErrorCode): boolean {
  * says Saved, the domain says `save` — so the mapping is stated here ONCE rather
  * than being re-guessed at each call site.
  */
-export type ActivitySlug = 'likes' | 'saved' | 'reposts';
+export type ActivitySlug = 'likes' | 'saved';
 const SLUG_TO_KIND: Record<ActivitySlug, EngagementKind> = {
   likes: 'like',
-  saved: 'save',
-  reposts: 'repost'
+  saved: 'save'
 };
 const KIND_TO_SLUG: Record<EngagementKind, ActivitySlug> = {
   like: 'likes',
-  save: 'saved',
-  repost: 'reposts'
+  save: 'saved'
 };
 
-/** A slug that is not one of the three resolves to null, never to a default. */
+/** An unsupported slug resolves to null, never to a default. */
 export function activityKindFromSlug(slug: string): EngagementKind | null {
-  return SLUG_TO_KIND[slug as ActivitySlug] ?? null;
+  return Object.prototype.hasOwnProperty.call(SLUG_TO_KIND, slug) ? SLUG_TO_KIND[slug as ActivitySlug] : null;
 }
-export function activitySlugForKind(kind: EngagementKind): ActivitySlug {
-  return KIND_TO_SLUG[kind];
+export function activitySlugForKind(kind: EngagementKind): ActivitySlug | undefined {
+  return isEngagementKind(kind) ? KIND_TO_SLUG[kind] : undefined;
 }
 
 /** How a collection of one kind is titled and described. */
@@ -114,13 +118,6 @@ export function describeActivityCollection(kind: EngagementKind): {
         emptyTitle: 'Nothing saved yet',
         emptyDescription: 'Bookmark work to keep it here for later.'
       };
-    case 'repost':
-      return {
-        title: 'Reposts',
-        action: 'View reposts',
-        emptyTitle: 'Nothing reposted yet',
-        emptyDescription: 'Work you repost collects here, newest first.'
-      };
   }
 }
 export function describeEngagement(kind: EngagementKind): {
@@ -143,12 +140,6 @@ export function describeEngagement(kind: EngagementKind): {
         action: 'Save',
         undo: 'Remove from saved',
         state: 'Saved'
-      };
-    case 'repost':
-      return {
-        action: 'Repost',
-        undo: 'Remove repost',
-        state: 'Reposted'
       };
   }
 }

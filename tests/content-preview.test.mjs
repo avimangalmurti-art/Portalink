@@ -155,3 +155,36 @@ test('expansion preserves dense column slots, avoids overlap, and restores exact
   }
   assert.equal(JSON.stringify([...layoutBento(cells, 3)]), JSON.stringify([...baseline]));
 });
+
+test('single-track Home packing matches dense row occupancy through all densities and expanded heights', () => {
+  function reference(cells, columns) {
+    const occupied = new Set();
+    const baseline = cells.map((cell, index) => {
+      let row = 0, column = 0;
+      search: for (;; row++) for (column = 0; column < columns; column++) {
+        let available = true;
+        for (let y = row; y < row + cell.baseRows; y++) {
+          if (occupied.has(y * columns + column)) { available = false; break; }
+        }
+        if (available) break search;
+      }
+      for (let y = row; y < row + cell.baseRows; y++) occupied.add(y * columns + column);
+      return { ...cell, row, column, index };
+    });
+    const ends = Array(columns).fill(0), positions = new Map();
+    for (const cell of baseline.sort((left, right) => left.row - right.row || left.index - right.index)) {
+      const row = Math.max(cell.row, ends[cell.column]);
+      positions.set(cell.key, { column: cell.column, row, rows: cell.rows });
+      ends[cell.column] = row + cell.rows;
+    }
+    return positions;
+  }
+  for (let columns = 1; columns <= 13; columns++) for (const count of [0, 1, 30, 60]) {
+    const cells = Array.from({ length: count }, (_, index) => ({
+      key: `project-${index}`, span: 1, baseRows: 5 + (index * 37) % 123,
+      rows: 5 + (index * 37) % 123 + (index % 4 === 0 ? 24 : 0),
+    }));
+    assert.equal(JSON.stringify([...layoutBento(cells, columns)]), JSON.stringify([...reference(cells, columns)]),
+      `${columns} columns with ${count} cards`);
+  }
+});

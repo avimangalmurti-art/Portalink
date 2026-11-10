@@ -9,8 +9,8 @@
 .settings-section-label { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
 .settings-section-title { font-size: 16px; line-height: 21px; font-weight: 600; }
 .settings-section-subtitle { font-size: 12px; line-height: 17px; font-weight: 400; color: var(--text-secondary); }
-.settings-chevron { flex-shrink: 0; color: var(--text-secondary); transition: transform 160ms ease; }
-.settings-chevron.is-open { transform: rotate(180deg); }
+.settings-chevron { flex-shrink: 0; color: var(--text-secondary); }
+.settings-subscreen-card .settings-section-content { padding-top: 17px; }
 .settings-section-content { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 17px 17px; font-size: 14px; line-height: 1.5; }
 .settings-section-content p { width: 100%; margin: 0; color: var(--text-secondary); }
 .settings-section-content .nav-settings-panel { border: 0; padding: 0; background: transparent; }
@@ -38,6 +38,12 @@
   --text-tertiary: var(--control-text);
 }
 @media (prefers-reduced-motion: reduce) { .settings-chevron { transition: none; } }
+
+/* Desktop keeps every Settings row in place while its controls open below it. */
+[data-presentation='web'] .settings-page[data-settings-inline='true'] .settings-chevron-expanded { transform: rotate(90deg); }
+[data-presentation='web'] .settings-page[data-settings-inline='true'] .settings-inline-security { width: 100%; }
+[data-presentation='web'] .settings-page[data-settings-inline='true'] .settings-inline-security > .account-security-page { min-height: 0; padding: 0; background: transparent; }
+[data-presentation='web'] .settings-page[data-settings-inline='true'] .settings-inline-security > .account-security-page > .settings-page-header { display: none; }
 
 /* Center Settings action labels within the full touch target. */
 #root .codex-shell[data-presentation='mobile'] .settings-section-content > [data-ui-control='button'] {

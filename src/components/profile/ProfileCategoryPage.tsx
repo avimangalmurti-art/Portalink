@@ -1,3 +1,4 @@
+import { RouteError } from '../ui/RouteError';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import { SavedChangeNotice } from '../ui/SavedChangeNotice';
@@ -9,16 +10,18 @@ import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusI
 import type { Profile, PortfolioCategory as ProfileCategory } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from './MobilePortalProjectToolbar';
+import { sortPortalProjects } from './portalProjectBrowsing';
 import { getTypefaceStack } from '../../data/typefaces';
 import { useElementSize } from '../../hooks/useElementSize';
 import { allocateProjectPanels, projectPanelGeometry, type ProjectPanel } from '../../utils/projectPanelLayout';
 import { ProjectMediaViewer } from '../media/ProjectMediaViewer';
+import { ProjectPagesPerRowControl } from '../media/ProjectPagesPerRowControl';
 import { MobileProjectIndexPortal } from '../media/MobileProjectIndexPortal';
 import { resolveProjectAttachments } from '../../features/media/projectAttachments';
 import { canAuthor, type ViewerRole } from '../../types/viewer';
 import { useProjectArrangement } from '../../features/profile/useProjectArrangement';
 import { useProjectTypography } from '../../features/projects/useProjectTypography';
-import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
+import { normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { useProjectManagement } from '../../features/projects/useProjectManagement';
 import { DeleteProjectDialog, ProjectEditorDialog } from '../../features/projects/ProjectEditorDialog';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -29,6 +32,7 @@ import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panel
 import { usePresentation } from '../../presentation/usePresentation';
 import { useAppRoute } from '../../app/useAppRoute';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
+import './web-reader-spacing.css';
 type ProfileCategoryPageProps = {
   profile: Profile;
   category: ProfileCategory;
@@ -39,6 +43,8 @@ type ProfileCategoryPageProps = {
    */
   viewerRole: ViewerRole;
   activeProjectId: string | null;
+  /** WEB keeps its confirmed index while selected project media is fetched. */
+  readerLoading?: boolean;
   /** Returns to the screen used to enter this portal. */
   onBack: () => void;
   /** Leaves this portal for the viewed creator's portal collection. */
@@ -47,7 +53,7 @@ type ProfileCategoryPageProps = {
   onMobileIndexOpenChange?: (open: boolean) => void;
   /**
    * Changes which project the portal is showing. `replace` is used for the
-   * automatic first-project selection on entry, so that lands in place of the
+   * WEB's automatic first-project selection on entry, so that lands in place of the
    * bare category rather than as its own history entry.
    */
   onSelectProject: (projectId: string | null, replace?: boolean) => void;
@@ -73,6 +79,7 @@ export function ProfileCategoryPage({
   category,
   viewerRole,
   activeProjectId,
+  readerLoading = false,
   onBack,
   onBackToPortals,
   onMobileIndexOpenChange,
@@ -87,6 +94,7 @@ export function ProfileCategoryPage({
 }: ProfileCategoryPageProps) {
   // Mobile panels are local to the portal and independent of WEB preferences.
   const isMobile = usePresentation() === 'mobile';
+  const isReaderLoading = !isMobile && readerLoading;
   const mobileIndexOnly = isMobile && activeProjectId === null;
   const [mobilePanel, setMobilePanel] = useState<ProjectPanel | null>(null);
   useEffect(() => { setMobilePanel(null); }, [category.id, isMobile]);
@@ -175,9 +183,7 @@ export function ProfileCategoryPage({
   const visibleProjects = useMemo(() => {
     const normalized = indexQuery.trim().toLowerCase();
     const filtered = normalized ? projects.filter(project => `${project.title} ${project.summary}`.toLowerCase().includes(normalized)) : projects;
-    if (!isMobile || mobileSort === 'saved') return filtered;
-    return [...filtered].sort((a, b) => mobileSort === 'title' ? a.title.localeCompare(b.title) :
-      (Date.parse(b.publishedAt ?? '') || 0) - (Date.parse(a.publishedAt ?? '') || 0));
+    return isMobile ? sortPortalProjects(filtered, mobileSort) : filtered;
   }, [projects, indexQuery, isMobile, mobileSort]);
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null;
   useMobileScreenActions(activeProject && !sharedReadOnly ? contextActions('project', { signedIn: viewerRole !== 'guest', owner: showsOwnerTools }, { title: activeProject.title, handlers: {
@@ -220,24 +226,25 @@ export function ProfileCategoryPage({
     activeProject?.id ?? null,
     activeProject?.design?.pagesPerRow ?? 3
   );
-  const activeAttachments = useMemo(() => activeProject ? resolveProjectAttachments(activeProject, category) : [], [activeProject, category]);
+  const activeAttachments = useMemo(() => activeProject && !isReaderLoading ? resolveProjectAttachments(activeProject, category) : [], [activeProject, category, isReaderLoading]);
   // Use the same authorized/visibility-filtered portal order as its index.
   // Scrolling never fetches another creator or exposes hidden projects.
-  const portalVideos = useMemo(() => isMobile ? projects.flatMap(project => resolveProjectAttachments(project, category)
+  const portalVideos = useMemo(() => isMobile ? projects.filter(project => Boolean(project.attachments?.length)).flatMap(project => resolveProjectAttachments(project, category)
     .filter(attachment => attachment.kind === 'video')
     .map(attachment => ({ projectId: project.id, projectTitle: project.title, attachment }))) : [], [isMobile, projects, category]);
   useEffect(() => {
-    if (!activeProject) return undefined;
+    if (!activeProject || isReaderLoading) return undefined;
     const activeIndex = projects.findIndex((project) => project.id === activeProject.id);
     const adjacentProjects = [projects[activeIndex - 1], projects[activeIndex + 1]]
       .filter((project): project is typeof activeProject => Boolean(project));
     const timer = window.setTimeout(() => {
       for (const project of adjacentProjects) {
+        if (!project.attachments?.length) continue;
         preloadProjectMedia(resolveProjectAttachments(project, category), 3);
       }
     }, 160);
     return () => window.clearTimeout(timer);
-  }, [activeProject, category, projects]);
+  }, [activeProject, category, projects, isReaderLoading]);
   const processing = useAssetProcessing(activeAttachments);
   const [resolvedDocumentPageCounts, setResolvedDocumentPageCounts] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -334,8 +341,8 @@ export function ProfileCategoryPage({
   const projectTypefaceIds = useMemo(() => Object.fromEntries(categoryProjects.map((project) => [project.id, typography.resolveTypefaceId(project.id)])), [categoryProjects, typography]);
   const projectTypefaceStacks = useMemo(() => Object.fromEntries(categoryProjects.map((project) => [project.id, getTypefaceStack(projectTypefaceIds[project.id])])), [categoryProjects, projectTypefaceIds]);
   /**
-   * A portal opens its first project in the saved order. On mobile, keep its
-   * index above the work so the viewer can browse without repeatedly reopening it.
+   * WEB opens its first project in saved order. MOBILE keeps the unselected
+   * portal popup open until the viewer chooses a project.
    *
    * Deliberately narrow: it fires only when nothing is selected, so a URL naming a
    * project that this category does not hold still reports that plainly instead of
@@ -348,8 +355,7 @@ export function ProfileCategoryPage({
   const isCurrentCategory = (currentRoute.kind === 'category' || currentRoute.kind === 'sharedCategory')
     && currentRoute.profileId === profile.id && currentRoute.categoryId === category.id;
   useEffect(() => {
-    if (isCurrentCategory && activeProjectId === null && firstProjectId) {
-      if (isMobile) setMobilePanel('index');
+    if (!isMobile && isCurrentCategory && activeProjectId === null && firstProjectId) {
       onSelectProject(firstProjectId, true);
     }
     // Keyed to the category through its resolved order, so switching portals
@@ -408,12 +414,12 @@ export function ProfileCategoryPage({
   }, [mobileProjectView, isIndexCollapsed, onMobileIndexOpenChange]);
   const isEngagementOpen = panelLayout.responseOpen;
   const isMissingSelection = activeProjectId !== null && activeProject === null;
-  const projectIndexPanel = <div ref={projectIndexRef} data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
+  const projectIndexPanel = <div ref={projectIndexRef} data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
         {/* A collapsed document rail keeps its expander in the global header.
            The open rail puts its complete toolbar there instead of reserving an
            empty, darker band above the controls. */}
         {onReturnToDiscovery && isIndexCollapsed ? <div data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="global-control-header shrink-0 justify-center px-1.5">
-            <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
+            <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
           </div> : null}
@@ -422,63 +428,46 @@ export function ProfileCategoryPage({
            than changing anything inside it — and it is absent unless the viewer
            actually arrived from the home surface. */}
         {onReturnToDiscovery && !mobileProjectView && <ScreenBack><div data-project-index-back="" className={`flex shrink-0 items-center pt-2 ${isIndexCollapsed ? 'justify-center px-1.5' : 'side-panel-content-inset'}`}>
-            <button type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`side-panel-primary-control flex items-center text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-10 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
+            <button data-ui-shape={isIndexCollapsed ? "icon" : "action"} data-control-size={isIndexCollapsed ? "sm" : "md"} type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`side-panel-primary-control flex items-center text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-10 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
               <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
               {!isIndexCollapsed && 'Back to home'}
             </button>
           </div></ScreenBack>}
 
         {isIndexCollapsed ? !onReturnToDiscovery && <div data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="global-control-header shrink-0 justify-center px-1.5">
-            <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
+            <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-          </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined} sharedReadOnly={sharedReadOnly}
+          </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined} sharedReadOnly={sharedReadOnly} browsingControls
             layout={mobileLayout} onLayout={setMobileLayout} sort={mobileSort} onSort={setMobileSort} /> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
             {mobileProjectView && <div className="mobile-portal-projects-back side-panel-control-row side-panel-content-inset">
-              <button type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
+              <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
                 <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
               </button>
               <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h2>
             </div>}
             <div data-project-index-toolbar="" data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="side-panel-control-row side-panel-content-inset h-full min-w-0 flex-1">
               {mobileIndexOnly ? <>
-                <button type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
                 </button>
                 <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h1>
-              </> : <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
+              </> : <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                 {mobileProjectView ? <InterfaceIcon icon={PanelLeftCloseIcon} weight="medium" mirroredInRtl /> : <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
               </button>}
               {/* Page totals belong in project information, not the toolbar.
                  Keep the remaining controls aligned with the adjacent rails. */}
               {!mobileIndexOnly && <span aria-hidden="true" className="min-w-0 flex-1" />}
-              {showsOwnerTools && activePageCount !== null && activePageCount > 1 && <label className="relative flex h-full min-w-[104px] max-w-[136px] flex-1 items-center justify-center px-1" title="Set the number of pages viewers see in each row when they open this project">
-                  <input
-                    data-pages-per-row-slider=""
-                    type="range"
-                    min={MIN_PAGES_PER_ROW}
-                    max={MAX_PAGES_PER_ROW}
-                    step={1}
-                    value={pageLayoutDraft}
-                    disabled={typography.savingProjectId === activeProject?.id}
-                    onChange={(event) => setPageLayoutDraft(normalizePagesPerRow(Number(event.currentTarget.value)))}
-                    onPointerUp={(event) => commitPageLayout(Number(event.currentTarget.value))}
-                    onKeyUp={(event) => commitPageLayout(Number(event.currentTarget.value))}
-                    onBlur={(event) => commitPageLayout(Number(event.currentTarget.value))}
-                    aria-label="Pages per row"
-                    aria-valuetext={`${pageLayoutDraft} ${pageLayoutDraft === 1 ? 'page' : 'pages'} per row`}
-                    className="h-1 w-full cursor-pointer accent-[var(--accent-primary)] disabled:cursor-wait disabled:opacity-50"
-                  />
-                  <span data-pages-per-row-label="" className="pointer-events-none absolute left-1/2 top-[calc(50%+11px)] -translate-x-1/2 whitespace-nowrap text-[8px] font-medium leading-none tabular-nums text-[var(--text-secondary)]">Pages/row {pageLayoutDraft}</span>
-                </label>}
-              {sharedReadOnly && activePageCount !== null && activePageCount > 1 && <button data-shared-viewer-control="overview" data-borderless-control="" type="button" onClick={togglePageView} aria-label={isPageFocused ? 'Open page overview' : 'Return to selected page'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
+              {showsOwnerTools && activePageCount !== null && activePageCount > 1 && <ProjectPagesPerRowControl value={pageLayoutDraft}
+                onChange={setPageLayoutDraft} onCommit={commitPageLayout} saving={typography.savingProjectId === activeProject?.id} />}
+              {sharedReadOnly && activePageCount !== null && activePageCount > 1 && <button data-shared-viewer-control="overview" data-borderless-control="" type="button" onClick={togglePageView} aria-label={isPageFocused ? 'Open page overview' : 'Return to selected page'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                   <InterfaceIcon icon={isPageFocused ? Grid2X2Icon : SquareIcon} weight="medium" />
                 </button>}
-              {sharedReadOnly && <button data-shared-viewer-control="fullscreen" data-borderless-control="" type="button" onClick={() => void toggleProjectFullscreen()} aria-label={isProjectFullscreen ? 'Exit fullscreen presentation' : 'Open fullscreen presentation'} aria-pressed={isProjectFullscreen} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
+              {sharedReadOnly && <button data-shared-viewer-control="fullscreen" data-borderless-control="" type="button" onClick={() => void toggleProjectFullscreen()} aria-label={isProjectFullscreen ? 'Exit fullscreen presentation' : 'Open fullscreen presentation'} aria-pressed={isProjectFullscreen} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                   <InterfaceIcon icon={isProjectFullscreen ? Minimize2Icon : Maximize2Icon} weight="medium" />
                 </button>}
-              {showsOwnerTools && onCreateProject && <button type="button" onClick={onCreateProject} aria-label={`Add a new project to ${category.label}`} title="New project" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  <FilePlusIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+              {showsOwnerTools && onCreateProject && <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onCreateProject} aria-label={`Add a new project to ${category.label}`} title="New project" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                  <InterfaceIcon icon={FilePlusIcon} size="lg" />
                 </button>}
             </div>
           </header>}
@@ -493,7 +482,7 @@ export function ProfileCategoryPage({
               <AlertCircleIcon className="h-3.5 w-3.5 shrink-0 text-[var(--status-danger)]" aria-hidden="true" />
               <span>{arrangement.loadError} Showing this category in its own order.</span>
             </p>
-            <button type="button" onClick={arrangement.reload} className="mt-1.5 h-7 w-full rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <button data-ui-shape="action" data-control-size="md" type="button" onClick={arrangement.reload} className="mt-1.5 w-full rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               Try again
             </button>
           </div>}
@@ -506,10 +495,10 @@ export function ProfileCategoryPage({
               <span>{arrangement.saveError}</span>
             </p>
             <div className="mt-1.5 flex gap-1.5">
-              {arrangement.retrySave && <button type="button" onClick={arrangement.retrySave} className="h-7 flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              {arrangement.retrySave && <button data-ui-shape="action" data-control-size="md" type="button" onClick={arrangement.retrySave} className="flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   Try again
                 </button>}
-              <button type="button" onClick={arrangement.dismissSaveError} className="h-7 flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button data-ui-shape="action" data-control-size="md" type="button" onClick={arrangement.dismissSaveError} className="flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 Dismiss
               </button>
             </div>
@@ -524,7 +513,7 @@ export function ProfileCategoryPage({
               <AlertCircleIcon className="h-3.5 w-3.5 shrink-0 text-[var(--status-danger)]" aria-hidden="true" />
               <span>{typography.loadError} Showing this work in the interface face.</span>
             </p>
-            <button type="button" onClick={typography.reload} className="mt-1.5 h-7 w-full rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <button data-ui-shape="action" data-control-size="md" type="button" onClick={typography.reload} className="mt-1.5 w-full rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               Try again
             </button>
           </div>}
@@ -537,10 +526,10 @@ export function ProfileCategoryPage({
               <span>{typography.saveError}</span>
             </p>
             <div className="mt-1.5 flex gap-1.5">
-              {typography.retrySave && <button type="button" onClick={typography.retrySave} className="h-7 flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              {typography.retrySave && <button data-ui-shape="action" data-control-size="md" type="button" onClick={typography.retrySave} className="flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   Try again
                 </button>}
-              <button type="button" onClick={typography.dismissSaveError} className="h-7 flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button data-ui-shape="action" data-control-size="md" type="button" onClick={typography.dismissSaveError} className="flex-1 rounded-[8px] border border-[var(--border-default)] text-small font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 Dismiss
               </button>
             </div>
@@ -549,7 +538,7 @@ export function ProfileCategoryPage({
         {/* Filters the index that is already loaded. It reaches no service, so it
            cannot disagree with what the rows show. */}
         {!isIndexCollapsed && !isMobile && <div className="project-index-search side-panel-control-stack side-panel-content-inset shrink-0">
-            <div className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
+            <div data-ui-shape="field" className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
               <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
               <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects" aria-label={`Search projects in ${category.label}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
             </div>
@@ -570,7 +559,7 @@ export function ProfileCategoryPage({
         {!sharedReadOnly && !mobileProjectView && !isIndexCollapsed && !panelLayout.singlePanel && <ResizablePanelHandle side="right" value={panelLayout.indexWidth} min={220} max={420} onResize={(width) => { setLastOpened('index'); projectIndexWidth.updateWidth(width); }} onResizeEnd={projectIndexWidth.commitWidth} onReset={projectIndexWidth.resetWidth} label="Resize project navigation. Double-click to restore the default width." />}
       </div>;
 
-  return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
+  return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-web-reader-spacing={!isMobile && !sharedReadOnly ? '' : undefined} data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
       {!sharedReadOnly && mobileProjectView && isIndexCollapsed && !isPageFocused && activeAttachments.some(attachment => attachment.kind === 'image' || attachment.kind === 'document') && <MobileProjectGestureHint />}
       {mobileProjectView && isIndexCollapsed && !isPageFocused && <>
         <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">
@@ -593,8 +582,10 @@ export function ProfileCategoryPage({
           management.deletion.cancel();
           onSelectProject(null);
         }} />}
-      {!mobileIndexOnly && !showsOwnerTools && (arrangement.isLoading || arrangement.loadError) ? <section className="flex min-w-0 flex-1 items-center justify-center px-4" aria-label="Loading project">
-        {arrangement.isLoading ? <LoadingState label="Loading projects…" /> : <ErrorState title="Projects could not be loaded" description={arrangement.loadError ?? undefined} onRetry={arrangement.reload} />}
+      {isReaderLoading ? <section data-project-reader-loading="" style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-4" role="status" aria-live="polite" aria-label="Loading project">
+        <span className="premium-media-loading-mark" aria-hidden="true" />
+      </section> : !mobileIndexOnly && !showsOwnerTools && (arrangement.isLoading || arrangement.loadError) ? <section className="flex min-w-0 flex-1 items-center justify-center px-4" aria-label="Loading project">
+        {arrangement.isLoading ? <LoadingState label="Loading projects…" /> : <RouteError kind="network" creatorHandle={profile.handle} onBack={onBack} onHome={() => window.location.assign('/')} onCreator={() => window.location.assign(`${sharedReadOnly ? '/share' : '/p'}/${encodeURIComponent(profile.id)}`)} />}
       </section> : activeProject ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent" aria-label={`${activeProject.title} files`}>
           {/* Presentation follows each file's own media kind, never this
            category's format. */}
@@ -603,15 +594,7 @@ export function ProfileCategoryPage({
            shows work, and the index is what changes which. */}
           <ProjectMediaViewer creator={profile} videoSequence={mobileProjectView ? { scope: `${sharedReadOnly ? 'shared' : 'workspace'}:${profile.id}:${category.id}`, entries: portalVideos, onSelectProject: id => onSelectProject(id, true) } : undefined} mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true), onBack } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} onDeleteProject={showsOwnerTools && !sharedReadOnly ? () => management.deletion.request(activeProject.id) : undefined} descriptionEditor={showsOwnerTools && !sharedReadOnly ? management.editor : undefined} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} savingPageLayout={showsOwnerTools && typography.savingProjectId === activeProject.id} onPagesPerRowChange={sharedReadOnly ? undefined : setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
         </section> : isMissingSelection ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label="Project not found">
-          <div role="alert" className="max-w-[420px] text-center">
-            <h3 className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">Project not found</h3>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-              It may have been removed or moved to another category.
-            </p>
-            <button type="button" onClick={() => onSelectProject(null)} className="mt-4 h-9 rounded-full border border-[var(--hairline-strong)] px-4 text-[13px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              Return to {category.label}
-            </button>
-          </div>
+          <RouteError kind="not-found" creatorHandle={profile.handle} onBack={onBack} onHome={() => window.location.assign('/')} onCreator={() => window.location.assign(`${sharedReadOnly ? '/share' : '/p'}/${encodeURIComponent(profile.id)}`)} />
         </section> : <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label={`${category.label} work`}>
           {/* A portal with no work yet. This is the only thing the main area shows
            besides a project — it is a statement, not a second way to pick one.
@@ -622,8 +605,8 @@ export function ProfileCategoryPage({
               <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">
                 {showsOwnerTools ? 'Choose Add project to publish the first one.' : 'No work has been published in this category.'}
               </p>
-              {showsOwnerTools && onCreateProject && <button type="button" onClick={onCreateProject} className="mt-4 flex h-9 items-center gap-1.5 rounded-full border border-[var(--hairline-strong)] px-3.5 text-[13px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  <ImagePlusIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              {showsOwnerTools && onCreateProject && <button data-ui-shape="action" data-control-size="md" type="button" onClick={onCreateProject} className="mt-4 flex h-9 items-center gap-1.5 rounded-full border border-[var(--hairline-strong)] px-3.5 text-[13px] font-semibold text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                  <InterfaceIcon icon={ImagePlusIcon} size="md" />
                   Add project
                 </button>}
             </div>}

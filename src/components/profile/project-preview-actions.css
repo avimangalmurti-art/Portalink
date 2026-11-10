@@ -1,0 +1,95 @@
+/* The same one-column details control belongs to Explore and catalogue cards,
+   including the separate public entry. Dense grids keep their compact control. */
+#root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .project-preview-card[data-mobile-project-card] .mobile-preview-details {
+  right: 8px; bottom: 8px;
+  width: 56px; height: 44px;
+  padding: 0; align-items: center; justify-content: center;
+  border-radius: 999px;
+  background: var(--surface-raised); color: var(--text-primary);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 24%), 0 0 0 1px rgb(127 127 127 / 28%);
+}
+#root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .project-preview-card[data-mobile-project-card] .mobile-preview-details > [data-interface-icon-frame] {
+  --interface-icon-size: 20px;
+  --interface-icon-stroke: 1.75;
+}
+#root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .project-preview-card[data-mobile-project-card] .mobile-preview-details svg { filter: none; }
+@layer portalink-interface-shapes {
+  #root .codex-shell[data-presentation='mobile'] :is([data-profile-wall-columns='1'], [data-project-grid-columns='1']) .project-preview-card[data-mobile-project-card] .mobile-preview-details {
+    border-radius: var(--ui-capsule-radius) !important;
+  }
+}
+
+/* Follow each packed card's width as density changes, without JS measurement.
+   Readability and click-target limits keep the extremes usable. */
+#root .codex-shell[data-presentation='web'] .project-preview-card {
+  container-type: inline-size;
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card .project-preview-description {
+  padding: clamp(6px, 4cqi, 24px);
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card [data-project-hover-description] {
+  font-size: clamp(10px, 4.5cqi, 24px);
+  line-height: 1.45;
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card .mobile-preview-details {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: clamp(44px, 14cqi, 80px);
+  height: clamp(44px, 14cqi, 80px);
+  max-width: 100%;
+  max-height: 100%;
+  padding: clamp(3px, 1.4cqi, 10px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card .mobile-preview-details > [data-interface-icon-frame] {
+  --interface-icon-size: clamp(12px, 5cqi, 32px);
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card .mobile-preview-details svg {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 80%)) drop-shadow(0 0 1px rgb(0 0 0 / 90%));
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card[data-inline-project-pages] .mobile-preview-details {
+  right: clamp(4px, 2.5cqi, 16px); bottom: clamp(4px, 2.5cqi, 16px);
+  width: clamp(44px, 18cqi, 96px); height: clamp(44px, 14cqi, 72px);
+  max-width: calc(100% - 2 * clamp(4px, 2.5cqi, 16px));
+  max-height: calc(100% - 2 * clamp(4px, 2.5cqi, 16px));
+  padding: 0; align-items: center; justify-content: center;
+  border-radius: var(--ui-capsule-radius);
+  background: var(--surface-raised); color: var(--text-primary);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 24%), 0 0 0 1px rgb(127 127 127 / 28%);
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card[data-inline-project-pages] .mobile-preview-details > [data-interface-icon-frame] {
+  --interface-icon-size: clamp(14px, 6.4cqi, 32px);
+  --interface-icon-stroke: 1.75;
+}
+#root .codex-shell[data-presentation='web'] .project-preview-card[data-inline-project-pages] .mobile-preview-details svg { filter: none; }
+.project-preview-card .mobile-preview-details:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.inline-project-retry {
+  position: absolute;
+  z-index: 6;
+  top: 8px;
+  left: 8px;
+  min-height: 44px;
+  max-width: calc(100% - 16px);
+  padding: 8px 16px;
+  border-radius: var(--ui-capsule-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.inline-project-retry:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

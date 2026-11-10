@@ -22,21 +22,32 @@ type PageProgress = {
 };
 
 /** Private Studio presentation over the same account collections as Saved/Inbox. */
-export function useStudioData(category: StudioCategory = 'all', tab: StudioBookmarkTab = 'projects') {
+export function useStudioData(category: StudioCategory = 'bookmarks', tab: StudioBookmarkTab = 'projects', { mobileActivity = false, prioritizeActiveCollection = false }: { mobileActivity?: boolean; prioritizeActiveCollection?: boolean } = {}) {
   const auth = useAuth();
   const account = auth.user?.id ?? null;
   const services = useServices();
   const engagementStore = useEngagementStore();
   const { revision } = useProfileData();
+  const activeCollection = category === 'bookmarks' ? tab : category;
+  const visited = useMemo(() => ({ account, prioritizeActiveCollection, collections: new Set<StudioCategory | StudioBookmarkTab>() }), [account, prioritizeActiveCollection]);
+  useEffect(() => {
+    if (visited.account && visited.prioritizeActiveCollection) visited.collections.add(activeCollection);
+  }, [activeCollection, visited]);
+  // Open the current view first on desktop. Keep collections that have already
+  // been opened live so switching back retains their results and pagination.
+  const wants = (collection: StudioCategory | StudioBookmarkTab) => !prioritizeActiveCollection || activeCollection === collection || visited.collections.has(collection);
+  const wantsPublished = wants('published');
+  const wantsCreators = wants('creators');
+  const wantsPages = wants('pages');
   const publishedScope = useMemo(() => ({ profileId: auth.viewerProfileId, revision }), [auth.viewerProfileId, revision]);
-  const publishedQuery = useCallback(() => publishedScope.profileId ? services.profiles.getProfile(publishedScope.profileId) : Promise.resolve(null), [publishedScope, services.profiles]);
-  const creatorsQuery = useCallback(() => loadSavedCreators(services.creatorSaves, services.profiles), [services.creatorSaves, services.profiles]);
-  const pagesQuery = useCallback(() => loadSavedPageBatch(services.projects, null), [services.projects]);
+  const publishedQuery = useCallback(() => wantsPublished && publishedScope.profileId ? services.profiles.getProfile(publishedScope.profileId) : Promise.resolve(null), [publishedScope, services.profiles, wantsPublished]);
+  const creatorsQuery = useCallback(() => wantsCreators ? loadSavedCreators(services.creatorSaves, services.profiles) : Promise.resolve([]), [services.creatorSaves, services.profiles, wantsCreators]);
+  const pagesQuery = useCallback(() => wantsPages ? loadSavedPageBatch(services.projects, null) : Promise.resolve(null), [services.projects, wantsPages]);
   const published = useAccountQuery(publishedQuery);
   const creators = useAccountQuery(creatorsQuery);
   const pages = useAccountQuery(pagesQuery);
-  const savedProjects = useActivityCollection('save', auth.isAuthenticated);
-  const activity = useNotifications();
+  const savedProjects = useActivityCollection('save', auth.isAuthenticated && wants('projects'));
+  const activity = useNotifications({ mobileContinuity: mobileActivity });
 
   const scope = useMemo(() => ({ account, services, removed: new Set<string>(), pending: new Set<string>(), error: null as string | null }), [account, services]);
   const scopeRef = useRef(scope);
@@ -61,21 +72,23 @@ export function useStudioData(category: StudioCategory = 'all', tab: StudioBookm
     ...savedCreatorStudioRows(creators.data ?? []),
     ...activityStudioRows(activity.notifications),
   ].filter(row => !scope.removed.has(row.id));
+  const currentRows = useRef(allRows);
+  currentRows.current = allRows;
   const sections = studioSections(allRows, category, tab);
   const rows = sections.flatMap(section => section.rows);
 
   const checks: Array<{ loading: boolean; error?: string | null; at: number | null }> = [];
-  if (category === 'published' || category === 'all') checks.push({ loading: published.loading, error: published.error, at: published.fetchedAt });
-  if (category === 'all' || category === 'bookmarks' && tab === 'projects') checks.push({ loading: savedProjects.phase === 'loading', error: savedProjects.error, at: savedProjects.updatedAt });
-  if (category === 'all' || category === 'bookmarks' && tab === 'pages') checks.push({ loading: pages.loading, error: pages.error, at: pages.fetchedAt });
-  if (category === 'all' || category === 'bookmarks' && tab === 'creators') checks.push({ loading: creators.loading, error: creators.error, at: creators.fetchedAt });
-  if (category === 'activity' || category === 'all') checks.push({ loading: activity.status === 'loading' || activity.status === 'idle', error: activity.error, at: activity.updatedAt });
+  if (category === 'published') checks.push({ loading: published.loading, error: published.error, at: published.fetchedAt });
+  if (category === 'bookmarks' && tab === 'projects') checks.push({ loading: savedProjects.phase === 'loading', error: savedProjects.error, at: savedProjects.updatedAt });
+  if (category === 'bookmarks' && tab === 'pages') checks.push({ loading: pages.loading, error: pages.error, at: pages.fetchedAt });
+  if (category === 'bookmarks' && tab === 'creators') checks.push({ loading: creators.loading, error: creators.error, at: creators.fetchedAt });
+  if (category === 'activity') checks.push({ loading: activity.status === 'loading' || activity.status === 'idle', error: activity.error, at: activity.updatedAt });
   const error = checks.map(check => check.error).filter(Boolean).join(' ') || null;
   const status = error ? 'error' as const : checks.some(check => check.loading) ? 'loading' as const : 'ready' as const;
   const times = checks.flatMap(check => check.at === null ? [] : [check.at]);
-  // All describes the oldest successful read represented by this screen. Never
-  // imply that a failed or not-yet-completed request just refreshed its content.
-  const updatedAt = status === 'ready' && times.length ? Math.min(...times) : null;
+  // Never imply that a failed or not-yet-completed request refreshed this screen.
+  const activityRefreshing = mobileActivity && category === 'activity' && activity.isRefreshing;
+  const updatedAt = status === 'ready' && !activityRefreshing && times.length ? Math.min(...times) : null;
 
   async function loadMore() {
     const base = pages.data;
@@ -126,19 +139,30 @@ export function useStudioData(category: StudioCategory = 'all', tab: StudioBookm
     return activity.markRead(row.notification.id);
   }
 
+  async function deleteActivity(requested: StudioRow[]): Promise<string[]> {
+    if (!isCurrent()) return [];
+    const selected = new Set(requested.flatMap(row => row.kind === 'activity' ? [JSON.stringify([row.id, row.notification.id, row.notification.timestamp])] : []));
+    const eligible = currentRows.current.filter((row): row is Extract<StudioRow, { kind: 'activity' }> => row.kind === 'activity' && selected.has(JSON.stringify([row.id, row.notification.id, row.notification.timestamp])));
+    if (!eligible.length) return [];
+    const deleted = new Set(await activity.deleteNotifications(eligible.map(row => row.notification.id)));
+    if (!isCurrent()) return [];
+    return eligible.filter(row => deleted.has(row.notification.id)).map(row => row.id);
+  }
+
   function refresh() {
     if (!isCurrent() || scope.pending.size) return;
+    if (mobileActivity && category === 'activity') return activity.refresh();
     scope.removed.clear(); scope.error = null; pageFlight.current = null; setPageProgress(null);
     published.retry(); creators.retry(); pages.retry(); savedProjects.retry(); activity.retry();
   }
 
-  const showsPages = category === 'all' || category === 'bookmarks' && tab === 'pages';
+  const showsPages = category === 'bookmarks' && tab === 'pages';
   return {
-    rows, sections, status, error, refresh, updatedAt,
+    rows, sections, status, error, refresh, updatedAt, activityRefreshing,
     hasMore: showsPages && Boolean(pageBatch?.nextCursor), loadMore,
     loadingMore: showsPages && Boolean(currentPages?.loading), loadMoreError: showsPages ? currentPages?.error ?? null : null,
     pendingIds: new Set([...scope.pending, ...[...activity.pendingIds].map(id => `activity:${id}`)]),
     mutationError: scope.error ?? activity.mutationError,
-    unsave, markRead,
+    unsave, markRead, deleteActivity,
   };
 }

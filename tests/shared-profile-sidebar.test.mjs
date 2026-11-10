@@ -78,6 +78,23 @@ test('public navigation starts expanded at the compact standard width with the c
   assert.equal(portals(tree).length, 2);
 });
 
+test('viewer navigation tokens reach the expanded and collapsed WEB rail only', () => {
+  const h = harness();
+  const desktopNavigationStyle = { '--navigation-surface': '#202020', '--navigation-foreground': '#ffffff', '--navigation-blur': 'none' };
+  const expanded = h.render({ desktopNavigationStyle });
+  assert.deepEqual({ ...expanded.props.style }, { ...desktopNavigationStyle, width: '280px' });
+
+  toggle(expanded).props.onClick();
+  const collapsed = h.render({ desktopNavigationStyle });
+  assert.equal(collapsed.props['data-collapsed'], 'true');
+  assert.deepEqual({ ...collapsed.props.style }, desktopNavigationStyle);
+
+  h.setPresentation('mobile');
+  const drawer = h.render({ desktopNavigationStyle });
+  assert.equal(drawer.props.desktopNavigationStyle, undefined);
+  assert.equal(nodes(drawer.props.children(() => undefined)).some(node => node.props?.style?.['--navigation-surface'] !== undefined), false);
+});
+
 test('collapse keeps all creator portal icons named, clickable and selected without visible labels', () => {
   const h = harness();
   toggle(h.render()).props.onClick();
@@ -169,7 +186,7 @@ test('MOBILE restores the creator drawer and preserves WEB collapse preference',
   assert.equal(tree.type, 'PublicProfileDrawer');
   let closed = 0;
   const drawer = tree.props.children(() => closed++);
-  assert.equal(home(drawer).props.to, '/share/creator');
+  assert.equal(home(drawer), undefined);
   assert.equal(portals(drawer).length, 2);
   portals(drawer)[0].props.onClick();
   assert.equal(closed, 1);
@@ -177,4 +194,37 @@ test('MOBILE restores the creator drawer and preserves WEB collapse preference',
   assert.equal(nodes(drawer).some(node => node.type === 'context-button'), false);
   h.setPresentation('web'); const web = h.render();
   assert.equal(web.type, 'aside'); assert.equal(web.props['data-collapsed'], 'true');
+});
+test('MOBILE public portals switch list/cards without owner tools and retain visitor controls',()=>{
+ const h=harness('mobile');const close=()=>h.calls.push('close');
+ let view=h.render().props.children(close);
+ assert.equal(view.props['data-portals-layout'],'list');
+ assert.ok(!nodes(view).some(n=>['Add portal','Rename','Delete'].includes(n.props?.['aria-label'])));
+ nodes(view).find(n=>n.props?.['aria-label']==='Show portals as cards').props.onClick();
+ view=h.render().props.children(close);
+ assert.equal(view.props['data-portals-layout'],'grid');
+ assert.equal(portals(view).length,2);
+ assert.ok(nodes(view).some(n=>n.props?.['aria-label']==='Open settings'));
+ nodes(view).find(n=>n.props?.['aria-label']==='Show portals as list').props.onClick();
+ assert.equal(h.render().props.children(close).props['data-portals-layout'],'list');
+});
+
+test('MOBILE forwards portal Back requests to the existing drawer while retaining its grid preference', () => {
+  const h = harness('mobile'), close = () => h.calls.push('close'), request = { scope: 'creator:guest' };
+  let tree = h.render({ mobileNavigationRequest: request });
+  assert.equal(tree.type, 'PublicProfileDrawer');
+  assert.equal(tree.props.openRequest, request);
+  let view = tree.props.children(close);
+  nodes(view).find(node => node.props['aria-label'] === 'Show portals as cards').props.onClick();
+  portals(h.render().props.children(close))[0].props.onClick();
+  assert.deepEqual(h.calls, ['close', 'photos']);
+  tree = h.render({ mobileNavigationRequest: { scope: 'creator:guest' } });
+  view = tree.props.children(close);
+  assert.equal(view.props['data-portals-layout'], 'grid', 'Returning from a portal uses the same chooser state.');
+  assert.equal(portals(view).length, 2);
+  h.setPresentation('web');
+  const web = h.render({ mobileNavigationRequest: request });
+  assert.equal(web.type, 'aside');
+  assert.equal(nodes(web).some(node => node.type === 'PublicProfileDrawer'), false);
+  assert.equal(home(web).props.to, '/share/creator');
 });

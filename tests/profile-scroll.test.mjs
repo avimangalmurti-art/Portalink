@@ -93,7 +93,7 @@ test('project and comment clicks remain intact after removing scroll containment
   const tree = ProjectHoverDetails({ projectId: 'project', summary: 'Summary',
     onOpen: () => calls.push('project'), onOpenComments: () => calls.push('comments') });
   nodes(tree).find((node) => node.props?.['data-project-hover-description'] !== undefined).props.onClick();
-  const extension = PreviewMetrics({ counts: { like: 0, save: 0, repost: 0 }, commentCount: 0, onOpenComments: () => calls.push('comments') });
+  const extension = PreviewMetrics({ counts: { like: 0, save: 0 }, commentCount: 0, onOpenComments: () => calls.push('comments') });
   let stopped = false;
   assert.equal(nodes(tree).some((node) => node.props?.['data-project-preview-metrics'] !== undefined), false);
   nodes(extension).find((node) => node.props?.['aria-label'] === 'Open comments (0)').props.onClick({ stopPropagation() { stopped = true; } });
@@ -118,7 +118,7 @@ function zoomHarness(enabled = true) {
   };
   const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
   const density = compile('../src/utils/projectGridDensity.ts', () => ({}));
-  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : name.endsWith('/projectGridDensity') ? density : react, {
+  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : name.endsWith('/projectGridDensity') ? density : name.endsWith('/usePresentation') ? { usePresentation: () => 'mobile' } : react, {
     window: { setTimeout: () => 1, clearTimeout() {} },
   });
   const listeners = new Map();
@@ -169,7 +169,7 @@ test('phone pinches resize only overview content, stay bounded, and ignore singl
   h.listeners.get('touchstart')({ touches: touches(100) });
   assert.equal(move(125).prevented, true);
   assert.equal(h.state[0].columns, 3);
-  move(10000); assert.equal(h.state[0].columns, 2);
+  move(10000); assert.equal(h.state[0].columns, 1);
   move(1); assert.equal(h.state[0].columns, 13);
   move(100); assert.equal(h.state[0].columns, 4, 'Reversing a pinch restores its starting size');
   h.listeners.get('touchend')();
@@ -198,7 +198,7 @@ test('ordinary profile and shared-profile screens retain the app-shell vertical 
   assert.ok(expression);
   for (const kind of ['profile', 'sharedProfile']) {
     const classes = vm.runInNewContext(expression, { route: { kind }, activeCategory: null,
-      isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false, isMobileStudioOpen: false, inDesignFeature: null });
+      isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false, isStudioPageOpen: false, isPortalSearchOpen: false, inDesignFeature: null });
     assert.match(classes, /\boverflow-y-auto\b/);
     assert.doesNotMatch(classes, /\boverflow-hidden\b/);
   }
@@ -219,7 +219,7 @@ test('mobile Studio owns a nested full-height scroller while the app shell stays
   visit(file);
   assert.ok(classes && scrollMode && contentClasses);
   const context = { activeCategory: null, isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false,
-    isMobileStudioOpen: true, inDesignFeature: null, isFeedView: false, isPortalsOpen: false };
+    isStudioPageOpen: true, isPortalSearchOpen: false, inDesignFeature: null, isFeedView: false, isPortalsOpen: false };
   assert.match(vm.runInNewContext(classes, context), /\boverflow-hidden\b/);
   assert.equal(vm.runInNewContext(scrollMode, context), 'nested');
   assert.match(vm.runInNewContext(contentClasses, context), /(?:^|\s)h-full(?:\s|$)/);

@@ -120,6 +120,11 @@
 }
 .project-form-actions { flex: 0 0 auto; margin-top: auto; }
 
+/* Keep recovery feedback inside the existing WEB form and its scroll owner. */
+[data-upload-draft-status][data-presentation='web'] { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; min-height:36px; color:var(--text-secondary); font-size:12px; }
+[data-upload-draft-status][data-presentation='web'] > span { flex:1; }
+[data-upload-draft-status][data-presentation='web'] > button { flex:none; min-height:36px; color:var(--text-secondary); font-size:12px; text-decoration:underline; }
+
 /* Crop controls get their space first; a portrait image cannot push zoom below the fold. */
 .image-reposition-dialog { width: min(600px, 100%); height: min(740px, 100%); }
 .image-reposition-dialog > header { padding: 10px 16px; }

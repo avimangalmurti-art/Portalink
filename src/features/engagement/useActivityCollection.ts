@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useEngagementStore } from '../../contexts/EngagementContext';
 import type { EngagementKind } from '../../types/engagement';
+import { isEngagementKind } from '../../types/engagement';
 import type { Id, ProjectView } from '../../types/domain';
 
 /**
- * One activity collection — Likes, Saved, or Reposts.
+ * One activity collection — Likes or Saved.
  *
  * `activity route → this query → EngagementService + ProjectService → activity UI`
  *
@@ -54,14 +55,16 @@ export function useActivityCollection(kind: EngagementKind, isViewerOwnCollectio
     return () => { isMountedRef.current = false; };
   }, []);
   const loadIds = useCallback(() => {
-    // Only the viewer's own collection can be read: the service is viewer-scoped,
-    // so asking for anybody else's would be asking a question it cannot answer.
-    if (!isViewerOwnCollection) {
-      setServiceIds([]);
-      return;
-    }
     const token = listTokenRef.current + 1;
     listTokenRef.current = token;
+    // Only the viewer's own collection can be read: the service is viewer-scoped,
+    // so asking for anybody else's would be asking a question it cannot answer.
+    if (!isViewerOwnCollection || !isEngagementKind(kind)) {
+      setServiceIds([]);
+      setError(null);
+      setUpdatedAt(null);
+      return;
+    }
     setServiceIds(null);
     setError(null);
     setUpdatedAt(null);
@@ -93,7 +96,7 @@ export function useActivityCollection(kind: EngagementKind, isViewerOwnCollectio
    * if it was liked after the list was read, and an id the store confirms was
    * withdrawn is dropped even though the list still names it.
    */
-  const known = store.knownFor(kind);
+  const known = isEngagementKind(kind) ? store.knownFor(kind) : { engaged: [], withdrawn: [] };
   const engagedKey = known.engaged.join(',');
   const withdrawnKey = known.withdrawn.join(',');
   const memberIds = useMemo(() => {

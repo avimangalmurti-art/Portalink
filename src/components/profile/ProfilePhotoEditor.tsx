@@ -8,6 +8,7 @@ import './profilePhotoEditor.css';
 
 type Point = { x: number; y: number };
 export type ProfilePhotoEditorProps = {
+  appearance?: 'settings';
   source: string | Blob;
   initialCrop?: RelativeImageCrop;
   onCancel: () => void;
@@ -15,7 +16,7 @@ export type ProfilePhotoEditorProps = {
 };
 
 /** A single full-screen, local photo transaction. Only Save changes the profile draft. */
-export function ProfilePhotoEditor({ source, initialCrop, onCancel, onSave }: ProfilePhotoEditorProps) {
+export function ProfilePhotoEditor({ source, initialCrop, onCancel, onSave, appearance }: ProfilePhotoEditorProps) {
   const screenRef = useRef<HTMLElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const pointers = useRef(new Map<number, Point>());
@@ -127,11 +128,11 @@ export function ProfilePhotoEditor({ source, initialCrop, onCancel, onSave }: Pr
   const crop = image ? cropFromPosition({ width: image.naturalWidth, height: image.naturalHeight }, 1, position) : null;
   const canEdit = Boolean(image) && !saving;
 
-  return <ModalPortal><section ref={screenRef} className="profile-photo-editor" data-material="content" role="dialog" aria-modal="true" aria-labelledby={headingId} tabIndex={-1}>
+  return <ModalPortal><section ref={screenRef} className="profile-photo-editor" data-profile-photo-appearance={appearance} data-material="content" role="dialog" aria-modal="true" aria-labelledby={headingId} tabIndex={-1}>
     <header className="profile-photo-editor-header">
       <button type="button" onClick={cancel} disabled={saving}>Cancel</button>
       <h1 id={headingId}>Edit profile photo</h1>
-      <button type="button" onClick={() => void save()} disabled={!canEdit}>{saving ? 'Saving…' : 'Save'}</button>
+      <button type="button" onClick={() => void save()} disabled={!canEdit}>{saving ? appearance === 'settings' ? 'Preparing…' : 'Saving…' : appearance === 'settings' ? 'Done' : 'Save'}</button>
     </header>
     <div className="profile-photo-editor-body">
       <div ref={frameRef} className="profile-photo-frame" role="group" aria-label="Profile photo crop" aria-describedby={instructionsId} tabIndex={canEdit ? 0 : -1}

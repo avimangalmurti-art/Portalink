@@ -100,7 +100,7 @@ test('navigation state ink stays readable through every gray over both material 
           `${theme}/${gray.id}/${highContrast}/${opaque}: ${surface} on ${backdrop}`);
       }
       const material = tokens['--navigation-surface'];
-      if (highContrast || opaque) {
+      if (opaque) {
         assert.equal(material, gray[theme]);
         assert.equal(tokens['--navigation-blur'], 'none');
         for (const key of ['--navigation-hover-surface', '--navigation-pressed-surface', '--navigation-selected-surface']) assert.match(tokens[key], /^#[\da-f]{6}$/i);
@@ -156,6 +156,33 @@ test('navigation defaults preserve legacy tokens and resting controls while sele
     assert.equal(tokens['--nav-button-focus-ring'], 'var(--focus-ring)');
     assert.equal(tokens['--control-rest-surface'], theme === 'dark' ? opaque ? '#1B1C1C' : 'rgba(27,28,28,0.85)' : opaque ? '#F3F3F6' : 'rgba(24,24,27,0.035)');
     for (const background of ['#000000', '#FFFFFF']) assert.ok(contrast(tokens['--navigation-foreground'], composite(tokens['--navigation-surface'], background)) >= 4.5);
-    assert.equal(tokens['--navigation-blur'], highContrast || opaque ? 'none' : 'blur(22px) saturate(140%)');
+    assert.equal(tokens['--navigation-blur'], opaque ? 'none' : 'blur(22px) saturate(140%)');
+  }
+});
+
+test('High Contrast strengthens navigation ink and edges without changing the transparency choice', () => {
+  for (const theme of ['light', 'dark']) for (const gray of [undefined, ...systemGrays.map(value => value.id)]) {
+    for (const reduced of [false, true]) {
+      const ordinary = resolve(theme, '#007AFF', false, reduced, gray);
+      const highContrast = resolve(theme, '#007AFF', true, reduced, gray);
+      for (const key of ['--navigation-surface', '--navigation-hover-surface', '--navigation-pressed-surface', '--navigation-selected-surface', '--navigation-blur']) {
+        assert.equal(highContrast[key], ordinary[key], `${theme}/${gray}/${reduced}: contrast must not change ${key}`);
+      }
+      for (const backdrop of ['#000000', '#FFFFFF']) {
+        const surface = composite(highContrast['--navigation-surface'], backdrop);
+        assert.ok(contrast(highContrast['--navigation-foreground'], surface) >= contrast(ordinary['--navigation-foreground'], surface),
+          `${theme}/${gray}/${reduced}: contrast must retain or improve foreground legibility`);
+        assert.ok(contrast(composite(highContrast['--navigation-border'], surface), surface)
+          >= contrast(composite(ordinary['--navigation-border'], surface), surface),
+        `${theme}/${gray}/${reduced}: contrast must strengthen the edge rather than flatten its material`);
+      }
+      if (!reduced) {
+        assert.match(highContrast['--navigation-surface'], /, 0\.92\)$/);
+        assert.notEqual(highContrast['--navigation-blur'], 'none');
+      } else {
+        assert.equal(highContrast['--navigation-blur'], 'none');
+        assert.match(highContrast['--navigation-surface'], /^#[\da-f]{6}$/i);
+      }
+    }
   }
 });
