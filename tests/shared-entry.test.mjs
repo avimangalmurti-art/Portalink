@@ -266,6 +266,7 @@ test('shared preboot chooses neutral first paint before the body and leaves othe
       return { getAttribute: name => attributes.get(name) ?? null, setAttribute: (name, value) => attributes.set(name, value) };
     });
     vm.runInNewContext(script, {
+      URLSearchParams,
       document: { documentElement: root, querySelectorAll(selector) {
         assert.equal(selector, 'meta[name="theme-color"]');
         return themeTags;

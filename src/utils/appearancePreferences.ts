@@ -165,7 +165,11 @@ export function interfaceAppearanceKey(presentation: Presentation, scope: Appear
 
 /** Legacy values are a starting snapshot only; new choices never write them. */
 export function readInterfaceAppearance(presentation: Presentation, scope: AppearanceScope = 'platform'): InterfaceAppearance {
-  const fallback: InterfaceAppearance = scope === 'public' && presentation === 'mobile' ? readInterfaceAppearance(presentation) : {
+  const fallback: InterfaceAppearance = scope === 'public' && presentation === 'mobile' ? {
+    ...readInterfaceAppearance(presentation),
+    // Public mobile starts translucent until the visitor makes their own choice.
+    reduceTranslucency: false,
+  } : {
     mode: readDeviceAppearanceMode(),
     accentColor: readAccentColor('#FF375F'),
     systemGray: readNavSystemGray('gray6'),

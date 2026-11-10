@@ -56,6 +56,7 @@ function harness(initialQuery = '', account = 'account-a', options = {}) {
     '../../components/profile/categoryIcons': { getCategoryIcon: value => `chosen:${value ?? 'default'}` },
     '../../components/ui/DensitySeparator': { DensitySeparator: 'density-separator' },
     '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
+    '../../components/ui/ResponsiveImage': { ResponsiveImage: 'responsive-image' },
     '../../components/ui/StateViews': { EmptyState: 'empty', ErrorState: 'error', LoadingState: 'loading' },
     '../../presentation/usePresentation': { usePresentation: () => environment.presentation },
     '../../presentation/mobile/MobileBackNavigation': { ScreenBack: 'screen-back' },
@@ -135,11 +136,13 @@ test('each portal tile uses its creator accent without recoloring labels, avatar
   h.dispose();
 });
 
-test('MOBILE and WEB use creator-coloured glyphs on named neutral cards', async () => {
+test('MOBILE uses the avatar as a decorative backdrop and credits the creator below the title', async () => {
   const item = portal('long', 'creator-b', 'A long structural engineering portal name');
   const legacy = portal('legacy', 'creator-c', 'Legacy portal');
   item.creator.name = 'A creator with a longer public name';
   item.creator.accentColor = '#8a44bb';
+  legacy.creator.name = ' ';
+  legacy.creator.avatar = ' ';
   for (const presentation of ['mobile', 'web']) {
     const h = harness('', 'account-a', { presentation });
     assert.equal(nodes(h.tree).find(node => node.type === 'loading').props.columns, presentation === 'mobile' ? 3 : undefined);
@@ -147,9 +150,10 @@ test('MOBILE and WEB use creator-coloured glyphs on named neutral cards', async 
     h.calls[0].response.resolve({ items: [item, legacy], nextOffset: null });
     const tree = await h.flush(); const link = links(tree)[0];
     assert.equal(link.props.to, '/p/creator-b/c/long');
-    assert.equal(link.props.title, `${item.label} — ${item.creator.name}`);
-    assert.equal(link.props['aria-label'], `${item.label} — ${item.creator.name}`);
     const mobile = presentation === 'mobile';
+    const label = mobile ? `${item.label} by ${item.creator.name}` : `${item.label} — ${item.creator.name}`;
+    assert.equal(link.props.title, label);
+    assert.equal(link.props['aria-label'], label);
     const tileClass = 'public-portal-glyph';
     const tile = nodes(link).find(node => node.props.className === tileClass);
     assert.equal(link.props['data-ui-shape'], 'row');
@@ -158,9 +162,19 @@ test('MOBILE and WEB use creator-coloured glyphs on named neutral cards', async 
     assert.equal(glyph.props.keepColor, true);
     assert.equal(glyph.props.style.color, item.creator.accentColor);
     const avatar = nodes(link).find(node => node.type === 'creator-avatar');
-    assert.equal(avatar.props.name, item.creator.name); assert.equal(avatar.props.avatar, '/creator-b.jpg');
-    const creatorLabel = nodes(link).find(node => node.props.className?.split(' ').includes('public-portal-creator-name'));
-    assert.equal(creatorLabel, undefined);
+    const backdrop = nodes(link).find(node => node.type === 'responsive-image');
+    const caption = nodes(link).find(node => node.props.className === 'public-portal-caption');
+    if (mobile) {
+      assert.equal(avatar, undefined);
+      assert.equal(backdrop.props.src, item.creator.avatar);
+      assert.equal(backdrop.props.decorative, true);
+      assert.deepEqual(React.Children.toArray(caption.props.children).map(node => node.props.children), [item.label, `by ${item.creator.name}`]);
+    } else {
+      assert.equal(avatar.props.name, item.creator.name);
+      assert.equal(avatar.props.avatar, '/creator-b.jpg');
+      assert.equal(backdrop, undefined);
+      assert.equal(caption, undefined);
+    }
     assert.equal(nodes(link).find(node => node.props.className === 'profile-collection-name').props.children, item.label);
     const legacyLink = links(tree)[1];
     assert.equal(legacyLink.props.to, '/p/creator-c/c/legacy');
@@ -169,7 +183,12 @@ test('MOBILE and WEB use creator-coloured glyphs on named neutral cards', async 
     const legacyGlyph = nodes(legacyLink).find(node => node.type === 'interface-icon' && node.props.icon === 'chosen:camera');
     assert.equal(legacyGlyph.props.keepColor, true);
     assert.equal(legacyGlyph.props.style?.color, 'var(--text-secondary)');
-    assert.equal(nodes(legacyLink).find(node => node.type === 'creator-avatar').props.avatar, legacy.creator.avatar);
+    if (mobile) {
+      assert.equal(nodes(legacyLink).find(node => node.props.className === 'public-portal-creator-name').props.children, 'by creator-c');
+      assert.equal(nodes(legacyLink).find(node => node.type === 'responsive-image'), undefined);
+    } else {
+      assert.equal(nodes(legacyLink).find(node => node.type === 'creator-avatar').props.avatar, legacy.creator.avatar);
+    }
     h.dispose();
   }
 });

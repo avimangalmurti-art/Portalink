@@ -72,10 +72,40 @@ export function ApplicationBootstrap() {
     && [search, hash].some(part => new URLSearchParams(part.slice(1)).has('error'));
   const isAuthCallback = !oauthFailed && /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
   const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
-  const isWelcomeInvite = pathname === '/' && (new URLSearchParams(search).get('welcome') === '1' || oauthFailed) && !isAuthCallback && !isRecovery;
+  const hasInviteLink = new URLSearchParams(search).get('welcome') === '1';
+  const isWelcomeInvite = pathname === '/' && (hasInviteLink || oauthFailed) && !isAuthCallback && !isRecovery;
   const resumeBlocked = isAuthCallback || isRecovery || isWelcomeInvite || Boolean(auth.pendingView) || auth.isSessionUnavailable || auth.phase === 'authenticating' || auth.phase === 'signing-out';
-  const resume = useMobileResumeSession({ mobile: presentation === 'mobile', accountId: auth.isAuthenticated ? auth.user?.id ?? null : null,
+  const accountId = auth.isAuthenticated ? auth.user?.id ?? null : null;
+  const installedMobile = presentation === 'mobile' && document.documentElement?.hasAttribute('data-standalone');
+  const plainHome = pathname === '/' && !search && !hash;
+  const resume = useMobileResumeSession({ mobile: presentation === 'mobile', restoreOnLaunch: !installedMobile, accountId,
     authReady: !auth.isInitializing && !auth.isSessionUnavailable, pathname, search, hash, locationKey, blocked: resumeBlocked });
+  const [homeOpening, setHomeOpening] = useState<'launch' | { accountId: string; from: string } | null>(() => installedMobile && plainHome ? 'launch' : null);
+  const completeHomeOpening = useCallback(() => setHomeOpening(null), []);
+  const canReopenHome = installedMobile && accountId !== null && !auth.isInitializing && !resumeBlocked && !usePublicEntry
+    && pathname.replace(/\/+$/, '') !== routes.profileEditor?.path;
+  const foregroundOpening = homeOpening && homeOpening !== 'launch' && homeOpening.accountId === accountId ? homeOpening : null;
+  useEffect(() => {
+    if (!canReopenHome || !accountId) return;
+    // A new route or account (including a link opened while hidden) owns its entry.
+    let wasHidden = false;
+    // Returning from a file picker is also a visibility change. Keep the open form.
+    const isAuthoring = () => Boolean(document.querySelector?.('[data-ui-modal-backdrop="authoring"], [data-mobile-publish]'));
+    const visibilityChanged = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHidden = !isAuthoring();
+        return;
+      }
+      if (!wasHidden) return;
+      wasHidden = false;
+      if (!isAuthoring()) setHomeOpening({ accountId, from: locationKey });
+    };
+    document.addEventListener('visibilitychange', visibilityChanged);
+    return () => document.removeEventListener('visibilitychange', visibilityChanged);
+  }, [accountId, canReopenHome, locationKey]);
+  useEffect(() => {
+    if (homeOpening && homeOpening !== 'launch' && (!canReopenHome || !foregroundOpening || (!plainHome && foregroundOpening.from !== locationKey))) completeHomeOpening();
+  }, [homeOpening, canReopenHome, foregroundOpening, plainHome, locationKey, completeHomeOpening]);
   // Signed-out visitors choose an account action. A prior public-view
   // context keeps its destination unless this is an explicit invitation.
   const [landingPath] = useState(() => (isWelcomeInvite || !readSharedViewerProfileId())
@@ -185,7 +215,8 @@ export function ApplicationBootstrap() {
   const appStartupPending = waitingForHome || (openingPresentation === 'mobile' && !hasSplashCompleted && !startupCompleted);
 
   return <>
-      {usePublicEntry ? null : shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : resume.resumeTo ? <Navigate replace to={resume.resumeTo} /> : !auth.isInitializing ? <MobileResumeProvider enabled={presentation === 'mobile' && !resumeBlocked} accountId={auth.isAuthenticated ? auth.user?.id ?? null : null} record={resume.launchRecord}><App homeStartupPending={appStartupPending} homeStartupAttempt={homeAttempt} onHomeStartupReady={reportHomeContent} onHomeStartupShellReady={reportHomeShell} /></MobileResumeProvider> : null}
+      {usePublicEntry ? null : shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : resume.resumeTo ? <Navigate replace to={resume.resumeTo} /> : !auth.isInitializing ? <MobileResumeProvider enabled={presentation === 'mobile' && !resumeBlocked} accountId={accountId} record={resume.launchRecord}><App homeStartupPending={appStartupPending} homeStartupAttempt={homeAttempt} onHomeStartupReady={reportHomeContent} onHomeStartupShellReady={reportHomeShell}
+        installedHomeOpening={canReopenHome && plainHome && (homeOpening === 'launch' || foregroundOpening) ? { refresh: Boolean(foregroundOpening), complete: completeHomeOpening } : null} /></MobileResumeProvider> : null}
       <AnimatePresence onExitComplete={() => {
         // The World view deliberately waits for this handoff before painting
         // its expensive cartography and blur layers. That keeps the full-screen
@@ -194,6 +225,7 @@ export function ApplicationBootstrap() {
       }}>
         {!isSharedView && (holdLanding || ((!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry)) ? <PortalinkSplashLoader key={holdLanding || hasPresentedLanding ? 'portalink-account-entry' : 'portalink-splash'} onComplete={completeSplash} stillOnly={startupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery}
+          inviteOpening={isWelcomeInvite && hasInviteLink}
           welcomeHandoff={hasPresentedLanding && !holdLanding}
           hidden={Boolean((!auth.isAuthenticated && auth.pendingView) || isRecovery)}
           landing={holdLanding ? {
@@ -207,5 +239,6 @@ export function ApplicationBootstrap() {
       </AnimatePresence>
       {(isSharedView || timedIntroEnded) && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><LoadingState label={isSharedView ? 'Opening shared content…' : 'Opening Portalink…'} /></div>}
       {showHomeRetry && <div data-home-startup-retry="" data-presentation={presentation} className="portalink-startup-wait fixed inset-0 z-[1000] grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><ErrorState title="Home could not finish loading" description="Check your connection and try again." onRetry={retryHome} /></div>}
+      {canReopenHome && !plainHome && foregroundOpening !== null && foregroundOpening.from === locationKey && <Navigate replace to={routes.home.path} />}
     </>;
 }

@@ -79,9 +79,11 @@ function getFeedCacheEntry(discovery: object, scope: object, cacheKey: string): 
   return entry;
 }
 
-export function useFeed(locationId?: Id, { preserveSnapshotAcrossRevision = false }: {
+export function useFeed(locationId?: Id, { preserveSnapshotAcrossRevision = false, revalidateOnOpen = false }: {
   /** MOBILE retained screens keep their complete placement while canonical reads refresh. */
   preserveSnapshotAcrossRevision?: boolean;
+  /** A reopened installed Home starts at the first page with a fresh request. */
+  revalidateOnOpen?: boolean;
 } = {}): FeedState {
   const {
     discovery
@@ -122,10 +124,13 @@ export function useFeed(locationId?: Id, { preserveSnapshotAcrossRevision = fals
   currentIdentity.current = identity;
   const stateIdentity = useRef(identity);
   const handledAttempt = useRef(0);
+  const handledOpen = useRef(false);
   useEffect(() => {
     let isCurrent = true;
     stateIdentity.current = identity;
-    const requestedRefresh = attempt !== handledAttempt.current;
+    const reopened = revalidateOnOpen && !handledOpen.current;
+    handledOpen.current = revalidateOnOpen;
+    const requestedRefresh = reopened || attempt !== handledAttempt.current;
     handledAttempt.current = attempt;
     const cleanup = () => {
       isCurrent = false;
@@ -184,7 +189,7 @@ export function useFeed(locationId?: Id, { preserveSnapshotAcrossRevision = fals
             // truncate the feed or retain removed work on later pages.
             let home = first;
             let projects = first.projects;
-            const targetCount = cachedSnapshot?.projects.length ?? 0;
+            const targetCount = reopened ? 0 : cachedSnapshot?.projects.length ?? 0;
             const seenCursors = new Set<string>();
             while (home.nextCursor && projects.length < targetCount) {
               const cursorKey = JSON.stringify(home.nextCursor);
@@ -247,7 +252,7 @@ export function useFeed(locationId?: Id, { preserveSnapshotAcrossRevision = fals
       setStatus('error');
     });
     return cleanup;
-  }, [discovery, scope, cacheKey, identity, attempt, locationId, placement, preserveSnapshotAcrossRevision]);
+  }, [discovery, scope, cacheKey, identity, attempt, locationId, placement, preserveSnapshotAcrossRevision, revalidateOnOpen]);
   const loadMore = useCallback(() => {
     if (currentIdentity.current !== identity) return;
     const entry = getFeedCacheEntry(discovery, scope, cacheKey);

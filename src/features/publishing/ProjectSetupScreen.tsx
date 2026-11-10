@@ -123,8 +123,10 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
     {mobileAuthoring ? <div className="project-setup-mobile-portals">
      <div className="project-setup-portal-buttons">
       <button type="button" ref={portalsButton} className="project-setup-portal-picker" data-ui-control="button" data-control-size="lg" data-control-variant="secondary" data-ui-shape="action"
-       aria-label={selectedPortal ? `${selectedPortal.label}, change portal` : undefined} aria-expanded={showPortals} aria-controls="project-setup-portal-list" disabled={busy} onClick={()=>setShowPortals(!showPortals)}>
+       data-portal-selected={selectedPortal ? '' : undefined}
+       aria-label={selectedPortal ? `${selectedPortal.label}, selected portal. Change portal` : undefined} aria-expanded={showPortals} aria-controls="project-setup-portal-list" disabled={busy} onClick={()=>setShowPortals(!showPortals)}>
        <span>{selectedPortal?.label ?? 'Portals'}</span>
+       {selectedPortal && <CheckIcon size={18} className="shrink-0" aria-hidden="true"/>}
       </button>
       <button type="button" ref={newPortalButton} data-ui-control="button" data-control-size="lg" data-control-variant="secondary" data-ui-shape="action" aria-haspopup="dialog" disabled={busy} onClick={openNewPortal}>New Portal</button>
      </div>

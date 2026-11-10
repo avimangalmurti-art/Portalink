@@ -11,6 +11,8 @@ const registration = sourceModule('src/features/auth/registration.ts', {
 });
 const sharedSettings = sourceModule('src/features/sharing/sharedSettings.ts', { '../auth/registration': registration, './shareModel': shareModel });
 const routes = {
+  home: { path: '/' },
+  profileEditor: { path: '/profile/edit' },
   sharedCollaboration: { path: '/share/:profileId/collaboration' }, sharedProject: { path: '/share/:profileId/c/:categoryId/:projectId' },
   sharedProfileCategory: { path: '/share/:profileId/c/:categoryId' }, sharedProfile: { path: '/share/:profileId' }, controlCenter: { path: '/settings' },
 };
@@ -25,7 +27,7 @@ function events() {
 }
 
 /** Real bootstrap and real resume hook/state; only browser, Auth and child rendering are controlled. */
-function fixture({ presentation = 'mobile', authenticated = true, initializing = true, path = '/', search = '', hash = '', state = null, savedPath = '/p/creator/c/work/project', pendingView = null, phase = authenticated ? 'authenticated' : 'guest', sessionUnavailable = false, enteredWelcome = true, welcomeState } = {}) {
+function fixture({ presentation = 'mobile', installed = false, authoring = false, authenticated = true, initializing = true, path = '/', search = '', hash = '', state = null, savedPath = '/p/creator/c/work/project', pendingView = null, phase = authenticated ? 'authenticated' : 'guest', sessionUnavailable = false, enteredWelcome = true, welcomeState } = {}) {
   const slots = [], timers = new Map(), captures = [], trace = [], storage = new Map(), sessionStorage = new Map();
   let cursor = 0, effects = [], dirty = true, rendered, timerId = 0;
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => Object.is(item, b[index]));
@@ -42,7 +44,7 @@ function fixture({ presentation = 'mobile', authenticated = true, initializing =
     setTimeout(callback, delay) { timers.set(++timerId, { callback, delay }); return timerId; }, clearTimeout(id) { timers.delete(id); }, location: { replace: value => trace.push(['replace', value]) } };
   const dispatch = window.dispatchEvent; window.dispatchEvent = event => { trace.push(['window-event', event.type]); dispatch(event); };
   let bootRemoved = false;
-  const document = { ...events(), visibilityState: 'visible', getElementById(id) {
+  const document = { ...events(), documentElement: { hasAttribute: name => installed && name === 'data-standalone' }, querySelector: () => authoring ? {} : null, visibilityState: 'visible', getElementById(id) {
     if (id === 'portalink-preboot') return bootRemoved ? null : { remove() { bootRemoved = true; trace.push(['remove-preboot']); } };
     if (id === 'portalink-preboot-video') return bootRemoved ? null : { dispatchEvent: event => trace.push(['video-event', event.type]), pause: () => trace.push(['pause-video']) };
     assert.fail(`Unexpected DOM read ${id}`);
@@ -74,6 +76,7 @@ function fixture({ presentation = 'mobile', authenticated = true, initializing =
     render,
     settle() { for (let attempts = 0; dirty && attempts < 25; attempts++) render(); assert.equal(dirty, false, 'Bootstrap must settle without a render loop'); return rendered; },
     rerender() { dirty = true; return render(); },
+    visibility(value) { document.visibilityState = value; document.dispatchEvent({ type: 'visibilitychange' }); return this.settle(); },
     setPresentation(value) { presentation = value; dirty = true; },
     authenticate() { auth.isAuthenticated = true; auth.pendingView = null; auth.phase = 'authenticated'; auth.user = { id: 'account' }; auth.session = { user: auth.user }; dirty = true; },
     get destination() { return rendered.props.children[0]; },
@@ -81,9 +84,70 @@ function fixture({ presentation = 'mobile', authenticated = true, initializing =
     get splash() { return rendered.props.children[1].props.children; },
     get catalogWelcome() { return rendered.props.children.find(child => child?.type === 'catalog-welcome') ?? false; },
     get waiting() { return rendered.props.children[2]; },
+    get homeRedirect() { return rendered.props.children.at(-1); },
     dispose() { for (const slot of slots) slot?.cleanup?.(); },
   };
 }
+
+test('installed MOBILE opens Home from a bare launch even with a saved reader', () => {
+  const h = fixture({ installed: true });
+  h.render();
+  assert.equal(h.app, null);
+  h.auth.isInitializing = false;
+  h.rerender();
+  h.settle();
+  assert.equal(h.app.type, 'app');
+  assert.equal(h.destination.props.record, null);
+  assert.equal(h.app.props.installedHomeOpening.refresh, false);
+  h.app.props.installedHomeOpening.complete();
+  h.settle();
+  assert.equal(h.app.props.installedHomeOpening, null);
+  h.dispose();
+});
+
+test('installed MOBILE replaces the current screen with Home once after foregrounding', () => {
+  const h = fixture({ installed: true, initializing: false, path: '/messages', search: '?conversation=thread' });
+  h.render();
+  h.visibility('visible');
+  assert.equal(h.homeRedirect, false);
+  h.visibility('hidden');
+  h.visibility('visible');
+  assert.equal(h.homeRedirect.type, 'navigate');
+  assert.equal(h.homeRedirect.props.to, '/');
+  assert.equal(h.homeRedirect.props.replace, true);
+  Object.assign(h.location, { pathname: '/', search: '', key: 'reopened' });
+  h.rerender();
+  assert.equal(h.homeRedirect, false);
+  assert.equal(h.app.props.installedHomeOpening.refresh, true);
+  h.app.props.installedHomeOpening.complete();
+  h.settle();
+  h.visibility('visible');
+  assert.equal(h.app.props.installedHomeOpening, null);
+  h.visibility('hidden');
+  h.visibility('visible');
+  assert.equal(h.homeRedirect, false, 'Home stays mounted when it is already selected');
+  assert.equal(h.app.props.installedHomeOpening.refresh, true);
+  h.dispose();
+});
+
+test('foregrounding preserves browser tabs, WEB, auth, active forms and newly delivered links', () => {
+  for (const overrides of [{ installed: false }, { presentation: 'web' }, { pendingView: 'resetPassword' }, { search: '?code=callback' }, { path: '/profile/edit' }, { authoring: true }]) {
+    const h = fixture({ installed: true, initializing: false, path: '/messages', ...overrides });
+    h.render();
+    h.visibility('hidden');
+    h.visibility('visible');
+    assert.equal(h.homeRedirect, false);
+    h.dispose();
+  }
+  const h = fixture({ installed: true, initializing: false, path: '/messages' });
+  h.render();
+  h.visibility('hidden');
+  Object.assign(h.location, { pathname: '/p/creator/c/work/project', search: '?page=2', key: 'incoming-link' });
+  h.rerender();
+  h.visibility('visible');
+  assert.equal(h.homeRedirect, false);
+  h.dispose();
+});
 
 test('authenticated MOBILE waits for real session restoration, then bypasses media and resumes the saved route before mounting Home', () => {
   const h = fixture(); h.render(); assert.equal(h.app, null); assert.equal(h.splash.type, 'splash');

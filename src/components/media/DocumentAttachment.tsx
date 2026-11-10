@@ -87,7 +87,7 @@ export function DocumentAttachment({
   showMediaInteractions = true,
   isOwner = false,
   memoryScope = 'workspace',
-  pageViewToggleRequest = 0, readingMode = false, verticalReading = false, readerPageRequest = null, onReaderRequestHandled,
+  pageViewToggleRequest = 0, readingMode = false, verticalReading = false, manageReadingScroll = true, readerPageRequest = null, onReaderRequestHandled,
 
 
 }: {
@@ -104,6 +104,7 @@ export function DocumentAttachment({
   pageViewToggleRequest?: number;
   readingMode?: boolean;
   verticalReading?: boolean;
+  manageReadingScroll?: boolean;
   readerPageRequest?: {page:number; sequence:number} | null;
   onReaderRequestHandled?: (sequence:number) => void;
   processing?: {
@@ -236,7 +237,7 @@ export function DocumentAttachment({
     if (focusedPageIndex !== null) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPageIndex]);
   const linkedPage = deepLinkedDocumentPage(attachment.id, renderedPages.length);
-  useDocumentReadingScroll(isMobile && focusedPageIndex === null && renderedPages.length > 0, zoomSurfaceRef, memoryKey, verticalReading && linkedPage !== null ? linkedPage + 1 : null);
+  useDocumentReadingScroll(manageReadingScroll && isMobile && focusedPageIndex === null && renderedPages.length > 0, zoomSurfaceRef, memoryKey, verticalReading && linkedPage !== null ? linkedPage + 1 : null);
   const restoreFocusedScroll = useCallback(() => {
     if (isMobile && focusedPageIndex === null) return;
     const root = zoomSurfaceRef.current;
@@ -350,7 +351,7 @@ export function DocumentAttachment({
           pageIndex: focusedPageIndex,
           label: attachment.displayName
         }} /> : null}
-      </div> : <PdfImageDocument verticalReading={verticalReading} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
+      </div> : <PdfImageDocument verticalReading={verticalReading} manageReadingScroll={manageReadingScroll} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

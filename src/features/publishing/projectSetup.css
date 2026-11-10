@@ -139,6 +139,14 @@
   min-width:0;
   padding-block:6px;
 }
+#root .codex-shell .project-setup-portal-picker[data-portal-selected] {
+  --ui-control-rest-surface:var(--status-success);
+  --ui-control-selected-surface:var(--ui-control-rest-surface);
+  --ui-control-hover-surface:color-mix(in srgb,var(--ui-control-rest-surface) 94%,white);
+  --ui-control-pressed-surface:color-mix(in srgb,var(--ui-control-rest-surface) 86%,white);
+  --ui-control-text:#000;
+  --ui-control-border:var(--status-success);
+}
 .project-setup-portal-picker > span {
   max-width:100%;
   text-align:center;

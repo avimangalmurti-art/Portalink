@@ -43,6 +43,7 @@ type AttachmentRendererProps = {
   pageViewToggleRequest?: number;
   readingMode?: boolean;
   verticalReading?: boolean;
+  manageReadingScroll?: boolean;
   readerPageRequest?: {page:number; sequence:number} | null;
   onReaderRequestHandled?: (sequence:number) => void;
   onClose: () => void;
@@ -53,7 +54,7 @@ export function AttachmentRenderer({
   projectId, attachment, imagePages, imageColumns, projectTitle, artwork, processing,
   onDocumentPageCountResolved, onPreviewDocument, onFocusModeChange, controlsVisible,
   videoActive, inlinePreview = false, showMediaInteractions = true, isOwner = false, memoryScope = 'workspace',
-  readingMode = false, verticalReading = false, readerPageRequest = null, onReaderRequestHandled, pageViewToggleRequest = 0, onClose,
+  readingMode = false, verticalReading = false, manageReadingScroll = true, readerPageRequest = null, onReaderRequestHandled, pageViewToggleRequest = 0, onClose,
 }: AttachmentRendererProps) {
   const title = attachment.displayName || projectTitle;
   const state = processing?.state ?? attachment.status;
@@ -81,7 +82,7 @@ export function AttachmentRenderer({
       </Suspense>;
     case 'document':
       return attachment.sourceUrl ? <MediaFrame><Suspense fallback={documentLoading}>
-        <DocumentAttachment verticalReading={verticalReading} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} attachment={attachment} columns={imageColumns}
+        <DocumentAttachment verticalReading={verticalReading} manageReadingScroll={manageReadingScroll} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} attachment={attachment} columns={imageColumns}
           processing={state === 'processing' || state === 'processing-failed' ? {
             state, message: processing?.message ?? null, canRetry: processing?.canRetry ?? false,
             isRetrying: processing?.isRetrying ?? false, onRetry: processing?.onRetry ?? (() => undefined),
