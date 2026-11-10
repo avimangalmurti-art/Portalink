@@ -1,7 +1,7 @@
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { ScreenBack, useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { AlertCircleIcon, ArrowLeftIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
 import { ProfilePersonalDetails } from './ProfilePersonalDetails';
 import { ProfileLinkDetails } from './ProfileLinkDetails';
@@ -176,13 +176,20 @@ export function ProfileEditorPage({
     void editor.submit().finally(() => { pending.current = false; if (session.current.mounted) setMobilePending(false); });
   };
   const selectedLink = fields?.links.find(link => link.id === editingLinkId) ?? null;
+  const standardBack = isMobile && screen === 'overview';
+  const showSave = !isMobile || editor.isDirty || isBusy;
   const title = screen === 'personal' ? 'Personal details' : screen === 'link' ? (editingLinkId ? 'Edit link' : 'Add link') : 'Edit profile';
   return <section ref={pageRef} data-presentation={isMobile ? 'mobile' : 'web'} data-profile-editor-screen={screen} aria-labelledby="profile-editor-title" className="profile-editor-page flex h-full min-h-0 w-full flex-col">
     <header className="profile-editor-header">
       <div className="profile-editor-toolbar">
-        <ScreenBack visibleOnMobile action={requestClose}><button type="button" onClick={requestClose} aria-label={screen === 'overview' ? 'Back' : 'Back to Edit profile'} disabled={isBusy || avatarBusy} className="profile-editor-back"><InterfaceIcon icon={ChevronLeftIcon} />{screen !== 'overview' && <span>Edit profile</span>}</button></ScreenBack>
+        <ScreenBack visibleOnMobile action={requestClose}><button type="button" onClick={requestClose} aria-label={screen === 'overview' ? 'Back' : 'Back to Edit profile'} disabled={isBusy || avatarBusy} className="profile-editor-back"
+          data-ui-control={standardBack ? 'icon' : undefined} data-ui-shape={standardBack ? 'icon' : undefined}
+          data-control-size={standardBack ? 'md' : undefined} data-control-variant={standardBack ? 'ghost' : undefined}>
+          <InterfaceIcon icon={standardBack ? ArrowLeftIcon : ChevronLeftIcon} mirroredInRtl={standardBack} />
+          {screen !== 'overview' && <span>Edit profile</span>}
+        </button></ScreenBack>
         {screen !== 'overview' && <h1 ref={headingRef} tabIndex={-1} id="profile-editor-title">{title}</h1>}
-        {screen === 'overview' ? <button type="submit" form="profile-editor-form" className="profile-editor-save" disabled={!canSubmit}>{isBusy ? 'Saving…' : 'Save'}</button> : <button type="submit" form={screen === 'personal' ? 'profile-personal-form' : 'profile-link-form'} className="profile-editor-save" disabled={!childValid || isBusy || avatarBusy}>Done</button>}
+        {screen === 'overview' ? showSave && <button type="submit" form="profile-editor-form" className="profile-editor-save" disabled={!canSubmit}>{isBusy ? 'Saving…' : 'Save'}</button> : <button type="submit" form={screen === 'personal' ? 'profile-personal-form' : 'profile-link-form'} className="profile-editor-save" disabled={!childValid || isBusy || avatarBusy}>Done</button>}
       </div>
       {screen === 'overview' && <h1 ref={headingRef} tabIndex={-1} id="profile-editor-title" className="profile-editor-large-title">Edit profile</h1>}
     </header>

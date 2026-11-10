@@ -74,6 +74,8 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
       const documentScroller = document.scrollingElement as HTMLElement | null;
       if (documentScroller && documentScroller.scrollHeight > documentScroller.clientHeight && !scrollers.includes(documentScroller)) scrollers.push(documentScroller);
       const visibleHeaders = Array.from(root.querySelectorAll<HTMLElement>(HEADERS)).filter(node => {
+        // The mobile profile editor keeps an opaque header above its form scroller.
+        if (node.matches('.profile-editor-page[data-presentation="mobile"] > .profile-editor-header')) return false;
         const retained = node.closest('[data-mobile-screen-retained]');
         if (retained && getComputedStyle(retained).display === 'none') return false;
         return !node.closest('[role="menu"]') && Boolean(node.getBoundingClientRect().height);

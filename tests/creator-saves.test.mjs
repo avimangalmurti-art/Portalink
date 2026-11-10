@@ -271,6 +271,7 @@ for (const presentation of ['mobile', 'web']) {
       h.render(); h.openTools();
       const initial = h.nodes().find(node => node.props['data-profile-follow'] !== undefined);
       assert.ok(initial); assert.equal(initial.props.onClick, h.follow.onToggle);
+      assert.equal(initial.props['data-profile-follow'], state.isFollowing ? 'following' : '');
       const label = initial.props['aria-label'], selected = initial.props['aria-pressed'];
       assert.equal(h.model, null); assert.equal(h.pressModel, null);
       assert.match(h.bookmarkHtml, /aria-label="Unsave Creator"/);

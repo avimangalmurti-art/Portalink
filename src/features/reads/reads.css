@@ -10,6 +10,10 @@
 
 .reads-view > .reads-chart + h3 {margin-top:24px}
 
+[data-presentation='mobile'] .reads-referrers {
+  --mobile-component-radius: var(--ui-row-radius);
+}
+
 /* This caption belongs to its card, not the opaque mobile screen-header material. */
 #root .codex-shell.codex-shell[data-presentation='mobile'] .reads-chart > header {
   background: transparent !important;

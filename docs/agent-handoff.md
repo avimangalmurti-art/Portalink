@@ -1,3 +1,14 @@
+## 2026-11-10 — Combined MOBILE profile, portal, Reads and preview release
+
+Release checkout `logs/mobile-ui-polish-599` on `codex/mobile-ui-polish-599`, based on Sites 598 source `e34c2aa43c30f5e751163f9ca58e6f2667a1883b`, above GitHub `main` at `3f2c9e8c59cf8a8a443f6b26d9ac9bdd7565ca54`. The eight verified task checkouts are preserved. The combined change touches 11 application files and six focused test files.
+
+- The portal project popup title is centered, and project setup marks the selected portal in green.
+- One-column project cards omit the media type and the inline retry overlay while retaining the loading icon and the artwork's open action.
+- The mobile profile bio is labeled About. The mobile Edit profile header is solid, Back uses the shared arrow, and Save appears for changed drafts.
+- Reads referrer cards use the shared row radius. The creator bookmark has a transparent background, and confirmed Following uses the active system accent.
+
+This release uses the existing Sites project and D1 binding. No separate worker, database, assets, dependencies or native iOS changes are included. Individual task QA used local Chromium fixtures and focused tests. Combined build, GitHub and deployment receipts are tracked separately. Physical iPhone testing is pending.
+
 ## 2026-11-09 — Combined MOBILE reader, invite and shared catalogue release
 
 Release checkout `logs/mobile-reader-invite-catalogue-release` on `codex/mobile-reader-invite-catalogue-release`. It combines the three reviewed pending changes on live Sites 597 source `792ddbcdd3e8d82078059bad1801d870a9520a8c`, already at the head of draft PR #152 when work began. GitHub main was `3f2c9e8c59cf8a8a443f6b26d9ac9bdd7565ca54`. The isolated feature checkouts are preserved.

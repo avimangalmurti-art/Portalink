@@ -26,7 +26,7 @@ const detailsButton = node => node.type === 'button' && node.props['aria-label']
 const artworkFrame = node => node.props['data-packing-base'] !== undefined;
 const mobileInfo = node => node.props['data-mobile-project-info'] !== undefined;
 
-function cardHarness(presentation = 'mobile') {
+function cardHarness(presentation = 'mobile', inlineContent = {}) {
   const imports = [];
   let expanded = false, lazyFactory, opened = 0, details = 0;
   let inline = false;
@@ -41,7 +41,7 @@ function cardHarness(presentation = 'mobile') {
     if (name === './ProjectPageBrowsingContext') return { useInlineProjectPages: () => inline };
     if (name.endsWith('/cataloguePagePosition')) return { getCataloguePagePosition: id => positions.get(id), rememberCataloguePagePosition: (id, value) => positions.set(id, value) };
     if (name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href };
-    if (name.endsWith('/useInlineProjectContent')) return { useInlineProjectContent: ({ project }) => ({ project, metadataComplete: true }) };
+    if (name.endsWith('/useInlineProjectContent')) return { useInlineProjectContent: ({ project }) => ({ project, metadataComplete: true, ...inlineContent }) };
     if (name === './inlineProjectPageModel') return { normalizeInlineProjectPosition: (_, position) => position, inlinePositionMatches: (left, right) => left === right };
     if (name.endsWith('/MobileContextActions')) return { useMobileActions: () => ({ open() {} }) };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: 'interface-icon' };
@@ -128,6 +128,22 @@ test('one-column cards select the inline surface and information popup while den
   }
 });
 
+test('mobile keeps the loading cover tappable without an inline retry overlay', () => {
+  let retries = 0;
+  const failure = { metadataComplete: false, error: 'Offline', retry: () => { retries++; } };
+  const mobile = cardHarness('mobile', failure); mobile.setInline(true);
+  const elements = nodes(mobile.render({ showCoverLoading: true }));
+  assert.equal(elements.some(node => node.props.className === 'inline-project-retry'), false);
+  assert.equal(elements.find(node => node.type === 'cover').props.showLoadingIndicator, true);
+  elements.find(node => node.props['data-preview-open'] !== undefined).props.onClick({});
+  assert.equal(mobile.openCount(), 1);
+
+  const desktop = cardHarness('web', failure); desktop.setInline(true);
+  const retry = nodes(desktop.render()).find(node => node.props.className === 'inline-project-retry');
+  retry.props.onClick({ preventDefault() {}, stopPropagation() {} });
+  assert.equal(retries, 1);
+});
+
 test('the mobile info row follows the artwork with squircle attribution and available project metadata', () => {
   const h = cardHarness(); h.setInline(true);
   const publishedAt = '2026-10-14T12:00:00.000Z';
@@ -152,9 +168,14 @@ test('the mobile info row follows the artwork with squircle attribution and avai
     assert.equal(nodes(undated).some(node => node.type === 'time'), false);
   }
 
-  const explore = nodes(h.render({ className: 'explore-feed-card', contentTypeLabel: 'PDF' }));
-  assert.ok(textContent(explore.find(mobileInfo)).includes('PDF'));
-  assert.equal(textContent(explore.find(artworkFrame)).includes('PDF'), false);
+  for (const contentTypeLabel of ['Image', 'PDF']) {
+    const explore = nodes(h.render({ className: 'explore-feed-card', contentTypeLabel, project: { ...project, publishedAt } }));
+    const metadata = explore.find(node => node.props.className === 'mobile-project-info-meta');
+    assert.equal(nodes(metadata).find(node => node.type === 'time')?.props.dateTime, publishedAt);
+    assert.equal(textContent(metadata).split('·').length, 2, 'The date has a single separator');
+    assert.equal(textContent(metadata).includes(contentTypeLabel), false);
+    assert.equal(textContent(explore.find(artworkFrame)).includes(contentTypeLabel), false);
+  }
 });
 
 test('the mobile squircle opens its creator without invoking artwork or project details', () => {

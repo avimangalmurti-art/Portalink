@@ -112,8 +112,11 @@ test('mobile Portals selects an existing Portal while preserving the authored fo
  assert.equal(add.props['aria-haspopup'], 'dialog');
  assert.equal(portals.props['aria-controls'], portalList(all).props.id);
  assert.equal(portals.props['aria-expanded'], false);
- assert.equal(portals.props.children.props.children, 'Design');
- assert.equal(portals.props['aria-label'], 'Design, change portal');
+ assert.ok(nodes(portals).some(node => node.type === 'span' && node.props.children === 'Design'));
+ assert.ok(nodes(portals).some(node => node.type === 'check-icon' && node.props['aria-hidden'] === 'true'));
+ assert.equal(portals.props['data-portal-selected'], '');
+ assert.equal(portals.props['aria-label'], 'Design, selected portal. Change portal');
+ assert.equal(add.props['data-portal-selected'], undefined);
  assert.equal(portalList(all).props.hidden, true);
  assert.equal(all.find(node => node.type === 'select' && node.props['aria-label'] === 'Portal'), undefined);
  assert.equal(all.find(node => node.props.name === 'title').props.autoFocus, true);
@@ -131,7 +134,8 @@ test('mobile Portals selects an existing Portal while preserving the authored fo
  photo.props.onClick();
  all = nodes(h.render());
  assert.equal(portalPicker(all).props['aria-expanded'], false);
- assert.equal(portalPicker(all).props.children.props.children, 'Photography');
+ assert.equal(portalPicker(all).props['aria-label'], 'Photography, selected portal. Change portal');
+ assert.equal(portalPicker(all).props['data-portal-selected'], '');
  assert.equal(portalList(all).props.hidden, true);
  assert.equal(portalChoice(all, 'photo').props['aria-pressed'], true);
  assert.equal(h.calls.length, 0);
@@ -223,7 +227,9 @@ test('with zero Portals, Create writes one Portal and Continue separately hands 
   if (presentation === 'mobile') {
    assert.ok(portalButton(all, 'New Portal'));
    assert.equal(all.find(node => node.type === 'footer').props.hidden, true);
-   assert.equal(portalPicker(all).props.children.props.children, 'Portals');
+   assert.ok(nodes(portalPicker(all)).some(node => node.type === 'span' && node.props.children === 'Portals'));
+   assert.equal(portalPicker(all).props['data-portal-selected'], undefined);
+   assert.equal(nodes(portalPicker(all)).some(node => node.type === 'check-icon'), false);
    portalPicker(all).props.onClick();
    all = nodes(h.render());
    assert.equal(portalList(all).props.hidden, false);
