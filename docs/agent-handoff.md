@@ -1,3 +1,7 @@
+## 2026-11-04 - ALL iOS TestFlight upload workflow (user-approved), unpublished
+
+Devin owned branch devin/ios-testflight, originally stacked on devin/capacitor-ios-shell (PR149, since merged; now targets main). User confirmed bundle ID com.portalinknetworks.app and Apple Developer enrollment. Added .github/workflows/ios-testflight.yml (manual dispatch or ios-v* tag only, macos-15, excludes autosave/**; fails unless HEAD is on main or the head of an open PR against main): xcodebuild archive + exportArchive upload with automatic signing via an App Store Connect API key from repository secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY; build number = workflow run number. Added ios/App/ExportOptions.plist, ITSAppUsesNonExemptEncryption=false, iPhone-only device family, and the existing 1024 App Store icon (alpha removed) as AppIcon. No upload run yet; signing unverified. Universal Links for Auth email callbacks remain a follow-up. No SQL, Sites publish or worker deploy.
+
 ## Browser favicon squircle
 
 Task checkout `logs/portalite-favicon-squircle` on `codex/portalite-favicon-squircle`, based on GitHub `main` at `0430ec45544c0c702d688ba474bc599e6d369df5`. Applied the existing avatar squircle curve to the alpha channel of the four browser favicon PNGs and all four ICO frames. The original dimensions and RGB pixels were verified, and the main, catalogue and citation HTML entries use new content-hash versions. The Apple touch images and web app manifest were checked against the shipped files.
