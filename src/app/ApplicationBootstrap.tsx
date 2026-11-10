@@ -72,7 +72,8 @@ export function ApplicationBootstrap() {
     && [search, hash].some(part => new URLSearchParams(part.slice(1)).has('error'));
   const isAuthCallback = !oauthFailed && /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
   const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
-  const isWelcomeInvite = pathname === '/' && (new URLSearchParams(search).get('welcome') === '1' || oauthFailed) && !isAuthCallback && !isRecovery;
+  const hasInviteLink = new URLSearchParams(search).get('welcome') === '1';
+  const isWelcomeInvite = pathname === '/' && (hasInviteLink || oauthFailed) && !isAuthCallback && !isRecovery;
   const resumeBlocked = isAuthCallback || isRecovery || isWelcomeInvite || Boolean(auth.pendingView) || auth.isSessionUnavailable || auth.phase === 'authenticating' || auth.phase === 'signing-out';
   const accountId = auth.isAuthenticated ? auth.user?.id ?? null : null;
   const installedMobile = presentation === 'mobile' && document.documentElement?.hasAttribute('data-standalone');
@@ -224,6 +225,7 @@ export function ApplicationBootstrap() {
       }}>
         {!isSharedView && (holdLanding || ((!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry)) ? <PortalinkSplashLoader key={holdLanding || hasPresentedLanding ? 'portalink-account-entry' : 'portalink-splash'} onComplete={completeSplash} stillOnly={startupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery}
+          inviteOpening={isWelcomeInvite && hasInviteLink}
           welcomeHandoff={hasPresentedLanding && !holdLanding}
           hidden={Boolean((!auth.isAuthenticated && auth.pendingView) || isRecovery)}
           landing={holdLanding ? {

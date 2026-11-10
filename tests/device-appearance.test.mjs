@@ -25,6 +25,24 @@ test('public mobile appearance previews and persists without rewriting platform 
   returning.render('mobile').chooseMode('auto'); returning.setDevice(true);
   assert.equal(returning.render('mobile').theme, 'dark');
 });
+
+test('public mobile arrives translucent and respects a saved public accessibility choice', () => {
+  const platformKey = 'portalinknetworks.interfaceAppearance.mobile';
+  const publicKey = 'portalinknetworks.publicAppearance.mobile';
+  const storage = new Map([[platformKey, JSON.stringify({ reduceTranslucency: true, highContrast: true })]]);
+  const firstVisit = harness({ storage, namespace: 'public' });
+  assert.equal(firstVisit.render('mobile').reduceTranslucency, false);
+  assert.equal(firstVisit.render('mobile').highContrast, true);
+  firstVisit.render('mobile').chooseAppearance({ reduceTranslucency: true });
+  assert.equal(firstVisit.render('mobile').reduceTranslucency, true);
+  assert.equal(JSON.parse(storage.get(publicKey)).reduceTranslucency, true);
+  assert.equal(JSON.parse(storage.get(platformKey)).reduceTranslucency, true);
+  firstVisit.dispose();
+
+  const returning = harness({ storage, namespace: 'public' });
+  assert.equal(returning.render('mobile').reduceTranslucency, true);
+  returning.dispose();
+});
 const scopedKey = scope => `portalinknetworks.interfaceAppearance.${scope}`;
 const saved = (storage, scope = 'web') => JSON.parse(storage.get(scopedKey(scope)));
 function harness({ dark = false, legacy = false, storage = new Map(), blockedStorage = false, mediaAvailable = true, server = false, namespace = 'platform', eventHub } = {}) {
@@ -261,7 +279,7 @@ test('preboot chooses the same platform record and preserves legacy fallback for
     const storage = new Map([[DEVICE_KEY, 'dark'], [scopedKey('web'), '{"mode":"light"}'], [scopedKey('mobile'), '{"mode":"dark"}']]);
     const root = { dataset: {}, style: {}, toggleAttribute() {} };
     const window = { navigator: {}, location: { pathname: '/' }, localStorage: { getItem: key => storage.get(key) ?? null }, matchMedia: query => ({ matches: query.includes('639') && width <= 639 }) };
-    const run = () => vm.runInNewContext(bootstrap, { window, document: { documentElement: root, querySelectorAll: () => [] } });
+    const run = () => vm.runInNewContext(bootstrap, { URLSearchParams, window, document: { documentElement: root, querySelectorAll: () => [] } });
     run(); assert.equal(root.dataset.appearance, scope === 'web' ? 'light' : 'dark');
     for (const corrupt of ['{broken', '{"mode":"invalid"}']) {
       storage.set(scopedKey(scope), corrupt); run(); assert.equal(root.dataset.appearance, 'dark');

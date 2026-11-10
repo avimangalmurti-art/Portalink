@@ -83,8 +83,8 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
         {appearanceControls && <div className="public-profile-appearance-controls flex shrink-0 flex-col" role="group" aria-label="Catalogue appearance">
           <AppearanceSwitch label="High Contrast" isOn={appearanceControls.highContrast}
             onToggle={() => appearanceControls.onHighContrastChange(!appearanceControls.highContrast)} />
-          <AppearanceSwitch label="Translucency" isOn={!appearanceControls.reduceTranslucency}
-            onToggle={() => appearanceControls.onReduceTranslucencyChange(!appearanceControls.reduceTranslucency)} />
+          {!isMobile && <AppearanceSwitch label="Translucency" isOn={!appearanceControls.reduceTranslucency}
+            onToggle={() => appearanceControls.onReduceTranslucencyChange(!appearanceControls.reduceTranslucency)} />}
         </div>}
       </header>
       {!isJourney && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">

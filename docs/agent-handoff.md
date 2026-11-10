@@ -1,3 +1,14 @@
+## 2026-11-09 — Combined MOBILE reader, invite and shared catalogue release
+
+Release checkout `logs/mobile-reader-invite-catalogue-release` on `codex/mobile-reader-invite-catalogue-release`. It combines the three reviewed pending changes on live Sites 597 source `792ddbcdd3e8d82078059bad1801d870a9520a8c`, already at the head of draft PR #152 when work began. GitHub main was `3f2c9e8c59cf8a8a443f6b26d9ac9bdd7565ca54`. The isolated feature checkouts are preserved.
+
+- The normal mobile reader scrolls from the image cover into the project's single PDF, including shared catalogues. Explicit page links retain their targets. A slow PDF load preserves an active scroll, while a saved deep position still depends on layout becoming available within the restoration window.
+- The mobile invite entry uses the same off-white Hello World splash in light and dark mode before handing the browser surface back to the current appearance.
+- The mobile shared catalogue header shows High Contrast only. Translucency defaults to on, with saved public and OS accessibility preferences honored.
+- The Home scroll test fixture supplies the current opening context used by HomeFeed. The previously failing baseline tests now exercise their intended scroll ownership cases.
+
+This is a website release using the existing Sites project and D1 binding. There are no worker source, database, asset, dependency, or iOS changes. Build, browser, GitHub, archive and deployment receipts are tracked separately. Physical iPhone acceptance remains pending.
+
 ## 2026-11-09 — MOBILE Portal Search avatar glass
 
 The MOBILE Portal Search cards use the creator's avatar as a lazy, decorative, cover-cropped background. The cropped image is clipped to the card, uses the regular system blur and fades behind the existing title and byline. Missing and failed images fall back to the neutral card. App and OS Reduce Translucency and forced colors suppress the decoration. The change is local on `codex/mobile-home-reopen` and uses the existing portal directory and media delivery.
