@@ -1,6 +1,30 @@
 ## 2026-11-04 - ALL iOS TestFlight upload workflow (user-approved), unpublished
 
-Devin owned branch devin/ios-testflight, stacked on devin/capacitor-ios-shell (PR149). User confirmed bundle ID com.portalinknetworks.app and Apple Developer enrollment. Added .github/workflows/ios-testflight.yml (manual dispatch or ios-v* tag only, macos-15, excludes autosave/**; fails unless HEAD is on main or the head of an open PR against main): xcodebuild archive + exportArchive upload with automatic signing via an App Store Connect API key from repository secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY; build number = workflow run number. Added ios/App/ExportOptions.plist, ITSAppUsesNonExemptEncryption=false, iPhone-only device family, and the existing 1024 App Store icon (alpha removed) as AppIcon. No upload run yet; signing unverified. Universal Links for Auth email callbacks remain a follow-up. No SQL, Sites publish or worker deploy.
+Devin owned branch devin/ios-testflight, originally stacked on devin/capacitor-ios-shell (PR149, since merged; now targets main). User confirmed bundle ID com.portalinknetworks.app and Apple Developer enrollment. Added .github/workflows/ios-testflight.yml (manual dispatch or ios-v* tag only, macos-15, excludes autosave/**; fails unless HEAD is on main or the head of an open PR against main): xcodebuild archive + exportArchive upload with automatic signing via an App Store Connect API key from repository secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY; build number = workflow run number. Added ios/App/ExportOptions.plist, ITSAppUsesNonExemptEncryption=false, iPhone-only device family, and the existing 1024 App Store icon (alpha removed) as AppIcon. No upload run yet; signing unverified. Universal Links for Auth email callbacks remain a follow-up. No SQL, Sites publish or worker deploy.
+
+## Browser favicon squircle
+
+Task checkout `logs/portalite-favicon-squircle` on `codex/portalite-favicon-squircle`, based on GitHub `main` at `0430ec45544c0c702d688ba474bc599e6d369df5`. Applied the existing avatar squircle curve to the alpha channel of the four browser favicon PNGs and all four ICO frames. The original dimensions and RGB pixels were verified, and the main, catalogue and citation HTML entries use new content-hash versions. The Apple touch images and web app manifest were checked against the shipped files.
+
+Production build, both entry bundle checks, 33 focused tests, and 35 local HTTP requests passed. The in-app browser loaded the new favicon metadata and rendered the 96px favicon with the squircle silhouette. Local receipts are in `logs/favicon-qa`. Live publication is pending.
+
+## 2026-11-10 — ALL browser and installed-app icon package
+
+Task checkout `logs/portalite-icon-package` on `codex/portalite-icon-package`, based on GitHub `main` at `3eb84cdcf5fcafee2fb41bb140281b940d9d4cc2`. Installed the supplied corrected Portalite artwork as 15 byte-identical PNG/ICO exports in `public`. Updated favicon and four Apple touch-icon links in `index.html`, `share.html` and `cite.html`. Merged six standard/maskable icons into `public/site.webmanifest` while preserving all existing app identity and launch configuration. Every icon and manifest URL uses the established content-hash query version.
+
+Independent artwork validation decoded all 14 PNGs and all four ICO frames, confirmed the supplied SVGs' actual circle, shared meridian poles and uniform maskable transform, and checked padded artwork against the maskable safe circle. Native-size favicon inspection and 1024px normal/maskable previews passed. The built local HTTP preview verified 35 requests across three HTML entries, exact image bytes, dimensions, MIME types, revision values and manifest JSON. Browser DOM inspection confirmed the main metadata, and the master image displayed with equal width/height and no filter or transform.
+
+Typecheck, lint with zero errors and 111 existing warnings, the production client/worker build and both entry configuration guards passed. All 33 selected startup, caching, entry, citation and visitor checks passed. Ignored receipts are in `logs/portalite-icon-qa` and `logs/icon-*.txt`. Physical Apple Home Screen installation, Safari Add to Dock, and production URL checks await publication and device access. Source artwork masters remain in the supplied ZIP. This request implements and verifies the integration; publication and merge are separate steps.
+
+## 2026-11-10 — Combined WEB reader and catalogue release
+
+Release worktree `logs/desktop-reader-catalogue-release` on `codex/desktop-reader-catalogue-release`, based on GitHub `main` at `b47f47878c4ce3f7efbf1381a0bfde1ccf7d4df7`. That base has the same tree as Sites 600. The six individual worktrees remain available.
+
+- Desktop hover surfaces in Timeline, Studio and project lists use the sidebar's rounded treatment. The shared catalogue header and avatar previews use the mobile frosted treatment, honoring reduced transparency preferences.
+- The desktop shared catalogue opens at 10 projects per row for new visitors. Saved choices and the mobile default of two retain priority.
+- In the desktop project reader, viewers can set pages per row locally and switch between labeled Info and Comments controls. Each page's engagement controls are centered.
+
+An independent diff comparison matched all ten application files and five test files to the six task checkouts. Typecheck, lint with 111 existing warnings and zero errors, and the production build with both entry bundle guards passed. Browser evidence is in the individual worktrees' ignored QA logs. The combined regression, GitHub and deployment receipts are recorded in the release worktree's ignored `logs` directory. The existing Sites project and D1 binding are retained. No database migration, separate worker or iOS release is required.
 
 ## 2026-11-10 — MOBILE avatar preview caption
 

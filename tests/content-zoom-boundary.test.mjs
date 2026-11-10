@@ -61,7 +61,7 @@ function densityHarness({ readOnly = false, mobile = false } = {}) {
     addEventListener: (type, callback) => listeners.set(type, callback),
     removeEventListener: (type, callback) => { if (listeners.get(type) === callback) listeners.delete(type); },
   };
-  const react = { ...React, useCallback: fn => fn,
+  const react = { ...React, useCallback: fn => fn, useId: () => 'project-response-content',
     useRef(initial) { return slots[cursor++] ??= { current: initial }; },
     useState(initial) {
       const i = cursor++;

@@ -7,7 +7,7 @@ import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
 import { usePresentation, type Presentation } from '../../presentation/usePresentation';
 
 const DEFAULT_MOBILE_PROJECT_GRID_COLUMNS = 4;
-const DEFAULT_PUBLIC_CATALOGUE_PROJECT_GRID_COLUMNS = { mobile: 2, web: 7 };
+const DEFAULT_PUBLIC_CATALOGUE_PROJECT_GRID_COLUMNS = { mobile: 2, web: 10 };
 
 type DensityState = {
   columns: number;

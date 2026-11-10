@@ -16,7 +16,7 @@ import { copyPublicLink } from '../../utils/copyPublicLink';
 import { MobilePageContext } from '../../features/media-interactions/MobilePageContext';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import type { PagePosition } from './MobileProjectPageCounter';
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, ChevronLeftIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { PortalRingIcon } from '../PortalRingIcon';
 import { AttachmentRenderer } from './AttachmentRenderer';
@@ -173,6 +173,7 @@ export function ProjectMediaViewer({
    * that changes.
    */
   const [railPanel, setRailPanel] = useState<'comments' | 'description'>('comments');
+  const railContentId = useId();
   const [isProjectShared, setIsProjectShared] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
   const [areControlsVisible, setAreControlsVisible] = useState(true);
@@ -777,29 +778,28 @@ export function ProjectMediaViewer({
         </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
-        {/* One row: the engagement controls and the control that hides them. The
-           inline chip form is used here rather than the stacked panel, because a
-           row shared with a 40px button has height for one line, not two. */}
-        {/* Reading order: the control for the rail itself, then what the rail is
-           showing, then the actions on the work. Broadest scope first. */}
-        <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? 'engagement-panel-toolbar px-2' : 'justify-center px-1.5'}`}>
+        <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? (isOwner ? 'engagement-panel-toolbar px-2' : 'side-panel-control-row overflow-x-auto px-2') : 'justify-center px-1.5'}`}>
           <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide engagement and comments' : 'Show engagement and comments'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
           </button>
-          {/* The semantic colour and spoken label identify the destination of the
-             next press without adding a hover tooltip over the compact control. */}
-          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          {isRailOpen && (isOwner ? <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <InterfaceIcon icon={railPanel === 'comments' ? InfoIcon : MessageCircleIcon} size="lg" weight="medium" />
-            </button>}
-          {/* Offered only where it has something to do: the owner of the portal,
-             looking at a piece that genuinely holds more than one page. The
-             slider and its count carry the control on their own, with its name
-             in the accessible label and a tooltip — the same form the profile
-             grid's density control takes. */}
+            </button> : <>
+              <button type="button" data-ui-shape="action" aria-pressed={railPanel === 'description'} aria-controls={railContentId} onClick={() => setRailPanel('description')}
+                className="side-panel-header-control flex flex-auto items-center justify-center gap-1.5 whitespace-nowrap px-2 text-[13px] font-semibold">
+                <InterfaceIcon icon={InfoIcon} size="lg" weight="medium" />
+                <span>Info</span>
+              </button>
+              <button type="button" data-ui-shape="action" aria-pressed={railPanel === 'comments'} aria-controls={railContentId} onClick={() => setRailPanel('comments')}
+                className="side-panel-header-control flex flex-auto items-center justify-center gap-1.5 whitespace-nowrap px-2 text-[13px] font-semibold">
+                <InterfaceIcon icon={MessageCircleIcon} size="lg" weight="medium" />
+                <span>Comments</span>
+              </button>
+            </>)}
           {/* Acting on the work belongs where the work is being looked at, so these
              live here and NOT on the discovery or explore grids — a tile there is a
              way in to the project, not a place to respond to it. */}
-          {isRailOpen && <div className="engagement-toolbar-actions min-w-0">
+          {isRailOpen && <div data-project-rail-actions={isOwner ? undefined : ''} className={isOwner ? 'engagement-toolbar-actions min-w-0' : 'max-w-[28%] shrink-0'}>
               <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" isShared={isProjectShared} onShare={() => void shareProject()} />
             </div>}
         </div>
@@ -811,7 +811,7 @@ export function ProjectMediaViewer({
         {/* Closed, the rail carries nothing but its own control: the engagement
            controls remain available as a vertical icon rail, while the thread
            and prose are removed rather than squeezed into unreadable fragments. */}
-        {isRailOpen && <div className="side-panel-content-inset py-2">
+        {isRailOpen && <div id={isOwner ? undefined : railContentId} className="side-panel-content-inset py-2">
             {/* The conversation sits beside the work it is about, on the canonical
              project detail rather than on a page of its own. */}
             {railPanel === 'comments' ? <CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner} /> : <section className="flex flex-col gap-2.5">

@@ -294,7 +294,7 @@ test('mobile avatar preview follows the visible viewport and restores focus with
   assert.equal(h.viewport.listeners.size, 0);
 });
 
-test('web avatar retains its existing preview without mobile viewport subscriptions or decorative sibling', () => {
+test('web avatar uses a decorative backdrop without mobile viewport subscriptions', () => {
   const h = avatarHarness({ name: 'Synthetic Creator' }, { height: 300, offsetTop: 44 });
   const opener = h.find(h.render(), node => node.type === 'button');
   opener.element.focus();
@@ -306,8 +306,12 @@ test('web avatar retains its existing preview without mobile viewport subscripti
   assert.equal(dialog.element.style.getPropertyValue('--dialog-viewport-top'), '');
   assert.equal(h.viewport.listeners.size, 0);
   assert.equal(h.window.listeners.size, 0);
-  assert.equal(h.find(tree, node => node.props?.['data-avatar-preview-backdrop'] === ''), null);
+  const backdrop = h.find(tree, node => node.props?.['data-avatar-preview-backdrop'] === '');
+  assert.equal(backdrop.props['data-presentation'], 'web');
+  assert.equal(backdrop.props['aria-hidden'], 'true');
+  assert.equal(backdrop.props.role, undefined);
   dialog.props.onClick();
   h.render();
   assert.equal(h.document.activeElement, opener.element);
+  assert.equal(h.find(h.render(), node => node.props?.['data-avatar-preview-backdrop'] === ''), null);
 });

@@ -446,7 +446,7 @@ export function ProfileCategoryPage({
               </button>
               <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h2>
             </div>}
-            <div data-project-index-toolbar="" data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="side-panel-control-row side-panel-content-inset h-full min-w-0 flex-1">
+            <div data-project-index-toolbar="" data-viewer-page-layout={!sharedReadOnly && !showsOwnerTools ? '' : undefined} data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="side-panel-control-row side-panel-content-inset h-full min-w-0 flex-1">
               {mobileIndexOnly ? <>
                 <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
@@ -458,8 +458,9 @@ export function ProfileCategoryPage({
               {/* Page totals belong in project information, not the toolbar.
                  Keep the remaining controls aligned with the adjacent rails. */}
               {!mobileIndexOnly && <span aria-hidden="true" className="min-w-0 flex-1" />}
-              {showsOwnerTools && activePageCount !== null && activePageCount > 1 && <ProjectPagesPerRowControl value={pageLayoutDraft}
-                onChange={setPageLayoutDraft} onCommit={commitPageLayout} saving={typography.savingProjectId === activeProject?.id} />}
+              {!sharedReadOnly && activePageCount !== null && activePageCount > 1 && <ProjectPagesPerRowControl value={pageLayoutDraft}
+                onChange={setPageLayoutDraft} onCommit={showsOwnerTools ? commitPageLayout : undefined}
+                saving={showsOwnerTools && typography.savingProjectId === activeProject?.id} />}
               {sharedReadOnly && activePageCount !== null && activePageCount > 1 && <button data-shared-viewer-control="overview" data-borderless-control="" type="button" onClick={togglePageView} aria-label={isPageFocused ? 'Open page overview' : 'Return to selected page'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                   <InterfaceIcon icon={isPageFocused ? Grid2X2Icon : SquareIcon} weight="medium" />
                 </button>}

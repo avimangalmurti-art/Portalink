@@ -87,7 +87,7 @@ test('project header omits duplicate page totals but retains layout controls and
   const source = read(path);
   assert.equal(attributes(path, 'data-shared-page-count').result.length, 0);
   assert.ok(!source.includes('activePageLabel'));
-  assert.match(source, /<ProjectPagesPerRowControl value=\{pageLayoutDraft\}[\s\S]*?onCommit=\{commitPageLayout\}/);
+  assert.match(source, /<ProjectPagesPerRowControl value=\{pageLayoutDraft\}[\s\S]*?onCommit=\{showsOwnerTools \? commitPageLayout : undefined\}/);
   const sharedReader = read('../src/visitor/VisitorProjectPage.tsx');
   assert.match(sharedReader, /<ProjectPagesPerRowControl value=\{pagesPerRow\} onChange=\{setPagesPerRow\} \/>/);
   const slider = read('../src/components/media/ProjectPagesPerRowControl.tsx');

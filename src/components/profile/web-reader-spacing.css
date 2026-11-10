@@ -10,6 +10,12 @@
 #root .codex-shell[data-presentation='web'] [data-web-reader-spacing] [data-project-index-toolbar] {
   gap: 6px;
 }
+#root .codex-shell[data-presentation='web'] [data-web-reader-spacing] [data-viewer-page-layout] [data-pages-per-row-label] {
+  color: var(--mac-label-primary, var(--text-primary));
+}
+#root .codex-shell[data-presentation='web'] [data-web-reader-spacing] [data-project-response-rail] > .global-control-header > button[data-ui-shape='action'] {
+  --navigation-item-rest-surface: var(--navigation-surface);
+}
 #root .codex-shell[data-presentation='web'] [data-web-reader-spacing] [data-project-response-rail][data-rail-expanded='true'] > .global-control-header {
   padding-inline: 12px;
 }
@@ -20,7 +26,7 @@
   [data-presentation='web'][data-presentation] [data-web-reader-spacing] :is(
     [data-project-index-panel] .side-panel-header-icon,
     [data-project-index-panel] [data-structural-toggle],
-    [data-project-response-rail] > .global-control-header > button
+    [data-project-response-rail] > .global-control-header > button:where(:not([data-ui-shape='action']))
   ) {
     border-radius: var(--ui-icon-radius) !important;
   }

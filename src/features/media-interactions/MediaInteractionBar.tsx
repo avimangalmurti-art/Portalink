@@ -67,8 +67,15 @@ export function MediaInteractionBar({
   const counter = !isMobileFocused && placement === 'focused' && pageCount && pageCount > 1
     ? `${target.pageIndex + 1} / ${pageCount}` : null;
   const counterWidth = counter ? Math.min(Math.max(48, counter.length * 7 + 20), Math.max(0, (hostWidth - 24) * 0.4)) : 0;
+  const pageInset = placement === 'focused' ? 8 : 4;
   const layout = isMobileFocused ? mobileFocusedMediaToolbarLayout(hostWidth)
-    : mediaToolbarLayout(pageWidth, hostWidth, placement === 'focused' ? 8 : 4, counts, counter ? counterWidth + 8 : 0);
+    : mediaToolbarLayout(pageWidth, hostWidth, pageInset, counts, counter ? counterWidth + 8 : 0);
+  const actionColumns = isMobileFocused || !isOwner ? 4 : 3;
+  const minimumWidth = isMobileFocused ? 196 : actionColumns * 44;
+  // A dense desktop overview can be narrower than its buttons and their gaps.
+  const paddingAndGaps = (12 + (actionColumns - 1) * 4) * layout.unit;
+  const compactDesktopPage = !isMobile && placement === 'page' &&
+    Math.min(pageWidth, hostWidth) - pageInset * 2 < minimumWidth + paddingAndGaps;
 
   useEffect(() => {
     setCommentsOpen(false);
@@ -157,7 +164,7 @@ export function MediaInteractionBar({
     data-context-only={contextOnly || undefined}
     data-open={commentsOpen ? 'true' : undefined}
     className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-2 left-2 flex-col-reverse items-start' : 'bottom-1 left-1 flex-col-reverse items-start'}`}
-    style={{ maxWidth: `calc(100% - ${placement === 'focused' ? 16 : 8}px)` }}
+    style={{ maxWidth: `calc(100% - ${pageInset * 2}px)` }}
     onPointerDown={stop}
     onPointerUp={stop}
     onClick={stop}
@@ -171,8 +178,8 @@ export function MediaInteractionBar({
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
-      gridTemplateColumns: `repeat(${isMobileFocused ? 4 : isOwner ? 3 : 4}, minmax(44px, 1fr))`,
-        minWidth: isMobileFocused ? 196 : isOwner ? 132 : 176
+      gridTemplateColumns: `repeat(${actionColumns}, minmax(${compactDesktopPage ? '0px' : '44px'}, 1fr))`,
+      minWidth: compactDesktopPage ? 0 : minimumWidth
     } as React.CSSProperties}>
       {ACTIONS.map(({ kind, label, icon: Icon }, index) => {
         const engaged = activity.record.engaged[kind];
