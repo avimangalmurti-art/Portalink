@@ -5588,26 +5588,36 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   box-shadow: none !important;
 }
 
-/* Main and shared profiles use one glossy material on either screen size.
-   Mobile paints it on the decorative layer so its viewport-sized dialog stays clear. */
-:is(#root > .app-shell, [data-profile-avatar-host]) > :is([data-avatar-preview-scrim][data-presentation='web'], [data-avatar-preview-backdrop][data-presentation='mobile']) {
+/* Profile previews paint the frost separately from the dialog on both screen
+   sizes. The inline desktop welcome preview keeps its own dialog material. */
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-backdrop],
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-scrim][data-presentation='web']:not([data-avatar-preview-backdrop] + *) {
   background-color: rgba(0, 0, 0, 0.46) !important;
   background-image: linear-gradient(135deg, rgb(255 255 255 / 10%), transparent 45%, rgb(0 0 0 / 8%)) !important;
   -webkit-backdrop-filter: var(--material-blur-regular, blur(24px) saturate(125%)) !important;
   backdrop-filter: var(--material-blur-regular, blur(24px) saturate(125%)) !important;
 }
 
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-backdrop] {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-backdrop] + [data-avatar-preview-scrim] {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 /* Safari can paint the page beneath translucent browser controls outside the
    visual viewport. Its decorative backdrop covers that large viewport while
    the interactive preview follows the measured, safe visible screen. */
 :is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-backdrop][data-presentation='mobile'] {
-  position: fixed;
   inset: 0 0 auto;
-  z-index: 1000;
   width: 100%;
   height: 100vh;
   height: 100lvh;
-  pointer-events: none;
 }
 :is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-scrim][data-presentation='mobile'] {
   inset: var(--dialog-viewport-top, 0px) 0 auto !important;
@@ -5616,9 +5626,6 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   min-width: 0;
   min-height: 0;
   padding: max(24px, var(--safe-area-top, env(safe-area-inset-top, 0px))) max(24px, var(--safe-area-right, env(safe-area-inset-right, 0px))) max(24px, var(--safe-area-bottom, env(safe-area-inset-bottom, 0px))) max(24px, var(--safe-area-left, env(safe-area-inset-left, 0px)));
-  background-color: transparent !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
 }
 :is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-scrim][data-presentation='mobile'] > [data-avatar-preview] {
   max-height: 100% !important;

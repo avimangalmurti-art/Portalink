@@ -64,6 +64,15 @@
     border-radius: var(--ui-row-radius) !important;
   }
 
+  /* Match the sidebar curve on the controls that paint desktop row feedback. */
+  [data-presentation='web'][data-presentation] :is(
+    .journey-view :is(button.journey-title, .journey-portal, .journey-text-action, .journey-pair-grid > div > button:first-child),
+    [data-project-index-list] .project-index-row > button[data-preview-open],
+    [data-studio-row-surface] > button:not([data-studio-row-control])
+  ) {
+    border-radius: var(--ui-row-radius) !important;
+  }
+
   /* The existing painted group gets the capsule; its insets, targets, internal
      divisions and destinations stay under the feature's existing rules. */
   [data-presentation][data-presentation] :is(
