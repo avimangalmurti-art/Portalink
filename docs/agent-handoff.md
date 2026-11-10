@@ -1,3 +1,11 @@
+## 2026-11-10 — ALL browser and installed-app icon package
+
+Task checkout `logs/portalite-icon-package` on `codex/portalite-icon-package`, based on GitHub `main` at `3eb84cdcf5fcafee2fb41bb140281b940d9d4cc2`. Installed the supplied corrected Portalite artwork as 15 byte-identical PNG/ICO exports in `public`. Updated favicon and four Apple touch-icon links in `index.html`, `share.html` and `cite.html`. Merged six standard/maskable icons into `public/site.webmanifest` while preserving all existing app identity and launch configuration. Every icon and manifest URL uses the established content-hash query version.
+
+Independent artwork validation decoded all 14 PNGs and all four ICO frames, confirmed the supplied SVGs' actual circle, shared meridian poles and uniform maskable transform, and checked padded artwork against the maskable safe circle. Native-size favicon inspection and 1024px normal/maskable previews passed. The built local HTTP preview verified 35 requests across three HTML entries, exact image bytes, dimensions, MIME types, revision values and manifest JSON. Browser DOM inspection confirmed the main metadata, and the master image displayed with equal width/height and no filter or transform.
+
+Typecheck, lint with zero errors and 111 existing warnings, the production client/worker build and both entry configuration guards passed. All 33 selected startup, caching, entry, citation and visitor checks passed. Ignored receipts are in `logs/portalite-icon-qa` and `logs/icon-*.txt`. Physical Apple Home Screen installation, Safari Add to Dock, and production URL checks await publication and device access. Source artwork masters remain in the supplied ZIP. This request implements and verifies the integration; publication and merge are separate steps.
+
 ## 2026-11-10 — Combined WEB reader and catalogue release
 
 Release worktree `logs/desktop-reader-catalogue-release` on `codex/desktop-reader-catalogue-release`, based on GitHub `main` at `b47f47878c4ce3f7efbf1381a0bfde1ccf7d4df7`. That base has the same tree as Sites 600. The six individual worktrees remain available.
