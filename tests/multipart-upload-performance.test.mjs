@@ -40,6 +40,7 @@ function harness({ sessionError = null, importFailure = false } = {}) {
     if (name === './client') return { requireSupabase: () => client, requireSupabaseProjectUrl: () => 'https://test.supabase.co' };
     if (name === './contentServices') return { PROJECT_MEDIA_BUCKET: 'project-media' };
     if (name === './mediaProcessingReads') return { supabaseMediaProcessingReadService: {} };
+    if (name === './mobileUploadRecovery') return { clearMobileUploadHandles: async () => {}, mobileUploadObjectId: () => assert.fail('WEB must not hash recovery files'), mobileUploadUrlStorage: () => assert.fail('WEB must not persist recovery handles') };
     if (name === '../../../public/portalink-media-core.js') return core;
     if (name === './multipartMedia') return { ...core, ensureMultipartReader: async () => {},
       multipartSource: async (...args) => { virtual.push(args); return `virtual/${args[0]}`; },

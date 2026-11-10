@@ -284,6 +284,51 @@ test('requests publish no read, typing or reaction activity until acceptance', a
   hook.dispose();
 });
 
+test('rapid reaction taps share one write per message and a later tap can remove your reaction', async () => {
+  const first = deferred();
+  const second = deferred();
+  const calls = [];
+  const otherHeart = { emoji: '❤', count: 1, isMine: false };
+  const bothHearts = { emoji: '❤', count: 2, isMine: true };
+  const { hook } = setup({
+    listMessages: async () => ({ messages: [{ ...message('first'), reactions: [otherHeart] }, message('second')], before: null }),
+    toggleReaction: (id, emoji) => {
+      calls.push([id, emoji]);
+      if (calls.length === 1) return first.promise;
+      if (calls.length === 2) return second.promise;
+      return Promise.resolve([otherHeart]);
+    },
+  });
+  await hook.flush();
+  await hook.value.openConversation(a);
+  const settledPendingCheck = hook.value.isReactionPending;
+  hook.rerender();
+  assert.equal(hook.value.isReactionPending, settledPendingCheck, 'Unchanged thread renders retain the pending-state callback.');
+  const add = hook.value.toggleReaction('first', '❤');
+  assert.equal(await hook.value.toggleReaction('first', '❤'), false);
+  const differentMessage = hook.value.toggleReaction('second', '❤');
+  await hook.flush();
+  assert.notEqual(hook.value.isReactionPending, settledPendingCheck);
+  assert.equal(hook.value.isReactionPending('first'), true);
+  assert.equal(hook.value.isReactionPending('second'), true);
+  second.resolve([]);
+  assert.equal(await differentMessage, true);
+  await hook.flush();
+  assert.equal(hook.value.isReactionPending('first'), true);
+  assert.equal(hook.value.isReactionPending('second'), false);
+  assert.equal(await hook.value.toggleReaction('first', '❤'), false);
+  first.resolve([bothHearts]);
+  assert.equal(await add, true);
+  await hook.flush();
+  assert.equal(hook.value.isReactionPending('first'), false);
+  assert.equal(hook.value.messages.find(item => item.id === 'first').reactions[0], bothHearts);
+  assert.equal(await hook.value.toggleReaction('first', '❤'), true);
+  await hook.flush();
+  assert.equal(hook.value.messages.find(item => item.id === 'first').reactions[0], otherHeart);
+  assert.deepEqual(calls, [['first', '❤'], ['second', '❤'], ['first', '❤']]);
+  hook.dispose();
+});
+
 test('a request cannot optimistically send files or broadcast sender typing', async () => {
   const request = { ...a, status: 'request', requestedByViewer: true, isDraft: true };
   const sent = [];

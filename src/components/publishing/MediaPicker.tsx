@@ -1,6 +1,6 @@
 import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, BoxIcon, CheckIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, ArrowDownIcon, ArrowUpIcon, BoxIcon, CheckIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon, XIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { formatFileSize } from '../../features/publishing/mediaRules';
@@ -15,6 +15,8 @@ import { ModalPortal } from '../ui/ModalPortal';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { positionAnchoredMenu } from '../../utils/anchoredMenu';
 import { usePresentation } from '../../presentation/usePresentation';
+import { MobileReorderList, type MobileReorderActivator } from '../../presentation/mobile/MobileReorderList';
+import './onboarding-files-manager.css';
 
 const WEB_MEDIA_REORDER_TYPE = 'application/x-portalink-media-index';
 const hasFileDrop = (transfer: DataTransfer) => transfer.files.length > 0 || Array.from(transfer.types).includes('Files');
@@ -60,15 +62,28 @@ type MediaPickerProps = {
   compact?: boolean;
   /** The guided file step exposes its list without another disclosure. */
   expanded?: boolean;
+  /** Opt in to touch reorder controls inside the mobile file-management sheet. */
+  mobileFileManager?: boolean;
+  /** Show image tiles when reordering from Files & cover. */
+  reorderGrid?: boolean;
+  /** Scoped control geometry for the first-idea file manager and its portals. */
+  onboardingFiles?: boolean;
 };
 export function MediaPicker({
   media,
   upload,
   disabled = false,
   compact = false,
-  expanded = false
+  expanded = false,
+  mobileFileManager = false,
+  reorderGrid = false,
+  onboardingFiles = false
 }: MediaPickerProps) {
-  const isWeb = usePresentation() === 'web';
+  const presentation = usePresentation();
+  const isWeb = presentation === 'web';
+  const fileManager = mobileFileManager && !isWeb;
+  const showReorderGrid = fileManager && reorderGrid;
+  const filesLabelId = showReorderGrid ? 'mobile-publish-reorder-label' : 'publish-files-label';
   const addRef = useRef<HTMLInputElement>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceTargetRef = useRef<string | null>(null);
@@ -98,7 +113,15 @@ export function MediaPicker({
     replaceRef.current?.click();
   };
   const collapsed = compact && !expanded && items.length > 0 && !showsFiles;
-  return <section aria-labelledby="publish-files-label" data-compact-files={compact || undefined}
+  const renderAsset = (item: PreparedMedia, index: number, gridActivator?: MobileReorderActivator) => <AssetRow key={item.id}
+    asset={item} index={index} total={items.length} disabled={isLocked} webDragEnabled={isWeb} mobileFileManager={fileManager} gridActivator={gridActivator}
+    onboardingFiles={onboardingFiles} presentation={presentation} transport={upload ? {
+      phase: upload.phase,
+      item: upload.itemProgress[item.id] ?? null
+    } : null} onReorder={media.reorder} onSetCover={() => media.setCoverPage(item.id, item.metadata?.coverPageNumber ?? 1, item.metadata?.pageCount)}
+    onReplace={() => requestReplace(item.id)} onRename={title => media.rename(item.id, title)} onRemove={() => media.remove(item.id)} />;
+  return <section aria-labelledby={filesLabelId} data-compact-files={compact || undefined} data-mobile-file-manager={fileManager || undefined}
+    data-mobile-file-grid={showReorderGrid || undefined} data-onboarding-files-manager={onboardingFiles || undefined} data-presentation={onboardingFiles ? presentation : undefined}
     data-web-file-picker={isWeb ? '' : undefined} data-file-drag-over={isWeb && isDragOver && !isLocked && !media.isFull ? '' : undefined}
     onDragOverCapture={isWeb ? (event) => {
       if (!hasFileDrop(event.dataTransfer)) return;
@@ -122,21 +145,22 @@ export function MediaPicker({
     } : undefined}
     className={`project-form-media ${items.length > 0 ? 'project-form-media--populated' : ''}`}>
       {compact && !expanded && items.length > 0 ? <div className="flex items-center justify-between gap-3">
-        <span id={collapsed ? 'publish-files-label' : undefined} className="text-[13px] text-[var(--text-secondary)]">{items.length} {items.length === 1 ? 'file' : 'files'} selected</span>
+        <span id={collapsed ? filesLabelId : undefined} className="text-[13px] text-[var(--text-secondary)]">{items.length} {items.length === 1 ? 'file' : 'files'} selected</span>
         <button id="publish-add-files" type="button" aria-expanded={showsFiles} onClick={() => setShowsFiles((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{showsFiles ? 'Done' : disabled ? 'View files' : 'Edit files'}</button>
       </div> : null}
       {!collapsed && <>
-      <div className="flex items-center justify-between gap-3">
-        <h3 id="publish-files-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Project files</h3>
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-3" data-file-manager-header={fileManager || undefined}>
+        <h3 id={filesLabelId} className="text-[13px] font-semibold text-[var(--text-primary)]">{showReorderGrid ? `${items.length} ${items.length === 1 ? 'file' : 'files'} selected` : 'Project files'}</h3>
+        <div className="flex items-center gap-1" data-onboarding-files-header-actions={onboardingFiles || undefined}>
           {items.length > 0 && <Button variant="secondary" size="sm" disabled={isLocked || media.isFull} onClick={() => addRef.current?.click()}><InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />Add</Button>}
-          <ProjectFilesMenu triggerRef={fileOptionsRef} hasFiles={items.length > 0} locked={isLocked} showsRequirements={showsFormats} onRequirements={() => setShowsFormats((open) => !open)} onRemoveAll={() => setIsRemovingAll(true)} />
+          <ProjectFilesMenu triggerRef={fileOptionsRef} hasFiles={items.length > 0} locked={isLocked} showsRequirements={showsFormats} onRequirements={() => setShowsFormats((open) => !open)} onRemoveAll={() => setIsRemovingAll(true)} onboardingFiles={onboardingFiles} presentation={presentation}/>
         </div>
       </div>
+      {showReorderGrid && items.length > 1 && <p className="mobile-file-grid-hint">Hold and drag to reorder.</p>}
       {isRemovingAll && <ConfirmationDialog title="Remove all files?" description="All selected files will be removed from this draft. Your published projects will stay unchanged." confirmLabel="Remove all files" cancelLabel="Keep files" variant="destructive" confirmDisabled={isLocked} onCancel={()=>setIsRemovingAll(false)} onConfirm={()=>{media.clear();setIsRemovingAll(false);}}/>}
 
       {/* One hidden input for adding, one for replacing a specific row. */}
-      <input ref={addRef} type="file" multiple className="sr-only" aria-labelledby="publish-files-label" disabled={disabled} onChange={(event) => {
+      <input ref={addRef} type="file" multiple className="sr-only" aria-labelledby={filesLabelId} disabled={disabled} onChange={(event) => {
       media.select(event.target.files);
       event.target.value = '';
     }} />
@@ -155,25 +179,25 @@ export function MediaPicker({
       if (!disabled) {
         media.select(event.dataTransfer.files);
       }
-    }} className={`project-media-dropzone flex flex-col items-center justify-center gap-2 rounded-[12px] border px-4 py-3 text-center transition-colors duration-150 motion-reduce:transition-none ${isDragOver ? 'border-[var(--accent-color)] bg-[var(--surface-sunken)]' : 'border-[var(--hairline-strong)] bg-[var(--surface-inset)]'}`}>
+    }} className={`project-media-dropzone flex flex-col items-center justify-center gap-2 rounded-[12px] border px-4 py-3 text-center transition-colors duration-[var(--m-fast)] motion-reduce:transition-none ${isDragOver ? 'border-[var(--accent-color)] bg-[var(--surface-sunken)]' : 'border-[var(--hairline-strong)] bg-[var(--surface-inset)]'}`}>
           <Button id="publish-add-files" variant="secondary" size="sm" disabled={disabled} onClick={() => addRef.current?.click()}>
             <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
             Choose files
           </Button>
           <p className="text-[13px] text-[var(--text-secondary)]">{compact ? 'Choose photos, videos or documents from your device.' : 'or drop files here'}</p>
         </div> : <div className="project-media-selection">
+          {showReorderGrid ? <MobileReorderList items={items} label="Project files, in presentation order" layout="grid" disabled={isLocked}
+            className="mobile-file-reorder-grid scrollbar-slim" itemClassName="mobile-file-grid-item"
+            onReorder={(_reordered, { from, to }) => media.reorder(from, to)}
+            renderItem={(item, activator) => renderAsset(item, items.indexOf(item), activator)} /> :
           <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
-          {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} webDragEnabled={isWeb} transport={upload ? {
-        phase: upload.phase,
-        // Per-file progress only when the service attributes bytes to files.
-        item: upload.itemProgress[item.id] ?? null
-      } : null} onReorder={media.reorder} onSetCover={() => media.setCoverPage(item.id, item.metadata?.coverPageNumber ?? 1, item.metadata?.pageCount)} onReplace={() => requestReplace(item.id)} onRename={(title) => media.rename(item.id, title)} onRemove={() => media.remove(item.id)} />)}
-          </ul>
+            {items.map((item, index) => renderAsset(item, index))}
+          </ul>}
           {isWeb && !isLocked && !media.isFull && <p className="mt-2 text-[13px] text-[var(--text-secondary)]">Drop more files here, or choose Add.</p>}
         </div>}
 
       {showsFormats && <div ref={requirementsRef} tabIndex={-1} role="group" aria-label="File requirements" className="rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-3 outline-none">
-        <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[12px] font-semibold text-[var(--text-secondary)]">File requirements</p><button type="button" aria-label="Close file requirements" onClick={() => { setShowsFormats(false); fileOptionsRef.current?.focus(); }} className="shape-compact flex h-6 w-6 items-center justify-center text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><XIcon className="h-3.5 w-3.5" aria-hidden="true" /></button></div>
+        <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[12px] font-semibold text-[var(--text-secondary)]">File requirements</p><button type="button" aria-label="Close file requirements" data-ui-shape={onboardingFiles ? 'icon' : undefined} data-control-size={onboardingFiles ? 'sm' : undefined} onClick={() => { setShowsFormats(false); fileOptionsRef.current?.focus(); }} className="shape-compact flex h-6 w-6 items-center justify-center text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><XIcon className="h-3.5 w-3.5" aria-hidden="true" /></button></div>
         <p className="mb-2 text-[12px] leading-relaxed text-[var(--text-secondary)]">File size follows your current storage allowance. Large files upload in resumable parts. For sharp full-screen covers, use images at least 1600 px on the longest edge. Original files and their embedded colour profiles are preserved.</p>
         <dl className="m-0 grid grid-cols-1 gap-x-4 gap-y-1.5 text-[12px] leading-relaxed sm:grid-cols-2">
           {supportedFormatGroups.map((group) => <div key={group.title} className="min-w-0">
@@ -207,7 +231,7 @@ export function MediaPicker({
           {/* The value is the service's, and the text alongside it carries the
            same information for anyone not seeing the bar. */}
           <div role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined} aria-valuetext={percent === null ? 'Progress not reported yet' : `${percent}%`} className="h-1 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
-            <div className="h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-200 ease-out motion-reduce:transition-none" style={{
+            <div className="h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none" style={{
           width: `${percent ?? 0}%`
         }} />
           </div>
@@ -286,6 +310,10 @@ function AssetRow({
   total,
   disabled,
   webDragEnabled,
+  mobileFileManager,
+  gridActivator,
+  onboardingFiles,
+  presentation,
   transport,
   onReorder,
   onSetCover,
@@ -309,9 +337,10 @@ function AssetRow({
 
 
 
-}: {asset: PreparedMedia;index: number;total: number;disabled: boolean;webDragEnabled: boolean;transport: {phase: MediaUpload['phase'];item: {fraction: number;state: UploadItemState;} | null;} | null;onReorder: (fromIndex: number, toIndex: number) => void;onSetCover: () => void;onReplace: () => void;onRename: (title: string) => void;onRemove: () => void;}) {
+}: {asset: PreparedMedia;index: number;total: number;disabled: boolean;webDragEnabled: boolean;mobileFileManager: boolean;gridActivator?: MobileReorderActivator;onboardingFiles: boolean;presentation: 'mobile' | 'web';transport: {phase: MediaUpload['phase'];item: {fraction: number;state: UploadItemState;} | null;} | null;onReorder: (fromIndex: number, toIndex: number) => void;onSetCover: () => void;onReplace: () => void;onRename: (title: string) => void;onRemove: () => void;}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const rowRef = useRef<HTMLLIElement>(null);
+  const tileRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState<ReturnType<typeof positionAnchoredMenu> | null>(null);
@@ -355,14 +384,46 @@ function AssetRow({
       return undefined;
     }
     const close = (event: MouseEvent) => {
-      if (!rowRef.current?.contains(event.target as Node) && !menuRef.current?.contains(event.target as Node)) {
+      if (!(rowRef.current ?? tileRef.current)?.contains(event.target as Node) && !menuRef.current?.contains(event.target as Node)) {
         setIsMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [isMenuOpen]);
-  return <li ref={rowRef} draggable={!disabled} onDragStart={(event) => {
+  const optionsLabel = `Options for ${asset.displayTitle}`;
+  const options = <>
+    <button ref={triggerRef} type="button" disabled={disabled} data-ui-shape={onboardingFiles ? 'icon' : undefined} data-control-size={onboardingFiles ? 'sm' : undefined}
+      onClick={() => setIsMenuOpen(open => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={optionsLabel}
+      className={gridActivator ? 'mobile-file-grid-options' : 'flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none'}>
+      <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
+    </button>
+    {isMenuOpen && <ModalPortal><div ref={menuRef} tabIndex={-1} role="menu" aria-label={optionsLabel} data-onboarding-files-manager={onboardingFiles || undefined}
+      data-presentation={onboardingFiles ? presentation : undefined} data-ui-shape={onboardingFiles ? 'popup' : undefined} style={menuPosition ?? { visibility: 'hidden' }}
+      className="fixed z-[100] w-[184px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] py-1 shadow-[0_12px_28px_rgba(15,23,42,0.2)] outline-none">
+      {gridActivator && index > 0 && <MenuAction label="Move earlier" onboardingFiles={onboardingFiles} onSelect={() => { onReorder(index, index - 1); setIsMenuOpen(false); }} />}
+      {gridActivator && index < total - 1 && <MenuAction label="Move later" onboardingFiles={onboardingFiles} onSelect={() => { onReorder(index, index + 1); setIsMenuOpen(false); }} />}
+      {coverEligible && !asset.isCover && <MenuAction label="Set as cover" onboardingFiles={onboardingFiles} onSelect={() => { onSetCover(); setIsMenuOpen(false); }} />}
+      <MenuAction label="Rename" onboardingFiles={onboardingFiles} onSelect={() => {
+        setIsMenuOpen(false);
+        const next = window.prompt('Display title', asset.displayTitle);
+        if (next !== null) onRename(next);
+      }} />
+      <MenuAction label="Replace" onboardingFiles={onboardingFiles} onSelect={() => { setIsMenuOpen(false); onReplace(); }} />
+      <MenuAction label="Remove" onboardingFiles={onboardingFiles} onSelect={() => { setIsMenuOpen(false); onRemove(); }} />
+    </div></ModalPortal>}
+  </>;
+
+  if (gridActivator) return <div ref={tileRef} className="mobile-file-grid-tile">
+    <button {...gridActivator} type="button" className="mobile-file-grid-preview" disabled={disabled || total < 2}
+      aria-label={`${index + 1} of ${total}: ${asset.displayTitle}`}>
+      {asset.previewUrl && asset.family === 'image' ? <ResponsiveImage src={asset.previewUrl} decorative /> : <Icon aria-hidden="true" size={28} />}
+      <span className="mobile-file-grid-position" aria-hidden="true"><GripVerticalIcon size={14} />{index + 1}</span>
+    </button>
+    {options}
+  </div>;
+
+  return <li ref={rowRef} data-media-file-row={mobileFileManager || undefined} data-onboarding-file-row={onboardingFiles || undefined} data-ui-shape={onboardingFiles ? 'row' : undefined} draggable={!disabled} onDragStart={(event) => {
     if (webDragEnabled) {
       if (disabled) { event.preventDefault(); return; }
       event.dataTransfer.setData(WEB_MEDIA_REORDER_TYPE, String(index));
@@ -380,11 +441,11 @@ function AssetRow({
     }
   }} className="relative flex items-center gap-2.5 rounded-[10px] border border-transparent bg-[var(--surface-inset)] p-2">
       {/* Reorder: drag, or arrow keys for anyone not using a pointer. */}
-      <span aria-hidden="true" className={`shrink-0 text-[var(--text-tertiary)] ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}`}>
-        <GripVerticalIcon className="h-4 w-4" />
+      <span aria-hidden="true" data-file-order={mobileFileManager ? index + 1 : undefined} className={`shrink-0 text-[var(--text-tertiary)] ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}`}>
+        {mobileFileManager ? index + 1 : <GripVerticalIcon className="h-4 w-4" />}
       </span>
-      <button type="button" disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Up</button>
-      <button type="button" disabled={disabled || index === total - 1} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Down</button>
+      {!mobileFileManager && <><button type="button" data-ui-shape={onboardingFiles ? 'action' : undefined} disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Up</button>
+      <button type="button" data-ui-shape={onboardingFiles ? 'action' : undefined} disabled={disabled || index === total - 1} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Down</button></>}
 
       {asset.previewUrl && asset.family === 'image' ? <ResponsiveImage src={asset.previewUrl} alt={`Local preview of ${asset.fileName}`} width={40} height={40} sizes="40px" className="h-10 w-10 shrink-0 rounded-[7px] object-cover" /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[7px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
           <Icon className="h-4 w-4" />
@@ -402,52 +463,37 @@ function AssetRow({
              moving, not about server-side conversion afterwards. */}
           {transportState ? ` · ${transportState}` : ''}
         </p>
-        {resolutionNotice && <p role="status" className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">{resolutionNotice}</p>}
+        {resolutionNotice && !mobileFileManager && <p role="status" className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">{resolutionNotice}</p>}
         {/* A per-file bar only when the service attributes bytes to this file. */}
         {transport?.item?.state === 'uploading' && <span role="progressbar" aria-label={`Upload progress for ${asset.displayTitle}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(transport.item.fraction * 100)} className="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
-            <span className="block h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-200 ease-out motion-reduce:transition-none" style={{
+            <span className="block h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none" style={{
           width: `${Math.round(transport.item.fraction * 100)}%`
         }} />
           </span>}
       </div>
 
-      <div className="shrink-0">
-        <button ref={triggerRef} type="button" disabled={disabled} onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${asset.displayTitle}`} className="flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
-          <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
-        </button>
-        {isMenuOpen && <ModalPortal><div ref={menuRef} tabIndex={-1} role="menu" aria-label={`Options for ${asset.displayTitle}`} style={menuPosition ?? { visibility: 'hidden' }} className="fixed z-[100] w-[184px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] py-1 shadow-[0_12px_28px_rgba(15,23,42,0.2)] outline-none">
-            {/* Only actions that make sense for this asset. */}
-            {coverEligible && !asset.isCover && <MenuAction label="Set as cover" onSelect={() => {
-          onSetCover();
-          setIsMenuOpen(false);
-        }} />}
-            <MenuAction label="Rename" onSelect={() => {
-          setIsMenuOpen(false);
-          const next = window.prompt('Display title', asset.displayTitle);
-          if (next !== null) {
-            onRename(next);
-          }
-        }} />
-            <MenuAction label="Replace" onSelect={() => {
-          setIsMenuOpen(false);
-          onReplace();
-        }} />
-            <MenuAction label="Remove" onSelect={() => {
-          setIsMenuOpen(false);
-          onRemove();
-        }} />
-          </div></ModalPortal>}
-      </div>
+      <div className="shrink-0">{options}</div>
+      {mobileFileManager && <div className="mobile-file-row-actions">
+        {resolutionNotice && <details className="mobile-file-quality">
+          <summary>Check resolution</summary>
+          <p>{resolutionNotice}</p>
+        </details>}
+        <div className="mobile-file-reorder-controls">
+          <button type="button" disabled={disabled || index === 0} data-ui-shape={onboardingFiles ? 'icon' : undefined} data-control-size={onboardingFiles ? 'sm' : undefined} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`}>{onboardingFiles ? <InterfaceIcon icon={ArrowUpIcon} size="sm"/> : <ArrowUpIcon size={18} aria-hidden="true" />}</button>
+          <button type="button" disabled={disabled || index === total - 1} data-ui-shape={onboardingFiles ? 'icon' : undefined} data-control-size={onboardingFiles ? 'sm' : undefined} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`}>{onboardingFiles ? <InterfaceIcon icon={ArrowDownIcon} size="sm"/> : <ArrowDownIcon size={18} aria-hidden="true" />}</button>
+        </div>
+      </div>}
     </li>;
 }
 function MenuAction({
   label,
-  onSelect
+  onSelect,
+  onboardingFiles = false
 
 
 
-}: {label: string;onSelect: () => void;}) {
-  return <button type="button" role="menuitem" onClick={onSelect} className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
+}: {label: string;onSelect: () => void;onboardingFiles?: boolean;}) {
+  return <button type="button" role="menuitem" data-ui-shape={onboardingFiles ? 'row' : undefined} onClick={onSelect} className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
       {label}
     </button>;
 }

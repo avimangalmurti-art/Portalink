@@ -6,6 +6,8 @@ import type { EngagementKind } from '../types/engagement';
 import type { NavigationDestination } from '../components/navigation';
 import type { Id } from '../types/domain';
 import { beginProjectContinuity } from '../utils/projectContinuity';
+import { withCataloguePageTarget } from '../features/profile/cataloguePageNavigation';
+import type { Presentation } from '../presentation/usePresentation';
 
 /**
  * The URL, read as a destination.
@@ -55,7 +57,7 @@ export type AppRoute = {
   categoryId: Id;
   projectId: Id;
 } | {
-  /** One of the viewer's own engagement collections: Likes, Saved, Reposts. */
+  /** One of the viewer's own engagement collections: Likes or Saved. */
   kind: 'activity';
   profileId: Id;
   activityKind: EngagementKind;
@@ -64,6 +66,8 @@ export type AppRoute = {
   projectId: Id;
 } | {
   kind: 'portals';
+} | {
+  kind: 'portalSearch';
 } | {
   kind: 'insights';
 } | {
@@ -84,15 +88,26 @@ export type AppRoute = {
 };
 
 /**
- * Destinations that genuinely require an account, as opposed to ones that merely
- * belong to a creator. Reading a public profile, category, or project is open to
- * guests; these are the account itself and the creator's own tools.
+ * Explicit shared-link routes and browser preferences remain public. Every
+ * ordinary app destination, including Home, requires an account.
  */
-export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['messages', 'saved', 'notifications', 'insights', 'profileEditor']);
+export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['home', 'messages', 'saved', 'notifications', 'insights', 'profileEditor', 'search', 'portalSearch', 'portalink', 'profile', 'category', 'project', 'activity', 'collaboration', 'item', 'portals', 'studio']);
+
+const retiredCalendarPath = '/p/:profileId/socal';
 
 /** What the person was reaching for, for the auth gate's wording. */
 export function describeRoute(route: AppRoute): string {
   switch (route.kind) {
+    case 'search':
+      return 'search accounts';
+    case 'portalSearch':
+      return 'search public portals';
+    case 'portalink':
+      return 'explore Portalink';
+    case 'profile': case 'category': case 'activity': case 'collaboration':
+      return 'explore this creator';
+    case 'project': case 'item':
+      return 'open this project';
     case 'profileEditor':
       return 'edit your profile';
     case 'studio':
@@ -111,6 +126,7 @@ export function describeRoute(route: AppRoute): string {
 }
 function parse(pathname: string, search: string): AppRoute {
   if (matchPath(routes.profileEditor.path, pathname)) return { kind: 'profileEditor' };
+  if (matchPath(retiredCalendarPath, pathname)) return { kind: 'portalSearch' };
   for (const kind of ['collaboration', 'sharedCollaboration'] as const) {
     const match = matchPath(routes[kind].path, pathname);
     if (match?.params.profileId) return { kind, profileId: match.params.profileId };
@@ -209,6 +225,7 @@ function parse(pathname: string, search: string): AppRoute {
   }
   if (matchPath(routes.saved.path, pathname)) return { kind: 'saved' };
   if (matchPath(routes.notifications.path, pathname)) return { kind: 'notifications' };
+  if (matchPath(routes.portalSearch.path, pathname)) return { kind: 'portalSearch' };
   if (matchPath(routes.portals.path, pathname)) {
     return {
       kind: 'portals'
@@ -259,7 +276,9 @@ export function useAppRoute(): AppRoute {
   // `/discover` is retained as a compatibility address for the old discovery
   // surface. Global discovery now has the explicit `/search` address.
   useEffect(() => {
-    if (matchPath(routes.discovery.path, pathname)) {
+    if (matchPath(retiredCalendarPath, pathname)) {
+      navigate(routes.portalSearch.path, { replace: true });
+    } else if (matchPath(routes.discovery.path, pathname)) {
       navigate(routes.search.path, { replace: true });
     }
   }, [navigate, pathname]);
@@ -270,7 +289,7 @@ export function useAppRoute(): AppRoute {
  * Navigation, expressed as destinations rather than state mutations. Every path
  * comes from the route map, so a template only ever exists in one place.
  */
-export function useRouteNavigator() {
+export function useRouteNavigator(presentation: Presentation = 'web') {
   const navigate = useNavigate();
   const location = useLocation();
   const locationRef = useRef(location);
@@ -288,9 +307,9 @@ export function useRouteNavigator() {
     search: (query: string, replace = false) => navigate(query ? `${routes.search.path}?q=${encodeURIComponent(query)}` : routes.search.path, {
       replace
     }),
-    profile: (profileId: Id) => navigate(buildPath('profile', {
+    profile: (profileId: Id, revealPublishedProjectId?: Id) => navigate(buildPath('profile', {
       profileId
-    })),
+    }), revealPublishedProjectId ? { state: { revealPublishedProjectId } } : undefined),
     collaboration: (profileId: Id, shared = false) => {
       const current = locationRef.current;
       navigate(buildPath(shared ? 'sharedCollaboration' : 'collaboration', { profileId }), {
@@ -337,11 +356,11 @@ export function useRouteNavigator() {
     })),
     sharedProject: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
       const viewTransition = !replace && beginProjectContinuity(projectId);
-      navigate(buildPath('sharedProject', {
+      navigate(withCataloguePageTarget(buildPath('sharedProject', {
         profileId,
         categoryId,
         projectId
-      }), {
+      }), projectId, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), {
         replace,
         viewTransition
       });
@@ -357,31 +376,34 @@ export function useRouteNavigator() {
      */
     project: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
       const viewTransition = !replace && beginProjectContinuity(projectId);
-      navigate(buildPath('project', {
+      navigate(withCataloguePageTarget(buildPath('project', {
         profileId,
         categoryId,
         projectId
-      }), {
+      }), projectId, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), {
         replace,
         viewTransition
       });
     },
-    /** The URL says `likes`/`saved`/`reposts`; the domain says like/save/repost. */
-    activity: (profileId: Id, activityKind: EngagementKind) => navigate(buildPath('activity', {
-      profileId,
-      activityKind: activitySlugForKind(activityKind)
-    })),
+    /** The URL says `likes`/`saved`; the domain says like/save. */
+    activity: (profileId: Id, activityKind: EngagementKind) => {
+      const slug = activitySlugForKind(activityKind);
+      if (!slug) return;
+      navigate(buildPath('activity', { profileId, activityKind: slug }));
+    },
     item: (projectId: Id) => navigate(buildPath('productDetail', {
       productId: projectId
     })),
     portals: () => navigate(routes.portals.path),
+    portalSearch: () => navigate(routes.portalSearch.path),
     insights: () => navigate(routes.insights.path),
     studio: () => navigate(routes.studio.path),
-    messages: (conversationId?: Id, replace = false, recipientId?: Id) => {
+    messages: (conversationId?: Id, replace = false, recipientId?: Id, state?: Record<string, unknown>) => {
       const params = new URLSearchParams();
       if (conversationId) params.set('conversation', conversationId);
       if (recipientId) params.set('recipient', recipientId);
-      navigate(`${routes.messages.path}${params.size ? `?${params.toString()}` : ''}`, { replace });
+      const entryState = state ?? (locationRef.current.pathname === routes.messages.path ? locationRef.current.state : undefined);
+      navigate(`${routes.messages.path}${params.size ? `?${params.toString()}` : ''}`, { replace, ...(entryState ? { state: entryState } : {}) });
     },
     controlCenter: () => {
       const current = locationRef.current;
@@ -404,7 +426,7 @@ export function useRouteNavigator() {
       replace,
       viewTransition
     })
-  }), [navigate]);
+  }), [navigate, presentation]);
 }
 
 /**

@@ -22,8 +22,8 @@ export const manifest = {
   sections: {
     sec_5d7rdo: { name: "Main navigation", x: 0, y: 0, width: 2920, height: 1180 },
     sec_hwyffk: { name: "Discovery", x: 0, y: 1980, width: 2920, height: 1180 },
-    sec_0y855t: { name: "Creator portfolio", x: 0, y: 3960, width: 4320, height: 1180 },
-    sec_0tbpmh: { name: "Project portfolio", x: 0, y: 5940, width: 1520, height: 1180 },
+    sec_0y855t: { name: "Creator catalogue", x: 0, y: 3960, width: 4320, height: 1180 },
+    sec_0tbpmh: { name: "Project catalogue", x: 0, y: 5940, width: 1520, height: 1180 },
     sec_sxnenk: { name: "Creator profile", x: 0, y: 7920, width: 2920, height: 1180 },
     sec_pmpmdp: { name: "Creator shop", x: 0, y: 9900, width: 4320, height: 1180 },
     sec_pzgyfr: { name: "Product details", x: 0, y: 11880, width: 11320, height: 1180 },

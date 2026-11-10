@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -77,6 +78,7 @@ function harness({ reducedMotion = false, inert = false, width = 312, onEscape, 
     exports, document, Element, HTMLElement: Element,
     requestAnimationFrame: callback => { frames.push(callback); return frames.length; },
     require(name) {
+    if(name.endsWith('/motion/motion')) return motionFixture;
     if (name === 'react') return react;
     if (name === 'framer-motion') return motion;
     if (name === 'lucide-react') return { PanelLeftOpenIcon: 'open-icon', PanelLeftCloseIcon: 'close-icon' };
@@ -116,6 +118,7 @@ function harness({ reducedMotion = false, inert = false, width = 312, onEscape, 
       return key;
     },
     open() { opener(tree).props.onClick(); render(); return finish(); },
+    setProps(changes) { Object.assign(props, changes); render(); return render(); },
     navigate(pathname, search = '') { location = { pathname, search }; render(); return render(); },
     unmount() { for (const slot of slots) slot?.cleanup?.(); },
   };
@@ -147,7 +150,7 @@ test('edge contact captures immediately so a first move beyond the narrow edge s
     assert.equal(h.workspace.inert, false);
     // Pointer capture delivers this sample after the pointer has crossed into the workspace.
     h.fire('onPointerMoveCapture', h.event(168, 101, 300, pointer));
-    assert.equal(panel(h.render()).props.style.x.get(), '-50%');
+    assert.equal(panel(h.render()).props.style.opacity.get(), 0.5);
     h.fire('onPointerUpCapture', h.event(168, 101, 500, pointer));
     assert.equal(h.finish().props['data-visible'], true);
     h.unmount();
@@ -173,7 +176,7 @@ test('vertical, canceled, lost-capture and multi-touch gestures return to their 
       h.fire('onPointerUpCapture', h.event(initiallyOpen ? 0 : 312, 100, 50));
       const tree = h.finish();
       assert.equal(tree.props['data-visible'], initiallyOpen, `${mode} must not change the committed drawer state`);
-      assert.equal(panel(tree).props.style.x.get(), initiallyOpen ? '0%' : '-100%');
+      assert.equal(panel(tree).props.style.opacity.get(), initiallyOpen ? 1 : 0);
       h.unmount();
     }
   }
@@ -235,7 +238,7 @@ test('pathname and query changes cancel active dragging and close immediately; u
     h.fire('onPointerMoveCapture', h.event(150, 102, 30));
     let tree = h.navigate(changed === 'pathname' ? '/share/creator/c/photos' : '/share/creator', changed === 'search' ? '?page=2' : '');
     assert.equal(tree.props['data-visible'], false);
-    assert.equal(panel(tree).props.style.x.get(), '-100%');
+    assert.equal(panel(tree).props.style.opacity.get(), 0);
     assert.equal(h.workspace.inert, false);
     h.fire('onPointerUpCapture', h.event(312, 100, 50));
     tree = h.finish();
@@ -255,8 +258,11 @@ test('viewport opener disappears while navigation is open and returns after outs
   const h = harness();
   assert.equal(opener(h.render()).props['aria-label'], 'Open profile navigation');
   h.open();
+  assert.equal(h.animations.at(-1).options.duration, 0.18, 'Shared progress settles both the scrim fade and panel slide within 180ms');
   assert.equal(opener(h.render()), undefined);
   h.outsideBinding.close();
+  assert.equal(h.animations.at(-1).options.duration, 0.18, 'Closing uses the same bounded progress animation');
+  assert.equal(h.render().props['data-visible'], true, 'Navigation remains mounted until the closing motion finishes');
   assert.equal(h.finish().props['data-visible'], false);
   assert.equal(opener(h.render()).props['aria-label'], 'Open profile navigation');
   h.unmount();
@@ -271,4 +277,40 @@ test('reader and settings entries have no sidebar opener or opening gesture', ()
   assert.equal(h.render().props['data-visible'], false);
   assert.equal(h.render().props.children.some(child => child?.props?.className === 'mobile-shared-drawer-edge'), false);
   h.unmount();
+});
+
+test('portal Back requests reopen the drawer once, without replay after dismissal or enable cycles', () => {
+  for (const reducedMotion of [false, true]) {
+    const h = harness({ reducedMotion }), request = {};
+    h.setProps({ openRequest: request });
+    assert.equal(h.finish().props['data-visible'], true);
+    h.outsideBinding.close();
+    assert.equal(h.finish().props['data-visible'], false);
+    h.setProps({ enabled: false });
+    h.setProps({ enabled: true, openRequest: request });
+    assert.equal(h.finish().props['data-visible'], false, 'A consumed request cannot reopen a dismissed drawer.');
+    h.setProps({ openRequest: {} });
+    assert.equal(h.finish().props['data-visible'], true, 'A later Back activation creates a new opening request.');
+    h.unmount();
+  }
+});
+
+test('disabled and route-invalidated drawer requests never reopen navigation later', () => {
+  const disabled = harness({ enabled: false }), ignoredRequest = {};
+  disabled.setProps({ openRequest: ignoredRequest });
+  assert.equal(disabled.finish().props['data-visible'], false);
+  disabled.setProps({ enabled: true });
+  assert.equal(disabled.finish().props['data-visible'], false, 'Reader/settings restrictions discard an ineligible request.');
+  disabled.unmount();
+
+  for (const change of ['pathname', 'search']) {
+    const h = harness(), request = {};
+    h.setProps({ openRequest: request }); h.finish();
+    const tree = h.navigate(change === 'pathname' ? '/share/another-creator' : '/share/creator',
+      change === 'search' ? '?settings=1' : '');
+    assert.equal(tree.props['data-visible'], false, `${change} changes close a previously requested drawer.`);
+    h.setProps({ openRequest: request });
+    assert.equal(h.finish().props['data-visible'], false, 'The old request cannot replay on the new location.');
+    h.unmount();
+  }
 });

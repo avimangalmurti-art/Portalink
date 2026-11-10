@@ -1,0 +1,417 @@
+.catalog-welcome {
+  --catalog-welcome-background: #fff;
+  --catalog-welcome-foreground: #0a0a0a;
+  --focus-ring: var(--catalog-welcome-foreground);
+  --catalog-welcome-top: max(24px, env(safe-area-inset-top, 0px));
+  --catalog-welcome-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  position: fixed;
+  isolation: isolate;
+  z-index: 11000;
+  inset-inline: 0;
+  top: var(--dialog-viewport-top, 0px);
+  width: 100%;
+  height: var(--dialog-viewport-height, 100dvh);
+  min-height: 0;
+  padding: var(--catalog-welcome-top) max(32px, env(safe-area-inset-right, 0px)) var(--catalog-welcome-bottom) max(32px, env(safe-area-inset-left, 0px));
+  display: flex;
+  justify-content: center;
+  background: var(--catalog-welcome-background);
+  color: var(--catalog-welcome-foreground);
+  color-scheme: light;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.catalog-welcome .catalog-welcome-map {
+  --catalog-welcome-map-width: max(100vw, calc(var(--dialog-viewport-height, 100dvh) * 30 / 7));
+  position: fixed;
+  z-index: 0;
+  inset-inline: 0;
+  top: var(--dialog-viewport-top, 0px);
+  height: var(--dialog-viewport-height, 100dvh);
+  overflow: hidden;
+  background: #0752ff;
+  clip-path: circle(0 at 50% calc(100% - var(--catalog-welcome-bottom) - 48px));
+  opacity: 0;
+  pointer-events: none;
+  transition: clip-path var(--m-slow) var(--m-enter), opacity var(--m-fast) var(--m-enter);
+}
+
+.catalog-welcome .catalog-welcome-world-track {
+  position: absolute;
+  left: calc(50% - var(--catalog-welcome-map-width) / 2);
+  top: 0;
+  width: calc(var(--catalog-welcome-map-width) * 2);
+  height: 100%;
+  background: #0752ff url('/welcome/world-map.svg?v=places-1') left center / var(--catalog-welcome-map-width) auto repeat-x;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.catalog-welcome[data-map-revealed='true'] {
+  --catalog-welcome-foreground: #fff;
+  scrollbar-color: rgb(0 0 0 / 80%) #0752ff;
+}
+
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-map {
+  clip-path: circle(150vmax at 50% calc(100% - var(--catalog-welcome-bottom) - 48px));
+  opacity: 1;
+}
+
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-world-track {
+  animation: catalog-welcome-map-spin var(--world-film-duration) linear infinite;
+}
+
+.catalog-welcome-world-copy {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--catalog-welcome-map-width);
+  height: 100%;
+  overflow: hidden;
+  color: #fff5bc;
+}
+
+.catalog-welcome-world-copy[data-world-copy='1'] { left: var(--catalog-welcome-map-width); }
+.catalog-world-link, .catalog-world-idea-link { stroke: #fff5bc; stroke-width: .65; }
+.catalog-world-link-glow { stroke-width: 3; stroke-opacity: .16; }
+.catalog-world-city-halo { fill: #fff5bc; opacity: .18; }
+.catalog-world-city-light, .catalog-world-satellite { fill: #fff5bc; }
+.catalog-world-idea-disc { fill: #06266a; stroke: #fff5bc; stroke-width: .55; }
+.catalog-world-industry, .catalog-world-idea { color: #fff5bc; }
+.catalog-world-portal-ground, .catalog-world-portal-aura { fill: #fff5bc; opacity: .16; }
+.catalog-world-portal-window { fill: #06266a; fill-opacity: .94; stroke: #fff5bc; stroke-width: .85; }
+.catalog-world-portal-contour, .catalog-world-portal-horizon { fill: none; stroke: #fff5bc; stroke-width: .35; opacity: .5; }
+.catalog-world-portal { transform-box: fill-box; transform-origin: center; }
+.catalog-world-idea-link { stroke-width: .9; }
+.catalog-world-idea-ring { fill: none; stroke: #fff5bc; stroke-width: .65; opacity: 0; }
+
+.catalog-welcome[data-map-revealed='true'] .catalog-world-link {
+  stroke-dasharray: 1;
+  animation: catalog-world-link-film var(--world-film-duration) linear var(--world-delay, 0ms) infinite both;
+}
+.catalog-welcome[data-map-revealed='true'] .catalog-world-city {
+  animation: catalog-world-city-film var(--world-film-duration) linear var(--world-delay, 0ms) infinite both;
+}
+.catalog-welcome[data-map-revealed='true'] .catalog-world-portal {
+  animation: catalog-world-portal-film var(--world-film-duration) ease-in-out var(--world-portal-delay) infinite both;
+}
+.catalog-welcome[data-map-revealed='true'] .catalog-world-portal-ground {
+  animation: catalog-world-portal-light var(--world-film-duration) ease-in-out var(--world-portal-delay) infinite both;
+}
+.catalog-world-idea-link { stroke-dasharray: 1; animation: catalog-world-connect .7s ease-out both; }
+.catalog-world-idea-ring { transform-box: fill-box; transform-origin: center; animation: catalog-world-ripple 1.4s ease-out both; }
+
+@keyframes catalog-world-connect { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes catalog-world-link-film {
+  0% { stroke-dashoffset: 1; opacity: 0; }
+  12%, 65% { stroke-dashoffset: 0; opacity: 1; }
+  88% { stroke-dashoffset: 0; opacity: .15; }
+  98% { stroke-dashoffset: 0; opacity: 0; }
+  100% { stroke-dashoffset: 1; opacity: 0; }
+}
+@keyframes catalog-world-city-film {
+  0%, 100% { opacity: .15; }
+  8%, 70% { opacity: 1; }
+}
+@keyframes catalog-world-portal-film {
+  0%, 24%, 100% { opacity: 0; transform: scaleX(.04) scaleY(.75); }
+  6% { opacity: .4; transform: scaleX(.08) scaleY(.9); }
+  10% { opacity: .85; transform: scaleX(.45) scaleY(.95); }
+  12%, 16% { opacity: 1; transform: scaleX(1) scaleY(1); }
+  20% { opacity: .6; transform: scaleX(.12) scaleY(.9); }
+}
+@keyframes catalog-world-portal-light {
+  0%, 24%, 100% { opacity: 0; }
+  12%, 16% { opacity: .22; }
+}
+@keyframes catalog-world-ripple { from { opacity: .9; transform: scale(.5); } to { opacity: 0; transform: scale(7); } }
+
+.catalog-welcome .catalog-welcome-layout {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  width: 100%;
+  max-width: 600px;
+  min-width: 0;
+  min-height: calc(var(--dialog-viewport-height, 100dvh) - var(--catalog-welcome-top) - var(--catalog-welcome-bottom));
+  display: grid;
+  grid-template-rows: minmax(min-content, 1fr) auto;
+  row-gap: clamp(32px, 6dvh, 64px);
+}
+
+.catalog-welcome .catalog-welcome-copy {
+  align-self: center;
+  min-width: 0;
+  padding-block: clamp(64px, 10dvh, 104px) 16px;
+}
+
+.catalog-welcome[data-complete='true'] .catalog-welcome-layout {
+  grid-template-rows: 1fr;
+}
+
+.catalog-welcome[data-complete='true'] .catalog-welcome-copy {
+  display: none;
+}
+
+.catalog-welcome[data-complete='true'] { cursor: crosshair; }
+
+.catalog-welcome-controls { position: fixed; z-index: 2; top: max(20px, env(safe-area-inset-top, 0px)); left: max(24px, env(safe-area-inset-left, 0px)); right: max(24px, env(safe-area-inset-right, 0px)); display: flex; justify-content: space-between; gap: 16px; }
+.catalog-welcome-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid currentColor; border-radius: 999px; background: var(--catalog-welcome-background); color: var(--catalog-welcome-foreground); font: inherit; font-size: 14px; cursor: pointer; touch-action: manipulation; }
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-controls button { background: #050505; color: #fff; border-color: rgb(255 255 255 / 65%); }
+.catalog-welcome-controls button:focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
+.catalog-welcome[data-world-paused='true'] .catalog-welcome-map * { animation-play-state: paused !important; }
+
+.catalog-welcome .catalog-welcome-headline {
+  margin: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: clamp(2.5rem, calc(2rem + 2.6vw), 4.75rem);
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -.045em;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.catalog-welcome .catalog-welcome-support {
+  margin: clamp(24px, 3.5dvh, 36px) 0 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: clamp(1.25rem, calc(1.125rem + .45vw), 1.375rem);
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -.015em;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.catalog-welcome .catalog-welcome-line {
+  display: block;
+}
+
+.catalog-welcome .catalog-welcome-line-ink {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Outline the glyphs over ocean and land without painting a text panel. */
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-line-ink {
+  color: #fff;
+  -webkit-text-stroke: 1.5px #001432;
+  paint-order: stroke fill;
+  text-shadow: 0 1px 2px #001432;
+}
+
+/* Move the reserved line as one layer: glyph advances and wrapping stay intact. */
+.catalog-welcome[data-instant='false'] .catalog-welcome-line {
+  transform: translateY(.12em);
+  transition: transform var(--m-slow) var(--m-enter);
+}
+
+.catalog-welcome[data-instant='false'] .catalog-welcome-line[data-started='true'] {
+  transform: translateY(0);
+}
+
+.catalog-welcome .catalog-welcome-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.catalog-welcome .catalog-welcome-glyph {
+  position: relative;
+  display: inline;
+}
+
+/* Visibility reserves each character's full advance from the first frame. */
+.catalog-welcome [data-revealed='false'] {
+  visibility: hidden;
+}
+
+.catalog-welcome [data-revealed='true'] {
+  visibility: visible;
+}
+
+/* The insertion point occupies no extra width and cannot change wrapping. */
+.catalog-welcome .catalog-welcome-cursor {
+  position: relative;
+  display: inline;
+  visibility: visible;
+}
+
+.catalog-welcome .catalog-welcome-cursor[data-before='true'] {
+  position: static;
+}
+
+.catalog-welcome .catalog-welcome-cursor::after {
+  content: '';
+  position: absolute;
+  left: .035em;
+  bottom: -.035em;
+  width: .055em;
+  height: .84em;
+  background: currentColor;
+  animation: catalog-welcome-cursor calc(var(--m-slow) * 4) step-end infinite;
+  pointer-events: none;
+}
+
+.catalog-welcome .catalog-welcome-action {
+  align-self: end;
+  min-width: 0;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--m-base) var(--m-enter);
+}
+
+.catalog-welcome .catalog-welcome-action[data-ready='true'] {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.catalog-welcome[data-instant='false'] .catalog-welcome-action[data-ready='true'] {
+  animation: catalog-welcome-action-arrive var(--m-slow) var(--m-enter) both;
+}
+
+.catalog-welcome[data-complete='false'] .catalog-welcome-action {
+  pointer-events: none;
+}
+
+.catalog-welcome[data-instant='true'] .catalog-welcome-line,
+.catalog-welcome[data-instant='true'] .catalog-welcome-map,
+.catalog-welcome[data-instant='true'] .catalog-welcome-action {
+  animation: none;
+  transition: none;
+}
+
+.catalog-welcome .catalog-welcome-start {
+  box-sizing: border-box;
+  display: flex;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 96px;
+  margin: 0;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: #050505;
+  color: #fff;
+  font-family: inherit;
+  font-size: 1.25rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform var(--m-fast) var(--m-enter), box-shadow var(--m-fast) var(--m-enter);
+}
+
+.catalog-welcome .catalog-welcome-start-label {
+  display: block;
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+
+.catalog-welcome .catalog-welcome-start:focus-visible {
+  outline: 3px solid var(--catalog-welcome-foreground);
+  outline-offset: 4px;
+}
+
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-start {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 70%);
+}
+
+.catalog-welcome[data-map-revealed='true'] .catalog-welcome-start:focus-visible {
+  outline-color: #050505;
+  box-shadow: 0 0 0 4px #fff, inset 0 0 0 1px rgb(255 255 255 / 70%);
+}
+
+.catalog-welcome .catalog-welcome-start:active {
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 40%);
+  transform: scale(.98);
+}
+
+.catalog-welcome .catalog-welcome-start:disabled { opacity: 1; }
+
+@keyframes catalog-welcome-action-arrive {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes catalog-welcome-map-spin {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(0px - var(--catalog-welcome-map-width))); }
+}
+
+@keyframes catalog-welcome-cursor {
+  0%, 48% { visibility: visible; }
+  49%, 100% { visibility: hidden; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .catalog-welcome {
+    --catalog-welcome-background: #080808;
+    --catalog-welcome-foreground: #fff;
+    color-scheme: dark;
+  }
+}
+
+@media (min-width: 640px) {
+  .catalog-welcome {
+    --catalog-welcome-top: max(40px, env(safe-area-inset-top, 0px));
+    --catalog-welcome-bottom: max(40px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 359px) {
+  .catalog-welcome {
+    padding-inline: max(24px, env(safe-area-inset-left, 0px)) max(24px, env(safe-area-inset-right, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-welcome .catalog-welcome-playback { display: none; }
+  .catalog-welcome .catalog-welcome-map,
+  .catalog-welcome .catalog-welcome-world-track,
+  .catalog-welcome .catalog-welcome-line,
+  .catalog-welcome .catalog-welcome-action,
+  .catalog-welcome .catalog-welcome-start {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  .catalog-welcome .catalog-welcome-cursor::after {
+    animation: none;
+  }
+  .catalog-welcome .catalog-welcome-action {
+    transition: none;
+  }
+  .catalog-world-link, .catalog-world-city, .catalog-world-portal, .catalog-world-portal-ground, .catalog-world-idea-link, .catalog-world-idea-ring {
+    animation: none !important;
+    stroke-dashoffset: 0;
+    transform: none;
+  }
+}

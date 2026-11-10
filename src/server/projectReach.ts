@@ -87,19 +87,19 @@ export function validateReachPayload(value: unknown): ReachPayload | null {
         return null;
     return Object.fromEntries(keys.map(key => [key, row[key]])) as ReachPayload;
 }
-export async function boundedReachBody(request: Request): Promise<unknown> {
-    if (Number(request.headers.get('content-length')) > 1024)
+export async function boundedReachBody(request: Request, maxBytes = 1024): Promise<unknown> {
+    if (Number(request.headers.get('content-length')) > maxBytes)
         throw reachJson({ error: 'Payload too large.' }, 413);
     if (!request.body)
         throw reachJson({ error: 'Invalid payload.' }, 400);
-    const reader = request.body.getReader(), bytes = new Uint8Array(1024);
+    const reader = request.body.getReader(), bytes = new Uint8Array(maxBytes);
     let size = 0;
     try {
         for (;;) {
             const chunk = await reader.read();
             if (chunk.done)
                 break;
-            if (size + chunk.value.byteLength > 1024) {
+            if (size + chunk.value.byteLength > maxBytes) {
                 await reader.cancel();
                 throw reachJson({ error: 'Payload too large.' }, 413);
             }
@@ -302,6 +302,33 @@ function groupPageActions(actions: Action[]): Action[][] {
 export function coalescePageActions(actions: Action[]): Notification[] {
     return groupPageActions(actions).map(group => { const first = group[0], last = group[group.length - 1]; return { id: `d1:page:${first.id}`, body: pageActionCopy(first.actor_name, first.kind, first.page_index, first.project_title, first.heading ?? undefined, new Set(group.map(a => a.actor_profile_id)).size), timestamp: last.at, isUnread: true, kind: 'system', targetPath: first.target_path, actorProfileId: group.length === 1 ? first.actor_profile_id : null }; });
 }
+type NotificationRevision = { id: string; revision: string };
+type WeeklyNote = { project_id: string; week_key: string; at: string; opened: number; finished: number };
+const notificationUuid = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
+const notificationId = new RegExp(`^d1:(page:${notificationUuid}|week:\\d{4}-\\d{2}-\\d{2}:${notificationUuid})$`);
+const dismissedActionId = (id: string) => `d1:dismiss:action:${id}`;
+const dismissedWeeklyId = (id: string) => `d1:dismiss:${id.slice(3)}`;
+function notificationRevision(value: unknown): value is NotificationRevision {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const row = value as Record<string, unknown>;
+    return Object.keys(row).length === 2 && Object.keys(row).every(key => key === 'id' || key === 'revision')
+        && typeof row.id === 'string' && notificationId.test(row.id)
+        && typeof row.revision === 'string' && row.revision.length <= 40 && Number.isFinite(Date.parse(row.revision));
+}
+async function notificationState(db: ReachDatabase, account: string, projects: ProjectRow[]) {
+    const since = new Date(Date.now() - 30 * DAY).toISOString(), allowed = new Set(projects.map(project => project.id));
+    const [actions, weekly, read] = await Promise.all([
+        db.prepare('SELECT * FROM project_page_actions WHERE owner_account_id=? AND at>=? ORDER BY at DESC LIMIT 1000').bind(account, since).all<Action>(),
+        db.prepare('SELECT project_id,week_key,at,opened,finished FROM project_weekly_notes WHERE owner_account_id=? AND at>=?').bind(account, since).all<WeeklyNote>(),
+        db.prepare('SELECT id,revision FROM project_notification_reads WHERE owner_account_id=?').bind(account).all<NotificationRevision>(),
+    ]);
+    const markers = new Map((read.results ?? []).map(row => [row.id, row.revision]));
+    const ownedActions = (actions.results ?? []).filter(action => allowed.has(action.project_id));
+    // Hide individual revisions before grouping: removing a save or changing the
+    // representative ID cannot bring previously dismissed actions back.
+    return { markers, ownedActions, actions: ownedActions.filter(action => markers.get(dismissedActionId(action.id)) !== action.at),
+        weekly: (weekly.results ?? []).filter(row => allowed.has(row.project_id)) };
+}
 async function summaries(db: ReachDatabase, projects: ProjectRow[], now = Date.now(), period: ReadPeriod = '30d'): Promise<ReachSummary[]> {
     const result: ReachSummary[] = [];
     for (let offset = 0; offset < projects.length; offset += 6)
@@ -350,31 +377,54 @@ export async function handleReachRead(request: Request, db: ReachDatabase | unde
         if (url.pathname === '/api/reach/projects' && request.method === 'GET')
             return reachJson(await summaries(db, projects, Date.now(), period).then(rows => rows.sort((a, b) => b.opened - a.opened)));
         if (url.pathname === '/api/reach/notifications' && request.method === 'GET') {
-            const allowed = new Map(projects.map(p => [p.id, p])), since = new Date(Date.now() - 30 * DAY).toISOString();
-            const [actions, weekly, read] = await Promise.all([
-                db.prepare('SELECT * FROM project_page_actions WHERE owner_account_id=? AND at>=? ORDER BY at DESC LIMIT 1000').bind(user.id, since).all<Action>(),
-                db.prepare('SELECT project_id,week_key,at,opened,finished FROM project_weekly_notes WHERE owner_account_id=? AND at>=?').bind(user.id, since).all<{
-                    project_id: string;
-                    week_key: string;
-                    at: string;
-                    opened: number;
-                    finished: number;
-                }>(),
-                db.prepare('SELECT id,revision FROM project_notification_reads WHERE owner_account_id=?').bind(user.id).all<{
-                    id: string;
-                    revision: string;
-                }>(),
-            ]);
-            const visibleActions=(actions.results??[]).filter(action=>allowed.has(action.project_id));
-            const groups=new Map(groupPageActions(visibleActions).map(group=>[`d1:page:${group[0].id}`,group]));
-            const acknowledgements=new Map((read.results??[]).map(row=>[row.id,row.revision]));
-            const notes = coalescePageActions(visibleActions);
-            for (const row of weekly.results ?? []) {
-                const project = allowed.get(row.project_id);
-                if (project)
-                    notes.push({ id: `d1:week:${row.week_key}:${row.project_id}`, body: `${row.finished} reads of ${project.title} reached the end this week.`, timestamp: row.at, isUnread: true, kind: 'system', targetPath: `/insights?project=${row.project_id}` });
+            const state = await notificationState(db, user.id, projects), allowed = new Map(projects.map(project => [project.id, project]));
+            const groups = new Map(groupPageActions(state.actions).map(group => [`d1:page:${group[0].id}`, group]));
+            const notes = coalescePageActions(state.actions);
+            for (const row of state.weekly) {
+                const id = `d1:week:${row.week_key}:${row.project_id}`, project = allowed.get(row.project_id);
+                if (project && state.markers.get(dismissedWeeklyId(id)) !== row.at)
+                    notes.push({ id, body: `${row.finished} reads of ${project.title} reached the end this week.`, timestamp: row.at, isUnread: true, kind: 'system', targetPath: `/insights?project=${row.project_id}` });
             }
-            return reachJson(notes.map(note => ({ ...note, isUnread: groups.has(note.id) ? (groups.get(note.id)??[]).some(action=>acknowledgements.get(`d1:action:${action.id}`)!==action.at) : acknowledgements.get(note.id)!==note.timestamp })).sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 100));
+            return reachJson(notes.map(note => ({ ...note, isUnread: groups.has(note.id) ? (groups.get(note.id)??[]).some(action=>state.markers.get(`d1:action:${action.id}`)!==action.at) : state.markers.get(note.id)!==note.timestamp })).sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 100));
+        }
+        if (url.pathname === '/api/reach/dismiss' && request.method === 'POST') {
+            const body = await boundedReachBody(request, 16 * 1024) as { notifications?: unknown };
+            if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 1
+                || !Array.isArray(body.notifications) || body.notifications.length < 1 || body.notifications.length > 100
+                || !body.notifications.every(notificationRevision))
+                return reachJson({ error: 'Invalid dismissal.' }, 400);
+            const state = await notificationState(db, user.id, projects), groups = groupPageActions(state.actions);
+            const dismissed: NotificationRevision[] = [], statements: ReachStatement[] = [], at = new Date().toISOString();
+            const selected = new Map(body.notifications.map(entry => [`${entry.id}/${entry.revision}`, entry]));
+            for (const entry of selected.values()) {
+                if (entry.id.startsWith('d1:page:')) {
+                    const actionId = entry.id.slice('d1:page:'.length);
+                    const anchor = state.ownedActions.find(action => action.id === actionId);
+                    const group = groups.find(actions => actions.some(action => action.id === actionId));
+                    if (group) {
+                        // A newer coalesced event is not part of the selected snapshot.
+                        // Retain its revision even when it uses the same visible group ID.
+                        if (!group.some(action => action.at === entry.revision) || !anchor || anchor.at > entry.revision) continue;
+                        statements.push(db.prepare(`INSERT INTO project_notification_reads(owner_account_id,id,revision,read_at)
+                          SELECT owner_account_id,'d1:dismiss:action:'||id,at,? FROM project_page_actions
+                          WHERE owner_account_id=? AND project_id=? AND attachment_id=? AND page_index=? AND kind=? AND (kind='save' OR id=?) AND at>=? AND at<=?
+                          ON CONFLICT(owner_account_id,id) DO UPDATE SET revision=excluded.revision,read_at=excluded.read_at`)
+                          .bind(at, user.id, anchor.project_id, anchor.attachment_id, anchor.page_index, anchor.kind, anchor.id, anchor.at, entry.revision));
+                    } else if (anchor && (anchor.at > entry.revision || state.markers.get(dismissedActionId(anchor.id)) !== anchor.at)) continue;
+                } else {
+                    const row = state.weekly.find(note => `d1:week:${note.week_key}:${note.project_id}` === entry.id);
+                    if (row) {
+                        if (row.at !== entry.revision) continue;
+                        statements.push(db.prepare('INSERT INTO project_notification_reads(owner_account_id,id,revision,read_at) VALUES(?,?,?,?) ON CONFLICT(owner_account_id,id) DO UPDATE SET revision=excluded.revision,read_at=excluded.read_at')
+                          .bind(user.id, dismissedWeeklyId(entry.id), row.at, at));
+                    }
+                }
+                // Already absent snapshots are idempotent and never create markers
+                // for another account's identifiers or erase a newer revision.
+                dismissed.push(entry);
+            }
+            if (statements.length) await db.batch(statements);
+            return reachJson({ dismissed });
         }
         if (url.pathname === '/api/reach/read' && request.method === 'POST') {
             const body = await boundedReachBody(request) as {
@@ -384,8 +434,8 @@ export async function handleReachRead(request: Request, db: ReachDatabase | unde
             if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !['id', 'revision'].includes(k)) || typeof body.id !== 'string' || !/^d1:(page:[a-f0-9-]{36}|week:\d{4}-\d{2}-\d{2}:[a-f0-9-]{36})$/.test(body.id) || typeof body.revision !== 'string' || !Number.isFinite(Date.parse(body.revision)))
                 return reachJson({ error: 'Invalid acknowledgement.' }, 400);
             if(body.id.startsWith('d1:page:')) {
-                const rows=await db.prepare('SELECT * FROM project_page_actions WHERE owner_account_id=? AND at>=? ORDER BY at DESC LIMIT 1000').bind(user.id,new Date(Date.now()-30*DAY).toISOString()).all<Action>();
-                const group=groupPageActions((rows.results??[]).filter(action=>projects.some(p=>p.id===action.project_id))).find(g=>`d1:page:${g[0].id}`===body.id);
+                const state = await notificationState(db, user.id, projects);
+                const group=groupPageActions(state.actions).find(g=>`d1:page:${g[0].id}`===body.id);
                 // Acknowledge the displayed actions, not a mutable aggregate ID. An
                 // unsave must never turn a previously read remaining save into a badge.
                 if(group?.some(action=>action.at===body.revision)) {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { DndContext, KeyboardCode, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type CollisionDetection } from '@dnd-kit/core';
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, rectSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
 
@@ -12,16 +12,17 @@ export type MobileReorderActivator = React.ButtonHTMLAttributes<HTMLButtonElemen
 
 /** Hold the destination itself to move it; menus and inputs remain ordinary controls. */
 export function MobileReorderList<T extends { id: string }>({
-  items, label, disabled = false, className, itemClassName, groupForItem,
+  items, label, disabled = false, className, itemClassName, groupForItem, layout = 'list',
   onReorder, renderItem,
 }: {
   items: T[];
+  layout?: 'list' | 'grid';
   label: string;
   disabled?: boolean;
   className: string;
   itemClassName?: string;
   groupForItem?: (item: T) => string;
-  onReorder: (items: T[]) => void;
+  onReorder: (items: T[], move: { from: number; to: number }) => void;
   renderItem: (item: T, activator: MobileReorderActivator, actions: MobileReorderActions) => React.ReactNode;
 }) {
   // TouchSensor cancels when scrolling begins before the hold. Unlike disabling
@@ -43,7 +44,7 @@ export function MobileReorderList<T extends { id: string }>({
   const moveAction = (index: number, delta: -1 | 1) => {
     const destination = index + delta;
     if (disabled || destination < 0 || destination >= items.length || (groupForItem && groupForItem(items[index]) !== groupForItem(items[destination]))) return undefined;
-    return () => onReorder(arrayMove(items, index, destination));
+    return () => onReorder(arrayMove(items, index, destination), { from: index, to: destination });
   };
   return <DndContext sensors={sensors} collisionDetection={collisionDetection}
     accessibility={{ screenReaderInstructions: { draggable: 'Hold to move. With a keyboard, press Space, use the arrow keys to reposition, and press Space to save. Press Escape to cancel.' } }}
@@ -54,9 +55,9 @@ export function MobileReorderList<T extends { id: string }>({
       if (from < 0 || to < 0 || (groupForItem && groupForItem(items[from]) !== groupForItem(items[to]))) return;
       // Sortable previews movement with transforms. Only release writes an order,
       // so cancellation is reversible and one gesture cannot race multiple saves.
-      onReorder(arrayMove(items, from, to));
+      onReorder(arrayMove(items, from, to), { from, to });
     }}>
-    <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
+    <SortableContext items={items.map(item => item.id)} strategy={layout === 'grid' ? rectSortingStrategy : verticalListSortingStrategy}>
       <ul aria-label={label} className={className}>
         {items.map((item, index) => <MobileReorderRow key={item.id} id={item.id} disabled={disabled || items.length < 2} className={itemClassName}>
           {activator => renderItem(item, activator, { moveUp: moveAction(index, -1), moveDown: moveAction(index, 1) })}

@@ -12,7 +12,7 @@ const record = (changes = {}) => ({
   ...changes,
 });
 
-function setup({ enabled = true } = {}) {
+function setup({ enabled = true, window } = {}) {
   const reads = [], writes = [];
   const auth = { isAuthenticated: true, user: { id: 'alice' } };
   const hook = hookHarness(new URL('../src/features/media-interactions/useMediaInteractions.ts', import.meta.url),
@@ -25,7 +25,7 @@ function setup({ enabled = true } = {}) {
       './mediaInteractionRequest': { mediaInteractionRequest(path, init, required, account) {
         const response = deferred(); writes.push({ path, init, required, account, ...response }); return response.promise;
       } },
-    });
+    }, window ? { window } : {});
   return { hook, reads, writes, auth };
 }
 
@@ -69,29 +69,62 @@ test('engagement waits for the initial account read and an earlier retry cannot 
   try {
     await s.hook.flush();
     assert.equal(s.hook.value.isResolvingEngagement, true);
-    s.hook.value.toggle('repost'); await s.hook.flush();
+    s.hook.value.toggle('save'); await s.hook.flush();
     assert.equal(s.writes.length, 0);
     s.reads[0].resolve(record()); await s.hook.flush();
     assert.equal(s.hook.value.isResolvingEngagement, false);
 
     const retry = s.hook.value.retry(); await s.hook.flush();
-    s.hook.value.toggle('repost'); await s.hook.flush();
+    s.hook.value.toggle('save'); await s.hook.flush();
     assert.equal(s.writes.length, 1);
-    assert.equal(s.hook.value.record.engaged.repost, true);
-    assert.equal(s.hook.value.record.counts.repost, 1);
-    assert.deepEqual(JSON.parse(s.writes[0].init.body), { ...target, kind: 'repost', engaged: true });
+    assert.equal(s.hook.value.record.engaged.save, true);
+    assert.equal(s.hook.value.record.counts.save, 1);
+    assert.deepEqual(JSON.parse(s.writes[0].init.body), { ...target, kind: 'save', engaged: true, shareWithCreator: false });
 
     s.reads[1].resolve(record()); await retry; await s.hook.flush();
-    assert.equal(s.hook.value.record.engaged.repost, true);
-    assert.equal(s.hook.value.record.counts.repost, 1);
-    assert.equal(s.hook.value.pendingKind, 'repost');
-    s.writes[0].resolve(record({ engaged: { like: false, save: false, repost: true }, counts: { like: 0, save: 0, repost: 7 } }));
+    assert.equal(s.hook.value.record.engaged.save, true);
+    assert.equal(s.hook.value.record.counts.save, 1);
+    assert.equal(s.hook.value.pendingKind, 'save');
+    s.writes[0].resolve(record({ engaged: { like: false, save: true }, counts: { like: 0, save: 7 } }));
     await s.hook.flush();
-    assert.equal(s.hook.value.record.engaged.repost, true);
-    assert.equal(s.hook.value.record.counts.repost, 7);
+    assert.equal(s.hook.value.record.engaged.save, true);
+    assert.equal(s.hook.value.record.counts.save, 7);
     assert.equal(s.hook.value.pendingKind, null);
     assert.equal(s.hook.value.isLoading, false);
     assert.equal(s.hook.value.isResolvingEngagement, false);
+  } finally { s.hook.dispose(); }
+});
+
+test('stale repost toggles are ignored before authentication, optimistic changes and writes', async () => {
+  const s = setup(), gates = [];
+  try {
+    s.auth.isAuthenticated = false; s.auth.user = null;
+    s.auth.requestAuthenticatedDestination = intent => gates.push(intent);
+    await s.hook.flush();
+    s.hook.value.toggle('repost'); await s.hook.flush();
+    assert.equal(gates.length, 0); assert.equal(s.writes.length, 0); assert.equal(s.hook.value.pendingKind, null);
+    s.auth.isAuthenticated = true; s.auth.user = { id: 'alice' }; s.hook.rerender(); await s.hook.flush();
+    s.reads.at(-1).resolve(record()); await s.hook.flush();
+    const before = s.hook.value.record;
+    s.hook.value.toggle('repost'); await s.hook.flush();
+    assert.equal(s.hook.value.record, before); assert.equal(s.writes.length, 0); assert.equal(s.hook.value.pendingKind, null);
+  } finally { s.hook.dispose(); }
+});
+
+test('a queued legacy page repost is discarded after sign-in and cannot replay a write', async () => {
+  const stored = new Map([['portalink.pendingMediaAction', JSON.stringify({ targetKey: 'project:attachment:0', action: 'repost' })]]);
+  const window = { location: new URL('https://portalink.test/p/creator/c/category/project'), sessionStorage: {
+    getItem: key => stored.get(key) ?? null, removeItem: key => stored.delete(key), setItem: (key, value) => stored.set(key, value),
+  } };
+  const s = setup({ window });
+  try {
+    await s.hook.flush();
+    assert.equal(stored.size, 0); assert.equal(s.writes.length, 0); assert.equal(s.hook.value.pendingKind, null);
+    s.reads[0].resolve(record()); await s.hook.flush();
+    s.hook.value.toggle('save'); await s.hook.flush();
+    assert.equal(s.writes.length, 1); assert.equal(JSON.parse(s.writes[0].init.body).kind, 'save');
+    s.writes[0].resolve(record({ engaged: { like: false, save: true } })); await s.hook.flush();
+    assert.equal(s.hook.value.record.engaged.save, true);
   } finally { s.hook.dispose(); }
 });
 

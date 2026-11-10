@@ -89,6 +89,74 @@ test('an unavailable sending RPC fails closed without inserting a message direct
   assert.equal(inserts, 0);
 });
 
+test('concurrent reaction adds leave one reaction per profile and toggling off preserves the other participant', async () => {
+  const calls = [];
+  const other = { message_id: 'message', profile_id: 'other', emoji: '❤' };
+  const own = { message_id: 'message', profile_id: 'viewer', emoji: '❤' };
+  const ownApplause = { ...own, emoji: '👏' };
+  const anotherMessage = { ...own, message_id: 'another' };
+  let rows = [other, ownApplause, anotherMessage];
+  const addReaction = (row, ignoreDuplicates) => {
+    if (rows.some(existing => Object.keys(own).every(key => existing[key] === row[key]))) {
+      return { error: ignoreDuplicates ? null : { code: '23505', message: 'duplicate reaction' } };
+    }
+    rows.push(row);
+    return { error: null };
+  };
+  const client = {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'account' } } } }) },
+    from(table) {
+      if (table === 'profiles') {
+        return { select: () => ({ eq: () => ({ single: async () => ({ data: { id: 'viewer' } }) }) }) };
+      }
+      assert.equal(table, 'direct_message_reactions');
+      const filters = {};
+      const matches = row => Object.entries(filters).every(([key, value]) => row[key] === value);
+      let deleting = false;
+      const query = {
+        select() { return query; },
+        eq(key, value) { filters[key] = value; return query; },
+        async maybeSingle() {
+          calls.push('read');
+          return { data: rows.find(matches) ?? null };
+        },
+        async insert(row) { return addReaction(row, false); },
+        async upsert(row, options) {
+          assert.deepEqual({ ...row }, own);
+          assert.deepEqual({ ...options }, { onConflict: 'message_id,profile_id,emoji', ignoreDuplicates: true });
+          calls.push('upsert');
+          return addReaction(row, options.ignoreDuplicates);
+        },
+        delete() { deleting = true; return query; },
+        then(resolve) {
+          if (!deleting) return resolve({ data: rows.filter(matches) });
+          calls.push('delete');
+          assert.deepEqual(filters, own);
+          rows = rows.filter(row => !matches(row));
+          return resolve({ error: null });
+        },
+      };
+      return query;
+    },
+  };
+  const { supabaseMessagingService } = compile('../src/services/supabase/messagingService.ts', () => ({ requireSupabase: () => client }));
+  const results = await Promise.all([
+    supabaseMessagingService.toggleReaction('message', '❤'),
+    supabaseMessagingService.toggleReaction('message', '❤'),
+  ]);
+  assert.deepEqual(calls, ['read', 'read', 'upsert', 'upsert']);
+  for (const result of results) assert.deepEqual({ ...result.find(reaction => reaction.emoji === '❤') }, { emoji: '❤', count: 2, isMine: true });
+  assert.equal(rows.length, 4);
+
+  const afterRemoval = await supabaseMessagingService.toggleReaction('message', '❤');
+  assert.deepEqual(calls.slice(-2), ['read', 'delete']);
+  assert.deepEqual(Array.from(afterRemoval, reaction => ({ ...reaction })), [
+    { emoji: '❤', count: 1, isMine: false },
+    { emoji: '👏', count: 1, isMine: true },
+  ]);
+  assert.deepEqual(rows, [other, ownApplause, anotherMessage]);
+});
+
 test('deleted participants remain readable and removed attachments never receive signed URLs', async () => {
   const signed=[];
   const removed={id:'removed',conversation_id:'chat',sender_profile_id:null,body:'old cached body',removed_at:'2026-09-01T00:00:00Z',created_at:'2026-09-01T00:00:00Z'};

@@ -76,7 +76,7 @@ export function Waveform({
         {bars.map((height, index) => {
         const isPlayed = index < playedIndex;
         const gaze = gazeOverlay?.[index];
-        return <span key={index} aria-hidden="true" className="block min-w-0 flex-1 rounded-[1px] transition-colors duration-150" style={{
+        return <span key={index} aria-hidden="true" className="block min-w-0 flex-1 rounded-[1px] transition-colors duration-[var(--m-fast)] " style={{
           height: `${height * 100}%`,
           // Attention, when Studio supplies it, replaces the played tone.
           backgroundColor: gaze !== undefined ? 'var(--studio-gaze)' : isPlayed ? 'var(--studio-audio)' : 'var(--surface-inset)',
@@ -86,15 +86,15 @@ export function Waveform({
       </div>
 
       {/* Progress rail, attached directly beneath the bars. */}
-      <div aria-hidden="true" className="relative mt-2 h-[3px] w-full overflow-visible rounded-full bg-[var(--surface-inset)]">
+      <div data-media-seek-track={isInteractive ? '' : undefined} aria-hidden="true" className="relative mt-2 h-[3px] w-full overflow-visible rounded-full bg-[var(--surface-inset)]">
         <span className="absolute left-0 top-0 h-full rounded-full" style={{
         width: `${progress * 100}%`,
-        backgroundColor: 'var(--studio-audio)'
+        backgroundColor: isInteractive ? 'var(--slider-fill)' : 'var(--studio-audio)'
       }} />
         {/* The playhead is the point of current interaction. */}
-        <span className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_1px_3px_rgba(0,0,0,0.28)]" style={{
+        <span data-media-seek-thumb={isInteractive ? '' : undefined} className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_1px_3px_rgba(0,0,0,0.28)]" style={{
         left: `${progress * 100}%`,
-        backgroundColor: 'var(--accent-color)'
+        backgroundColor: isInteractive ? 'var(--slider-thumb)' : 'var(--accent-color)'
       }} />
         {/* A diagnostic point, not a fill. */}
         {anomalyAt !== undefined && duration > 0 && <span className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{

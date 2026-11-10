@@ -1,4 +1,5 @@
 import type { Id, Profile, ProjectView } from './domain';
+import type { EngagementKind } from './engagement';
 
 export type DiscoveryZone = 'core' | 'adjacent' | 'outside';
 export type ExplorationMode = 'close' | 'broaden' | 'different';
@@ -95,7 +96,7 @@ export type ContentSphereInput = {
   viewerProfile: Pick<Profile, 'id' | 'location'> | null;
   availableProjects: ProjectView[];
   followedCreatorIds: Id[];
-  engagement: Array<{ projectId: Id; kind: 'like' | 'save' | 'repost'; createdAt: string }>;
+  engagement: Array<{ projectId: Id; kind: EngagementKind; createdAt: string }>;
   explicitSignals: DiscoverySignal[];
   currentGeography?: CoarseGeography | null;
   now?: Date;

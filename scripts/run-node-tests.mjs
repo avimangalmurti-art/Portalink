@@ -2,7 +2,7 @@
 // Database coverage is required here; focused `node --test` runs remain available.
 import { access, readdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -19,8 +19,10 @@ try {
   console.error('Run npm.cmd run build before the full suite: visitor-entry-build tests verify emitted bundle artifacts. See docs/development-workflow.md.');
   process.exit(1);
 }
+// The child already runs from the repo root. Relative paths keep the argument
+// list within Windows' command-line limit in deeply nested checkouts.
 const files = (await readdir(new URL('../tests/', import.meta.url)))
-  .filter(name => name.endsWith('.test.mjs')).sort().map(name => resolve(root, 'tests', name));
+  .filter(name => name.endsWith('.test.mjs')).sort().map(name => join('tests', name));
 const child = spawn(process.execPath, ['--test', '--test-concurrency=2', ...files], {
   cwd: root,
   env: { ...process.env, PGLITE_MODULE_PATH: databaseModule, PGLITE_MODULE: databaseModule },

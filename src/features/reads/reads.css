@@ -6,6 +6,46 @@
 .reads-bars{height:160px;display:flex;align-items:flex-end;gap:3px;margin-top:22px}.reads-bars button{flex:1;min-width:0;background:var(--text-tertiary);border-radius:4px 4px 0 0;min-height:4px}.reads-bars button:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}.reads-bars .is-most-saved{background:var(--accent)}.reads-axis{margin-top:6px}
 .reads-page-picker{display:flex;align-items:center;justify-content:space-between;font-size:13px;gap:12px;margin-top:16px}.reads-page-picker select{min-height:44px;background:var(--surface-raised);color:var(--text-primary);border-radius:12px;padding:8px}
 .reads-referrers>div{padding:8px 0;font-size:14px}.reads-referrers dd{font-variant-numeric:tabular-nums}.reads-privacy{margin-top:30px}.reads-project-list,.reads-actors{list-style:none;padding:0;display:grid;gap:8px}.reads-project-list button{display:grid;gap:4px;width:100%;text-align:left;padding:16px;border:1px solid var(--hairline);border-radius:14px}.reads-project-list span{font-size:13px;color:var(--text-secondary)}
-.reads-page-preview{display:block;width:min(100%,320px);margin:20px auto;background:white;border-radius:16px;overflow:hidden;max-height:420px}.reads-page-preview img{display:block;width:100%;height:auto;object-fit:contain}.reads-actors li{padding:14px;background:var(--surface-sunken);border-radius:14px;font-size:14px}.reads-actors time{display:block;margin-top:5px}.reads-weekly{margin:16px}.reads-weekly small{text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary)}.reads-weekly>div{display:flex;gap:12px;margin-top:18px}
+.reads-page-preview{display:block;width:min(100%,320px);margin:20px auto;background:white;border-radius:16px;overflow:hidden;max-height:420px}.reads-page-preview img{display:block;width:100%;height:auto;object-fit:contain}.reads-actors li{padding:14px;background:var(--surface-sunken);border-radius:14px;font-size:14px}.reads-actors time{display:block;margin-top:5px}.reads-weekly{margin:16px}.reads-weekly small{text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary)}
 
 .reads-view > .reads-chart + h3 {margin-top:24px}
+
+/* This caption belongs to its card, not the opaque mobile screen-header material. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] .reads-chart > header {
+  background: transparent !important;
+  align-items: baseline;
+}
+[data-presentation='mobile'] .reads-chart > header h3 {
+  min-width: 0;
+  margin: 0;
+  line-height: 1.4;
+}
+[data-presentation='mobile'] .reads-chart > header > span {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.reads-weekly > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.reads-weekly > div > [data-ui-control='button'] { --ui-control-height: 44px; }
+.reads-weekly-character { display: none; }
+/* The decorative image must not paint a loading surface behind the actions. */
+[data-presentation='mobile'] .reads-weekly > div:has(> .reads-weekly-character) {
+  background: transparent;
+}
+[data-presentation='mobile'] .reads-weekly-metrics { list-style: disc; padding-inline-start: 24px; margin: 8px 0; font-size: 22px; font-weight: 650; }
+[data-presentation='mobile'] .reads-weekly-character {
+  display: block;
+  flex: 0 1 72px;
+  width: 72px;
+  min-width: 0;
+  height: 72px;
+  margin-inline-start: auto;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+}

@@ -1,7 +1,6 @@
 import { useEffect, type RefObject } from 'react';
+import { createNavigationScrollSettling, NAVIGATION_SCROLL_IDLE_DELAY } from './navigationScrollSettling';
 
-// Scrollend restores immediately; this short fallback covers older browsers.
-const IDLE_DELAY = 100;
 const excluded = '.mobile-navigation-layer, [data-mobile-project-view], [role="dialog"], [role="menu"], [inert], .screen-exit, [aria-hidden="true"], input, textarea, select, [contenteditable="true"]';
 
 /** Browsing hides only the dock; project reading owns its separate tap-to-reveal state. */
@@ -17,18 +16,23 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
     let scrollingTarget: EventTarget | null = null;
     let previousInert = false;
     let gesture: { id: number; x: number; y: number } | null = null;
+    const motion = createNavigationScrollSettling();
     const overlayOpen = () => Boolean(document.querySelector('[aria-modal="true"], [role="menu"]'));
     const eligible = (target: EventTarget | null): target is HTMLElement => target instanceof HTMLElement && frame.contains(target) && !target.closest(excluded);
-    const restore = () => {
-      window.clearTimeout(timer);
-      timer = undefined;
-      intent = false;
-      scrollingTarget = null;
+    const show = () => {
       if (!hidden) return;
       hidden = false;
       dock.inert = previousInert;
       dock.removeAttribute('data-scrolling');
       dock.removeAttribute('aria-hidden');
+    };
+    const restore = () => {
+      window.clearTimeout(timer);
+      timer = undefined;
+      intent = false;
+      scrollingTarget = null;
+      motion.reset();
+      show();
     };
     const scroll = (event: Event) => {
       const documentScroll = event.target === document;
@@ -36,13 +40,17 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
       if (!target || !intent || (!documentScroll && !eligible(target)) || overlayOpen() || dock.querySelector(':focus-visible') ||
         document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') ||
         ((target as HTMLElement).scrollHeight <= (target as HTMLElement).clientHeight + 1 && (target as HTMLElement).scrollWidth <= (target as HTMLElement).clientWidth + 1)) return;
-      if (!hidden) { previousInert = dock.inert; hidden = true; dock.inert = true; }
-      dock.setAttribute('data-scrolling', '');
-      dock.setAttribute('aria-hidden', 'true');
+      const surface = target as HTMLElement;
+      if (motion.update(event.target, surface, event.timeStamp)) show();
+      else {
+        if (!hidden) { previousInert = dock.inert; hidden = true; dock.inert = true; }
+        dock.setAttribute('data-scrolling', '');
+        dock.setAttribute('aria-hidden', 'true');
+      }
       scrollingTarget = event.target;
       window.clearTimeout(timer);
       if (scrollingTarget && !('onscrollend' in scrollingTarget)) {
-        timer = window.setTimeout(restore, IDLE_DELAY);
+        timer = window.setTimeout(restore, NAVIGATION_SCROLL_IDLE_DELAY);
       }
     };
     const scrollEnd = (event: Event) => {
@@ -53,6 +61,7 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
     };
     const down = (event: PointerEvent) => {
       intent = false;
+      motion.reset();
       gesture = event.isPrimary && event.button === 0 && eligible(event.target) && !overlayOpen()
         ? { id: event.pointerId, x: event.clientX, y: event.clientY } : null;
     };

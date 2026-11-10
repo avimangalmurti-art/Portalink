@@ -52,6 +52,25 @@ test('wheel zoom keeps the pixel under the pointer in place and clamps zoom', ()
   assert.equal(cropper.zoomImage(start,size,1,0).zoom,1);
 });
 
+test('pinch zoom moves the anchored source point with the gesture and clamps at the image edges', () => {
+  const size = { width: 1800, height: 1200 };
+  const ratio = 16 / 9;
+  const start = { x: .5, y: .5, zoom: 1.5 };
+  const anchor = { x: .24, y: .74 };
+  const destination = { x: .55, y: .42 };
+  const before = cropper.cropFromPosition(size, ratio, start);
+  const after = cropper.cropFromPosition(size, ratio, cropper.zoomImage(start, size, ratio, 2.4, anchor, destination));
+
+  near(before.x + anchor.x * before.width, after.x + destination.x * after.width);
+  near(before.y + anchor.y * before.height, after.y + destination.y * after.height);
+
+  const edge = cropper.cropFromPosition(size, ratio, cropper.zoomImage(
+    { x: 0, y: 1, zoom: 2 }, size, ratio, 2.6, { x: 0, y: 1 }, { x: 1, y: 0 },
+  ));
+  near(edge.x, 0);
+  near(edge.y + edge.height, 1);
+});
+
 test('CSS object-position/scale and exported source rectangles describe the same pixels', () => {
   const size={width:3200,height:2100}, viewport={width:640,height:360}, position={x:.27,y:.81,zoom:2.3};
   const crop=cropper.cropFromPosition(size,16/9,position);

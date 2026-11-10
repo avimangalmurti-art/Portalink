@@ -2,7 +2,7 @@ import { likesCapability } from '../../features/engagement/capabilities';
 import { FormattedText } from '../text/FormattedText';
 import React, { useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { BookmarkIcon, HeartIcon, MessageCircleIcon, Repeat2Icon } from 'lucide-react';
+import { BookmarkIcon, HeartIcon, MessageCircleIcon } from 'lucide-react';
 import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
 import { useProjectComments } from '../../features/comments/useProjectComments';
 import type { Id } from '../../types/domain';
@@ -14,7 +14,6 @@ const formatCount = (count: number | null) => count === null ? '—' : formatter
 const METRICS = [
   { kind: 'like' as const, label: 'likes', icon: HeartIcon },
   { kind: 'save' as const, label: 'bookmarks', icon: BookmarkIcon },
-  { kind: 'repost' as const, label: 'reposts', icon: Repeat2Icon },
 ];
 
 /** Only the description occupies the original artwork frame. */
@@ -63,11 +62,11 @@ export function ProjectPreviewMetrics({ projectId, onOpenComments }: { projectId
   const engagement = useProjectEngagement(projectId);
   const comments = useProjectComments(onOpenComments ? projectId : null);
   const commentCount = comments.phase === 'ready' ? comments.totalCount : null;
-  return <PreviewMetrics counts={{ like: engagement.count('like'), save: engagement.count('save'), repost: engagement.count('repost') }} commentCount={commentCount} onOpenComments={onOpenComments} />;
+  return <PreviewMetrics counts={{ like: engagement.count('like'), save: engagement.count('save') }} commentCount={commentCount} onOpenComments={onOpenComments} />;
 }
 
 export function PreviewMetrics({ counts, commentCount, onOpenComments }: {
-  counts: Record<'like' | 'save' | 'repost', number | null>;
+  counts: Record<'like' | 'save', number | null>;
   commentCount: number | null;
   onOpenComments?: () => void;
 }) {

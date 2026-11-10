@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { sourceModule } from './helpers/source-module.mjs';
 
 const modules = new Map();
 function load(relative) {
@@ -293,11 +294,13 @@ function locationFeedFixture() {
   return { profiles, categories, projects };
 }
 
-function productionFeedHarness({ errorTable } = {}) {
+function productionFeedHarness({ errorTable, user = { id: 'reader' } } = {}) {
   const rows = locationFeedFixture();
   const tables = { profiles: rows.profiles, portfolio_categories: rows.categories, projects: rows.projects };
   const queries = [], hydrated = [];
+  const directoryRequests = harness();
   const client = {
+    auth: { async getUser() { return { data: { user }, error: null }; } },
     from(table) {
       const filters = [];
       let start = 0, end = Infinity;
@@ -318,19 +321,22 @@ function productionFeedHarness({ errorTable } = {}) {
       return builder;
     },
   };
+  const { requireDirectoryAccount } = sourceModule('src/services/supabase/requireDirectoryAccount.ts', {
+    './client': { requireSupabase: () => client },
+  });
   const exports = {};
   const helpers = ['visibleCategoryIdsForProfiles', 'projectIdsForProfiles', 'projectViewsForIds'].map(serviceFunction).join('\n');
   vm.runInNewContext(ts.transpileModule(`${helpers}\nexports.service={${serviceMethod(serviceSource, 'supabaseDiscoveryService', 'listLocationProjects')}}`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, {
-    exports, requireSupabase: () => client, locationDirectory: harness().client,
+    exports, requireDirectoryAccount, requireSupabase: () => client, locationDirectory: directoryRequests.client,
     profileMatchesPlace: directory.profileMatchesPlace, creatorLocationMatches: placement.creatorLocationMatches,
     supabaseProjectService: { async listProjectViews(ids) {
       hydrated.push(...ids);
       return [...ids].reverse().map(id => ({ project: { id } }));
     } },
   });
-  return { service: exports.service, queries, hydrated };
+  return { service: exports.service, queries, hydrated, directoryRequests: directoryRequests.calls };
 }
 
 test('production city, region and country feeds exclude private profiles and hidden content before hydration', async () => {
@@ -367,6 +373,16 @@ test('missing locations and failed visibility reads never hydrate a location fee
   }
 });
 
+test('location feeds reject guest identities before directory or profile reads', async () => {
+  for (const user of [null, { id: 'guest', is_anonymous: true }]) {
+    const h = productionFeedHarness({ user });
+    await assert.rejects(h.service.listLocationProjects('gn-5378538'), /Create an account or sign in/);
+    assert.deepEqual(h.directoryRequests, []);
+    assert.deepEqual(h.queries, []);
+    assert.deepEqual(h.hydrated, []);
+  }
+});
+
 test('prototype city, region, country and legacy feeds apply the same privacy and placement decisions', async () => {
   const source = ts.createSourceFile('mocks.ts', readFileSync(new URL('../src/services/mocks/index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
   const rows = locationFeedFixture();
@@ -397,4 +413,13 @@ test('prototype city, region, country and legacy feeds apply the same privacy an
   ]) {
     assert.deepEqual(plain((await exports.service.listLocationProjects(id)).map(view => view.project.id)), expected, id);
   }
+});
+
+test('globe default city recommendations resolve to five distinct real city records',async()=>{
+ const h=harness();const resolved=[];
+ for(const name of ['San Francisco','New York','London','Tokyo','Paris']){
+  const matches=await h.client.search(name);const city=matches.find(place=>place.kind==='city'&&place.name.toLowerCase()===name.toLowerCase())??matches.find(place=>place.kind==='city');
+  assert.ok(city,name);assert.ok(Number.isFinite(city.latitude)&&Number.isFinite(city.longitude));resolved.push(city.id);
+ }
+ assert.equal(new Set(resolved).size,5);
 });

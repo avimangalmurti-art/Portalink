@@ -1,0 +1,68 @@
+/* Shared fixed-header material for MOBILE and WEB. Accessibility has priority
+   over this layer, which in turn outranks lazy screens' legacy opaque paint. */
+@layer portalink-accessibility, portalink-header-material;
+@layer portalink-header-material {
+  /* Editors retain their own themed canvas and readable form/action colours. */
+  .profile-editor-page { --fixed-header-canvas: var(--profile-settings-background); }
+  .profile-link-icon-picker { --fixed-header-canvas: var(--profile-link-picker-canvas); }
+  [data-mobile-icon-create] { --fixed-header-canvas: var(--icon-create-canvas, var(--surface-canvas)); }
+  [data-mobile-onboarding] { --fixed-header-canvas: var(--onboarding-background, var(--surface-canvas)); }
+  #root .codex-shell[data-presentation] [data-mobile-header-underlap] {
+    isolation: isolate;
+    z-index: 30;
+    background: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  #root .codex-shell[data-presentation] [data-header-material-static] { position: relative !important; }
+  #root .codex-shell[data-presentation] [data-mobile-header-underlap]::before {
+    content: '' !important;
+    position: absolute;
+    inset: 0 !important;
+    z-index: -1;
+    pointer-events: none;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) var(--fixed-header-opacity, 92%), transparent) !important;
+    -webkit-backdrop-filter: var(--navigation-blur, blur(22px) saturate(140%)) !important;
+    backdrop-filter: var(--navigation-blur, blur(22px) saturate(140%)) !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    transition: none;
+  }
+  /* One background owner; nested toolbar foreground never adds another tint. */
+  #root .codex-shell[data-presentation] [data-mobile-header-underlap] :is(header, .global-control-header, .studio-workbench-header, .timeline-header-controls) {
+    background: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  #root .codex-shell[data-presentation] [data-fixed-header-underlap] {
+    margin-top: calc(var(--fixed-header-margin) - var(--fixed-header-height)) !important;
+  }
+  #root .codex-shell[data-presentation] [data-fixed-header-content] {
+    padding-top: calc(var(--fixed-header-padding) + var(--fixed-header-content-height)) !important;
+    scroll-padding-top: calc(var(--fixed-header-scroll-padding) + var(--fixed-header-content-height)) !important;
+  }
+  #root .codex-shell[data-presentation] [data-fixed-header-offset] {
+    top: calc(var(--fixed-header-top) + var(--fixed-header-offset)) !important;
+  }
+  /* A mask on a scrolling ancestor would fade the stationary foreground too. */
+  #root .codex-shell[data-presentation] :is(.scroll-edge-fade, .feed-edge-fade)[data-mobile-scroll-has-header='true'] {
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+  }
+  #root .codex-shell.reduce-translucency[data-presentation] [data-mobile-header-underlap]::before {
+    background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    #root .codex-shell[data-presentation] [data-mobile-header-underlap]::before {
+      background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important;
+      -webkit-backdrop-filter: none !important;
+      backdrop-filter: none !important;
+    }
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    #root .codex-shell[data-presentation] [data-mobile-header-underlap]::before { background: var(--fixed-header-canvas, var(--surface-canvas, var(--codex-workspace-bg))) !important; }
+  }
+}

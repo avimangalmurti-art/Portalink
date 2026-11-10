@@ -54,14 +54,14 @@ test('Home ranking uses existing identity/location without reloading the full po
   assert.equal(result.availableProjects, projects); assert.equal(result.homeMode, 'latest');
 });
 
-test('guest Home stays empty and request failures are not hidden by the faster path', async () => {
-  const guest = serviceFunction('discoveryContext', {
-    requireSupabase: () => ({ auth: { getSession: async () => ({ data: { session: null } }) } }),
-    projectViewsForIds: async ids => { assert.equal(ids.length, 0); return []; },
-    feedViews: async rows => { assert.equal(rows.length, 0); return []; },
-    buildUserContentSphere: input => input, guestHomeFeedMode: 'balanced',
-  });
-  assert.equal((await guest('home')).availableProjects.length, 0);
+test('Home rejects unauthenticated viewers before fetching and surfaces signed-in request failures', async () => {
+  for (const session of [null, { user: { id: 'guest', is_anonymous: true } }]) {
+    const guest = serviceFunction('discoveryContext', {
+      requireSupabase: () => ({ auth: { getSession: async () => ({ data: { session } }) } }),
+      readFeedPage: async () => assert.fail('Guests must not fetch the Home feed'),
+    });
+    await assert.rejects(guest('home'), /Create an account or sign in to explore Portalink/);
+  }
   const failing = serviceFunction('discoveryContext', {
     requireSupabase: () => ({ auth: { getSession: async () => ({ data: { session: { user: { id: 'account' } } } }) },
       from: () => query({ data: null, error: { message: 'offline' } }),
@@ -132,8 +132,9 @@ test('rendered PDF previews retain contain/crop framing and fall back to the ori
   assert.equal(image.type, 'responsive-image'); assert.equal(image.props.src, 'preview.png');
   assert.match(image.props.className, /object-contain/);
   const framed = render({ ...props, frame: { x: 0.2, y: 0.7, zoom: 2 } });
-  assert.equal(framed.props.children.props.style.transform, 'scale3d(2, 2, 1)');
-  assert.match(framed.props.children.props.children.props.className, /object-cover/);
+  const [frame] = React.Children.toArray(framed.props.children);
+  assert.equal(frame.props.style.transform, 'scale3d(2, 2, 1)');
+  assert.match(frame.props.children.props.className, /object-cover/);
   image.props.onError();
   const fallback = render(props);
   assert.equal(fallback.type, 'pdf-page'); assert.equal(fallback.props.source, 'original.pdf');
@@ -163,7 +164,7 @@ test('route chunks warm during profile data reads, including portal/category rou
   const file = ts.createSourceFile('App.tsx', read('src/App.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let effect;
   const visit = node => {
-    if (ts.isCallExpression(node) && node.expression.getText(file) === 'useEffect' && node.arguments[0]?.getText(file).includes('void loadProfilePage()')) effect = node.arguments[0].getText(file);
+    if (ts.isCallExpression(node) && node.expression.getText(file) === 'useEffect' && node.arguments[0]?.getText(file).includes('void loadProfilePage()') && node.arguments[0]?.getText(file).includes('route.kind')) effect = node.arguments[0].getText(file);
     ts.forEachChild(node, visit);
   };
   visit(file); assert.ok(effect);

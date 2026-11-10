@@ -3,6 +3,24 @@ export type BentoPosition = { column: number; row: number; rows: number };
 
 /** Match dense idle packing, then grow vertically in those same column slots. */
 export function layoutBento(cells: Cell[], columns: number): Map<string, BentoPosition> {
+  // Home cells each fill one column. Those columns have no gaps, so a running
+  // end finds exactly the same first free slot without scanning every 4px row.
+  if (cells.every(cell => cell.span === 1 && Number.isInteger(cell.baseRows) && cell.baseRows > 0)) {
+    const baselineEnds = Array(columns).fill(0) as number[];
+    const expandedEnds = Array(columns).fill(0) as number[];
+    const positions = new Map<string, BentoPosition>();
+    for (const cell of cells) {
+      let column = 0;
+      for (let candidate = 1; candidate < columns; candidate++) {
+        if (baselineEnds[candidate] < baselineEnds[column]) column = candidate;
+      }
+      const row = Math.max(baselineEnds[column], expandedEnds[column]);
+      baselineEnds[column] += cell.baseRows;
+      expandedEnds[column] = row + cell.rows;
+      positions.set(cell.key, { column, row, rows: cell.rows });
+    }
+    return positions;
+  }
   const occupied: boolean[][] = [];
   const baseline = cells.map((cell, index) => {
     let row = 0;

@@ -91,6 +91,20 @@ function harness(kind, queryIds = []) {
 }
 
 const profile = (name, projects = []) => ({ id: 'creator', name, categories: [], projects });
+test('overview cache deduplicates overview reads without satisfying a full media read and clears on account change', async () => {
+  const h=harness('profile');
+  h.services.profiles.getProfileOverview=id=>{const request={id,mode:'overview',...deferred()};h.reads.push(request);return request.promise;};
+  const first=h.context.fetchProfile('creator','overview'), duplicate=h.context.fetchProfile('creator','overview');
+  assert.equal(h.reads.length,1);
+  const compact=profile('Compact',[{id:'document',attachments:[]}]);h.reads[0].resolve(compact);await Promise.all([first,duplicate]);await h.flush();
+  assert.equal(h.context.peekProfile('creator','overview'),compact);
+  assert.equal(h.context.peekProfile('creator'),null);
+  const full=h.context.fetchProfile('creator');assert.equal(h.reads.length,2);
+  const prepared=profile('Full',[{id:'document',attachments:[{sourceUrl:'private.pdf'}]}]);h.reads[1].resolve(prepared);await full;await h.flush();
+  assert.equal(h.context.peekProfile('creator'),prepared);
+  h.switchAccount('bob',false);assert.equal(h.context.peekProfile('creator'),null);assert.equal(h.context.peekProfile('creator','overview'),null);
+  h.dispose();
+});
 const summary = (changes = {}) => ({ projectId: 'project', isLiked: false, isSaved: false, isReposted: false,
   likeCount: 0, saveCount: 0, repostCount: 0, ...changes });
 async function loadedEngagement(initial = summary()) {
@@ -239,18 +253,22 @@ test('a failed kind rolls back only itself and retains another kind pending or s
   }
 });
 
-test('three simultaneous kinds retain confirmed reposts when the other two writes fail', async () => {
+test('retired repost calls never mutate or fall through to saved engagement while supported kinds stay independent', async () => {
   const h = await loadedEngagement(summary({ isLiked: true, likeCount: 6 }));
   try {
     for (const kind of ['like', 'save', 'repost']) h.context.toggle('project', kind);
-    h.writes[2].resolve(summary({ isReposted: true, repostCount: 9 })); await h.flush();
+    assert.equal(h.writes.length, 2, 'A stale repost call cannot create a mutation or masquerade as a save.');
+    assert.deepEqual(h.writes.map(write => write.mutation.kind), ['like', 'save']);
+    h.writes[1].resolve(summary({ isSaved: true, saveCount: 9 })); await h.flush();
     h.writes[0].reject(new Error('Unlike failed')); await h.flush();
-    h.writes[1].reject(new Error('Save failed')); await h.flush();
     const record = h.context.read('project').record;
     assert.equal(record.isLiked, true); assert.equal(record.likeCount, 6);
-    assert.equal(record.isSaved, false); assert.equal(record.saveCount, 0);
-    assert.equal(record.isReposted, true); assert.equal(record.repostCount, 9);
-    assert.deepEqual(Array.from(h.context.knownFor('repost').engaged), ['project']);
+    assert.equal(record.isSaved, true); assert.equal(record.saveCount, 9);
+    assert.deepEqual(Array.from(h.context.knownFor('repost').engaged), []);
+    assert.deepEqual(Array.from(h.context.knownFor('repost').withdrawn), []);
+    h.switchAccount(null); h.context.toggle('project', 'repost');
+    assert.equal(h.gates.length, 0, 'A removed action must not open authentication.');
+    assert.equal(h.writes.length, 2);
   } finally { h.dispose(); }
 });
 
@@ -294,7 +312,7 @@ test('engagement identity changes mask records synchronously and fence old reads
   const h = await loadedEngagement();
   try {
     const old = h.context;
-    old.toggle('project', 'repost'); h.writes[0].reject(new Error('Offline')); await h.flush();
+    old.toggle('project', 'save'); h.writes[0].reject(new Error('Offline')); await h.flush();
     const retry = h.context.read('project').failure.retry;
     old.refresh('project'); old.toggle('project', 'like');
     const guest = h.switchAccount(null, false).context;
