@@ -1,3 +1,13 @@
+## PR #149 main update and iOS launch origin
+
+Task worktree `logs/ios149-launch` on `codex/ios149-launch`, integrating `main` at `d89cb1bc7ccdb7d0a234bad3bf492582d341b85d` and prior PR #149 head `faa0731eb32a1efcb121f356cd9bb7f3d5392ab7`. The iOS startup URL, `WKAppBoundDomains` and offline retry fallback now agree on `portalinknetworks.com`. `CAP_SERVER_URL` remains available for development. The only merge conflict was this handoff, which preserves the main and original iOS entries. Added a focused origin regression test. A physical iPhone launch must be verified via an accessible Mac and development-signed build before starting TestFlight. This Windows worktree has no Xcode or connected device.
+
+## 2026-11-04 - ALL iOS Capacitor shell (user-approved native start), unpublished
+
+Devin owned branch devin/capacitor-ios-shell from github/main 5c3f7f2 in its own VM checkout. User explicitly chose a Capacitor wrapper over an Expo rebuild for App Store delivery. Added @capacitor/core, @capacitor/ios, @capacitor/cli 8.5.3 (exact), capacitor.config.ts, ios/ Xcode project (Swift Package Manager), native/shell offline fallback page, npm run ios:sync, and .github/workflows/ios.yml (unsigned simulator build on macos-15, excludes autosave/**). The app loads the hosted PUBLIC_ORIGIN so Auth callbacks, share links, /api worker routes and the media service worker keep their origin; WKAppBoundDomains lists that host so WKWebView service workers work. CAP_SERVER_URL at sync time points a dev build at a live-reload server. Bundle ID com.portalinknetworks.app is a placeholder pending user confirmation.
+
+typecheck passes; lint 0 errors/111 existing warnings; build with CI fixture env passes. Xcode build unverified locally (Linux); relies on the iOS workflow. No signing, TestFlight, store submission, SQL, Sites publish or worker deploy. WEB/MOBILE source unchanged.
+
 ## GitHub backlog and release merge readiness
 
 `codex/release-merge-readiness` advances the live Sites 595 source `248e30462830a69430584b9fe08e6010768ab30e` for [PR #148](https://github.com/avimangalmurti-art/Portalink/pull/148). The previous PR head had the same 46 failing Node checks on both Windows and Ubuntu as the preceding release. This branch repairs the affected fixtures and assertions, scopes seven mobile CSS selectors without changing declarations or specificity, and passes relative paths to the full-suite runner so deeply nested Windows checkouts stay within the process argument limit. Typecheck, lint (0 errors and 111 existing warnings), the production build and both entry bundle guards passed. Full-suite results are recorded separately after the run.
