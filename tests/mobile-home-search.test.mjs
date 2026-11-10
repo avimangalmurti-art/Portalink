@@ -17,10 +17,12 @@ function harness(presentation = 'mobile', props = {}) {
   const slots = []; let cursor = 0;
   let screenActive = true;
   let layoutEffects = []; let actions=null; let refreshGesture=null; let readiness=null; let refreshMotion=null;
-  const feedArguments = [], navigation = [], densityWrites = [];
+  const feedArguments = [], feedOptions = [], navigation = [], densityWrites = [];
   let reloads = 0;
   let worldVisits = 0;
   let userSearchVisits = 0;
+  const scrollingElement = { scrollTop: 0 };
+  const scrollMemory = new Map();
   const density = { columns: 5, setColumns(value) { densityWrites.push(value); density.columns = value; }, saveError: null };
   const ownerProfile = { profile: { id: 'owner', projectGridColumns: 5 }, status: 'ready' };
   const feed = { status: 'success', featured: null, projects: [{ project: { id: 'first' }, creator:{id:'owner'} }, { project: { id: 'second' }, creator:{id:'other'} }], isEmpty: false,
@@ -36,7 +38,7 @@ function harness(presentation = 'mobile', props = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/home/HomeFeed.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, URLSearchParams, window: { sessionStorage: { getItem: () => null }, addEventListener() {}, removeEventListener() {}, scrollTo() {} }, require(name) {
+  }).outputText, { exports, URLSearchParams, window: { sessionStorage: { getItem: key => scrollMemory.get(key), setItem: (key, value) => scrollMemory.set(key, value) }, addEventListener() {}, removeEventListener() {}, scrollTo() {} }, require(name) {
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
@@ -54,19 +56,20 @@ function harness(presentation = 'mobile', props = {}) {
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null, close() {} }, deletion: { projectId: null, cancel() {} } }) };
     if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ ...ownerProfile, layout: ownerProfile.profile }) };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
-    if (name.endsWith('/useFeed')) return { useFeed(locationId) {
+    if (name.endsWith('/useFeed')) return { useFeed(locationId, options) {
       feedArguments.push(locationId);
+      feedOptions.push(options);
       return feed;
     } };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1, resolveFeedSpan: () => 1 };
     if (name.endsWith('/projectGridDensity')) return gridDensity;
     return new Proxy({}, { get: (_, key) => key });
-  }, document:{scrollingElement:{scrollTop:0}},requestAnimationFrame:callback=>{callback();return 1;},cancelAnimationFrame(){} });
+  }, document:{scrollingElement},requestAnimationFrame:callback=>{callback();return 1;},cancelAnimationFrame(){} });
   const render = () => {
     cursor = 0; layoutEffects = [];
     return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onExploreWorld() { worldVisits++; }, onSearchUsers() { userSearchVisits++; }, onOpenProject() {}, onOpenCreator() { throw new Error("Account search must not open the viewer profile"); }, ...props });
   };
-  return { navigation, feedArguments, feed, density, densityWrites, ownerProfile, setActive(value){screenActive=value;}, get readiness(){return readiness;}, get refreshMotion(){return refreshMotion;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
+  return { navigation, feedArguments, feedOptions, feed, density, densityWrites, ownerProfile, scrollingElement, scrollMemory, setActive(value){screenActive=value;}, get readiness(){return readiness;}, get refreshMotion(){return refreshMotion;}, get actions(){return actions;}, pull(){refreshGesture?.();}, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
     restoreScroll(){const tree=render();nodes(tree).find(node=>typeof node.props.onScroll==='function').ref.current={scrollTop:0};layoutEffects.slice(0,3).forEach(effect=>effect());},
     measureLocation(width) {
       const scroller = nodes(render()).find(node => typeof node.props.onScroll === 'function');
@@ -76,6 +79,27 @@ function harness(presentation = 'mobile', props = {}) {
   };
 }
 
+test('opening the active installed Home resets its saved scroll and refreshes a warm feed once', () => {
+  for (const refresh of [false, true]) {
+    let completions = 0;
+    const props = { installedHomeOpening: { refresh, complete() { completions += 1; props.installedHomeOpening = null; } } };
+    const h = harness('mobile', props);
+    h.scrollingElement.scrollTop = 900;
+    h.scrollMemory.set('portalink.feedScroll.home', '900');
+    h.setActive(false);
+    h.restoreScroll();
+    assert.equal(completions, 0, 'A retained Home layer cannot consume the opening');
+    assert.equal(h.feedOptions.at(-1).revalidateOnOpen, undefined);
+    h.setActive(true);
+    h.restoreScroll();
+    assert.equal(h.feedOptions.at(-1).revalidateOnOpen, refresh);
+    assert.equal(h.scrollingElement.scrollTop, 0);
+    assert.equal(h.scrollMemory.get('portalink.feedScroll.home'), '0');
+    h.restoreScroll();
+    assert.equal(completions, 1);
+    assert.equal(h.feedOptions.at(-1).revalidateOnOpen, undefined);
+  }
+});
 
 test('Explore feed allows the complete Profile density range without a mobile fit restriction',()=>{
  for(const presentation of ['mobile','web']){const h=harness(presentation);const grid=()=>nodes(h.render()).find(n=>n.type===(presentation==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));assert.equal(grid().props.columns,5);

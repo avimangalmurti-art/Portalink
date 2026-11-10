@@ -1,3 +1,23 @@
+## 2026-11-09 — MOBILE Portal Search avatar glass
+
+The MOBILE Portal Search cards use the creator's avatar as a lazy, decorative, cover-cropped background. The cropped image is clipped to the card, uses the regular system blur and fades behind the existing title and byline. Missing and failed images fall back to the neutral card. App and OS Reduce Translucency and forced colors suppress the decoration. The change is local on `codex/mobile-home-reopen` and uses the existing portal directory and media delivery.
+
+All 27 focused Portal Search and appearance tests, typecheck, changed-file lint and diff check passed. Isolated Chromium used the actual component with fictional creator data for 12 cases, covering light, dark, High Contrast, one to five columns, 420px and 320px widths, missing and broken images, both reduction preferences and the 1280px WEB control. Evidence is in ignored `logs/portal-glass-qa`. Physical iPhone verification and publication are pending.
+
+## 2026-11-09 — MOBILE Portal Search creator bylines
+
+The local `codex/mobile-home-reopen` checkout now shows the portal title and a secondary “by [creator]” line on MOBILE results. The display name falls back to the public handle. Dense cards can shorten the line visually, with the full title and attribution in the link's accessible name. This uses the existing directory data and canonical category route. WEB retains its avatar and chooser. All 21 Portal Search and WEB chooser tests, typecheck, changed-file lint and diff check passed. Chromium checked the actual component at 420px and 320px across default and dense grid settings, plus the 1280px WEB presentation with fictional directory data. Evidence is in ignored `logs/portal-attribution-qa`. Source awaits publication and physical iPhone verification.
+
+## 2026-11-09 — MOBILE navigation pill translucency
+
+The current local `codex/mobile-home-reopen` checkout includes a separate visual edit in `src/presentation/navigation.css`. The main MOBILE navigation pill uses a lower-opacity tint over the existing blur, retaining its system gray. All 33 focused navigation and appearance checks passed. At 420 × 912, isolated Chromium measured about 78% tint opacity in light, dark and High Contrast, with the same pill and control geometry. App and OS Reduce Translucency kept the opaque gray. The WEB sidebar screenshots matched baseline. Receipts are in ignored `logs/dock-browser-qa`. Physical iPhone verification and publication are pending.
+
+## 2026-11-09 — Installed MOBILE opens to fresh Home
+
+Local branch `codex/mobile-home-reopen` in `logs/mobile-home-reopen`, based on GitHub `main` at `3f2c9e8c59cf8a8a443f6b26d9ac9bdd7565ca54`. The installed mobile app skips the stored route and Home anchor on a bare launch. An eligible background-to-foreground transition returns to the top of Home and starts a fresh first-page request, superseding older in-flight reads while retaining the current cards as a network fallback. Auth entry, incoming links, open authoring forms and ordinary browser navigation retain priority. The signed iOS wrapper is outside this change.
+
+Eight focused Node suites, typecheck, changed-file lint, diff check and the production client and worker build passed. Both production entry graphs passed their configuration checks. Isolated Chrome at 420 × 912 used the real app shell, router and feed with fictional services. Cold launch ignored a saved route and scroll. Foregrounding from Saved and from a scrolled Home returned to the top and rendered newly fetched posts. Ordinary mobile browser and desktop scenarios kept their destination. Evidence is in ignored `logs/reopen-browser-qa/receipt.json`. Standalone state and visibility events were emulated. Physical iPhone testing and publication are pending. Source remains local and no backend or migration changes are required.
+
 ## MOBILE single-content project information row
 
 Follow-up: the squircle avatar is an independent 44px creator control. It uses the feed's existing creator callback when supplied, the shared catalogue's public profile link when provided, and the usual `/p/:profileId` route otherwise. The visible avatar stays 36px, and the existing three-dot control opens the project info popup. Typecheck and all 213 focused checks passed, including avatar navigation and separation from the artwork and menu actions. Chrome touch emulation verified the callback and public link at 420px, and the default profile link at 320px before and after popup dismissal. The menu opened the real popup and preserved the selected carousel page. The ignored browser receipt is updated. The change is local and physical iPhone testing is pending.
