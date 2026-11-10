@@ -1,3 +1,7 @@
+## 2026-11-10 — MOBILE avatar preview caption
+
+Local branch `codex/mobile-avatar-caption` in `logs/mobile-avatar-caption`, based on verified GitHub `main` at `4173ab397942f3854f3b2f4b061b87c51ac88113`. `ProfileAvatar.tsx` makes the name white and bold in the mobile avatar preview on profiles and shared catalogues. The inline welcome preview retains theme-aware text for its light accessibility backdrop. All 20 focused avatar tests, changed-file lint and diff check passed. Chromium verified white text at weight 700 at 420 × 912 in light, dark and shared-style mobile previews, with inline welcome and desktop controls also passing. Evidence is in ignored `logs/avatar-caption-qa`. Source is local. Publication and physical iPhone verification are pending.
+
 ## 2026-11-10 — PR #149 incorporates the Sites 599 main merge
 
 Task checkout `logs/ios149-main-4173ab3` on `codex/ios149-main-4173ab3` merges GitHub `main` at `4173ab397942f3854f3b2f4b061b87c51ac88113` into the existing iOS shell head `30f4e0d8d3a07f0ecd2b5aa8f06cf9efcea8c980`. The launch URL, app-bound domain and offline retry still use `portalinknetworks.com`. The native shell's source and the web application tree from `main` are preserved. Physical launch with a development-signed iPhone build remains the next gate. Auth email links still need Universal Links and device validation before TestFlight.
