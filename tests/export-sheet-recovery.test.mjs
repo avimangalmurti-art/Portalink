@@ -11,6 +11,7 @@ function fixture(download, options={}) {
   '../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useModalFocus':{useModalFocus:()=>{}},
   './useReferences':{useReferences:()=>({exportBibliography:options.bibliography??(async()=>({bibtex:'bib',plain:'plain'}))})},
   '../citations/citations.css':{},'./references.css':{},'../../components/ui/Button':{Button:'button'},'./downloadPortfolio':{downloadPortfolio:download},
+  'lucide-react':{XIcon:'close-icon'},'../../components/ui/InterfaceIcon':{InterfaceIcon:'interface-icon'},
  },{Error,AbortController,Blob,document:{createElement:()=>({click(){saves++;filenames.push(this.download);}})},navigator:{clipboard:{writeText:options.copy??(async()=>{})}},URL:{createObjectURL:()=> 'blob:synthetic',revokeObjectURL:()=>{}},setTimeout:()=>0,
  window:{setTimeout:(callback,ms)=>{assert.equal(ms,30000);timer=callback;return 1;},clearTimeout:()=>{timer=undefined;}}});
  const nodes=tree=>!tree||typeof tree!=='object'?[]:[tree,...React.Children.toArray(tree.props?.children).flatMap(nodes)];

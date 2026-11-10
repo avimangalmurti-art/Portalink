@@ -198,7 +198,7 @@ test('ordinary profile and shared-profile screens retain the app-shell vertical 
   assert.ok(expression);
   for (const kind of ['profile', 'sharedProfile']) {
     const classes = vm.runInNewContext(expression, { route: { kind }, activeCategory: null,
-      isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false, isMobileStudioOpen: false, inDesignFeature: null });
+      isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false, isStudioPageOpen: false, isPortalSearchOpen: false, inDesignFeature: null });
     assert.match(classes, /\boverflow-y-auto\b/);
     assert.doesNotMatch(classes, /\boverflow-hidden\b/);
   }
@@ -219,7 +219,7 @@ test('mobile Studio owns a nested full-height scroller while the app shell stays
   visit(file);
   assert.ok(classes && scrollMode && contentClasses);
   const context = { activeCategory: null, isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false,
-    isMobileStudioOpen: true, inDesignFeature: null, isFeedView: false, isPortalsOpen: false };
+    isStudioPageOpen: true, isPortalSearchOpen: false, inDesignFeature: null, isFeedView: false, isPortalsOpen: false };
   assert.match(vm.runInNewContext(classes, context), /\boverflow-hidden\b/);
   assert.equal(vm.runInNewContext(scrollMode, context), 'nested');
   assert.match(vm.runInNewContext(contentClasses, context), /(?:^|\s)h-full(?:\s|$)/);

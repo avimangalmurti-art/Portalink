@@ -337,7 +337,12 @@ test('onboarding WEB file manager omits mobile detents and never begins a header
  assert.deepEqual(web.measurements,{viewport:0,panel:0});assert.deepEqual(web.calls,[]);
  for(const options of [{presentation:'mobile',onboardingFiles:true},{presentation:'web',onboardingFiles:false}]){
   const retained=sheetHarness({layout:'files',...options});assert.ok(retained.resizeButton());
-  retained.clickResize();assert.equal(retained.dialog().props['data-expanded'],true);
+  const startsExpanded=options.presentation==='mobile';
+  assert.equal(retained.dialog().props['data-expanded'],startsExpanded);
+  assert.equal(retained.resizeButton().props['aria-expanded'],startsExpanded);
+  retained.clickResize();
+  assert.equal(retained.dialog().props['data-expanded'],!startsExpanded);
+  assert.equal(retained.resizeButton().props['aria-expanded'],!startsExpanded);
  }
 });
 
@@ -401,20 +406,31 @@ test('owner profile scrim follows the measured visual viewport origin and height
  }
 });
 
-test('visitor, project and ordinary action sheets retain their collapsed entry; file layout is never opted in by a profile model',()=>{
- const profile=contextActions('profile',{signedIn:true,owner:true},{handlers});
+test('visitor, project and ordinary action sheets retain their collapsed entry',()=>{
  for(const options of [
   {},
   {model:contextActions('profile',{signedIn:false,owner:false},{handlers})},
   {model:contextActions('profile',{signedIn:true,owner:false},{handlers})},
   {model:contextActions('project',{signedIn:true,owner:true},{handlers})},
-  {model:profile,layout:'files'},
  ]){
   const h=sheetHarness(options);assert.equal(h.dialog().props['data-expanded'],false);
   assert.equal(h.resizeButton().props['aria-expanded'],false);assert.equal(h.resizeButton().props['aria-label'],'Expand actions');
   assert.equal(h.scrim().props.style.top,undefined);assert.equal(h.scrim().props.style.bottom,0);
   assert.equal(h.scrim().props.style.height,'var(--dialog-viewport-height, 100dvh)');
  }
+});
+
+test('mobile file management starts expanded without inheriting the owner profile action layout',()=>{
+ const model=contextActions('profile',{signedIn:true,owner:true},{handlers});
+ const h=sheetHarness({model,layout:'files'});
+ assert.equal(h.dialog().props['data-expanded'],true);
+ assert.equal(h.dialog().props['data-sheet-layout'],'files');
+ assert.equal(h.dialog().props['data-owner-profile-actions'],undefined);
+ assert.equal(h.resizeButton().props['aria-expanded'],true);
+ assert.equal(h.resizeButton().props['aria-label'],'Collapse actions');
+ assert.equal(h.scrim().props.style.top,undefined);
+ assert.equal(h.scrim().props.style.bottom,0);
+ assert.equal(h.scrim().props.style.height,'var(--dialog-viewport-height, 100dvh)');
 });
 
 test('the common sheet supports close, backdrop, Escape, swipe and action delegation without placeholders', () => {

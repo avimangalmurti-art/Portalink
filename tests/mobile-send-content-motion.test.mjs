@@ -70,7 +70,7 @@ function fixture({ presentation = 'mobile', inline = false, reduce = false, appR
     } }) }, '../../components/messages/NewChatPanel': { NewChatPanel }, '../../components/ui/ModalPortal': { ModalPortal },
     '../../hooks/useDialogViewport': dialogViewport, '../../hooks/useModalFocus': modal, '../../presentation/usePresentation': { usePresentation: () => presentation },
     './useRecipientKeyboard': keyboard, './useRecipientScrollBoundary': scrollBoundary, '../../presentation/motion/useSheetMotion': sheet, '../../presentation/motion/motion': motion,
-    'lucide-react': { ArrowLeftIcon: 'back-icon' }, './internalContentShare.css': {},
+    'lucide-react': { ArrowLeftIcon: 'back-icon' }, '../../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' }, './internalContentShare.css': {},
   }, globals);
   const mobileSendLock = { current: false };
   const props = { inline, mobileSendLock: providerLock || presentation === 'mobile' && !inline ? mobileSendLock : undefined, target: { title: 'Project', url: 'https://portalink.test/p/creator/c/portal/work', onSent: () => calls.push(['confirmed']) }, onClose: () => { calls.push(['close']); unmount(); } };

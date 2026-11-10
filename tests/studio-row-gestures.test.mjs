@@ -166,15 +166,16 @@ test('selection presents real checkboxes, explicit options remain accessible, an
 });
 
 test('Studio action sheet uses shared modal focus, explicit close and invokes only the chosen action', () => {
-  const calls = [];
+  const calls = [], focus = [];
   const react = { ...React, useId: () => 'studio-options', useRef: initial => ({ current: initial }),
     useState: initial => [initial, () => assert.fail('Invoking an action must not resize the sheet')],
+    useEffect() {},
   };
   const { MobileActionSheet } = compile('../src/components/messages/MobileActionSheet.tsx', {
     react,
     '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
-    '../../hooks/useModalFocus': { useModalFocus(open, _ref, _close, preventScroll) { assert.equal(open, true); assert.equal(preventScroll, true); } },
+    '../../hooks/useModalFocus': { useModalFocus(open, _ref, close, preventScroll) { focus.push({ open, close, preventScroll }); } },
   });
   const { StudioActionSheet } = compile('../src/features/studio/StudioActionSheet.tsx', {
     react, 'react-dom': { flushSync: fn => fn() },
@@ -183,10 +184,15 @@ test('Studio action sheet uses shared modal focus, explicit close and invokes on
   });
   const adapter = StudioActionSheet({ title: 'Project options', actions: [{ id: 'open', label: 'Open', onAction() { calls.push('open'); } }], onClose() { calls.push('close'); } });
   const tree = MobileActionSheet(adapter.props);
+  assert.equal(focus.length, 1);
+  assert.equal(focus[0].open, true);
+  assert.equal(focus[0].preventScroll, true);
   const dialog = nodes(tree).find(node => node.props.role === 'dialog');
   assert.equal(dialog.props['aria-modal'], 'true'); assert.equal(dialog.props['aria-labelledby'], 'studio-options');
   const action = nodes(tree).find(node => node.type === 'button' && nodes(node).some(child => child.type === 'span' && child.props.children === 'Open'));
   action.props.onClick(); assert.deepEqual(calls, ['close', 'open']);
-  nodes(tree).find(node => node.props['aria-label'] === 'Close actions').props.onClick();
+  const close = nodes(tree).find(node => node.props['aria-label'] === 'Close actions').props.onClick;
+  assert.equal(focus[0].close, close, 'The focus layer and visible button must share the close handler');
+  close();
   assert.deepEqual(calls, ['close', 'open', 'close']);
 });

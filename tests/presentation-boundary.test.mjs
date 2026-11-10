@@ -134,9 +134,10 @@ function presentationBoundary(mode) {
 test('presentation scope accepts an explicitly scoped descendant without accepting siblings or lookalike attributes', () => {
   for (const mode of ['web', 'mobile']) {
     const boundary = presentationBoundary(mode);
-    const compoundShellBoundary = new RegExp(`^#root \\.(codex|app)-shell(?:\\.\\1-shell)?(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
+    const compoundShellBoundary = new RegExp(`^#root \\.(codex|app)-shell(?:\\.\\1-shell)?(?:\\.(?:theme-dark|theme-light|shared-portalink-shell))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
     assert.ok(boundary.test(`#root .codex-shell [data-presentation='${mode}'] .mobile-project-description-sheet`));
     assert.ok(compoundShellBoundary.test(`#root .codex-shell.codex-shell[data-presentation='${mode}'] .studio-citation-pills`));
+    assert.ok(compoundShellBoundary.test(`#root .codex-shell.shared-portalink-shell[data-presentation='${mode}'] .shared-profile-sidebar`));
     assert.ok(boundary.test(`#root .codex-shell[data-presentation='${mode}'] .surface`));
     assert.ok(boundary.test(`#root [data-presentation='${mode}'] [data-loading-layout]`));
     for (const selector of [
@@ -155,6 +156,7 @@ test('every platform CSS selector is scoped, including nested rules and selector
   for (const mode of ['web', 'mobile']) {
     const root = postcss.parse(read(`../src/presentation/${mode}/${mode}.css`));
     let rules = 0;
+    const unscoped = [];
     const animationNames = new Set();
     root.walkAtRules((rule) => {
       if (rule.name === 'keyframes') {
@@ -168,7 +170,10 @@ test('every platform CSS selector is scoped, including nested rules and selector
         assert.ok(!read('../src/index.css').includes(rule.params), `Animation ${rule.params} collides with shared CSS`);
         return;
       }
-      assert.ok(['media', 'supports', 'container'].includes(rule.name), `Global @${rule.name} is not platform scoped`);
+      const knownLayer = rule.name === 'layer'
+        && ['portalink-header-material', 'portalink-interface-shapes'].includes(rule.params)
+        && rule.nodes?.every((node) => ['rule', 'atrule', 'comment'].includes(node.type));
+      assert.ok(['media', 'supports', 'container'].includes(rule.name) || knownLayer, `Global @${rule.name} is not platform scoped`);
     });
     root.walkRules((rule) => {
       if (rule.parent?.type === 'atrule' && rule.parent.name === 'keyframes') {
@@ -183,7 +188,7 @@ test('every platform CSS selector is scoped, including nested rules and selector
         // with or without zero specificity for component-level overrides.
         // A compound host selector (:has(), data attributes, etc.) retains scope.
         const boundary = presentationBoundary(mode);
-        const compoundShellBoundary = new RegExp(`^#root \\.(codex|app)-shell(?:\\.\\1-shell)?(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
+        const compoundShellBoundary = new RegExp(`^#root \\.(codex|app)-shell(?:\\.\\1-shell)?(?:\\.(?:theme-dark|theme-light|shared-portalink-shell))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
         // AccountWelcomeSurface emits this alternate DOM scope only when
         // usePresentation() is mobile; account-entry-focus exercises that gate.
         const mobileOnboardingBoundary = /^#root \.codex-shell (?:\.auth-signin-experience)?\[data-mobile-onboarding(?:='(?:light|dark)')?\](?=[\s:.#\[]|$)/;
@@ -232,11 +237,13 @@ test('every platform CSS selector is scoped, including nested rules and selector
           ([readerRoot, `${readerRoot} body`].includes(selector) && node.prop === 'scrollbar-width' && node.value === 'none')
           || ([`${readerRoot}::-webkit-scrollbar`, `${readerRoot} body::-webkit-scrollbar`].includes(selector) && node.prop === 'display' && node.value === 'none')
         ));
-        assert.ok((boundary.test(selector) || compoundShellBoundary.test(selector)) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas || mobilePortalScrollLock || mobileReaderScrollbar || mobileDocumentScrollbar || mobileStudioScrollLock, `Unscoped ${mode} selector: ${selector}`);
+        const scoped = boundary.test(selector) || compoundShellBoundary.test(selector) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas || mobilePortalScrollLock || mobileReaderScrollbar || mobileDocumentScrollbar || mobileStudioScrollLock;
+        if (!scoped) unscoped.push(selector);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }
     });
     assert.ok(rules > 0);
+    assert.equal(unscoped.length, 0, `Unscoped ${mode} selectors:\n${unscoped.join('\n')}`);
   }
 });
 

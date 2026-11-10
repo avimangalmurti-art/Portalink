@@ -87,9 +87,9 @@ test('the real dialog requests a fresh-profile completion handoff only for MOBIL
     assert.deepEqual(args.slice(0, 4), ['creator', 'category', true, 'Typography']);
     assert.equal(args[4], presentation === 'mobile');
     assert.equal(args[5], false, 'Ordinary project publishing must not become the onboarding flow');
-    assert.equal(args[7].persist, presentation === 'mobile');
+    assert.equal(args[7].persist, true);
     assert.equal(args[7].initialMetadata, initialMetadata);
-    assert.equal(args[7].resume,presentation==='mobile'?resumeDraft:undefined);
+    assert.equal(args[7].resume, resumeDraft);
     assert.equal(args[7].awaitProfile, presentation === 'mobile');
   }
 });
@@ -215,12 +215,12 @@ test('disabled Publish explains the missing detail, then clears the helper when 
     ['  ', '', 'Add a title to publish.'],
   ]) {
     const tree = harness(presentation).render({ metadata: { title, summary }, canPublish: false, media: { items: [{}] } });
-    assert.ok(nodes(tree).some((node) => node.props?.role === 'status' && node.props.children === expected));
+    assert.ok(nodes(tree).some((node) => node.props?.id === 'publish-hint' && node.props.role === 'status' && node.props.children === expected));
     assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, true);
   }
   const tree = harness(presentation).render({ firstProject: false, metadata: { title: 'My project', summary: '' }, canPublish: true, media: { items: [{}] } });
   assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, false);
-  assert.ok(!nodes(tree).some((node) => node.props?.role === 'status'));
+  assert.ok(!nodes(tree).some((node) => node.props?.id === 'publish-hint'));
   assert.ok(nodes(tree).some((node) => node.props?.id === 'publish-details-label' && node.props.children === 'Project details'));
   }
 });
@@ -279,7 +279,7 @@ test('first-project close waits for discard cleanup and retains the draft on fai
 
 test('first-project recovery retains safe close and locked fields after switching to WEB', async () => {
   let saved=0,closed=0;
-  const tree=harness('web').render({hasCommittedProject:true,discard:async()=>{saved++;return true;},canPublish:true,media:{items:[{}]}},{firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
+  const tree=harness('web').render({hasCommittedProject:true,saveLocalDraft:async()=>{saved++;},discard:async()=>assert.fail('A committed project must preserve its recovery checkpoint'),canPublish:true,media:{items:[{}]}},{firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
   await tree.props.onClose();assert.equal(saved,1);assert.equal(closed,1);
   const guided = nodes(tree).find(node => node.type === 'MobilePublishFlow');
   assert.equal(guided.props.flow.hasCommittedProject, true);

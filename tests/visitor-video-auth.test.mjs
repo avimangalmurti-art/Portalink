@@ -7,8 +7,8 @@ test('public video cards enable the existing inline muted playback fallback', ()
  assert.match(source('components/media/ProjectCover.tsx'), /attachment.kind === 'video' && attachment.sourceUrl/);
 });
 test('public reader has no duplicate floating action button', () => {
- assert.match(source('visitor/VisitorApp.tsx'), /showFloatingActions=\{!projectId && !handleError && !invalidShared/);
- assert.match(source('presentation/mobile/MobileContextActions.tsx'), /currentScreen\(\) && showFloatingButton/);
+ assert.match(source('visitor/VisitorApp.tsx'), /showFloatingActions=\{!settings && !projectId && !handleError && !invalidShared && Boolean\(profile\) && query.status === 'ready'\}/);
+ assert.match(source('presentation/mobile/MobileContextActions.tsx'), /mobile && screenModel && canOpenScreen && showFloatingButton && <MobileContextButton floating\s*\/>/);
 });
 test('reader information opens publicly and guest engagement closes it before signup', () => {
  const viewer=source('components/media/ProjectMediaViewer.tsx');

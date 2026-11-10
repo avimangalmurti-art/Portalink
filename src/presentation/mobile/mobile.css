@@ -3482,7 +3482,7 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
     animation: premium-media-spin var(--m-loading-spin) steps(8) infinite;
   }
 }
-.app-viewport--reduce-motion [data-mobile-page-reader]::after { animation: none !important; }
+:where([data-presentation='mobile']) .app-viewport--reduce-motion [data-mobile-page-reader]::after { animation: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]::after { animation: none; }
@@ -4001,14 +4001,14 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   background: transparent;
   color: var(--text-primary);
 }
-[data-message-editing] > :is([data-message-meta], [data-message-reactions]) { display: none; }
-[data-mobile-message-edit] {
+:where([data-presentation='mobile']) [data-message-editing] > :is([data-message-meta], [data-message-reactions]) { display: none; }
+:where([data-presentation='mobile']) [data-mobile-message-edit] {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: end;
   gap: 8px;
 }
-[data-mobile-message-edit] > button {
+:where([data-presentation='mobile']) [data-mobile-message-edit] > button {
   display: grid;
   place-items: center;
   inline-size: 44px;
@@ -4018,8 +4018,8 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   background: var(--surface-sunken);
   color: var(--text-primary);
 }
-[data-mobile-message-edit] > button:disabled { opacity: .45; }
-[data-mobile-message-edit] > textarea {
+:where([data-presentation='mobile']) [data-mobile-message-edit] > button:disabled { opacity: .45; }
+:where([data-presentation='mobile']) [data-mobile-message-edit] > textarea {
   width: 100%;
   min-height: 44px;
   max-height: 112px;
@@ -4033,7 +4033,7 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   line-height: 22px;
   resize: none;
 }
-[data-mobile-message-edit] > textarea:focus {
+:where([data-presentation='mobile']) [data-mobile-message-edit] > textarea:focus {
   border-color: var(--hairline-strong);
   outline: none !important;
 }

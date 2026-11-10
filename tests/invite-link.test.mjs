@@ -83,7 +83,11 @@ test('invite entry holds Hello World on both presentations without requesting si
   const expression = source.match(/const holdLanding = (.*);/)[1];
   for (const presentation of ['mobile', 'web']) {
     for (const [isAuthenticated, isRecovery, isInitializing, expected] of [[false,false,false,true],[true,false,false,false],[false,true,false,false],[false,false,true,false]]) {
-      assert.equal(vm.runInNewContext(expression, { Boolean, isSharedView:false, landingPath:'/', hasLeftLanding:false, presentation, isWelcomeInvite:true, isRecovery, auth:{isAuthenticated,isInitializing} }), expected);
+      assert.equal(vm.runInNewContext(expression, {
+        Boolean, isSharedView: false, isPublicSettings: false, isAuthCallback: false,
+        landingPath: '/', hasLeftLanding: false, presentation, isWelcomeInvite: true, isRecovery,
+        auth: { isAuthenticated, isInitializing },
+      }), expected);
     }
   }
 });

@@ -18,8 +18,12 @@ const id='11111111-1111-4111-8111-111111111111';
 test('handle grammar, suggestions, all product roots and URL fallbacks',()=>{
  for(const valid of ['avi','avi.work','a'.repeat(30)])assert.equal(model.validHandle(valid),true);
  for(const bad of ['ab','Avi','avi_work','avi-work','.avi','a'.repeat(31),'messages','share','api','og.png'])assert.equal(model.validHandle(bad),false,bad);
- const routes=readFileSync(new URL('../src/app/routes.ts',import.meta.url),'utf8');for(const path of [...routes.matchAll(/path: '([^']+)'/g)].map(m=>m[1]))for(const segment of path.split('/').filter(s=>s&&!s.startsWith(':')))assert.ok(model.RESERVED_HANDLES.has(segment),segment);
+ const routes=readFileSync(new URL('../src/app/routes.ts',import.meta.url),'utf8');
+ for(const path of [...routes.matchAll(/path: '([^']+)'/g)].map(m=>m[1])){
+  for(const segment of path.split('/').filter(s=>s&&!s.startsWith(':')))assert.equal(model.validHandle(segment),false,segment);
+ }
  assert.equal(model.handleFromPath('/avi'), 'avi');assert.equal(model.handleFromPath('/messages'),null);assert.equal(model.handleFromPath('/avi/no'),null);
+ assert.equal(model.handleFromPath('/portal-search'),null);
  assert.equal(model.portfolioPath(id,'legacy_name'),'/share/'+id);assert.equal(model.portfolioPath(id,'avi'),'/avi');
  assert.equal(model.handleFromPath('/avi/c/portal/project'),'avi');
  assert.equal(model.handleFromPath('/avi/c/portal/project/extra'),null);

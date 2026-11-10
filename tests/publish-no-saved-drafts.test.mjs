@@ -27,12 +27,13 @@ test('mobile close awaits its local checkpoint and retains work when saving fail
  await failed.render().props.onClose();assert.deepEqual(failed.calls,[]);
 });
 
-test('desktop keeps close-to-discard behavior and never enables device persistence',async()=>{
- for(const success of [true,false]){
-  const h=harness('web',{discard:async()=>success});
-  await h.render().props.onClose();assert.deepEqual(h.calls,success?['close']:[]);
-  assert.equal(h.hookCalls[0][5],false);assert.equal(h.hookCalls[0][7].persist,false);
- }
+test('desktop saves dirty work on close and retains the editor if saving fails',async()=>{
+ const saved=harness('web');await saved.render().props.onClose();assert.deepEqual(saved.calls,['save','close']);
+ assert.equal(saved.hookCalls[0][5],false);assert.equal(saved.hookCalls[0][7].persist,true);
+ const failed=harness('web',{saveLocalDraft:async()=>{throw Error('Storage full');}});
+ await failed.render().props.onClose();assert.deepEqual(failed.calls,[]);
+ const clean=harness('web',{isDirty:false});
+ await clean.render().props.onClose();assert.deepEqual(clean.calls,['discard','close']);
 });
 
 test('mobile Details explicitly confirms discard separately from saving and closing',async()=>{
@@ -45,11 +46,11 @@ test('mobile Details explicitly confirms discard separately from saving and clos
  await confirmation.props.onDiscard();assert.deepEqual(h.calls,['discard','close']);
 });
 
-test('mobile forwards exact resume identity while desktop keeps its existing opening',()=>{
+test('mobile and desktop forward the exact saved-draft identity',()=>{
  const resume={id:'saved',profileId:'owner',categoryId:'portal'};
  for(const presentation of ['mobile','web']){
   const h=harness(presentation);h.render({resumeDraft:resume});
-  assert.equal(h.hookCalls[0][7].persist,presentation==='mobile');
-  assert.equal(h.hookCalls[0][7].resume,presentation==='mobile'?resume:undefined);
+  assert.equal(h.hookCalls[0][7].persist,true);
+  assert.equal(h.hookCalls[0][7].resume,resume);
  }
 });
