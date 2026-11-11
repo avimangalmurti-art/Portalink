@@ -29,12 +29,15 @@ function harness(mobile = true, { active: initialActive = true, entryReady: init
     if (name === 'react') return react;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => mobile ? 'mobile' : 'web' };
     if (name.endsWith('/viewerMemory')) return { readViewerMemory: () => ({}), updateViewerMemory: (key, state) => saved.push([key, state.zoom]) };
-    if (name.endsWith('/pageZoomEntry')) return { installPageZoomEntry(target, onEnter) {
+    if (name.endsWith('/pageZoomEntry')) {
+      function attach(target, onEnter) {
       assert.equal(target, surface);
       const attachment = { onEnter, cleanupCount: 0 };
       entryAttachments.push(attachment);
       return () => attachment.cleanupCount++;
-    } };
+      }
+      return { installPageZoomEntry: attach, installOverviewPageTaps: attach };
+    }
     return { touchMidpoint: t => ({ x: (t[0].clientX + t[1].clientX) / 2, y: 100 }), beginContentPinch() {
       const m = { values: [], settleCount: 0, cancelled: false, update(ratio) { this.values.push(ratio); }, settle() { this.settleCount++; }, cancel() { this.cancelled = true; } }; motions.push(m); return m;
     } };
@@ -105,8 +108,8 @@ test('a document surface mounted after processing attaches zoom entry when ready
   assert.equal(h.entryAttachments.length, 0, 'A mounted surface must still wait for its page content');
   h.setEntryState({ entryReady: true });
   assert.equal(h.entryAttachments.length, 1, 'Processing completion must attach without a focus or memory-key change');
-  h.entryAttachments[0].onEnter(2, 1.6);
-  assert.deepEqual(h.entryRequests, [[2, 1.6]]);
+  h.entryAttachments[0].onEnter(2);
+  assert.deepEqual(h.entryRequests, [[2, undefined]]);
   h.render();
   assert.equal(h.entryAttachments.length, 1, 'Routine renders must preserve the current gesture listeners');
   h.setEntryState({ entryReady: false });
@@ -134,4 +137,19 @@ test('a document surface mounted after processing attaches zoom entry when ready
   assert.ok(focused.events.has('wheel'));
   focused.unmount();
   assert.equal(focused.events.size, 0);
+});
+
+test('a mobile overview pinch retains the overview and its magnification until a page is tapped twice', () => {
+  const h = harness(true, { active: false });
+  h.event('touchstart', 100);
+  h.event('touchmove', 175);
+  h.event('touchend', 0, 1);
+  h.render();
+  assert.equal(h.zoom, 1.75);
+  assert.deepEqual(h.saved, [['one', 1.75]]);
+  assert.equal(h.motions[0].settleCount, 1);
+  assert.deepEqual(h.entryRequests, []);
+  h.entryAttachments[0].onEnter(2);
+  assert.deepEqual(h.entryRequests, [[2, undefined]]);
+  assert.equal(h.exits, 0);
 });

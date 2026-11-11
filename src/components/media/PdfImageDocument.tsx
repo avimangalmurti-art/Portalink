@@ -328,7 +328,7 @@ function PdfImagePage({
     role={isFocused ? undefined : 'button'}
     tabIndex={isFocused ? undefined : 0}
     aria-pressed={isFocused ? undefined : false}
-    aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Single-page view' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`}
+    aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Single-page view' : retainCanvasWhileLoading ? 'Pinch to zoom in place. Double-tap to open single-page view' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`}
     aria-busy={status === 'waiting' || status === 'loading' || (retainCanvasWhileLoading && paintedPageNumber !== pageNumber)}
     onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => {
       if (retainCanvasWhileLoading && status !== 'ready') return;
@@ -479,9 +479,10 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   const zoom = useSinglePageZoom({
     surfaceRef: scrollRootRef,
     active: focusedPageNumber !== null, stayFocused: readingMode,
+    entryReady: pageCount > 0,
     onEnter: (pageNumber, nextZoom) => {
       if (pageNumber > pageCount) return;
-      updateViewerMemory(`${memoryKey}:page:${pageNumber}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
+      if (nextZoom !== undefined) updateViewerMemory(`${memoryKey}:page:${pageNumber}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
       focusPage(pageNumber);
     },
     onExit: exitFocus,
@@ -612,8 +613,9 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   const pageNumbers = focusedPageNumber === null
     ? Array.from({ length: pageCount }, (_, index) => index + 1)
     : [focusedPageNumber];
+  const overviewZoom = isMobile && focusedPageNumber === null && zoom > 1;
 
-  return <div key={focusedPageNumber === null ? 'pdf-grid' : isMobile ? 'pdf-focused' : `pdf-page-${focusedPageNumber}`} ref={scrollRootRef} tabIndex={focusedPageNumber === null ? undefined : 0} onScroll={focusedPageNumber === null ? (event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop }) : undefined} onKeyDown={focusedPageNumber === null ? undefined : (event) => {
+  return <div key={focusedPageNumber === null ? 'pdf-grid' : isMobile ? 'pdf-focused' : `pdf-page-${focusedPageNumber}`} ref={scrollRootRef} tabIndex={focusedPageNumber === null ? undefined : 0} onScroll={focusedPageNumber === null ? (event) => updateViewerMemory(memoryKey, isMobile ? { scrollLeft: event.currentTarget.scrollLeft } : { scrollTop: event.currentTarget.scrollTop }) : undefined} onKeyDown={focusedPageNumber === null ? undefined : (event) => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
       moveFocusedPage(-1);
@@ -621,7 +623,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       event.preventDefault();
       moveFocusedPage(1);
     }
-  }} {...swipeHandlers} data-mobile-focused-view={isMobile && focusedPageNumber !== null ? '' : undefined} className={`${focusedPageNumber === null ? 'overflow-y-auto p-2 sm:p-4' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageNumber === null ? undefined : swipeStyle}>
+  }} {...swipeHandlers} data-mobile-focused-view={isMobile && focusedPageNumber !== null ? '' : undefined} className={`${focusedPageNumber === null ? 'overflow-y-auto p-2 sm:p-4' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageNumber !== null ? swipeStyle : overviewZoom ? { overflowX: 'auto' } : undefined}>
     {!readingMode && focusedPageNumber !== null ? <FocusedPageExitControl
       onExit={exitFocus}
     /> : null}
@@ -638,7 +640,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       <span className="premium-media-loading-mark" aria-hidden="true" />
       <span className="sr-only">Preparing page images</span>
     </div>}
-    {document && <ol aria-label={`${label} pages`} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))` }}>
+    {document && <ol aria-label={`${label} pages`} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))`, ...(overviewZoom ? { width: `${zoom * 100}%`, maxWidth: 'none' } : {}) }}>
       {pageNumbers.map((pageNumber) => <li key={isMobile && focusedPageNumber !== null ? 'focused' : pageNumber} className={`${focusedPageNumber === pageNumber ? 'h-full min-h-0' : ''} group/media flex w-full justify-center`}>
         <PdfImagePage
           projectId={projectId}

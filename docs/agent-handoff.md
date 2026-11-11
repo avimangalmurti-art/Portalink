@@ -1,3 +1,9 @@
+## 2026-11-10 — MOBILE reader zoom stays on the current page
+
+Task checkout `logs/mobile-reader-zoom-hold` on `codex/mobile-reader-zoom-hold`, based on GitHub `main` at `8074d941862bee2cf47a29b308602b8c95fecf4f`. Mobile image and PDF overviews keep their scroll-through layout during pinch zoom. The page under the fingers stays anchored as the zoom settles, and a deliberate double tap opens the tapped page in single-page view. In the focused reader, a two-finger pinch cancels any pending page-turn swipe.
+
+The 420 × 912 Chromium preview used the actual reader components with local test artwork. It verified pinch-in-place, zoom back to fit and double-tap entry. At 1280 × 900, desktop Control-wheel still opened the page under the pointer. Typecheck, changed-file lint, production build and 137 focused tests passed. Browser gestures were simulated. Physical iPhone verification and publication remain pending. No worker source, database, or native project files changed.
+
 ## Browser favicon squircle
 
 Task checkout `logs/portalite-favicon-squircle` on `codex/portalite-favicon-squircle`, based on GitHub `main` at `0430ec45544c0c702d688ba474bc599e6d369df5`. Applied the existing avatar squircle curve to the alpha channel of the four browser favicon PNGs and all four ICO frames. The original dimensions and RGB pixels were verified, and the main, catalogue and citation HTML entries use new content-hash versions. The Apple touch images and web app manifest were checked against the shipped files.

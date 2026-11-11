@@ -4,8 +4,10 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 
-function harness({ pages: customPages, onEnter } = {}) {
+function harness({ pages: customPages, onEnter, overviewTaps = false } = {}) {
   const events = new Map(), entries = [], motions = [], removals = [];
+  const documentEvents = new Map();
+  let time = 1000;
   class Element {
     constructor(control = false) { this.control = control; }
     closest() { return this.control ? this : null; }
@@ -17,6 +19,10 @@ function harness({ pages: customPages, onEnter } = {}) {
   });
   const pages = customPages ?? [page(1, 0, -300), page(2, 0, 20), page(3, 200, 20), page(4, 0, 290), page(5, 200, 290)];
   const surface = {
+    ownerDocument: {
+      addEventListener: (name, handler) => documentEvents.set(name, handler),
+      removeEventListener: (name) => documentEvents.delete(name),
+    },
     querySelectorAll: () => pages,
     getBoundingClientRect: () => box(0, 0, 400, 540),
     addEventListener(name, fn, options) { assert.equal(events.has(name), false); events.set(name, { fn, options }); },
@@ -26,7 +32,7 @@ function harness({ pages: customPages, onEnter } = {}) {
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/pageZoomEntry.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, {
-    exports, Element, WheelEvent: { DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2 },
+    exports, Element, performance: { now: () => time }, WheelEvent: { DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2 },
     require(name) {
       if (name.endsWith('/pinchGesture')) return {
         pinchDistance: touches => touches.length === 2 ? Math.hypot(touches[1].clientX - touches[0].clientX, touches[1].clientY - touches[0].clientY) : null,
@@ -47,7 +53,8 @@ function harness({ pages: customPages, onEnter } = {}) {
       };
     },
   });
-  const cleanup = exports.installPageZoomEntry(surface, (pageNumber, zoom) => {
+  const install = overviewTaps ? exports.installOverviewPageTaps : exports.installPageZoomEntry;
+  const cleanup = install(surface, (pageNumber, zoom) => {
     entries.push({ pageNumber, zoom });
     onEnter?.(pageNumber, zoom);
   });
@@ -57,13 +64,44 @@ function harness({ pages: customPages, onEnter } = {}) {
   const touches = (distance, count = 2, x = 290, y = 130) => Array.from({ length: count }, (_, index) => ({
     identifier: index, clientX: x + (index === 0 ? -distance / 2 : distance / 2), clientY: y,
   }));
-  return { entries, motions, events, removals, cleanup, Element, page,
+  return { entries, motions, events, removals, cleanup, Element, page, documentEvents,
+    advance(milliseconds) { time += milliseconds; },
+    overviewPointer(type, pageNumber, detail = {}) {
+      const target = { closest: selector => selector === '[data-project-page-number]' ? { dataset: { projectPageNumber: String(pageNumber) } } : null };
+      return dispatch(event(type, { target, pointerType: 'touch', isPrimary: true, pointerId: 1, clientX: 290, clientY: 130, ...detail }));
+    },
     pointerUp(detail = {}) { return dispatch(event('pointerup', { pointerType: 'touch', ...detail })); },
     wheel(detail = {}) { return dispatch(event('wheel', { deltaY: -40, deltaMode: 0, ctrlKey: true, metaKey: false, clientX: 290, clientY: 130, ...detail })); },
     touch(type, distance = 100, count = 2, detail = {}) { return dispatch(event(type, { touches: touches(distance, count), ...detail })); },
     touches,
   };
 }
+
+test('mobile overview page taps are interrupted by pinch, drag, or a tap on another page', () => {
+  const h = harness({ overviewTaps: true });
+  const touch = (type, page = 3, detail) => h.overviewPointer(`pointer${type}`, page, detail);
+  const tap = (page = 3) => { touch('down', page); h.advance(30); touch('up', page); };
+
+  tap();
+  touch('down');
+  h.documentEvents.get('touchstart')({ touches: h.touches(100) });
+  assert.equal(touch('up').stopped, true);
+  touch('up', 3, { pointerId: 2, isPrimary: false });
+  tap();
+  assert.deepEqual(h.entries, []);
+
+  touch('down');
+  touch('move', 3, { clientX: 275 });
+  touch('up');
+  tap(4);
+  tap(3);
+  assert.deepEqual(h.entries, []);
+  tap(3);
+  assert.deepEqual(h.entries, [{ pageNumber: 3, zoom: undefined }]);
+  h.cleanup();
+  assert.equal(h.events.size, 0);
+  assert.equal(h.documentEvents.size, 0);
+});
 
 test('modified zoom-in selects the page under the pointer and immediately starts above fitted size', () => {
   for (const modifier of [{ ctrlKey: true }, { ctrlKey: false, metaKey: true }]) {

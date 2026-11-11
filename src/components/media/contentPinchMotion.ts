@@ -19,9 +19,13 @@ function stopAnimations(surface: HTMLElement) {
 }
 
 /** Preview only painted content; layout, controls and React state stay still. */
-export function beginContentPinch(surface: HTMLElement, origin: Point, focused = false) {
+export function beginContentPinch(surface: HTMLElement, origin: Point, mode: 'density' | 'page' | 'overview' = 'density') {
+  const focused = mode === 'page';
   const selector = focused ? '.premium-focused-media[data-media-page-surface]' : '[data-project-page-number]';
-  const viewport = surface.getBoundingClientRect();
+  const bounds = surface.getBoundingClientRect();
+  const viewport = mode === 'overview' && bounds.height > window.innerHeight
+    ? { top: 0, bottom: window.innerHeight, height: window.innerHeight }
+    : bounds;
   const elements = Array.from(surface.querySelectorAll<HTMLElement>(selector));
   // Preserve the current visible pose if a new pinch interrupts settling.
   const visible = new Map(elements.map(element => [element, boxOf(element)]));
@@ -68,9 +72,12 @@ export function beginContentPinch(surface: HTMLElement, origin: Point, focused =
     for (const page of pages) {
       page.element.style.transform = page.transform;
       page.element.style.transformOrigin = page.origin;
-      page.element.style.transition = page.transition;
       page.element.style.willChange = page.willChange;
     }
+    // Flush the restored transforms before re-enabling CSS transitions.
+    // Otherwise the old preview transform can persist into anchor measurement.
+    surface.getBoundingClientRect();
+    for (const page of pages) page.element.style.transition = page.transition;
     disposed = true;
   };
   paint();
@@ -91,8 +98,17 @@ export function beginContentPinch(surface: HTMLElement, origin: Point, focused =
       const nextAnchor = targets.find((element, index) => keyOf(element, index) === anchor.key);
       if (preserveAnchor && nextAnchor && scroller.isConnected) {
         const rect = boxOf(nextAnchor);
-        scroller.scrollLeft += rect.x + anchorFraction.x * rect.width - center.x;
-        scroller.scrollTop += rect.y + anchorFraction.y * rect.height - center.y;
+        const left = rect.x + anchorFraction.x * rect.width - center.x;
+        const top = rect.y + anchorFraction.y * rect.height - center.y;
+        if (mode === 'overview') {
+          // The overview pans horizontally inside the attachment, while its
+          // vertical reading position belongs to the document on mobile.
+          surface.scrollLeft += left;
+          window.scrollBy({ top, behavior: 'instant' });
+        } else {
+          scroller.scrollLeft += left;
+          scroller.scrollTop += top;
+        }
       }
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       const running = targets.flatMap((element, index) => {
