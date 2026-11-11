@@ -211,7 +211,7 @@ export function DocumentAttachment({
     onEnter: (pageNumber, nextZoom) => {
       const index = pageNumber - 1;
       if (!renderedPages[index]) return;
-      updateViewerMemory(`${memoryKey}:page:${index}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
+      if (nextZoom !== undefined) updateViewerMemory(`${memoryKey}:page:${index}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
       focusPage(index);
     },
     onExit: exitFocus,
@@ -260,6 +260,7 @@ export function DocumentAttachment({
     return isMobile ? <div ref={attachmentRef} data-document-attachment="" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col"><GenericFileCard attachment={attachment} /></div> : <GenericFileCard attachment={attachment} />;
   }
   const columnCount = Math.min(normalizePagesPerRow(columns, 1), renderedPages.length || MAX_PAGES_PER_ROW);
+  const overviewZoom = isMobile && focusedPageIndex === null && zoom > 1;
   const displayedPages = focusedPageIndex === null
     ? renderedPages.map((page, index) => ({ page, index }))
     : renderedPages[focusedPageIndex]
@@ -267,6 +268,10 @@ export function DocumentAttachment({
       : [];
   return <div ref={attachmentRef} data-document-attachment="" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col">
       {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : isMobile ? 'document-focused' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} tabIndex={focusedPageIndex === null ? undefined : 0} onScroll={(event) => {
+        if (isMobile && focusedPageIndex === null) {
+          updateViewerMemory(memoryKey, { scrollLeft: event.currentTarget.scrollLeft });
+          return;
+        }
         if (isMobile && focusedPageIndex !== null && pendingRenderedPages.current.has(renderedPages[focusedPageIndex]?.sourceUrl ?? '')) return;
         const positionMemoryKey = focusedPageIndex !== null ? `${memoryKey}:page:${focusedPageIndex}` : memoryKey;
         updateViewerMemory(positionMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft });
@@ -278,7 +283,7 @@ export function DocumentAttachment({
           event.preventDefault();
           moveFocusedPage(1);
         }
-      }} {...swipeHandlers} data-mobile-focused-view={isMobile && focusedPageIndex !== null ? '' : undefined} className={`${focusedPageIndex === null ? 'overflow-y-auto p-4 sm:p-6' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageIndex === null ? undefined : swipeStyle}>
+      }} {...swipeHandlers} data-mobile-focused-view={isMobile && focusedPageIndex !== null ? '' : undefined} className={`${focusedPageIndex === null ? 'overflow-y-auto p-4 sm:p-6' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageIndex !== null ? swipeStyle : overviewZoom ? { overflowX: 'auto' } : undefined}>
         {!readingMode && focusedPageIndex !== null ? <FocusedPageExitControl
           onExit={exitFocus}
         /> : null}
@@ -291,8 +296,8 @@ export function DocumentAttachment({
             </button> : null}
             <FocusedPageCounter current={focusedPageIndex + 1} total={renderedPages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
-        <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))` }}>
-          {displayedPages.map(({ page, index }) => <li key={isMobile && focusedPageIndex !== null ? 'focused' : page.storagePath} data-project-page-number={index + 1} data-project-continuity-page={isMobile ? page.withinDocumentIndex : undefined} data-reach-attachment={attachment.id} data-project-page-ready={isMobile && focusedPageIndex !== null ? paintedReaderPage === `${attachment.id}:${page.sourceUrl}:${index+1}` : undefined} data-project-page-total={renderedPages.length} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? readingMode ? 'Reading mode. Swipe left or right to turn the page. Pinch to zoom' : 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
+        <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))`, ...(overviewZoom ? { width: `${zoom * 100}%`, maxWidth: 'none' } : {}) }}>
+          {displayedPages.map(({ page, index }) => <li key={isMobile && focusedPageIndex !== null ? 'focused' : page.storagePath} data-project-page-number={index + 1} data-project-continuity-page={isMobile ? page.withinDocumentIndex : undefined} data-reach-attachment={attachment.id} data-project-page-ready={isMobile && focusedPageIndex !== null ? paintedReaderPage === `${attachment.id}:${page.sourceUrl}:${index+1}` : undefined} data-project-page-total={renderedPages.length} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? readingMode ? 'Reading mode. Swipe left or right to turn the page. Pinch to zoom' : 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : isMobile ? 'Pinch to zoom in place. Double-tap to open single-page view' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
             event.preventDefault();
             if (performance.now() - lastTouchToggleAtRef.current < 500) return;
             focusPage(index);

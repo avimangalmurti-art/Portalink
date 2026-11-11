@@ -5,20 +5,48 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 function harness(presentation = 'mobile') {
-  const exports = {}, ref = { current: null }, moves = [], exits = [];
+  const exports = {}, refs = [], moves = [], exits = [], touchListeners = new Map();
+  let refIndex = 0, effect;
   class Element { constructor(control = false) { this.control = control; } closest() { return this.control ? this : null; } }
+  const document = {
+    addEventListener(type, listener, options) { touchListeners.set(type, { listener, options }); },
+    removeEventListener(type, listener, capture) {
+      assert.equal(touchListeners.get(type)?.listener, listener);
+      assert.equal(capture, true);
+      touchListeners.delete(type);
+    },
+  };
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/useFocusedPageSwipe.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText, { exports, Element, require(name) {
-    if (name === 'react') return { useRef: () => ref };
+  }).outputText, { exports, Element, document, require(name) {
+    if (name === 'react') return {
+      useRef: current => refs[refIndex++] ??= { current },
+      useLayoutEffect(run, deps) {
+        if (effect && deps.every((value, index) => value === effect.deps[index])) return;
+        effect?.cleanup?.();
+        effect = { deps, cleanup: run() };
+      },
+    };
     assert.equal(name, '../../presentation/usePresentation');
     return { usePresentation: () => presentation };
   } });
-  const render = (props = {}) => exports.useFocusedPageSwipe({ active: true, zoom: 1, onMove: d => moves.push(d), onExit: () => exits.push(true), ...props });
+  const render = (props = {}) => {
+    refIndex = 0;
+    return exports.useFocusedPageSwipe({ active: true, zoom: 1, onMove: d => moves.push(d), onExit: () => exits.push(true), ...props });
+  };
   const event = (x = 200, y = 300, details = {}) => ({ clientX: x, clientY: y, pointerType: 'touch', pointerId: 1, isPrimary: true,
     target: new Element(), currentTarget: { getBoundingClientRect: () => ({ left: 0, right: 390 }) },
     preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...details });
-  return { render, event, moves, exits, Element };
+  const touch = (type, count, target = new Element()) => {
+    const capture = touchListeners.get(type);
+    assert.ok(capture, `${type} must reach the document listener even when it starts outside the reader`);
+    assert.equal(capture.options.capture, true);
+    assert.equal(capture.options.passive, true);
+    capture.listener({ type, target, touches: Array.from({ length: count }, (_, identifier) => ({ identifier })),
+      preventDefault() { assert.fail('The swipe guard must leave native touch handling available'); },
+      stopPropagation() { assert.fail('The pinch listener must still receive the event'); } });
+  };
+  return { render, event, moves, exits, Element, touch, touchListeners };
 }
 
 test('fitted mobile pages reserve horizontal swipes and navigate in both directions', () => {
@@ -93,6 +121,54 @@ test('pinching and releases from other pointers cannot turn a page', () => {
   assert.deepEqual(h.moves, []);
 });
 
+test('captured native multitouch cancels an armed turn even without a second reader pointerdown', () => {
+  for (const detectedBy of ['touchstart', 'touchmove']) for (const nativeEndFirst of [false, true]) {
+    const h = harness(), p = h.render().swipeHandlers;
+    p.onPointerDown(h.event(200));
+    h.touch('touchstart', 1);
+    p.onPointerMove(h.event(172));
+    // The second contact starts on a different element. Only the document sees
+    // the two native touches and the reader receives the original pointer-up.
+    h.touch(detectedBy, 2, new h.Element(true));
+    p.onPointerMove(h.event(120));
+    if (nativeEndFirst) h.touch('touchend', 1);
+    const release = h.event(120);
+    p.onPointerUp(release);
+    assert.deepEqual(h.moves, []);
+    assert.deepEqual(h.exits, []);
+    assert.equal(release.prevented, undefined, 'The pinch still owns the release at the fitted zoom.');
+    if (!nativeEndFirst) h.touch('touchend', 1);
+    p.onPointerDown(h.event(200, 300, { pointerId: 2 }));
+    p.onPointerUp(h.event(120, 300, { pointerId: 2 }));
+    assert.deepEqual(h.moves, [], 'A remaining finger cannot restart the turn.');
+    h.touch('touchend', 0);
+    p.onPointerDown(h.event(200, 300, { pointerId: 3 }));
+    h.touch('touchstart', 1);
+    p.onPointerMove(h.event(120, 300, { pointerId: 3 }));
+    p.onPointerUp(h.event(120, 300, { pointerId: 3 }));
+    assert.deepEqual(h.moves, [1], 'A fresh one-finger swipe still turns the page.');
+  }
+});
+
+test('native touch cancellation and leaving the focused reader release the multitouch guard', () => {
+  const h = harness();
+  const swipe = () => {
+    const p = h.render().swipeHandlers;
+    p.onPointerDown(h.event()); p.onPointerUp(h.event(120));
+  };
+  assert.equal(h.render({ active: false }).isMobile, true);
+  assert.equal(h.touchListeners.size, 0);
+  h.render();
+  h.touch('touchstart', 2);
+  h.touch('touchcancel', 0);
+  swipe();
+  h.touch('touchstart', 2);
+  h.render({ active: false });
+  assert.equal(h.touchListeners.size, 0);
+  swipe();
+  assert.deepEqual(h.moves, [1, 1]);
+});
+
 test('zoomed pages retain native panning, including when a pinch starts mid-gesture', () => {
   const h = harness(), fit = h.render();
   fit.swipeHandlers.onPointerDown(h.event());
@@ -117,6 +193,7 @@ test('controls, phone edges, mouse drags and overview pages keep their own inter
 test('WEB retains its existing touch panning and swipe navigation', () => {
   const h = harness('web'), view = h.render();
   assert.equal(view.isMobile, false);
+  assert.equal(h.touchListeners.size, 0);
   assert.equal(view.swipeStyle.touchAction, 'pan-x pan-y');
   view.swipeHandlers.onPointerDown(h.event());
   const end = h.event(80); view.swipeHandlers.onPointerUp(end);
