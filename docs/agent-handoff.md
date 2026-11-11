@@ -1,3 +1,9 @@
+## 2026-11-11 — Portalite Home Screen and installed web icons
+
+Task checkout `logs/portalite-original-icons` on `codex/portalite-original-icons` starts from `c60c8ef70bbbbe1bf7daa0f8112f9a54deaafec0`. The full-square glowing artwork and rounded reference are preserved byte-for-byte under `docs/design/portalite-icons` from the JPEG copies in the conversation attachments. The four Apple touch icons and three standard web app sizes are direct Lanczos resizes of the full-square artwork. The three separate maskable exports center the complete artwork at about 84% scale with an opaque edge extension. The measured mascot and nearby glow fit within the 40% safe circle. The three entry pages use versioned links, and the manifest is stored with LF so its content revision is stable across platforms.
+
+The configured production build and both bundle guards passed. HTTP verified 17 unique asset URLs from three built entries, including content types, image sizes and exact bytes. Chromium verified the three rendered heads and previewed the rounded Home Screen shape and circular mask. Device installation has not been tested. Browser favicon implementation awaits the alpha-bearing mascot PNG. The available mascot attachment is an RGB JPEG. No public release was made.
+
 ## 2026-11-10 — MOBILE reader zoom stays on the current page
 
 Task checkout `logs/mobile-reader-zoom-hold` on `codex/mobile-reader-zoom-hold`, based on GitHub `main` at `8074d941862bee2cf47a29b308602b8c95fecf4f`. Mobile image and PDF overviews keep their scroll-through layout during pinch zoom. The page under the fingers stays anchored as the zoom settles, and a deliberate double tap opens the tapped page in single-page view. In the focused reader, a two-finger pinch cancels any pending page-turn swipe.
