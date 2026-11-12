@@ -160,6 +160,14 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
   if (!position || position.scope !== scope) return null;
   const showDensity = Boolean(density && showControl && position.total > 1);
   return <div ref={navigatorRef} data-mobile-page-navigator="" data-page-density-enabled={showDensity || undefined} data-document-reader-header={readingMode || showProgress || undefined} data-reader-page-arrows={readingMode || undefined} data-project-reading-control={readingMode || showProgress || undefined}>
+    {showDensity && density && <label className="mobile-project-density" data-project-reading-control="">
+      <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={densityValue} disabled={density.saving}
+        onChange={event => setDensityDraft({ scope, value: Number(event.currentTarget.value) })}
+        onPointerUp={event => commitDensity(Number(event.currentTarget.value))}
+        onKeyUp={event => commitDensity(Number(event.currentTarget.value))}
+        onBlur={event => commitDensity(Number(event.currentTarget.value))}
+        aria-label="Pages per row" aria-valuetext={`${densityValue} ${densityValue === 1 ? 'page' : 'pages'} per row`} />
+    </label>}
     {readingMode && <button type="button" aria-label="Previous page" disabled={position.current <= 1} onClick={() => onSelectPage?.(position.current-1)}><InterfaceIcon icon={ChevronLeftIcon} size="lg" /></button>}
     <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" data-ui-shape={readingMode || showProgress ? undefined : 'capsule'} className="mobile-project-page-counter"
     aria-label={`Page ${position.current} of ${position.total}. ${open ? 'Hide' : 'Show'} page previews`}
@@ -175,13 +183,5 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
       </div> : <progress aria-label="Reading progress" value={position.current} max={position.total} />)}
     {open && <MobilePageThumbnails onSelectPage={onSelectPage} id={panelId} current={position.current} total={position.total} surfaceRef={surfaceRef}
       previewSources={previewSources} pdfDocument={pdfDocument} readingParts={measurement?.parts} readingPartPreviews={readingPartPreviews} />}
-    {showDensity && density && <label className="mobile-project-density" data-project-reading-control="">
-      <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={densityValue} disabled={density.saving}
-        onChange={event => setDensityDraft({ scope, value: Number(event.currentTarget.value) })}
-        onPointerUp={event => commitDensity(Number(event.currentTarget.value))}
-        onKeyUp={event => commitDensity(Number(event.currentTarget.value))}
-        onBlur={event => commitDensity(Number(event.currentTarget.value))}
-        aria-label="Pages per row" aria-valuetext={`${densityValue} ${densityValue === 1 ? 'page' : 'pages'} per row`} />
-    </label>}
   </div>;
 }

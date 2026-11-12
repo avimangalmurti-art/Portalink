@@ -66,10 +66,34 @@
 [data-presentation='mobile'] [data-details-step] .input-shell { min-height: 48px; border: 1px solid var(--hairline-strong); border-radius: var(--ui-control-radius, 12px); background: var(--surface-sunken); }
 [data-presentation='mobile'] [data-details-step] .input-shell input { font-size: 16px; min-width: 0; }
 [data-presentation='mobile'] [data-details-step] .input-shell button { flex: none; display: grid; place-items: center; width: 44px; height: 44px; color: var(--text-secondary); }
-[data-presentation='mobile'] [data-details-step] .details-editor { display: flex; flex-direction: column; min-height: 200px; border: 1px solid var(--hairline-strong); border-radius: var(--ui-control-radius, 12px); background: var(--surface-sunken); overflow: hidden; }
-[data-presentation='mobile'] [data-details-step] .details-editor textarea#publish-summary { min-height: 140px; height: auto; border: 0; border-radius: 0; background: transparent; overflow-y: auto; font-size: 16px; line-height: 1.5; }
+[data-presentation='mobile'] [data-details-step] .details-editor { display: flex; flex-direction: column; min-height: 200px; border: 1px solid var(--hairline-strong); border-radius: var(--ui-composer-radius); background: var(--surface-sunken); overflow: hidden; }
+[data-presentation='mobile'] [data-details-step] .details-editor:focus-within {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+}
+[data-presentation='mobile'] [data-details-step] .details-editor:has(#publish-summary[aria-invalid='true']) {
+  border-color: var(--status-danger);
+}
+[data-presentation='mobile'] [data-details-step] .details-editor textarea#publish-summary {
+  min-height: 140px; height: auto; overflow-y: auto; font-size: 16px; line-height: 1.5;
+  border: 0 !important; background: transparent !important; box-shadow: none !important;
+}
 [data-presentation='mobile'] [data-details-step] .text-format-panel { border: 0; border-bottom: 1px solid var(--hairline); border-radius: 0; padding: 8px; background: transparent; }
 [data-presentation='mobile'] [data-details-step] .details-character-count { text-align: right; padding: 4px 12px 8px; font-size: 12px; color: var(--text-secondary); }
+[data-presentation='mobile'] [data-details-step] .project-citation-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+[data-presentation='mobile'] [data-details-step] .project-citation-fields > label {
+  grid-template-columns: minmax(0, 1fr);
+}
+@layer portalink-interface-shapes {
+  [data-presentation='mobile'] [data-details-step] .project-citation-fields :is(input[type='date'], select) {
+    border-radius: var(--ui-field-radius) !important;
+  }
+  [data-presentation='mobile'] [data-details-step] .mobile-draft-status > button {
+    border-radius: var(--ui-action-radius) !important;
+  }
+}
 [data-presentation='mobile'] [data-review-step] .mobile-publish-review { flex: none; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
 [data-presentation='mobile'] [data-review-step] .mobile-review-card { flex: none; min-width: 0; padding: var(--ui-surface-gap, 16px); border: 1px solid var(--hairline); border-radius: var(--ui-popup-radius, 24px); background: var(--surface-raised); }
 [data-presentation='mobile'] [data-review-step] .mobile-review-card > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
@@ -127,6 +151,19 @@
 [data-presentation='mobile'] .mobile-draft-status { display:flex; align-items:center; gap:12px; min-height:44px; color:var(--text-secondary); font-size:12px; }
 [data-presentation='mobile'] .mobile-draft-status > span { flex:1; }
 [data-presentation='mobile'] .mobile-draft-status > button { flex:none; min-height:44px; color:var(--text-secondary); font-size:12px; text-decoration:underline; }
+[data-presentation='mobile'] [data-details-step] .mobile-draft-status {
+  flex-wrap: wrap;
+}
+[data-presentation='mobile'] [data-details-step] .mobile-draft-status > span {
+  flex-basis: 110px;
+}
+[data-presentation='mobile'] [data-details-step] .mobile-draft-status > button {
+  padding-inline: 12px;
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  text-decoration: none;
+}
 [data-presentation='mobile'] [data-review-step] .mobile-draft-status {
   flex-wrap: wrap;
   gap: 4px 8px;

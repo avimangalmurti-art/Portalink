@@ -3,6 +3,7 @@ import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { ErrorState } from '../ui/StateViews';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
 import type { PdfDocument } from './PdfPage';
@@ -77,6 +78,7 @@ function deepLinkedDocumentPage(attachmentId: string, pageCount?: number): numbe
  */
 export function DocumentAttachment({
   attachment,
+  openPdfRanges,
   projectId,
   columns = 1,
   processing,
@@ -92,6 +94,7 @@ export function DocumentAttachment({
 
 }: {
   attachment: ProjectAttachment;
+  openPdfRanges?: ProjectAttachment['openPdfRanges'];
   projectId: string;
   columns?: number;
   onPageCountResolved?: (pageCount: number) => void;
@@ -225,11 +228,11 @@ export function DocumentAttachment({
   const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPageIndex !== null, zoom, onMove: moveFocusedPage, onExit: exitFocus, readingMode });
   useEffect(() => {
     if (isMobile) setHasFailed(false);
-  }, [attachment.id, attachment.sourceUrl, isMobile]);
+  }, [attachment.id, attachment.sourceUrl, isMobile, openPdfRanges]);
   useMobileMediaRecovery({
     hostRef: attachmentRef,
-    identity: attachment.sourceUrl,
-    enabled: Boolean(attachment.sourceUrl) && renderedPages.length === 0,
+    identity: openPdfRanges ?? attachment.sourceUrl,
+    enabled: Boolean(openPdfRanges || attachment.sourceUrl) && renderedPages.length === 0,
     failed: hasFailed,
     onRetry: () => setHasFailed(false)
   });
@@ -256,7 +259,12 @@ export function DocumentAttachment({
     onFocusModeChange?.(!readingMode && focusedPageIndex !== null);
     return () => onFocusModeChange?.(false);
   }, [focusedPageIndex, onFocusModeChange, renderedPages.length, readingMode]);
-  if (!attachment.sourceUrl || hasFailed) {
+  if (hasFailed && openPdfRanges) {
+    return <div ref={attachmentRef} data-document-attachment="" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col">
+      <ErrorState title="This PDF could not be loaded." onRetry={() => setHasFailed(false)} />
+    </div>;
+  }
+  if ((!attachment.sourceUrl && !openPdfRanges && renderedPages.length === 0) || hasFailed) {
     return isMobile ? <div ref={attachmentRef} data-document-attachment="" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col"><GenericFileCard attachment={attachment} /></div> : <GenericFileCard attachment={attachment} />;
   }
   const columnCount = Math.min(normalizePagesPerRow(columns, 1), renderedPages.length || MAX_PAGES_PER_ROW);
@@ -356,7 +364,7 @@ export function DocumentAttachment({
           pageIndex: focusedPageIndex,
           label: attachment.displayName
         }} /> : null}
-      </div> : <PdfImageDocument verticalReading={verticalReading} manageReadingScroll={manageReadingScroll} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
+      </div> : <PdfImageDocument verticalReading={verticalReading} manageReadingScroll={manageReadingScroll} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} openPdfRanges={openPdfRanges} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

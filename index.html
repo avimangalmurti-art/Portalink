@@ -201,6 +201,7 @@
         }
         #portalink-preboot { background-color: var(--portalink-mobile-opening-canvas, #fdffff); --portalink-splash-background: #fdffff; --portalink-media-ratio: 0.7111111111; }
         #portalink-preboot { height: var(--mobile-launch-height); min-height: var(--mobile-launch-height); }
+        html[data-installed-home-launch] #portalink-preboot .portalink-preboot-media { display: none; }
         /* Recovery actions follow the visible screen, not the taller launch artwork. */
         #portalink-preboot-status {
           position: fixed;
@@ -253,6 +254,9 @@
         root.toggleAttribute('data-standalone', window.matchMedia?.('(display-mode: standalone)').matches
           || window.navigator.standalone === true);
         const presentation = window.matchMedia?.('(max-width: 639px)').matches ? 'mobile' : 'web';
+        const installedHomeLaunch = presentation === 'mobile' && root.hasAttribute('data-standalone')
+          && window.location.pathname === '/' && !window.location.search && !window.location.hash;
+        root.toggleAttribute('data-installed-home-launch', installedHomeLaunch);
         const inviteLaunch = presentation === 'mobile' && window.location.pathname === '/'
           && new URLSearchParams(window.location.search).get('welcome') === '1';
         root.toggleAttribute('data-invite-launch', inviteLaunch);
@@ -341,6 +345,7 @@
     <meta name="twitter:image" content="https://portalinknetworks.com/portalink-social-preview-centered.png" />
     <meta name="twitter:image:alt" content="Portalink character holding the Earth." />
     <title>Portalink — A home for your work</title>
+    <script defer src="/portalink-mobile-launch.js?v=7589d7ec" data-launch-entry="home"></script>
   </head>
   <body>
       <!-- Keep the first video outside React's root so mounting the app cannot replace/restart it. -->
@@ -359,6 +364,9 @@
         // Keep WEB's existing reduced-motion still; MOBILE uses the requested clip.
         if (document.documentElement.hasAttribute('data-shared-view') || window.matchMedia('(min-width: 640px) and (prefers-reduced-motion: reduce)').matches) {
           video.pause(); video.removeAttribute('autoplay'); return;
+        }
+        if (document.documentElement.hasAttribute('data-installed-home-launch')) {
+          video.pause(); video.removeAttribute('autoplay'); video.removeAttribute('src'); video.load(); return;
         }
         let active = true, pending = false, frame;
         const paint = () => {

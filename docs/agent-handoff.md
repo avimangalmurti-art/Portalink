@@ -1,3 +1,9 @@
+## 2026-11-12 — Catalogue and mobile reader release
+
+Release worktree `logs/latest-catalogue-release` on `codex/latest-catalogue-release` is based on verified GitHub `main` at `9f3d19f` and follows Sites 612. It combines ten task checkouts: file-cover accent, three-column portal cards, project creation rounding, embedded-browser PDF loading, the one-second mobile splash and catalogue loader, iPhone cover encoding, viewer appearance and About, reader toolbar order, popup and video spacing, and mobile Portals header actions. The task checkouts retain their individual browser receipts.
+
+Independent review matched all 45 changed source, test and asset paths, including the shared-file merges and exact splash images. The existing Sites identity, audience, worker bindings and data are retained. No database migrations or separate media worker deploys are included. Combined verification and deployment receipts belong in this checkout's ignored `logs` directory. Physical iPhone and signed-in testing were limited to the scopes recorded in the task handoffs.
+
 ## 2026-11-12 — Combined mobile popup and shared catalogue release
 
 Worktree `logs/mobile-portal-updates-release` on `codex/mobile-portal-updates-release` integrates the verified mobile popup minimize button (`d8c48ac`), mobile shared catalogue gutters and viewer theme (`bd9d03b`), and scroll fades for the platform and shared mobile Portals lists (`53a887e`) from reviewed `github/main` at `85cb832`. Their local QA records remain in their task worktrees. This release uses the existing Portalink Site and its current public audience and worker bindings.

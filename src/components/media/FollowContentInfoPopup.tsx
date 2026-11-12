@@ -5,6 +5,7 @@ import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { useSheetMotion } from '../../presentation/motion/useSheetMotion';
 import { reducedMotion } from '../../presentation/motion/motion';
+import { usePresentation } from '../../presentation/usePresentation';
 import { useProjectComments } from '../../features/comments/useProjectComments';
 import { EngagementFeedback } from '../../features/engagement/EngagementBar';
 import type { ProjectEngagementLifecycle } from '../../features/engagement/useProjectEngagement';
@@ -18,6 +19,7 @@ export function FollowContentInfoPopup({ projectId, title, description, creatorH
   engagement: ProjectEngagementLifecycle; onOptions?: () => void; onComments?: () => void;
   onRequireAccount?: () => void; onClose: () => void; engagementContent?: React.ReactNode; optionsContent?: React.ReactNode; showEngagement?: boolean;
 }) {
+  const isMobile = usePresentation() === 'mobile';
   const viewport = useDialogViewport();
   const panel = useRef<HTMLElement>(null);
   const motion = useSheetMotion(onClose, 'base');
@@ -50,26 +52,28 @@ export function FollowContentInfoPopup({ projectId, title, description, creatorH
     siblings.forEach(node => { node.inert = true; });
     return () => siblings.forEach((node, index) => { node.inert = previous[index]; });
   }, [host, closing]);
-  return createPortal(<div ref={element => { if (element) element.inert = closing; }} data-presentation="mobile" data-follow-info-layer="" data-closing={closing || undefined} data-reduce-motion={reducedMotion() || undefined} aria-hidden={closing || undefined}>
+  const minimizeButton = <button type="button" className="follow-info-minimize" data-ui-shape={isMobile ? 'icon' : undefined} aria-label="Minimize project information" onClick={dismiss}>
+    <span aria-hidden="true" />
+  </button>;
+  return createPortal(<div ref={element => { if (element) element.inert = closing; }} data-presentation="mobile" data-follow-info-layer="" data-mobile-info={isMobile || undefined} data-closing={closing || undefined} data-reduce-motion={reducedMotion() || undefined} aria-hidden={closing || undefined}>
     <div ref={viewport} className="follow-info-overlay" data-closing={closing || undefined}
       style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
       onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) dismiss(); }}>
       <section data-ui-surface="popup" ref={panel} id="mobile-project-popup" className="follow-info-panel" role="dialog" aria-modal="true" aria-labelledby="follow-info-title" tabIndex={-1}>
         <header className="follow-info-header">
           {creatorHeader}
-          <div className="follow-info-header-actions">
+          {(!isMobile || optionsContent || onOptions) && <div className="follow-info-header-actions">
             {(optionsContent || onOptions) && <button type="button" aria-label="Content options"
               data-ui-control="icon" data-control-size="md" data-control-variant="secondary"
               className="follow-info-options" aria-expanded={optionsContent ? optionsOpen : undefined}
               onClick={() => optionsContent ? setOptionsOpen(open => !open) : onOptions?.()}>
               <InterfaceIcon icon={MoreHorizontalIcon} />
             </button>}
-            <button type="button" className="follow-info-minimize" aria-label="Minimize project information" onClick={dismiss}>
-              <span aria-hidden="true" />
-            </button>
-          </div>
+            {!isMobile && minimizeButton}
+          </div>}
           {optionsContent && optionsOpen && <div className="follow-info-owner-menu">{optionsContent}</div>}
         </header>
+        {isMobile && minimizeButton}
         <h2 id="follow-info-title">{title}</h2>
         <div className="follow-info-description scrollbar-overlay" tabIndex={0} aria-label="Content description"><FormattedText text={description || 'This project has no description.'} /></div>
         {showEngagement && <footer className="follow-info-engagement">

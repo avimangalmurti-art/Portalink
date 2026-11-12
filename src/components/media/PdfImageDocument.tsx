@@ -4,7 +4,9 @@ import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
 import { loadPdfJs, pdfSourceOptions } from './PdfPage';
+import { pdfRangeOptions } from './pdfRangeTransport';
 import type { PdfDocument, PdfLoadingTask, PdfPageProxy } from './PdfPage';
+import type { ProjectAttachment } from '../../types/domain';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { useSinglePageZoom } from './useSinglePageZoom';
 import { useFocusedPageSwipe } from './useFocusedPageSwipe';
@@ -26,7 +28,8 @@ type ObserveOverviewPage = (host: HTMLDivElement, onNearViewport: (near: boolean
 type PdfImageDocumentProps = {
   projectId: string;
   attachmentId: string;
-  source: string;
+  source: string | null;
+  openPdfRanges?: ProjectAttachment['openPdfRanges'];
   label: string;
   columns?: number;
   onError: () => void;
@@ -407,7 +410,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onPreviewDocument, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0, readingMode = false, verticalReading = false, manageReadingScroll = true, readerPageRequest = null, onReaderRequestHandled }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, openPdfRanges, label, columns = 1, onError, onPageCount, onPreviewDocument, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0, readingMode = false, verticalReading = false, manageReadingScroll = true, readerPageRequest = null, onReaderRequestHandled }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -447,7 +450,8 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     void activeLoadingTask.current?.destroy();
     activeLoadingTask.current = null;
   }, []);
-  const readIdentity = useRef({ source, memoryKey, readingMode, verticalReading });
+  const pdfSource = openPdfRanges ?? source;
+  const readIdentity = useRef({ pdfSource, memoryKey, readingMode, verticalReading });
   const recoverDocument = useCallback(() => {
     if (recoveryInFlight.current) return;
     recoveryInFlight.current = true;
@@ -502,10 +506,10 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     let loadingTask: PdfLoadingTask | null = null;
     let loadTimeout: number | undefined;
     const previous = readIdentity.current;
-    const sameRead = previous.source === source && previous.memoryKey === memoryKey &&
+    const sameRead = previous.pdfSource === pdfSource && previous.memoryKey === memoryKey &&
       previous.readingMode === readingMode && previous.verticalReading === verticalReading;
     const recovering = sameRead && hasDocument.current;
-    readIdentity.current = { source, memoryKey, readingMode, verticalReading };
+    readIdentity.current = { pdfSource, memoryKey, readingMode, verticalReading };
     recoveryInFlight.current = true;
     if (!recovering) {
       void activeLoadingTask.current?.destroy();
@@ -517,30 +521,32 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       setFocusedPageNumber(verticalReading ? null : linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? (readingMode ? 1 : null));
     }
     const fail = () => {
+      if (cancelled) return;
+      cancelled = true;
+      window.clearTimeout(loadTimeout);
       recoveryInFlight.current = false;
+      const failedActiveDocument = loadingTask !== null && activeLoadingTask.current === loadingTask;
+      if (failedActiveDocument) activeLoadingTask.current = null;
       void loadingTask?.destroy();
+      loadingTask = null;
       // A failed reconnection keeps the existing canvas and page selection.
-      if (!recovering) onErrorRef.current();
+      if (!recovering || failedActiveDocument) onErrorRef.current();
     };
     void (async () => {
       const pdfjs = await loadPdfJs(mobileImportRecovery.current);
       if (cancelled) {
         return;
       }
-      loadingTask = pdfjs.getDocument(pdfSourceOptions(source));
-      loadTimeout = window.setTimeout(() => {
-        if (cancelled) {
-          return;
-        }
-        cancelled = true;
-        void loadingTask?.destroy();
-        fail();
-      }, PDF_LOAD_TIMEOUT_MS);
-      const nextDocument = await loadingTask.promise;
-      if (cancelled) {
-        await loadingTask.destroy();
-        return;
-      }
+      loadTimeout = window.setTimeout(fail, PDF_LOAD_TIMEOUT_MS);
+      const options = typeof pdfSource === 'function'
+        ? pdfRangeOptions(pdfjs, await pdfSource(), fail)
+        : pdfSource ? pdfSourceOptions(pdfSource) : null;
+      if (cancelled) return;
+      if (!options) throw new Error('This PDF does not have a readable source.');
+      const task = pdfjs.getDocument(options);
+      loadingTask = task;
+      const nextDocument = await task.promise;
+      if (cancelled) return;
       window.clearTimeout(loadTimeout);
       recoveryInFlight.current = false;
       hasDocument.current = true;
@@ -551,12 +557,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       setPageCount(nextDocument.numPages);
       setFocusedPageNumber((current) => current === null ? null : Math.min(nextDocument.numPages, Math.max(1, current)));
       onPageCountRef.current?.(nextDocument.numPages);
-    })().catch(() => {
-      if (!cancelled) {
-        window.clearTimeout(loadTimeout);
-        fail();
-      }
-    });
+    })().catch(fail);
 
     return () => {
       cancelled = true;
@@ -564,7 +565,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       // Keep an adopted transport alive while its replacement is in flight.
       if (activeLoadingTask.current !== loadingTask) void loadingTask?.destroy();
     };
-  }, [linkedPageNumber, memoryKey, source, readingMode, verticalReading, readAttempt]);
+  }, [linkedPageNumber, memoryKey, pdfSource, readingMode, verticalReading, readAttempt]);
 
   const focusPage = useCallback((pageNumber: number) => {
     setFocusedPageNumber(pageNumber);

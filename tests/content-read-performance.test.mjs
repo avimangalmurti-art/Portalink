@@ -187,6 +187,7 @@ test('feed PDF covers sign only the selected rendered page while full viewers ke
     readVideoPlayback: () => null, readMultipartSpec: value => value,
     readCoverThumbnail: () => undefined,
     multipartSource: async path => { multipart.push(path); return 'virtual-source'; },
+    multipartPdfRangeReader: () => async () => assert.fail('Hydration must not open or download the PDF ranges'),
     normalizeProjectCoverFrame: value => value, resolveStoredMediaKind: kind => kind,
     deriveProjectRelevance: () => ({}), asDesign: value => value,
   });

@@ -277,7 +277,12 @@ test('preboot chooses the same platform record and preserves legacy fallback for
   for (const width of [390, 430, 639, 640, 1280]) {
     const scope = width <= 639 ? 'mobile' : 'web';
     const storage = new Map([[DEVICE_KEY, 'dark'], [scopedKey('web'), '{"mode":"light"}'], [scopedKey('mobile'), '{"mode":"dark"}']]);
-    const root = { dataset: {}, style: {}, toggleAttribute() {} };
+    const attributes = new Set();
+    const root = {
+      dataset: {}, style: {},
+      hasAttribute: name => attributes.has(name),
+      toggleAttribute: (name, force) => force ? attributes.add(name) : attributes.delete(name),
+    };
     const window = { navigator: {}, location: { pathname: '/' }, localStorage: { getItem: key => storage.get(key) ?? null }, matchMedia: query => ({ matches: query.includes('639') && width <= 639 }) };
     const run = () => vm.runInNewContext(bootstrap, { URLSearchParams, window, document: { documentElement: root, querySelectorAll: () => [] } });
     run(); assert.equal(root.dataset.appearance, scope === 'web' ? 'light' : 'dark');

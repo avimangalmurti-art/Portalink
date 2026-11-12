@@ -214,6 +214,21 @@ test('MOBILE public portals switch list/cards without owner tools and retain vis
  assert.equal(h.render().props.children(close).props['data-portals-layout'],'list');
 });
 
+test('MOBILE shared Portals puts Settings and Appearance beside the layout control as icon buttons', () => {
+  const h = harness('mobile');
+  const drawer = h.render().props.children(() => h.calls.push('close'));
+  const header = nodes(drawer).find(node => node.type === 'header');
+  const actions = nodes(header).filter(node => node.type === 'button');
+  assert.deepEqual(actions.map(node => node.props['aria-label']), [
+    'Go back', 'Open settings', 'Switch shared Portalink to dark mode', 'Show portals as cards',
+  ]);
+  assert.ok(actions.every(node => node.props.children.type === 'InterfaceIcon'));
+  assert.ok(!nodes(drawer).some(node => node.type === 'footer'));
+  actions[2].props.onClick();
+  actions[1].props.onClick();
+  assert.deepEqual(h.calls, ['dark', 'close', 'settings']);
+});
+
 test('MOBILE forwards portal Back requests to the existing drawer while retaining its grid preference', () => {
   const h = harness('mobile'), close = () => h.calls.push('close'), request = { scope: 'creator:guest' };
   let tree = h.render({ mobileNavigationRequest: request });

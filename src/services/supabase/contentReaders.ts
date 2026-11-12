@@ -7,7 +7,7 @@ import type { ProfileService } from '../interfaces';
 import type { CategoryFormat, Profile, ProfileLink, ProfileStat, Project, ProjectAttachment, ProjectDesign } from '../../types/domain';
 import type { GeographicScope, ProjectRelevance } from '../../types/discovery';
 import { ProfileServiceError } from '../../types/profile';
-import { multipartSource, readMultipartSpec } from './multipartMedia';
+import { multipartPdfRangeReader, multipartSource, readMultipartSpec } from './multipartMedia';
 import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
 import { deriveProjectRelevance } from '../../domain/discovery/ranking';
 import { requireSupabase } from './client';
@@ -283,9 +283,11 @@ async function hydrateProjects(
         sourceUrl = null;
       }
     }
+    const kind = playback ? 'video' : resolveStoredMediaKind(row.kind as ProjectAttachment['kind'], row.file_name, row.mime_type);
+    const multipart = metadata?.multipart;
     const attachment: ProjectAttachment = {
       id: row.id,
-      kind: playback ? 'video' : resolveStoredMediaKind(row.kind as ProjectAttachment['kind'], row.file_name, row.mime_type),
+      kind,
       fileName: row.file_name,
       displayName: row.display_name,
       extension: row.extension,
@@ -293,6 +295,9 @@ async function hydrateProjects(
       sizeBytes: row.size_bytes,
       typeLabel: row.type_label,
       sourceUrl,
+      ...(mode === 'full' && kind === 'document' && multipart && row.storage_path ? {
+        openPdfRanges: multipartPdfRangeReader(row.storage_path, multipart, row.file_name),
+      } : {}),
       storagePath: row.storage_path,
       status: row.status as ProjectAttachment['status'],
       isCover: row.is_cover,

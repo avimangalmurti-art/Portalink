@@ -1,4 +1,10 @@
 /* Shared by the separate platform and public entries; only MOBILE changes. */
+/* Video creator rows start below Back with the standard control gap. */
+[data-presentation='mobile'] :is(.mobile-video-single, .mobile-video-sequence) {
+  padding-block: calc(var(--reader-controls-top) + var(--mobile-control-size) + var(--mobile-control-group-gap))
+    calc(var(--mobile-content-safe-bottom, 0px) + 76px);
+}
+
 /* Contain reader-button feedback without clipping engagement above the rail. */
 #root .codex-shell[data-presentation='mobile'] .mobile-content-action-bar {
   border-radius: var(--ui-capsule-radius);
@@ -33,6 +39,36 @@
   transition: var(--navigation-control-transition);
 }
 
+/* Keep the slider immediately after Back in both reader presentations. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator][data-page-density-enabled] {
+  --mobile-density-width: clamp(100px, 28vw, 124px);
+  --reader-after-back: calc(var(--mobile-navigation-inset-start) + var(--mobile-control-size) + var(--mobile-control-group-gap));
+  --reader-density-slot: calc(var(--mobile-density-width) + var(--mobile-control-group-gap));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator][data-page-density-enabled][data-document-reader-header] {
+  left: calc(var(--reader-after-back) + var(--reader-density-slot));
+  right: var(--mobile-navigation-inset-end);
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] > .mobile-project-density {
+  position: absolute;
+  top: 0;
+  right: calc(100% + var(--mobile-control-group-gap));
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled]:not([data-document-reader-header]) > .mobile-project-density {
+  left: var(--reader-after-back);
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled]:not([data-document-reader-header]) > .mobile-project-page-counter {
+  left: calc(var(--reader-after-back) + var(--reader-density-slot));
+  max-width: calc(100vw - var(--reader-after-back) - var(--reader-density-slot) - var(--mobile-navigation-inset-end));
+}
+/* Progress and the open page list keep their original screen anchors. */
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] > :is(.mobile-reader-progress, progress) {
+  left: calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap) - var(--reader-density-slot));
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] .mobile-page-thumbnails {
+  left: calc(0px - var(--reader-density-slot));
+}
+
 /* Scrolling lends Back's slot to the current page, without moving artwork or
    the header's progress/density controls. Idle restores the exact rest layout. */
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back:not(.mobile-project-portal-preview) {
@@ -60,7 +96,7 @@
   --reader-counter-leading-space: 46px; /* One existing 44px arrow and its 2px gap. */
 }
 #root .codex-shell[data-presentation='mobile'][data-project-scrolling] .mobile-project-page-counter[data-mobile-project-page-count] {
-  transform: translateX(calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap) - var(--reader-counter-leading-space, 0px)));
+  transform: translateX(calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap) - var(--reader-counter-leading-space, 0px) - var(--reader-density-slot, 0px)));
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: auto !important;

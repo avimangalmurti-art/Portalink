@@ -201,6 +201,12 @@ export type ProjectCoverFrame = {
   crop?: import('./imageCrop').RelativeImageCrop;
 };
 
+/** Reads a PDF byte interval with an exclusive end offset. */
+export type PdfRangeSource = {
+  length: number;
+  read: (begin: number, end: number, signal: AbortSignal) => Promise<Uint8Array<ArrayBuffer>>;
+};
+
 /**
  * One file inside a project.
  *
@@ -220,6 +226,8 @@ export type ProjectAttachment = {
   /** Human-readable type, e.g. "PDF", "3D model". */
   typeLabel: string;
   sourceUrl: string | null;
+  /** Opens a fresh, authorized reader for a PDF stored in parts. */
+  openPdfRanges?: () => Promise<PdfRangeSource>;
   storagePath: string | null;
   status: AssetProcessingState;
   isCover: boolean;

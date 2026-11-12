@@ -363,6 +363,33 @@ test('cold public mobile visit shows the portfolio immediately and keeps the exa
   assert.equal(h.navigations.length + h.assigned.length + h.replaced.length, 0);
 });
 
+test('a slow mobile Catalogue uses the loading indicator until its content arrives', () => {
+  const h = appHarness();
+  h.state.query = { ...h.state.query, status: 'loading', profile: null };
+  const indicator = tree => nodes(tree).find(node => node.props['aria-label'] === 'Opening shared catalogue');
+  const waiting = h.render();
+  assert.equal(indicator(waiting)?.props.role, 'status');
+  assert.equal(one(waiting, 'loading'), undefined);
+
+  h.state.presentation = 'web';
+  const desktop = h.render();
+  assert.equal(indicator(desktop), undefined);
+  assert.equal(one(desktop, 'loading')?.props.kind, 'profile');
+
+  h.state.presentation = 'mobile';
+  h.state.route = { kind: 'unknown' };
+  h.state.location.pathname = '/portalite';
+  h.state.handlePending = true;
+  assert.ok(indicator(h.render()));
+  h.state.handlePending = false;
+  h.state.route = { kind: 'sharedProfile', profileId };
+  h.state.query = { ...h.state.query, status: 'ready', profile };
+  const ready = h.render();
+  assert.equal(indicator(ready), undefined);
+  assert.ok(one(ready, 'VisitorProfileGrid'));
+  h.dispose();
+});
+
 test('shared visitors immediately see work with no appearance modal on either presentation', () => {
  for (const presentation of ['mobile','web']) {
   const h=appHarness();h.state.presentation=presentation;
@@ -1420,6 +1447,52 @@ test('shared catalogues use and persist the platform mode while preserving creat
     assert.equal(JSON.parse(appearanceStorage.get(platformKey(presentation))).mode, 'auto');
     reloaded.dispose();
   }
+});
+
+test('a shared catalogue applies the viewer’s chosen accent and restores it on reload', () => {
+  const appearanceStorage = new Map();
+  const publicAppearance = Object.freeze({ mode: 'light', accentColor: '#34c759', systemGray: 'gray3' });
+  const creator = { ...profile, publicAppearance };
+  const settings = tree => one(tree, 'lazy:../components/ControlCenterPage').props;
+  for (const [presentation, chosenAccent, nextAccent] of [['mobile', '#007aff', '#ff9500'], ['web', '#af52de', '#ff375f']]) {
+    const platformKey = `portalinknetworks.interfaceAppearance.${presentation}`;
+    const viewerKey = presentation === 'mobile' ? 'portalinknetworks.publicAppearance.mobile' : platformKey;
+    const platformAccent = '#ffcc00';
+    appearanceStorage.set(platformKey, JSON.stringify({ accentColor: platformAccent }));
+    if (presentation === 'mobile') appearanceStorage.set(viewerKey, JSON.stringify({ accentColor: '#5ac8fa', publicAccentColor: 'url(invalid)' }));
+
+    const open = () => {
+      const h = appHarness({ appearanceStorage });
+      h.state.presentation = presentation;
+      h.state.query.profile = creator;
+      h.state.location.search = '?settings=1';
+      return h;
+    };
+    const first = open();
+    let tree = first.render();
+    assert.equal(tree.props.style['--accent-color'], publicAppearance.accentColor);
+    assert.equal(settings(tree).accentColor, publicAppearance.accentColor);
+    settings(tree).onAccentColorChange(chosenAccent);
+    tree = first.render();
+    assert.equal(settings(tree).accentColor, chosenAccent);
+    assert.equal(tree.props.style['--accent-color'], chosenAccent);
+
+    const auth = one(tree, 'lazy:../features/auth/AuthDialog').props;
+    auth.onAccentColorChange(nextAccent);
+    first.state.location.search = '';
+    assert.equal(first.render().props.style['--accent-color'], nextAccent);
+    first.dispose();
+
+    const reloaded = open();
+    tree = reloaded.render();
+    assert.equal(settings(tree).accentColor, nextAccent);
+    assert.equal(tree.props.style['--accent-color'], nextAccent);
+    assert.equal(JSON.parse(appearanceStorage.get(viewerKey)).publicAccentColor, nextAccent);
+    assert.equal(JSON.parse(appearanceStorage.get(platformKey)).accentColor, platformAccent);
+    assert.equal(creator.publicAppearance.accentColor, '#34c759');
+    reloaded.dispose();
+  }
+  assert.equal(JSON.parse(appearanceStorage.get('portalinknetworks.publicAppearance.mobile')).publicAccentColor, '#ff9500');
 });
 
 test('WEB shared sidebar uses the viewer gray and theme while the shell retains creator colors', () => {
