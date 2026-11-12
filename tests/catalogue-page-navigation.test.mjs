@@ -37,19 +37,19 @@ test('image and PDF hints use the existing one-based reader contract without cha
   }
 });
 
-test('MOBILE image scroll hints address the selected image without requesting isolated focus; PDF and WEB keep their contract', () => {
+test('MOBILE image and document scroll hints address the selected page without requesting isolated focus', () => {
   const h = fixture(), position = { index: 4, key: 'image/a&b:image', attachmentId: 'image/a&b', page: 3 };
   h.positions.set('project', position);
   assert.equal(h.withCataloguePageTarget('/project?visitorPreview=1#work', 'project', undefined, 'scroll'),
     '/project?visitorPreview=1&media=image%2Fa%26b&page=3#work');
   assert.equal(h.withCataloguePageTarget('/project', 'project', undefined, 'focused'), '/project?media=image%2Fa%26b&page=3&view=page');
   assert.deepEqual(position, { index: 4, key: 'image/a&b:image', attachmentId: 'image/a&b', page: 3 });
-  for (const key of ['image/a&b:page:3', 'unrelated:image']) {
+  for (const key of ['image/a&b:page:4', 'unrelated:image']) {
     assert.equal(h.withCataloguePageTarget('/project', 'project', { ...position, key }, 'scroll'),
-      '/project?media=image%2Fa%26b&page=3&view=page', 'Only the matching canonical image key opts into continuous reading.');
+      '/project?media=image%2Fa%26b&page=3&view=page', 'Only matching canonical page keys opt into continuous reading.');
   }
   assert.equal(h.withCataloguePageTarget('/project', 'project', { index: 3, key: 'pdf:page:9', attachmentId: 'pdf', page: 9 }, 'scroll'),
-    '/project?media=pdf&page=9&view=page');
+    '/project?media=pdf&page=9');
 });
 
 test('MOBILE image scroll mode preserves explicit saved targets and deliberate view queries', () => {
@@ -142,7 +142,7 @@ test('main and shared navigators open catalogue images continuously only on MOBI
     assert.deepEqual(transitions, ['project']);
     h.positions.set('project', { index: 4, key: 'pdf:page:4', attachmentId: 'pdf', page: 4 });
     nav.project('creator', 'portal', 'project');
-    assert.equal(calls.at(-1)[0], '/p/creator/c/portal/project?media=pdf&page=4&view=page');
+    assert.equal(calls.at(-1)[0], `/p/creator/c/portal/project?media=pdf&page=4${mode}`);
   }
 });
 
@@ -159,6 +159,7 @@ test('real preview-card href uses the presentation-specific image target and pre
       '../../utils/projectContinuity': { projectContinuityStyle: () => ({}), getProjectContinuityArtwork: () => undefined, beginProjectContinuity() {} },
       '../../features/profile/cataloguePagePosition': { getCataloguePagePosition: id => h.positions.get(id), rememberCataloguePagePosition() {} },
       '../../features/profile/cataloguePageNavigation': h,
+      '../../features/media/videoPlayback': { videoSources: () => [] },
       '../../features/profile/useInlineProjectContent': { useInlineProjectContent: ({ project }) => ({ project, metadataComplete: true }) },
       './inlineProjectPageModel': { normalizeInlineProjectPosition: (_project, selected) => selected, inlinePositionMatches: () => true },
       './ProjectPageBrowsingContext': { useInlineProjectPages: () => false },
@@ -235,7 +236,7 @@ test('public catalogue callback preserves image selection while MOBILE opens con
     assert.equal(calls.filter(call => call[0] === 'popup').length, presentation === 'mobile' ? 1 : 0);
     paths.positions.set('project', { index: 4, key: 'pdf:page:3', attachmentId: 'pdf', page: 3 });
     visitorCallback('openProject', context)('art', 'project');
-    assert.equal(calls.at(-1)[1], '/portalite/c/art/project?media=pdf&page=3&view=page');
+    assert.equal(calls.at(-1)[1], `/portalite/c/art/project?media=pdf&page=3${presentation === 'mobile' ? '' : '&view=page'}`);
   }
 });
 

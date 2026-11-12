@@ -1,3 +1,21 @@
+## 2026-11-12 — Mobile continuous project reader
+
+Worktree `logs/mobile-ordered-project-reader` on `codex/mobile-ordered-project-reader` builds on local commit `663b5f6`. The mobile platform and public catalogue project readers put images and PDFs in stored attachment order on one vertical scroll surface. Each image occupies one page and PDF pages continue the project counter. Page actions keep their attachment and local page identity. Ordinary links land on the linked attachment and page after layout settles, and taking over the scroll cancels that alignment. Explicit focused page links and desktop file tabs retain their behavior.
+
+The change is scoped to the media renderer, shared mobile reader styles, catalogue reading links, and focused regressions. Typecheck and all 161 focused tests passed. Lint passed with existing warnings, and the production build verified the main and visitor bundle configurations. Chromium passed seven cases with the actual reader and synthetic attachments at 390px, 420px, and 1280px, including delayed PDF.js rendering, touch scrolling, and desktop tabs. Receipts are in `logs/ordered-reader-checks` and `logs/ordered-reader-qa`. Physical iPhone testing and deployment remain pending. No migrations or service changes.
+
+## 2026-11-11 — Mobile Home weekly card Earth background
+
+Worktree `logs/mobile-weekly-reads-earth` on `codex/mobile-weekly-reads-earth` builds on the local Home video autoplay commit `57ced0b3ee847715824c9eba9ecd56def486aa4d`. Mobile Weekly Reads uses the original moving Earth backdrop cropped from the top 620 rows of the supplied portrait splash, clear of the mascot in every frame. The blurred 432×248 WebP runs for 12 seconds and loops. Reduced Motion uses a matched still. The mobile card no longer contains the foreground character, and the neutral action buttons retain their existing positions and behavior.
+
+Typecheck, targeted lint, 23 focused tests, production build and both entry configuration checks passed. The 144-frame animation and single-frame poster decoded successfully. The isolated Chromium fixture checked the actual card's animation, still under Reduced Motion, button readability, See reads and Dismiss. Receipts are in `logs/earth-checks` and `logs/earth-qa`. Physical iPhone verification and publication remain pending.
+
+## 2026-11-11 — Mobile Home video cover autoplay
+
+Worktree `logs/mobile-home-video-autoplay` on `codex/mobile-home-video-autoplay` starts from live Sites 610 source `88a884f2e19a1d3aaad77ae7ea28d19103a6eae2` (draft PR #160). Home opts in only on MOBILE. A visible video cover plays muted and inline, starting with the authorized compatible source and falling back to the original. The existing nearby project reader resolves playable sources for stored video thumbnails. The poster stays available while playback is pending, blocked or unavailable. Offscreen previews, hidden tabs and retained Home screens stop playback. The full reader, desktop and shared catalogues keep their existing behavior.
+
+Typecheck, targeted lint, 109 focused tests and the production build with both entry configuration guards passed. The startup regression test covers a ready poster with a blocked or pending autoplay preview. A Chromium fixture using the actual feed card and local synthetic media verified thumbnailed and legacy autoplay, offscreen pause, retained Home, fallback to the original, unavailable-media poster, one-column autoplay and the desktop poster. Receipts are in logs/autoplay-checks and logs/autoplay-qa. No migration or service change. Physical iPhone verification and publication remain pending.
+
 ## 2026-11-11 — Mobile shared catalogue navigation icon
 
 Worktree `logs/mobile-shared-catalogue-icon`, branch `codex/mobile-shared-catalogue-icon`, starts from live Sites 609 source `5b2ad8c743170d735fdc4d84b1e9c8ed88b70ecb` (draft PR #159). The floating mobile shared catalogue opener uses the existing 120px image made from the matching attachment and the standard squircle mask. Its opaque 2px high-contrast edge and focus outline follow light/dark without depending on the contrast toggle. The 50px target, placement and drawer behavior are retained. Changes are limited to `src/visitor/mobile/PublicProfileDrawer.tsx` and `src/visitor/mobile/public-mobile.css`.

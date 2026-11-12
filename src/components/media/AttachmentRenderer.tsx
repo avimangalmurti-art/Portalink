@@ -96,7 +96,7 @@ export function AttachmentRenderer({
       </Suspense>;
     case 'image':
       return <MediaFrame>
-        <ImageAttachment verticalReading={verticalReading} projectId={projectId} pages={imagePages && imagePages.length > 0 ? imagePages : [attachment]}
+        <ImageAttachment verticalReading={verticalReading} manageReadingScroll={manageReadingScroll} projectId={projectId} pages={imagePages && imagePages.length > 0 ? imagePages : [attachment]}
           columns={imageColumns} onFocusModeChange={onFocusModeChange} controlsVisible={controlsVisible}
           showMediaInteractions={showMediaInteractions} isOwner={isOwner} memoryScope={memoryScope}
           pageViewToggleRequest={pageViewToggleRequest} />

@@ -7,18 +7,21 @@ import ts from 'typescript';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const pageLayout = sourceModule('src/features/projects/pageLayout.ts', {});
+const pageScroll = sourceModule('src/components/media/projectPageScroll.ts', {});
 const nodes = node => React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 const control = (tree, label) => nodes(tree).find(node => node.props['aria-label'] === label);
 
 const rect = (top, bottom, left = 0, right = 390) => ({ top, bottom, left, right });
 const page = (number, total, bounds) => ({ dataset: { projectPageNumber: `${number}`, projectPageTotal: `${total}` },
   bounds, getBoundingClientRect() { return this.bounds; } });
+const part = (id, count, pages = []) => ({ dataset: { projectReadingPart: id, projectReadingCount: count }, pages,
+  querySelector() { return this.pages[0]; }, querySelectorAll() { return this.pages; } });
 
-function mount(pages = [], { delayedRef = false, readingEnd = false } = {}) {
+function mount(pages = [], { delayedRef = false, readingEnd = false, parts = [] } = {}) {
   const states = [], refs = [], documentEvents = new Map();
   let effectIndex = 0, stateIndex = 0, refIndex = 0, effect, visibilityEffect, visibilityCleanup, frame, onMutation, onResize, cleanedMutations = false, cleanedResize = false;
   const events = new Map(), windowEvents = new Map(), observed = new Set();
-  const surface = { pages, bounds: rect(0, 800), querySelectorAll() { return this.pages; },
+  const surface = { pages, parts, bounds: rect(0, 800), querySelectorAll(selector) { return selector.includes('data-project-reading-part') ? this.parts : this.pages; },
     closest: () => readingEnd ? {} : null, querySelector: () => null,
     getBoundingClientRect() { return this.bounds; }, addEventListener(name, fn, opts) { events.set(name, { fn, opts }); },
     removeEventListener(name) { events.delete(name); } };
@@ -39,6 +42,7 @@ function mount(pages = [], { delayedRef = false, readingEnd = false } = {}) {
       if (name === 'lucide-react') return { Grid2X2Icon: () => null };
       if (name === '../ui/InterfaceIcon') return { InterfaceIcon: () => null };
       if (name === './MobilePageThumbnails') return { MobilePageThumbnails: () => null };
+      if (name === './projectPageScroll') return pageScroll;
       throw new Error(name);
     },
     MutationObserver: class { constructor(fn) { onMutation = fn; } observe() {} disconnect() { cleanedMutations = true; } },
@@ -53,11 +57,46 @@ function mount(pages = [], { delayedRef = false, readingEnd = false } = {}) {
   assert.equal(render(), null);
   const cleanup = effect();
   const flush = () => { const callback = frame; frame = null; callback?.(); };
-  return { surface, surfaceRef, render, flush, get position() {return states[0];}, events, observed, cleanup, refs, documentEvents,
+  return { surface, surfaceRef, render, flush, get position() { return states[0]?.position ?? null; }, events, observed, cleanup, refs, documentEvents,
     visibility() { visibilityCleanup?.(); visibilityCleanup = visibilityEffect(); },
     mutate() { onMutation(); flush(); }, resize() { onResize(); flush(); }, scroll() { events.get('scroll')?.fn(); flush(); },
     get clean() { return cleanedMutations && cleanedResize && !frame && !events.size && !windowEvents.size; } };
 }
+
+test('ordered sections wait for PDF totals and report global and attachment-local positions', () => {
+  const cover = part('cover', '1', [page(1, 1, rect(0, 600))]);
+  const report = part('report', undefined);
+  const appendix = part('appendix', '1', [page(1, 1, rect(1900, 2100))]);
+  const h = mount([], { parts: [cover, report, appendix] }); h.flush();
+  assert.equal(h.render(), null, 'an unresolved PDF must not produce a false total');
+  report.pages = [page(1, 3, rect(620, 1200)), page(2, 3, rect(1200, 1750))]; h.mutate();
+  assert.equal(h.position.current, 1);
+  assert.equal(h.position.total, 5);
+  assert.equal(h.position.attachmentId, 'cover');
+  cover.pages[0].bounds = rect(-1200, -600);
+  report.pages[0].bounds = rect(-580, 0);
+  report.pages[1].bounds = rect(0, 550);
+  h.scroll();
+  assert.deepEqual(JSON.parse(JSON.stringify(h.position)), { scope: 'project:images', current: 3, total: 5,
+    ready: true, attachmentId: 'report', attachmentPage: 2, attachmentTotal: 3 });
+  const props = { readingMode: true, onSelectPage: number => selected.push(number) };
+  const selected = [];
+  const counter = control(h.render(undefined, props), 'Page 3 of 5. Show page previews');
+  counter.props.onClick();
+  const tree = h.render(undefined, props);
+  const thumbnails = nodes(tree).find(node => node.props.total === 5 && node.props.current === 3);
+  assert.deepEqual(JSON.parse(JSON.stringify(thumbnails.props.readingParts)), [
+    { attachmentId: 'cover', firstPage: 1, count: 1 }, { attachmentId: 'report', firstPage: 2, count: 3 },
+    { attachmentId: 'appendix', firstPage: 5, count: 1 },
+  ]);
+  control(tree, 'Next page').props.onClick();
+  assert.deepEqual(selected, [4]);
+  report.pages[1].bounds = rect(-550, 0);
+  appendix.pages[0].bounds = rect(10, 210); h.scroll();
+  assert.equal(h.position.current, 5);
+  assert.equal(h.position.attachmentPage, 1);
+  h.cleanup();
+});
 
 test('shows the actual most-visible page while a nested renderer scrolls', () => {
   const one = page(1, 3, rect(0, 600)), two = page(2, 3, rect(602, 1202)), three = page(3, 3, rect(1204, 1804));

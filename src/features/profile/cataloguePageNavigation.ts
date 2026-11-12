@@ -1,7 +1,7 @@
 import { getCataloguePagePosition, type CataloguePagePosition } from './cataloguePagePosition';
 
 /** Add a catalogue reading hint without replacing an explicitly addressed page. */
-export function withCataloguePageTarget(href: string, projectId: string, selectedPosition?: CataloguePagePosition, imageReading: 'focused' | 'scroll' = 'focused'): string {
+export function withCataloguePageTarget(href: string, projectId: string, selectedPosition?: CataloguePagePosition, pageReading: 'focused' | 'scroll' = 'focused'): string {
   const position = selectedPosition ?? getCataloguePagePosition(projectId);
   if (!href || href.startsWith('//') || /^[a-z][a-z\d+.-]*:/i.test(href)
     || !position || !Number.isInteger(position.index) || position.index <= 0 || !position.attachmentId) return href;
@@ -15,9 +15,10 @@ export function withCataloguePageTarget(href: string, projectId: string, selecte
   query.set('media', position.attachmentId);
   if (Number.isInteger(position.page) && Number(position.page) > 0) {
     query.set('page', String(position.page));
-    // Photo taps can enter the continuous reader; document/saved-page links keep their existing mode.
-    const scrollImage = imageReading === 'scroll' && position.key === `${position.attachmentId}:image`;
-    if (!query.has('view') && !scrollImage) query.set('view', 'page');
+    // Inline image and PDF taps enter the ordinary mobile scroll reader.
+    const scrollPage = pageReading === 'scroll' && (position.key === `${position.attachmentId}:image`
+      || position.key === `${position.attachmentId}:page:${position.page}`);
+    if (!query.has('view') && !scrollPage) query.set('view', 'page');
   }
   return `${path}?${query}${hash}`;
 }

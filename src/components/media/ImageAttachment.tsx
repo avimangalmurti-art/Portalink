@@ -186,7 +186,8 @@ export function ImageAttachment({
   isOwner = false,
   memoryScope = 'workspace',
   pageViewToggleRequest = 0,
-  verticalReading = false
+  verticalReading = false,
+  manageReadingScroll = true
 
 
 
@@ -195,7 +196,7 @@ export function ImageAttachment({
 
 
 
-}: {projectId: string; verticalReading?: boolean; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
+}: {projectId: string; verticalReading?: boolean; manageReadingScroll?: boolean; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
    * How many pages sit side by side. Presentation only — it changes how much
    * width a page is given, never the page's own proportions or its order.
    */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;isOwner?: boolean;memoryScope?: string;pageViewToggleRequest?: number;}) {
@@ -282,7 +283,7 @@ export function ImageAttachment({
     if (focusedPage) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPage]);
 
-  useDocumentReadingScroll(isMobile && !focusedPage, gridScrollRef, memoryKey, verticalReading && linkedImageId ? pages.findIndex(page => page.id === linkedImageId) + 1 : null);
+  useDocumentReadingScroll(manageReadingScroll && isMobile && !focusedPage, gridScrollRef, memoryKey, verticalReading && linkedImageId ? pages.findIndex(page => page.id === linkedImageId) + 1 : null);
   useLayoutEffect(() => {
     if (isMobile || focusedPage) return;
     const element = gridScrollRef.current;
@@ -347,7 +348,7 @@ export function ImageAttachment({
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
           <ol className="m-0 flex list-none flex-col gap-[2px] p-0">
-            {column.map((attachment) => <ImagePage isMobile={isMobile} key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
+            {column.map((attachment) => <ImagePage isMobile={isMobile} key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={manageReadingScroll ? columnCount : 0} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}
       </ol>

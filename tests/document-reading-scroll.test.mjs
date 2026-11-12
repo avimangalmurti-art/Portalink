@@ -53,3 +53,59 @@ test('a page deep link scrolls in the vertical sequence once, then zoom exit res
   assert.equal(window.scrollY, 720, 'Returning from zoom does not jump back to the original deep link');
   cleanup();
 });
+
+test('an ordered attachment link waits for its local page and preserves it while layout settles', () => {
+  let effect, frame, mutation, resize, timeout, saved = 0;
+  const requested = [], listeners = new Map(), target = { top: 1300 };
+  const ref = { current: null };
+  const window = { scrollY: 0, scrollTo({ top }) { this.scrollY = top; },
+    addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name),
+    setTimeout: fn => { timeout = fn; return 1; }, clearTimeout: () => { timeout = undefined; } };
+  const host = { current: { isConnected: true, closest: () => null } };
+  let available = false;
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/useDocumentReadingScroll.ts', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText, { exports, window, requestAnimationFrame: fn => { frame = fn; return 1; }, cancelAnimationFrame: () => { frame = undefined; },
+    MutationObserver: class { constructor(fn) { mutation = fn; } observe() {} disconnect() { mutation = undefined; } },
+    ResizeObserver: class { constructor(fn) { resize = fn; } observe() {} disconnect() { resize = undefined; } },
+    require(name) {
+      if (name === 'react') return { useLayoutEffect: fn => { effect = fn; }, useRef: () => ref };
+      if (name === './projectPageScroll') return {
+        findProjectReadingPage: (_, id, page) => { requested.push([id, page]); return available ? target : undefined; },
+        projectPageScrollTop: (_, page) => page.top,
+      };
+      return { readViewerMemory: () => ({ scrollTop: saved }), updateViewerMemory: (_, patch) => { saved = patch.scrollTop; } };
+    } });
+  exports.useDocumentReadingScroll(true, host, 'project', 2, 'report');
+  let cleanup = effect(); frame();
+  assert.deepEqual(requested, [['report', 2]]);
+  assert.equal(window.scrollY, 0);
+  assert.equal(typeof timeout, 'function');
+  available = true; mutation(); frame();
+  assert.deepEqual(requested, [['report', 2], ['report', 2]]);
+  assert.equal(window.scrollY, 1300);
+  target.top = 1344; resize(); frame();
+  assert.equal(window.scrollY, 1344, 'late dimensions above the linked page keep it aligned');
+  timeout();
+  assert.equal(mutation, undefined);
+  assert.equal(resize, undefined);
+  window.scrollY = 1440; listeners.get('scroll')(); cleanup();
+
+  exports.useDocumentReadingScroll(true, host, 'project', 2, 'report');
+  cleanup = effect(); frame();
+  assert.equal(window.scrollY, 1440, 'zoom exit restores the updated position');
+  cleanup();
+
+  available = false;
+  exports.useDocumentReadingScroll(true, host, 'project', 2, 'another-report');
+  cleanup = effect(); frame();
+  assert.deepEqual(requested.at(-1), ['another-report', 2]);
+  listeners.get('touchstart')();
+  window.scrollY = 2100; listeners.get('scroll')();
+  assert.equal(saved, 2100);
+  assert.equal(mutation, undefined, 'a late PDF cannot override a user scroll');
+  assert.equal(resize, undefined, 'layout changes cannot override a user scroll');
+  cleanup();
+  assert.equal(listeners.size, 0);
+});

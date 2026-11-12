@@ -11,7 +11,9 @@ function bitmap(extra = {}) {
 }
 function artwork({ id = 'work', top = 100, images = [], videos = [], pdf = null, canvases = [] } = {}) {
   return { getBoundingClientRect: () => rect(top), getAttribute: name => name === 'data-project-continuity-id' ? id : null,
-    querySelectorAll: selector => selector === 'img' ? images : selector === 'video' ? videos : selector === 'canvas' ? canvases : [],
+    querySelectorAll: selector => selector === 'img' ? images
+      : selector === 'video:not([data-feed-cover-video])' ? videos.filter(video => !video.autoplayPreview)
+      : selector === 'canvas' ? canvases : [],
     querySelector: selector => selector === '.pdf-page-viewport' ? pdf : null };
 }
 function rootFor(artworks) {
@@ -92,6 +94,13 @@ test('legacy PDF module placeholders wait for rendered or failed PDF state; vide
   video.readyState = 2; v.root.event('loadeddata'); await v.paint(); assert.equal(v.reports.at(-1), true);
 });
 
+test('a pending autoplay preview does not hold Home on the splash after its poster is ready', async () => {
+  const preview = { autoplayPreview: true, readyState: 0, error: null };
+  const f = fixture({ artworks: [artwork({ images: [bitmap()], videos: [preview] })] });
+  await f.paint();
+  assert.deepEqual(f.reports, [false, true]);
+});
+
 test('empty Home, terminal load failures, and unavailable artwork finish without trapping startup', async () => {
   for (const setup of [{}, { settled: false, terminalError: true }, { artworks: [artwork({ images: [bitmap({ naturalWidth: 0 })] })] },
     { artworks: [artwork({ images: [bitmap({ decode: async () => { throw Error('Decode unavailable'); } })] })] }]) {
@@ -165,7 +174,7 @@ test('WeeklyReadNote reports settlement and dismisses smoothly once per login', 
   assert.equal(webCard.some(node=>node.type==='img'),false,'A hidden mobile image would trigger the action row loading background.');
   presentation='mobile';
   const mobileCard=walk(render(1));
-  assert.ok(mobileCard.some(node=>node.type==='img'&&node.props.className==='reads-weekly-character'));
+  assert.equal(mobileCard.some(node=>node.type==='img'),false,'The Earth background replaces the foreground character.');
   assert.equal(mobileCard.filter(node=>node.type==='li').length,2);
   assert.deepEqual(mobileCard.filter(node=>node.type==='li').map(node=>React.Children.toArray(node.props.children).join('')),['48 project opens.','6 reads reached the end.']);
   assert.equal(mobileCard.some(node=>node.type==='p'||node.type==='h2'),false);

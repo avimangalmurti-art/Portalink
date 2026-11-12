@@ -10,7 +10,6 @@ const pageLayout = sourceModule('src/features/projects/pageLayout.ts', {});
 const portalBrowsing = sourceModule('src/components/profile/portalProjectBrowsing.ts');
 
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
-const ImagePage = () => null;
 const MobileProjectPageCounter = () => null;
 const FollowContentInfoPopup = () => null;
 const MobileVideoSequence = () => null;
@@ -42,7 +41,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   };
   const serviceIds = [], gates = [];
   const viewerMemory = new Map(), memoryWrites = [];
-  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [], sharedTargets = [], copies = [];
+  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [], sharedTargets = [], copies = [], readingScroll = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
   const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
   const react = { ...React,
@@ -83,7 +82,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions(model, priority, onOpen) { screenActions.push({model,priority,onOpen}); } };
     if (name.endsWith('/MediaInteractionBar')) return { MediaInteractionBar: 'media-interaction-bar' };
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
-    if (name.endsWith('/ImageAttachment')) return { ImagePage };
+    if (name.endsWith('/useDocumentReadingScroll')) return { useDocumentReadingScroll: (...args) => readingScroll.push(args) };
     if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
     if (name.endsWith('/MobileVideoFrame')) return { MobileVideoFrame };
     if (name.endsWith('/MobileProjectPageCounter')) return { MobileProjectPageCounter };
@@ -114,7 +113,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; },
+  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, readingScroll, onBack, openIndex() { panel = 'index'; },
     // Model React's commit order without mounting media or invoking backend APIs:
     // parent layout effects, child focus-report passive effect, parent passive effects.
     // The callback comes from the actual AttachmentRenderer element, as it does
@@ -127,13 +126,15 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
         tree = this.render(overrides);
         pending.layout.splice(0).forEach(run => run());
         const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
-        const callback = focused === null ? null : renderer?.props.onFocusModeChange;
+        const part = nodes(tree).find(node => node.props.renderer?.attachment.kind === 'document')?.props;
+        const callback = focused === null ? null : renderer?.props.onFocusModeChange ?? part?.onFocus;
         // Keep the focused page object stable across scope changes: the real
         // child's effect re-runs only if focus or its reporting callback changes.
         if (childEffect?.callback !== callback || childEffect?.focused !== focused) {
-          childEffect?.callback?.(false);
-          childEffect = callback ? { callback, focused } : null;
-          callback?.(focused);
+          childEffect?.report(false);
+          const report = part && !renderer ? value => callback?.(part.renderer.attachment.id, value) : value => callback?.(value);
+          childEffect = callback ? { callback, focused, report } : null;
+          report(focused);
         }
         pending.passive.splice(0).forEach(run => run());
         if (!dirty) return tree;
@@ -279,7 +280,7 @@ test('video metadata and sequences leave WEB and non-video mobile attachments in
       { projectId: 'project', attachment: { id: 'video-one', kind: 'video' } },
       { projectId: 'other', attachment: { id: 'video-two', kind: 'video' } },
     ], onSelectProject() { assert.fail('Unrelated viewers must not navigate through videos'); } };
-    const tree = h.render({ videoSequence, creator: { name: 'Source creator', avatar: 'creator.jpg' } });
+    const tree = h.render({ attachments: [h.attachments[0]], videoSequence, creator: { name: 'Source creator', avatar: 'creator.jpg' } });
     assert.equal(nodes(tree).some(node => node.type === MobileVideoSequence), false);
     assert.equal(nodes(tree).some(node => node.type === MobileVideoFrame), false);
     assert.equal(nodes(tree).some(node => node.props.className === 'mobile-video-single'), false);
@@ -382,6 +383,8 @@ test('leaving MOBILE image focus restores normal controls and switching attachme
   }
 });
 
+const readingParts = tree => nodes(withProp(tree, 'data-project-stage')).filter(node => node.props.renderer).map(node => node.props);
+
 test('MOBILE opens the cover and PDF in one vertical reader on both project routes', () => {
   for (const readOnlyShare of [false, true]) {
     const h = harness({ lifecycle: true, mediaKind: 'image', readOnlyShare });
@@ -390,18 +393,17 @@ test('MOBILE opens the cover and PDF in one vertical reader on both project rout
     h.viewerMemory.set(`${scope}:project:project`, { activeAttachmentId: cover.id });
     const tree = h.commitFocusedPage(false, { attachments: [cover, pdf] });
     const stage = withProp(tree, 'data-project-stage');
-    const [image, document] = nodes(stage).filter(node => node.type === ImagePage || node.type === AttachmentRenderer);
-    assert.equal(image.props.attachment, cover);
-    assert.equal(document.props.attachment, pdf);
-    assert.equal(document.props.verticalReading, true);
-    assert.equal(document.props.manageReadingScroll, false, 'The stage owns overview scroll before the PDF loads');
+    const [image, document] = readingParts(tree);
+    assert.equal(image.renderer.attachment, cover);
+    assert.equal(document.renderer.attachment, pdf);
+    assert.equal(h.readingScroll.at(-1)[0], true, 'The stage owns overview scroll before the PDF loads');
     assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
     const counter = nodes(tree).find(node => node.type === MobileProjectPageCounter);
-    assert.notEqual(counter.props.surfaceRef, stage.ref, 'The PDF navigator excludes the cover from PDF page numbering');
-    assert.equal(counter.props.scope, `project:${pdf.id}`);
+    assert.equal(counter.props.surfaceRef, stage.ref, 'One page navigator includes the cover and PDF');
+    assert.equal(counter.props.scope, 'project:ordered-pages');
     const focused = h.commitFocusedPage(true);
-    assert.equal(withProp(focused, 'data-project-cover-images').props.hidden, true);
-    assert.equal(withProp(h.commitFocusedPage(false), 'data-project-cover-images').props.hidden, false);
+    assert.equal(readingParts(focused)[0].hidden, true);
+    assert.equal(readingParts(h.commitFocusedPage(false))[0].hidden, false);
   }
 });
 
@@ -412,40 +414,36 @@ function mixedCoverPdf([cover, pdf]) {
   ];
 }
 
-test('MOBILE continuous reading keeps appendix images below the PDF and respects a PDF cover', () => {
+test('MOBILE continuous reading follows stored order across PDF covers, appendix images and additional PDFs', () => {
   const h = harness({ mediaKind: 'image' });
   const [cover, pdf] = mixedCoverPdf(h.attachments);
-  const appendix = { ...cover, id: 'appendix', isCover: false };
-  const tree = h.render({ attachments: [cover, pdf, appendix] });
-  const stage = withProp(tree, 'data-project-stage');
-  assert.deepEqual(nodes(stage).filter(node => node.type === ImagePage || node.type === AttachmentRenderer)
-    .map(node => node.props.attachment.id), [cover.id, pdf.id, appendix.id]);
-  const pdfCover = h.render({ attachments: [{ ...pdf, isCover: true }, { ...cover, isCover: false }] });
-  assert.equal(withProp(pdfCover, 'data-project-cover-images'), undefined);
+  const appendix = { ...cover, id: 'appendix', isCover: false, order: 2 };
+  const supplementary = { ...pdf, id: 'supplementary', order: 3 };
+  const tree = h.render({ attachments: [supplementary, { ...cover, isCover: false, order: 1 }, { ...pdf, isCover: true, order: 0 }, appendix] });
+  assert.deepEqual(readingParts(tree).map(part => part.renderer.attachment.id), [pdf.id, cover.id, appendix.id, supplementary.id]);
+  assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
 });
 
 test('WEB file switching and explicit MOBILE page links keep their own attachment target', () => {
   for (const [mobile, search, active] of [
     [false, '', 'first'],
-    [true, '?media=first&page=1', 'first'],
     [true, '?media=second&page=1&view=page', 'second'],
   ]) {
     const h = harness({ mobile, search, mediaKind: 'image' });
     const tree = h.render({ attachments: mixedCoverPdf(h.attachments) });
-    assert.equal(withProp(tree, 'data-project-cover-images'), undefined);
+    assert.equal(readingParts(tree).length, 0);
     assert.ok(withProp(tree, 'data-project-file-strip'));
     const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
     assert.equal(renderer.props.attachment.id, active);
     assert.equal(renderer.props.verticalReading, mobile && active === 'first');
   }
-  const linked = harness({ mediaKind: 'image', search: '?media=second&page=2' });
-  const tree = linked.render({ attachments: mixedCoverPdf(linked.attachments) });
-  assert.ok(withProp(tree, 'data-project-cover-images'));
-  assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
-  const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
-  assert.equal(renderer.props.attachment.id, 'second');
-  assert.equal(renderer.props.verticalReading, true);
-  assert.equal(renderer.props.manageReadingScroll, true, 'The document still restores the exact linked PDF page');
+  for (const [id, page] of [['first', 1], ['second', 2]]) {
+    const linked = harness({ mediaKind: 'image', search: `?media=${id}&page=${page}` });
+    const tree = linked.render({ attachments: mixedCoverPdf(linked.attachments) });
+    assert.deepEqual(readingParts(tree).map(part => part.renderer.attachment.id), ['first', 'second']);
+    assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
+    assert.deepEqual(linked.readingScroll.at(-1).slice(3), [page, id]);
+  }
 });
 
 test('WEB focus lifecycle retains its existing rail without MOBILE controls', () => {
@@ -594,7 +592,7 @@ test('empty mobile projects keep their project-list access; WEB keeps its existi
 test('shared readers hide project and media engagement for signed-in and guest visitors on MOBILE and WEB', () => {
   for (const mobile of [true, false]) for (const signedIn of [true, false]) for (const mediaKind of ['document', 'image', 'video']) {
     const h = harness({ mobile, signedIn, mediaKind, readOnlyShare: true });
-    const props = { isRailOpen: true, isOwner: true, descriptionEditor: { open() { assert.fail('Public readers cannot edit'); } },
+    const props = { attachments: [h.attachments[0]], isRailOpen: true, isOwner: true, descriptionEditor: { open() { assert.fail('Public readers cannot edit'); } },
       onDeleteProject() { assert.fail('Public readers cannot delete'); } };
     let tree = h.render(props);
     const media = nodes(tree).find(node => node.type === AttachmentRenderer);
@@ -677,7 +675,8 @@ test('shared WEB retains project information and verification with its engagemen
 test('ordinary readers retain project engagement, information actions and media interactions', () => {
   for (const mobile of [true, false]) for (const mediaKind of ['document', 'image', 'video']) {
     const h = harness({ mobile, mediaKind });
-    let tree = h.render({ isRailOpen: true });
+    const props = { attachments: [h.attachments[0]], isRailOpen: true };
+    let tree = h.render(props);
     assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.showMediaInteractions, true);
     assert.ok(nodes(tree).some(node => node.type === EngagementBar));
     assert.ok(h.serviceIds.every(id => id === 'project'));
@@ -688,11 +687,11 @@ test('ordinary readers retain project engagement, information actions and media 
       if (mediaKind === 'document') {
         const counter = nodes(tree).find(node => node.type === MobileProjectPageCounter);
         counter.props.onPositionChange({ scope: counter.props.scope, current: 2, total: 4, ready: true });
-        tree = h.render({ isRailOpen: true });
+        tree = h.render(props);
         assert.ok(nodes(tree).some(node => node.type === 'media-interaction-bar'), 'Ordinary document pages retain their interaction bar');
       }
       h.screenActions.at(-1).onOpen();
-      const info = nodes(h.render({ isRailOpen: true })).find(node => node.type === FollowContentInfoPopup);
+      const info = nodes(h.render(props)).find(node => node.type === FollowContentInfoPopup);
       assert.equal(info.props.showEngagement, true);
       assert.equal(typeof info.props.onComments, 'function');
     }
@@ -767,6 +766,7 @@ test('mobile page previews use image order, available rendered pages, or the loa
   const preview = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
   assert.deepEqual(Array.from(preview(images.render()).props.previewSources), ['image-1', 'image-2']);
   const documents = harness({ mediaKind: 'document' });
+  documents.attachments.splice(1);
   documents.attachments[0].metadata = { renderedPages: [{ sourceUrl: 'page-1' }, {}, { sourceUrl: 'page-2' }] };
   assert.deepEqual(Array.from(preview(documents.render()).props.previewSources), ['page-1', 'page-2']);
   const pdf = { numPages: 30 };
@@ -780,6 +780,7 @@ test('mobile page previews use image order, available rendered pages, or the loa
 test('segmented document progress is enabled only for platform mobile readers', () => {
   const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
   const platform = harness({ mediaKind: 'document' });
+  platform.attachments.splice(1);
   const platformCounter = counter(platform.render());
   assert.equal(platformCounter.props.readingMode, true);
   assert.equal(platformCounter.props.segmentedProgress, true);
@@ -796,7 +797,7 @@ test('mobile density changes document and image columns immediately without wait
   for (const mediaKind of ['document', 'image']) {
     const h = harness({ mediaKind }), drafts = [], commits = [];
     const props = { pagesPerRow: 7, onPagesPerRowChange: value => drafts.push(value), onPagesPerRowCommit: value => commits.push(value) };
-    const media = tree => nodes(tree).find(node => node.type === AttachmentRenderer);
+    const media = tree => nodes(tree).find(node => node.type === AttachmentRenderer) ?? { props: readingParts(tree)[0].renderer };
     const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
     let tree = h.render(props);
     assert.equal(media(tree).props.imageColumns, 1, 'each newly opened mobile project starts at full width');
@@ -826,6 +827,7 @@ test('mobile density changes document and image columns immediately without wait
 
 test('mobile density is scoped to the open project and attachment and member changes stay local', () => {
   const h = harness({ mediaKind: 'document' }), drafts = [];
+  h.attachments.push({ id: 'audio', kind: 'audio', displayName: 'Audio' });
   const props = { pagesPerRow: 5, onPagesPerRowChange: value => drafts.push(value) };
   const media = tree => nodes(tree).find(node => node.type === AttachmentRenderer);
   const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
@@ -855,7 +857,7 @@ test('public readers retain a density slider; WEB, non-page media and callback-f
   for (const mediaKind of ['image', 'document']) {
     const shared = harness({ mediaKind, readOnlyShare: true }).render(callbacks);
     assert.equal(nodes(shared).find(node => node.type === MobileProjectPageCounter).props.density.value, 1);
-    assert.equal(nodes(shared).find(node => node.type === AttachmentRenderer).props.imageColumns, 1);
+    assert.equal((nodes(shared).find(node => node.type === AttachmentRenderer)?.props ?? readingParts(shared)[0].renderer).imageColumns, 1);
     const web = harness({ mobile: false, mediaKind }).render(callbacks);
     assert.equal(nodes(web).some(node => node.type === MobileProjectPageCounter), false);
     assert.equal(nodes(web).find(node => node.type === AttachmentRenderer).props.imageColumns, 7);

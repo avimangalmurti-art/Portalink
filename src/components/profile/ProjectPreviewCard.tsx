@@ -18,6 +18,7 @@ import { useInlineProjectPages } from './ProjectPageBrowsingContext';
 import { getCataloguePagePosition, rememberCataloguePagePosition } from '../../features/profile/cataloguePagePosition';
 import { withCataloguePageTarget } from '../../features/profile/cataloguePageNavigation';
 import { useInlineProjectContent } from '../../features/profile/useInlineProjectContent';
+import { videoSources } from '../../features/media/videoPlayback';
 import { inlinePositionMatches, normalizeInlineProjectPosition } from './inlineProjectPageModel';
 import './project-preview-actions.css';
 
@@ -45,6 +46,7 @@ type Props = {
   sizes?: string;
   priority?: ImagePriority;
   showCoverLoading?: boolean;
+  videoCoverAutoplay?: 'active' | 'paused';
   /** Home can wait for an actual preview before resolving hidden detail data. */
   deferDesktopDetails?: boolean;
   allowPdfFallback?: boolean;
@@ -62,7 +64,7 @@ type Props = {
 
 /** Artwork stays fixed; each presentation places the extension over the next row. */
 export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescription, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
-  label = `Open ${project.title}`, contentTypeLabel, href, onCollapse, className = '', sizes, priority = false, showCoverLoading, deferDesktopDetails = false, disabled = false,
+  label = `Open ${project.title}`, contentTypeLabel, href, onCollapse, className = '', sizes, priority = false, showCoverLoading, videoCoverAutoplay, deferDesktopDetails = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio, sharedCoverFallback = false, allowPdfFallback = true, allowVideoFallback = true }: Props) {
   const [popupOpen, setPopupOpen] = useState(false);
   const [selection, setSelection] = useState({ projectId: project.id, position: getCataloguePagePosition(project.id) });
@@ -76,7 +78,14 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
   // On phones artwork opens the work on its first tap. Details have a separate
   // control at every mobile grid density.
   const preview = useContentPreview(disabled, isMobile || inlinePages ? 0 : 80, isMobile || inlinePages);
-  const content = useInlineProjectContent({ project, creatorId: creator.id, enabled: inlinePages, active, hostRef: preview.ref });
+  const previewVideo = videoCoverAutoplay && isMobile && !cover && !disabled && allowVideoFallback && project.coverKind === 'video';
+  const playPreviewVideo = previewVideo && active && videoCoverAutoplay === 'active';
+  const thumbnailCoverId = previewVideo ? project.coverThumbnail?.sourceAttachmentId : undefined;
+  const content = useInlineProjectContent({ project, creatorId: creator.id, enabled: inlinePages || Boolean(playPreviewVideo && thumbnailCoverId), active, hostRef: preview.ref });
+  const coverVideo = playPreviewVideo ? (thumbnailCoverId
+    ? content.project.attachments?.find(attachment => attachment.id === thumbnailCoverId && attachment.kind === 'video')
+    : project.attachments?.find(attachment => attachment.kind === 'video' && videoSources(attachment).includes(project.cover))) : undefined;
+  const autoplaySources = previewVideo ? (coverVideo ? videoSources(coverVideo) : playPreviewVideo && !thumbnailCoverId && project.cover ? [project.cover] : []) : undefined;
   const remembered = selection.projectId === project.id ? selection.position : getCataloguePagePosition(project.id);
   const position = normalizeInlineProjectPosition(content.project, remembered, content.metadataComplete);
   useEffect(() => {
@@ -106,7 +115,7 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
     className: 'project-preview-artwork absolute inset-0 block h-full w-full overflow-hidden bg-[var(--surface-sunken)] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
   };
   const artwork = <span className="project-preview-image absolute inset-0 block">
-    {cover ?? <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} showLoadingIndicator={showCoverLoading} allowPdfFallback={allowPdfFallback} allowVideoFallback={allowVideoFallback} fallbackAttachments={sharedCoverFallback ? project.attachments : undefined} />}
+    {cover ?? <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={coverVideo?.metadata?.coverFrame ?? project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} showLoadingIndicator={showCoverLoading} allowPdfFallback={allowPdfFallback} allowVideoFallback={allowVideoFallback} autoplaySources={autoplaySources} fallbackAttachments={sharedCoverFallback ? project.attachments : undefined} />}
   </span>;
   const creatorAvatar = showMobileInfo && <CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" />;
   const creatorProps = {

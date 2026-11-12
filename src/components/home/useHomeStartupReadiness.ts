@@ -30,7 +30,8 @@ export function inspectHomeStartupArtwork(root: HTMLElement, projectCount: numbe
       images.push(image);
       if (Number(getComputedStyle(image).opacity) < 0.99) { ready = false; paintPending = true; }
     }
-    for (const video of artwork.querySelectorAll<HTMLVideoElement>('video')) {
+    // Autoplay previews use a poster and can be blocked by browser policy.
+    for (const video of artwork.querySelectorAll<HTMLVideoElement>('video:not([data-feed-cover-video])')) {
       if (!video.error && video.readyState < 2) ready = false;
     }
     const pdf = artwork.querySelector<HTMLElement>('.pdf-page-viewport');

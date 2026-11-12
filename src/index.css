@@ -5153,6 +5153,13 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   background-color: transparent !important;
 }
 
+/* Only the end of the continuous reader needs clearance for floating controls. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view]))
+  [data-project-stage] > [data-project-reading-part]:not(:last-child)
+  :is(.premium-media-mode-enter.overflow-y-auto, ol.scrollbar-overlay) {
+  padding-bottom: 0;
+}
+
 [data-premium-project-viewer] [data-project-response-rail] {
   background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent) !important;
   border-color: transparent !important;
