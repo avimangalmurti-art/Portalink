@@ -1,3 +1,9 @@
+## 2026-11-11 — Mobile Home video cover autoplay
+
+Worktree `logs/mobile-home-video-autoplay` on `codex/mobile-home-video-autoplay` starts from live Sites 610 source `88a884f2e19a1d3aaad77ae7ea28d19103a6eae2` (draft PR #160). Home opts in only on MOBILE. A visible video cover plays muted and inline, starting with the authorized compatible source and falling back to the original. The existing nearby project reader resolves playable sources for stored video thumbnails. The poster stays available while playback is pending, blocked or unavailable. Offscreen previews, hidden tabs and retained Home screens stop playback. The full reader, desktop and shared catalogues keep their existing behavior.
+
+Typecheck, targeted lint, 109 focused tests and the production build with both entry configuration guards passed. The startup regression test covers a ready poster with a blocked or pending autoplay preview. A Chromium fixture using the actual feed card and local synthetic media verified thumbnailed and legacy autoplay, offscreen pause, retained Home, fallback to the original, unavailable-media poster, one-column autoplay and the desktop poster. Receipts are in logs/autoplay-checks and logs/autoplay-qa. No migration or service change. Physical iPhone verification and publication remain pending.
+
 ## 2026-11-11 — Mobile shared catalogue navigation icon
 
 Worktree `logs/mobile-shared-catalogue-icon`, branch `codex/mobile-shared-catalogue-icon`, starts from live Sites 609 source `5b2ad8c743170d735fdc4d84b1e9c8ed88b70ecb` (draft PR #159). The floating mobile shared catalogue opener uses the existing 120px image made from the matching attachment and the standard squircle mask. Its opaque 2px high-contrast edge and focus outline follow light/dark without depending on the contrast toggle. The 50px target, placement and drawer behavior are retained. Changes are limited to `src/visitor/mobile/PublicProfileDrawer.tsx` and `src/visitor/mobile/public-mobile.css`.

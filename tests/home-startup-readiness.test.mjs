@@ -11,7 +11,9 @@ function bitmap(extra = {}) {
 }
 function artwork({ id = 'work', top = 100, images = [], videos = [], pdf = null, canvases = [] } = {}) {
   return { getBoundingClientRect: () => rect(top), getAttribute: name => name === 'data-project-continuity-id' ? id : null,
-    querySelectorAll: selector => selector === 'img' ? images : selector === 'video' ? videos : selector === 'canvas' ? canvases : [],
+    querySelectorAll: selector => selector === 'img' ? images
+      : selector === 'video:not([data-feed-cover-video])' ? videos.filter(video => !video.autoplayPreview)
+      : selector === 'canvas' ? canvases : [],
     querySelector: selector => selector === '.pdf-page-viewport' ? pdf : null };
 }
 function rootFor(artworks) {
@@ -90,6 +92,13 @@ test('legacy PDF module placeholders wait for rendered or failed PDF state; vide
   const v = fixture({ artworks: [artwork({ videos: [video] })] });
   await v.paint(); assert.equal(v.reports.at(-1), false);
   video.readyState = 2; v.root.event('loadeddata'); await v.paint(); assert.equal(v.reports.at(-1), true);
+});
+
+test('a pending autoplay preview does not hold Home on the splash after its poster is ready', async () => {
+  const preview = { autoplayPreview: true, readyState: 0, error: null };
+  const f = fixture({ artworks: [artwork({ images: [bitmap()], videos: [preview] })] });
+  await f.paint();
+  assert.deepEqual(f.reports, [false, true]);
 });
 
 test('empty Home, terminal load failures, and unavailable artwork finish without trapping startup', async () => {

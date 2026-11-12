@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { FileIcon } from 'lucide-react';
 import type { Project, ProjectAttachment, ProjectCoverFrame, ProjectCoverThumbnail } from '../../types/domain';
 import { ResponsiveImage, type ImagePriority } from '../ui/ResponsiveImage';
@@ -25,12 +25,63 @@ type ProjectCoverProps = {
   allowPdfFallback?: boolean;
   /** Visitor grids defer original video playback until the project is opened. */
   allowVideoFallback?: boolean;
+  /** Opt-in cover playback for mobile Home. An empty list keeps the poster. */
+  autoplaySources?: string[];
   frame?: ProjectCoverFrame;
   pageNumber?: number;
   onDocumentPageCountChange?: (pageCount: number) => void;
   /** Shared cards may use existing project artwork when no cover was chosen. */
   fallbackAttachments?: ProjectAttachment[];
 };
+
+function PlayingCoverVideo({ sources, fit, frame, showFirstFrame }: {
+  sources: string[]; fit: 'cover' | 'contain'; frame?: ProjectCoverFrame | null; showFirstFrame: boolean;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [painted, setPainted] = useState(false);
+  const source = sources[sourceIndex];
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    video.defaultMuted = true;
+    video.muted = true;
+    void video.play().catch(() => { /* Keep the poster when the browser blocks autoplay. */ });
+    return () => video.pause();
+  }, [source]);
+  if (!source) return null;
+  const objectPosition = frame ? `${frame.x * 100}% ${frame.y * 100}%` : undefined;
+  return <video ref={ref} key={source} src={source} autoPlay muted loop playsInline preload="auto"
+    data-feed-cover-video="" className={`block h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain'}`}
+    style={{ opacity: painted ? 1 : 0, objectPosition, transform: frame ? `scale(${frame.zoom})` : undefined, transformOrigin: objectPosition }}
+    onLoadedData={showFirstFrame ? () => setPainted(true) : undefined}
+    onPlaying={() => setPainted(true)} onPause={showFirstFrame ? undefined : () => setPainted(false)}
+    onError={() => { setPainted(false); setSourceIndex(index => index + 1); }} />;
+}
+
+function VisibleCoverVideo(props: React.ComponentProps<typeof PlayingCoverVideo>) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const host = ref.current;
+    if (!host || typeof IntersectionObserver === 'undefined') return;
+    let intersects = false;
+    const sync = () => setVisible(intersects && document.visibilityState === 'visible');
+    const observer = new IntersectionObserver(([entry]) => {
+      intersects = entry.isIntersecting && entry.intersectionRatio >= 0.01;
+      sync();
+    }, { threshold: 0.01 });
+    observer.observe(host);
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', sync);
+    };
+  }, []);
+  return <span ref={ref} aria-hidden="true" className="pointer-events-none absolute inset-0 block overflow-hidden">
+    {visible && <PlayingCoverVideo key={JSON.stringify(props.sources)} {...props} />}
+  </span>;
+}
 
 function firstAttachmentCover(attachments: ProjectAttachment[] | undefined) {
   for (const attachment of [...(attachments ?? [])].sort((a, b) => a.order - b.order)) {
@@ -67,6 +118,7 @@ export function ProjectCover({
   showLoadingIndicator = false,
   allowPdfFallback = true,
   allowVideoFallback = true,
+  autoplaySources,
   frame,
   pageNumber: chosenPageNumber = 1,
   onDocumentPageCountChange,
@@ -91,7 +143,7 @@ export function ProjectCover({
   useEffect(() => {
     if (showLoadingIndicator) setLoadedAsset(current => current === activeAsset ? current : undefined);
   }, [activeAsset, showLoadingIndicator]);
-  const placeholder = <span role="img" aria-label={imageFailed || thumbnail || (kind === 'document' && !allowPdfFallback) || (kind === 'video' && !allowVideoFallback) ? `${alt} preview unavailable` : `${alt} has no cover`} className={`flex h-full w-full items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${className}`}>
+  const placeholder = <span role="img" aria-label={imageFailed || thumbnail || (kind === 'document' && !allowPdfFallback) || (kind === 'video' && (!allowVideoFallback || autoplaySources)) ? `${alt} preview unavailable` : `${alt} has no cover`} className={`flex h-full w-full items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${className}`}>
         <InterfaceIcon icon={FileIcon} size="xl" weight="medium" />
       </span>;
   const loadingMark = showLoadingIndicator ? <span data-project-cover-loading="" aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -101,16 +153,23 @@ export function ProjectCover({
   const markLoaded = showLoadingIndicator ? () => setLoadedAsset(activeAsset) : undefined;
   const withLoading = (media: React.ReactElement) => showLoadingIndicator
     ? <>{media}{assetLoading && loadingMark}</> : media;
+  const withVideo = (poster: React.ReactElement, showFirstFrame = false) => autoplaySources?.length
+    ? <span className="relative block h-full w-full">{poster}<VisibleCoverVideo sources={autoplaySources} fit={effectiveFit}
+        frame={frame && effectiveFit === 'cover' ? normalizeProjectCoverFrame(frame) : null} showFirstFrame={showFirstFrame} /></span>
+    : poster;
   if (thumbnail) {
-    // A failed thumbnail stays a placeholder; never download the original or
-    // start a PDF worker because one cacheable image could not be fetched.
-    return !storedImage || imageFailed ? placeholder : withLoading(<ResponsiveImage {...storedImage}
+    // A failed thumbnail does not trigger original media downloads. Mobile
+    // Home passes its own authorized sources when a video preview is enabled.
+    const posterMissing = !storedImage || imageFailed;
+    const poster = posterMissing ? placeholder : withLoading(<ResponsiveImage {...storedImage}
       key={showLoadingIndicator ? storedImage.src : undefined}
       trackCoverPaint
       alt={alt} sizes={sizes} measureWidth priority={priority} data-project-cover-thumbnail=""
       onLoad={markLoaded}
       onError={() => setImageFailed(true)} className={`h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain'} ${className}`} />);
+    return withVideo(poster, posterMissing);
   }
+  if (autoplaySources) return withVideo(placeholder, true);
   if (!source || imageFailed) {
     return placeholder;
   }
