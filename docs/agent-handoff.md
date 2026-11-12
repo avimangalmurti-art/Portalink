@@ -1,3 +1,9 @@
+## 2026-11-11 — Revised iPhone Home Screen artwork
+
+Task checkout `logs/portalite-iphone-home-icon-v2` on `codex/portalite-iphone-home-icon-v2` starts from Sites 606 source `5328b3368ed85a627946d50af109f6a8ca0a0753`. The latest source JPEG is stored byte-for-byte at `docs/design/portalite-icons/iphone-home-screen.jpg`. The 180px and 120px iPhone touch icons use direct opaque resizes with the original framing and color profile. The three entry pages reference content revisions `2cc94c3b2798` and `4ebf6407f1d4`.
+
+Production build and both entry guards passed. Local HTTP verified three entry pages and both versioned and unversioned URLs for the two exact resized images. Both sizes were inspected at native resolution. Publication and physical iPhone installation are pending.
+
 ## 2026-11-11 — Primary iPhone Home Screen artwork
 
 Task checkout `logs/portalite-iphone-home-icon` on `codex/portalite-iphone-home-icon` follows the live Sites 605 commit `2eb46f2871dc220668de1b1a5e53b35913f8f508`, which is under review in PR #158. The new source JPEG is preserved under `docs/design/portalite-icons`. The primary 180px and alternate 120px iPhone touch icons are direct opaque Lanczos resizes with the source framing and color profile. The three HTML entry pages reference their new content revisions. The 120px icon uses the same artwork because Safari may choose that size when both are available.
