@@ -1,8 +1,16 @@
+## 2026-11-11 — Latest iPhone Home Screen artwork
+
+The `codex/portalite-iphone-home-icon-v2` worktree at `logs/portalite-iphone-home-icon-v2` continues from live Sites 607 source `0700e0e7165c4b26fafe8d3576d03c2c9e2a06ce`. The new `C778D63B` attachment is preserved byte-for-byte as `docs/design/portalite-icons/iphone-home-screen.jpg`. The 180px and 120px Apple touch icons are opaque direct resizes, with the original ICC profile. The three entry pages reference revisions `132dfc755891` and `6c181f7b9b56`.
+
+The production build and both configuration guards passed. Local HTTP confirmed all three entry pages and both versioned and unversioned URLs for the two PNGs. Both sizes were inspected visually. Publication and physical iPhone installation are pending.
+
 ## 2026-11-11 — Revised iPhone Home Screen artwork
 
 Task checkout `logs/portalite-iphone-home-icon-v2` on `codex/portalite-iphone-home-icon-v2` starts from Sites 606 source `5328b3368ed85a627946d50af109f6a8ca0a0753`. The latest source JPEG is stored byte-for-byte at `docs/design/portalite-icons/iphone-home-screen.jpg`. The 180px and 120px iPhone touch icons use direct opaque resizes with the original framing and color profile. The three entry pages reference content revisions `2cc94c3b2798` and `4ebf6407f1d4`.
 
-Production build and both entry guards passed. Local HTTP verified three entry pages and both versioned and unversioned URLs for the two exact resized images. Both sizes were inspected at native resolution. Publication and physical iPhone installation are pending.
+Production build and both entry guards passed. Local HTTP verified three entry pages and both versioned and unversioned URLs for the two exact resized images. Both sizes were inspected at native resolution. Physical iPhone installation remains pending.
+
+Portalink published Sites 607 from `0700e0e7165c4b26fafe8d3576d03c2c9e2a06ce` in [draft PR #158](https://github.com/avimangalmurti-art/Portalink/pull/158). Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_3e04daed804c819199b589d0b534ba16` and deployment `appgdep_6af5096c74348191bd932f2659df5a24` succeeded at `2026-11-12T00:33:56.509053+00:00` with runtime revision 2. All 652 archive files match the build. The official domain matches all three entry pages, 17 icon and manifest URLs, and both unversioned Apple touch icon URLs. Receipts are in `logs/icon-qa`.
 
 ## 2026-11-11 — Primary iPhone Home Screen artwork
 
