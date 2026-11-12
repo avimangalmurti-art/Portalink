@@ -1,3 +1,9 @@
+## 2026-11-11 — Primary iPhone Home Screen artwork
+
+Task checkout `logs/portalite-iphone-home-icon` on `codex/portalite-iphone-home-icon` follows the live Sites 605 commit `2eb46f2871dc220668de1b1a5e53b35913f8f508`, which is under review in PR #158. The new source JPEG is preserved under `docs/design/portalite-icons`. The primary 180px and alternate 120px iPhone touch icons are direct opaque Lanczos resizes with the source framing and color profile. The three HTML entry pages reference their new content revisions. The 120px icon uses the same artwork because Safari may choose that size when both are available.
+
+The configured client and worker build and both entry guards passed. Local HTTP confirmed exact image bytes and MIME types at both versioned and root URLs, with the intended metadata on all three entries. Both icon sizes were inspected visually and matched the exact source resize. Physical iPhone installation and publication are pending.
+
 ## 2026-11-11 — Portalite Home Screen and installed web icons
 
 Task checkout `logs/portalite-original-icons` on `codex/portalite-original-icons` starts from `c60c8ef70bbbbe1bf7daa0f8112f9a54deaafec0`. The full-square glowing artwork and rounded reference are preserved byte-for-byte under `docs/design/portalite-icons` from the JPEG copies in the conversation attachments. The four Apple touch icons and three standard web app sizes are direct Lanczos resizes of the full-square artwork. The three separate maskable exports center the complete artwork at about 84% scale with an opaque edge extension. The measured mascot and nearby glow fit within the 40% safe circle. The three entry pages use versioned links, and the manifest is stored with LF so its content revision is stable across platforms.
