@@ -327,6 +327,7 @@ function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearan
     if (name === '../app/useAppRoute') return { useAppRoute: () => state.route };
     if (name === '../app/routes') return routes;
     if (name === '../contexts/AuthContext') return { useAuth: () => state.auth };
+    if (name === '../components/profile/usePrepareProfileAudio') return { usePrepareProfileAudio() {} };
     if (name === '../features/profile/useSharedProfileQuery') return { useSharedProfileQuery: (...args) => { queryCalls.push(args); return args[0] ? state.query : { status: 'idle', profile: null }; } };
     if (name === '../hooks/useDeviceAppearance') return { useDeviceAppearance: appearanceHook };
     if (name === '../presentation/usePresentation') return { usePresentation: () => state.presentation };

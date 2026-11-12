@@ -50,7 +50,9 @@ function getAudio() {
   // One native element for the browsing session, independent of profile routes
   // and dialog lifecycles. Keep the element that received the listener's tap.
   const player = new Audio();
-  player.preload = 'none';
+  // If audible autoplay is blocked, let the browser buffer metadata before
+  // the first eligible tap rather than starting the media request on that tap.
+  player.preload = 'metadata';
   const readTime = () => {
     if (!snapshot.key) return;
     update({ position: player.currentTime, duration: Number.isFinite(player.duration) ? player.duration : 0 });
@@ -151,6 +153,10 @@ export function clearProfileAudio(key?: string) {
   audio?.removeAttribute('src');
   audio?.load();
   update({ ...empty, videoOpen: snapshot.videoOpen });
+}
+
+export function clearProfileAudioForProfile(profileId: string) {
+  if (snapshot.key?.startsWith(`${profileId}/`)) clearProfileAudio();
 }
 
 export function setProfileAudioAccount(accountId: string | null) {

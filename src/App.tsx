@@ -7,7 +7,7 @@ import { clearSetupDraft, readSetupDraft } from './features/publishing/setupDraf
 import { MobileScreenActions } from './presentation/mobile/MobileContextActions';
 import { SharedContextActions } from './presentation/mobile/SharedContextActions';
 import { contextActions } from './presentation/mobile/contextActions';
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import type { ProductDetailState } from './components/AppDetailPage';
 import type { FeatureCardApp } from './components/FeatureCard';
@@ -19,6 +19,7 @@ import type { ViewerRole } from './types/viewer';
 import type { PublishResult } from './types/publishing';
 import { useProjectResolution } from './features/projects/useProjectResolution';
 import { MobileProfileWorkspace } from './presentation/mobile/MobileProfileWorkspace';
+import { usePrepareProfileAudio } from './components/profile/usePrepareProfileAudio';
 import { CollaborationPage } from './components/profile/CollaborationPage';
 import { ActivityCollectionPage } from './components/profile/ActivityCollectionPage';
 import { ActivityPage, SavedPage, InsightsPage } from './features/library/PersonalPages';
@@ -40,6 +41,7 @@ import { useDeviceAppearance } from './hooks/useDeviceAppearance';
 import { useScreenInit } from './useScreenInit.js';
 import { useFollows } from './features/follows/useFollows';
 import { useLiveSessions } from './features/live/useLiveSessions';
+import { clearProfileAudioForProfile } from './features/profile/profileAudioPlayback';
 import { useCategoryManagement } from './features/profile/useCategoryManagement';
 import { useAuth } from './contexts/AuthContext';
 import { SessionStatusBanner } from './features/auth/SessionStatusBanner';
@@ -300,6 +302,17 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const isProfileEditorRoute = route.kind === 'profileEditor';
   // Records addressed by the URL. Ids only — never a display name.
   const routeProfileId = isProfileEditorRoute ? auth.viewerProfileId : route.kind === 'profile' || route.kind === 'category' || route.kind === 'project' || route.kind === 'activity' || route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' || route.kind === 'collaboration' || route.kind === 'sharedCollaboration' ? route.profileId : null;
+  const profileAudioRouteOwner = auth.isAuthenticated
+    ? route.kind === 'profile' || route.kind === 'category' || route.kind === 'project' ? route.profileId
+      : route.kind === 'portals' ? auth.viewerProfileId : null
+    : null;
+  useLayoutEffect(() => {
+    if (!profileAudioRouteOwner) return;
+    // Clear the departing track before the next profile's autoplay or a video's queued resume runs.
+    return () => clearProfileAudioForProfile(profileAudioRouteOwner);
+  }, [profileAudioRouteOwner]);
+  usePrepareProfileAudio(presentation === 'mobile' && auth.isAuthenticated && route.kind === 'profile'
+    && new URLSearchParams(search).get('view') !== 'portals' ? route.profileId : null, auth.user?.id ?? null);
   // Which engagement collection the URL asks for, if any.
   const routeActivityKind = route.kind === 'activity' ? route.activityKind : null;
   const routeCategoryId = route.kind === 'category' || route.kind === 'project' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' ? route.categoryId : null;

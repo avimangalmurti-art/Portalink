@@ -3,9 +3,10 @@ import { HandshakeIcon, InfoIcon, MessagesSquareIcon } from 'lucide-react';
 import type { ProfileLink } from '../../types/domain';
 import { isProfileLinkAction, profileLinkHref } from '../../features/profile/profileLinks';
 import { getCategoryIcon } from './categoryIcons';
+import { loadProfileAudioSlot } from './usePrepareProfileAudio';
 
 const TILE_CLASS = 'group relative flex h-10 w-10 min-h-10 min-w-10 shrink-0 items-center justify-center text-[var(--text-secondary)]';
-const ProfileAudioSlot = React.lazy(() => import('./ProfileAudioSlot'));
+const ProfileAudioSlot = React.lazy(loadProfileAudioSlot);
 
 /** Profile information and external destinations in the sidebar control family. */
 export function PlatformGrid({
@@ -23,13 +24,13 @@ export function PlatformGrid({
   onOpenBio?: () => void;
   onCollaboration?: () => void;
   onMessage?: () => void;
-  profileAudio?: { profileId: string; editable: boolean; active: boolean };
+  profileAudio?: { profileId: string; accountId: string | null; editable: boolean; active: boolean };
 }) {
   return <ul role="list" aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
       {links.map((link, index) => {
         if (isProfileLinkAction(link.action)) {
           if (link.action === 'collaboration' && profileAudio) {
-            return <React.Suspense key={`profile-audio:${profileAudio.profileId}:${profileAudio.editable}`} fallback={null}>
+            return <React.Suspense key={JSON.stringify(['profile-audio', profileAudio.profileId, profileAudio.accountId, profileAudio.editable])} fallback={null}>
               <ProfileAudioSlot {...profileAudio} profileName={profileName} />
             </React.Suspense>;
           }

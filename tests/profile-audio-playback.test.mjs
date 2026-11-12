@@ -36,6 +36,14 @@ function createPlayback({ autoplayAllowed = true } = {}) {
       this.paused = true;
       queueMicrotask(() => this.dispatchEvent(new Event('pause')));
     }
+
+    removeAttribute(name) {
+      if (name === 'src') this.src = '';
+    }
+
+    load() {
+      this.currentTime = 0;
+    }
   }
 
   return {
@@ -150,6 +158,23 @@ test('manual Pause while a video holds playback cancels the scheduled resume', a
   await setImmediate();
 
   assert.equal(playback.getProfileAudioSnapshot().wantsPlayback, false);
+  assert.equal(playback.player.paused, true);
+  assert.equal(playback.attempts.length, 1);
+});
+
+test('leaving a platform profile clears only that creator and prevents a pending video resume', async () => {
+  const playback = createPlayback();
+  playback.startProfileAudio(track);
+  await setImmediate();
+  playback.clearProfileAudioForProfile('another-creator');
+  assert.equal(playback.getProfileAudioSnapshot().playing, true);
+
+  const leaveVideo = playback.suspendProfileAudioForVideo();
+  playback.clearProfileAudioForProfile('creator');
+  leaveVideo();
+  await setImmediate();
+  assert.equal(playback.getProfileAudioSnapshot().key, null);
+  assert.equal(playback.player.src, '');
   assert.equal(playback.player.paused, true);
   assert.equal(playback.attempts.length, 1);
 });

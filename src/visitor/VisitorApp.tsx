@@ -20,6 +20,7 @@ import { resolveAccentTokens } from '../utils/accentTokens';
 import { resolveMacTokens } from '../utils/macTokens';
 import { resolveNavButtonTokens } from '../data/navButtonTokens';
 import { VisitorProfileGrid } from './VisitorProfileGrid';
+import { usePrepareProfileAudio } from '../components/profile/usePrepareProfileAudio';
 import { useMobileProjectReturn } from './useMobileProjectReturn';
 import type { Profile } from '../types/domain';
 import type { PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
@@ -87,6 +88,9 @@ export function VisitorApp() {
   const deferredIntent = useRef<AuthIntent | null>(null);
   const interactiveSignIn = useRef(false), resumedRegistration = useRef<string | null>(null);
   const invalidShared = !settings && sharedShell && (!shared || !profileId || !isProfileId(profileId));
+  usePrepareProfileAudio(presentation === 'mobile' && !auth.isInitializing && route.kind === 'sharedProfile' && !settings
+    && !handlePending && !handleError && !invalidShared && isProfileId(route.profileId)
+    && new URLSearchParams(location.search).get('view') !== 'portals' ? route.profileId : null, auth.user?.id ?? null);
   const query = useSharedProfileQuery(invalidShared ? null : profileId, projectId, categoryId);
   const confirmedWebReader = useRef<{ scope: string; profile: Profile } | null>(null);
   const webReaderScope = presentation === 'web' && !settings && !handlePending && !handleError && !invalidShared

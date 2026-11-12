@@ -25,8 +25,11 @@ async function playableTrack(row: TrackRow): Promise<StoredProfileAudio> {
 
 export async function readProfileAudio(profileId: string, signal: AbortSignal): Promise<StoredProfileAudio | null> {
   const { data, error } = await requireSupabase().from(TABLE).select(COLUMNS).eq('profile_id', profileId).abortSignal(signal).maybeSingle();
+  signal.throwIfAborted();
   if (error) throw error;
-  return data ? playableTrack(data) : null;
+  const result = data ? await playableTrack(data) : null;
+  signal.throwIfAborted();
+  return result;
 }
 
 async function uploadTrack(path: string, file: File, contentType: string) {
