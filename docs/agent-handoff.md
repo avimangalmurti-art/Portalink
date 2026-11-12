@@ -1,3 +1,9 @@
+## 2026-11-11 — Mobile Home weekly card accent
+
+Task checkout `logs/mobile-weekly-reads-accent` on `codex/mobile-weekly-reads-accent` follows live Sites 608 source `b16986945fc17ffbbaf821e76fee6095a5d63a72`. The mobile Home weekly reads card uses the viewer's accent and its paired foreground. The two actions keep neutral fills with theme text and an accent-aware focus outline. The change is scoped in `src/features/reads/reads.css`.
+
+The production build, both entry configuration guards and 36 focused checks passed. A Chromium fixture used the actual card and synthetic data to verify pink, navy and yellow, light and dark themes, high contrast, and the desktop comparison. Publication and physical iPhone verification are pending.
+
 ## 2026-11-11 — Latest iPhone Home Screen artwork
 
 The `codex/portalite-iphone-home-icon-v2` worktree at `logs/portalite-iphone-home-icon-v2` continues from live Sites 607 source `0700e0e7165c4b26fafe8d3576d03c2c9e2a06ce`. The new `C778D63B` attachment is preserved byte-for-byte as `docs/design/portalite-icons/iphone-home-screen.jpg`. The 180px and 120px Apple touch icons are opaque direct resizes, with the original ICC profile. The three entry pages reference revisions `132dfc755891` and `6c181f7b9b56`.

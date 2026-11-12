@@ -37,6 +37,19 @@
 }
 .reads-weekly > div > [data-ui-control='button'] { --ui-control-height: 44px; }
 .reads-weekly-character { display: none; }
+
+[data-presentation='mobile'] .reads-weekly {
+  --focus-ring: var(--accent-foreground);
+  --control-rest-surface: var(--surface-raised);
+  --control-hover-surface: color-mix(in srgb, var(--surface-raised), var(--text-primary) 8%);
+  --control-pressed-surface: color-mix(in srgb, var(--surface-raised), var(--text-primary) 14%);
+  --control-text: var(--text-primary);
+  --control-hover-text: var(--text-primary);
+  --control-pressed-text: var(--text-primary);
+  background-color: var(--accent-primary);
+  color: var(--accent-foreground);
+}
+[data-presentation='mobile'] .reads-weekly small { color: inherit; }
 /* The decorative image must not paint a loading surface behind the actions. */
 [data-presentation='mobile'] .reads-weekly > div:has(> .reads-weekly-character) {
   background: transparent;
