@@ -316,11 +316,11 @@ test('actual bootstrap leaves explicit incoming links, welcome/Auth actions, gue
 function initialDocumentMode(destination, remembered) {
   const source = ts.createSourceFile('ProjectMediaViewer.tsx', readFileSync(new URL('../src/components/media/ProjectMediaViewer.tsx', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const component = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'ProjectMediaViewer');
-  const names = ['mediaQuery', 'deepLinkedAttachmentId', 'singlePageNumber', 'isSavedSinglePage', 'isVerticalReading'];
+  const names = ['mediaQuery', 'deepLinkedAttachmentId', 'singlePageNumber', 'explicitPageLink', 'isSavedSinglePage', 'isVerticalReading'];
   const declarations = component.body.statements.filter(ts.isVariableStatement).flatMap(statement => [...statement.declarationList.declarations]);
   const code = names.map(name => 'const ' + declarations.find(item => item.name.getText(source) === name).getText(source) + ';').join('\n');
   const attachment = { id: 'pdf', kind: 'document' };
-  const context = { active: attachment, selected: attachment, isMobileViewer: true, window: { location: { search: new URL(destination, 'https://portalinknetworks.com').search } }, URLSearchParams };
+  const context = { active: attachment, selected: attachment, attachments: [attachment], isMobileViewer: true, window: { location: { search: new URL(destination, 'https://portalinknetworks.com').search } }, URLSearchParams };
   const vertical = vm.runInNewContext(code + '\nisVerticalReading;', context);
   const documentSource = ts.createSourceFile('DocumentAttachment.tsx', readFileSync(new URL('../src/components/media/DocumentAttachment.tsx', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const deepLink = documentSource.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'deepLinkedDocumentPage').getText(documentSource);
