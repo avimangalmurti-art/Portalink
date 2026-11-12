@@ -1,3 +1,11 @@
+## 2026-11-12 — Mobile profile audio
+
+Worktree `logs/profile-audio`, branch `codex/profile-audio`, starts from reviewed GitHub `main` at `fa2d75d` (PR #163). The mobile profile and shared catalogue use the former Collaboration shortcut slot for an optional waveform and player. An owner can choose a track, edit title, artist and description, set cover art, and enable or disable visitor playback. Audio starts only from the listener's gesture. Desktop profile navigation retains its established behavior.
+
+`supabase/pending/profile_audio_tracks.sql` prepares a private Storage bucket and an owner-managed track per profile. Viewer reads require an enabled track on a public profile. Previously issued Storage URLs expire after three hours. No hosted migration, track upload, or Sites deployment has run. The supplied 92-minute WAV was converted locally to a complete 43.4 MiB stereo M4A tagged “Montlake, Seattle Mix1” by aviwashere. It remains in ignored `logs/01 Montlake, Seattle Mix1.m4a` for the owner's file picker. The original had no embedded cover art.
+
+Typecheck, lint, both production entry checks and 195 focused tests passed, including the isolated ownership and Storage policy test. Chrome playback used the actual M4A and checked the mobile player, native controls, focus return, reduced motion and owner form with simulated persistence. Receipts are in ignored `logs/profile-audio-qa` and `logs/profile-audio-final-*.log`. A hosted upload and physical iPhone playback remain to be verified after the separately approved migration and website release.
+
 ## 2026-11-12 — Catalogue and mobile reader release
 
 Release worktree `logs/latest-catalogue-release` on `codex/latest-catalogue-release` is based on verified GitHub `main` at `9f3d19f` and follows Sites 612. It combines ten task checkouts: file-cover accent, three-column portal cards, project creation rounding, embedded-browser PDF loading, the one-second mobile splash and catalogue loader, iPhone cover encoding, viewer appearance and About, reader toolbar order, popup and video spacing, and mobile Portals header actions. The task checkouts retain their individual browser receipts.

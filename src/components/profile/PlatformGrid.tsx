@@ -5,6 +5,7 @@ import { isProfileLinkAction, profileLinkHref } from '../../features/profile/pro
 import { getCategoryIcon } from './categoryIcons';
 
 const TILE_CLASS = 'group relative flex h-10 w-10 min-h-10 min-w-10 shrink-0 items-center justify-center text-[var(--text-secondary)]';
+const ProfileAudioSlot = React.lazy(() => import('./ProfileAudioSlot'));
 
 /** Profile information and external destinations in the sidebar control family. */
 export function PlatformGrid({
@@ -14,6 +15,7 @@ export function PlatformGrid({
   onOpenBio,
   onCollaboration,
   onMessage,
+  profileAudio,
 }: {
   links: ProfileLink[];
   profileName: string;
@@ -21,10 +23,16 @@ export function PlatformGrid({
   onOpenBio?: () => void;
   onCollaboration?: () => void;
   onMessage?: () => void;
+  profileAudio?: { profileId: string; editable: boolean; active: boolean };
 }) {
   return <ul role="list" aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
       {links.map((link, index) => {
         if (isProfileLinkAction(link.action)) {
+          if (link.action === 'collaboration' && profileAudio) {
+            return <React.Suspense key={`profile-audio:${profileAudio.profileId}:${profileAudio.editable}`} fallback={null}>
+              <ProfileAudioSlot {...profileAudio} profileName={profileName} />
+            </React.Suspense>;
+          }
           if (link.hidden || (isSharedView && (link.action === 'collaboration' || link.action === 'message'))) return null;
           const action = { bio: onOpenBio, collaboration: onCollaboration, message: onMessage }[link.action];
           const Icon = { bio: InfoIcon, collaboration: HandshakeIcon, message: MessagesSquareIcon }[link.action];

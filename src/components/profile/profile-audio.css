@@ -1,0 +1,149 @@
+.profile-audio-shortcut {
+  display: grid;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  transition: color var(--m-fast);
+}
+
+.profile-audio-shortcut:is(:hover, [data-playing]) { color: var(--accent-text); }
+.profile-audio-shortcut:focus-visible { outline: 2px solid var(--focus-ring); }
+.profile-audio-shortcut:disabled { opacity: .45; }
+
+.profile-audio-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 22px;
+}
+
+.profile-audio-wave i {
+  display: block;
+  width: 2px;
+  height: 7px;
+  border-radius: 4px;
+  background: currentColor;
+}
+
+.profile-audio-wave i:nth-child(2) { height: 14px; }
+.profile-audio-wave i:nth-child(3) { height: 21px; }
+.profile-audio-wave i:nth-child(4) { height: 15px; }
+.profile-audio-wave i:nth-child(5) { height: 10px; }
+:is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i { animation: profile-audio-wave 690ms ease-in-out infinite alternate; }
+:is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i:nth-child(2n) { animation-delay: -350ms; }
+:is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i:nth-child(3n) { animation-delay: -180ms; }
+
+@keyframes profile-audio-wave {
+  from { transform: scaleY(.45); }
+  to { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-audio-shortcut { transition: none; }
+  :is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i { animation: none; }
+}
+
+.profile-audio-overlay[hidden] { display: none !important; }
+.profile-audio-overlay:not([hidden]) {
+  position: fixed;
+  z-index: 10010;
+  inset-inline: 0;
+  top: var(--dialog-viewport-top, 0px);
+  display: grid;
+  height: var(--dialog-viewport-height, 100dvh);
+  min-height: 0;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: rgb(0 0 0 / 32%);
+}
+
+.profile-audio-dialog {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  width: min(100%, 440px);
+  max-height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px;
+  border: 1px solid var(--hairline);
+  border-radius: 22px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-pop);
+  outline: none;
+}
+
+.profile-audio-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.profile-audio-header > div { min-width: 0; }
+.profile-audio-header h2 { margin: 0; font-size: 20px; line-height: 1.25; font-weight: 650; overflow-wrap: anywhere; }
+.profile-audio-header p { margin: 3px 0 0; color: var(--text-secondary); overflow-wrap: anywhere; }
+.profile-audio-header button { flex: none; }
+
+.profile-audio-details { display: grid; gap: 12px; }
+.profile-audio-cover {
+  position: relative;
+  display: grid;
+  width: min(42%, 152px);
+  aspect-ratio: 1;
+  justify-self: center;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--surface-sunken);
+  color: var(--accent-text);
+}
+
+.profile-audio-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.profile-audio-cover-wave {
+  position: absolute;
+  inset-inline-end: 6px;
+  inset-block-end: 6px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+.profile-audio-description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.profile-audio-muted, .profile-audio-error { margin: 0; font-size: 14px; color: var(--text-secondary); }
+.profile-audio-error { color: var(--status-danger); }
+.profile-audio-player { width: 100%; color-scheme: inherit; }
+.profile-audio-player[hidden] { display: none; }
+.profile-audio-play-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+
+.profile-audio-form { display: grid; gap: 14px; }
+.profile-audio-form fieldset { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.profile-audio-form label { display: grid; gap: 4px; font-size: 14px; font-weight: 550; }
+.profile-audio-form :is(input:not([type="checkbox"]), textarea) {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.profile-audio-form :is(input, textarea):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.profile-audio-form .profile-audio-check { display: flex; align-items: center; min-height: 44px; gap: 8px; }
+.profile-audio-check input { width: 20px; height: 20px; accent-color: var(--accent-solid); }
+.profile-audio-remove-cover { min-height: 44px; justify-self: start; color: var(--text-secondary); text-decoration: underline; }
+.profile-audio-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.profile-audio-actions button { min-height: 44px; }
+.profile-audio-remove { display: grid; gap: 8px; }
+.profile-audio-remove p { margin: 0; }

@@ -780,6 +780,8 @@ test('mobile profile keeps links and visitor controls visible without duplicate 
     const tree = openProfileOptions(h);
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
     assert.equal(nodes(tree).some(node => node.type === 'MobileContextButton'), false);
+    assert.equal(grid.props.profileAudio.profileId, 'owner');
+    assert.equal(grid.props.profileAudio.editable, viewerRole === 'owner');
     assert.deepEqual(Array.from(grid.props.links.filter(link => link.action), link => link.action), viewerRole === 'owner' ? ['bio','collaboration'] : ['bio','collaboration','message']);
     assert.deepEqual(JSON.parse(JSON.stringify(grid.props.links.filter(link => !link.action))), links);
     assert.equal(nodes(tree).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);
@@ -803,14 +805,15 @@ test('mobile other-creator profiles omit options and hold actions while preservi
     assert.ok(bookmark); assert.equal(bookmark.props.profileId, 'owner');
     assert.equal(bookmark.props.registerScreenActions, false, 'Direct bookmark access cannot register a replacement mobile sheet');
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
-    grid.props.onCollaboration(); grid.props.onMessage(); grid.props.onOpenBio();
+    assert.equal(grid.props.onCollaboration, undefined, 'The waveform replaces the old mobile collaboration route');
+    grid.props.onMessage(); grid.props.onOpenBio();
     tree = h.render();
     const bio = nodes(tree).find(node => node.type === 'ProfileBioSheet');
     assert.ok(bio); assert.equal(bio.props.canEdit, false); bio.props.onClose();
     assert.equal(nodes(h.render()).some(node => node.type === 'ProfileBioSheet'), false);
     const back = nodes(tree).find(node => node.props?.['aria-label'] === 'Back to previous screen');
     assert.ok(back); assert.ok(nodes(tree).some(node => node.type === 'ScreenBack' && node.props.action === back.props.onClick)); back.props.onClick();
-    assert.deepEqual(calls, [viewerRole === 'visitor' ? 'follow' : 'sign-in', 'collaboration', 'message', 'back']);
+    assert.deepEqual(calls, [viewerRole === 'visitor' ? 'follow' : 'sign-in', 'message', 'back']);
   }
   let webBacks = 0;
   const web = profileHarness('', { presentation: 'web', viewerRole: 'visitor', props: { onBack: () => webBacks++ } });
@@ -933,15 +936,16 @@ test('mobile owner header keeps Bio and links while Edit and Share work through 
 
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Profile engagement collections'), false);
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Manage profile'), false);
-  nodes(tree).find(node=>node.type==='PlatformGrid').props.onCollaboration(); h.action('editProfile').run();
-  assert.deepEqual(calls, ['collaboration', 'edit']);
+  assert.equal(nodes(tree).find(node => node.type === 'PlatformGrid').props.profileAudio.editable, true);
+  h.action('editProfile').run();
+  assert.deepEqual(calls, ['edit']);
   nodes(tree).find(node => node.type === 'PlatformGrid').props.onOpenBio();
   tree = h.render();
   const bio = nodes(tree).find(node => node.type === 'ProfileBioSheet');
   assert.equal(bio.props.canEdit, true);
   assert.equal(bio.props.profileId, 'owner');
   assert.equal(bio.props.onEditContent, undefined, 'Bio never navigates to Edit profile');
-  assert.deepEqual(calls, ['collaboration', 'edit']);
+  assert.deepEqual(calls, ['edit']);
   bio.props.onClose();
   assert.equal(nodes(h.render()).some(node => node.type === 'ProfileBioSheet'), false);
   h.action('share').run();
