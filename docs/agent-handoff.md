@@ -1,3 +1,9 @@
+## 2026-11-11 — Mobile shared catalogue navigation icon
+
+Worktree `logs/mobile-shared-catalogue-icon`, branch `codex/mobile-shared-catalogue-icon`, starts from live Sites 609 source `5b2ad8c743170d735fdc4d84b1e9c8ed88b70ecb` (draft PR #159). The floating mobile shared catalogue opener uses the existing 120px image made from the matching attachment and the standard squircle mask. Its opaque 2px high-contrast edge and focus outline follow light/dark without depending on the contrast toggle. The 50px target, placement and drawer behavior are retained. Changes are limited to `src/visitor/mobile/PublicProfileDrawer.tsx` and `src/visitor/mobile/public-mobile.css`.
+
+Typecheck, lint of the edited TSX and all 80 focused checks passed. A Chromium fixture using the actual shared sidebar and visitor styles verified the two themes with contrast on and off, the 50px hit target, touch opening and dismissal, and the separate desktop sidebar control. Receipts are in `logs/drawer-qa`. Physical iPhone verification and publication are pending. No migrations or service changes.
+
 ## 2026-11-11 — Mobile Home weekly card accent
 
 Task checkout `logs/mobile-weekly-reads-accent` on `codex/mobile-weekly-reads-accent` follows live Sites 608 source `b16986945fc17ffbbaf821e76fee6095a5d63a72`. The mobile Home weekly reads card uses the viewer's accent and its paired foreground. The two actions keep neutral fills with theme text and an accent-aware focus outline. The change is scoped in `src/features/reads/reads.css`.

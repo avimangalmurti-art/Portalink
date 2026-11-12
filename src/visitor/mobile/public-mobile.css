@@ -2101,6 +2101,7 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
   touch-action: pan-y pinch-zoom;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener {
+  --drawer-icon-edge: #171717;
   position: absolute;
   left: max(28px, env(safe-area-inset-left, 0px));
   bottom: var(--mobile-dock-bottom);
@@ -2109,11 +2110,30 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
   justify-content: center;
   width: 50px;
   height: 50px;
-  border: 1px solid var(--hairline-strong);
-  background: var(--codex-sidebar-bg);
-  color: var(--text-primary);
-  box-shadow: 0 3px 14px rgb(0 0 0 / 0.16);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  filter: drop-shadow(0 3px 7px rgb(0 0 0 / 0.24));
   pointer-events: auto;
+}
+#root .codex-shell.theme-dark[data-presentation='mobile'] .mobile-shared-drawer-opener {
+  --drawer-icon-edge: #f5f5f3;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-icon {
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+  background: var(--drawer-icon-edge);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-icon > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener:focus-visible {
+  outline: 2px solid var(--drawer-icon-edge);
+  outline-offset: 3px;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel [data-sidebar-toggle] {
   --shared-header-control: 50px;
@@ -2213,7 +2233,6 @@ html:has([data-public-portfolio][data-presentation='mobile'] .mobile-shared-draw
   box-shadow: 6px 0 24px rgb(0 0 0 / 20%) !important;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel .shared-profile-sidebar { min-width: 0; }
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener { border-radius: 999px; }
 #root .codex-shell[data-presentation='mobile'] [data-public-portfolio-grid] #profile-content { padding-bottom: calc(var(--mobile-content-safe-bottom) + 16px); }
 #root .codex-shell[data-presentation='mobile'] .settings-page :is(.settings-section-trigger, .nav-settings-panel .side-panel-control-row[aria-expanded]) {
   background-color: transparent !important;
@@ -2297,7 +2316,6 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 [data-presentation='mobile'] .mobile-content-action-bar .mobile-context-slot { display: flex; width: 44px; }
 [data-presentation='mobile'] .mobile-content-action-bar button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener { background: var(--accent-primary); color: var(--accent-foreground); border-color: var(--accent-primary); }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle { padding: 2px; }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button { min-height: 28px; padding-block: 3px; font-size: 12px; }
 
