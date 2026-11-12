@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { ProfileAudioEdit } from '../../features/profile/profileAudio';
+import { clearProfileAudio } from '../../features/profile/profileAudioPlayback';
 import { readProfileAudio, removeProfileAudio, saveProfileAudio, type StoredProfileAudio } from '../../services/supabase/profileAudioService';
 import { ProfileAudio } from './ProfileAudio';
 
@@ -31,17 +32,22 @@ export default function ProfileAudioSlot({ profileId, profileName, editable, act
 
   async function save(input: ProfileAudioEdit) {
     if (load === 'failed') throw new Error('Profile audio could not load. Reopen your profile and try again.');
-    setStored(await saveProfileAudio(profileId, stored, input));
+    const next = await saveProfileAudio(profileId, stored, input);
+    if (stored && (!next.track.enabled || next.row.audio_path !== stored.row.audio_path)) {
+      clearProfileAudio(stored.row.audio_path);
+    }
+    setStored(next);
   }
 
   async function remove() {
     if (!stored) return;
     await removeProfileAudio(profileId, stored);
+    clearProfileAudio(stored.row.audio_path);
     setStored(null);
   }
 
   return <li className="list-none">
-    <ProfileAudio track={stored?.track ?? null} profileName={profileName} editable={editable} disabled={!active}
+    <ProfileAudio track={stored?.track ?? null} sourceKey={stored?.row.audio_path} profileName={profileName} editable={editable} disabled={!active}
       onSave={editable ? save : undefined} onRemove={editable ? remove : undefined} />
   </li>;
 }

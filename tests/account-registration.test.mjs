@@ -51,6 +51,7 @@ test('landing signup preserves a destination once, cancellation clears it and or
   const hooks = hookRuntime();
   const {AuthProvider} = load('src/contexts/AuthContext.tsx', {
     react: hooks.react, './ServicesContext': {useServices: () => ({auth:{getSession:async()=>null,onAuthStateChange:()=>()=>{}}})}, '../types/auth': authTypes,
+    '../features/profile/profileAudioPlayback': { setProfileAudioAccount() {} },
     '../utils/passwordRecoveryReturn': {isPasswordRecoveryReturn: () => false, clearPasswordRecoveryReturn() {}},
   }, {window:{location:{href:'http://example.test'}},document:{activeElement:null},HTMLElement:class{}});
   const render = () => hooks.render(() => AuthProvider({children:null})).props.value;
@@ -454,6 +455,7 @@ test('profile linking and refresh cannot commit a stale account into the provide
   const auth = { onAuthStateChange(fn) {onEvent = fn; return () => {};}, getSession: async () => current, attachProfile: () => new Promise(resolve => {resolveLink = resolve;}) };
   const {AuthProvider} = load('src/contexts/AuthContext.tsx', {
     react: hooks.react, './ServicesContext': {useServices: () => ({auth})}, '../types/auth': authTypes,
+    '../features/profile/profileAudioPlayback': { setProfileAudioAccount() {} },
     '../utils/passwordRecoveryReturn': {isPasswordRecoveryReturn: () => false, clearPasswordRecoveryReturn() {}},
   }, {window: {location: {href: 'http://example.test'}}});
   const render = () => hooks.render(() => AuthProvider({children: null})).props.value;

@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
-import { AudioLinesIcon, XIcon } from 'lucide-react';
+import React, { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { AudioLinesIcon, PauseIcon, PlayIcon, XIcon } from 'lucide-react';
 import {
   PROFILE_AUDIO_ACCEPT, PROFILE_AUDIO_COVER_ACCEPT, PROFILE_AUDIO_COVER_MAX_BYTES, PROFILE_AUDIO_MAX_BYTES,
   type ProfileAudioEdit, type ProfileAudioTrack,
 } from '../../features/profile/profileAudio';
 import { readProfileAudioTags } from '../../features/profile/profileAudioTags';
+import { getProfileAudioSnapshot, openProfileAudio, seekProfileAudio, subscribeProfileAudio, toggleProfileAudio } from '../../features/profile/profileAudioPlayback';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { ScreenBack, useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
@@ -16,6 +16,7 @@ import './profile-audio.css';
 
 type ProfileAudioProps = {
   track: ProfileAudioTrack | null;
+  sourceKey?: string;
   profileName: string;
   editable?: boolean;
   onSave?: (input: ProfileAudioEdit) => Promise<void>;
@@ -36,56 +37,80 @@ function TrackCover({ url, playing }: { url: string | null; playing: boolean }) 
   </div>;
 }
 
-/** The audio stays mounted while the dialog is closed so the shortcut can play from its click gesture. */
-export function ProfileAudio({ track, profileName, editable, onSave, onRemove, disabled }: ProfileAudioProps) {
+function formatAudioTime(seconds: number): string {
+  const totalSeconds = Math.floor(seconds);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const paddedSeconds = String(totalSeconds % 60).padStart(2, '0');
+  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${paddedSeconds}` : `${minutes}:${paddedSeconds}`;
+}
+
+function ProfileAudioPlayer({ source }: { source: { key: string; url: string } }) {
+  const playback = useSyncExternalStore(subscribeProfileAudio, getProfileAudioSnapshot, getProfileAudioSnapshot);
+  const current = playback.key === source.key;
+  const wantsPlayback = current && playback.wantsPlayback;
+  const duration = current ? playback.duration : 0;
+  const position = current ? Math.min(playback.position, duration) : 0;
+  const positionLabel = formatAudioTime(position);
+  const durationLabel = formatAudioTime(duration);
+  const interrupted = wantsPlayback && playback.videoOpen;
+
+  return <div className="profile-audio-transport">
+    <button type="button" className="profile-audio-toggle" data-ui-control="button" data-control-size="md"
+      data-control-variant="secondary" onClick={() => toggleProfileAudio(source)}>
+      <InterfaceIcon icon={wantsPlayback ? PauseIcon : PlayIcon} size="sm" />
+      {wantsPlayback ? 'Pause audio' : 'Play audio'}
+    </button>
+    <div className="profile-audio-progress">
+      <input type="range" min={0} max={duration || 1} step="any" value={position} disabled={!duration}
+        aria-label="Audio position" aria-valuetext={`${positionLabel} of ${durationLabel}`}
+        onChange={event => seekProfileAudio(source.key, event.currentTarget.valueAsNumber)} />
+      <div className="profile-audio-timestamps" aria-hidden="true"><span>{positionLabel}</span><span>{durationLabel}</span></div>
+    </div>
+    {interrupted && <p role="status" className="profile-audio-muted">Paused while video is open.</p>}
+    {current && playback.error && <p role="status" className="profile-audio-muted">{playback.error}</p>}
+  </div>;
+}
+
+export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, onRemove, disabled }: ProfileAudioProps) {
   const presentation = usePresentation();
   const screenActive = useMobileScreenActive();
   const id = useId();
-  const audio = useRef<HTMLAudioElement | null>(null);
   const coverInput = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLElement>(null);
   const isOpen = useRef(false);
-  const attempt = useRef(0);
   const tagAttempt = useRef(0);
   const editedDetails = useRef({ title: false, artist: false });
   const saving = useRef(false);
   const [open, setOpen] = useState(false);
-  const [playing, setPlaying] = useState(false);
   const [draft, setDraft] = useState<ProfileAudioEdit | null>(null);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const [busy, setBusy] = useState(false);
   const [readingTags, setReadingTags] = useState(false);
   const [error, setError] = useState('');
-  const [playError, setPlayError] = useState('');
   const isActive = screenActive && !disabled;
   const visible = open && isActive;
   const viewport = useDialogViewport(visible);
   const canEdit = Boolean(editable && onSave);
-  const hasPlayableAudio = Boolean(track?.enabled && track.audioUrl);
-  const showShortcut = canEdit || hasPlayableAudio;
+  const source = track?.enabled && track.audioUrl ? { key: sourceKey ?? track.audioUrl, url: track.audioUrl } : null;
+  const playbackKey = source?.key;
+  const showShortcut = canEdit || Boolean(source);
   const editing = draft !== null;
-  const bindAudio = useCallback((player: HTMLAudioElement | null) => {
-    if (!player) audio.current?.pause();
-    audio.current = player;
-  }, []);
-
-  const pause = useCallback(() => {
-    attempt.current++;
-    audio.current?.pause();
-    setPlaying(false);
-  }, []);
+  const getPlaying = useCallback(() => {
+    const playback = getProfileAudioSnapshot();
+    return playback.key === playbackKey && playback.playing;
+  }, [playbackKey]);
+  const playing = useSyncExternalStore(subscribeProfileAudio, getPlaying, getPlaying);
 
   const dismiss = useCallback(() => {
     isOpen.current = false;
-    pause();
     tagAttempt.current++;
     setReadingTags(false);
     setOpen(false);
     setDraft(null);
     setConfirmingRemove(false);
     setError('');
-    setPlayError('');
-  }, [pause]);
+  }, []);
 
   function close() {
     if (!saving.current) dismiss();
@@ -112,22 +137,7 @@ export function ProfileAudio({ track, profileName, editable, onSave, onRemove, d
     if (visible) dialog.current?.focus({ preventScroll: true });
   }, [visible, editing, confirmingRemove]);
 
-  function play() {
-    const player = audio.current;
-    if (!player) return;
-    const request = ++attempt.current;
-    setPlayError('');
-    void player.play().catch((failure: unknown) => {
-      if (request !== attempt.current || !isOpen.current) return;
-      setPlayError(failure instanceof DOMException && failure.name === 'NotAllowedError'
-        ? 'Tap Play to start listening.'
-        : 'This audio couldn’t play. Try again.');
-    });
-  }
-
   function edit() {
-    pause();
-    setPlayError('');
     setError('');
     tagAttempt.current++;
     setReadingTags(false);
@@ -143,11 +153,9 @@ export function ProfileAudio({ track, profileName, editable, onSave, onRemove, d
   function show(event: React.MouseEvent<HTMLButtonElement>) {
     event.currentTarget.focus({ preventScroll: true });
     isOpen.current = true;
-    // The first render can precede the portal host when arriving via a deep link.
-    if (hasPlayableAudio && !audio.current) flushSync(() => setOpen(true));
-    else setOpen(true);
+    setOpen(true);
     if (!track && canEdit) edit();
-    else if (hasPlayableAudio) play();
+    if (source) openProfileAudio(source);
   }
 
   function selectAudio(event: React.ChangeEvent<HTMLInputElement>) {
@@ -254,21 +262,7 @@ export function ProfileAudio({ track, profileName, editable, onSave, onRemove, d
             {!track.enabled && <p className="profile-audio-muted">Playback is off.</p>}
             {track.enabled && !track.audioUrl && <p role="status" className="profile-audio-muted">Audio is unavailable.</p>}
           </div>}
-          <audio ref={bindAudio} src={hasPlayableAudio ? track?.audioUrl : undefined} controls tabIndex={0} preload="none"
-            hidden={!visible || editing || !hasPlayableAudio} className="profile-audio-player"
-            aria-label={track ? `Play or pause ${track.title}` : 'Profile audio player'}
-            onPlaying={event => {
-              if (!isOpen.current || !isActive) { event.currentTarget.pause(); return; }
-              setPlaying(true);
-              setPlayError('');
-            }}
-            onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} onWaiting={() => setPlaying(false)}
-            onError={() => { if (isOpen.current && hasPlayableAudio) { setPlaying(false); setPlayError('This audio couldn’t load.'); } }} />
-          {visible && !draft && playError && <div className="profile-audio-play-error">
-            <p role="status" className="profile-audio-muted">{playError}</p>
-            <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary"
-              onClick={() => { if (audio.current?.error) audio.current.load(); play(); }}>Play audio</button>
-          </div>}
+          {visible && !draft && source && <ProfileAudioPlayer source={source} />}
           {visible && !draft && !track && <p className="profile-audio-muted">No profile audio has been added.</p>}
           {visible && draft && <form className="profile-audio-form" onSubmit={event => { void save(event); }}>
             <fieldset disabled={busy}>
@@ -311,7 +305,7 @@ export function ProfileAudio({ track, profileName, editable, onSave, onRemove, d
               </div>
             </div> : <div className="profile-audio-actions">
               {track && onRemove && <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="ghost"
-                onClick={() => { pause(); setError(''); setConfirmingRemove(true); }}>Remove audio</button>}
+                onClick={() => { setError(''); setConfirmingRemove(true); }}>Remove audio</button>}
               <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary" onClick={edit}>
                 {track ? 'Edit audio' : 'Add audio'}
               </button>

@@ -11,6 +11,8 @@ import { useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
+import { suspendProfileAudioForVideo } from '../../features/profile/profileAudioPlayback';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import { copyPublicLink } from '../../utils/copyPublicLink';
 import { MobilePageContext } from '../../features/media-interactions/MobilePageContext';
@@ -182,6 +184,7 @@ export function ProjectMediaViewer({
   const controlsTimerRef = useRef<number | null>(null);
   const viewerRootRef = useRef<HTMLDivElement>(null);
   const isMobileViewer = Boolean(mobileNavigation);
+  const screenActive = useMobileScreenActive();
   const [mobilePopup, setMobilePopup] = useState<'description' | 'comments' | 'verification' | 'engagement' | null>(null);
   const [mobileEngagementOpen, setMobileEngagementOpen] = useState(false);
   const mobileEngagementRef = useRef<HTMLElement>(null);
@@ -276,6 +279,10 @@ export function ProjectMediaViewer({
     && attachments.some(attachment => attachment.kind === 'document')
     && attachments.every(attachment => attachment.kind === 'image' || attachment.kind === 'document');
   const active = (orderedReading ? attachments.find(attachment => attachment.kind === 'document') : undefined) ?? selected;
+  const videoOpen = screenActive && active?.kind === 'video';
+  useLayoutEffect(() => {
+    if (videoOpen) return suspendProfileAudioForVideo();
+  }, [videoOpen]);
   // Reset before the attachment's passive effect restores its focused page.
   // A passive reset here could overwrite that report and expose both toolbars.
   useLayoutEffect(() => {
@@ -650,7 +657,7 @@ export function ProjectMediaViewer({
     controlsVisible: areControlsVisible, showMediaInteractions: showEngagement, isOwner: ownerReader,
     memoryScope: viewerMemoryScope, usePdfRanges: isMobileViewer && readOnlyShare,
   });
-  const activeMedia = active ? <AttachmentRenderer {...rendererProps(active)} verticalReading={isVerticalReading}
+  const activeMedia = active ? <AttachmentRenderer {...rendererProps(active)} videoActive={screenActive} verticalReading={isVerticalReading}
     imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1}
     onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange}
     pageViewToggleRequest={pageViewToggleRequest} /> : emptyMedia;
@@ -684,7 +691,7 @@ export function ProjectMediaViewer({
               if (entry.projectId === projectId) setActiveId(entry.attachment.id);
               else videoSequence.onSelectProject(entry.projectId);
             }} renderVideo={(entry, playing) => <AttachmentRenderer key={`${entry.projectId}:${entry.attachment.id}`} projectId={entry.projectId} projectTitle={entry.projectTitle}
-              attachment={entry.attachment} videoActive={playing} showMediaInteractions={showEngagement} isOwner={isOwner && !readOnlyShare && entry.projectId === projectId}
+              attachment={entry.attachment} videoActive={screenActive && playing} showMediaInteractions={showEngagement} isOwner={isOwner && !readOnlyShare && entry.projectId === projectId}
               processing={entry.projectId === projectId ? {
                 state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
                 isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),

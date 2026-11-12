@@ -147,6 +147,7 @@ function providerHarness(auth) {
   const hooks = hookRuntime();
   const { AuthProvider } = load('src/contexts/AuthContext.tsx', {
     react: hooks.react, './ServicesContext': { useServices: () => ({ auth }) }, '../types/auth': authTypes,
+    '../features/profile/profileAudioPlayback': { setProfileAudioAccount() {} },
     '../utils/passwordRecoveryReturn': { isPasswordRecoveryReturn: () => false, clearPasswordRecoveryReturn() {} },
   }, { window: { location: { href: 'https://portalink.example.test/' } }, document: { activeElement: null }, HTMLElement: class {} });
   return { render: () => hooks.render(() => AuthProvider({ children: null })).props.value, unmount: hooks.unmount };

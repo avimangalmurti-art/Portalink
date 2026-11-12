@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ErrorState, LoadingState } from '../ui/StateViews';
 import type { ProjectAttachment } from '../../types/domain';
 import { videoSources } from '../../features/media/videoPlayback';
@@ -31,25 +31,23 @@ function VideoPlayback({ attachment, sources, conversion, active, inlinePreview 
   const [controlsRequested, setControlsRequested] = useState(false);
   const source = sources[sourceIndex];
   const videoRef = useRef<HTMLVideoElement>(null);
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    if (!active) video?.pause();
+    return () => video?.pause();
+  }, [active, attempt, sourceIndex]);
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (inlinePreview) {
-      if (!active) video.pause();
-      return () => video.pause();
-    }
-    if (!isMobile) return;
-    if (active) {
+    if (!active) {
+      setControlsRequested(false);
+    } else if (isMobile && !inlinePreview) {
       // A newly selected clip always starts with sound, even when this retained
       // queue element was muted earlier. Do not override mute during rerenders.
       video.defaultMuted = false;
       video.muted = false;
       void video.play().catch(() => { /* Audible autoplay may require the first tap. */ });
-    } else {
-      video.pause();
-      setControlsRequested(false);
     }
-    return () => video.pause();
   }, [active, attempt, sourceIndex, isMobile, inlinePreview]);
   const revealPlayerControls = (video: HTMLVideoElement) => {
     if (!isMobile || !active || controlsRequested) return;

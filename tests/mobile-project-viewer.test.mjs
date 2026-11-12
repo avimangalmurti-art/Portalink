@@ -39,7 +39,8 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     slot.deps = deps;
     pending[phase].push(() => { slot.cleanup?.(); slot.cleanup = effect(); });
   };
-  const serviceIds = [], gates = [];
+  const serviceIds = [], gates = [], audioInterruptions = [];
+  let screenActive = true;
   const viewerMemory = new Map(), memoryWrites = [];
   const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [], sharedTargets = [], copies = [], readingScroll = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
@@ -80,6 +81,11 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isAuthenticated: signedIn, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}), isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions(model, priority, onOpen) { screenActions.push({model,priority,onOpen}); } };
+    if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => screenActive };
+    if (name.endsWith('/profileAudioPlayback')) return { suspendProfileAudioForVideo: () => {
+      audioInterruptions.push('video opened');
+      return () => { audioInterruptions.push('video left'); };
+    } };
     if (name.endsWith('/MediaInteractionBar')) return { MediaInteractionBar: 'media-interaction-bar' };
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
     if (name.endsWith('/useDocumentReadingScroll')) return { useDocumentReadingScroll: (...args) => readingScroll.push(args) };
@@ -113,7 +119,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, readingScroll, onBack, openIndex() { panel = 'index'; },
+  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, readingScroll, onBack, audioInterruptions, openIndex() { panel = 'index'; }, setScreenActive(active) { screenActive = active; },
     // Model React's commit order without mounting media or invoking backend APIs:
     // parent layout effects, child focus-report passive effect, parent passive effects.
     // The callback comes from the actual AttachmentRenderer element, as it does
@@ -153,6 +159,28 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     });
   } };
 }
+
+test('project audio interruption belongs to the active video, including on shared catalogues', () => {
+  for (const readOnlyShare of [true, false]) {
+    const h = harness({ lifecycle: true, mediaKind: 'image', readOnlyShare });
+    const attachments = [...h.attachments, { id: 'video', kind: 'video', displayName: 'Clip', typeLabel: 'Video' }];
+    let tree = h.commitFocusedPage(null, { attachments });
+    assert.deepEqual(h.audioInterruptions, []);
+    button(tree, 'Clip, Video').props.onClick();
+    tree = h.commitFocusedPage(null);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.videoActive, true);
+    assert.deepEqual(h.audioInterruptions, ['video opened']);
+    h.setScreenActive(false);
+    tree = h.commitFocusedPage(null);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.videoActive, false);
+    assert.deepEqual(h.audioInterruptions, ['video opened', 'video left']);
+    h.setScreenActive(true);
+    tree = h.commitFocusedPage(null);
+    button(tree, 'first, Video').props.onClick();
+    h.commitFocusedPage(null);
+    assert.deepEqual(h.audioInterruptions, ['video opened', 'video left', 'video opened', 'video left']);
+  }
+});
 
 test('project sharing and copying use the official public destination with the current page state', async () => {
   for (const mobile of [true, false]) for (const readOnlyShare of [true, false]) {
