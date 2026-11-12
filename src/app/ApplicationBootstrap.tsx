@@ -112,9 +112,15 @@ export function ApplicationBootstrap() {
     && !isAuthCallback && !isRecovery && pathname === '/' ? '/' : null);
   const [hasLeftLanding, setHasLeftLanding] = useState(false);
   const [hasPresentedLanding, setHasPresentedLanding] = useState(false);
+  // The installed Home intro starts in the document, independently of auth.
+  const [hasInstalledHomeIntro] = useState(() => Boolean(installedMobile && plainHome
+    && document.documentElement?.hasAttribute('data-installed-home-launch')));
   const [hasStartupCompleted, setHasStartupCompleted] = useState(isSharedView);
-  const [hasSplashCompleted, setHasSplashCompleted] = useState(false);
+  const [hasSplashCompleted, setHasSplashCompleted] = useState(hasInstalledHomeIntro);
   const completeSplash = useCallback(() => setHasSplashCompleted(true), []);
+  useEffect(() => {
+    if (hasInstalledHomeIntro) document.getElementById('portalink-preboot')?.remove();
+  }, [hasInstalledHomeIntro]);
   // Restored accounts on either presentation return directly to their work.
   const returningAccountReady = auth.isAuthenticated && !auth.isInitializing && !resumeBlocked && !hasPresentedLanding;
   const startupCompleted = hasStartupCompleted || returningAccountReady;
@@ -209,7 +215,7 @@ export function ApplicationBootstrap() {
     }
   }, [auth.isAuthenticated, auth.isInitializing, isWelcomeInvite, routeSharedProfileId, sessionSharedProfileId]);
 
-  const timedIntroEnded = openingPresentation === 'mobile' && (hasSplashCompleted || returningAccountReady) && (!landingPath || hasLeftLanding) && !holdLanding && !isRecovery && !waitingForHome;
+  const timedIntroEnded = openingPresentation === 'mobile' && (hasSplashCompleted || returningAccountReady) && (hasInstalledHomeIntro || !landingPath || hasLeftLanding) && !holdLanding && !isRecovery && !waitingForHome;
   // Keep speculative screen warming out of the opening clip. MOBILE readiness
   // reports may arrive underneath it, but cannot extend the video handoff.
   const appStartupPending = waitingForHome || (openingPresentation === 'mobile' && !hasSplashCompleted && !startupCompleted);

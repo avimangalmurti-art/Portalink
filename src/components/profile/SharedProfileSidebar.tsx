@@ -28,8 +28,8 @@ type SharedProfileSidebarProps = {
 /**
  * The shell used by a shared profile URL. It deliberately contains only the
  * creator and their public Portal navigation: no Home, account, messaging,
- * network, publishing, following, or platform-discovery controls. The footer
- * opens Settings, where visitors can also sign in or create a Portalink account.
+ * network, publishing, following, or platform-discovery controls. Visitors can
+ * sign in or create a Portalink account in Settings.
  */
 export function SharedProfileSidebar({
   profile,
@@ -119,7 +119,17 @@ export function SharedProfileSidebar({
     <header className="global-control-header shrink-0 gap-2 px-4">
       <button type="button" aria-label="Go back" className="mobile-portal-action" onClick={close}><InterfaceIcon icon={ChevronLeftIcon} size="lg" mirroredInRtl /></button>
       <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold">Portals</h1>
-      <button type="button" className="mobile-portal-action" aria-label={portalLayout === 'list' ? 'Show portals as cards' : 'Show portals as list'} onClick={() => setPortalLayout(value => value === 'list' ? 'grid' : 'list')}><InterfaceIcon icon={portalLayout === 'list' ? LayoutGridIcon : ListIcon} size="lg" /></button>
+      <div className="flex shrink-0 items-center">
+        <button type="button" className="mobile-portal-action" aria-label="Open settings" title="Settings" onClick={() => { close(); onSettingsOpen(); }}>
+          <InterfaceIcon icon={SettingsIcon} size="lg" />
+        </button>
+        <button type="button" className="mobile-portal-action" data-system-color="" aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}>
+          <InterfaceIcon icon={theme === 'dark' ? SunIcon : MoonIcon} size="lg" />
+        </button>
+        <button type="button" className="mobile-portal-action" aria-label={portalLayout === 'list' ? 'Show portals as cards' : 'Show portals as list'} onClick={() => setPortalLayout(value => value === 'list' ? 'grid' : 'list')}>
+          <InterfaceIcon icon={portalLayout === 'list' ? LayoutGridIcon : ListIcon} size="lg" />
+        </button>
+      </div>
     </header>
     <nav ref={portalScrollRef} className="mobile-portals-scroll scrollbar-overlay sidebar-scroll-fade is-at-top is-at-bottom" aria-label={`${profile.name} public portals`}>
       <ul className="mobile-portals-list">
@@ -129,9 +139,5 @@ export function SharedProfileSidebar({
       </ul>
       {!profile.categories.length && <p className="p-4 text-[var(--text-secondary)]">No portals yet</p>}
     </nav>
-    <footer className="shared-mobile-portals-footer">
-      <div><button type="button" aria-label="Open settings" onClick={() => { close(); onSettingsOpen(); }}><InterfaceIcon icon={SettingsIcon} /><span>Settings</span></button>
-      <button type="button" data-system-color="" aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}><InterfaceIcon icon={theme === 'dark' ? SunIcon : MoonIcon} /><span>Appearance</span></button></div>
-    </footer>
   </section>}</PublicProfileDrawer> : renderSidebar();
 }

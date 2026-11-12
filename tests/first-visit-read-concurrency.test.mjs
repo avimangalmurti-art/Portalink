@@ -68,12 +68,13 @@ test('account changes reject old queued signing before it starts and allow fresh
 function multipartFixture() {
   const reader = deferred(), signing = deferred(), calls = [], registrations = [];
   const source = ts.createSourceFile('multipartMedia.ts', readFileSync(new URL('../src/services/supabase/multipartMedia.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-  const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'createMultipartSource');
+  const declarations = source.statements.filter(node => ts.isFunctionDeclaration(node)
+    && ['createMultipartSource', 'signMultipartParts'].includes(node.name?.text));
   const exports = {};
   class Channel {
     constructor() { this.port1 = { onmessage: null, close() {} }; this.port2 = { peer: this.port1 }; }
   }
-  vm.runInNewContext(ts.transpileModule(`${fn.getText(source)}\nexports.create=createMultipartSource;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, {
+  vm.runInNewContext(ts.transpileModule(`${declarations.map(node => node.getText(source)).join('\n')}\nexports.create=createMultipartSource;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, {
     exports, BUCKET: 'project-media', ensureMultipartReader: () => reader.promise,
     signedMediaUrls: (bucket, paths, minimumLifetime) => { calls.push({ bucket, paths, minimumLifetime }); return signing.promise; },
     partPath: (path, index) => `${path}.parts/${index}`,

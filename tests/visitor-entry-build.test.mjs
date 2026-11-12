@@ -31,12 +31,15 @@ test('both HTML entries exist and the public initial graph contains no unopened 
   assert.ok(modules.some(file => /visitorServices\.ts$/.test(file)));
   assert.ok(initialModules('index.html').some(file => /productionServices\.ts$/.test(file)));
 });
-test('visitor HTML starts the public read before its module scripts and does not request splash media', () => {
+test('visitor HTML starts the public read before its modules and uses only the mobile launch asset', () => {
   const html = read('dist/client/share.html');
   const preload = html.indexOf('data-shared-bundle-preload');
   assert.ok(preload >= 0 && preload < html.indexOf('type="module"'));
   assert.ok(html.includes('shared_profile_bundle'));
   assert.ok(!/portalink-welcome-loop|portalink-splash|preboot|apple-touch-startup-image/.test(html));
+  const splash = html.indexOf('data-launch-entry="catalogue"');
+  assert.ok(splash > preload && splash < html.indexOf('type="module"'));
+  assert.match(html, /<script defer src="\/portalink-mobile-launch\.js\?v=[0-9a-f]+" data-launch-entry="catalogue"><\/script>/);
   assert.ok(html.includes('display=swap'));
   for (const entry of ['index.html', 'share.html']) {
     const shell = read(`dist/client/${entry}`);

@@ -143,7 +143,7 @@ export function ProjectCover({
   useEffect(() => {
     if (showLoadingIndicator) setLoadedAsset(current => current === activeAsset ? current : undefined);
   }, [activeAsset, showLoadingIndicator]);
-  const placeholder = <span role="img" aria-label={imageFailed || thumbnail || (kind === 'document' && !allowPdfFallback) || (kind === 'video' && (!allowVideoFallback || autoplaySources)) ? `${alt} preview unavailable` : `${alt} has no cover`} className={`flex h-full w-full items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${className}`}>
+  const placeholder = <span data-project-cover-placeholder="" role="img" aria-label={imageFailed || thumbnail || (kind === 'document' && !allowPdfFallback) || (kind === 'video' && (!allowVideoFallback || autoplaySources)) ? `${alt} preview unavailable` : `${alt} has no cover`} className={`flex h-full w-full items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${className}`}>
         <InterfaceIcon icon={FileIcon} size="xl" weight="medium" />
       </span>;
   const loadingMark = showLoadingIndicator ? <span data-project-cover-loading="" aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center">

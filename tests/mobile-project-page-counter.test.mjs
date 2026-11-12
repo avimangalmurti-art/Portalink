@@ -241,6 +241,10 @@ test('reader density pill preserves limits, draft and commit events, save blocki
   let tree = h.render(undefined, props);
   assert.equal(tree.props['data-page-density-enabled'], true);
   const slider = control(tree, 'Pages per row');
+  const controls = nodes(tree).filter(node => node.type === 'input' || node.type === 'button');
+  assert.deepEqual(controls.map(node => node.props['aria-label']), [
+    'Pages per row', 'Previous page', 'Page 2 of 12. Show page previews', 'Next page'
+  ]);
   assert.equal(slider.props.type, 'range');
   assert.equal(slider.props.min, pageLayout.MIN_PAGES_PER_ROW);
   assert.equal(slider.props.max, pageLayout.MAX_PAGES_PER_ROW);

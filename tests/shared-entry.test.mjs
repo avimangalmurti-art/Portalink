@@ -260,7 +260,11 @@ test('shared preboot chooses neutral first paint before the body and leaves othe
   assert.ok(script); assert.ok(html.indexOf(script) < html.indexOf('<body>'));
   for (const [pathname, expected] of [['/share/a', true], ['/share/a/c/b/c', true], ['/share', true], ['/', false], ['/settings', false], ['/shared/a', false]]) for (const presentation of ['mobile', 'web']) {
     const attributes = new Map();
-    const root = { dataset: {}, style: {}, toggleAttribute(name, enabled) { if (enabled) attributes.set(name, ''); else attributes.delete(name); } };
+    const root = {
+      dataset: {}, style: {},
+      hasAttribute: name => attributes.has(name),
+      toggleAttribute(name, enabled) { if (enabled) attributes.set(name, ''); else attributes.delete(name); },
+    };
     const themeTags = ['#ffffff', '#000000'].map(content => {
       const attributes = new Map([['content', content]]);
       return { getAttribute: name => attributes.get(name) ?? null, setAttribute: (name, value) => attributes.set(name, value) };

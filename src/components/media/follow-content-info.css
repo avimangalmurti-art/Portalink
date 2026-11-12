@@ -43,8 +43,22 @@
 [data-follow-info-layer] .follow-info-minimize > span::after {
   content: ''; width: 10px; height: 2px; border-radius: 1px; background: white;
 }
+[data-follow-info-layer][data-mobile-info] .follow-info-overlay { padding-block-start: calc(env(safe-area-inset-top, 0px) + 28px); }
+[data-follow-info-layer][data-mobile-info] .follow-info-panel { position: relative; }
+[data-follow-info-layer][data-mobile-info] .follow-info-minimize {
+  position: absolute; z-index: 2;
+  inset-block-start: -22px; inset-inline-end: -10px;
+}
+[data-follow-info-layer][data-mobile-info] .follow-info-minimize > span { width: 38px; height: 38px; }
+[data-follow-info-layer][data-mobile-info] .follow-info-minimize > span::after { width: 14px; }
 [data-follow-info-layer] h2 { flex: none; margin: 0; font-size: 26px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; max-height: 25dvh; overflow-y: auto; }
 [data-follow-info-layer] .follow-info-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 16px; line-height: 1.6; }
+[data-follow-info-layer][data-mobile-info] .follow-info-description {
+  /* Move the scroll edge into the card inset so overlay scrollbars clear the text. */
+  --description-scroll-gutter: 14px;
+  margin-inline-end: calc(0px - var(--description-scroll-gutter));
+  padding-inline-end: var(--description-scroll-gutter);
+}
 [data-follow-info-layer] .follow-info-description p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 [data-follow-info-layer] .follow-info-engagement { flex: none; border-top: 1px solid var(--hairline-strong); padding-top: 16px; }
 [data-follow-info-layer] .follow-info-engagement [role='group'] { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }

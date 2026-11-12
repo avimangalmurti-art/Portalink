@@ -111,7 +111,8 @@ export function VisitorApp() {
   const portalPopupId = portalPopup?.profileId === profileId && profile?.categories.some(item => item.id === portalPopup.categoryId)
     ? portalPopup.categoryId : null;
   const publicStyle = profile?.publicAppearance;
-  const accentColor = publicStyle?.accentColor ?? appearance.accentColor;
+  const accentColor = appearance.publicAccentColor ?? publicStyle?.accentColor ?? appearance.accentColor;
+  const chooseAccent = (publicAccentColor: string) => appearance.chooseAppearance({ publicAccentColor });
   const systemGray = publicStyle?.systemGray ?? appearance.systemGray;
   const project = retainedWebReaderLoading ? undefined : profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
   const webCategoryRoute = presentation === 'web' && !settings && route.kind === 'sharedCategory';
@@ -264,10 +265,15 @@ export function VisitorApp() {
     onHighContrastChange: (value: boolean) => appearance.chooseAppearance({ highContrast: value }),
     onReduceTranslucencyChange: (value: boolean) => appearance.chooseAppearance({ reduceTranslucency: value }),
   };
-  const pending = <LoadingSkeleton kind={projectId || webCategoryRoute ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…"/>;
+  const useCatalogueIndicator = presentation === 'mobile' && (catalogueRoute || (handlePending && !settings));
+  const pending = useCatalogueIndicator
+    ? <div className="grid min-h-[var(--mobile-viewport-height,100dvh)] place-items-center" role="status" aria-label="Opening shared catalogue">
+        <span className="premium-media-loading-mark" aria-hidden="true" />
+      </div>
+    : <LoadingSkeleton kind={projectId || webCategoryRoute ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…" />;
   const profileOnboarding = <ProfileOnboardingDialog key={auth.user?.id} isOpen theme={theme} systemGray={systemGray}
     onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}
-    onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
+    onAccentColorChange={chooseAccent} highContrast={highContrast}
     onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}
     onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })}
     completionActionLabel={deferredIntent.current?.kind === 'messages' ? 'Continue to messages' : 'Return to catalogue'}
@@ -306,7 +312,7 @@ export function VisitorApp() {
                   <Suspense fallback={pending}>
                     {settings ? <ControlCenterPage sharedReadOnly theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseMode}
                       systemGray={navigationGray} onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })}
-                      accentColor={accentColor} onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })}
+                      accentColor={accentColor} onAccentColorChange={chooseAccent}
                       highContrast={highContrast} onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })}
                       reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })}
                       onBack={back} onOpenProfile={openOwnProfile} />
@@ -334,7 +340,7 @@ export function VisitorApp() {
       <DeferredDialog active={Boolean(auth.pendingView) && (!onboardingOpen || auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery))} onClose={auth.closeAuth}>
         <AuthDialog welcomeBeforeSignup showWelcomeMedia={false} registrationReturnPath={sharedPath} theme={theme} systemGray={systemGray}
           onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}
-          onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
+          onAccentColorChange={chooseAccent} highContrast={highContrast}
           onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}
           onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })} />
       </DeferredDialog>

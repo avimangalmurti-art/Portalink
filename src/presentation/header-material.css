@@ -7,6 +7,10 @@
   .profile-link-icon-picker { --fixed-header-canvas: var(--profile-link-picker-canvas); }
   [data-mobile-icon-create] { --fixed-header-canvas: var(--icon-create-canvas, var(--surface-canvas)); }
   [data-mobile-onboarding] { --fixed-header-canvas: var(--onboarding-background, var(--surface-canvas)); }
+  /* The mobile About heading shares the sheet's raised surface in both entry points. */
+  #root .codex-shell[data-presentation] .mobile-project-description-sheet[data-ui-surface='sheet'] > .project-description-heading {
+    --fixed-header-canvas: var(--surface-raised);
+  }
   #root .codex-shell[data-presentation] [data-mobile-header-underlap] {
     isolation: isolate;
     z-index: 30;

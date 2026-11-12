@@ -648,7 +648,7 @@ export function ProjectMediaViewer({
       onRetry: () => void processing.retry(attachment.id),
     },
     controlsVisible: areControlsVisible, showMediaInteractions: showEngagement, isOwner: ownerReader,
-    memoryScope: viewerMemoryScope,
+    memoryScope: viewerMemoryScope, usePdfRanges: isMobileViewer && readOnlyShare,
   });
   const activeMedia = active ? <AttachmentRenderer {...rendererProps(active)} verticalReading={isVerticalReading}
     imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1}

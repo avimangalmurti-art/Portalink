@@ -27,7 +27,7 @@ function events() {
 }
 
 /** Real bootstrap and real resume hook/state; only browser, Auth and child rendering are controlled. */
-function fixture({ presentation = 'mobile', installed = false, authoring = false, authenticated = true, initializing = true, path = '/', search = '', hash = '', state = null, savedPath = '/p/creator/c/work/project', pendingView = null, phase = authenticated ? 'authenticated' : 'guest', sessionUnavailable = false, enteredWelcome = true, welcomeState } = {}) {
+function fixture({ presentation = 'mobile', installed = false, installedHomeIntro = false, authoring = false, authenticated = true, initializing = true, path = '/', search = '', hash = '', state = null, savedPath = '/p/creator/c/work/project', pendingView = null, phase = authenticated ? 'authenticated' : 'guest', sessionUnavailable = false, enteredWelcome = true, welcomeState } = {}) {
   const slots = [], timers = new Map(), captures = [], trace = [], storage = new Map(), sessionStorage = new Map();
   let cursor = 0, effects = [], dirty = true, rendered, timerId = 0;
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => Object.is(item, b[index]));
@@ -44,7 +44,7 @@ function fixture({ presentation = 'mobile', installed = false, authoring = false
     setTimeout(callback, delay) { timers.set(++timerId, { callback, delay }); return timerId; }, clearTimeout(id) { timers.delete(id); }, location: { replace: value => trace.push(['replace', value]) } };
   const dispatch = window.dispatchEvent; window.dispatchEvent = event => { trace.push(['window-event', event.type]); dispatch(event); };
   let bootRemoved = false;
-  const document = { ...events(), documentElement: { hasAttribute: name => installed && name === 'data-standalone' }, querySelector: () => authoring ? {} : null, visibilityState: 'visible', getElementById(id) {
+  const document = { ...events(), documentElement: { hasAttribute: name => (installed && name === 'data-standalone') || (installedHomeIntro && name === 'data-installed-home-launch') }, querySelector: () => authoring ? {} : null, visibilityState: 'visible', getElementById(id) {
     if (id === 'portalink-preboot') return bootRemoved ? null : { remove() { bootRemoved = true; trace.push(['remove-preboot']); } };
     if (id === 'portalink-preboot-video') return bootRemoved ? null : { dispatchEvent: event => trace.push(['video-event', event.type]), pause: () => trace.push(['pause-video']) };
     assert.fail(`Unexpected DOM read ${id}`);
@@ -102,6 +102,21 @@ test('installed MOBILE opens Home from a bare launch even with a saved reader', 
   h.app.props.installedHomeOpening.complete();
   h.settle();
   assert.equal(h.app.props.installedHomeOpening, null);
+  h.dispose();
+});
+
+test('installed Home leaves the document intro in charge while authentication restores', () => {
+  const h = fixture({ installed: true, installedHomeIntro: true });
+  h.render();
+  assert.equal(h.splash, null, 'The legacy video must not replace the document intro');
+  assert.equal(h.waiting.props.children.props.label, 'Opening Portalink…');
+  assert.ok(h.trace.some(([action]) => action === 'remove-preboot'));
+  h.auth.isInitializing = false;
+  h.rerender();
+  h.settle();
+  assert.equal(h.app.type, 'app');
+  assert.equal(h.app.props.installedHomeOpening.refresh, false);
+  assert.equal(h.splash, null);
   h.dispose();
 });
 

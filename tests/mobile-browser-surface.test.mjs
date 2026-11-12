@@ -309,8 +309,12 @@ test('both launch entries use the viewer’s saved appearance and resolve System
         const attrs = new Map([['content', content]]);
         return { getAttribute: key => attrs.get(key), setAttribute: (key, value) => attrs.set(key, value) };
       });
-      const attributes = new Map();
-      const root = { dataset: {}, style: {}, toggleAttribute: (name, value) => attributes.set(name, value) };
+      const attributes = new Set();
+      const root = {
+        dataset: {}, style: {},
+        hasAttribute: name => attributes.has(name),
+        toggleAttribute: (name, force) => force ? attributes.add(name) : attributes.delete(name),
+      };
       vm.runInNewContext(script, { URLSearchParams, document: { documentElement: root, querySelectorAll: () => tags }, window: {
         matchMedia: query => ({ matches: query.includes('639px') ? mobile : query.includes('dark') ? dark : false }),
         location: welcomeLink ? { pathname: '/', search: '?welcome=1' } : { pathname: '/share/fixture', search: '' }, navigator: {},
@@ -319,7 +323,7 @@ test('both launch entries use the viewer’s saved appearance and resolve System
       const resolved = mode === 'auto' ? (dark ? 'dark' : 'light') : mode;
       const invite = entry === 'index.html' && mobile && welcomeLink;
       const color = invite ? '#fdffff' : resolved === 'dark' ? '#000000' : '#ffffff';
-      assert.equal(Boolean(attributes.get('data-invite-launch')), invite);
+      assert.equal(attributes.has('data-invite-launch'), invite);
       assert.deepEqual(tags.map(tag => tag.getAttribute('content')), (mobile || entry === 'share.html') ? [color, color] : ['#ffffff', '#000000']);
       if (mobile || entry === 'share.html') assert.equal(root.dataset.appearance, resolved);
     }

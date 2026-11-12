@@ -6,7 +6,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 const nodes = node => React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 
 /** Actual popup, sheet-motion and modal-focus hooks with controlled commit/effect lifecycles. */
-function fixture({ guest = false, reduce = false, appReduce = false, hasOptions = true, ownerOptions = false, readerInert = false, showEngagement = true } = {}) {
+function fixture({ guest = false, reduce = false, appReduce = false, hasOptions = true, ownerOptions = false, readerInert = false, showEngagement = true, presentation = 'mobile' } = {}) {
   const slots = [], timers = new Map(), listeners = new Map(), windowListeners = new Map(), dom = new Map(), calls = [];
   let cursor = 0, now = 0, timerId = 0, mounted = false, dirty = false, tree, layout = [], effects = [];
   const same = (a, b) => a?.length === b?.length && a.every((value, index) => Object.is(value, b[index]));
@@ -54,6 +54,7 @@ function fixture({ guest = false, reduce = false, appReduce = false, hasOptions 
     react, 'react-dom': { createPortal: node => node }, 'lucide-react': {},
     '../../hooks/useDialogViewport': { useDialogViewport: () => react.useRef(null) }, '../../hooks/useModalFocus': modal,
     '../../presentation/motion/useSheetMotion': sheet, '../../presentation/motion/motion': motion,
+    '../../presentation/usePresentation': { usePresentation: () => presentation },
     '../../features/comments/useProjectComments': { useProjectComments: id => { assert.equal(id, showEngagement ? 'actual-id' : null); return { phase: 'ready', totalCount: 7 }; } },
     '../../features/engagement/EngagementBar': { EngagementFeedback: 'feedback' }, '../text/FormattedText': { FormattedText: 'formatted' }, '../ui/InterfaceIcon': { InterfaceIcon: 'icon' }, './follow-content-info.css': {},
   }, globals);
@@ -128,6 +129,9 @@ test('the minimize button dismisses owner and reader information once and restor
     assert.equal(buttons.some(node => node.props['aria-label'] === 'Content options'), ownerOptions);
     const minimize = buttons.find(node => node.props['aria-label'] === 'Minimize project information');
     assert.ok(minimize);
+    assert.equal(h.layer().props['data-mobile-info'], true);
+    assert.equal(h.dom('follow-info-minimize').parentElement, h.dom('follow-info-panel'), 'The badge is positioned against the card edge.');
+    assert.equal(minimize.props['data-ui-shape'], 'icon');
     assert.equal(h.document.activeElement, h.dom('follow-info-panel'));
     assert.equal(h.reader.inert, true);
 
@@ -146,6 +150,13 @@ test('the minimize button dismisses owner and reader information once and restor
     assert.deepEqual(h.calls, ['close']);
     assert.equal(h.mounted, false);
   }
+});
+
+test('desktop details keep the minimize button inside the header actions', () => {
+  const h = fixture({ presentation: 'web', hasOptions: false });
+  assert.equal(h.layer().props['data-mobile-info'], undefined);
+  assert.equal(h.dom('follow-info-minimize').parentElement, h.dom('follow-info-header-actions'));
+  h.unmount();
 });
 
 test('second pointer or keyboard input finishes the fading popup once without consuming new input', () => {
