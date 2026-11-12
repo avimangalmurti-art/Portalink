@@ -5,7 +5,9 @@ import {
   type ProfileAudioEdit, type ProfileAudioTrack,
 } from '../../features/profile/profileAudio';
 import { readProfileAudioTags } from '../../features/profile/profileAudioTags';
-import { getProfileAudioSnapshot, openProfileAudio, seekProfileAudio, subscribeProfileAudio, toggleProfileAudio } from '../../features/profile/profileAudioPlayback';
+import {
+  getProfileAudioSnapshot, retryProfileAudioOnGesture, seekProfileAudio, startProfileAudio, subscribeProfileAudio, toggleProfileAudio,
+} from '../../features/profile/profileAudioPlayback';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { ScreenBack, useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
@@ -92,8 +94,9 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
   const visible = open && isActive;
   const viewport = useDialogViewport(visible);
   const canEdit = Boolean(editable && onSave);
-  const source = track?.enabled && track.audioUrl ? { key: sourceKey ?? track.audioUrl, url: track.audioUrl } : null;
-  const playbackKey = source?.key;
+  const audioUrl = track?.enabled ? track.audioUrl : null;
+  const playbackKey = audioUrl ? sourceKey ?? audioUrl : null;
+  const source = playbackKey && audioUrl ? { key: playbackKey, url: audioUrl } : null;
   const showShortcut = canEdit || Boolean(source);
   const editing = draft !== null;
   const getPlaying = useCallback(() => {
@@ -134,6 +137,22 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
     if (!isActive && isOpen.current) dismiss();
   }, [isActive, dismiss]);
   useEffect(() => {
+    if (!isActive || !playbackKey || !audioUrl) return;
+    const activeSource = { key: playbackKey, url: audioUrl };
+    startProfileAudio(activeSource);
+
+    function retryOnGesture(event: Event) {
+      // The browser needs play() inside the gesture. The open player handles its own controls.
+      if (event.isTrusted && !isOpen.current) retryProfileAudioOnGesture(activeSource);
+    }
+    document.addEventListener('click', retryOnGesture, true);
+    document.addEventListener('touchend', retryOnGesture, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener('click', retryOnGesture, true);
+      document.removeEventListener('touchend', retryOnGesture, true);
+    };
+  }, [isActive, playbackKey, audioUrl]);
+  useEffect(() => {
     if (visible) dialog.current?.focus({ preventScroll: true });
   }, [visible, editing, confirmingRemove]);
 
@@ -155,7 +174,6 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
     isOpen.current = true;
     setOpen(true);
     if (!track && canEdit) edit();
-    if (source) openProfileAudio(source);
   }
 
   function selectAudio(event: React.ChangeEvent<HTMLInputElement>) {

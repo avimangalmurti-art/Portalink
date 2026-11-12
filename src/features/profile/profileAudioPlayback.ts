@@ -4,6 +4,7 @@ type ProfileAudioSnapshot = {
   key: string | null;
   playing: boolean;
   wantsPlayback: boolean;
+  needsGesture: boolean;
   videoOpen: boolean;
   position: number;
   duration: number;
@@ -11,7 +12,7 @@ type ProfileAudioSnapshot = {
 };
 
 const empty: ProfileAudioSnapshot = {
-  key: null, playing: false, wantsPlayback: false, videoOpen: false, position: 0, duration: 0, error: null,
+  key: null, playing: false, wantsPlayback: false, needsGesture: false, videoOpen: false, position: 0, duration: 0, error: null,
 };
 let snapshot = empty;
 let audio: HTMLAudioElement | null = null;
@@ -39,9 +40,9 @@ function update(changes: Partial<ProfileAudioSnapshot>) {
   listeners.forEach(listener => listener());
 }
 
-function playError(message: string) {
+function playError(message: string, needsGesture = false) {
   starting = false;
-  update({ playing: false, wantsPlayback: false, error: message });
+  update({ playing: false, wantsPlayback: false, needsGesture, error: message });
 }
 
 function getAudio() {
@@ -86,31 +87,37 @@ function pauseAudio() {
 }
 
 function playAudio() {
-  if (!audio || !snapshot.wantsPlayback || openVideos) return;
+  if (!audio || !snapshot.wantsPlayback || snapshot.videoOpen) return;
   const pending = ++request;
   starting = true;
   void audio.play().then(() => {
     if (pending === request) starting = false;
   }).catch((error: unknown) => {
     if (pending !== request) return;
-    playError(error instanceof DOMException && error.name === 'NotAllowedError'
-      ? 'Tap Play audio to resume.'
-      : 'This audio couldn’t play. Try again.');
+    if (error instanceof DOMException && error.name === 'NotAllowedError') {
+      playError('Tap Play audio to resume.', true);
+    } else playError('This audio couldn’t play. Try again.');
   });
 }
 
-export function openProfileAudio({ key, url }: AudioSource) {
+export function startProfileAudio({ key, url }: AudioSource) {
   if (snapshot.key === key) return;
   const player = getAudio();
   pauseAudio();
   player.src = url;
-  update({ key, wantsPlayback: true, position: 0, duration: 0, error: null });
+  update({ key, wantsPlayback: true, needsGesture: false, position: 0, duration: 0, error: null });
   playAudio();
+}
+
+export function retryProfileAudioOnGesture(source: AudioSource) {
+  if (snapshot.key === source.key && snapshot.needsGesture && !snapshot.videoOpen) {
+    toggleProfileAudio(source);
+  }
 }
 
 export function toggleProfileAudio(source: AudioSource) {
   if (snapshot.key !== source.key) {
-    openProfileAudio(source);
+    startProfileAudio(source);
     return;
   }
   if (snapshot.wantsPlayback) {
@@ -127,7 +134,7 @@ export function toggleProfileAudio(source: AudioSource) {
       audio.currentTime = position;
     }
   }
-  update({ wantsPlayback: true, error: null });
+  update({ wantsPlayback: true, needsGesture: false, error: null });
   playAudio();
 }
 
