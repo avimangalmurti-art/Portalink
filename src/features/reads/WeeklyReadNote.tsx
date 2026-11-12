@@ -43,5 +43,18 @@ export function WeeklyReadNote({startupPending=false,startupAttempt=0,onStartupS
     void animation.finished.then(finish,finish);
   };
   if(!auth.user||(dismissed&&!closing.current)||state.loading||state.error||!state.data||(isMobile&&opened===0&&finished===0))return null;
-  return <aside ref={cardRef} className="reads-weekly" aria-label="This week"><small>This week</small>{isMobile?<ul className="reads-weekly-metrics"><li>{opened} project opens.</li><li>{finished} reads reached the end.</li></ul>:<><h2>{opened} project opens. {finished} reads reached the end.</h2><p>{opened>0?'Your work is being read. These are anonymous tab counts, not identified people.':'Share your work and check back to see how it’s being read. Counts are anonymous, not identified people.'}</p></>}<div><Button onClick={()=>navigate(rows.length===1?`/insights?project=${rows[0].projectId}`:'/insights')}>See reads</Button><Button variant="secondary" onClick={dismiss}>Dismiss</Button>{isMobile && <img className="reads-weekly-character" src="/portalink-heart-character.png" alt="" width="128" height="128" loading="lazy" decoding="async" />}</div></aside>;
+  return <aside ref={cardRef} className="reads-weekly" aria-label="This week">
+    <small>This week</small>
+    {isMobile ? <ul className="reads-weekly-metrics">
+      <li>{opened} project opens.</li>
+      <li>{finished} reads reached the end.</li>
+    </ul> : <>
+      <h2>{opened} project opens. {finished} reads reached the end.</h2>
+      <p>{opened > 0 ? 'Your work is being read. These are anonymous tab counts, not identified people.' : 'Share your work and check back to see how it’s being read. Counts are anonymous, not identified people.'}</p>
+    </>}
+    <div>
+      <Button onClick={() => navigate(rows.length === 1 ? `/insights?project=${rows[0].projectId}` : '/insights')}>See reads</Button>
+      <Button variant="secondary" onClick={dismiss}>Dismiss</Button>
+    </div>
+  </aside>;
 }

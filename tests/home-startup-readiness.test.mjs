@@ -174,7 +174,7 @@ test('WeeklyReadNote reports settlement and dismisses smoothly once per login', 
   assert.equal(webCard.some(node=>node.type==='img'),false,'A hidden mobile image would trigger the action row loading background.');
   presentation='mobile';
   const mobileCard=walk(render(1));
-  assert.ok(mobileCard.some(node=>node.type==='img'&&node.props.className==='reads-weekly-character'));
+  assert.equal(mobileCard.some(node=>node.type==='img'),false,'The Earth background replaces the foreground character.');
   assert.equal(mobileCard.filter(node=>node.type==='li').length,2);
   assert.deepEqual(mobileCard.filter(node=>node.type==='li').map(node=>React.Children.toArray(node.props.children).join('')),['48 project opens.','6 reads reached the end.']);
   assert.equal(mobileCard.some(node=>node.type==='p'||node.type==='h2'),false);

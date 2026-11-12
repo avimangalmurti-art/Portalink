@@ -1,3 +1,9 @@
+## 2026-11-11 — Mobile Home weekly card Earth background
+
+Worktree `logs/mobile-weekly-reads-earth` on `codex/mobile-weekly-reads-earth` builds on the local Home video autoplay commit `57ced0b3ee847715824c9eba9ecd56def486aa4d`. Mobile Weekly Reads uses the original moving Earth backdrop cropped from the top 620 rows of the supplied portrait splash, clear of the mascot in every frame. The blurred 432×248 WebP runs for 12 seconds and loops. Reduced Motion uses a matched still. The mobile card no longer contains the foreground character, and the neutral action buttons retain their existing positions and behavior.
+
+Typecheck, targeted lint, 23 focused tests, production build and both entry configuration checks passed. The 144-frame animation and single-frame poster decoded successfully. The isolated Chromium fixture checked the actual card's animation, still under Reduced Motion, button readability, See reads and Dismiss. Receipts are in `logs/earth-checks` and `logs/earth-qa`. Physical iPhone verification and publication remain pending.
+
 ## 2026-11-11 — Mobile Home video cover autoplay
 
 Worktree `logs/mobile-home-video-autoplay` on `codex/mobile-home-video-autoplay` starts from live Sites 610 source `88a884f2e19a1d3aaad77ae7ea28d19103a6eae2` (draft PR #160). Home opts in only on MOBILE. A visible video cover plays muted and inline, starting with the authorized compatible source and falling back to the original. The existing nearby project reader resolves playable sources for stored video thumbnails. The poster stays available while playback is pending, blocked or unavailable. Offscreen previews, hidden tabs and retained Home screens stop playback. The full reader, desktop and shared catalogues keep their existing behavior.
