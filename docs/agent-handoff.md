@@ -1,3 +1,29 @@
+## 2026-11-11 — Latest iPhone Home Screen artwork
+
+The `codex/portalite-iphone-home-icon-v2` worktree at `logs/portalite-iphone-home-icon-v2` continues from live Sites 607 source `0700e0e7165c4b26fafe8d3576d03c2c9e2a06ce`. The new `C778D63B` attachment is preserved byte-for-byte as `docs/design/portalite-icons/iphone-home-screen.jpg`. The 180px and 120px Apple touch icons are opaque direct resizes, with the original ICC profile. The three entry pages reference revisions `132dfc755891` and `6c181f7b9b56`.
+
+The production build and both configuration guards passed. Local HTTP confirmed all three entry pages and both versioned and unversioned URLs for the two PNGs. Both sizes were inspected visually. Publication and physical iPhone installation are pending.
+
+## 2026-11-11 — Revised iPhone Home Screen artwork
+
+Task checkout `logs/portalite-iphone-home-icon-v2` on `codex/portalite-iphone-home-icon-v2` starts from Sites 606 source `5328b3368ed85a627946d50af109f6a8ca0a0753`. The latest source JPEG is stored byte-for-byte at `docs/design/portalite-icons/iphone-home-screen.jpg`. The 180px and 120px iPhone touch icons use direct opaque resizes with the original framing and color profile. The three entry pages reference content revisions `2cc94c3b2798` and `4ebf6407f1d4`.
+
+Production build and both entry guards passed. Local HTTP verified three entry pages and both versioned and unversioned URLs for the two exact resized images. Both sizes were inspected at native resolution. Physical iPhone installation remains pending.
+
+Portalink published Sites 607 from `0700e0e7165c4b26fafe8d3576d03c2c9e2a06ce` in [draft PR #158](https://github.com/avimangalmurti-art/Portalink/pull/158). Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_3e04daed804c819199b589d0b534ba16` and deployment `appgdep_6af5096c74348191bd932f2659df5a24` succeeded at `2026-11-12T00:33:56.509053+00:00` with runtime revision 2. All 652 archive files match the build. The official domain matches all three entry pages, 17 icon and manifest URLs, and both unversioned Apple touch icon URLs. Receipts are in `logs/icon-qa`.
+
+## 2026-11-11 — Primary iPhone Home Screen artwork
+
+Task checkout `logs/portalite-iphone-home-icon` on `codex/portalite-iphone-home-icon` follows the live Sites 605 commit `2eb46f2871dc220668de1b1a5e53b35913f8f508`, which is under review in PR #158. The new source JPEG is preserved under `docs/design/portalite-icons`. The primary 180px and alternate 120px iPhone touch icons are direct opaque Lanczos resizes with the source framing and color profile. The three HTML entry pages reference their new content revisions. The 120px icon uses the same artwork because Safari may choose that size when both are available.
+
+The configured client and worker build and both entry guards passed. Local HTTP confirmed exact image bytes and MIME types at both versioned and root URLs, with the intended metadata on all three entries. Both icon sizes were inspected visually and matched the exact source resize. Physical iPhone installation and publication are pending.
+
+## 2026-11-11 — Portalite Home Screen and installed web icons
+
+Task checkout `logs/portalite-original-icons` on `codex/portalite-original-icons` starts from `c60c8ef70bbbbe1bf7daa0f8112f9a54deaafec0`. The full-square glowing artwork and rounded reference are preserved byte-for-byte under `docs/design/portalite-icons` from the JPEG copies in the conversation attachments. The four Apple touch icons and three standard web app sizes are direct Lanczos resizes of the full-square artwork. The three separate maskable exports center the complete artwork at about 84% scale with an opaque edge extension. The measured mascot and nearby glow fit within the 40% safe circle. The three entry pages use versioned links, and the manifest is stored with LF so its content revision is stable across platforms.
+
+The configured production build and both bundle guards passed. HTTP verified 17 unique asset URLs from three built entries, including content types, image sizes and exact bytes. Chromium verified the three rendered heads and previewed the rounded Home Screen shape and circular mask. Device installation has not been tested. Browser favicon implementation awaits the alpha-bearing mascot PNG. The available mascot attachment is an RGB JPEG. No public release was made.
+
 ## 2026-11-10 — MOBILE reader zoom stays on the current page
 
 Task checkout `logs/mobile-reader-zoom-hold` on `codex/mobile-reader-zoom-hold`, based on GitHub `main` at `8074d941862bee2cf47a29b308602b8c95fecf4f`. Mobile image and PDF overviews keep their scroll-through layout during pinch zoom. The page under the fingers stays anchored as the zoom settles, and a deliberate double tap opens the tapped page in single-page view. In the focused reader, a two-finger pinch cancels any pending page-turn swipe.
