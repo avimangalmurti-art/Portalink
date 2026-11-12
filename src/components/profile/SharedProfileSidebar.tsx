@@ -10,6 +10,7 @@ import { buildPath } from '../../app/routes';
 import { useResizablePanelWidth } from '../ui/ResizablePanelHandle';
 import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 import { usePresentation } from '../../presentation/usePresentation';
+import { useMobilePortalScrollFade } from '../../presentation/mobile/useMobilePortalScrollFade';
 import { PublicProfileDrawer } from '../../visitor/mobile/PublicProfileDrawer';
 
 type SharedProfileSidebarProps = {
@@ -54,6 +55,7 @@ export function SharedProfileSidebar({
   // Preserve the choice between shared routes.
   const [preferredCollapsed, setIsCollapsed] = useState(false);
   const [portalLayout, setPortalLayout] = useState<'list' | 'grid'>('list');
+  const portalScrollRef = useMobilePortalScrollFade<HTMLElement>();
   useEffect(() => {
     const reset = () => setIsCollapsed(false);
     window.addEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
@@ -119,7 +121,7 @@ export function SharedProfileSidebar({
       <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold">Portals</h1>
       <button type="button" className="mobile-portal-action" aria-label={portalLayout === 'list' ? 'Show portals as cards' : 'Show portals as list'} onClick={() => setPortalLayout(value => value === 'list' ? 'grid' : 'list')}><InterfaceIcon icon={portalLayout === 'list' ? LayoutGridIcon : ListIcon} size="lg" /></button>
     </header>
-    <nav className="mobile-portals-scroll scrollbar-overlay" aria-label={`${profile.name} public portals`}>
+    <nav ref={portalScrollRef} className="mobile-portals-scroll scrollbar-overlay sidebar-scroll-fade is-at-top is-at-bottom" aria-label={`${profile.name} public portals`}>
       <ul className="mobile-portals-list">
         {profile.categories.map(category => <li key={category.id} className="mobile-portal-item"><button type="button" data-category-row="" className="mobile-portal-row" aria-current={category.id === activeCategoryId ? 'page' : undefined} onClick={() => { close(); onOpenCategory(category.id); }}>
           <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" weight="medium" /><span className="mobile-portal-label">{category.label}</span><InterfaceIcon icon={ChevronRightIcon} size="sm" className="text-[var(--text-tertiary)]" />

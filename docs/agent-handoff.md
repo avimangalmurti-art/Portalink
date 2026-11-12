@@ -1,3 +1,7 @@
+## 2026-11-12 — Combined mobile popup and shared catalogue release
+
+Worktree `logs/mobile-portal-updates-release` on `codex/mobile-portal-updates-release` integrates the verified mobile popup minimize button (`d8c48ac`), mobile shared catalogue gutters and viewer theme (`bd9d03b`), and scroll fades for the platform and shared mobile Portals lists (`53a887e`) from reviewed `github/main` at `85cb832`. Their local QA records remain in their task worktrees. This release uses the existing Portalink Site and its current public audience and worker bindings.
+
 ## 2026-11-12 — Mobile continuous project reader
 
 Worktree `logs/mobile-ordered-project-reader` on `codex/mobile-ordered-project-reader` builds on local commit `663b5f6`. The mobile platform and public catalogue project readers put images and PDFs in stored attachment order on one vertical scroll surface. Each image occupies one page and PDF pages continue the project counter. Page actions keep their attachment and local page identity. Ordinary links land on the linked attachment and page after layout settles, and taking over the scroll cancels that alignment. Explicit focused page links and desktop file tabs retain their behavior.

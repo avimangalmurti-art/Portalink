@@ -35,6 +35,7 @@ function harness(initialPresentation = 'web') {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/useMobilePortalScrollFade')) return { useMobilePortalScrollFade: () => () => {} };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button' };
     if (name === 'react') return react;
     if (name === '../../app/routes') return routes;
@@ -76,6 +77,7 @@ test('public navigation starts expanded at the compact standard width with the c
   assert.equal(home(tree).props.to, '/share/creator');
   assert.ok(nodes(home(tree)).some((node) => node.props?.children === 'Creator Name'));
   assert.equal(portals(tree).length, 2);
+  assert.doesNotMatch(nodes(tree).find(node => node.props?.id === 'shared-profile-portals').props.className, /\bsidebar-scroll-fade\b/);
 });
 
 test('viewer navigation tokens reach the expanded and collapsed WEB rail only', () => {
@@ -188,6 +190,9 @@ test('MOBILE restores the creator drawer and preserves WEB collapse preference',
   const drawer = tree.props.children(() => closed++);
   assert.equal(home(drawer), undefined);
   assert.equal(portals(drawer).length, 2);
+  const scroller = nodes(drawer).find(node => node.type === 'nav');
+  assert.match(scroller.props.className, /\bsidebar-scroll-fade\b/);
+  assert.equal(typeof scroller.ref, 'function');
   portals(drawer)[0].props.onClick();
   assert.equal(closed, 1);
   assert.deepEqual(h.calls, ['photos']);

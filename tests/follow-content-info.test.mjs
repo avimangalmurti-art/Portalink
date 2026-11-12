@@ -6,7 +6,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 const nodes = node => React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 
 /** Actual popup, sheet-motion and modal-focus hooks with controlled commit/effect lifecycles. */
-function fixture({ guest = false, reduce = false, appReduce = false, hasOptions = true, readerInert = false, showEngagement = true } = {}) {
+function fixture({ guest = false, reduce = false, appReduce = false, hasOptions = true, ownerOptions = false, readerInert = false, showEngagement = true } = {}) {
   const slots = [], timers = new Map(), listeners = new Map(), windowListeners = new Map(), dom = new Map(), calls = [];
   let cursor = 0, now = 0, timerId = 0, mounted = false, dirty = false, tree, layout = [], effects = [];
   const same = (a, b) => a?.length === b?.length && a.every((value, index) => Object.is(value, b[index]));
@@ -59,6 +59,7 @@ function fixture({ guest = false, reduce = false, appReduce = false, hasOptions 
   }, globals);
   const props = { projectId: 'actual-id', title: 'Real title', description: 'First paragraph\n\nSecond paragraph', creatorHeader: React.createElement('button', null, 'Real creator'), showEngagement,
     engagement: { count: kind => kind === 'save' ? 12 : 4, isEngaged: kind => kind === 'save', isPending: () => false, isResolving: false, resolveError: null, toggle: kind => calls.push(kind) },
+    optionsContent: ownerOptions ? React.createElement('button', { type: 'button' }, 'Edit project') : undefined,
     onOptions: hasOptions ? () => calls.push('options') : undefined, onComments: () => calls.push('comments'), onRequireAccount: guest ? () => calls.push('signup') : undefined,
     onClose: () => { calls.push('close'); unmount(); } };
   function commit(node, parent = null, path = 'root') {
@@ -118,6 +119,33 @@ test('outside dismissal leaves only180ms decorative fade while releasing focus a
   assert.equal(h.dom('follow-info-overlay').style['--follow-info-exit-opacity'], '0.43'); assert.equal(h.dom('follow-info-panel').style['--follow-info-exit-opacity'], '0.55');
   assert.equal(h.dom('follow-info-panel').style['--follow-info-exit-transform'], 'matrix(0.98, 0, 0, 0.98, 0, 0)', 'Mid-entrance close captures the current paint rather than snapping to its resting pose.');
   assert.equal(h.listeners.has('focusin'), false); h.advance(179); assert.deepEqual(h.calls, []); h.advance(1); assert.deepEqual(h.calls, ['close']); assert.equal(h.mounted, false); assert.equal(h.timers.size, 0); assert.equal(h.listeners.size, 0);
+});
+
+test('the minimize button dismisses owner and reader information once and restores focus during the fade', () => {
+  for (const ownerOptions of [true, false]) {
+    const h = fixture({ hasOptions: false, ownerOptions, showEngagement: ownerOptions });
+    const buttons = nodes(h.tree).filter(node => node.type === 'button');
+    assert.equal(buttons.some(node => node.props['aria-label'] === 'Content options'), ownerOptions);
+    const minimize = buttons.find(node => node.props['aria-label'] === 'Minimize project information');
+    assert.ok(minimize);
+    assert.equal(h.document.activeElement, h.dom('follow-info-panel'));
+    assert.equal(h.reader.inert, true);
+
+    minimize.props.onClick();
+    minimize.props.onClick();
+    assert.equal(h.tree.props['data-closing'], true);
+    assert.equal(h.reader.inert, false);
+    assert.equal(h.document.activeElement, h.opener);
+    assert.equal(h.opener.focusOptions.preventScroll, true);
+    assert.equal(h.timers.size, 1);
+    assert.deepEqual(h.calls, []);
+
+    h.advance(179);
+    assert.equal(h.mounted, true);
+    h.advance(1);
+    assert.deepEqual(h.calls, ['close']);
+    assert.equal(h.mounted, false);
+  }
 });
 
 test('second pointer or keyboard input finishes the fading popup once without consuming new input', () => {

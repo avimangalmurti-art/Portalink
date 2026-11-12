@@ -292,6 +292,34 @@ test('preboot chooses the same platform record and preserves legacy fallback for
   }
 });
 
+test('shared catalogue preboot matches the platform mode and system color on either presentation', () => {
+  const bootstrap = [...read('../share.html').matchAll(/<script>\s*([\s\S]*?)<\/script>/g)]
+    .find(([, code]) => code.includes('data-portalink-theme-original'))[1];
+  for (const [width, scope] of [[639, 'mobile'], [640, 'web']]) {
+    for (const [mode, dark, expected] of [['light', true, 'light'], ['dark', false, 'dark'], ['auto', true, 'dark'], ['auto', false, 'light'], [null, false, 'dark']]) {
+      const storage = new Map([
+        [DEVICE_KEY, 'dark'],
+        [scopedKey(scope), mode ? JSON.stringify({ mode }) : '{broken'],
+        [scopedKey(scope === 'mobile' ? 'web' : 'mobile'), JSON.stringify({ mode: expected === 'dark' ? 'light' : 'dark' })],
+        ['portalinknetworks.publicAppearance.mobile', JSON.stringify({ mode: expected === 'dark' ? 'light' : 'dark' })],
+      ]);
+      const root = { dataset: {}, style: {} };
+      const meta = new Map([['content', '#123456']]);
+      const window = {
+        localStorage: { getItem: key => storage.get(key) ?? null },
+        matchMedia: query => ({ matches: query.includes('639') ? width <= 639 : dark }),
+      };
+      const document = { documentElement: root, querySelectorAll: () => [{ getAttribute: key => meta.get(key), setAttribute: (key, value) => meta.set(key, value) }] };
+      vm.runInNewContext(bootstrap, { window, document });
+      const platform = harness({ dark, storage });
+      assert.equal(root.dataset.appearance, expected);
+      assert.equal(root.style.colorScheme, platform.render(scope).theme);
+      assert.equal(meta.get('content'), expected === 'dark' ? '#000000' : '#ffffff');
+      platform.dispose();
+    }
+  }
+});
+
 // Evaluate the shell's actual appearance expressions with the real preference
 // hook and token resolvers, without mocking the rest of the routed application.
 const appSource = read('../src/App.tsx');
