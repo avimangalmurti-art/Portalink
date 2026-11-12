@@ -300,7 +300,7 @@ test('both launch entries let iOS match the native status bar to the document ca
   }
 });
 
-test('platform preserves saved appearance while visitor silently follows system before creator branding', () => {
+test('both launch entries use the viewer’s saved appearance and resolve System against the device', () => {
   for (const entry of ['index.html', 'share.html']) {
     const html = readFileSync(new URL(`../${entry}`, import.meta.url), 'utf8');
     const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].find(([, code]) => code.includes('data-portalink-theme-original'))[1];
@@ -316,7 +316,7 @@ test('platform preserves saved appearance while visitor silently follows system 
         location: welcomeLink ? { pathname: '/', search: '?welcome=1' } : { pathname: '/share/fixture', search: '' }, navigator: {},
         localStorage: { getItem: key => key.includes('interfaceAppearance') ? JSON.stringify({ mode }) : null },
       } });
-      const resolved = entry === 'share.html' ? (dark ? 'dark' : 'light') : mode === 'auto' ? dark ? 'dark' : 'light' : mode;
+      const resolved = mode === 'auto' ? (dark ? 'dark' : 'light') : mode;
       const invite = entry === 'index.html' && mobile && welcomeLink;
       const color = invite ? '#fdffff' : resolved === 'dark' ? '#000000' : '#ffffff';
       assert.equal(Boolean(attributes.get('data-invite-launch')), invite);

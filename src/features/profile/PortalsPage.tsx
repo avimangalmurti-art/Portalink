@@ -13,6 +13,7 @@ import { CategoryOptionsMenu } from '../../components/profile/CategoryOptionsMen
 import { NewCategoryDialog } from '../../components/profile/NewCategoryDialog';
 import { MAX_CATEGORY_LABEL, type CategoryManagement } from './useCategoryManagement';
 import { MobileReorderList } from '../../presentation/mobile/MobileReorderList';
+import { useMobilePortalScrollFade } from '../../presentation/mobile/useMobilePortalScrollFade';
 
 /** Mobile drill-down using the confirmed profile and canonical portals. */
 export function PortalsPage({ profileQuery, profileContext = false, onboardingStatus, management, accentColor, theme, onChangeCategoryIcon, onContinue, onSelectCategory, onBack }: {
@@ -33,6 +34,7 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
   const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [isAdding, setIsAdding] = useState(false);
   const [renaming, setRenaming] = useState<{ id: string; label: string } | null>(null);
+  const portalScrollRef = useMobilePortalScrollFade<HTMLDivElement>();
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const { profile, status, retry } = profileQuery;
@@ -108,7 +110,7 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
       {profile && status === 'ready' && (profileContext || ownsProfile) && <button type="button" className="mobile-portal-action" aria-label={layout === 'list' ? 'Show portals as cards' : 'Show portals as list'} title={layout === 'list' ? 'Card view' : 'List view'} onClick={() => setLayout(current => current === 'list' ? 'grid' : 'list')}><InterfaceIcon icon={layout === 'list' ? LayoutGridIcon : ListIcon} size="lg" /></button>}
       {ownsProfile && <button type="button" aria-label="Add portal" aria-haspopup="dialog" disabled={actionsDisabled} className="mobile-portal-action" onClick={() => { management.dismissFailure(); setIsAdding(true); }}><InterfaceIcon icon={PlusIcon} size="lg" weight="medium" /></button>}
     </header>
-    <div className="mobile-portals-scroll scrollbar-overlay" data-mobile-scroll-end="">
+    <div ref={portalScrollRef} className="mobile-portals-scroll scrollbar-overlay sidebar-scroll-fade is-at-top is-at-bottom" data-mobile-scroll-end="">
       {ownsProfile && management.arrangementError && <ErrorState title="Couldn’t load portal settings" description={management.arrangementError} onRetry={management.reloadArrangement} />}
       {ownsProfile && management.failure && !isAdding && <ErrorState title={management.failure.message} onRetry={renaming && management.failure.kind === 'rename' ? () => void saveRename() : management.failure.retry} />}
       {ownsProfile && <SavedChangeNotice history={management.history} />}

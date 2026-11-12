@@ -279,7 +279,7 @@ function hooks() {
   }
   return { react, render, dispose: () => effects.forEach(effect => effect?.cleanup?.()) };
 }
-function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearance = appearance } = {}) {
+function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearance = appearance, appearanceStorage, systemDark = false } = {}) {
   const h = hooks(), assigned = [], replaced = [], navigations = [], queryCalls = [], requests = [];
   const navigate = (path, options) => navigations.push([path, options]);
   let pendingIntent = null;
@@ -296,6 +296,13 @@ function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearan
   class ElementStub { matches() { return false; } }
   const browser = { window, document, Element: ElementStub, HTMLElement: ElementStub,
     requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {} };
+  let appearanceHook = () => deviceAppearance;
+  if (appearanceStorage) {
+    window.localStorage = { getItem: key => appearanceStorage.get(key) ?? null, setItem: (key, value) => appearanceStorage.set(key, value) };
+    window.matchMedia = () => ({ matches: systemDark });
+    const preferences = load('utils/appearancePreferences.ts', undefined, browser);
+    appearanceHook = load('hooks/useDeviceAppearance.ts', name => name === 'react' ? h.react : preferences, browser).useDeviceAppearance;
+  }
   const projectReturn = load('visitor/useMobileProjectReturn.ts', name => {
     if (name === 'react') return h.react;
     if (name.endsWith('/projectContinuity')) return { beginProjectContinuity() {} };
@@ -321,7 +328,7 @@ function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearan
     if (name === '../app/routes') return routes;
     if (name === '../contexts/AuthContext') return { useAuth: () => state.auth };
     if (name === '../features/profile/useSharedProfileQuery') return { useSharedProfileQuery: (...args) => { queryCalls.push(args); return args[0] ? state.query : { status: 'idle', profile: null }; } };
-    if (name === '../hooks/useDeviceAppearance') return { useDeviceAppearance: () => deviceAppearance };
+    if (name === '../hooks/useDeviceAppearance') return { useDeviceAppearance: appearanceHook };
     if (name === '../presentation/usePresentation') return { usePresentation: () => state.presentation };
     if (name === '../features/auth/registration') return registration;
     if (name === '../features/sharing/sharedSettings') return sharedSettings;
@@ -334,7 +341,7 @@ function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearan
     if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedContextActions', 'SharedSignInBar', 'VisitorProfileGrid', 'SharedPortalPopup'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
     throw new Error(name);
   }, browser);
-  return { state, assigned, replaced, navigations, queryCalls, requests, window,
+  return { state, assigned, replaced, navigations, queryCalls, requests, window, dispose: h.dispose,
     render: () => h.render(VisitorApp), pending: intent => { pendingIntent = intent; },
     signedIn(overrides = {}) { state.auth = { ...state.auth, phase: 'authenticated', isAuthenticated: true, viewerProfileId: 'viewer', user: { id: 'account', profileId: 'viewer' }, session: { user: { id: 'account', profileId: 'viewer', isEmailVerified: true } }, ...overrides }; },
   };
@@ -412,7 +419,7 @@ test('an authenticated reader without a profile returns to their intended recipi
 });
 
 test('shared Settings retains its portfolio query, appearance handlers and Back destination', () => {
-  const h = appHarness();
+  const h = appHarness({ appearanceStorage: new Map() });
   one(h.render(), 'SharedProfileSidebar', 'SharedContextActions').props.onSettingsOpen();
   assert.deepEqual(json(h.navigations.at(-1)), [`/share/${profileId}?settings=1`, null]);
   h.state.route = { kind: 'controlCenter' }; h.state.location = { pathname: '/settings', search: '', hash: '', state: { settingsReturn: `/share/${profileId}` } };
@@ -425,6 +432,7 @@ test('shared Settings retains its portfolio query, appearance handlers and Back 
   assert.equal(one(h.render(),'lazy:../components/ControlCenterPage').props.theme,'dark');
   assert.equal(h.queryCalls.at(-1)[0], profileId);
   settings.props.onBack(); assert.equal(h.navigations.at(-1)[0], -1);
+  h.dispose();
 });
 
 test('cold public Settings remains read-only for owners, other accounts and signed-out viewers on both presentations', () => {
@@ -1367,23 +1375,62 @@ test('shared account sign-in opens the signed-in member profile in the full plat
   }
 });
 
-test('visitor silently respects creator branding, system theme and an explicit visitor switch',()=>{
- const h=appHarness();h.state.query.profile={...h.state.query.profile,publicAppearance:{mode:'dark',accentColor:'#34c759',systemGray:'gray3'}};
- let tree=h.render();assert.ok(tree.props.className.includes('theme-dark'));assert.equal(tree.props.style['--accent-color'],'#34c759');
- one(tree,'SharedProfileSidebar').props.onThemeChange('light');assert.ok(h.render().props.className.includes('theme-light'));
- const other=appHarness();other.state.query.profile={...other.state.query.profile,publicAppearance:{mode:'auto',accentColor:'#34c759',systemGray:'gray3'}};
- assert.ok(other.render().props.className.includes('theme-light'));
+test('shared catalogues use and persist the platform mode while preserving creator colors and visitor accessibility choices', () => {
+  const platformKey = presentation => `portalinknetworks.interfaceAppearance.${presentation}`;
+  const publicMobileKey = 'portalinknetworks.publicAppearance.mobile';
+  for (const presentation of ['web', 'mobile']) {
+    const initialMode = presentation === 'mobile' ? 'dark' : 'light';
+    const oppositeMode = initialMode === 'dark' ? 'light' : 'dark';
+    const publicMobile = { mode: oppositeMode, highContrast: true, reduceTranslucency: true, accentColor: '#af52de', systemGray: 'gray4' };
+    const viewerSettings = { mode: initialMode, highContrast: presentation === 'web', reduceTranslucency: presentation === 'web', accentColor: '#ff375f', systemGray: 'gray2' };
+    const appearanceStorage = new Map([
+      [platformKey(presentation), JSON.stringify(viewerSettings)],
+      [publicMobileKey, JSON.stringify(publicMobile)],
+    ]);
+    const publicAppearance = { mode: oppositeMode, accentColor: '#34c759', systemGray: 'gray3' };
+    const open = (systemDark = oppositeMode === 'dark') => {
+      const h = appHarness({ appearanceStorage, systemDark });
+      h.state.presentation = presentation;
+      h.state.query.profile = { ...profile, publicAppearance };
+      return h;
+    };
+    const assertTheme = (tree, theme) => {
+      assert.ok(tree.props.className.includes(`theme-${theme}`));
+      assert.ok(tree.props.className.includes('high-contrast'));
+      assert.ok(tree.props.className.includes('reduce-translucency'));
+      assert.equal(tree.props.style['--accent-color'], publicAppearance.accentColor);
+      assert.equal(one(tree, 'SharedProfileSidebar').props.theme, theme);
+    };
+
+    const first = open();
+    assertTheme(first.render(), initialMode);
+    first.state.location.search = '?settings=1';
+    const settings = one(first.render(), 'lazy:../components/ControlCenterPage');
+    assert.equal(settings.props.appearanceMode, initialMode);
+    settings.props.onAppearanceModeChange(oppositeMode);
+    assertTheme(first.render(), oppositeMode);
+    assert.deepEqual(JSON.parse(appearanceStorage.get(platformKey(presentation))), { ...viewerSettings, mode: oppositeMode });
+    assert.deepEqual(JSON.parse(appearanceStorage.get(publicMobileKey)), publicMobile);
+    first.dispose();
+
+    const reloaded = open(initialMode === 'dark');
+    assertTheme(reloaded.render(), oppositeMode);
+    one(reloaded.render(), 'SharedProfileSidebar').props.onThemeChange('auto');
+    assertTheme(reloaded.render(), initialMode);
+    assert.equal(JSON.parse(appearanceStorage.get(platformKey(presentation))).mode, 'auto');
+    reloaded.dispose();
+  }
 });
 
-test('WEB shared sidebar uses the viewer gray with the public theme and accent while the shell retains creator branding', () => {
+test('WEB shared sidebar uses the viewer gray and theme while the shell retains creator colors', () => {
   const deviceAppearance = { ...appearance, systemGray: 'gray2', highContrast: true, reduceTranslucency: true };
   const publicAppearance = { mode: 'dark', accentColor: '#34c759', systemGray: 'gray5' };
   const h = appHarness({ deviceAppearance });
   h.state.query.profile = { ...profile, publicAppearance };
   h.state.presentation = 'web';
   let tree = h.render();
-  const creatorPalette = navButtonTokens.resolveNavButtonTokens('dark', publicAppearance.accentColor, true, true, 'gray5');
-  const viewerPalette = navButtonTokens.resolveNavButtonTokens('dark', publicAppearance.accentColor, true, true, 'gray2');
+  const creatorPalette = navButtonTokens.resolveNavButtonTokens('light', publicAppearance.accentColor, true, true, 'gray5');
+  const viewerPalette = navButtonTokens.resolveNavButtonTokens('light', publicAppearance.accentColor, true, true, 'gray2');
   assert.notEqual(viewerPalette['--navigation-surface'], creatorPalette['--navigation-surface']);
   assert.equal(tree.props.style['--accent-color'], publicAppearance.accentColor);
   assert.equal(tree.props.style['--navigation-surface'], creatorPalette['--navigation-surface']);

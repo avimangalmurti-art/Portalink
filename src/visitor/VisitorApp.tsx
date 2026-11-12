@@ -49,7 +49,8 @@ export function VisitorApp() {
   const presentation = usePresentation();
   const pageScroll = useRef(new Map<string, number>());
   const appearance = useDeviceAppearance(presentation, 'public');
-  const [visitorOverride, setVisitorOverride] = useState<{id:string | null;mode:'auto' | 'light' | 'dark'} | null>(null);
+  // Colour mode follows the viewer across the platform and shared links.
+  const { theme, mode: appearanceMode, chooseMode } = useDeviceAppearance(presentation);
   const highContrast = appearance.highContrast, reduceTranslucency = appearance.reduceTranslucency;
   const shared = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' || route.kind === 'sharedCollaboration';
   const sharedShell = isPublicSharePath(location.pathname);
@@ -110,8 +111,6 @@ export function VisitorApp() {
   const portalPopupId = portalPopup?.profileId === profileId && profile?.categories.some(item => item.id === portalPopup.categoryId)
     ? portalPopup.categoryId : null;
   const publicStyle = profile?.publicAppearance;
-  const theme = visitorOverride && visitorOverride.id === profileId ? visitorOverride.mode === 'auto' ? appearance.systemTheme : visitorOverride.mode : publicStyle?.mode && publicStyle.mode !== 'auto' ? publicStyle.mode : appearance.systemTheme;
-  const choosePublicMode = useCallback((mode:'auto' | 'light' | 'dark') => { setVisitorOverride({id:profileId,mode}); appearance.chooseMode(mode); },[profileId,appearance.chooseMode]);
   const accentColor = publicStyle?.accentColor ?? appearance.accentColor;
   const systemGray = publicStyle?.systemGray ?? appearance.systemGray;
   const project = retainedWebReaderLoading ? undefined : profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
@@ -278,7 +277,7 @@ export function VisitorApp() {
     }} />;
   return <AppPresentation showFloatingActions={!settings && !projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
-      {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode} desktopNavigationStyle={desktopNavigationStyle}
+      {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={chooseMode} desktopNavigationStyle={desktopNavigationStyle}
         mobileNavigationRequest={presentation === 'mobile' && portalNavigationRequest?.scope === catalogueScope ? portalNavigationRequest : undefined}
         onOpenCategory={id => { if (presentation === 'mobile') {
           setPortalNavigationRequest(null);
@@ -305,7 +304,7 @@ export function VisitorApp() {
                 </DeferredSurfaceBoundary>}
                 <DeferredSurfaceBoundary active onClose={back} resetKey={location.pathname}>
                   <Suspense fallback={pending}>
-                    {settings ? <ControlCenterPage sharedReadOnly theme={theme} appearanceMode={appearance.mode} onAppearanceModeChange={choosePublicMode}
+                    {settings ? <ControlCenterPage sharedReadOnly theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseMode}
                       systemGray={navigationGray} onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })}
                       accentColor={accentColor} onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })}
                       highContrast={highContrast} onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })}

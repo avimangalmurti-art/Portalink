@@ -5,11 +5,11 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 
-function compile(path, require) {
+function compile(path, require, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, require });
+  }).outputText, { exports, require, ...globals });
   return exports;
 }
 const EmptyState = () => null, LoadingState = () => null, ErrorState = () => null;
@@ -32,6 +32,7 @@ function harness() {
     if (name === 'lucide-react') return { ChevronLeftIcon: Icon, ChevronRightIcon: Icon, CheckIcon: Icon, PlusIcon: Icon, XIcon: Icon };
     if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/useMobilePortalScrollFade')) return { useMobilePortalScrollFade: () => () => {} };
     if (name.endsWith('/FeatureInDesignPage')) return { FeatureInDesignPage };
     if (name.endsWith('/StateViews')) return { EmptyState, LoadingState, ErrorState };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: Icon };
@@ -65,6 +66,63 @@ function elements(node) {
 }
 const find = (tree, type) => elements(tree).find(node => node.type === type);
 
+test('mobile Portals fades only the scrolling edges that have hidden rows', () => {
+  let resize, mutation;
+  class ResizeObserver {
+    constructor(callback) { this.callback = callback; this.targets = new Set(); resize = this; }
+    observe(target) { this.targets.add(target); }
+    disconnect() { this.targets.clear(); }
+  }
+  class MutationObserver {
+    constructor(callback) { this.callback = callback; mutation = this; }
+    observe(target) { this.target = target; }
+    disconnect() { this.target = undefined; }
+  }
+  const listeners = new Map();
+  const classes = new Set(['is-at-top', 'is-at-bottom']);
+  const rows = {}, replacementRows = {};
+  const scroller = {
+    children: [rows], scrollTop: 0, scrollHeight: 180, clientHeight: 200,
+    classList: { toggle(name, force) { if (force) classes.add(name); else classes.delete(name); } },
+    addEventListener(name, handler, options) { listeners.set(name, handler); assert.equal(options?.passive, true); },
+    removeEventListener(name, handler) { if (listeners.get(name) === handler) listeners.delete(name); },
+  };
+  const { useMobilePortalScrollFade } = compile('../src/presentation/mobile/useMobilePortalScrollFade.ts', name => {
+    assert.equal(name, 'react');
+    return { useCallback: callback => callback, useRef: current => ({ current }) };
+  }, { ResizeObserver, MutationObserver });
+  const attach = useMobilePortalScrollFade();
+  attach(scroller);
+  const assertEdges = (top, bottom) => {
+    assert.equal(classes.has('is-at-top'), top);
+    assert.equal(classes.has('is-at-bottom'), bottom);
+  };
+  assertEdges(true, true);
+  assert.deepEqual(resize.targets, new Set([scroller, rows]));
+  assert.equal(mutation.target, scroller);
+
+  scroller.scrollHeight = 500;
+  resize.callback();
+  assertEdges(true, false);
+  scroller.scrollTop = 140;
+  listeners.get('scroll')();
+  assertEdges(false, false);
+  scroller.scrollTop = 300;
+  listeners.get('scroll')();
+  assertEdges(false, true);
+
+  scroller.children = [replacementRows];
+  scroller.scrollHeight = 620;
+  mutation.callback();
+  assertEdges(false, false);
+  assert.deepEqual(resize.targets, new Set([scroller, replacementRows]));
+
+  attach(null);
+  assert.equal(listeners.size, 0);
+  assert.equal(resize.targets.size, 0);
+  assert.equal(mutation.target, undefined);
+});
+
 test('mobile Portals lists the confirmed owner portals in saved order and selects by stable id', () => {
   const h = harness();
   let wentBack = 0;
@@ -73,6 +131,9 @@ test('mobile Portals lists the confirmed owner portals in saved order and select
   const headerChildren = React.Children.toArray(header.props.children);
   assert.equal(headerChildren[0].props['aria-label'], 'Go back');
   assert.equal(headerChildren[1].props.id, 'mobile-portals-title');
+  const scroller = elements(h.render()).find(node => node.props.className?.includes('mobile-portals-scroll'));
+  assert.match(scroller.props.className, /\bsidebar-scroll-fade\b/);
+  assert.equal(typeof scroller.ref, 'function');
   headerChildren[0].props.onClick();
   assert.equal(wentBack, 1);
   const buttons = elements(h.render()).filter(node => node.type === 'button' && node.props.className === 'mobile-portal-row');

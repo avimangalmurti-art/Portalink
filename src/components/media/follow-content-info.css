@@ -27,7 +27,22 @@
 }
 [data-follow-info-layer] .project-popup-creator { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 0; margin: 0; border: 0; font-weight: 600; text-align: left; }
 [data-follow-info-layer] .project-popup-creator > span { overflow-wrap: anywhere; }
+[data-follow-info-layer] .follow-info-header-actions {
+  display: flex; align-items: center; gap: 4px; flex: none;
+  margin-inline-start: auto; margin-inline-end: -8px;
+}
 [data-follow-info-layer] .follow-info-options { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
+[data-follow-info-layer] .follow-info-minimize {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 50%; background: transparent;
+}
+[data-follow-info-layer] .follow-info-minimize > span {
+  width: 22px; height: 22px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--status-danger, #b42318);
+}
+[data-follow-info-layer] .follow-info-minimize > span::after {
+  content: ''; width: 10px; height: 2px; border-radius: 1px; background: white;
+}
 [data-follow-info-layer] h2 { flex: none; margin: 0; font-size: 26px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; max-height: 25dvh; overflow-y: auto; }
 [data-follow-info-layer] .follow-info-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 16px; line-height: 1.6; }
 [data-follow-info-layer] .follow-info-description p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -64,7 +79,7 @@ body:has([data-follow-info-layer]:not([data-closing])) #root .codex-shell[data-p
 
 /* Cover-page owner commands retain their existing callbacks in the shared card. */
 [data-follow-info-layer] .follow-info-header {position:relative;}
-[data-follow-info-layer] .follow-info-owner-menu {position:absolute;top:52px;right:0;z-index:1;min-width:180px;max-width:100%;padding:8px;border-radius:16px;background:var(--surface-raised);border:1px solid var(--hairline-strong);box-shadow:0 8px 24px #0005;}
+[data-follow-info-layer] .follow-info-owner-menu {position:absolute;top:calc(100% + 4px);right:0;z-index:1;min-width:180px;max-width:100%;padding:8px;border-radius:16px;background:var(--surface-raised);border:1px solid var(--hairline-strong);box-shadow:0 8px 24px #0005;}
 [data-follow-info-layer] .follow-info-owner-menu > .project-popup-owner-actions {
   display: flex;
   flex-direction: column;
