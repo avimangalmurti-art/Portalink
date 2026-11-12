@@ -20,7 +20,6 @@ import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState
 import { UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, ChevronLeftIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { PortalRingIcon } from '../PortalRingIcon';
 import { AttachmentRenderer } from './AttachmentRenderer';
-import { ImagePage } from './ImageAttachment';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
 import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
 import { useNavigationOutsideTap } from '../../presentation/mobile/useNavigationOutsideTap';
@@ -176,6 +175,8 @@ export function ProjectMediaViewer({
   const railContentId = useId();
   const [isProjectShared, setIsProjectShared] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
+  const [focusedReadingPart, setFocusedReadingPart] = useState<string | null>(null);
+  const focusedReadingPartRef = useRef<string | null>(null);
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'comments' | 'verification'>('project');
   const controlsTimerRef = useRef<number | null>(null);
@@ -267,23 +268,31 @@ export function ProjectMediaViewer({
   const shareProject = () => sendContent({title:projectTitle,url:publicUrl,onSent:()=>setIsProjectShared(true)});
   const selected = attachments.find((item) => item.id === activeId) ?? attachments[0];
   const singlePageNumber = Number(mediaQuery?.get('page'));
-  const isSavedSinglePage = mediaQuery?.get('view') === 'page' && deepLinkedAttachmentId === selected?.id
-    && Number.isInteger(singlePageNumber) && singlePageNumber >= 1;
+  const explicitPageLink = mediaQuery?.get('view') === 'page' && Number.isSafeInteger(singlePageNumber) && singlePageNumber >= 1
+    && attachments.some(attachment => attachment.id === deepLinkedAttachmentId);
+  const isSavedSinglePage = explicitPageLink && deepLinkedAttachmentId === selected?.id;
   const imagePages = attachments.filter((item) => item.kind === 'image');
-  // In the mobile overview the artwork introduces the PDF in the same scroll.
-  // Explicit image and focused page links retain their attachment target.
-  const coveredDocument = isMobileViewer && !isSavedSinglePage && imagePages.length > 0
-    && imagePages.length === attachments.length - 1
-    && !imagePages.some((item) => item.id === deepLinkedAttachmentId)
-    ? attachments.find((item) => item.kind === 'document' && !item.isCover)
-    : undefined;
-  const active = coveredDocument ?? selected;
+  const orderedReading = isMobileViewer && !explicitPageLink && attachments.length > 1
+    && attachments.some(attachment => attachment.kind === 'document')
+    && attachments.every(attachment => attachment.kind === 'image' || attachment.kind === 'document');
+  const active = (orderedReading ? attachments.find(attachment => attachment.kind === 'document') : undefined) ?? selected;
   // Reset before the attachment's passive effect restores its focused page.
   // A passive reset here could overwrite that report and expose both toolbars.
   useLayoutEffect(() => {
     setIsImmersive(false);
+    focusedReadingPartRef.current = null;
+    setFocusedReadingPart(null);
     onPageFocusModeChange?.(false);
-  }, [active?.id, viewerMemoryKey, onPageFocusModeChange]);
+  }, [active?.id, viewerMemoryKey, onPageFocusModeChange, orderedReading]);
+  const handleReadingPartFocus = useCallback((id: string, focused: boolean) => {
+    const previous = focusedReadingPartRef.current;
+    if (focused ? previous === id : previous !== id) return;
+    const next = focused ? id : null;
+    focusedReadingPartRef.current = next;
+    setFocusedReadingPart(next);
+    setIsImmersive(focused);
+    onPageFocusModeChange?.(focused);
+  }, [onPageFocusModeChange]);
   const handlePageFocusModeChange = useCallback((focused: boolean) => {
     setIsImmersive(focused);
     onPageFocusModeChange?.(focused);
@@ -304,7 +313,7 @@ export function ProjectMediaViewer({
   const isDocumentReading = isMobileViewer && !isSavedSinglePage && active?.kind === 'document';
   const isVerticalReading = isMobileViewer && !isSavedSinglePage && (active?.kind === 'document' || active?.kind === 'image');
   const isReadingHeader = isDocumentReading || (readOnlyShare && isVerticalReading);
-  const previewScope = `${projectId}:${active?.id ?? ''}`;
+  const previewScope = orderedReading ? `${projectId}:ordered-pages` : `${projectId}:${active?.id ?? ''}`;
   // Remember each reader's explicit choice for this work and file.
   const densityMemoryKey = `${viewerMemoryKey}:density:${active?.kind === 'image' ? 'images' : active?.id ?? ''}`;
   const [mobileDensity, setMobileDensity] = useState<{ scope: string; value: number } | null>(null);
@@ -316,9 +325,11 @@ export function ProjectMediaViewer({
     onPagesPerRowChange?.(next);
   };
   const [contextPosition, setContextPosition] = useState<PagePosition | null>(null);
-  const currentPage = contextPosition?.scope === previewScope && contextPosition.ready !== false ? contextPosition.current - 1 : null;
-  const pageAttachment = active?.kind === 'image' && currentPage !== null ? imagePages[currentPage] : active;
-  const pageTarget = currentPage !== null && pageAttachment ? { projectId, attachmentId: pageAttachment.id, pageIndex: currentPage, label: `Page ${currentPage + 1}`, shared: readOnlyShare } : null;
+  const currentPosition = contextPosition?.scope === previewScope && contextPosition.ready !== false ? contextPosition : null;
+  const currentPage = currentPosition ? (currentPosition.attachmentPage ?? currentPosition.current) - 1 : null;
+  const pageAttachment = orderedReading ? attachments.find(attachment => attachment.id === currentPosition?.attachmentId)
+    : active?.kind === 'image' && currentPage !== null ? imagePages[currentPage] : active;
+  const pageTarget = currentPage !== null && pageAttachment ? { projectId, attachmentId: pageAttachment.id, pageIndex: currentPage, label: `Page ${currentPosition?.current}`, shared: readOnlyShare } : null;
   const journeyNavigate = useNavigate(), journeyAuth = useAuth();
   const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => { closeMobilePopup(); journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp'); } : undefined;
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
@@ -340,7 +351,7 @@ export function ProjectMediaViewer({
     startHere: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?startHere=${encodeURIComponent(projectId)}`) : undefined,
     thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
     saveProject: showEngagement && !engagement.isResolving && !engagement.isPending('save') && !engagement.resolveError ? () => engagement.toggle('save') : undefined,
-    ...(isOwner&&!readOnlyShare&&!isImmersive&&active?.kind==='image'&&pageAttachment&&currentPage!==null&&journeyAuth.viewerProfileId?{copyCitation:async()=>{const scope=copyScope.current;try{const module=await import('../../features/references/ownCitation');const text=await module.ownPageCitation(journeyAuth.viewerProfileId!,projectId,pageAttachment.id,currentPage);if(copyScope.current!==scope)return;await navigator.clipboard.writeText(text);setOwnCopyStatus('Citation copied.');}catch(caught){if(copyScope.current===scope)setOwnCopyStatus(caught instanceof Error?caught.message:'Citation could not be copied.');}}}:{}),
+    ...(isOwner&&!readOnlyShare&&!isImmersive&&pageAttachment?.kind==='image'&&currentPage!==null&&journeyAuth.viewerProfileId?{copyCitation:async()=>{const scope=copyScope.current;try{const module=await import('../../features/references/ownCitation');const text=await module.ownPageCitation(journeyAuth.viewerProfileId!,projectId,pageAttachment.id,currentPage);if(copyScope.current!==scope)return;await navigator.clipboard.writeText(text);setOwnCopyStatus('Citation copied.');}catch(caught){if(copyScope.current===scope)setOwnCopyStatus(caught instanceof Error?caught.message:'Citation could not be copied.');}}}:{}),
     export: creator?.id ? ()=>setExportOpen(true) : undefined,
     share: shareProject, copy: () => copyPublicLink(publicUrl),
   }, labels: { list: 'Open portal', projectInfo: 'Project information', saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
@@ -348,6 +359,14 @@ export function ProjectMediaViewer({
   const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
   const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
     setPreviewPdf({ scope: previewScope, document });
+  }, [previewScope]);
+  const [readingDocuments, setReadingDocuments] = useState<{ scope: string; documents: Record<string, PdfDocument | null> } | null>(null);
+  const handleReadingPreview = useCallback((id: string, document: PdfDocument | null) => {
+    setReadingDocuments(previous => {
+      const documents = previous?.scope === previewScope ? previous.documents : {};
+      if ((documents[id] ?? null) === document) return previous;
+      return { scope: previewScope, documents: { ...documents, [id]: document } };
+    });
   }, [previewScope]);
   const pagePreviewSources = active?.kind === 'image' ? imagePages.map(page => page.sourceUrl)
     : (active?.metadata?.renderedPages ?? []).filter(page => Boolean(page.sourceUrl)).map(page => page.sourceUrl);
@@ -367,20 +386,17 @@ export function ProjectMediaViewer({
   const documentPageCount = active?.kind === 'document'
     ? Math.max(active.metadata?.renderedPages?.length ?? 0, active.metadata?.pageCount ?? 0)
     : 0;
-  const hasPageLayout = active?.kind === 'image'
+  const hasPageLayout = orderedReading || (active?.kind === 'image'
     ? imagePages.length > 1
-    : active?.kind === 'document' && documentPageCount !== 1;
+    : active?.kind === 'document' && documentPageCount !== 1);
   const publishedLabel = formatPublishedDate(publishedAt);
   const densitySurfaceRef = useRef<HTMLDivElement>(null);
-  const coveredDocumentRef = useRef<HTMLDivElement>(null);
-  const pageSurfaceRef = coveredDocument ? coveredDocumentRef : densitySurfaceRef;
-  const hasDocumentPageLink = deepLinkedAttachmentId === coveredDocument?.id
-    && Number.isInteger(singlePageNumber) && singlePageNumber >= 1;
-  const stageOwnsReadingScroll = Boolean(coveredDocument) && !hasDocumentPageLink;
-  // Start remembering the complete flow as soon as the cover mounts, so a
-  // PDF that finishes loading later cannot reset an in-progress scroll.
-  useDocumentReadingScroll(stageOwnsReadingScroll && !isImmersive, densitySurfaceRef,
-    `${viewerMemoryKey}:cover-pdf:${coveredDocument?.id ?? ''}`);
+  const pageSurfaceRef = densitySurfaceRef;
+  const linkedReadingPart = orderedReading ? attachments.find(attachment => attachment.id === deepLinkedAttachmentId) : undefined;
+  const linkedReadingPage = linkedReadingPart?.kind === 'image' ? 1
+    : Number.isSafeInteger(singlePageNumber) && singlePageNumber >= 1 ? singlePageNumber : 1;
+  useDocumentReadingScroll(orderedReading && !isImmersive, pageSurfaceRef,
+    `${viewerMemoryKey}:ordered-pages`, linkedReadingPart ? linkedReadingPage : null, linkedReadingPart?.id);
   const backSwipe = useProjectBackSwipe(densitySurfaceRef, {
     enabled: isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && !mobilePopup && active?.kind !== 'model3d',
     scope: `${projectId}:${active?.id ?? ''}`,
@@ -622,41 +638,47 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>;
-  const activeMedia = active ? <AttachmentRenderer verticalReading={isVerticalReading} manageReadingScroll={!stageOwnsReadingScroll} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
-          state: processing.resolveState(active),
-          message: processing.resolveMessage(active),
-          canRetry: processing.canRetry(active),
-          isRetrying: processing.retrying.includes(active.id),
-          onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={showEngagement} isOwner={isOwner && !readOnlyShare} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia;
-  const cover = imagePages.find((image) => image.isCover) ?? imagePages[0];
-  const documentIndex = coveredDocument ? attachments.indexOf(coveredDocument) : -1;
-  const beforeDocument = coveredDocument
-    ? [cover, ...attachments.slice(0, documentIndex).filter((image) => image !== cover)]
-    : [];
-  const afterDocument = coveredDocument
-    ? attachments.slice(documentIndex + 1).filter((image) => image !== cover)
-    : [];
-  const renderReadingImages = (images: ProjectAttachment[]) => images.length > 0 && (
-    <ol data-project-cover-images="" hidden={isImmersive} className="m-0 list-none p-0">
-      {images.map((image) => {
-        const pageNumber = imagePages.indexOf(image) + 1;
-        return <ImagePage key={image.id} projectId={projectId} attachment={image}
-          pageNumber={pageNumber} pageCount={imagePages.length}
-          priorityCount={image === cover ? pageNumber : 0} isMobile showMediaInteractions={false} />;
-      })}
-    </ol>
-  );
+  const rendererProps = (attachment: ProjectAttachment): React.ComponentProps<typeof AttachmentRenderer> => ({
+    projectId, projectTitle, attachment, artwork, onClose, onDocumentPageCountResolved,
+    processing: {
+      state: processing.resolveState(attachment),
+      message: processing.resolveMessage(attachment),
+      canRetry: processing.canRetry(attachment),
+      isRetrying: processing.retrying.includes(attachment.id),
+      onRetry: () => void processing.retry(attachment.id),
+    },
+    controlsVisible: areControlsVisible, showMediaInteractions: showEngagement, isOwner: ownerReader,
+    memoryScope: viewerMemoryScope,
+  });
+  const activeMedia = active ? <AttachmentRenderer {...rendererProps(active)} verticalReading={isVerticalReading}
+    imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1}
+    onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange}
+    pageViewToggleRequest={pageViewToggleRequest} /> : emptyMedia;
+  const readingPartPreviews = orderedReading ? Object.fromEntries(attachments.map(attachment => [attachment.id, {
+    sources: attachment.kind === 'image' ? [attachment.sourceUrl] : (attachment.metadata?.renderedPages ?? []).filter(page => Boolean(page.sourceUrl)).map(page => page.sourceUrl),
+    document: readingDocuments?.scope === previewScope ? readingDocuments.documents[attachment.id] : undefined,
+  }])) : undefined;
+  const renderReadingPart = (attachment: ProjectAttachment) => {
+    const isImage = attachment.kind === 'image';
+    const count = isImage ? 1 : Math.max(attachment.metadata?.pageCount ?? 0, attachment.metadata?.renderedPages?.length ?? 0);
+    return <MobileReadingPart key={attachment.id} count={count || undefined}
+      hidden={focusedReadingPart !== null && focusedReadingPart !== attachment.id} focused={focusedReadingPart === attachment.id}
+      onFocus={handleReadingPartFocus} onPreview={handleReadingPreview} renderer={{
+        ...rendererProps(attachment), imageColumns: isImage ? 1 : mobilePagesPerRow,
+        verticalReading: true, manageReadingScroll: false,
+        memoryScope: isImage ? `${viewerMemoryScope}:part:${attachment.id}` : viewerMemoryScope,
+      }} />;
+  };
   return <MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
-      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} showProgress={isReadingHeader && !isImmersive} segmentedProgress={!readOnlyShare} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(pageSurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={pageSurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
+      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} showProgress={isReadingHeader && !isImmersive} segmentedProgress={!readOnlyShare} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(pageSurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={pageSurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} readingPartPreviews={readingPartPreviews} />}
 
-      {showEngagement && isMobileViewer && !isImmersive && active?.kind === 'document' && pageTarget && <MediaInteractionBar key={`${previewScope}:${currentPage}`} target={pageTarget} contextOnly isOwner={isOwner && !readOnlyShare} pageCount={contextPosition?.total ?? pageCount ?? undefined} />}
+      {showEngagement && isMobileViewer && !isImmersive && (orderedReading || active?.kind === 'document') && pageTarget && <MediaInteractionBar key={`${pageTarget.attachmentId}:${currentPage}`} target={pageTarget} contextOnly isOwner={ownerReader} pageCount={currentPosition?.attachmentTotal ?? contextPosition?.total ?? pageCount ?? undefined} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
-          {renderReadingImages(beforeDocument)}
-          {isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
+          {orderedReading ? [...attachments].sort((first, second) => first.order - second.order).map(renderReadingPart)
+            : isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
             videos={videoSequence.entries} creator={creator} activeId={`${projectId}:${active.id}`} onSelect={entry => {
               updateViewerMemory(`${viewerMemoryScope}:project:${entry.projectId}`, { activeAttachmentId: entry.attachment.id });
               if (entry.projectId === projectId) setActiveId(entry.attachment.id);
@@ -667,9 +689,7 @@ export function ProjectMediaViewer({
                 state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
                 isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),
               } : undefined} onClose={onClose} />} /> : isMobileViewer && active?.kind === 'video' ? <div className="mobile-video-single"><MobileVideoFrame creator={creator} sourceTitle={projectTitle}>{activeMedia}</MobileVideoFrame></div>
-            : coveredDocument ? <div ref={coveredDocumentRef} className={isImmersive ? 'h-full min-h-0' : undefined}>{activeMedia}</div>
             : activeMedia}
-          {renderReadingImages(afterDocument)}
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
@@ -687,7 +707,7 @@ export function ProjectMediaViewer({
         {/* Images collapse to a single entry, because they are now read as pages
            of one piece — listing each of them here would offer a way to step
            through something that is already continuous. */}
-        {!coveredDocument && switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="side-panel-control-row side-panel-content-inset shrink-0 overflow-x-auto border-t border-[var(--hairline)] py-2">
+        {!orderedReading && switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="side-panel-control-row side-panel-content-inset shrink-0 overflow-x-auto border-t border-[var(--hairline)] py-2">
           {switchable.map((attachment) => {
           const Icon = KIND_ICONS[attachment.kind];
           // Any image being shown means the whole image sequence is being shown,
@@ -838,4 +858,20 @@ export function ProjectMediaViewer({
         </div>
       </>}</MediaCommentsPopover>}
     </div></MobilePageContext.Provider>;
+}
+function MobileReadingPart({ renderer, count, hidden, focused, onFocus, onPreview }: {
+  renderer: React.ComponentProps<typeof AttachmentRenderer>;
+  count?: number;
+  hidden: boolean;
+  focused: boolean;
+  onFocus: (id: string, focused: boolean) => void;
+  onPreview: (id: string, document: PdfDocument | null) => void;
+}) {
+  const { id, kind } = renderer.attachment;
+  const reportFocus = useCallback((value: boolean) => onFocus(id, value), [id, onFocus]);
+  const reportPreview = useCallback((document: PdfDocument | null) => onPreview(id, document), [id, onPreview]);
+  return <section data-project-reading-part={id} data-project-reading-count={count} hidden={hidden} className={focused ? 'h-full min-h-0' : undefined}>
+    <AttachmentRenderer {...renderer} onFocusModeChange={reportFocus}
+      onPreviewDocument={kind === 'document' ? reportPreview : undefined} />
+  </section>;
 }

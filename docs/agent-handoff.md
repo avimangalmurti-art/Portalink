@@ -1,3 +1,9 @@
+## 2026-11-12 — Mobile continuous project reader
+
+Worktree `logs/mobile-ordered-project-reader` on `codex/mobile-ordered-project-reader` builds on local commit `663b5f6`. The mobile platform and public catalogue project readers put images and PDFs in stored attachment order on one vertical scroll surface. Each image occupies one page and PDF pages continue the project counter. Page actions keep their attachment and local page identity. Ordinary links land on the linked attachment and page after layout settles, and taking over the scroll cancels that alignment. Explicit focused page links and desktop file tabs retain their behavior.
+
+The change is scoped to the media renderer, shared mobile reader styles, catalogue reading links, and focused regressions. Typecheck and all 161 focused tests passed. Lint passed with existing warnings, and the production build verified the main and visitor bundle configurations. Chromium passed seven cases with the actual reader and synthetic attachments at 390px, 420px, and 1280px, including delayed PDF.js rendering, touch scrolling, and desktop tabs. Receipts are in `logs/ordered-reader-checks` and `logs/ordered-reader-qa`. Physical iPhone testing and deployment remain pending. No migrations or service changes.
+
 ## 2026-11-11 — Mobile Home weekly card Earth background
 
 Worktree `logs/mobile-weekly-reads-earth` on `codex/mobile-weekly-reads-earth` builds on the local Home video autoplay commit `57ced0b3ee847715824c9eba9ecd56def486aa4d`. Mobile Weekly Reads uses the original moving Earth backdrop cropped from the top 620 rows of the supplied portrait splash, clear of the mascot in every frame. The blurred 432×248 WebP runs for 12 seconds and loops. Reduced Motion uses a matched still. The mobile card no longer contains the foreground character, and the neutral action buttons retain their existing positions and behavior.
