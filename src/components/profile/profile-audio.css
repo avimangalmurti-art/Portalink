@@ -34,9 +34,9 @@
 .profile-audio-wave i:nth-child(3) { height: 21px; }
 .profile-audio-wave i:nth-child(4) { height: 15px; }
 .profile-audio-wave i:nth-child(5) { height: 10px; }
-:is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i { animation: profile-audio-wave 690ms ease-in-out infinite alternate; }
-:is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i:nth-child(2n) { animation-delay: -350ms; }
-:is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i:nth-child(3n) { animation-delay: -180ms; }
+:is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i { animation: profile-audio-wave calc(var(--m-loading-cycle) / 2) ease-in-out infinite alternate; }
+:is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i:nth-child(2n) { animation-delay: calc(var(--m-loading-cycle) / -4); }
+:is(.profile-audio-shortcut, .profile-audio-cover)[data-playing] .profile-audio-wave i:nth-child(3n) { animation-delay: calc(var(--m-loading-cycle) / -8); }
 
 @keyframes profile-audio-wave {
   from { transform: scaleY(.45); }

@@ -1,5 +1,7 @@
 ## 2026-11-12 — Mobile profile audio
 
+Release preparation: draft PR #164 contains the profile audio changes. The first candidate, Sites 614 at `c311d71`, was saved for the existing site. GitHub's motion test flagged a hard-coded waveform duration, so the release candidate uses an existing motion token. Automatic approval review blocked the separate production SQL operation. The database migration, live website deployment, and Portalite track upload are pending. Sites 613 remains live. See ignored `logs/profile-audio-release-receipt.json` for the release IDs and archive verification.
+
 The playback follow-up keeps a single native audio element alive across in-app navigation. Closing the panel and viewing non-video projects leave playback running. The active video reader suspends it, then resumes at the same position if the listener still wants playback. Manual pause persists when the audio panel is reopened. The outgoing video is paused before the track resumes. Account changes and owner removal or replacement release the old source.
 
 Chrome verified the full recording with real media elements and simulated video opening and closing. Mounted reader tests cover video selection, retained screens, and returning to non-video content on both catalogue paths. The build, typecheck, lint and 263 focused checks passed. See ignored `logs/profile-audio-lifecycle-qa/receipt.log` and `logs/audio-lifecycle-*.log`. The playback changes are local and use the existing pending profile audio migration.
