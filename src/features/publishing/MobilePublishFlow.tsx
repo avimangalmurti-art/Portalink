@@ -17,7 +17,7 @@ import { TITLE_MAX_LENGTH, validateTitle } from './validation';
 import { canBeCover } from './assetTypes';
 import { usePresentation } from '../../presentation/usePresentation';
 
-export type MobilePublishStep = 'files' | 'details';
+type MobilePublishStep = 'files' | 'details';
 type Flow = ReturnType<typeof usePublishProject>;
 
 /** Presentation steps share the existing draft, validation and upload lifecycle. */
@@ -25,7 +25,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
   closing?: boolean;
   detailsFirst?: boolean;
   onboarding?: boolean;
-  firstProject?: { name: string; categories: string[]; onSkip: () => void };
+  firstProject?: boolean;
   flow: Flow;
   editingStep: MobilePublishStep;
   onEditingStepChange: (step: MobilePublishStep) => void;
@@ -183,7 +183,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
         {(flow.upload.failure || flow.upload.cleanupError) && <div className="mobile-review-transport"><MediaPicker compact media={flow.media} upload={flow.upload} disabled /></div>}
       </div>}
   </>;
-  return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" data-onboarding-publish={onboarding || undefined} data-cover-step={stage === 'files' || undefined} data-details-step={stage === 'details' || undefined} data-review-step={stage === 'review' || undefined} data-first-project={Boolean(firstProject) || undefined} aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
+  return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" data-onboarding-publish={onboarding || undefined} data-cover-step={stage === 'files' || undefined} data-details-step={stage === 'details' || undefined} data-review-step={stage === 'review' || undefined} data-first-project={firstProject || undefined} aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
     {!singleHeading && <ol className="mobile-publish-progress" aria-label="Upload steps">
       {(detailsFirst ? ['Details', 'Files', 'Review'] : ['Files', 'Details', 'Review']).map((label, stepIndex) => <li key={label} aria-current={stepIndex === index ? 'step' : undefined} data-complete={stepIndex < index || undefined}>
         <span aria-hidden="true">{stepIndex < index ? <CheckIcon size={14} /> : stepIndex + 1}</span>{label}

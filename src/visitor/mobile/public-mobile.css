@@ -1493,19 +1493,6 @@
   line-height: 1;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions {
-  display: grid;
-  flex: 0 0 auto;
-  min-width: 54px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions > button {
-  min-height: 44px;
-  padding-inline: 4px;
-}
-
 #root .codex-shell[data-presentation='mobile'] [data-profile-hold-reorder] [data-preview-open] {
   -webkit-touch-callout: none;
   -webkit-user-select: none;

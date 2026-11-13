@@ -512,12 +512,6 @@ export type Location = {
   /** Real stored coordinates, used to orient the city's globe. */
   latitude: number;
   longitude: number;
-  /**
-   * Location identity accent, resolved from the id via `getCityAccentToken`.
-   * Identity only — never status. Optional so a location without a mapping
-   * renders on the neutral fallback token.
-   */
-  accentToken?: string;
 };
 
 /* ── Commerce ───────────────────────────────────────────────────────────── */

@@ -22,6 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
 import { GripVerticalIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { usePresentation } from '../../presentation/usePresentation';
 import { SingleTouchSensor } from '../../presentation/mobile/SingleTouchSensor';
 
@@ -122,8 +123,11 @@ function SortableWallCard({
           <div className={isReordering ? 'pointer-events-none w-full select-none' : 'w-full'}>
             {item.content}
           </div>
-          {isReordering ? <span aria-hidden="true" className="pointer-events-none absolute right-2 top-2 z-30 inline-flex h-7 items-center gap-1 rounded-full bg-[var(--surface-raised)] px-2 text-[10px] font-semibold tabular-nums text-[var(--accent-text)] shadow-[var(--shadow-pop)]">
-              <GripVerticalIcon className="h-3.5 w-3.5" />
+          {isReordering ? <span aria-hidden="true" data-ui-shape={isMobile ? 'capsule' : undefined}
+            className={`pointer-events-none absolute right-2 top-2 z-30 inline-flex items-center gap-1 bg-[var(--surface-raised)] tabular-nums ${isMobile
+              ? 'h-6 border border-[var(--hairline)] px-[5px] text-xs leading-none text-[var(--text-primary)]'
+              : 'h-7 rounded-full px-2 text-[10px] font-semibold text-[var(--accent-text)] shadow-[var(--shadow-pop)]'}`}>
+              {isMobile ? <InterfaceIcon icon={GripVerticalIcon} size="xs" weight="medium" /> : <GripVerticalIcon className="h-3.5 w-3.5" />}
               {itemIndex + 1}
             </span> : null}
         </div>

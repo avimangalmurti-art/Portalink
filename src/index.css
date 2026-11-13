@@ -1618,18 +1618,6 @@ button[data-portalink-tile],
   /* Live connection status on Portalink's own dark canvas. Status only — never
      used as an accent or an identity colour. */
   --portalink-status-live: #2BFF6A;
-  /* Location identity accents. A city resolves to one of these through the
-     stable mapping in data/cityAccents.ts; the planet component only ever reads
-     --city-accent / -soft / -strong. Deliberately separate from success,
-     warning, danger, and focus, which never carry location identity. */
-  --location-accent-1: #FFA426;
-  --location-accent-2: #17D4A0;
-  --location-accent-3: #4C8DFF;
-  --location-accent-4: #FF5C5C;
-  --location-accent-5: #E6D22A;
-  --location-accent-6: #A66BFF;
-  --location-accent-7: #22C7E8;
-  --location-accent-8: #FF5FB0;
   /* Geographic marker grammar. Semantic purpose only — no token here names a
      city, a coordinate, or a screen position. Background geography stays quiet
      and neutral; only a navigable city may resolve a location accent. */

@@ -2328,19 +2328,6 @@
   box-shadow: var(--shadow-pop);
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions {
-  display: grid;
-  flex: 0 0 auto;
-  min-width: 54px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions > button {
-  min-height: 44px;
-  padding-inline: 4px;
-}
-
 #root .codex-shell[data-presentation='mobile'] [data-profile-hold-reorder] [data-preview-open] {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -6075,23 +6062,10 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   margin-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
   z-index: 60;
   display: flex;
-  flex-direction: row-reverse;
   justify-content: space-between;
   align-items: center;
   height: 56px;
   background: var(--surface-canvas);
-  font-size: 16px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions > button {
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: 12px;
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-}
-#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions > button:first-child {
-  background: var(--accent-primary);
-  color: var(--accent-foreground);
 }
 #root .codex-shell[data-presentation='mobile']:has(.app-screen-layer.screen-active [data-profile-reordering]) .mobile-context-floating {
   display: none;

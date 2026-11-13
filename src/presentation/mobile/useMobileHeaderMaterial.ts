@@ -1,8 +1,8 @@
 import { useLayoutEffect, type RefObject } from 'react';
 import { applyHeaderScrollUnderlaps, headerScrollUnderlaps } from '../headerScrollUnderlap';
 
-const STATIONARY = '.profile-header-region, .mobile-home-search-header, .portalink-world-header, [data-inbox-controls], [data-mobile-safe-header], .global-control-header, .studio-mobile-shell-header, .studio-citation-pills, .settings-page-header, .profile-editor-header, .account-search-header, [data-icon-create-header], .new-portal-pinned-controls, [data-link-icon-pinned], .profile-link-icon-picker-pinned, .journey-month-calendar-toolbar';
-const HEADERS = `header, ${STATIONARY}, .journey-calendar-header, .account-welcome-heading`;
+const STATIONARY = '.profile-header-region, .mobile-home-search-header, .portalink-world-header, [data-inbox-controls], [data-mobile-safe-header], .global-control-header, .studio-mobile-shell-header, .studio-citation-pills, .settings-page-header, .profile-editor-header, .account-search-header, [data-icon-create-header], .new-portal-pinned-controls, [data-link-icon-pinned], .profile-link-icon-picker-pinned';
+const HEADERS = `header, ${STATIONARY}, .account-welcome-heading`;
 const SCROLLERS = '[data-screen-scroll], [class*="scroll"], [class*="overflow-y"], [data-mobile-scroll-end], [data-mobile-screen-underlay], [data-profile-pulling]';
 const SCREEN = '[role="dialog"], [data-profile-page], [data-messages-page], .studio-citation-shell, [data-mobile-home-search], .app-screen-layer, [data-screen-scroll]';
 const CONTENT = 'li, img, canvas, video, p, h1, h2, h3, input, textarea, button, a, [data-studio-row]';
@@ -26,9 +26,7 @@ export function headerHasUnderlap(header: HTMLElement, scroller: HTMLElement, sc
   const cached = contentByScroller?.get(scroller);
   const cachedRect = cached && contentRoot.contains(cached) ? cached.getBoundingClientRect() : undefined;
   const firstContent = cachedRect?.width && cachedRect.height ? cached : Array.from(contentRoot.querySelectorAll<HTMLElement>(CONTENT)).find(node => {
-    // Journey's calendar stays pinned below the profile header. Its month input
-    // is header foreground; the agenda determines when work reaches the glass.
-    if (header.contains(node) || node.closest('.sr-only, [hidden], [role="menu"], [role="status"], .journey-calendar-header')) return false;
+    if (header.contains(node) || node.closest('.sr-only, [hidden], [role="menu"], [role="status"]')) return false;
     if (node.closest('[role="dialog"]') !== header.closest('[role="dialog"]')) return false;
     const rect = node.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;

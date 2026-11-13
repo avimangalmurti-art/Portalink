@@ -279,7 +279,7 @@ function hooks() {
   }
   return { react, render, dispose: () => effects.forEach(effect => effect?.cleanup?.()) };
 }
-function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearance = appearance, appearanceStorage, systemDark = false } = {}) {
+function appHarness({ catalogueOrigin = null, deviceAppearance = appearance, appearanceStorage, systemDark = false } = {}) {
   const h = hooks(), assigned = [], replaced = [], navigations = [], queryCalls = [], requests = [];
   const navigate = (path, options) => navigations.push([path, options]);
   let pendingIntent = null;
@@ -318,7 +318,6 @@ function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearan
     if(name.endsWith('/projectContinuity'))return {beginProjectContinuity(){}};
     if (name === '../components/ui/RouteError') return {RouteError: 'RouteError', routeErrorKind: () => 'network'};
     if (name === './mobile/PublicActionSheet') return { PublicActionSheet: 'PublicActionSheet' };
-    if (name === './mobile/publicWelcome') return { ...load('visitor/mobile/publicWelcome.ts'), publicWelcomeCompleted: () => !firstVisit, completePublicWelcome() {} };
     if (name === '../features/sharing/shareModel') return shareModel;
     if (name === './useHandleRoute') return {useHandleRoute:route=>({route,pending:state.handlePending,error:state.handleError,retry(){}})};
     if (name === 'react') return h.react;
@@ -350,7 +349,7 @@ function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearan
 }
 
 test('cold public mobile visit shows the portfolio immediately and keeps the exact shared URL', () => {
-  const h = appHarness({ firstVisit: true });
+  const h = appHarness();
   h.state.location.search = '?via=friend'; h.state.location.hash = '#work';
   let tree = h.render();
   assert.ok(one(tree, 'VisitorProfileGrid'));

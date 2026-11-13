@@ -1,3 +1,11 @@
+## 2026-11-13 — Cleanup and mobile reorder release preparation
+
+Release branch `codex/cleanup-reorder-release` from GitHub main `e4a3358`. Combines the verified source cleanup, the four retired public asset deletions and the mobile profile and file reorder controls from their separate worktrees. The profile header uses the system Cancel and Done buttons. Both mobile views use compact order badges. The file ellipsis has a 28px visible backing, a 14px glyph and a 44 × 44px touch target.
+
+The retired public files total 1,898,114 bytes. Counts across the 33 production Supabase application tables, account metadata, Storage object metadata and the URL-bearing Sites D1 tables found zero references. Exact URL and filename searches found no indexed links, and the most recent 100 worker events showed no requests for these names. The current mobile splash remains. Earlier focused Chromium checks covered both reorder flows in light and dark with synthetic data and matched desktop baselines.
+
+The release contains no SQL or hosting configuration changes. Historical migrations already on main remain part of repository history. The original cleanup and reorder worktrees retain their local edits.
+
 ## 2026-11-13 — Fresh Supabase schema replay
 
 Local branch `codex/migration-replay` from GitHub `main` at `d9666d4`. Eight historically applied SQL files moved unchanged into the numbered migrations. The existing October citation migration can now find the Journey columns when replayed from an empty database. The [migration register](migration-status.md) records the order and the [development workflow](development-workflow.md#rebuild-the-database-locally) shows how to run the replay. The change adds a regression to the existing Node suite and updates the fixtures and SQL file paths used by the related tests and scripts.
