@@ -20,6 +20,7 @@ import { useMobileScreenActions, useMobileContextPress } from '../presentation/m
 import { contextActions, type ContextAction } from '../presentation/mobile/contextActions';
 import { MobileActionSheet } from './messages/MobileActionSheet';
 import { useServices } from '../contexts/ServicesContext';
+import type { TimelinePair } from '../services/interfaces';
 import { portfolioPath } from '../features/sharing/shareModel';
 import { copyPublicLink } from '../utils/copyPublicLink';
 import { useMenuFocus } from '../hooks/useMenuFocus';
@@ -426,12 +427,15 @@ export function UserProfilePage({
   const journey = useJourneySelection(profile.id, auth.viewerProfileId, false);
   const canSeeJourney = journeyAllowed(profile, showsOwnerTools);
   const [pairSelection, setPairSelection] = useState<string | null>(null);
+  const [pairEdit, setPairEdit] = useState<{ profileId: string; pair: TimelinePair } | null>(null);
+  const editingPair = isMobile && pairEdit?.profileId === profile.id ? pairEdit.pair : undefined;
   const startHereId = showsOwnerTools ? searchParams.get('startHere') : null;
   const startHereSelection = profile.projects.find(project => project.id === startHereId);
   const closeStartHere = () => setSearchParams(previous => {const next = new URLSearchParams(previous);next.delete('startHere');return next;},{replace:true});
   const requestedPair = showsOwnerTools ? searchParams.get('journeyPair') : null;
-  const pairOpen = pairSelection !== null || Boolean(requestedPair && profile.projects.some(p => p.id === requestedPair));
+  const pairOpen = editingPair || pairSelection !== null || Boolean(requestedPair && profile.projects.some(p => p.id === requestedPair));
   const closePair = () => {
+    setPairEdit(null);
     setPairSelection(null);
     if (requestedPair) setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete('journeyPair'); return next; }, { replace: true });
   };
@@ -932,7 +936,7 @@ export function UserProfilePage({
       {!mobileContent && activeView === 'projects' && <EmployerOverview profile={profile} onOpen={project => onOpenProject(project.id,project.categoryId)} />}
       {!isMobile && !webProfileHeader && canSeeJourney && !mobileContent && !isJourney && <JourneyToggle view="portfolio" disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} />}
       <main id="profile-content" data-profile-empty-work={imageryCells.length === 0 && !showsOwnerTools && !isSharedView ? '' : undefined} data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
-        {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView toolbarHost={isMobile?timelineToolbarHost:null} profile={profile} owner={showsOwnerTools} onOpen={project => onOpenProject(project.id, project.categoryId)} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, isMobile ? undefined : 'journey') : undefined} onEditDescription={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'description') : undefined} onDelete={showsOwnerTools ? project => projectManagement.deletion.request(project.id) : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} /></Suspense> : isMobileWall || nestedMobileContent ? <>
+        {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView toolbarHost={isMobile?timelineToolbarHost:null} profile={profile} owner={showsOwnerTools} onOpen={project => onOpenProject(project.id, project.categoryId)} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, isMobile ? undefined : 'journey') : undefined} onEditDescription={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'description') : undefined} onDelete={showsOwnerTools ? project => projectManagement.deletion.request(project.id) : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} onEditPair={showsOwnerTools && isMobile ? pair => setPairEdit({ profileId: profile.id, pair }) : undefined} /></Suspense> : isMobileWall || nestedMobileContent ? <>
           {isMobile && <div className="mobile-profile-wall scrollbar-overlay" hidden={!isMobileWall} style={!isMobileWall ? { display: 'none' } : undefined} aria-hidden={!isMobileWall || mobilePortalOverlay ? true : undefined} onScroll={event => {
             mobileWallScroll.current.top = event.currentTarget.scrollTop;
             mobileWallScrollMemory?.save(event.currentTarget.scrollTop);
@@ -950,7 +954,7 @@ export function UserProfilePage({
           {!isMobileWall && nestedMobileContent}
         </> : nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid shared={isSharedView} profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : projectWall)}
       </main>
-      {showsOwnerTools && pairOpen && <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closePair }}><Suspense fallback={null}><ThenNowDialog key={pairSelection ?? requestedPair} profile={profile} selectedId={pairSelection || requestedPair || undefined} onClose={closePair} /></Suspense></DeferredSurfaceOwnerContext.Provider>}
+      {showsOwnerTools && pairOpen && <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closePair }}><Suspense fallback={null}><ThenNowDialog key={editingPair ? `edit:${editingPair.id}` : pairSelection ?? requestedPair} profile={profile} selectedId={pairSelection || requestedPair || undefined} editingPair={editingPair} onClose={closePair} /></Suspense></DeferredSurfaceOwnerContext.Provider>}
       {showsOwnerTools && !isSharedView && projectManagement.editor.mode !== 'description' ? <ProjectEditorDialog management={projectManagement} /> : null}
       {showsOwnerTools && !isSharedView && projectManagement.deletion?.projectId && <DeleteProjectDialog management={projectManagement} projectTitle={profile.projects.find(project => project.id === projectManagement.deletion.projectId)?.title ?? 'Project'} onDeleted={projectManagement.deletion.cancel} />}
     </div>;

@@ -39,6 +39,7 @@ function componentHarness(file, name, initial, overrides = {}) {
     './JourneyCalendar': { JourneyCalendar: 'journey-calendar' },
     '../../components/text/FormattedText': { FormattedText: 'formatted-text' },
     '../../components/ui/InterfaceIcon': { InterfaceIcon: 'icon' },
+    '../../components/ui/Button': { Button: 'button' },
     '../../components/ui/DeferredDialog': { DeferredDialog: 'dialog' },
     '../../components/media/MobileProjectPopup': { MobileProjectPopup: 'project-popup' },
     '../../components/media/ProjectCover': { ProjectCover: 'project-cover' },
@@ -617,6 +618,43 @@ test('WEB never enables automatic Then/Now tracking or changes its selected orde
  assert.equal(sortButton(h,'Newest first').props['aria-pressed'],true); assert.equal(timelineRows(h).length,2);
  sortButton(h,'Oldest first').props.onClick(); h.frames(); assert.equal(sortButton(h,'Oldest first').props['aria-pressed'],true);
  assert.equal(h.sectionOptions.enabled,false); assert.equal(timelineRows(h).length,2); assert.deepEqual(h.scrolls,[]); h.dispose();
+});
+
+test('mobile owners can edit the specific pair while visitors and desktop keep their existing controls', () => {
+ const early=project('early','2020-01-01'), recent=project('recent','2026-01-01'), other=project('other','2025-01-01');
+ const viewed={...profile,showJourney:true,projects:[early,recent,other]};
+ const pairs=[{id:'legacy',then:early.id,now:recent.id},{id:'second',then:other.id,now:recent.id}];
+ const edits=[], opened=[], focus=[];
+ const saveOrder=async()=>{};
+ let manages=0;
+ const h=componentHarness('src/features/journey/JourneyView.tsx','JourneyView',{
+   profile:viewed,owner:true,presentation:'mobile',onOpen:project=>opened.push(project.id),
+   onPair:()=>manages++,onEditPair:record=>edits.push(record),
+ },{
+   './useTimelinePairs':{useTimelinePairs:()=>({pairs,error:'',loading:false,saveOrder})},
+ });
+ const edit=()=>h.nodes.filter(node=>node.type==='button' && node.props.children==='Edit pair');
+ assert.equal(edit().length,2);
+ const second=h.button('Edit pair: other and recent');
+ assert.equal(second.props['aria-haspopup'],'dialog');
+ second.props.onClick({currentTarget:{focus:options=>focus.push(options.preventScroll)}});
+ assert.deepEqual(edits,[pairs[1]]);
+ assert.deepEqual(focus,[true]);
+ h.button('Open Then: other').props.onClick();
+ assert.deepEqual(opened,[other.id]);
+ const reorder=()=>sortButton(h,'Reorder pairs');
+ assert.equal(reorder(),undefined);
+ sortButton(h,'Then/Now').props.onClick();
+ assert.equal(reorder().props['aria-haspopup'],'dialog');
+ reorder().props.onClick({currentTarget:{focus:options=>focus.push(options.preventScroll)}});
+ assert.ok(h.nodes.some(node=>node.props.saveOrder===saveOrder));
+ h.update({owner:false}); assert.equal(edit().length,0);
+ sortButton(h,'Then/Now').props.onClick(); assert.equal(reorder(),undefined);
+ h.update({owner:true,presentation:'web'}); assert.equal(edit().length,0);
+ assert.equal(reorder(),undefined);
+ h.nodes.find(node=>node.props.children==='Manage pairs').props.onClick();
+ assert.equal(manages,1);
+ h.dispose();
 });
 
 test('automatic Then/Now indication returns to Popular without refetching counts or replacing its ranked rows',async()=>{

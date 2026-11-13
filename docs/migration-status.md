@@ -1,3 +1,11 @@
+## Pending review — custom Then/Now pair order (2026-11-13)
+
+[`supabase/pending/profile_timeline_pair_order.sql`](../supabase/pending/profile_timeline_pair_order.sql) is unapplied. It adds a position table and an owner-only transactional save. Reader access follows pair visibility. Deletion clears stored positions for both saved and legacy pairs. A disposable PostgreSQL test verified replacement order, rollback on invalid IDs, non-owner denial, public visibility and cleanup. The SQL SHA256 is `d6ada131c6a653beaa379d3013eb5573ab9e17df473105db49e5ae2f5ccd7a54`.
+
+## Pending review — edit existing Then/Now pairs (2026-11-13)
+
+[`supabase/pending/profile_timeline_pair_edit.sql`](../supabase/pending/profile_timeline_pair_edit.sql) is unapplied. It grants authenticated users update access to the two project ID columns and restricts updates to the pair owner and two visible projects on that profile. Pair IDs, creation order, legacy profile data, and existing constraints stay in place. A disposable PostgreSQL check applied the transaction twice and verified ownership, visibility, duplicate rejection, and preservation of pair identity. The SQL SHA256 is `dd95bc0d1f45199302d5f838f3930d60c23de26ca363ca15f97a738fe2ba3161`.
+
 ## Pending review — retire new repost writes (2026-11-03)
 
 `supabase/pending/retire_reposts.sql` is **unapplied**. The requested repost removal is implemented locally in both presentations, project/page action boundaries, activity routes, discovery signals and the existing Sites worker. The pending SQL adds one invoker trigger to reject new or retargeted project repost rows while preserving historical rows, tables, policies, grants and supported interactions. It does not delete data, alter the legacy summary RPC contract, or modify migration history.

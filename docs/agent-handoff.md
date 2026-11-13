@@ -1,3 +1,19 @@
+## 2026-11-13 — Reorder Then/Now pairs on mobile
+
+Local branch `codex/timeline-pair-edit` from GitHub main `f63fad3`. Profile owners with multiple pairs can open Timeline → Then/Now → Reorder pairs, move cards with up/down controls and save. Back discards the draft. `JourneyView.tsx`, `ThenNowDialog.tsx`, `journey.css`, and `useTimelinePairs.ts` keep pair order separate from project roles and the Timeline date sort. Desktop and shared catalogue readers show the same saved order.
+
+Typecheck, the fixture-configured build, 105 focused tests and diff checks passed. Scoped lint had zero errors and four existing warnings. Mobile Chromium at 420 × 912 light and 390 × 844 dark verified legacy and saved pairs, cancellation, save retry, focus restoration and reload with simulated persistence. Mobile visitor and 1366 × 900 desktop scenarios verified the saved order with their existing controls. Disposable PostgreSQL verified atomic saves, owner-only writes, public visibility and cleanup. The order migration and the edit migration below remain pending. No production SQL, source publication or deployment was performed.
+
+Release preparation confirmed Sites 623 on the Portalink domain and checked the live Supabase schema in read-only mode. Both pending migrations are absent. PostgreSQL 17.6 has the required tables, owner and visibility helpers, and private legacy-pair deletion path. These checks used catalog metadata only.
+
+## 2026-11-13 — Edit Then/Now pairs on mobile
+
+Local branch `codex/timeline-pair-edit` from GitHub main `f63fad3`. A creator can edit a pair directly from their mobile Timeline. The existing chooser opens with both projects preselected, validates changes, and returns to Timeline after saving. Additional pairs are updated in place with their original identity and position. Legacy pairs use the existing profile field. Visitors have no edit action.
+
+The follow-up adds Delete pair to the mobile pair editor. Portalink's standard confirmation explains that both projects stay in the catalogue. Deletion uses the existing owner-only pair removal path, with failures shown in the confirmation for retry. No additional SQL is needed for deletion. Typecheck, scoped lint, 38 focused follow-up tests, and mobile Chromium scenarios passed. See `logs/timeline-pair-edit-qa/deletion-receipt.jsonl` for cancel, Back, and targeted deletion using the simulated service.
+
+Typecheck, the fixture-configured build, and 108 focused checks passed, including the pending SQL in disposable PostgreSQL. Chromium at 420 × 912 light and 390 × 844 dark confirmed prefilled choices, cancel, save, retained order and focus, and no edit action for a visitor. The browser used a local fixture with actual profile and editor components. Scoped lint reported zero errors and four existing warnings. The staged `supabase/pending/profile_timeline_pair_edit.sql` is required before publishing editing for additional pairs. No production SQL or deployment was performed.
+
 ## 2026-11-13 — Shared catalogue loading and Now Playing artwork
 
 Integrated the two fixes on `codex/mobile-catalogue-loading-appearance`, based on GitHub main `bb5e027`. `ProfileAudio.tsx` supplies the viewed creator's avatar, title, and artist to the browser's Now Playing controls on profiles and shared catalogues. The in-page player uses the track's selected cover. Profile exit and project video playback release the audio artwork. Isolated Chromium verified the mobile platform and shared catalogue with autoplay and desktop with manual Play. Playback tests cover first-touch start, artwork refresh, video suspension, and profile exit. The iPhone lock screen needs a device check.
