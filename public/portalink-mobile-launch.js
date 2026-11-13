@@ -39,7 +39,7 @@
   splash.setAttribute('aria-label', 'Opening Portalink');
   Object.assign(splash.style, {
     position: 'fixed', inset: '0', zIndex: '1002', display: 'grid', placeItems: 'center',
-    backgroundColor: '#fdffff',
+    backgroundColor: entry === 'catalogue' ? 'var(--shared-catalogue-canvas)' : '#fdffff',
   });
 
   const still = '/portalink-launch-still.webp?v=0e55dfbd';

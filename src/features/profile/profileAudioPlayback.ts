@@ -1,4 +1,5 @@
-type AudioSource = { key: string; url: string };
+type NowPlayingArtwork = { avatar: string; title: string; artist: string };
+export type ProfileAudioSource = { key: string; url: string; artwork?: NowPlayingArtwork };
 
 type ProfileAudioSnapshot = {
   key: string | null;
@@ -22,6 +23,8 @@ let request = 0;
 let starting = false;
 let openVideos = 0;
 let playbackAccount: string | null | undefined;
+let artwork: NowPlayingArtwork | undefined;
+let publishedMetadata: MediaMetadata | null = null;
 const listeners = new Set<() => void>();
 
 export function subscribeProfileAudio(listener: () => void) {
@@ -59,7 +62,34 @@ function update(changes: Partial<ProfileAudioSnapshot>) {
 
 function playError(message: string, needsGesture = false) {
   starting = false;
+  clearNowPlayingArtwork();
   update({ playing: false, wantsPlayback: false, needsGesture, error: message });
+}
+
+function clearNowPlayingArtwork() {
+  if (!publishedMetadata) return;
+  const session = navigator.mediaSession;
+  if (session?.metadata === publishedMetadata) session.metadata = null;
+  publishedMetadata = null;
+}
+
+function publishNowPlayingArtwork() {
+  if (typeof navigator === 'undefined' || typeof MediaMetadata === 'undefined') return;
+  const session = navigator.mediaSession;
+  if (!session) return;
+  if (!artwork) {
+    clearNowPlayingArtwork();
+    return;
+  }
+  try {
+    const { title, artist, avatar } = artwork;
+    const metadata = new MediaMetadata({ title, artist, artwork: [{ src: avatar }] });
+    session.metadata = metadata;
+    publishedMetadata = metadata;
+  } catch {
+    // Invalid or unsupported artwork should never prevent audio playback.
+    clearNowPlayingArtwork();
+  }
 }
 
 function getAudio() {
@@ -110,6 +140,7 @@ function playAudio() {
   if (!audio || !snapshot.wantsPlayback || snapshot.videoOpen) return;
   const pending = ++request;
   starting = true;
+  publishNowPlayingArtwork();
   void audio.play().then(() => {
     if (pending === request) starting = false;
   }).catch((error: unknown) => {
@@ -120,26 +151,35 @@ function playAudio() {
   });
 }
 
-export function startProfileAudio({ key, url }: AudioSource) {
-  if (snapshot.key === key) return;
+export function startProfileAudio({ key, url, artwork: nextArtwork }: ProfileAudioSource) {
+  const artworkChanged = artwork?.avatar !== nextArtwork?.avatar
+    || artwork?.title !== nextArtwork?.title
+    || artwork?.artist !== nextArtwork?.artist;
+  artwork = nextArtwork;
+  if (snapshot.key === key) {
+    if (artworkChanged && !snapshot.videoOpen && (snapshot.wantsPlayback || publishedMetadata)) publishNowPlayingArtwork();
+    return;
+  }
   const player = getAudio();
   pauseAudio();
+  clearNowPlayingArtwork();
   player.src = url;
   update({ key, wantsPlayback: true, needsGesture: false, position: 0, duration: 0, error: null });
   playAudio();
 }
 
-export function retryProfileAudioOnGesture(source: AudioSource) {
+export function retryProfileAudioOnGesture(source: ProfileAudioSource) {
   if (snapshot.key === source.key && snapshot.needsGesture && !snapshot.videoOpen) {
     toggleProfileAudio(source);
   }
 }
 
-export function toggleProfileAudio(source: AudioSource) {
+export function toggleProfileAudio(source: ProfileAudioSource) {
   if (snapshot.key !== source.key) {
     startProfileAudio(source);
     return;
   }
+  artwork = source.artwork;
   if (snapshot.wantsPlayback) {
     update({ wantsPlayback: false });
     pauseAudio();
@@ -175,6 +215,8 @@ export function setProfileAudioVolume(volume: number) {
 export function clearProfileAudio(key?: string) {
   if (!snapshot.key || (key && key !== snapshot.key)) return;
   pauseAudio();
+  clearNowPlayingArtwork();
+  artwork = undefined;
   audio?.removeAttribute('src');
   audio?.load();
   update({ ...empty, videoOpen: snapshot.videoOpen, volume: snapshot.volume });
@@ -193,6 +235,7 @@ export function suspendProfileAudioForVideo() {
   openVideos++;
   if (openVideos === 1) {
     pauseAudio();
+    clearNowPlayingArtwork();
     update({ videoOpen: true });
   }
   let released = false;

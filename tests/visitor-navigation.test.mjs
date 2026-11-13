@@ -371,6 +371,7 @@ test('a slow mobile Catalogue uses the loading indicator until its content arriv
   const indicator = tree => nodes(tree).find(node => node.props['aria-label'] === 'Opening shared catalogue');
   const waiting = h.render();
   assert.equal(indicator(waiting)?.props.role, 'status');
+  assert.ok(indicator(waiting)?.props.className.includes('bg-[var(--codex-workspace-bg)]'));
   assert.equal(one(waiting, 'loading'), undefined);
 
   h.state.presentation = 'web';

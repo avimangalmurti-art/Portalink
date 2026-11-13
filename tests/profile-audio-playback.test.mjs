@@ -5,11 +5,13 @@ import { sourceModule } from './helpers/source-module.mjs';
 
 const track = { key: 'creator/track', url: 'https://audio.test/track.m4a' };
 const otherTrack = { key: 'another-creator/track', url: 'https://audio.test/another-track.m4a' };
+const artwork = { avatar: 'https://images.test/creator-avatar.png', title: 'Profile track', artist: 'Creator' };
 
-function createPlayback({ autoplayAllowed = true, adjustableVolume = true } = {}) {
+function createPlayback({ autoplayAllowed = true, adjustableVolume = true, mediaSessionSupported = false } = {}) {
   let canPlay = autoplayAllowed;
   const players = [];
   const attempts = [];
+  const mediaSession = mediaSessionSupported ? { metadata: null } : undefined;
 
   class AudioFixture extends EventTarget {
     paused = true;
@@ -54,14 +56,85 @@ function createPlayback({ autoplayAllowed = true, adjustableVolume = true } = {}
     }
   }
 
+  class MediaMetadataFixture {
+    constructor({ title, artist, artwork: images }) {
+      this.title = title;
+      this.artist = artist;
+      this.artwork = Array.from(images, ({ src }) => ({ src: new URL(src).href }));
+    }
+  }
+
   return {
-    ...sourceModule('src/features/profile/profileAudioPlayback.ts', {}, { Audio: AudioFixture, DOMException, queueMicrotask }),
+    ...sourceModule('src/features/profile/profileAudioPlayback.ts', {}, {
+      Audio: AudioFixture, DOMException, queueMicrotask,
+      navigator: { mediaSession }, MediaMetadata: mediaSessionSupported ? MediaMetadataFixture : undefined,
+    }),
     attempts,
     players,
+    mediaSession,
     get player() { return players.find(player => player.preload === 'metadata'); },
     grantPlayback() { canPlay = true; },
   };
 }
+
+test('Now Playing uses the profile avatar and refreshes it without restarting playback', async () => {
+  const playback = createPlayback({ mediaSessionSupported: true });
+  playback.startProfileAudio(track);
+  await setImmediate();
+  assert.equal(playback.mediaSession.metadata, null);
+
+  playback.startProfileAudio({ ...track, artwork });
+  assert.deepEqual(playback.mediaSession.metadata.artwork, [{ src: artwork.avatar }]);
+  assert.equal(playback.mediaSession.metadata.title, artwork.title);
+  assert.equal(playback.mediaSession.metadata.artist, artwork.artist);
+  const nextArtwork = { ...artwork, avatar: 'https://images.test/updated-avatar.png' };
+  playback.startProfileAudio({ ...track, artwork: nextArtwork });
+  assert.deepEqual(playback.mediaSession.metadata.artwork, [{ src: nextArtwork.avatar }]);
+  assert.equal(playback.attempts.length, 1);
+
+  playback.toggleProfileAudio({ ...track, artwork: nextArtwork });
+  assert.deepEqual(playback.mediaSession.metadata.artwork, [{ src: nextArtwork.avatar }]);
+  playback.startProfileAudio(otherTrack);
+  assert.equal(playback.mediaSession.metadata, null);
+});
+
+test('an eligible first tap publishes Now Playing artwork, which yields to video and clears on profile exit', async () => {
+  const playback = createPlayback({ autoplayAllowed: false, mediaSessionSupported: true });
+  const source = { ...track, artwork };
+  playback.startProfileAudio(source);
+  await setImmediate();
+  assert.equal(playback.mediaSession.metadata, null);
+  assert.equal(playback.getProfileAudioSnapshot().needsGesture, true);
+
+  playback.grantPlayback();
+  playback.retryProfileAudioOnGesture(source);
+  assert.deepEqual(playback.mediaSession.metadata.artwork, [{ src: artwork.avatar }]);
+  await setImmediate();
+
+  const leaveVideo = playback.suspendProfileAudioForVideo();
+  assert.equal(playback.mediaSession.metadata, null);
+  const updatedArtwork = { ...artwork, avatar: 'https://images.test/avatar-during-video.png' };
+  playback.startProfileAudio({ ...source, artwork: updatedArtwork });
+  assert.equal(playback.mediaSession.metadata, null);
+  leaveVideo();
+  await setImmediate();
+  assert.deepEqual(playback.mediaSession.metadata.artwork, [{ src: updatedArtwork.avatar }]);
+  assert.equal(playback.getProfileAudioSnapshot().playing, true);
+
+  playback.clearProfileAudioForProfile('creator');
+  assert.equal(playback.mediaSession.metadata, null);
+});
+
+test('unavailable Media Session and invalid artwork still allow playback', async () => {
+  const unsupported = createPlayback();
+  const invalid = createPlayback({ mediaSessionSupported: true });
+  unsupported.startProfileAudio({ ...track, artwork });
+  invalid.startProfileAudio({ ...track, artwork: { ...artwork, avatar: 'https://[' } });
+  await setImmediate();
+  assert.equal(unsupported.getProfileAudioSnapshot().playing, true);
+  assert.equal(invalid.getProfileAudioSnapshot().playing, true);
+  assert.equal(invalid.mediaSession.metadata, null);
+});
 
 test('volume support probes a separate source-free element without changing active playback', async () => {
   const playback = createPlayback();

@@ -81,7 +81,7 @@ test('mobile fallback contains the supplied clip as an infinite animation, not a
   assert.equal(createHash('sha256').update(clip).digest('hex').slice(0,8),'9c1a9457');
 });
 
-function staticLaunch({ pathname, mobile = true, entry = 'catalogue' }) {
+function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark = false, mode = 'auto' }) {
   const html = readFileSync(new URL('../share.html', import.meta.url), 'utf8');
   const appearanceScript = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
     .find(([, script]) => script.includes('data-mobile-project-launch'))[1];
@@ -117,8 +117,8 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue' }) {
   const listeners = new Map();
   const window = {
     location: { pathname },
-    matchMedia: query => ({ matches: mobile && query === '(max-width: 639px)' }),
-    localStorage: { getItem: () => null },
+    matchMedia: query => ({ matches: query === '(max-width: 639px)' ? mobile : query === '(prefers-color-scheme: dark)' && systemDark }),
+    localStorage: { getItem: key => key === 'portalinknetworks.interfaceAppearance.mobile' ? JSON.stringify({ mode }) : null },
     addEventListener: (name, fn) => listeners.set(name, fn),
     removeEventListener: name => listeners.delete(name),
     dispatchEvent: event => events.push(event.type),
@@ -158,10 +158,21 @@ test('catalogue and installed Home keep their branded launch and desktop project
     assert.equal(root.hasAttribute('data-mobile-project-launch'), false);
     assert.equal(body.children[0]?.getAttribute('aria-label'), 'Opening Portalink');
     assert.match(body.children[0].children[0].src, /portalink-launch-animation\.webp/);
+    assert.equal(body.children[0].style.backgroundColor, options.entry === 'home' ? '#fdffff' : 'var(--shared-catalogue-canvas)');
   }
   const { root, body } = staticLaunch({ pathname: '/portalite/c/design/project', mobile: false });
   assert.equal(root.hasAttribute('data-mobile-project-launch'), false);
   assert.equal(body.children.length, 0);
+});
+
+test('shared catalogue launch resolves appearance before mounting, honoring a viewer override', () => {
+  for (const [systemDark, mode, expected] of [[true, 'auto', 'dark'], [false, 'dark', 'dark'], [true, 'light', 'light']]) {
+    const { root, body, theme } = staticLaunch({ pathname: '/portalite', systemDark, mode });
+    assert.equal(root.dataset.appearance, expected);
+    assert.equal(root.style.colorScheme, expected);
+    assert.equal(theme.getAttribute('content'), expected === 'dark' ? '#000000' : '#ffffff');
+    assert.equal(body.children[0].style.backgroundColor, 'var(--shared-catalogue-canvas)');
+  }
 });
 
 test('both entry documents version the shared launch script by content', () => {
