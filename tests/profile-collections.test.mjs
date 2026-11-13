@@ -107,7 +107,6 @@ function hookHarness(withCounts = false) {
   const { useProfileConnections } = compile('../src/features/follows/useProfileConnections.ts', (name) => {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
-    if (name === './ui/Button') return { Button: 'button' };
     if (name === 'react') return react;
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ user: { id: accountId } }) };
     if (name.endsWith('/ServicesContext')) return { useServices: () => ({ social }) };
@@ -210,6 +209,7 @@ function profileHarness(search = '', options = {}) {
       }
     }, useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; }, useMemo: (fn) => fn() };
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
+    if (name === './ui/Button') return { Button: 'button' };
     if (name.endsWith('/MobileBackNavigation')) return { ScreenBack: 'ScreenBack', useMobileScreenActive: () => options.screenActive ?? true };
     if (name.endsWith('/projectContinuity')) return { focusMobileProjectOrigin: root => options.onProjectOriginFocus?.(root) };
     if (name.endsWith('/mobileCatalogueScroll')) return { repairMobileCatalogueScroll() {}, observeMobileCatalogueScroll: () => () => {} };
