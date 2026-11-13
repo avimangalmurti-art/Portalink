@@ -107,6 +107,7 @@ function hookHarness(withCounts = false) {
   const { useProfileConnections } = compile('../src/features/follows/useProfileConnections.ts', (name) => {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
+    if (name === './ui/Button') return { Button: 'button' };
     if (name === 'react') return react;
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ user: { id: accountId } }) };
     if (name.endsWith('/ServicesContext')) return { useServices: () => ({ social }) };
