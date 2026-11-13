@@ -1,3 +1,13 @@
+## 2026-11-13 — Then/Now released in Sites 624
+
+See [the production release record](production-release.md) for the live source, rollback version, and numbered Supabase migrations. The production migration ledger matches the checked-in SQL byte for byte.
+
+Sites 624 published on [Portalink](https://portalinknetworks.com) from `1fe45038300010b1d69925dc375864281a401e55` in [PR #169](https://github.com/avimangalmurti-art/Portalink/pull/169), with all five Quality jobs passing. Deployment `appgdep_6af7683ab2b08191a3ee044ce59b5ab1` succeeded at 19:42:59 UTC. The live home and Portalite shared entry matched the build, including 109 asset byte comparisons and both Timeline chunks.
+
+The user approved the two Then/Now SQL files. Supabase applied them and recorded versions `20261113193355` (edit) and `20261113194228` (order). Catalog checks verified the edit policy and column grants, order row-level security and its three policies, the RPC grants, and the legacy cleanup trigger.
+
+The signed-in 420 × 912 browser opened the editor with both projects selected, opened and canceled deletion, and moved a pair in the reorder draft. Back restored the published order. Public Chrome showed the same two pairs on desktop and mobile with no owner controls. The user separately approved one rollback-only production test. It verified saving an edit, persisting a new order, deleting saved and legacy pairs, preserving their projects, and hiding private pair data from anonymous readers. After rollback, the test confirmed that the temporary account, session, private profile, portal, projects, pairs, legacy record, and order entries were absent.
+
 ## 2026-11-13 — Reorder Then/Now pairs on mobile
 
 Local branch `codex/timeline-pair-edit` from GitHub main `f63fad3`. Profile owners with multiple pairs can open Timeline → Then/Now → Reorder pairs, move cards with up/down controls and save. Back discards the draft. `JourneyView.tsx`, `ThenNowDialog.tsx`, `journey.css`, and `useTimelinePairs.ts` keep pair order separate from project roles and the Timeline date sort. Desktop and shared catalogue readers show the same saved order.

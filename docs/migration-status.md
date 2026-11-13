@@ -1,10 +1,10 @@
-## Pending review — custom Then/Now pair order (2026-11-13)
+## Applied — Then/Now editing and order (2026-11-13)
 
-[`supabase/pending/profile_timeline_pair_order.sql`](../supabase/pending/profile_timeline_pair_order.sql) is unapplied. It adds a position table and an owner-only transactional save. Reader access follows pair visibility. Deletion clears stored positions for both saved and legacy pairs. A disposable PostgreSQL test verified replacement order, rollback on invalid IDs, non-owner denial, public visibility and cleanup. The SQL SHA256 is `d6ada131c6a653beaa379d3013eb5573ab9e17df473105db49e5ae2f5ccd7a54`.
+Supabase recorded the [editing migration](../supabase/migrations/20261113193355_profile_timeline_pair_edit.sql) as `20261113193355` and the [order migration](../supabase/migrations/20261113194228_profile_timeline_pair_order.sql) as `20261113194228`. The checked-in files match the SQL recorded in production byte for byte. Their original comments are preserved for that reason. The [production release record](production-release.md) identifies the published source and rollback version.
 
-## Pending review — edit existing Then/Now pairs (2026-11-13)
+The editing transaction grants owner updates of the two project ID columns for visible projects on the same profile. Its SHA256 is `dd95bc0d1f45199302d5f838f3930d60c23de26ca363ca15f97a738fe2ba3161`. The order transaction adds a position table, owner-only transactional save, visibility-scoped reads, and saved and legacy pair cleanup. Its SHA256 is `d6ada131c6a653beaa379d3013eb5573ab9e17df473105db49e5ae2f5ccd7a54`.
 
-[`supabase/pending/profile_timeline_pair_edit.sql`](../supabase/pending/profile_timeline_pair_edit.sql) is unapplied. It grants authenticated users update access to the two project ID columns and restricts updates to the pair owner and two visible projects on that profile. Pair IDs, creation order, legacy profile data, and existing constraints stay in place. A disposable PostgreSQL check applied the transaction twice and verified ownership, visibility, duplicate rejection, and preservation of pair identity. The SQL SHA256 is `dd95bc0d1f45199302d5f838f3930d60c23de26ca363ca15f97a738fe2ba3161`.
+Postflight confirmed the live edit policy and column grants, order row-level security and its three policies, the RPC grants for authenticated users only, and the enabled legacy cleanup trigger. Disposable PostgreSQL tests verified identity preservation, ownership, public visibility, rollback on invalid IDs, order replacement, and cleanup. A separately approved rollback-only production test also passed edit, delete, reorder, and full fixture cleanup assertions.
 
 ## Pending review — retire new repost writes (2026-11-03)
 

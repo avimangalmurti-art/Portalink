@@ -36,12 +36,12 @@ test('pairs enforce owner writes, visibility, duplicates and cascade and can be 
     const original = (await rows()).find(pair => pair.now_project_id === id(22));
     await assert.rejects(edit(original.id, 22, 23), { code: '42501' });
     await db.exec('reset role');
-    const pending = readFileSync(new URL('../supabase/pending/profile_timeline_pair_edit.sql', import.meta.url), 'utf8');
-    await db.exec(pending);
-    await db.exec(pending);
-    const pendingOrder = readFileSync(new URL('../supabase/pending/profile_timeline_pair_order.sql', import.meta.url), 'utf8');
-    await db.exec(pendingOrder);
-    await db.exec(pendingOrder);
+    const editMigration = readFileSync(new URL('../supabase/migrations/20261113193355_profile_timeline_pair_edit.sql', import.meta.url), 'utf8');
+    await db.exec(editMigration);
+    await db.exec(editMigration);
+    const orderMigration = readFileSync(new URL('../supabase/migrations/20261113194228_profile_timeline_pair_order.sql', import.meta.url), 'utf8');
+    await db.exec(orderMigration);
+    await db.exec(orderMigration);
     await asOwner(1);
     const { rows: [updated] } = await edit(original.id, 22, 23);
     assert.deepEqual(updated, { ...original, then_project_id: id(22), now_project_id: id(23) });
@@ -114,7 +114,7 @@ test('pairs enforce owner writes, visibility, duplicates and cascade and can be 
       );
       grant select on public.profile_journey_pairs to authenticated;`);
     await db.query('insert into public.profile_journey_pairs values ($1,$2)', [id(1), legacy]);
-    await db.exec(pendingOrder);
+    await db.exec(orderMigration);
     await db.query('update profiles set then_now=null where id=$1', [id(1)]);
     await asOwner(1);
     await saveOrder(['legacy']);
