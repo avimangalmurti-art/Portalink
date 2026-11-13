@@ -46,9 +46,27 @@
     <meta name="twitter:title" content="Catalogue | Portalink" />
     <meta name="twitter:description" content="Explore a creator's catalogue on Portalink." />
     <meta name="twitter:image" content="https://portalinknetworks.com/portalink-social-preview-centered.png" />
-    <style>html,body,#root{margin:0;width:100%;min-height:100%}body{background:inherit}html,html[data-appearance='light']{background:#fff;color:#1c1c1e}@media(prefers-color-scheme:dark){html{background:#000;color:#f5f5f7}}html[data-appearance='dark']{background:#000;color:#f5f5f7}</style>
     <style>
-      html[data-mobile-project-launch] { background: #000; color: #fff; }
+      html, body, #root { margin: 0; width: 100%; min-height: 100%; }
+      html {
+        --shared-catalogue-canvas: #fff;
+        background-color: var(--shared-catalogue-canvas);
+        color: #1c1c1e;
+      }
+      body { background-color: var(--shared-catalogue-canvas); }
+      @media (prefers-color-scheme: dark) {
+        html:not([data-appearance]) { --shared-catalogue-canvas: #000; color: #f5f5f7; }
+      }
+      html[data-appearance='dark'] { --shared-catalogue-canvas: #000; color: #f5f5f7; }
+      @media (max-width: 639px) {
+        /* Keep the scroll boundary on the catalogue's canvas in embedded browsers. */
+        html[data-shared-view] { overscroll-behavior-y: none; }
+      }
+      html[data-shared-view][data-mobile-project-launch] {
+        --shared-catalogue-canvas: #000;
+        background-color: var(--shared-catalogue-canvas);
+        color: #fff;
+      }
       html[data-mobile-project-launch] #portalink-mobile-launch {
         position: fixed;
         inset: 0;
@@ -95,7 +113,7 @@
         });
       })();
     </script>
-    <script defer src="/portalink-mobile-launch.js?v=1b0a8443" data-launch-entry="catalogue"></script>
+    <script defer src="/portalink-mobile-launch.js?v=1cbecab0" data-launch-entry="catalogue"></script>
   </head>
   <body>
     <div id="root"></div>

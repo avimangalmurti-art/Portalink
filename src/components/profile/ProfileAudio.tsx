@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AudioLinesIcon, PauseIcon, PlayIcon, RotateCcwIcon, RotateCwIcon, Volume1Icon, Volume2Icon, XIcon } from 'lucide-react';
 import {
   PROFILE_AUDIO_ACCEPT, PROFILE_AUDIO_COVER_ACCEPT, PROFILE_AUDIO_COVER_MAX_BYTES, PROFILE_AUDIO_MAX_BYTES,
@@ -7,7 +7,7 @@ import {
 import { readProfileAudioTags } from '../../features/profile/profileAudioTags';
 import {
   getProfileAudioSnapshot, retryProfileAudioOnGesture, seekProfileAudio, setProfileAudioVolume, startProfileAudio,
-  subscribeProfileAudio, supportsProfileAudioVolume, toggleProfileAudio,
+  subscribeProfileAudio, supportsProfileAudioVolume, toggleProfileAudio, type ProfileAudioSource,
 } from '../../features/profile/profileAudioPlayback';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -50,7 +50,7 @@ function formatAudioTime(seconds: number): string {
   return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${paddedSeconds}` : `${minutes}:${paddedSeconds}`;
 }
 
-function ProfileAudioPlayer({ source }: { source: { key: string; url: string } }) {
+function ProfileAudioPlayer({ source }: { source: ProfileAudioSource }) {
   const playback = useSyncExternalStore(subscribeProfileAudio, getProfileAudioSnapshot, getProfileAudioSnapshot);
   const [hasVolumeControl, setHasVolumeControl] = useState(false);
   useEffect(() => setHasVolumeControl(supportsProfileAudioVolume()), []);
@@ -119,7 +119,13 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
   const canEdit = Boolean(editable && onSave);
   const audioUrl = track?.enabled ? track.audioUrl : null;
   const playbackKey = audioUrl ? sourceKey ?? audioUrl : null;
-  const source = playbackKey && audioUrl ? { key: playbackKey, url: audioUrl } : null;
+  const title = track?.title || profileName;
+  const artist = track?.artist || profileName;
+  const source = useMemo<ProfileAudioSource | null>(() => playbackKey && audioUrl ? {
+    key: playbackKey,
+    url: audioUrl,
+    artwork: profileAvatar ? { avatar: profileAvatar, title, artist } : undefined,
+  } : null, [playbackKey, audioUrl, profileAvatar, title, artist]);
   const showShortcut = canEdit || Boolean(source);
   const editing = draft !== null;
   const player = Boolean(track && !editing && !confirmingRemove);
@@ -166,8 +172,13 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
     if (!isActive && isOpen.current) dismiss();
   }, [isActive, dismiss]);
   useEffect(() => {
-    if (presentation !== 'mobile' || !isActive || !playbackKey || !audioUrl) return;
-    const activeSource = { key: playbackKey, url: audioUrl };
+    if (!isActive || !source) return;
+    const activeSource = source;
+    if (presentation !== 'mobile') {
+      // Refresh the artwork for an existing desktop session without starting one.
+      if (getProfileAudioSnapshot().key === activeSource.key) startProfileAudio(activeSource);
+      return;
+    }
     startProfileAudio(activeSource);
 
     function retryOnGesture(event: Event) {
@@ -187,7 +198,7 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
       document.removeEventListener('touchend', retryOnGesture, true);
       if (sharedCatalogue) document.removeEventListener('pointerup', retryOnPointerUp, true);
     };
-  }, [presentation, isActive, playbackKey, audioUrl, sharedCatalogue]);
+  }, [presentation, isActive, source, sharedCatalogue]);
   useEffect(() => {
     if (visible) dialog.current?.focus({ preventScroll: true });
   }, [visible, editing, confirmingRemove]);

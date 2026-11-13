@@ -278,7 +278,7 @@ export function VisitorApp() {
   };
   const useCatalogueIndicator = presentation === 'mobile' && (catalogueRoute || (handlePending && !settings));
   const pending = mobileProjectRoute ? <ProjectOpeningLoader label="Opening shared project" /> : useCatalogueIndicator
-    ? <div className="grid min-h-[var(--mobile-viewport-height,100dvh)] place-items-center" role="status" aria-label="Opening shared catalogue">
+    ? <div className="grid min-h-[var(--mobile-viewport-height,100dvh)] place-items-center bg-[var(--codex-workspace-bg)]" role="status" aria-label="Opening shared catalogue">
         <span className="premium-media-loading-mark" aria-hidden="true" />
       </div>
     : <LoadingSkeleton kind={projectId || webCategoryRoute ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…" />;

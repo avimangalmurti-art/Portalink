@@ -1,3 +1,11 @@
+## 2026-11-13 — Shared catalogue loading and Now Playing artwork
+
+Integrated the two fixes on `codex/mobile-catalogue-loading-appearance`, based on GitHub main `bb5e027`. `ProfileAudio.tsx` supplies the viewed creator's avatar, title, and artist to the browser's Now Playing controls on profiles and shared catalogues. The in-page player uses the track's selected cover. Profile exit and project video playback release the audio artwork. Isolated Chromium verified the mobile platform and shared catalogue with autoplay and desktop with manual Play. Playback tests cover first-touch start, artwork refresh, video suspension, and profile exit. The iPhone lock screen needs a device check.
+
+Local branch `codex/mobile-catalogue-loading-appearance` from GitHub main `bb5e027`. The shared entry paints the document and branded launch backdrop from the viewer's resolved light or dark appearance. `VisitorApp.tsx` paints the catalogue spinner on the themed workspace surface. The public mobile document contains vertical overscroll where the browser honors it. The launch script hash changed in both HTML entries. Installed Home artwork and the black mobile project opener retain their existing appearance.
+
+Typecheck, scoped lint, diff check, a fixture-configured build, 195 focused tests, and four emitted-entry tests passed. At 420 × 912 in Chromium, the launch and centered indicator matched System Dark and both saved overrides with the JS entry and profile data delayed. The ready catalogue scrolled normally. Desktop kept its existing loader, and direct mobile project entry retained its black opening surface with Light selected. See ignored `logs/catalogue-loading-appearance-qa`. Instagram's native iPhone refresh area needs a physical device check. The change is local.
+
 ## 2026-11-12 — Shared catalogue audio gesture
 
 Local branch `codex/catalogue-audio-first-gesture` from GitHub main `558bcae`. The mobile shared catalogue also retries blocked audio on a trusted touch or pen pointer release. It uses passive listeners, leaves native scrolling in place, and retains the existing click and touchend fallback.
