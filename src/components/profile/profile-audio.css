@@ -25,17 +25,6 @@
   }
 }
 
-#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools .profile-link-icons .profile-audio-shortcut[data-needs-gesture] {
-  display: inline-flex;
-  width: auto;
-  justify-content: center;
-  gap: 6px;
-  padding-inline: 8px;
-  color: var(--accent-text);
-  font-size: 0.8125rem;
-  white-space: nowrap;
-}
-
 .profile-audio-wave {
   display: flex;
   align-items: center;
