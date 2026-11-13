@@ -1,6 +1,12 @@
-## 2026-11-12 — Mobile project opening
+## 2026-11-12 — Mobile project opening published in Sites 619
 
-Local on `codex/profile-audio` above Sites 618 source `aa84e0a`. The platform and shared catalogue use one centered system spinner on a black mobile viewport from project resolution through first visible content. Direct public project links use the same indicator before the app mounts. Once the project opens, the reader continues loading pages individually. Desktop readers and the regular Home and catalogue splash retain their existing behavior. No deployment or database change is included.
+PR #164 CI follow-up pins the public launch script to LF and uses its canonical content hash in both entries. The shared catalogue appearance test now supplies a browser pathname. Sites 619 remains at the deployed revision below.
+
+Sites 619 deployed `b167341d874bc27f5a62505d2cad6623cd2bd4d2` from `codex/profile-audio` (draft PR #164). The platform and shared catalogue use one centered system spinner on a black mobile viewport from project resolution through first visible content. Direct public project links use the same indicator before the app mounts. Once the project opens, the reader continues loading pages individually.
+
+The 666-file archive retained the existing worker, hosting configuration and all four D1 SQL files byte for byte. Three custom-domain routes and 109 live assets matched the deployed build. Release details are in the ignored `logs/mobile-project-opening-release-receipt.json`. This handoff is a local post-deployment receipt.
+
+Live 420 × 912 Chromium verified one centered spinner on black on the PUBLIC WORKS direct link, then the first page and reader controls appeared without JavaScript errors. The physical iPhone and live signed-in reader remain unverified.
 
 Typecheck, lint, production build, 422 focused tests, and four emitted-entry checks passed. At 420 × 912, isolated Chromium verified opening from the public catalogue, signed-in project routing, progressive processed-PDF pages, and retry after a first-image failure. Chromium also verified the handoff from the static indicator to the reader on both direct public URL forms with the built visitor entry delayed. A 1366 × 850 Chromium check covered the existing desktop reader. Browser receipts are in ignored `logs/reader-opening-qa`. Physical iPhone and in-app browser testing remain open.
 

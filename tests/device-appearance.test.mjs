@@ -311,6 +311,7 @@ test('shared catalogue preboot matches the platform mode and system color on eit
       const root = { dataset: {}, style: {} };
       const meta = new Map([['content', '#123456']]);
       const window = {
+        location: { pathname: '/portalite' },
         localStorage: { getItem: key => storage.get(key) ?? null },
         matchMedia: query => ({ matches: query.includes('639') ? width <= 639 : dark }),
       };
