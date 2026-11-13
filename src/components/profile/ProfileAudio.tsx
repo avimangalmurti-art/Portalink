@@ -175,11 +175,17 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
       if (sharedCatalogue && event.target instanceof Node && shortcut.current?.contains(event.target)) return;
       if (event.isTrusted && !isOpen.current) retryProfileAudioOnGesture(activeSource);
     }
+    function retryOnPointerUp(event: PointerEvent) {
+      // A touch release can grant activation through pointerup even if there is no click.
+      if (event.pointerType === 'touch' || event.pointerType === 'pen') retryOnGesture(event);
+    }
     document.addEventListener('click', retryOnGesture, true);
     document.addEventListener('touchend', retryOnGesture, { capture: true, passive: true });
+    if (sharedCatalogue) document.addEventListener('pointerup', retryOnPointerUp, { capture: true, passive: true });
     return () => {
       document.removeEventListener('click', retryOnGesture, true);
       document.removeEventListener('touchend', retryOnGesture, true);
+      if (sharedCatalogue) document.removeEventListener('pointerup', retryOnPointerUp, true);
     };
   }, [presentation, isActive, playbackKey, audioUrl, sharedCatalogue]);
   useEffect(() => {
