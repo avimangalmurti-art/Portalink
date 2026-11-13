@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { pgliteModulePath, replaySupabaseSchema } from './support/replay-supabase-schema.mjs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const journey = {};
@@ -79,15 +79,13 @@ test('only a missing shared_profile_bundle RPC permits the legacy reader', async
   assert.equal(available.status, 'available'); assert.equal(available.bundle, null);
 });
 
-const modulePath = process.env.PGLITE_MODULE_PATH ?? process.env.PGLITE_MODULE;
-test('isolated SQL covers public bundle, private fallback, immutable paths, revisions and privacy transitions', { skip: !modulePath }, async () => {
-  const { PGlite } = await import(pathToFileURL(modulePath).href);
-  const db = new PGlite();
-  const directory = new URL('../supabase/migrations/', import.meta.url);
+test('isolated SQL covers public bundle, private fallback, immutable paths, revisions and privacy transitions', { skip: !pgliteModulePath }, async () => {
+  const { db } = await replaySupabaseSchema();
   const setRole = async (role, account = null) => {
     await db.exec('reset role');
-    await db.query("select set_config('request.jwt.claim.sub',$1,false)", [account ? id(account) : '']);
-    await db.query("select set_config('request.jwt.claim.role',$1,false)", [role]);
+    await db.query("select set_config('request.jwt.claims',$1,false)", [JSON.stringify({
+      role, sub: account ? id(account) : null, session_id: account ? id(account + 100) : null,
+    })]);
     await db.exec(`set role ${role}`);
   };
   const bundle = async profile => (await db.query('select public.shared_profile_bundle($1) as value', [id(profile)])).rows[0].value;
@@ -97,37 +95,10 @@ test('isolated SQL covers public bundle, private fallback, immutable paths, revi
   const persist = async (value, expected) => (await db.query('select public.set_project_cover_thumbnail($1,$2,$3) as revision', [id(31), expected ?? await revision(), value])).rows[0].revision;
   const insertVariants = async value => { for (const variant of value.variants) await db.query('insert into storage.objects(bucket_id,name) values($1,$2)', [value.bucket, variant.path]); };
   try {
-    await db.exec(`
-      create role anon; create role authenticated; create role service_role bypassrls;
-      create schema auth; create schema storage; create schema realtime;
-      create table auth.users(id uuid primary key,email text);
-      create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
-      create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;
-      create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
-      create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,metadata jsonb default '{}',owner uuid,owner_id text);
-      create function storage.foldername(path text) returns text[] language sql immutable as $$select (string_to_array(path,'/'))[1:array_length(string_to_array(path,'/'),1)-1]$$;
-      create table realtime.messages(id uuid primary key default gen_random_uuid(),extension text);
-      create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;
-      alter table storage.objects enable row level security; alter table realtime.messages enable row level security;
-      grant usage on schema public,auth,storage,realtime to anon,authenticated,service_role;
-      grant select on storage.objects to anon; grant all on storage.objects to authenticated,service_role;
-      grant select,insert on realtime.messages to authenticated;
-      create publication supabase_realtime;
-      alter default privileges in schema public grant all on tables to anon,authenticated,service_role;
-    `);
-    // This legacy bundle fixture has no Auth sessions/PostgREST roles; immediate-session-revocation tests cover that migration separately.
-    for (const name of readdirSync(directory).filter(name => name.endsWith('.sql') && !name.startsWith('20261007') && name !== '202610120002_immediate_account_session_revocation.sql').sort()) {
-      // The timeline migration depends on Journey, which lives in pending/ rather
-      // than the numbered directory. Install its real prerequisite in this local DB.
-      if (name === '202610150002_profile_timeline_pairs.sql') await db.exec(read('../supabase/pending/profile_journey.sql'));
-      await db.exec(readFileSync(new URL(name, directory), 'utf8').replace(/create extension if not exists pgcrypto;/i, ''));
-    }
-    for (const name of ['cover_thumbnail_schema.sql', 'project_covers_public_bucket.sql', 'shared_profile_bundle.sql']) {
-      await db.exec(read(`../supabase/pending/${name}`)); await db.exec(read(`../supabase/pending/${name}`));
-    }
     for (const n of [1, 2]) {
       await db.query('insert into auth.users(id,email) values($1,$2)', [id(n), `bundle${n}@example.test`]);
-      await db.query('insert into profiles(id,account_id,name,handle,is_private) values($1,$2,$3,$4,$5)', [id(n + 10), id(n), `Profile ${n}`, `bundle_${n}`, n === 2]);
+      await db.query('insert into auth.sessions(id,user_id) values($1,$2)', [id(n + 100), id(n)]);
+      await db.query('insert into profiles(id,account_id,name,handle,is_private) values($1,$2,$3,$4,$5)', [id(n + 10), id(n), `Profile ${n}`, `bundle.${n}`, n === 2]);
       await db.query("insert into portfolio_categories(id,profile_id,label) values($1,$2,'Projects')", [id(n + 20), id(n + 10)]);
     }
     await db.query("insert into portfolio_categories(id,profile_id,label,is_hidden) values($1,$2,'Hidden',true)", [id(23), id(11)]);

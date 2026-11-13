@@ -18,7 +18,7 @@ test('profile audio metadata and immutable objects follow owner, enabled and pub
   const cover = `${profileId}/${id(22)}/cover.webp`;
   const replacement = `${profileId}/${id(23)}/audio.mp3`;
   const foreignPath = `${otherProfileId}/${id(24)}/audio.wav`;
-  const sql = readFileSync(new URL('../supabase/pending/profile_audio_tracks.sql', import.meta.url), 'utf8');
+  const sql = readFileSync(new URL('../supabase/migrations/202611120001_profile_audio_tracks.sql', import.meta.url), 'utf8');
 
   const setRole = async (role, accountId = null) => {
     await db.exec('reset role');

@@ -66,7 +66,7 @@ test('QR known text has valid finder/quiet-zone geometry and deterministic matri
  const digest=createHash('sha256').update(qr.toString({on:'1',off:'0',lf:'\n',pad:0})).digest('hex');assert.equal(digest,'d5383d4ee43128310bd407cbba7661241d11986b3e1ce592ed2b45e8a324e598');
 });
 test('pending registry protects lifecycle state, public visibility and90day expiry',()=>{
- const sql=readFileSync(new URL('../supabase/pending/profile_handle_addresses.sql',import.meta.url),'utf8');assert.match(sql,/revoke all on public.profile_handle_state from public,anon,authenticated/);assert.match(sql,/interval '90 days'/);assert.match(sql,/not p.is_private/);assert.match(sql,/a.expires_at>now\(\)/);assert.match(sql,/pg_advisory_xact_lock/);assert.match(sql,/to anon,authenticated/);
+ const sql=readFileSync(new URL('../supabase/migrations/202609300004_profile_handle_addresses.sql',import.meta.url),'utf8');assert.match(sql,/revoke all on public.profile_handle_state from public,anon,authenticated/);assert.match(sql,/interval '90 days'/);assert.match(sql,/not p.is_private/);assert.match(sql,/a.expires_at>now\(\)/);assert.match(sql,/pg_advisory_xact_lock/);assert.match(sql,/to anon,authenticated/);
 });
 
 test('worker distinguishes a transient handle lookup failure from a missing address', async () => {

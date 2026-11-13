@@ -16,4 +16,4 @@ Sites 624 uses these two applied Supabase migrations:
 
 The live ledger matched both checked-in SQL files byte for byte. Read-only production checks confirmed the edit policy and column grant, the order table and its three policies, the ordering RPC, and the legacy cleanup trigger. The previously approved rollback-only test verified editing, deleting, and reordering and confirmed removal of its temporary data. See [migration status](migration-status.md) for SQL checksums and test details.
 
-Rolling back the web release means selecting Sites 623. The two additive migrations can remain applied. Supabase changes require a separate review. A complete fresh database rebuild still needs the earlier baseline schema reconciled with numbered migration history.
+Rolling back the web release means selecting Sites 623. The two additive migrations can remain applied. See the [database migration register](migration-status.md) for the historical SQL restored to the local replay sequence and the separate hosted ledger review.

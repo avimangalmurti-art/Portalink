@@ -80,7 +80,7 @@ test('source integration keeps Portfolio separate, restores drafts and protects 
  assert.match(read('src/features/publishing/FirstProjectFiles.tsx'),/monthTouched = useRef\(Boolean\(flow.presetMadeIn/);
 });
 test('pending schema enforces pair ownership, shape, visibility and cleanup without adding a second learned field',()=>{
- const sql=read('supabase/pending/profile_journey.sql'),bundle=read('supabase/pending/shared_profile_bundle.sql');
+ const sql=read('supabase/migrations/202609300005_profile_journey.sql'),bundle=read('supabase/pending/shared_profile_bundle.sql');
  for(const pattern of [/show_journey boolean not null default false/,/then_now jsonb/,/then_now_caption text/,/story_answers jsonb/,/then_id=now_id/,/p.profile_id=new.id/,/not p.is_hidden and not c.is_hidden/,/for share of p,c/,/after update of is_hidden,category_id,profile_id,id or delete/,/revoke all on function public.clear_project_journey_pair/])assert.match(sql,pattern);
  assert.doesNotMatch(sql,/add column.*learned/);assert.match(bundle,/show_journey/);assert.match(bundle,/exists \(select 1 from visible_projects p/);assert.match(bundle,/to_jsonb\(p\) \? 'then_now_caption'/);
 });
