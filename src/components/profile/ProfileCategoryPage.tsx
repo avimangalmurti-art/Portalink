@@ -31,7 +31,7 @@ import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePan
 import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useAppRoute } from '../../app/useAppRoute';
-import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
+import { EmptyState, ErrorState, LoadingState, ProjectOpeningLoader } from '../ui/StateViews';
 import './web-reader-spacing.css';
 type ProfileCategoryPageProps = {
   profile: Profile;
@@ -586,7 +586,7 @@ export function ProfileCategoryPage({
       {isReaderLoading ? <section data-project-reader-loading="" style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-4" role="status" aria-live="polite" aria-label="Loading project">
         <span className="premium-media-loading-mark" aria-hidden="true" />
       </section> : !mobileIndexOnly && !showsOwnerTools && (arrangement.isLoading || arrangement.loadError) ? <section className="flex min-w-0 flex-1 items-center justify-center px-4" aria-label="Loading project">
-        {arrangement.isLoading ? <LoadingState label="Loading projects…" /> : <RouteError kind="network" creatorHandle={profile.handle} onBack={onBack} onHome={() => window.location.assign('/')} onCreator={() => window.location.assign(`${sharedReadOnly ? '/share' : '/p'}/${encodeURIComponent(profile.id)}`)} />}
+        {arrangement.isLoading ? (isMobile ? <ProjectOpeningLoader /> : <LoadingState label="Loading projects…" />) : <RouteError kind="network" creatorHandle={profile.handle} onBack={onBack} onHome={() => window.location.assign('/')} onCreator={() => window.location.assign(`${sharedReadOnly ? '/share' : '/p'}/${encodeURIComponent(profile.id)}`)} />}
       </section> : activeProject ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent" aria-label={`${activeProject.title} files`}>
           {/* Presentation follows each file's own media kind, never this
            category's format. */}

@@ -1,4 +1,4 @@
-import { LoadingSkeleton } from '../components/ui/StateViews';
+import { LoadingSkeleton, ProjectOpeningLoader } from '../components/ui/StateViews';
 import { RouteError, routeErrorKind } from '../components/ui/RouteError';
 import { SharedPortalPopup } from './mobile/SharedPortalPopup';
 import { handleFromPath, isPublicSharePath, portfolioPath, portfolioProjectPath } from '../features/sharing/shareModel';
@@ -20,6 +20,8 @@ import { resolveAccentTokens } from '../utils/accentTokens';
 import { resolveMacTokens } from '../utils/macTokens';
 import { resolveNavButtonTokens } from '../data/navButtonTokens';
 import { VisitorProfileGrid } from './VisitorProfileGrid';
+import { usePrepareProfileAudio } from '../components/profile/usePrepareProfileAudio';
+import { clearProfileAudioForProfile } from '../features/profile/profileAudioPlayback';
 import { useMobileProjectReturn } from './useMobileProjectReturn';
 import type { Profile } from '../types/domain';
 import type { PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
@@ -87,6 +89,9 @@ export function VisitorApp() {
   const deferredIntent = useRef<AuthIntent | null>(null);
   const interactiveSignIn = useRef(false), resumedRegistration = useRef<string | null>(null);
   const invalidShared = !settings && sharedShell && (!shared || !profileId || !isProfileId(profileId));
+  usePrepareProfileAudio(presentation === 'mobile' && !auth.isInitializing && route.kind === 'sharedProfile' && !settings
+    && !handlePending && !handleError && !invalidShared && isProfileId(route.profileId)
+    && new URLSearchParams(location.search).get('view') !== 'portals' ? route.profileId : null, auth.user?.id ?? null);
   const query = useSharedProfileQuery(invalidShared ? null : profileId, projectId, categoryId);
   const confirmedWebReader = useRef<{ scope: string; profile: Profile } | null>(null);
   const webReaderScope = presentation === 'web' && !settings && !handlePending && !handleError && !invalidShared
@@ -116,7 +121,9 @@ export function VisitorApp() {
   const systemGray = publicStyle?.systemGray ?? appearance.systemGray;
   const project = retainedWebReaderLoading ? undefined : profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
   const webCategoryRoute = presentation === 'web' && !settings && route.kind === 'sharedCategory';
-  const readerRoute = !settings && (Boolean(projectId) || webCategoryRoute);
+  const unresolvedProject = handlePending && /\/c\/[^/]+\/[^/]+\/?$/.test(location.pathname);
+  const mobileProjectRoute = presentation === 'mobile' && !settings && Boolean(projectId || unresolvedProject);
+  const readerRoute = !settings && (Boolean(projectId) || webCategoryRoute || mobileProjectRoute);
   const webCategoryReady = webCategoryRoute && !handlePending && !handleError && !invalidShared && query.status === 'ready'
     && profile?.id === profileId && !profile?.isPrivate && Boolean(profile?.categories.some(item => item.id === categoryId));
   const publicCategoryProjects = webCategoryReady && profile ? profile.projects.filter(item => item.categoryId === categoryId && item.isPubliclyVisible !== false) : [];
@@ -130,6 +137,10 @@ export function VisitorApp() {
   // Canonical handle replacement can briefly be unresolved; keep this trusted
   // session identity hidden until resolution confirms (or changes) the creator.
   const returnProfileId = profileId ?? (handlePending || handleError ? lastSharedRoute.current?.profileId : null);
+  useLayoutEffect(() => {
+    if (!returnProfileId) return;
+    return () => clearProfileAudioForProfile(returnProfileId);
+  }, [returnProfileId]);
   const catalogueScope = `${returnProfileId ?? ''}:${auth.user?.id ?? ''}`;
   const [portalNavigationRequest, setPortalNavigationRequest] = useState<{ scope: string } | null>(null);
   useEffect(() => {
@@ -266,7 +277,7 @@ export function VisitorApp() {
     onReduceTranslucencyChange: (value: boolean) => appearance.chooseAppearance({ reduceTranslucency: value }),
   };
   const useCatalogueIndicator = presentation === 'mobile' && (catalogueRoute || (handlePending && !settings));
-  const pending = useCatalogueIndicator
+  const pending = mobileProjectRoute ? <ProjectOpeningLoader label="Opening shared project" /> : useCatalogueIndicator
     ? <div className="grid min-h-[var(--mobile-viewport-height,100dvh)] place-items-center" role="status" aria-label="Opening shared catalogue">
         <span className="premium-media-loading-mark" aria-hidden="true" />
       </div>

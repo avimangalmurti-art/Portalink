@@ -325,6 +325,7 @@ function PdfImagePage({
     ref={hostRef}
     data-project-page-number={pageNumber}
     data-reach-attachment={attachmentId} data-project-page-ready={status === 'ready' && paintedPageNumber === pageNumber}
+    data-reader-media-state={status === 'failed' ? 'error' : status === 'ready' && paintedPageNumber === pageNumber ? undefined : 'pending'}
     data-project-page-total={document.numPages}
     data-focused-page-scroll={isFocused ? '' : undefined}
     data-focused-page-loading={retainCanvasWhileLoading && paintedPageNumber !== pageNumber ? '' : undefined}
@@ -637,7 +638,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, openPdfRange
         </button> : null}
         <FocusedPageCounter current={focusedPageNumber} total={pageCount} showMediaInteractions={showMediaInteractions} />
       </> : null}
-      {!document && <div data-page-loading="" data-initial-page-loading="" role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
+      {!document && <div data-page-loading="" data-reader-media-state="pending" data-initial-page-loading="" role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <span className="premium-media-loading-mark" aria-hidden="true" />
       <span className="sr-only">Preparing page images</span>
     </div>}

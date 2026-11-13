@@ -74,6 +74,7 @@ function fixture({ presentation = 'mobile', path = '/', restored = null, restora
   const { AuthProvider } = sourceModule('src/contexts/AuthContext.tsx', {
     react: runtime.react, './ServicesContext': { useServices: () => ({ auth: service }) }, '../types/auth': authTypes,
     '../utils/passwordRecoveryReturn': { isPasswordRecoveryReturn: () => recoveryReturn, clearPasswordRecoveryReturn() {} },
+    '../features/profile/profileAudioPlayback': { setProfileAudioAccount() {} },
   }, { window: { location: { href: state.location.href } }, document, HTMLElement: class {} });
   const navigate = (destination, options) => {
     navigations.push([destination, plain(options ?? {})]);

@@ -847,7 +847,8 @@ export function UserProfilePage({
                 </div>}
             </div>}
           {!isJourney && <div data-mobile-profile-links="" className={webVisitorHeader ? 'min-w-0 flex-[1_1_176px]' : 'w-full min-w-0 basis-full'}>
-            <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onCollaboration={onCollaboration} onMessage={onMessage} />
+            <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onCollaboration={isMobile ? undefined : onCollaboration} onMessage={onMessage}
+              profileAudio={{ profileId: profile.id, accountId: auth.user?.id ?? null, profileAvatar: profile.avatar, editable: showsOwnerTools, active: screenActive && !mobileProjectSelected && !nestedMobileContent }} />
           </div>}
           {/* Owner actions use the same popup on desktop and mobile. */}
           {!isSharedView && !showsOwnerTools && <div data-profile-visitor-actions="" className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">

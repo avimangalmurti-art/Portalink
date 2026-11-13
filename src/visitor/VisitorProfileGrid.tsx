@@ -90,7 +90,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       {!isJourney && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
           <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} isSharedView onOpenBio={() => setBioOpen(true)} onCollaboration={onCollaboration}
-            onMessage={onMessage} /></div>
+            onMessage={onMessage} profileAudio={{ profileId: profile.id, accountId: auth.user?.id ?? null, profileAvatar: profile.avatar, editable: false, active: active && !auth.isInitializing && !categoryId && !portalsView }} /></div>
         </div>
       </header>}
       {isMobile && isJourney && <div className="timeline-header-controls" ref={setTimelineToolbarHost} />}

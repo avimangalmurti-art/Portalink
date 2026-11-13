@@ -1,4 +1,33 @@
 /* Shared by the separate platform and public entries; only MOBILE changes. */
+html:has(#root .codex-shell[data-presentation='mobile'] [data-project-opening-loader]) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-opening-loader] {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: #000;
+  color-scheme: dark;
+  touch-action: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-opening-loader] > .premium-media-loading-mark {
+  --text-secondary: #f5f5f7;
+}
+
+#root .codex-shell[data-presentation='mobile']:has(.app-viewport--reduce-motion) [data-project-opening-loader] > .premium-media-loading-mark {
+  animation: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-opening='true'] [data-project-stage] .premium-media-loading-mark {
+  visibility: hidden;
+  animation-play-state: paused;
+}
+
 /* Video creator rows start below Back with the standard control gap. */
 [data-presentation='mobile'] :is(.mobile-video-single, .mobile-video-sequence) {
   padding-block: calc(var(--reader-controls-top) + var(--mobile-control-size) + var(--mobile-control-group-gap))
@@ -9,6 +38,20 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-content-action-bar {
   border-radius: var(--ui-capsule-radius);
   overflow: hidden;
+}
+
+#root .codex-shell .mobile-content-action-bar .reader-info-glyph {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace !important;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
 }
 
 /* Return with the main dock's quick fade, retaining the existing hide motion. */

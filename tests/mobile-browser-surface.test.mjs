@@ -26,7 +26,7 @@ function events() {
 function harness(withMetadata = true) {
   const tags = [];
   const media = events(), observers = [];
-  let welcome = null, inviteSplash = null;
+  let welcome = null, inviteSplash = null, projectOpening = null;
   class MutationObserver {
     constructor(callback) { this.callback = callback; this.active = false; observers.push(this); }
     observe() { this.active = true; }
@@ -42,7 +42,8 @@ function harness(withMetadata = true) {
   if (withMetadata) tags.push(meta({ content: '#ffffff', media: '(prefers-color-scheme: light)' }),
     meta({ content: '#000000', media: '(prefers-color-scheme: dark)' }));
   const document = { ...events(), visibilityState: 'visible', documentElement: { dataset: {}, style: style() }, body: { style: style() },
-    querySelector: selector => selector.includes('data-portalink-invite-splash') ? inviteSplash : welcome,
+    querySelector: selector => selector.includes('data-portalink-invite-splash') ? inviteSplash
+      : selector.includes('data-project-opening-loader') ? projectOpening : welcome,
     querySelectorAll: selector => { assert.equal(selector, 'meta[name="theme-color"]'); return tags; },
     createElement: () => meta(), head: { appendChild: tag => tags.push(tag) } };
   const window = { ...events(), matchMedia: () => media }, slots = [], pendingEffects = [], frame = {};
@@ -52,7 +53,7 @@ function harness(withMetadata = true) {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText;
   vm.runInNewContext(source, { exports, document, window, MutationObserver, getComputedStyle: element => {
-    if (element === welcome || element === inviteSplash) return { backgroundColor: element.color, colorScheme: element.scheme };
+    if (element === welcome || element === inviteSplash || element === projectOpening) return { backgroundColor: element.color, colorScheme: element.scheme };
     assert.equal(element, frame);
     return { getPropertyValue: name => { assert.equal(name, '--codex-workspace-bg'); return token; }, colorScheme };
   },
@@ -69,6 +70,7 @@ function harness(withMetadata = true) {
   return { document, window, tags, media, observers,
     setWelcome(color, scheme = 'dark') { welcome = color ? { color, scheme } : null; },
     setInviteSplash(visible) { inviteSplash = visible ? { color: 'rgb(253, 255, 255)', scheme: 'light' } : null; },
+    setProjectOpening(visible) { projectOpening = visible ? { color: 'rgb(0, 0, 0)', scheme: 'dark' } : null; },
     changeWelcome(color, scheme) { welcome.color = color; welcome.scheme = scheme; return welcome; },
     mutate: (records = []) => observers.filter(observer => observer.active).forEach(observer => observer.callback(records)),
     setColor: (color, scheme = color === '#ffffff' ? 'light' : 'dark') => { token = color; colorScheme = scheme; },
@@ -121,6 +123,19 @@ test('the visible invite splash keeps the browser light until the next surface t
   h.mutate();
   assert.equal(h.document.body.style.colorScheme, 'dark');
   assert.ok(h.tags.every(tag => tag.getAttribute('content') === 'rgb(44, 44, 46)'));
+  h.dispose();
+});
+
+test('opening a project uses a black browser canvas until the reader is ready', () => {
+  const h = harness();
+  h.setColor('#ffffff');
+  h.render('mobile');
+  h.setProjectOpening(true); h.mutate();
+  assert.equal(h.document.body.style.getPropertyValue('background-color'), 'rgb(0, 0, 0)');
+  assert.equal(h.tags[0].getAttribute('content'), 'rgb(0, 0, 0)');
+  h.setProjectOpening(false); h.mutate();
+  assert.equal(h.document.body.style.getPropertyValue('background-color'), '#ffffff');
+  assert.equal(h.tags[0].getAttribute('content'), '#ffffff');
   h.dispose();
 });
 

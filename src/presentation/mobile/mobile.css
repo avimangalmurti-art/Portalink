@@ -3437,57 +3437,6 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   aspect-ratio: var(--page-loading-ratio, 8.5 / 11);
 }
 
-/* The opening loader fills the phone, not just the future page rectangle.
-   Keep the page's layout reservation; paint below the fixed controls. Once any
-   page is ready, later lazy pages and retries must never cover readable work.
-   Its single indicator replaces the page glyph only while this mask is active. */
-#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view])) .premium-media-loading-mark {
-  visibility: hidden;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::before {
-  --opening-loader-fill: color-mix(in srgb, var(--surface-sunken) 86%, var(--surface-raised));
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  /* Material tokens may be translucent; composite onto the canvas so the
-     original page placeholder cannot show through as a second rectangle. */
-  background: linear-gradient(var(--opening-loader-fill), var(--opening-loader-fill)), var(--surface-canvas);
-}
-
-#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::after {
-  content: '';
-  position: fixed;
-  top: calc(50dvh - 9px);
-  left: calc(50% - 9px);
-  z-index: 2;
-  width: 18px;
-  height: 18px;
-  border: 2px solid color-mix(in srgb, var(--text-secondary) 26%, transparent);
-  border-top-color: var(--text-secondary);
-  border-radius: 50%;
-  pointer-events: none;
-  animation: premium-media-spin var(--m-loading-spin) linear infinite;
-}
-
-@supports ((mask-image: none) or (-webkit-mask-image: none)) {
-  #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::after {
-    border: 0;
-    border-radius: 0;
-    background: var(--text-secondary);
-    -webkit-mask: var(--loading-indicator-mask) center / contain no-repeat;
-    mask: var(--loading-indicator-mask) center / contain no-repeat;
-    forced-color-adjust: none;
-    animation: premium-media-spin var(--m-loading-spin) steps(8) infinite;
-  }
-}
-:where([data-presentation='mobile']) .app-viewport--reduce-motion [data-mobile-page-reader]::after { animation: none !important; }
-
-@media (prefers-reduced-motion: reduce) {
-  #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]::after { animation: none; }
-}
-
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-project-stage] {
   padding-top: var(--mobile-content-safe-top);
 }

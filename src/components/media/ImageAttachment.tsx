@@ -109,7 +109,7 @@ export function ImagePage({
     return () => window.clearTimeout(timeout);
   }, [attempt, shouldRender, status]);
   if (!attachment.sourceUrl) {
-    return <div className="flex items-center justify-center p-8">
+    return <div data-reader-media-state="error" className="flex items-center justify-center p-8">
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
@@ -142,12 +142,12 @@ export function ImagePage({
   }} className={`${isFocused ? 'flex h-full min-h-0 w-full items-start justify-start overflow-auto overscroll-contain' : 'block touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
     aspectRatio: `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}`
   } : undefined}>
-      {!shouldRender ? <div data-page-loading="" style={loadingStyle} className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
+      {!shouldRender ? <div data-page-loading="" data-reader-media-state="pending" style={loadingStyle} className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
       {shouldRender ? <>
-      {status === 'loading' && <div data-page-loading="" data-initial-page-loading={pageNumber === 1 ? '' : undefined} style={loadingStyle} role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
+      {status === 'loading' && <div data-page-loading="" data-reader-media-state="pending" data-initial-page-loading={pageNumber === 1 ? '' : undefined} style={loadingStyle} role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
           <span className="premium-media-loading-mark" aria-hidden="true" />
         </div>}
-      {status === 'error' ? <div onPointerUp={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} style={loadingStyle} data-page-loading="" className="flex min-h-[240px] w-full items-center justify-center p-5">
+      {status === 'error' ? <div onPointerUp={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} style={loadingStyle} data-page-loading="" data-reader-media-state="error" className="flex min-h-[240px] w-full items-center justify-center p-5">
           <ErrorState title="This image could not be displayed" description="Check your connection, then try loading this image again." onRetry={inlinePreview ? undefined : () => {
         cancelRecovery();
         retry();

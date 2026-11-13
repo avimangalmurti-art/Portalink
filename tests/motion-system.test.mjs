@@ -79,7 +79,7 @@ test('dock and push invoke the native API once, commit synchronously and finish 
 test('nested tab routing cannot start a second transition',()=>{const r=runtime();r.api.motionUpdate(()=>r.api.motionUpdate(r.update,'tabs'),'tabs');assert.equal(r.native,1);assert.equal(r.updates,1);});
 test('reduced motion performs the navigation with no native animation or duration',()=>{const r=runtime(true);r.api.motionUpdate(r.update,'push');assert.equal(r.native,0);assert.equal(r.updates,1);assert.equal(r.api.motionMs('slow'),0);});
 test('reader skeleton reserves the reader frame without any spinner',()=>{
- const {LoadingSkeleton}=sourceModule('src/components/ui/StateViews.tsx',{react:React,'lucide-react':{},'./Button':{},'./InterfaceIcon':{},'../../utils/projectContinuity':{projectContinuityStyle:()=>({viewTransitionName:'portalink-project'})}});
+ const {LoadingSkeleton}=sourceModule('src/components/ui/StateViews.tsx',{react:React,'react-dom':{},'lucide-react':{},'./Button':{},'./InterfaceIcon':{},'../../presentation/mobile/MobileBackNavigation':{},'../../utils/projectContinuity':{projectContinuityStyle:()=>({viewTransitionName:'portalink-project'})}});
  const tree=LoadingSkeleton({kind:'reader',projectId:'work',label:'Opening'});assert.equal(tree.props['data-reader-frame'],'');assert.equal(tree.props['data-premium-project-viewer'],'');assert.equal(tree.props.role,'status');
  const text=readFileSync('src/components/media/AttachmentRenderer.tsx','utf8');assert.match(text,/LoadingSkeleton kind="reader"/);assert.doesNotMatch(text,/LoadingState/);
 });

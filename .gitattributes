@@ -1,3 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 public/site.webmanifest text eol=lf
+public/portalink-mobile-launch.js text eol=lf

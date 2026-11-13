@@ -1,8 +1,10 @@
 import { projectContinuityStyle } from '../../utils/projectContinuity';
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangleIcon, Loader2Icon } from 'lucide-react';
 import { Button } from './Button';
 import { InterfaceIcon } from './InterfaceIcon';
+import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 
 /**
  * The shared empty / loading / error views.
@@ -60,6 +62,21 @@ export function LoadingSkeleton({label='Loading',kind='rows',projectId,columns}:
  </div>;
 }
 export function LoadingState(props:LoadingProps) {return <LoadingSkeleton {...props}/>;}
+
+/** Use the same spinner while opening either a project route or its first page. */
+export function ProjectOpeningLoader({ label = 'Opening project' }: { label?: string } = {}) {
+  const active = useMobileScreenActive();
+  const loader = useRef<HTMLDivElement>(null);
+  const [shell, setShell] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (active && !shell) setShell(loader.current?.closest<HTMLElement>('.app-shell') ?? null);
+  }, [active, shell]);
+  if (!active) return null;
+  const indicator = <div ref={loader} data-project-opening-loader="" role="status" aria-live="polite" aria-label={label}>
+    <span className="premium-media-loading-mark" aria-hidden="true" />
+  </div>;
+  return shell ? createPortal(indicator, shell) : indicator;
+}
 
 /** Failure is never colour-only: it carries an icon, a message, and a way out. */
 export function ErrorState({

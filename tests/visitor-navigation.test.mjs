@@ -314,7 +314,7 @@ function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearan
     if (name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href, captureCatalogueReaderOrigin: () => catalogueOrigin, restoreCatalogueReaderOrigin: () => () => {} };
     if (name === './useMobileProjectReturn') return projectReturn;
     if (name === '../app/screenModules') return { loadVisitorProjectPage: () => Promise.resolve({ default: 'VisitorProjectPage' }) };
-    if(name.endsWith('/StateViews'))return {LoadingSkeleton:'loading'};
+    if(name.endsWith('/StateViews'))return {LoadingSkeleton:'loading',ProjectOpeningLoader:'project-opening-loader'};
     if(name.endsWith('/projectContinuity'))return {beginProjectContinuity(){}};
     if (name === '../components/ui/RouteError') return {RouteError: 'RouteError', routeErrorKind: () => 'network'};
     if (name === './mobile/PublicActionSheet') return { PublicActionSheet: 'PublicActionSheet' };
@@ -327,6 +327,8 @@ function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearan
     if (name === '../app/useAppRoute') return { useAppRoute: () => state.route };
     if (name === '../app/routes') return routes;
     if (name === '../contexts/AuthContext') return { useAuth: () => state.auth };
+    if (name === '../components/profile/usePrepareProfileAudio') return { usePrepareProfileAudio() {} };
+    if (name === '../features/profile/profileAudioPlayback') return { clearProfileAudioForProfile() {} };
     if (name === '../features/profile/useSharedProfileQuery') return { useSharedProfileQuery: (...args) => { queryCalls.push(args); return args[0] ? state.query : { status: 'idle', profile: null }; } };
     if (name === '../hooks/useDeviceAppearance') return { useDeviceAppearance: appearanceHook };
     if (name === '../presentation/usePresentation') return { usePresentation: () => state.presentation };
@@ -387,6 +389,31 @@ test('a slow mobile Catalogue uses the loading indicator until its content arriv
   const ready = h.render();
   assert.equal(indicator(ready), undefined);
   assert.ok(one(ready, 'VisitorProfileGrid'));
+  h.dispose();
+});
+
+test('opening a shared project on mobile uses the same indicator before and after its public handle resolves', () => {
+  const h = appHarness();
+  h.state.location.pathname = '/portalite/c/portal/work';
+  h.state.route = { kind: 'unknown' };
+  h.state.handlePending = true;
+  h.state.query = { ...h.state.query, status: 'loading', profile: null };
+
+  let tree = h.render();
+  assert.ok(one(tree, 'project-opening-loader'));
+  assert.equal(one(tree, 'loading'), undefined);
+  assert.equal(nodes(tree).some(node => node.props['aria-label'] === 'Opening shared catalogue'), false);
+
+  h.state.handlePending = false;
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  tree = h.render();
+  assert.ok(one(tree, 'project-opening-loader'));
+  assert.equal(one(tree, 'loading'), undefined);
+
+  h.state.query = { ...h.state.query, status: 'ready', profile };
+  tree = h.render();
+  assert.equal(one(tree, 'project-opening-loader'), undefined);
+  assert.ok(nodes(tree).some(node => node.props.project?.id === 'work'));
   h.dispose();
 });
 
@@ -657,6 +684,20 @@ test('the public header shows only High Contrast on MOBILE and also offers Trans
       assert.equal(switches()[1].props.isOn, true);
     }
     assert.equal(nodes(visitorProfileHarness({ presentation }).render()).some(node => node.type === 'AppearanceSwitch'), false);
+    h.dispose();
+  }
+});
+
+test('the public audio shortcut is read-only on mobile and desktop, even for the signed-in creator', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = visitorProfileHarness({ presentation });
+    h.state.signedIn = true;
+    h.state.own = true;
+    const grid = nodes(h.render()).find(node => node.type === 'PlatformGrid');
+    assert.equal(grid.props.isSharedView, true);
+    assert.equal(grid.props.profileAudio.profileId, h.bioProfile.id);
+    assert.equal(grid.props.profileAudio.editable, false);
+    assert.equal(grid.props.profileAudio.active, true);
     h.dispose();
   }
 });

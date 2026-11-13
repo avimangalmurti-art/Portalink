@@ -250,6 +250,7 @@ test('auth startup opens verified recovery and preserves expired-link UI instead
     const browser = { location: { href: mode === 'expired' ? 'https://portalink.test/?auth=reset-password#error_code=otp_expired' : 'https://portalink.test/' } };
     const { AuthProvider } = load('../src/contexts/AuthContext.tsx', {
       react: hooks.react, './ServicesContext': { useServices: () => ({ auth }) }, '../types/auth': authTypes, '../utils/passwordRecoveryReturn': returns,
+      '../features/profile/profileAudioPlayback': { setProfileAudioAccount() {} },
     }, { window: browser });
     const render = () => hooks.render(() => AuthProvider({ children: null })).props.value;
     render(); await tick(); render();
@@ -267,6 +268,7 @@ test('a late startup lookup cannot overwrite a newer authenticated recovery even
   };
   const { AuthProvider } = load('../src/contexts/AuthContext.tsx', {
     react: hooks.react, './ServicesContext': { useServices: () => ({ auth }) }, '../types/auth': authTypes, '../utils/passwordRecoveryReturn': returns,
+    '../features/profile/profileAudioPlayback': { setProfileAudioAccount() {} },
   }, { window: { location: { href: 'https://portalink.test/' } } });
   const render = () => hooks.render(() => AuthProvider({ children: null })).props.value;
   render();

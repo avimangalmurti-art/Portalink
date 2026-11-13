@@ -12,11 +12,9 @@ assert.ok(block && readiness);
 const file = ts.createSourceFile('App.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 let pendingCondition;
 function visit(node) {
-  if (ts.isConditionalExpression(node) && ts.isJsxSelfClosingElement(node.whenTrue)
-    && node.whenTrue.tagName.getText(file) === 'LoadingSkeleton'
-    && node.whenTrue.attributes.properties.some(attribute => attribute.name?.getText(file) === 'label' && attribute.initializer?.text === 'Opening profile…')) {
-    pendingCondition = node.condition.getText(file);
-  }
+  if (ts.isConditionalExpression(node)
+    && node.condition.getText(file).includes('viewedProfileQuery.status')
+    && node.whenTrue.getText(file).includes('label="Opening profile…"')) pendingCondition = node.condition.getText(file);
   ts.forEachChild(node, visit);
 }
 visit(file);
