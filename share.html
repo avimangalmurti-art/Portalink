@@ -47,9 +47,32 @@
     <meta name="twitter:description" content="Explore a creator's catalogue on Portalink." />
     <meta name="twitter:image" content="https://portalinknetworks.com/portalink-social-preview-centered.png" />
     <style>html,body,#root{margin:0;width:100%;min-height:100%}body{background:inherit}html,html[data-appearance='light']{background:#fff;color:#1c1c1e}@media(prefers-color-scheme:dark){html{background:#000;color:#f5f5f7}}html[data-appearance='dark']{background:#000;color:#f5f5f7}</style>
+    <style>
+      html[data-mobile-project-launch] { background: #000; color: #fff; }
+      html[data-mobile-project-launch] #portalink-mobile-launch {
+        position: fixed;
+        inset: 0;
+        z-index: 1002;
+        display: grid;
+        place-items: center;
+        background: #000;
+      }
+      html[data-mobile-project-launch] #portalink-mobile-launch > span {
+        width: 18px;
+        height: 18px;
+        background: url('/loading-spokes.svg') center / contain no-repeat;
+        animation: portalink-opening-project 600ms steps(8) infinite;
+      }
+      @keyframes portalink-opening-project { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        html[data-mobile-project-launch] #portalink-mobile-launch > span { animation: none; }
+      }
+    </style>
     <script>
       (() => {
         const presentation = window.matchMedia?.('(max-width: 639px)').matches ? 'mobile' : 'web';
+        const projectLaunch = presentation === 'mobile'
+          && /^\/(?:share\/[^/]+|[^/]+)\/c\/[^/]+\/[^/]+\/?$/i.test(window.location.pathname);
         let mode = 'auto';
         try {
           const legacyMode = window.localStorage.getItem('portalinknetworks.deviceAppearanceMode');
@@ -62,16 +85,17 @@
         const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
         const resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
         const root = document.documentElement;
+        if (projectLaunch) root.setAttribute('data-mobile-project-launch', '');
         root.dataset.appearance = resolved;
         root.style.colorScheme = resolved;
         const color = resolved === 'dark' ? '#000000' : '#ffffff';
         document.querySelectorAll('meta[name="theme-color"]').forEach(tag => {
           tag.setAttribute('data-portalink-theme-original', tag.getAttribute('content'));
-          tag.setAttribute('content', color);
+          tag.setAttribute('content', projectLaunch ? '#000000' : color);
         });
       })();
     </script>
-    <script defer src="/portalink-mobile-launch.js?v=7589d7ec" data-launch-entry="catalogue"></script>
+    <script defer src="/portalink-mobile-launch.js?v=84639d5d" data-launch-entry="catalogue"></script>
   </head>
   <body>
     <div id="root"></div>

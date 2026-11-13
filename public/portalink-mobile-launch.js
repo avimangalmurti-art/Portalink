@@ -7,6 +7,35 @@
   const splash = document.createElement('div');
   splash.id = 'portalink-mobile-launch';
   splash.setAttribute('role', 'status');
+  if (entry === 'catalogue' && root.hasAttribute('data-mobile-project-launch')) {
+    const app = document.getElementById('root');
+    if (!app) {
+      root.removeAttribute('data-mobile-project-launch');
+      return;
+    }
+    const finish = () => {
+      observer.disconnect();
+      window.removeEventListener('pagehide', finish);
+      root.removeAttribute('data-mobile-project-launch');
+      splash.remove();
+      window.dispatchEvent(new Event('portalink:splash-exited'));
+    };
+    const ready = () => { if (app.querySelector('.app-shell')) finish(); };
+    const observer = new MutationObserver(ready);
+    if (app.querySelector('.app-shell')) {
+      finish();
+      return;
+    }
+    splash.setAttribute('aria-label', 'Opening project');
+    const mark = document.createElement('span');
+    mark.setAttribute('aria-hidden', 'true');
+    splash.append(mark);
+    document.body.append(splash);
+    observer.observe(app, { childList: true, subtree: true });
+    window.addEventListener('pagehide', finish, { once: true });
+    return;
+  }
+
   splash.setAttribute('aria-label', 'Opening Portalink');
   Object.assign(splash.style, {
     position: 'fixed', inset: '0', zIndex: '1002', display: 'grid', placeItems: 'center',

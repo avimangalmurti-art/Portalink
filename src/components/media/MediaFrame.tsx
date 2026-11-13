@@ -10,16 +10,17 @@ import React from 'react';
  * gives the work the whole area instead of spending 68px repeating a fact.
  */
 export function MediaFrame({
-  children
+  children,
+  readerMediaState,
 
 
-}: {children: React.ReactNode;}) {
+}: {children: React.ReactNode; readerMediaState?: 'error';}) {
   /*
    * Transparent, so the work sits directly on the page's own canvas. Painting
    * `--surface-canvas` here laid a lighter panel over the profile surface behind
    * it, which read as a grey overlay around every project.
    */
-  return <div data-media-frame="" className="flex h-full min-h-0 w-full flex-col bg-transparent">
+  return <div data-media-frame="" data-reader-media-state={readerMediaState} className="flex h-full min-h-0 w-full flex-col bg-transparent">
       <div data-media-frame-body="" className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>;
 }

@@ -266,11 +266,14 @@ test('the editor is mounted in the routed screen, with one shared Back/Save call
   const RouteError = () => null;
   assert.equal(evaluate(sidebar, { isProfileEditorRoute: false, routeStateView: {type: RouteError}, RouteError, auth: {isAuthenticated: false} }), false, 'Signed-out error screens have no dock');
   const snapshot=findNode(node=>ts.isJsxAttribute(node)&&node.name.getText(parsed)==='snapshot').initializer.expression.getText(parsed);
-  const values={screenMainClassName:'main',screenAriaLabel:'editor',isSharedRoute:false,projectNavigation:{resolution:{state:'ready'}},routeItemId:null,screenContent:screen};
+  const values={presentation:'web',screenMainClassName:'main',screenAriaLabel:'editor',isSharedRoute:false,projectNavigation:{resolution:{state:'ready'}},routeItemId:null,screenContent:screen};
   assert.equal(evaluate(snapshot,values).content,screen,'The routed editor remains the active screen content');
   const LoadingSkeleton=()=>null;
   const pending=evaluate(snapshot,{...values,projectNavigation:{resolution:{state:'loading',projectId:'work'}},LoadingSkeleton});
   assert.equal(pending.content.type,LoadingSkeleton);assert.equal(pending.content.props.projectId,'work');
+  const ProjectOpeningLoader=()=>null;
+  const mobilePending=evaluate(snapshot,{...values,presentation:'mobile',projectNavigation:{resolution:{state:'loading',projectId:'work'}},ProjectOpeningLoader});
+  assert.equal(mobilePending.content.type,ProjectOpeningLoader);
   assert.equal(evaluate(snapshot,{...values,isSharedRoute:true,projectNavigation:{resolution:{state:'loading'}}}).content,screen,'Visitor routes keep their existing read boundary');
   assert.doesNotMatch(app, /isProfileEditorOpen|setIsProfileEditorOpen|<ProfileEditorDialog\b/);
 });

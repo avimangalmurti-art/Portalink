@@ -1,4 +1,4 @@
-import { LoadingSkeleton } from '../components/ui/StateViews';
+import { LoadingSkeleton, ProjectOpeningLoader } from '../components/ui/StateViews';
 import { RouteError, routeErrorKind } from '../components/ui/RouteError';
 import { SharedPortalPopup } from './mobile/SharedPortalPopup';
 import { handleFromPath, isPublicSharePath, portfolioPath, portfolioProjectPath } from '../features/sharing/shareModel';
@@ -121,7 +121,9 @@ export function VisitorApp() {
   const systemGray = publicStyle?.systemGray ?? appearance.systemGray;
   const project = retainedWebReaderLoading ? undefined : profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
   const webCategoryRoute = presentation === 'web' && !settings && route.kind === 'sharedCategory';
-  const readerRoute = !settings && (Boolean(projectId) || webCategoryRoute);
+  const unresolvedProject = handlePending && /\/c\/[^/]+\/[^/]+\/?$/.test(location.pathname);
+  const mobileProjectRoute = presentation === 'mobile' && !settings && Boolean(projectId || unresolvedProject);
+  const readerRoute = !settings && (Boolean(projectId) || webCategoryRoute || mobileProjectRoute);
   const webCategoryReady = webCategoryRoute && !handlePending && !handleError && !invalidShared && query.status === 'ready'
     && profile?.id === profileId && !profile?.isPrivate && Boolean(profile?.categories.some(item => item.id === categoryId));
   const publicCategoryProjects = webCategoryReady && profile ? profile.projects.filter(item => item.categoryId === categoryId && item.isPubliclyVisible !== false) : [];
@@ -275,7 +277,7 @@ export function VisitorApp() {
     onReduceTranslucencyChange: (value: boolean) => appearance.chooseAppearance({ reduceTranslucency: value }),
   };
   const useCatalogueIndicator = presentation === 'mobile' && (catalogueRoute || (handlePending && !settings));
-  const pending = useCatalogueIndicator
+  const pending = mobileProjectRoute ? <ProjectOpeningLoader label="Opening shared project" /> : useCatalogueIndicator
     ? <div className="grid min-h-[var(--mobile-viewport-height,100dvh)] place-items-center" role="status" aria-label="Opening shared catalogue">
         <span className="premium-media-loading-mark" aria-hidden="true" />
       </div>

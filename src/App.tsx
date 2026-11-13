@@ -28,7 +28,7 @@ import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, us
 import { useMobilePortalCollectionReturn } from './presentation/mobile/useMobilePortalCollectionReturn';
 import { AccountEntryBoundary } from './app/AccountEntryBoundary';
 import { useLocation, useNavigationType } from 'react-router-dom';
-import { EmptyState, LoadingState, LoadingSkeleton } from './components/ui/StateViews';
+import { EmptyState, LoadingState, LoadingSkeleton, ProjectOpeningLoader } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
 import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
 import { interactionIntent } from './features/auth/interactionIntent';
@@ -1458,10 +1458,11 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   : routeItemId && !selectedApp && (!routeItemResolution || routeItemResolution.state === 'loading') ? <LoadingState label="Opening item…" />
   : routeItemId && routeItemResolution?.state === 'not-found' ? <RouteError kind="not-found" onBack={nav.back} onHome={nav.home} />
   : routeItemId && routeItemResolution?.state === 'error' ? <RouteError kind="network" onBack={nav.back} onHome={nav.home} />
-  : routeProfileId && viewedProfileQuery.status === 'loading' && !isOwnerProfileRefreshing && !isWebReaderLoading ? <LoadingSkeleton kind={openingProjectId ? 'reader' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening profile…" />
+  : routeProfileId && viewedProfileQuery.status === 'loading' && !isOwnerProfileRefreshing && !isWebReaderLoading
+    ? (openingProjectId && presentation === 'mobile' ? <ProjectOpeningLoader /> : <LoadingSkeleton kind={openingProjectId ? 'reader' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening profile…" />)
   : routeProfileId && viewedProfileQuery.status === 'not-found' ? <RouteError kind="not-found" onBack={nav.back} onHome={nav.home} />
   : routeProfileId && viewedProfileQuery.status === 'error' ? <RouteError kind={routeErrorKind(viewedProfileQuery.error)} onBack={nav.back} onHome={nav.home} />
-  : isPrivateProfileAccessResolving ? <LoadingState label="Checking profile access…" />
+  : isPrivateProfileAccessResolving ? (openingProjectId && presentation === 'mobile' ? <ProjectOpeningLoader /> : <LoadingState label="Checking profile access…" />)
   : isProfileAccessDenied ? <RouteError kind="no-access" onBack={nav.back} onHome={nav.home} />
   : isCategoryRouteMissing ? <RouteError kind="not-found" creatorHandle={viewedProfile?.handle} onBack={nav.back} onHome={nav.home} onCreator={() => {if(viewedProfileId){if(isSharedRoute)nav.sharedProfile(viewedProfileId);else nav.profile(viewedProfileId);}}} /> : null;
   /*
@@ -1548,7 +1549,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           setAttemptedIconName(null);
           setIconPickerCategoryId(null);
         } else nav.back();
-      }}><React.Suspense fallback={<LoadingSkeleton kind={openingProjectId ? 'reader' : isStudioPageOpen ? 'studio' : isPortalSearchOpen ? 'grid' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening" />}>
+      }}><React.Suspense fallback={openingProjectId && presentation === 'mobile' ? <ProjectOpeningLoader /> : <LoadingSkeleton kind={openingProjectId ? 'reader' : isStudioPageOpen ? 'studio' : isPortalSearchOpen ? 'grid' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening" />}>
       {routeStateView ? <div className={routeStateView.type === RouteError ? "min-h-full" : "px-[var(--content-gutter)] py-10"}>{routeStateView}</div> : isProfileEditorRoute && auth.isAuthenticated && auth.viewerProfileId ? <ProfileEditorPage key={auth.viewerProfileId} profileId={auth.viewerProfileId} returnFocusTarget={profileEditorOrigin} onClose={closeProfileEditor} onSaved={closeProfileEditor} /> : isControlCenterOpen ? <ControlCenterPage onOpenProfile={openOwnProfile} appearanceSaving={creatorAppearance.saving} appearanceError={creatorAppearance.saveError ?? creatorAppearance.loadError} onRetryAppearance={() => { if (creatorAppearance.loadError) creatorAppearance.retryLoad(); else void creatorAppearance.flush().catch(() => undefined); }} theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={nav.closeSettings} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
         // The picker remains an ordinary screen. Only this outer snapshot moves.
         void chooseCategoryIcon(iconPickerCategoryId, iconName);
@@ -1609,7 +1610,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
              render in the page area — so there is no second resolution path to
              report here. */}
       <div id="app-viewport" className={shouldReduceMotion ? 'app-viewport--reduce-motion' : undefined}>
-        {!isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId ? <div role="status" aria-live="polite" aria-label="Opening project" className="navigation-progress" /> : null}
+        {presentation !== 'mobile' && !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId ? <div role="status" aria-live="polite" aria-label="Opening project" className="navigation-progress" /> : null}
         {!isSharedRoute && projectNavigation.resolution && projectNavigation.resolution.state !== 'loading' && !routeItemId ? <div role="alert" aria-live="polite" className="navigation-feedback shape-compact flex items-center gap-2.5 border border-[var(--hairline)] bg-[var(--surface-raised)] px-3 py-2.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
             <AlertCircleIcon className="h-4 w-4 shrink-0 text-[var(--status-danger)]" aria-hidden="true" />
             <span className="min-w-0 flex-1">
@@ -1623,7 +1624,9 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           <button type="button" onClick={requestGlobalPublish} className="font-semibold text-[var(--accent-text)]">Try again</button>
           <button type="button" onClick={() => setGlobalCreateError(null)} aria-label="Dismiss"><InterfaceIcon icon={XIcon} size="lg" /></button>
         </div>}
-        <AppScreenLayers navigation={{location: screenLocation, navigationType: screenNavigationType, scope: `${auth.isAuthenticated ? auth.user?.id : 'guest'}:${isSharedRoute}`}} screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId ? <LoadingSkeleton kind="reader" projectId={projectNavigation.resolution.projectId} label="Opening project"/> : screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
+        <AppScreenLayers navigation={{location: screenLocation, navigationType: screenNavigationType, scope: `${auth.isAuthenticated ? auth.user?.id : 'guest'}:${isSharedRoute}`}} screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId
+          ? (presentation === 'mobile' ? <ProjectOpeningLoader /> : <LoadingSkeleton kind="reader" projectId={projectNavigation.resolution.projectId} label="Opening project"/>)
+          : screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
       </div>
       </div>
 

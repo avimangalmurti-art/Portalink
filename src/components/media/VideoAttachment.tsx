@@ -13,15 +13,15 @@ type ConversionRetry = { canRetry: boolean; isRetrying: boolean; onRetry: () => 
  * the element is never substituted with a still image.
  */
 export function VideoAttachment({
-  attachment, conversion, active = true, inlinePreview = false
+  attachment, conversion, active = true, inlinePreview = false, mobileProjectReader = false
 
 
-}: {attachment: ProjectAttachment; conversion?: ConversionRetry; active?: boolean; inlinePreview?: boolean;}) {
+}: {attachment: ProjectAttachment; conversion?: ConversionRetry; active?: boolean; inlinePreview?: boolean; mobileProjectReader?: boolean;}) {
   const sources = videoSources(attachment);
-  return <VideoPlayback key={JSON.stringify([attachment.id, ...sources])} attachment={attachment} sources={sources} conversion={conversion} active={active} inlinePreview={inlinePreview} />;
+  return <VideoPlayback key={JSON.stringify([attachment.id, ...sources])} attachment={attachment} sources={sources} conversion={conversion} active={active} inlinePreview={inlinePreview} mobileProjectReader={mobileProjectReader} />;
 }
 
-function VideoPlayback({ attachment, sources, conversion, active, inlinePreview }: { attachment: ProjectAttachment; sources: string[]; conversion?: ConversionRetry; active: boolean; inlinePreview: boolean }) {
+function VideoPlayback({ attachment, sources, conversion, active, inlinePreview, mobileProjectReader }: { attachment: ProjectAttachment; sources: string[]; conversion?: ConversionRetry; active: boolean; inlinePreview: boolean; mobileProjectReader: boolean }) {
   const { invalidateProfiles } = useProfileData();
   const isMobile = usePresentation() === 'mobile';
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -29,6 +29,7 @@ function VideoPlayback({ attachment, sources, conversion, active, inlinePreview 
   const [sourceIndex, setSourceIndex] = useState(0);
   const [unsupported, setUnsupported] = useState(false);
   const [controlsRequested, setControlsRequested] = useState(false);
+  const [canInteractWhileLoading, setCanInteractWhileLoading] = useState(false);
   const source = sources[sourceIndex];
   const videoRef = useRef<HTMLVideoElement>(null);
   useLayoutEffect(() => {
@@ -39,6 +40,8 @@ function VideoPlayback({ attachment, sources, conversion, active, inlinePreview 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    let selected = true;
+    setCanInteractWhileLoading(false);
     if (!active) {
       setControlsRequested(false);
     } else if (isMobile && !inlinePreview) {
@@ -46,9 +49,14 @@ function VideoPlayback({ attachment, sources, conversion, active, inlinePreview 
       // queue element was muted earlier. Do not override mute during rerenders.
       video.defaultMuted = false;
       video.muted = false;
-      void video.play().catch(() => { /* Audible autoplay may require the first tap. */ });
+      void video.play().catch((error: unknown) => {
+        if (selected && mobileProjectReader && (error as Error | undefined)?.name === 'NotAllowedError') {
+          setCanInteractWhileLoading(true);
+        }
+      });
     }
-  }, [active, attempt, sourceIndex, isMobile, inlinePreview]);
+    return () => { selected = false; };
+  }, [active, attempt, sourceIndex, isMobile, inlinePreview, mobileProjectReader]);
   const revealPlayerControls = (video: HTMLVideoElement) => {
     if (!isMobile || !active || controlsRequested) return;
     setControlsRequested(true);
@@ -79,8 +87,11 @@ function VideoPlayback({ attachment, sources, conversion, active, inlinePreview 
       {attachment.sourceUrl && <a href={attachment.sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-3 text-[var(--accent-text)] underline">Open original file</a>}
       </div>;
   }
-  return <div className={`relative flex h-full w-full items-center justify-center p-3${isMobile ? ' mobile-video-playback' : ''}`}>
-      {status === 'loading' && <div className="pointer-events-none absolute left-0 right-0 top-3 z-10"><LoadingState label={`Loading ${attachment.displayName}`} /></div>}
+  const waitingForVideo = status === 'loading' && !canInteractWhileLoading;
+  return <div data-reader-media-state={mobileProjectReader && waitingForVideo ? 'pending' : undefined} className={`relative flex h-full w-full items-center justify-center p-3${isMobile ? ' mobile-video-playback' : ''}`}>
+      {waitingForVideo && <div className="pointer-events-none absolute left-0 right-0 top-3 z-10">{mobileProjectReader
+        ? <span role="status" aria-label={`Loading ${attachment.displayName}`} className="flex justify-center"><span className="premium-media-loading-mark" aria-hidden="true" /></span>
+        : <LoadingState label={`Loading ${attachment.displayName}`} />}</div>}
       <video ref={videoRef} key={`${attempt}:${sourceIndex}`} src={source} autoPlay={active && !inlinePreview} loop={!inlinePreview && isMobile || undefined}
         controls={inlinePreview || (isMobile ? active && controlsRequested : true)} muted={inlinePreview ? false : !isMobile}
         data-video-controls-requested={isMobile ? active && controlsRequested : undefined}

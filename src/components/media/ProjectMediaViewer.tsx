@@ -42,6 +42,7 @@ import { useProjectComments } from '../../features/comments/useProjectComments';
 import type { MediaKind, ProjectAttachment, ProjectCredit } from '../../types/domain';
 import type { LucideIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { ProjectOpeningLoader } from '../ui/StateViews';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { pinchDistance, pinchSteps } from '../../utils/pinchGesture';
 import { beginContentPinch, touchMidpoint, type ContentPinchMotion } from './contentPinchMotion';
@@ -404,6 +405,44 @@ export function ProjectMediaViewer({
     : Number.isSafeInteger(singlePageNumber) && singlePageNumber >= 1 ? singlePageNumber : 1;
   useDocumentReadingScroll(orderedReading && !isImmersive, pageSurfaceRef,
     `${viewerMemoryKey}:ordered-pages`, linkedReadingPart ? linkedReadingPage : null, linkedReadingPart?.id);
+  const [openedReader, setOpenedReader] = useState<string | null>(null);
+  const opening = isMobileViewer && screenActive && !mobileNavigation?.isIndexOpen && Boolean(active) && openedReader !== viewerMemoryKey;
+  useLayoutEffect(() => { setOpenedReader(null); }, [viewerMemoryKey]);
+  useLayoutEffect(() => {
+    const stage = pageSurfaceRef.current;
+    if (!opening || !stage) return;
+
+    // Keep the stage mounted so visible pages can render and restored scroll
+    // positions can settle beneath the single project loader.
+    let frame: number | null = null;
+    const check = () => {
+      frame = null;
+      const media = stage.querySelectorAll<HTMLElement>('[data-project-page-ready="true"], [data-reader-media-state]');
+      const firstVisible = Array.from(media).find(element => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.right > 0 && bounds.left < window.innerWidth &&
+          bounds.bottom > 0 && bounds.top < window.innerHeight && bounds.width > 0 && bounds.height > 0;
+      });
+      if (firstVisible ? firstVisible.dataset.readerMediaState !== 'pending' : !stage.querySelector('[data-reader-media-state="pending"]')) {
+        setOpenedReader(viewerMemoryKey);
+      }
+    };
+    const schedule = () => {
+      if (frame === null) frame = requestAnimationFrame(check);
+    };
+    const observer = new MutationObserver(schedule);
+    observer.observe(stage, { childList: true, subtree: true, attributes: true,
+      attributeFilter: ['data-project-page-ready', 'data-reader-media-state', 'hidden'] });
+    window.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener('resize', schedule);
+    schedule();
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('scroll', schedule, true);
+      window.removeEventListener('resize', schedule);
+    };
+  }, [opening, pageSurfaceRef, viewerMemoryKey]);
   const backSwipe = useProjectBackSwipe(densitySurfaceRef, {
     enabled: isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && !mobilePopup && active?.kind !== 'model3d',
     scope: `${projectId}:${active?.id ?? ''}`,
@@ -655,7 +694,7 @@ export function ProjectMediaViewer({
       onRetry: () => void processing.retry(attachment.id),
     },
     controlsVisible: areControlsVisible, showMediaInteractions: showEngagement, isOwner: ownerReader,
-    memoryScope: viewerMemoryScope, usePdfRanges: isMobileViewer && readOnlyShare,
+    memoryScope: viewerMemoryScope, usePdfRanges: isMobileViewer && readOnlyShare, mobileProjectReader: isMobileViewer,
   });
   const activeMedia = active ? <AttachmentRenderer {...rendererProps(active)} videoActive={screenActive} verticalReading={isVerticalReading}
     imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1}
@@ -676,9 +715,10 @@ export function ProjectMediaViewer({
         memoryScope: isImage ? `${viewerMemoryScope}:part:${attachment.id}` : viewerMemoryScope,
       }} />;
   };
-  return <MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
+  return <MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-project-opening={opening || undefined} aria-busy={opening || undefined} data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
+      {opening && <ProjectOpeningLoader />}
       {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} showProgress={isReadingHeader && !isImmersive} segmentedProgress={!readOnlyShare} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(pageSurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={pageSurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} readingPartPreviews={readingPartPreviews} />}
 
       {showEngagement && isMobileViewer && !isImmersive && (orderedReading || active?.kind === 'document') && pageTarget && <MediaInteractionBar key={`${pageTarget.attachmentId}:${currentPage}`} target={pageTarget} contextOnly isOwner={ownerReader} pageCount={currentPosition?.attachmentTotal ?? contextPosition?.total ?? pageCount ?? undefined} />}
@@ -691,7 +731,7 @@ export function ProjectMediaViewer({
               if (entry.projectId === projectId) setActiveId(entry.attachment.id);
               else videoSequence.onSelectProject(entry.projectId);
             }} renderVideo={(entry, playing) => <AttachmentRenderer key={`${entry.projectId}:${entry.attachment.id}`} projectId={entry.projectId} projectTitle={entry.projectTitle}
-              attachment={entry.attachment} videoActive={screenActive && playing} showMediaInteractions={showEngagement} isOwner={isOwner && !readOnlyShare && entry.projectId === projectId}
+              attachment={entry.attachment} videoActive={screenActive && playing} mobileProjectReader={playing} showMediaInteractions={showEngagement} isOwner={isOwner && !readOnlyShare && entry.projectId === projectId}
               processing={entry.projectId === projectId ? {
                 state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
                 isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),

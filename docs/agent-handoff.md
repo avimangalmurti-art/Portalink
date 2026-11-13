@@ -1,3 +1,15 @@
+## 2026-11-12 — Mobile project opening
+
+Local on `codex/profile-audio` above Sites 618 source `aa84e0a`. The platform and shared catalogue use one centered system spinner on a black mobile viewport from project resolution through first visible content. Direct public project links use the same indicator before the app mounts. Once the project opens, the reader continues loading pages individually. Desktop readers and the regular Home and catalogue splash retain their existing behavior. No deployment or database change is included.
+
+Typecheck, lint, production build, 422 focused tests, and four emitted-entry checks passed. At 420 × 912, isolated Chromium verified opening from the public catalogue, signed-in project routing, progressive processed-PDF pages, and retry after a first-image failure. Chromium also verified the handoff from the static indicator to the reader on both direct public URL forms with the built visitor entry delayed. A 1366 × 850 Chromium check covered the existing desktop reader. Browser receipts are in ignored `logs/reader-opening-qa`. Physical iPhone and in-app browser testing remain open.
+
+## 2026-11-12 — Sites 618 published
+
+The circled reader information icon, cover-first profile audio player and shared-catalogue Play audio fallback are live on `portalinknetworks.com`. Sites 618 deployed source `aa84e0a14fb188aa8397fd3b8c038b6ed4de728a` from `codex/profile-audio` (draft GitHub PR #164). The 666-file archive preserved the existing worker, D1 files and public static files. Both public entries and six release assets were verified on the custom domain. Typecheck, lint and 251 focused local checks passed.
+
+Live signed-out Chromium verified the public mobile audio fallback and continuing playback, the reader's circled IBM Plex Mono “i” opening project information, and desktop playback with its separate reader rail. Physical iPhone testing and live signed-in behavior remain unverified. Exact deployment and GitHub check details are in the ignored `logs/profile-audio-player-release-receipt.json`. This entry is a post-deployment receipt.
+
 ## 2026-11-12 — Project navigation information icon
 
 Local on `codex/profile-audio` above `c180415`, alongside the pending audio player changes. The center of the three-button project navigation pill now uses the circled IBM Plex Mono “i” from the About design. The platform and shared reader use the same component, including at mobile widths in the browser. The wide desktop reader retains its separate information control. The glyph changes in `ProjectMediaViewer.tsx` and `reader-scroll-controls.css` leave the information popup, the pill's other controls and all other overflow menus in place. Typecheck, scoped lint with one existing warning, diff check and 72 reader tests passed. At 420 × 912, Chromium verified the actual font, circle and information popup on the signed-in platform fixture and public touch fixture. Sites 617 remains live.

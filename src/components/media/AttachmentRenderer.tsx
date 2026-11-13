@@ -41,6 +41,7 @@ type AttachmentRendererProps = {
   /** Public reading history stays separate from the signed-in workspace. */
   memoryScope?: string;
   usePdfRanges?: boolean;
+  mobileProjectReader?: boolean;
   pageViewToggleRequest?: number;
   readingMode?: boolean;
   verticalReading?: boolean;
@@ -54,7 +55,7 @@ type AttachmentRendererProps = {
 export function AttachmentRenderer({
   projectId, attachment, imagePages, imageColumns, projectTitle, artwork, processing,
   onDocumentPageCountResolved, onPreviewDocument, onFocusModeChange, controlsVisible,
-  videoActive, inlinePreview = false, showMediaInteractions = true, isOwner = false, memoryScope = 'workspace', usePdfRanges = false,
+  videoActive, inlinePreview = false, showMediaInteractions = true, isOwner = false, memoryScope = 'workspace', usePdfRanges = false, mobileProjectReader = false,
   readingMode = false, verticalReading = false, manageReadingScroll = true, readerPageRequest = null, onReaderRequestHandled, pageViewToggleRequest = 0, onClose,
 }: AttachmentRendererProps) {
   const title = attachment.displayName || projectTitle;
@@ -66,13 +67,15 @@ export function AttachmentRenderer({
   // An original PDF or playable video remains available during processing.
   // Other files state the confirmed processing result instead of an empty viewer.
   if ((state === 'processing' || state === 'processing-failed') && !canShowPdf && !canShowVideo) {
-    return <MediaFrame>
+    return <MediaFrame readerMediaState={mobileProjectReader ? 'error' : undefined}>
       <ProcessingNotice attachment={attachment} state={state} message={processing?.message ?? null}
         canRetry={isOwner && (processing?.canRetry ?? false)} isRetrying={processing?.isRetrying ?? false}
         onRetry={processing?.onRetry ?? (() => undefined)} />
     </MediaFrame>;
   }
-  const loading = <LoadingSkeleton kind="reader" projectId={projectId} label={`Loading ${title}…`} />;
+  const loading = mobileProjectReader ? <div data-reader-media-state="pending" role="status" aria-label={`Loading ${title}`}
+    className="flex h-full min-h-12 items-center justify-center"><span className="premium-media-loading-mark" aria-hidden="true" /></div>
+    : <LoadingSkeleton kind="reader" projectId={projectId} label={`Loading ${title}…`} />;
   const documentLoading = <div data-page-loading="" data-initial-page-loading="">{loading}</div>;
   switch (attachment.kind) {
     case 'audio':
@@ -85,7 +88,7 @@ export function AttachmentRenderer({
       </Suspense>;
     case 'document':
       if (!canShowPdf && usePdfRanges) {
-        return <MediaFrame><ErrorState title="This PDF could not be loaded." /></MediaFrame>;
+        return <MediaFrame readerMediaState={mobileProjectReader ? 'error' : undefined}><ErrorState title="This PDF could not be loaded." /></MediaFrame>;
       }
       return canShowPdf ? <MediaFrame><Suspense fallback={documentLoading}>
         <DocumentAttachment verticalReading={verticalReading} manageReadingScroll={manageReadingScroll} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} attachment={attachment} columns={imageColumns}
@@ -109,11 +112,11 @@ export function AttachmentRenderer({
       </MediaFrame>;
     case 'video':
       return <MediaFrame><Suspense fallback={loading}>
-        <VideoAttachment attachment={attachment} active={videoActive} inlinePreview={inlinePreview}
+        <VideoAttachment attachment={attachment} active={videoActive} inlinePreview={inlinePreview} mobileProjectReader={mobileProjectReader}
           conversion={processing ? { ...processing, canRetry: isOwner && processing.canRetry } : undefined} />
       </Suspense></MediaFrame>;
     case 'model3d':
-      return <MediaFrame><Suspense fallback={loading}><ModelAttachment attachment={attachment} /></Suspense></MediaFrame>;
+      return <MediaFrame><Suspense fallback={loading}><ModelAttachment attachment={attachment} mobileProjectReader={mobileProjectReader} /></Suspense></MediaFrame>;
     default:
       return <MediaFrame><GenericFileCard attachment={attachment} /></MediaFrame>;
   }

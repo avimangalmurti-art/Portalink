@@ -47,7 +47,7 @@ function RecoverableDocumentImage({ source, onReadStateChange, onLoad, onError, 
       image.src = source;
     }
   });
-  return <img {...props} ref={imageRef} src={source} onError={event => {
+  return <img {...props} ref={imageRef} src={source} data-reader-media-state={failedSource === source ? 'error' : settledSource === source ? undefined : 'pending'} onError={event => {
     if (currentSource.current !== source) return;
     setFailedSource(source);
     setSettledSource(source);
@@ -260,12 +260,12 @@ export function DocumentAttachment({
     return () => onFocusModeChange?.(false);
   }, [focusedPageIndex, onFocusModeChange, renderedPages.length, readingMode]);
   if (hasFailed && openPdfRanges) {
-    return <div ref={attachmentRef} data-document-attachment="" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col">
+    return <div ref={attachmentRef} data-document-attachment="" data-reader-media-state="error" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col">
       <ErrorState title="This PDF could not be loaded." onRetry={() => setHasFailed(false)} />
     </div>;
   }
   if ((!attachment.sourceUrl && !openPdfRanges && renderedPages.length === 0) || hasFailed) {
-    return isMobile ? <div ref={attachmentRef} data-document-attachment="" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col"><GenericFileCard attachment={attachment} /></div> : <GenericFileCard attachment={attachment} />;
+    return isMobile ? <div ref={attachmentRef} data-document-attachment="" data-reader-media-state="error" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col"><GenericFileCard attachment={attachment} /></div> : <GenericFileCard attachment={attachment} />;
   }
   const columnCount = Math.min(normalizePagesPerRow(columns, 1), renderedPages.length || MAX_PAGES_PER_ROW);
   const overviewZoom = isMobile && focusedPageIndex === null && zoom > 1;
