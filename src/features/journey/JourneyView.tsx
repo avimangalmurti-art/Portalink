@@ -4,9 +4,11 @@ import { useJourneyCitations } from '../citations/useJourneyCitations';
 import { journeyTimeline, type TimelineOrder } from '../citations/journeyCitations';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { EyeIcon, MoreHorizontalIcon } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { MobileProjectPopup } from '../../components/media/MobileProjectPopup';
 import { usePresentation } from '../../presentation/usePresentation';
+import type { TimelinePair } from '../../services/interfaces';
 import type { Profile, Project } from '../../types/domain';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { getProjectCoverPreview } from '../../utils/projectPresentation';
@@ -18,6 +20,7 @@ import { useTimelinePairs } from './useTimelinePairs';
 import { useTimelineSection } from './useTimelineSection';
 
 const PortalProjectPopup = React.lazy(() => import('../../components/profile/PortalProjectPopup').then(module => ({ default: module.PortalProjectPopup })));
+const ReorderTimelinePairs = React.lazy(() => import('./ThenNowDialog').then(module => ({ default: module.ReorderTimelinePairs })));
 
 export function JourneyCover({ project, sizes = '92px' }: { project: Project; sizes?: string }) {
   const isMobile = usePresentation() === 'mobile';
@@ -30,12 +33,13 @@ type JourneyViewProps = {
   showPopular?: boolean;
   toolbarHost?: HTMLElement | null; profile: Profile; owner: boolean; onOpen: (project: Project) => void;
   onEdit?: (project: Project) => void; onEditDescription?: (project: Project) => void; onDelete?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
+  onEditPair?: (pair: TimelinePair) => void;
 };
 export function JourneyView(props: JourneyViewProps) {
   // Sorting, popup and citation state belong to one viewed profile/access mode.
   return <JourneyContent key={`${props.profile.id}:${props.owner}`} {...props} />;
 }
-function JourneyContent({ active = true, showPopular = true, toolbarHost, profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: JourneyViewProps) {
+function JourneyContent({ active = true, showPopular = true, toolbarHost, profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair, onEditPair }: JourneyViewProps) {
   const isMobile = usePresentation() === 'mobile';
   const { reads } = useServices();
   const [popular, setPopular] = useState<{profileId:string; counts:Record<string,number>} | null>(null);
@@ -48,10 +52,12 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
   const popularCounts=owner&&popular?.profileId===profile.id?popular.counts:undefined;
   const [order, setOrder] = useState<TimelineOrder>('newest');
   const [pairsOnly, setPairsOnly] = useState(false);
+  const [reorderingPairs, setReorderingPairs] = useState(false);
+  const closePairOrder = () => setReorderingPairs(false);
   const showingPairsOnly = isMobile && pairsOnly;
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
   const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
-  useEffect(() => { if (!active) { setDetailsProject(null); setPortalPopupId(null); } }, [active]);
+  useEffect(() => { if (!active) { setDetailsProject(null); setPortalPopupId(null); setReorderingPairs(false); } }, [active]);
   const events=useJourneyCitations(profile,owner);
   const groups = useMemo(() => journeyTimeline(profile.projects,events,owner,order,popularCounts), [profile.projects, events, owner, order, popularCounts]);
   const popularityRanks = useMemo(() => {
@@ -71,7 +77,8 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
   const portalProjects = useMemo(() => journeyProjects(profile.projects, owner), [profile.projects, owner]);
   const portalProfile = useMemo(() => ({ ...profile, projects: portalProjects }), [profile, portalProjects]);
   const activePortalPopupId = profile.categories.some(category => category.id === portalPopupId) ? portalPopupId : null;
-  const { pairs, error: pairsError, loading: pairsLoading } = useTimelinePairs(profile, owner);
+  const { pairs, error: pairsError, orderError, loading: pairsLoading, saveOrder } = useTimelinePairs(profile, owner);
+  const orderUnavailable = pairsLoading || Boolean(pairsError || orderError);
   useEffect(() => {
     if (portalPopupId && !activePortalPopupId) setPortalPopupId(null);
   }, [portalPopupId, activePortalPopupId]);
@@ -96,9 +103,21 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
   });
   const showingPairs = showingPairsOnly || section.atPairs;
   const pairContent = pairs.map((record, pairIndex) => {
-    const pair = [record.then, record.now].map(id => profile.projects.find(project => project.id === id)!);
+    const then = profile.projects.find(project => project.id === record.then);
+    const now = profile.projects.find(project => project.id === record.now);
+    if (!then || !now) return null;
+    const heading = <h2>Then / Now</h2>;
     return <section key={record.id} ref={pairIndex === 0 ? pairRef : undefined} className="journey-pair" aria-label="Then / Now">
-      <h2>Then / Now</h2><div className="journey-pair-grid">{pair.map((project, index) => <div key={project.id}>
+      {active && isMobile && owner && onEditPair ? <header className="journey-pair-heading">
+        {heading}
+        <Button variant="secondary" size="sm" data-ui-shape="action" aria-haspopup="dialog"
+          aria-label={`Edit pair: ${then.title} and ${now.title}`}
+          onClick={event => {
+            event.currentTarget.focus({ preventScroll: true });
+            onEditPair(record);
+          }}>Edit pair</Button>
+      </header> : heading}
+      <div className="journey-pair-grid">{[then, now].map((project, index) => <div key={project.id}>
         <button type="button" onClick={() => onOpen(project)} aria-label={`Open ${index ? 'Now' : 'Then'}: ${project.title}`}>
           <span className="journey-pair-cover"><JourneyCover project={project} sizes="(max-width: 639px) 42vw, 240px" /></span>
           <strong>{project.title}{projectMonth(project) && ` · ${projectMonth(project)?.slice(0, 4)}`}</strong>
@@ -141,11 +160,24 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
     {!isMobile && !groups.length && owner && <button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}><span aria-hidden="true">+</span>Add your first project</button>}
     {!isMobile && groups.length > 0 && owner && onAdd && <button type="button" className="journey-text-action journey-add" onClick={() => onAdd()}>+ Add work</button>}
     {owner && pairsError && <p role="status">{pairsError}</p>}
+    {owner && showingPairsOnly && orderError && <p role="status">{orderError}</p>}
     {showingPairsOnly && pairsLoading && !pairs.length && <p role="status">Loading Then/Now pairs…</p>}
+    {active && showingPairsOnly && owner && saveOrder && pairs.length > 1 && <Button
+      variant="secondary" size="sm" data-ui-shape="action" className="journey-pair-order-trigger"
+      aria-haspopup="dialog" aria-disabled={orderUnavailable}
+      onClick={event => {
+        if (orderUnavailable) return;
+        event.currentTarget.focus({ preventScroll: true });
+        setReorderingPairs(true);
+      }}>Reorder pairs</Button>}
     {pairContent}
     {showingPairsOnly && !pairsLoading && !pairs.length && !pairsError && <p role="status">No Then/Now pairs yet.</p>}
     {!isMobile && owner && !pairs.length && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
     {popup}
     {portalPopup}
+    {active && showingPairsOnly && reorderingPairs && saveOrder && <DeferredDialog active onClose={closePairOrder}>
+      <ReorderTimelinePairs pairs={pairs} projects={profile.projects} loading={orderUnavailable}
+        saveOrder={saveOrder} onClose={closePairOrder} />
+    </DeferredDialog>}
   </section>;
 }

@@ -127,6 +127,7 @@ function profileForCurrentViewer(profile: PrototypeProfile): Profile {
 }
 
 const timelinePairs = new Map<string, Array<{ id: string; then: string; now: string }>>();
+const timelinePairOrders = new Map<Id, string[]>();
 let timelinePairSequence = 0;
 export const mockProfileService: ProfileService = {
   async listTimelinePairs(profileId) {
@@ -135,6 +136,28 @@ export const mockProfileService: ProfileService = {
     if (!profile || (!own && (!profileForCurrentViewer(profile).showJourney || profile.isPrivate))) return [];
     const visible = new Set(profileForCurrentViewer(profile).projects.filter(project => project.isPubliclyVisible !== false).map(project => project.id));
     return (timelinePairs.get(profileId) ?? []).filter(pair => visible.has(pair.then) && visible.has(pair.now));
+  },
+  async listTimelinePairOrder(profileId) {
+    const profile = findProfileById(profileId);
+    const own = currentFollower()?.profileId === profileId;
+    if (!profile) return [];
+    const viewed = profileForCurrentViewer(profile);
+    if (!own && (!viewed.showJourney || viewed.isPrivate)) return [];
+    const pairIds = new Set((await this.listTimelinePairs?.(profileId))?.map(pair => pair.id));
+    const legacy = viewed.thenNow;
+    if (legacy && viewed.projects.some(project => project.id === legacy.then && project.isPubliclyVisible !== false)
+      && viewed.projects.some(project => project.id === legacy.now && project.isPubliclyVisible !== false)) pairIds.add('legacy');
+    return (timelinePairOrders.get(profileId) ?? []).filter(id => pairIds.has(id));
+  },
+  async reorderTimelinePairs(profileId, pairIds) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can reorder pairs.');
+    const currentIds = new Set((timelinePairs.get(profileId) ?? []).map(pair => pair.id));
+    const profile = findProfileById(profileId);
+    if (profile && profileForCurrentViewer(profile).thenNow) currentIds.add('legacy');
+    if (new Set(pairIds).size !== pairIds.length || pairIds.some(id => !currentIds.has(id))) {
+      throw new Error('The available pairs may have changed. Reopen the editor and try again.');
+    }
+    timelinePairOrders.set(profileId, [...pairIds]);
   },
   async addTimelinePair(profileId, thenId, nowId) {
     if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can add pairs.');
@@ -145,9 +168,24 @@ export const mockProfileService: ProfileService = {
     if (pairs.some(pair => pair.then === thenId && pair.now === nowId)) throw new Error('This pair already exists.');
     timelinePairs.set(profileId, [...pairs, { id: 'pair-' + ++timelinePairSequence, then: thenId, now: nowId }]);
   },
+  async updateTimelinePair(profileId, pairId, thenId, nowId, expected) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can edit pairs.');
+    const profile = findProfileById(profileId);
+    const visible = new Set((profile ? profileForCurrentViewer(profile).projects : []).filter(project => !project.sessionOnly && project.isPubliclyVisible !== false).map(project => project.id));
+    if (thenId === nowId || !visible.has(thenId) || !visible.has(nowId)) throw new Error('Choose two visible projects.');
+    const pairs = timelinePairs.get(profileId) ?? [];
+    const existing = pairs.find(pair => pair.id === pairId);
+    if (!existing || (expected && (existing.then !== expected.then || existing.now !== expected.now))) {
+      throw new Error('This pair has changed. Reopen the editor and try again.');
+    }
+    if (pairs.some(pair => pair.id !== pairId && pair.then === thenId && pair.now === nowId)) throw new Error('This pair already exists.');
+    timelinePairs.set(profileId, pairs.map(pair => pair.id === pairId ? { ...pair, then: thenId, now: nowId } : pair));
+  },
   async removeTimelinePair(profileId, pairId) {
     if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can remove pairs.');
     timelinePairs.set(profileId, (timelinePairs.get(profileId) ?? []).filter(pair => pair.id !== pairId));
+    const order = timelinePairOrders.get(profileId);
+    if (order) timelinePairOrders.set(profileId, order.filter(id => id !== pairId));
   },
   async getProfile(profileId) {
     const profile = findProfileById(profileId);
@@ -235,6 +273,8 @@ export const mockProfileService: ProfileService = {
     // profile sees the same values for the rest of the session. `avatar` has no
     // transport, so the prepared file is deliberately NOT written — inventing a
     // storage URL would be a lie. Reload resets all of this.
+    const order = timelinePairOrders.get(profileId);
+    if (order && input.thenNow === null) timelinePairOrders.set(profileId, order.filter(id => id !== 'legacy'));
     return applyPrototypeProfileUpdate(profileId, {
       ...fields,
       handle: nextHandle ? `@${nextHandle}` : current.handle,

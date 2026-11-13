@@ -131,7 +131,10 @@ export interface AuthService {
 export type TimelinePair = { id: string; then: string; now: string };
 export interface ProfileService {
   listTimelinePairs?(profileId: Id): Promise<TimelinePair[]>;
+  listTimelinePairOrder?(profileId: Id): Promise<string[]>;
+  reorderTimelinePairs?(profileId: Id, pairIds: string[]): Promise<void>;
   addTimelinePair?(profileId: Id, thenId: Id, nowId: Id): Promise<void>;
+  updateTimelinePair?(profileId: Id, pairId: Id, thenId: Id, nowId: Id, expected?: Pick<TimelinePair, 'then' | 'now'>): Promise<void>;
   removeTimelinePair?(profileId: Id, pairId: Id): Promise<void>;
   /**
    * Rejects when the id names no profile. Absence must be an error rather than a
