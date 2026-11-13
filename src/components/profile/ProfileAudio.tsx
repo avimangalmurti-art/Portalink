@@ -289,10 +289,9 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
   const heading = draft ? (track ? 'Edit profile audio' : 'Add profile audio') : track?.title || 'Profile audio';
   return <>
     <button ref={shortcut} type="button" className="profile-audio-shortcut" disabled={!isActive || busy}
-      aria-label={shortcutLabel} title={shortcutLabel} aria-haspopup={needsGesture ? undefined : 'dialog'} aria-expanded={needsGesture ? undefined : visible}
-      aria-controls={visible ? id : undefined} data-playing={playing || undefined} data-needs-gesture={needsGesture || undefined} onClick={show}>
+      aria-label={shortcutLabel} title={needsGesture ? undefined : shortcutLabel} aria-haspopup={needsGesture ? undefined : 'dialog'} aria-expanded={needsGesture ? undefined : visible}
+      aria-controls={visible ? id : undefined} data-playing={playing || undefined} onClick={show}>
       <Waveform />
-      {needsGesture && <span>Play audio</span>}
     </button>
     <ModalPortal>
       <div ref={viewport} hidden={!visible} data-presentation={presentation} className="profile-audio-overlay modal-scrim"

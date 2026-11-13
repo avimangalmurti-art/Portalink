@@ -1,3 +1,9 @@
+## 2026-11-12 — Shared catalogue waveform shortcut
+
+Local branch `codex/shared-catalogue-waveform` starts at GitHub main `745c4d7b84717d1760043f627a012b06abd2a37c` (Sites 620). The shared mobile header shows a waveform without a text label or tooltip if the browser blocks audible autoplay. The waveform retains its accessible action name. The existing playback request runs as soon as the active catalogue has a playable track, and an eligible in-page interaction can still start it when the browser requires one.
+
+Typecheck, scoped lint, and 79 focused audio and visitor-navigation tests passed. Local Chromium at 420 × 912 played before any interaction when autoplay was allowed and started on the first waveform touch when activation was required. Both states showed an icon without text. At 1280 × 912 desktop playback started only through the player's Play control. Browser receipts are in ignored `logs/profile-audio-shared-route-qa/waveform-*.log`. Opening a shared link from Messages on a physical iPhone remains unverified. This source change is local.
+
 ## 2026-11-12 — Mobile project opening published in Sites 619
 
 PR #164 CI follow-up pins the public launch script to LF and uses its canonical content hash in both entries. The shared catalogue appearance test now supplies a browser pathname. Sites 619 remains at the deployed revision below.
