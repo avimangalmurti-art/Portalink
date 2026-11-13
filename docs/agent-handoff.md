@@ -1,3 +1,9 @@
+## 2026-11-12 — Shared catalogue audio gesture
+
+Local branch `codex/catalogue-audio-first-gesture` from GitHub main `558bcae`. The mobile shared catalogue also retries blocked audio on a trusted touch or pen pointer release. It uses passive listeners, leaves native scrolling in place, and retains the existing click and touchend fallback.
+
+Typecheck, scoped lint, and 79 focused tests passed. In a local 420 × 912 Chromium fixture with autoplay blocked, a native swipe scrolled the catalogue but did not grant playback, and the next ordinary Catalogue tap started audio with the player closed. An instrumented pen release invoked playback during pointerup, before click. Opening from Messages on a physical iPhone remains unverified. The source change is local.
+
 ## 2026-11-12 — Shared catalogue waveform shortcut
 
 Local branch `codex/shared-catalogue-waveform` starts at GitHub main `745c4d7b84717d1760043f627a012b06abd2a37c` (Sites 620). The shared mobile header shows a waveform without a text label or tooltip if the browser blocks audible autoplay. The waveform retains its accessible action name. The existing playback request runs as soon as the active catalogue has a playable track, and an eligible in-page interaction can still start it when the browser requires one.
