@@ -567,8 +567,7 @@ test('the mobile action opens project information without changing WEB rail pref
     const h=harness({readOnlyShare});
     const props={onRailOpenChange:()=>assert.fail('Information must not resize the WEB rail')};
     const opening = h.render(props);
-    if (readOnlyShare) h.screenActions.at(-1).onOpen();
-    else button(opening,'Show project engagement').props.onClick();
+    button(opening, readOnlyShare ? 'Show project information' : 'Show project engagement').props.onClick();
     const tree=h.render(props),sheet=nodes(tree).find(node=>node.type===FollowContentInfoPopup);
     assert.equal(sheet.props.projectId,'project');
     assert.equal(sheet.props.showEngagement,!readOnlyShare);
@@ -1295,6 +1294,9 @@ test('mobile content bar retains portal, information and creator navigation for 
     assert.equal(controls[0].props['aria-label'], 'Open portal');
     assert.equal(controls.length, 3);
     assert.equal(controls[1].props['aria-label'], readOnlyShare ? 'Show project information' : 'Show project engagement');
+    assert.equal(controls[1].props.children.props.className, 'reader-info-glyph');
+    assert.equal(controls[1].props.children.props.children, 'i');
+    assert.equal(controls[1].props.children.props['aria-hidden'], 'true');
     assert.equal(controls[2].props['aria-label'], 'View Creator profile');
     controls[0].props.onClick();
     assert.equal(withProp(h.render(), 'data-mobile-combined-rail').props['data-mobile-combined-rail'], '');

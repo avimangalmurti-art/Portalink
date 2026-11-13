@@ -11,6 +11,20 @@
   overflow: hidden;
 }
 
+#root .codex-shell .mobile-content-action-bar .reader-info-glyph {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace !important;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+}
+
 /* Return with the main dock's quick fade, retaining the existing hide motion. */
 #root .codex-shell[data-presentation='mobile']:not([data-project-reading]) [data-project-reading-control] {
   transition: opacity var(--m-fast) var(--m-enter), visibility 0s;

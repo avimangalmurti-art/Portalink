@@ -24,24 +24,24 @@ export function PlatformGrid({
   onOpenBio?: () => void;
   onCollaboration?: () => void;
   onMessage?: () => void;
-  profileAudio?: { profileId: string; accountId: string | null; editable: boolean; active: boolean };
+  profileAudio?: { profileId: string; accountId: string | null; profileAvatar?: string; editable: boolean; active: boolean };
 }) {
   return <ul role="list" aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
       {links.map((link, index) => {
         if (isProfileLinkAction(link.action)) {
-          if (link.action === 'collaboration' && profileAudio) {
-            return <React.Suspense key={JSON.stringify(['profile-audio', profileAudio.profileId, profileAudio.accountId, profileAudio.editable])} fallback={null}>
-              <ProfileAudioSlot {...profileAudio} profileName={profileName} />
-            </React.Suspense>;
-          }
-          if (link.hidden || (isSharedView && (link.action === 'collaboration' || link.action === 'message'))) return null;
+          const audio = link.action === 'collaboration' && profileAudio
+            ? <React.Suspense key={JSON.stringify(['profile-audio', profileAudio.profileId, profileAudio.accountId, profileAudio.editable])} fallback={null}>
+              <ProfileAudioSlot {...profileAudio} profileName={profileName} sharedCatalogue={isSharedView} />
+            </React.Suspense> : null;
+          const showAction = !link.hidden && !(audio && !onCollaboration)
+            && !(isSharedView && (link.action === 'collaboration' || link.action === 'message'));
           const action = { bio: onOpenBio, collaboration: onCollaboration, message: onMessage }[link.action];
           const Icon = { bio: InfoIcon, collaboration: HandshakeIcon, message: MessagesSquareIcon }[link.action];
-          const control = <li key={link.action} className="list-none"><button type="button" onClick={action} disabled={!action} aria-label={link.label} title={link.label} aria-haspopup={link.action === 'bio' ? 'dialog' : undefined}
+          const control = showAction ? <li key={link.action} className="list-none"><button type="button" onClick={action} disabled={!action} aria-label={link.label} title={link.label} aria-haspopup={link.action === 'bio' ? 'dialog' : undefined}
             className={`${TILE_CLASS} rounded-[10px] transition-colors duration-[var(--m-fast)] hover:text-[var(--accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45`}>
             <Icon aria-hidden="true" className="h-[22px] w-[22px]" />
-          </button></li>;
-          return control;
+          </button></li> : null;
+          return audio ? <React.Fragment key={link.action}>{audio}{control}</React.Fragment> : control;
         }
         const Icon = getCategoryIcon(link.iconName ?? 'globe');
         const href = profileLinkHref(link.href);

@@ -328,6 +328,7 @@ function appHarness({ firstVisit = false, catalogueOrigin = null, deviceAppearan
     if (name === '../app/routes') return routes;
     if (name === '../contexts/AuthContext') return { useAuth: () => state.auth };
     if (name === '../components/profile/usePrepareProfileAudio') return { usePrepareProfileAudio() {} };
+    if (name === '../features/profile/profileAudioPlayback') return { clearProfileAudioForProfile() {} };
     if (name === '../features/profile/useSharedProfileQuery') return { useSharedProfileQuery: (...args) => { queryCalls.push(args); return args[0] ? state.query : { status: 'idle', profile: null }; } };
     if (name === '../hooks/useDeviceAppearance') return { useDeviceAppearance: appearanceHook };
     if (name === '../presentation/usePresentation') return { usePresentation: () => state.presentation };
@@ -658,6 +659,20 @@ test('the public header shows only High Contrast on MOBILE and also offers Trans
       assert.equal(switches()[1].props.isOn, true);
     }
     assert.equal(nodes(visitorProfileHarness({ presentation }).render()).some(node => node.type === 'AppearanceSwitch'), false);
+    h.dispose();
+  }
+});
+
+test('the public audio shortcut is read-only on mobile and desktop, even for the signed-in creator', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = visitorProfileHarness({ presentation });
+    h.state.signedIn = true;
+    h.state.own = true;
+    const grid = nodes(h.render()).find(node => node.type === 'PlatformGrid');
+    assert.equal(grid.props.isSharedView, true);
+    assert.equal(grid.props.profileAudio.profileId, h.bioProfile.id);
+    assert.equal(grid.props.profileAudio.editable, false);
+    assert.equal(grid.props.profileAudio.active, true);
     h.dispose();
   }
 });

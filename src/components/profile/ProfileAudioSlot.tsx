@@ -5,12 +5,14 @@ import { removeProfileAudio, saveProfileAudio, type StoredProfileAudio } from '.
 import { ProfileAudio } from './ProfileAudio';
 import { acquireProfileAudio, invalidatePreparedProfileAudio } from './usePrepareProfileAudio';
 
-export default function ProfileAudioSlot({ profileId, accountId, profileName, editable, active }: {
+export default function ProfileAudioSlot({ profileId, accountId, profileName, profileAvatar, editable, active, sharedCatalogue }: {
   profileId: string;
   accountId: string | null;
   profileName: string;
+  profileAvatar?: string;
   editable: boolean;
   active: boolean;
+  sharedCatalogue: boolean;
 }) {
   const [stored, setStored] = useState<StoredProfileAudio | null>(null);
   const [load, setLoad] = useState<'pending' | 'ready' | 'failed'>('pending');
@@ -55,7 +57,7 @@ export default function ProfileAudioSlot({ profileId, accountId, profileName, ed
   }
 
   return <li className="list-none">
-    <ProfileAudio track={stored?.track ?? null} sourceKey={stored?.row.audio_path} profileName={profileName} editable={editable} disabled={!active}
+    <ProfileAudio track={stored?.track ?? null} sourceKey={stored?.row.audio_path} profileName={profileName} profileAvatar={profileAvatar} editable={editable} disabled={!active} sharedCatalogue={sharedCatalogue}
       onSave={editable ? save : undefined} onRemove={editable ? remove : undefined} />
   </li>;
 }

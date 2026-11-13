@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
-import { AudioLinesIcon, PauseIcon, PlayIcon, XIcon } from 'lucide-react';
+import { AudioLinesIcon, PauseIcon, PlayIcon, RotateCcwIcon, RotateCwIcon, Volume1Icon, Volume2Icon, XIcon } from 'lucide-react';
 import {
   PROFILE_AUDIO_ACCEPT, PROFILE_AUDIO_COVER_ACCEPT, PROFILE_AUDIO_COVER_MAX_BYTES, PROFILE_AUDIO_MAX_BYTES,
   type ProfileAudioEdit, type ProfileAudioTrack,
 } from '../../features/profile/profileAudio';
 import { readProfileAudioTags } from '../../features/profile/profileAudioTags';
 import {
-  getProfileAudioSnapshot, retryProfileAudioOnGesture, seekProfileAudio, startProfileAudio, subscribeProfileAudio, toggleProfileAudio,
+  getProfileAudioSnapshot, retryProfileAudioOnGesture, seekProfileAudio, setProfileAudioVolume, startProfileAudio,
+  subscribeProfileAudio, supportsProfileAudioVolume, toggleProfileAudio,
 } from '../../features/profile/profileAudioPlayback';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -20,22 +21,24 @@ type ProfileAudioProps = {
   track: ProfileAudioTrack | null;
   sourceKey?: string;
   profileName: string;
+  profileAvatar?: string;
   editable?: boolean;
   onSave?: (input: ProfileAudioEdit) => Promise<void>;
   onRemove?: () => Promise<void>;
   disabled?: boolean;
+  sharedCatalogue?: boolean;
 };
 
 function Waveform() {
   return <span className="profile-audio-wave" aria-hidden="true"><i /><i /><i /><i /><i /></span>;
 }
 
-function TrackCover({ url, playing }: { url: string | null; playing: boolean }) {
-  const [failed, setFailed] = useState(false);
-  return <div className="profile-audio-cover" data-playing={playing || undefined}>
-    {url && !failed ? <img src={url} alt="" onError={() => setFailed(true)} />
+function TrackCover({ url, avatar }: { url: string | null; avatar?: string }) {
+  const [failed, setFailed] = useState<string[]>([]);
+  const image = [url, avatar].find(src => src && !failed.includes(src));
+  return <div className="profile-audio-cover">
+    {image ? <img src={image} alt="" onError={() => setFailed(previous => [...previous, image])} />
       : <InterfaceIcon icon={AudioLinesIcon} size="xl" />}
-    {playing && <div className="profile-audio-cover-wave"><Waveform /></div>}
   </div>;
 }
 
@@ -49,36 +52,56 @@ function formatAudioTime(seconds: number): string {
 
 function ProfileAudioPlayer({ source }: { source: { key: string; url: string } }) {
   const playback = useSyncExternalStore(subscribeProfileAudio, getProfileAudioSnapshot, getProfileAudioSnapshot);
+  const [hasVolumeControl, setHasVolumeControl] = useState(false);
+  useEffect(() => setHasVolumeControl(supportsProfileAudioVolume()), []);
   const current = playback.key === source.key;
   const wantsPlayback = current && playback.wantsPlayback;
   const duration = current ? playback.duration : 0;
   const position = current ? Math.min(playback.position, duration) : 0;
   const positionLabel = formatAudioTime(position);
   const durationLabel = formatAudioTime(duration);
+  const remainingLabel = formatAudioTime(duration - position);
   const interrupted = wantsPlayback && playback.videoOpen;
 
   return <div className="profile-audio-transport">
-    <button type="button" className="profile-audio-toggle" data-ui-control="button" data-control-size="md"
-      data-control-variant="secondary" onClick={() => toggleProfileAudio(source)}>
-      <InterfaceIcon icon={wantsPlayback ? PauseIcon : PlayIcon} size="sm" />
-      {wantsPlayback ? 'Pause audio' : 'Play audio'}
-    </button>
     <div className="profile-audio-progress">
       <input type="range" min={0} max={duration || 1} step="any" value={position} disabled={!duration}
         aria-label="Audio position" aria-valuetext={`${positionLabel} of ${durationLabel}`}
         onChange={event => seekProfileAudio(source.key, event.currentTarget.valueAsNumber)} />
-      <div className="profile-audio-timestamps" aria-hidden="true"><span>{positionLabel}</span><span>{durationLabel}</span></div>
+      <div className="profile-audio-timestamps" aria-hidden="true"><span>{positionLabel}</span><span>−{remainingLabel}</span></div>
     </div>
+    <div className="profile-audio-player-controls">
+      <button type="button" className="profile-audio-skip" data-ui-control="icon" data-control-variant="ghost"
+        aria-label="Back 10 seconds" disabled={!duration || position <= 0} onClick={() => seekProfileAudio(source.key, position - 10)}>
+        <span className="profile-audio-skip-icon" aria-hidden="true"><InterfaceIcon icon={RotateCcwIcon} size="lg" /><span>10</span></span>
+      </button>
+      <button type="button" className="profile-audio-toggle" data-ui-control="icon" data-control-variant="secondary"
+        aria-label={wantsPlayback ? 'Pause audio' : 'Play audio'} onClick={() => toggleProfileAudio(source)}>
+        <InterfaceIcon icon={wantsPlayback ? PauseIcon : PlayIcon} size="lg" />
+      </button>
+      <button type="button" className="profile-audio-skip" data-ui-control="icon" data-control-variant="ghost"
+        aria-label="Forward 10 seconds" disabled={!duration || position >= duration} onClick={() => seekProfileAudio(source.key, position + 10)}>
+        <span className="profile-audio-skip-icon" aria-hidden="true"><InterfaceIcon icon={RotateCwIcon} size="lg" /><span>10</span></span>
+      </button>
+    </div>
+    {hasVolumeControl && <div className="profile-audio-volume">
+      <InterfaceIcon icon={Volume1Icon} size="sm" />
+      <input type="range" min={0} max={1} step={0.01} value={playback.volume} aria-label="Audio volume"
+        aria-valuetext={`${Math.round(playback.volume * 100)}%`}
+        onChange={event => setProfileAudioVolume(event.currentTarget.valueAsNumber)} />
+      <InterfaceIcon icon={Volume2Icon} size="sm" />
+    </div>}
     {interrupted && <p role="status" className="profile-audio-muted">Paused while video is open.</p>}
     {current && playback.error && <p role="status" className="profile-audio-muted">{playback.error}</p>}
   </div>;
 }
 
-export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, onRemove, disabled }: ProfileAudioProps) {
+export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, editable, onSave, onRemove, disabled, sharedCatalogue }: ProfileAudioProps) {
   const presentation = usePresentation();
   const screenActive = useMobileScreenActive();
   const id = useId();
   const coverInput = useRef<HTMLInputElement>(null);
+  const shortcut = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLElement>(null);
   const isOpen = useRef(false);
   const tagAttempt = useRef(0);
@@ -99,11 +122,17 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
   const source = playbackKey && audioUrl ? { key: playbackKey, url: audioUrl } : null;
   const showShortcut = canEdit || Boolean(source);
   const editing = draft !== null;
+  const player = Boolean(track && !editing && !confirmingRemove);
   const getPlaying = useCallback(() => {
     const playback = getProfileAudioSnapshot();
     return playback.key === playbackKey && playback.playing;
   }, [playbackKey]);
   const playing = useSyncExternalStore(subscribeProfileAudio, getPlaying, getPlaying);
+  const getNeedsGesture = useCallback(() => {
+    const playback = getProfileAudioSnapshot();
+    return Boolean(presentation === 'mobile' && sharedCatalogue && playback.key === playbackKey && playback.needsGesture && !playback.videoOpen);
+  }, [presentation, sharedCatalogue, playbackKey]);
+  const needsGesture = useSyncExternalStore(subscribeProfileAudio, getNeedsGesture, getNeedsGesture);
 
   const dismiss = useCallback(() => {
     isOpen.current = false;
@@ -137,12 +166,13 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
     if (!isActive && isOpen.current) dismiss();
   }, [isActive, dismiss]);
   useEffect(() => {
-    if (!isActive || !playbackKey || !audioUrl) return;
+    if (presentation !== 'mobile' || !isActive || !playbackKey || !audioUrl) return;
     const activeSource = { key: playbackKey, url: audioUrl };
     startProfileAudio(activeSource);
 
     function retryOnGesture(event: Event) {
       // The browser needs play() inside the gesture. The open player handles its own controls.
+      if (sharedCatalogue && event.target instanceof Node && shortcut.current?.contains(event.target)) return;
       if (event.isTrusted && !isOpen.current) retryProfileAudioOnGesture(activeSource);
     }
     document.addEventListener('click', retryOnGesture, true);
@@ -151,7 +181,7 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
       document.removeEventListener('click', retryOnGesture, true);
       document.removeEventListener('touchend', retryOnGesture, true);
     };
-  }, [isActive, playbackKey, audioUrl]);
+  }, [presentation, isActive, playbackKey, audioUrl, sharedCatalogue]);
   useEffect(() => {
     if (visible) dialog.current?.focus({ preventScroll: true });
   }, [visible, editing, confirmingRemove]);
@@ -171,6 +201,10 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
 
   function show(event: React.MouseEvent<HTMLButtonElement>) {
     event.currentTarget.focus({ preventScroll: true });
+    if (source && getNeedsGesture()) {
+      retryProfileAudioOnGesture(source);
+      return;
+    }
     isOpen.current = true;
     setOpen(true);
     if (!track && canEdit) edit();
@@ -251,13 +285,14 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
   }
 
   if (!showShortcut) return null;
-  const shortcutLabel = !track && canEdit ? 'Add profile audio' : 'Open profile audio';
+  const shortcutLabel = needsGesture ? 'Play profile audio' : !track && canEdit ? 'Add profile audio' : 'Open profile audio';
   const heading = draft ? (track ? 'Edit profile audio' : 'Add profile audio') : track?.title || 'Profile audio';
   return <>
-    <button type="button" className="profile-audio-shortcut" disabled={!isActive || busy}
-      aria-label={shortcutLabel} title={shortcutLabel} aria-haspopup="dialog" aria-expanded={visible}
-      aria-controls={visible ? id : undefined} data-playing={playing || undefined} onClick={show}>
+    <button ref={shortcut} type="button" className="profile-audio-shortcut" disabled={!isActive || busy}
+      aria-label={shortcutLabel} title={shortcutLabel} aria-haspopup={needsGesture ? undefined : 'dialog'} aria-expanded={needsGesture ? undefined : visible}
+      aria-controls={visible ? id : undefined} data-playing={playing || undefined} data-needs-gesture={needsGesture || undefined} onClick={show}>
       <Waveform />
+      {needsGesture && <span>Play audio</span>}
     </button>
     <ModalPortal>
       <div ref={viewport} hidden={!visible} data-presentation={presentation} className="profile-audio-overlay modal-scrim"
@@ -265,8 +300,8 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
         onClick={event => event.stopPropagation()}>
         {visible && <ScreenBack action={back}>{null}</ScreenBack>}
         <section id={id} ref={dialog} role="dialog" aria-modal={visible || undefined} aria-labelledby={`${id}-title`}
-          aria-busy={busy || undefined} tabIndex={-1} data-ui-surface="popup" className="profile-audio-dialog">
-          {visible && <header className="profile-audio-header">
+          aria-busy={busy || undefined} tabIndex={-1} data-ui-surface="popup" data-player={player || undefined} className="profile-audio-dialog">
+          {visible && !player && <header className="profile-audio-header">
             <div>
               <h2 id={`${id}-title`}>{heading}</h2>
               <p>{draft ? profileName : track?.artist || profileName}</p>
@@ -274,13 +309,21 @@ export function ProfileAudio({ track, sourceKey, profileName, editable, onSave, 
             <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
               disabled={busy} aria-label="Close profile audio" onClick={close}><InterfaceIcon icon={XIcon} /></button>
           </header>}
-          {visible && !draft && track && <div className="profile-audio-details">
-            <TrackCover key={track.coverUrl} url={track.coverUrl} playing={playing} />
+          {visible && player && track && <>
+            <TrackCover key={JSON.stringify([track.coverUrl, profileAvatar])} url={track.coverUrl} avatar={profileAvatar} />
+            <button type="button" className="profile-audio-player-close" data-ui-control="icon" data-control-size="md" data-control-variant="secondary"
+              disabled={busy} aria-label="Close profile audio" onClick={close}><InterfaceIcon icon={XIcon} /></button>
+            <div className="profile-audio-details">
+              <header className="profile-audio-header"><div>
+                <h2 id={`${id}-title`}>{heading}</h2>
+                <p>{track.artist || profileName}</p>
+              </div></header>
+              {!track.enabled && <p className="profile-audio-muted">Playback is off.</p>}
+              {track.enabled && !track.audioUrl && <p role="status" className="profile-audio-muted">Audio is unavailable.</p>}
+            </div>
+            {source && <ProfileAudioPlayer source={source} />}
             {track.description && <p className="profile-audio-description">{track.description}</p>}
-            {!track.enabled && <p className="profile-audio-muted">Playback is off.</p>}
-            {track.enabled && !track.audioUrl && <p role="status" className="profile-audio-muted">Audio is unavailable.</p>}
-          </div>}
-          {visible && !draft && source && <ProfileAudioPlayer source={source} />}
+          </>}
           {visible && !draft && !track && <p className="profile-audio-muted">No profile audio has been added.</p>}
           {visible && draft && <form className="profile-audio-form" onSubmit={event => { void save(event); }}>
             <fieldset disabled={busy}>

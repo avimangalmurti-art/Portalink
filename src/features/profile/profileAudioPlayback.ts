@@ -8,14 +8,16 @@ type ProfileAudioSnapshot = {
   videoOpen: boolean;
   position: number;
   duration: number;
+  volume: number;
   error: string | null;
 };
 
 const empty: ProfileAudioSnapshot = {
-  key: null, playing: false, wantsPlayback: false, needsGesture: false, videoOpen: false, position: 0, duration: 0, error: null,
+  key: null, playing: false, wantsPlayback: false, needsGesture: false, videoOpen: false, position: 0, duration: 0, volume: 1, error: null,
 };
 let snapshot = empty;
 let audio: HTMLAudioElement | null = null;
+let volumeSupported: boolean | undefined;
 let request = 0;
 let starting = false;
 let openVideos = 0;
@@ -29,6 +31,21 @@ export function subscribeProfileAudio(listener: () => void) {
 
 export function getProfileAudioSnapshot() {
   return snapshot;
+}
+
+export function supportsProfileAudioVolume() {
+  if (volumeSupported !== undefined) return volumeSupported;
+  if (typeof Audio === 'undefined') return false;
+  try {
+    // Some browsers keep volume at 1 even when the property is writable.
+    // Probe a separate, source-free element so playback volume never changes.
+    const probe = new Audio();
+    probe.volume = 0.5;
+    volumeSupported = probe.volume === 0.5;
+  } catch {
+    volumeSupported = false;
+  }
+  return volumeSupported;
 }
 
 function update(changes: Partial<ProfileAudioSnapshot>) {
@@ -60,6 +77,7 @@ function getAudio() {
   player.addEventListener('loadedmetadata', readTime);
   player.addEventListener('durationchange', readTime);
   player.addEventListener('timeupdate', readTime);
+  player.addEventListener('volumechange', () => update({ volume: player.volume }));
   player.addEventListener('playing', () => {
     if (player.paused || !snapshot.key || !snapshot.wantsPlayback || openVideos) return;
     update({ playing: true, error: null });
@@ -147,12 +165,19 @@ export function seekProfileAudio(key: string, seconds: number) {
   update({ position });
 }
 
+export function setProfileAudioVolume(volume: number) {
+  if (!Number.isFinite(volume) || !supportsProfileAudioVolume()) return;
+  const player = getAudio();
+  player.volume = Math.max(0, Math.min(volume, 1));
+  update({ volume: player.volume });
+}
+
 export function clearProfileAudio(key?: string) {
   if (!snapshot.key || (key && key !== snapshot.key)) return;
   pauseAudio();
   audio?.removeAttribute('src');
   audio?.load();
-  update({ ...empty, videoOpen: snapshot.videoOpen });
+  update({ ...empty, videoOpen: snapshot.videoOpen, volume: snapshot.volume });
 }
 
 export function clearProfileAudioForProfile(profileId: string) {

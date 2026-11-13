@@ -6,9 +6,9 @@ import { sourceModule } from './helpers/source-module.mjs';
 const track = { key: 'creator/track', url: 'https://audio.test/track.m4a' };
 const otherTrack = { key: 'another-creator/track', url: 'https://audio.test/another-track.m4a' };
 
-function createPlayback({ autoplayAllowed = true } = {}) {
+function createPlayback({ autoplayAllowed = true, adjustableVolume = true } = {}) {
   let canPlay = autoplayAllowed;
-  let player;
+  const players = [];
   const attempts = [];
 
   class AudioFixture extends EventTarget {
@@ -17,10 +17,18 @@ function createPlayback({ autoplayAllowed = true } = {}) {
     duration = 180;
     error = null;
     ended = false;
+    #volume = 1;
+
+    get volume() { return this.#volume; }
+    set volume(next) {
+      if (!adjustableVolume || this.#volume === next) return;
+      this.#volume = next;
+      this.dispatchEvent(new Event('volumechange'));
+    }
 
     constructor() {
       super();
-      player = this;
+      players.push(this);
     }
 
     play() {
@@ -49,10 +57,60 @@ function createPlayback({ autoplayAllowed = true } = {}) {
   return {
     ...sourceModule('src/features/profile/profileAudioPlayback.ts', {}, { Audio: AudioFixture, DOMException, queueMicrotask }),
     attempts,
-    get player() { return player; },
+    players,
+    get player() { return players.find(player => player.preload === 'metadata'); },
     grantPlayback() { canPlay = true; },
   };
 }
+
+test('volume support probes a separate source-free element without changing active playback', async () => {
+  const playback = createPlayback();
+  playback.startProfileAudio(track);
+  await setImmediate();
+  assert.equal(playback.supportsProfileAudioVolume(), true);
+  assert.equal(playback.supportsProfileAudioVolume(), true);
+  const probe = playback.players.find(player => player !== playback.player);
+  assert.equal(playback.players.length, 2);
+  assert.equal(probe.src, undefined);
+  assert.equal(playback.player.volume, 1);
+  assert.equal(playback.getProfileAudioSnapshot().playing, true);
+  assert.equal(playback.attempts.length, 1);
+});
+
+test('volume is observable before playback and persists through playback interruptions', async () => {
+  const playback = createPlayback();
+  const reported = [];
+  playback.subscribeProfileAudio(() => reported.push(playback.getProfileAudioSnapshot().volume));
+  playback.setProfileAudioVolume(0.3);
+  assert.deepEqual(reported, [0.3]);
+  assert.equal(playback.attempts.length, 0);
+  playback.startProfileAudio(track);
+  await setImmediate();
+
+  const leaveVideo = playback.suspendProfileAudioForVideo();
+  playback.setProfileAudioVolume(0.6);
+  leaveVideo();
+  await setImmediate();
+  assert.equal(playback.getProfileAudioSnapshot().playing, true);
+  assert.equal(playback.getProfileAudioSnapshot().volume, 0.6);
+  assert.equal(playback.player.volume, 0.6);
+  assert.equal(playback.attempts.length, 2);
+
+  playback.player.volume = 0.5;
+  assert.equal(reported.at(-1), 0.5);
+  playback.clearProfileAudio();
+  assert.equal(playback.getProfileAudioSnapshot().volume, 0.5);
+});
+
+test('readback detects hardware-only volume and a setter cannot create a playback element', () => {
+  const playback = createPlayback({ adjustableVolume: false });
+  assert.equal(playback.supportsProfileAudioVolume(), false);
+  playback.setProfileAudioVolume(0.2);
+  assert.equal(playback.players.length, 1);
+  assert.equal(playback.getProfileAudioSnapshot().volume, 1);
+  assert.equal(playback.player, undefined);
+  assert.equal(playback.attempts.length, 0);
+});
 
 test('profile entry starts audible playback once when autoplay is allowed', async () => {
   const playback = createPlayback();

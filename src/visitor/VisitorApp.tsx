@@ -21,6 +21,7 @@ import { resolveMacTokens } from '../utils/macTokens';
 import { resolveNavButtonTokens } from '../data/navButtonTokens';
 import { VisitorProfileGrid } from './VisitorProfileGrid';
 import { usePrepareProfileAudio } from '../components/profile/usePrepareProfileAudio';
+import { clearProfileAudioForProfile } from '../features/profile/profileAudioPlayback';
 import { useMobileProjectReturn } from './useMobileProjectReturn';
 import type { Profile } from '../types/domain';
 import type { PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
@@ -134,6 +135,10 @@ export function VisitorApp() {
   // Canonical handle replacement can briefly be unresolved; keep this trusted
   // session identity hidden until resolution confirms (or changes) the creator.
   const returnProfileId = profileId ?? (handlePending || handleError ? lastSharedRoute.current?.profileId : null);
+  useLayoutEffect(() => {
+    if (!returnProfileId) return;
+    return () => clearProfileAudioForProfile(returnProfileId);
+  }, [returnProfileId]);
   const catalogueScope = `${returnProfileId ?? ''}:${auth.user?.id ?? ''}`;
   const [portalNavigationRequest, setPortalNavigationRequest] = useState<{ scope: string } | null>(null);
   useEffect(() => {

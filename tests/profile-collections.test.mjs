@@ -789,6 +789,17 @@ test('mobile profile keeps links and visitor controls visible without duplicate 
   }
 });
 
+test('desktop profile offers the audio player with editing restricted to its owner', () => {
+  for (const viewerRole of ['owner', 'visitor', 'guest']) {
+    const collaboration = () => {};
+    const h = profileHarness('', { presentation: 'web', viewerRole, props: { onCollaboration: collaboration } });
+    const grid = nodes(h.render()).find(node => node.type === 'PlatformGrid');
+    assert.equal(grid.props.profileAudio.profileId, 'owner');
+    assert.equal(grid.props.profileAudio.editable, viewerRole === 'owner');
+    assert.equal(grid.props.onCollaboration, collaboration);
+  }
+});
+
 test('mobile other-creator profiles omit options and hold actions while preserving direct follow, bookmark, Bio and contact controls', () => {
   for (const viewerRole of ['visitor', 'guest']) {
     const calls = [];

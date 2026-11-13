@@ -89,6 +89,7 @@ function harness(presentation = 'mobile') {
       profile: { id: profileId, name: 'Creator', categories: [], projects: [] }, error: null }) },
     '../contexts/AuthContext': { useAuth: () => state.auth },
     '../components/profile/usePrepareProfileAudio': { usePrepareProfileAudio() {} },
+    '../features/profile/profileAudioPlayback': { clearProfileAudioForProfile() {} },
     '../hooks/useDeviceAppearance': { useDeviceAppearance: () => appearance },
     '../utils/accentTokens': { resolveAccentTokens: () => ({}) },
     '../utils/macTokens': { resolveMacTokens: () => ({}) },
