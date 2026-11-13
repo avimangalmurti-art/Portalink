@@ -56,6 +56,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const category = profile.categories.find(item => item.id === categoryId);
   const density = useProjectGridDensity(profile, false, 'public-catalogue');
   const projects = useMemo(() => categoryId ? profile.projects.filter(project => project.categoryId === categoryId) : profile.projects, [profile.projects, categoryId]);
+  const contentGutter = !isMobile && imageCatalogue && projects.length > 0 ? 'px-[12px]' : 'px-[var(--content-gutter)]';
   const links = resolveProfileLinks(profile.links, profile.socialLinks);
   const items = projects.map(project => ({ key: project.id, ratio: getProjectAspectRatio(project), content:
     <ProjectPreviewCard active={active} project={project} creator={profile} onOpen={() => onOpen(project.categoryId, project.id)}
@@ -98,7 +99,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
     </div>
     {active && bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
-    <div id="profile-content" className="min-w-0 w-full px-[var(--content-gutter)] pb-4">
+    <div id="profile-content" className={`min-w-0 w-full pb-4 ${contentGutter}`}>
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
       {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView active={active} toolbarHost={isMobile ? timelineToolbarHost : null} profile={profile} owner={false} showPopular={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
         : projects.length ? <JustifiedImageWall label={`${profile.name} — profile imagery`} columns={density.columns} onColumnsChange={density.setColumns} allowLayoutControls={false} items={items} />
