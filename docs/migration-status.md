@@ -1,3 +1,20 @@
+## Rebuilding the Supabase schema from Git
+
+The numbered migrations include eight previously applied SQL files that were stored under `supabase/pending/`. Each move preserves the original SQL, including its historical comments. The September files follow the recorded application order. Journey creates `profiles.show_journey` and `profiles.then_now` before the citation and Then/Now migrations use them.
+
+| Version | Previously applied change |
+| --- | --- |
+| `202609300001` | Cover thumbnail schema |
+| `202609300002` | Public cover bucket |
+| `202609300003` | Share cover capability |
+| `202609300004` | Profile handle addresses |
+| `202609300005` | Profile Journey |
+| `202609300006` | Profile employer fields |
+| `202610120003` | External references |
+| `202611120001` | Profile audio tracks |
+
+These versions place historically applied SQL in fresh replay order. The earlier manual application receipts establish schema changes separately from the production migration ledger. A hosted reconciliation requires a comparison of that ledger and schema before planning a push or history repair. See the [local rebuild instructions](development-workflow.md#rebuild-the-database-locally).
+
 ## Applied — Then/Now editing and order (2026-11-13)
 
 Supabase recorded the [editing migration](../supabase/migrations/20261113193355_profile_timeline_pair_edit.sql) as `20261113193355` and the [order migration](../supabase/migrations/20261113194228_profile_timeline_pair_order.sql) as `20261113194228`. The checked-in files match the SQL recorded in production byte for byte. Their original comments are preserved for that reason. The [production release record](production-release.md) identifies the published source and rollback version.
@@ -22,15 +39,9 @@ User explicitly approved this one additive migration and publication. Applied th
 
 Isolated PGlite tests verify both the original restriction and repeated forward application, owner1/public reads, denied non-owner writes, invalid0/14/NULL rejection, and retained rows/defaults/order/policies/grants/RLS. Actual production account-layout saves were not exercised. Database application and website/source publication are separate states; see the current handoff for the release receipt.
 
-## Pending review — external references (2026-10-12)
+## Applied — external references (2026-10-12)
 
-`supabase/pending/external_references.sql` is **unapplied**. It adds the requested
-separate reference table, project/date index, owner CRUD and existing-project
-visibility reads, with server-stamped immutable creation dates. Disposable
-PGlite ownership/public/private-role checks pass. It does not write citations or
-notifications. Apply only this file after explicit approval; no migration ledger
-repair or unrelated migration execution is authorized. See
-[the task review package](references-and-exports.md).
+The approved [external references SQL](../supabase/migrations/202610120003_external_references.sql) was applied through the hosted SQL Editor on October 12. It adds the separate reference table, project/date index, owner CRUD and visibility-scoped reads. See [the application and verification record](references-and-exports.md).
 
 ## September 30, 2026 — Sites279 live; edge cache verified
 

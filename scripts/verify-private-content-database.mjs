@@ -1,44 +1,20 @@
 // In-memory PostgreSQL ONLY. No network, Supabase credentials or real accounts.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
-const { PGlite } = await import(process.env.PGLITE_MODULE_PATH ? pathToFileURL(process.env.PGLITE_MODULE_PATH).href : '@electric-sql/pglite');
-const db = new PGlite();
+import { replaySupabaseSchema } from '../tests/support/replay-supabase-schema.mjs';
+const { db } = await replaySupabaseSchema();
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
 let passed=0;
 const check=async(name,fn)=>{await fn(); passed++; console.log(`PASS ${name}`);};
 const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0])[0];
-const system=async()=>{await db.exec("reset role; select set_config('request.jwt.claim.sub','',false); select set_config('request.jwt.claim.role','service_role',false)");};
-const user=async n=>{await system();await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id(n)]);await db.exec("select set_config('request.jwt.claim.role','authenticated',false); set role authenticated");};
+const system=async()=>{await db.exec("reset role; select set_config('request.jwt.claims','',false); select set_config('request.jwt.claim.sub','',false); select set_config('request.jwt.claim.role','service_role',false)");};
+const user=async n=>{await system();await db.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({role:'authenticated',sub:id(n),session_id:id(n+100)})]);await db.exec("select set_config('request.jwt.claim.role','authenticated',false); set role authenticated");};
 try {
- await db.exec(`
- create role anon; create role authenticated; create role service_role bypassrls;
- create schema auth; create schema storage; create schema realtime;
- create table auth.users(id uuid primary key,email text);
- create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
- create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;
- create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
- create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,metadata jsonb default '{}',owner uuid,owner_id text);
- create function storage.foldername(path text) returns text[] language sql immutable as $$select (string_to_array(path,'/'))[1:array_length(string_to_array(path,'/'),1)-1]$$;
- create table realtime.messages(id uuid primary key default gen_random_uuid(),extension text);
- create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;
- alter table storage.objects enable row level security; alter table realtime.messages enable row level security;
- grant usage on schema public,auth,storage,realtime to anon,authenticated,service_role;
- grant all on storage.objects to authenticated,service_role; grant select on storage.objects to anon;
- grant select,insert on realtime.messages to authenticated;
- create publication supabase_realtime;
- alter default privileges in schema public grant all on tables to anon,authenticated,service_role;
- alter default privileges in schema public grant execute on functions to anon,authenticated,service_role;
- `);
- for(const f of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql')).sort()) {
-   const sql=readFileSync(`supabase/migrations/${f}`,'utf8').replace(/create extension if not exists pgcrypto;/i,'');
-   try{await db.exec(sql);}catch(error){throw new Error(`Baseline ${f}: ${error.message}`);}
- }
 
 
  const profile = n => id(n + 10);
  for (let n=1;n<=9;n++) {
    await db.query('insert into auth.users(id,email) values($1,$2)', [id(n), `synthetic${n}@example.test`]);
+   await db.query('insert into auth.sessions(id,user_id) values($1,$2)',[id(n+100),id(n)]);
    await db.query('insert into profiles(id,account_id,name,handle,headline,is_private) values($1,$2,$3,$4,$5,$6)',
      [profile(n),id(n),`Synthetic ${n}`,`synthetic${n}`,'Test creator',n===1||n===8]);
  }

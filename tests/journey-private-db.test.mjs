@@ -6,7 +6,7 @@ const modulePath=process.env.PGLITE_MODULE_PATH ?? process.env.PGLITE_MODULE;
 const id=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
 test('private Journey pairs survive opt-in changes but cannot be read by visitors', {skip:!modulePath}, async()=>{
  const {PGlite}=await import(pathToFileURL(modulePath).href),db=new PGlite();
- const full=readFileSync(new URL('../supabase/pending/profile_journey.sql',import.meta.url),'utf8');
+ const full=readFileSync(new URL('../supabase/migrations/202609300005_profile_journey.sql',import.meta.url),'utf8');
  // Exercise the actual pair migration; the independent bundle tests cover the RPC.
  const sql=full.slice(0,full.indexOf('-- Keep public gating/captions'))+'commit;';
  const role=async(name,account=1)=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id(account)]);await db.exec(`set role ${name}`);};

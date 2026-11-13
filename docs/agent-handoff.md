@@ -1,3 +1,9 @@
+## 2026-11-13 — Fresh Supabase schema replay
+
+Local branch `codex/migration-replay` from GitHub `main` at `d9666d4`. Eight historically applied SQL files moved unchanged into the numbered migrations. The existing October citation migration can now find the Journey columns when replayed from an empty database. The [migration register](migration-status.md) records the order and the [development workflow](development-workflow.md#rebuild-the-database-locally) shows how to run the replay. The change adds a regression to the existing Node suite and updates the fixtures and SQL file paths used by the related tests and scripts.
+
+A fresh native PostgreSQL 17.11 instance and PGlite both applied all 57 files in order using synthetic Auth, Storage, and Realtime fixtures. Native catalog checks found row-level security enabled on all 34 public tables and the intended Then/Now order grants. The focused suite passed 48 tests. The local work used disposable databases and made no hosted changes. Full Supabase service integration and the production migration ledger remain separate checks.
+
 ## 2026-11-13 — Then/Now released in Sites 624
 
 See [the production release record](production-release.md) for the live source, rollback version, and numbered Supabase migrations. The production migration ledger matches the checked-in SQL byte for byte.
