@@ -23,6 +23,7 @@ export type ProjectEntry = {
   relevance?: import('../types/discovery').ProjectRelevance;
   id: string;
   categoryId: string;
+  additionalPortalIds?: string[];
   title: string;
   summary: string;
   cover: string;
@@ -803,7 +804,10 @@ export function removePrototypeCategory(profileId: string, categoryId: string): 
   }
   profiles[index] = {
     ...profiles[index],
-    categories: profiles[index].categories.filter((category) => category.id !== categoryId)
+    categories: profiles[index].categories.filter((category) => category.id !== categoryId),
+    projects: profiles[index].projects.map(project => project.additionalPortalIds?.includes(categoryId)
+      ? { ...project, additionalPortalIds: project.additionalPortalIds.filter(id => id !== categoryId) }
+      : project)
   };
 }
 

@@ -14,7 +14,7 @@ import type {ReferencesService} from '../features/references/useReferences';
  *  - Services never touch React state or the DOM.
  */
 
-import type { CategoryDeletionCapability, CreateCategoryInput, FeedCreator, FollowRequest, FollowState, Id, LiveCapability, LiveSession, Notification, PortfolioArrangement, PortfolioCategory, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, UpdateProfileInput } from '../types/domain';
+import type { CategoryDeletionCapability, CreateCategoryInput, FeedCreator, FollowRequest, FollowState, Id, LiveCapability, LiveSession, Notification, PortfolioArrangement, PortfolioCategory, Profile, Project, ProjectArrangement, ProjectDesign, ProjectPortalMemberships, ProjectView, UpdateProfileInput } from '../types/domain';
 import type { AssetProcessingStatus, DeleteProjectResult, DraftMetadata, ProcessingCapability, ProjectDraft, PublishProjectInput, PublishResult, StartUploadInput, UpdateProjectInput, UpdateProjectResult, UploadCapability, UploadOperation, UploadOutcome } from '../types/publishing';
 import type { EngagementKind, EngagementMutation, ProjectEngagement } from '../types/engagement';
 import type { Comment, ProjectComments } from '../types/comments';
@@ -195,6 +195,9 @@ export interface ProjectService {
    */
   listProjectViews(projectIds: Id[]): Promise<ProjectView[]>;
   listProjects(profileId: Id, categoryId?: Id): Promise<Project[]>;
+  /** Owner-only. Extra placements are replaced atomically. */
+  getPortalMemberships?(projectId: Id): Promise<ProjectPortalMemberships>;
+  setPortalMemberships?(projectId: Id, additionalPortalIds: Id[]): Promise<Id[]>;
   /* ── Project design settings ─────────────────────────────────────────── */
   /**
    * The presentation settings a project carries. Typography is a property of the

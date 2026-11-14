@@ -1,3 +1,11 @@
+## 2026-11-13 — Portal and mobile catalogue release preparation
+
+Release checkout `logs/portal-catalogue-release`, branch `codex/portal-catalogue-release` from GitHub main `c4e1371`. Combines Week/Day in mobile Insights, the white mobile shared-catalogue splash, the cover editor and photo ordering, the mobile Edit project layout, the reader Pages per row indicator, taller mobile Portal covers with looping video previews, individual public Portal links, and featuring one project in several Portals. The original task checkouts retain their edits.
+
+The Portal features share one project identity and keep their existing access rules. A copied Portal link opens its chooser, including visible featured projects. The checked-in `20261114003337_project_portal_features.sql` is a separate additive database change. Read-only preflight confirmed that the production table, RPC, and private schema are absent and that the existing authorization helpers are available. Earlier manually applied schema changes and their ledger remain outside this release.
+
+Public Sites 626 is the rollback baseline. It corresponds to the web source from PR #171. The release checklist includes the GitHub Quality run, the configured client and worker archive, migration verification, and live smoke checks. Physical iPhone behavior remains unverified.
+
 ## 2026-11-13 — Cleanup and mobile reorder release preparation
 
 Release branch `codex/cleanup-reorder-release` from GitHub main `e4a3358`. Combines the verified source cleanup, the four retired public asset deletions and the mobile profile and file reorder controls from their separate worktrees. The profile header uses the system Cancel and Done buttons. Both mobile views use compact order badges. The file ellipsis has a 28px visible backing, a 14px glyph and a 44 × 44px touch target.

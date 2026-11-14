@@ -95,6 +95,7 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark
       setAttribute: (name, value) => attributes.set(name, value),
       removeAttribute: name => attributes.delete(name),
       append(child) { this.children.push(child); child.parent = this; },
+      prepend(child) { this.children.unshift(child); child.parent = this; },
       remove() { if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this); },
       addEventListener() {},
       removeEventListener() {},
@@ -102,19 +103,21 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark
   };
   const root = makeElement('html');
   const body = makeElement('body');
+  const head = makeElement('head');
   const theme = makeElement('meta');
   theme.setAttribute('content', '#ffffff');
+  head.append(theme);
   if (entry === 'home') root.setAttribute('data-installed-home-launch', '');
   let notifyCommit, shellCommitted = false;
   const app = { querySelector: selector => shellCommitted && selector === '.app-shell' ? {} : null };
   const document = {
-    documentElement: root, body, currentScript: { dataset: { launchEntry: entry } },
+    documentElement: root, body, head, currentScript: { dataset: { launchEntry: entry } },
     createElement: makeElement,
     getElementById: id => id === 'root' ? app : null,
     querySelectorAll: () => [theme],
   };
   const events = [];
-  const listeners = new Map();
+  const listeners = new Map(), timers = new Map();
   const window = {
     location: { pathname },
     matchMedia: query => ({ matches: query === '(max-width: 639px)' ? mobile : query === '(prefers-color-scheme: dark)' && systemDark }),
@@ -122,7 +125,8 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark
     addEventListener: (name, fn) => listeners.set(name, fn),
     removeEventListener: name => listeners.delete(name),
     dispatchEvent: event => events.push(event.type),
-    setTimeout() {},
+    setTimeout: callback => { timers.set(1, callback); return 1; },
+    clearTimeout: id => timers.delete(id),
   };
   const context = vm.createContext({ document, window, Event, MutationObserver: class {
     constructor(callback) { this.callback = callback; }
@@ -131,7 +135,7 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark
   } });
   if (entry === 'catalogue') vm.runInContext(appearanceScript, context);
   vm.runInContext(launch, context);
-  return { root, body, theme, events, listeners, commitShell() { shellCommitted = true; notifyCommit?.(); } };
+  return { root, body, head, theme, events, listeners, expire: () => timers.get(1)(), commitShell() { shellCommitted = true; notifyCommit?.(); } };
 }
 
 test('direct mobile shared project shows one opening mark before the visitor shell commits', () => {
@@ -158,20 +162,28 @@ test('catalogue and installed Home keep their branded launch and desktop project
     assert.equal(root.hasAttribute('data-mobile-project-launch'), false);
     assert.equal(body.children[0]?.getAttribute('aria-label'), 'Opening Portalink');
     assert.match(body.children[0].children[0].src, /portalink-launch-animation\.webp/);
-    assert.equal(body.children[0].style.backgroundColor, options.entry === 'home' ? '#fdffff' : 'var(--shared-catalogue-canvas)');
+    assert.equal(body.children[0].style.backgroundColor, options.entry === 'home' ? '#fdffff' : '#ffffff');
   }
   const { root, body } = staticLaunch({ pathname: '/portalite/c/design/project', mobile: false });
   assert.equal(root.hasAttribute('data-mobile-project-launch'), false);
   assert.equal(body.children.length, 0);
 });
 
-test('shared catalogue launch resolves appearance before mounting, honoring a viewer override', () => {
+test('shared catalogue splash is white in every viewer theme and releases its temporary chrome color on exit', () => {
   for (const [systemDark, mode, expected] of [[true, 'auto', 'dark'], [false, 'dark', 'dark'], [true, 'light', 'light']]) {
-    const { root, body, theme } = staticLaunch({ pathname: '/portalite', systemDark, mode });
+    const { root, body, head, theme, expire } = staticLaunch({ pathname: '/portalite', systemDark, mode });
+    const viewerColor = expected === 'dark' ? '#000000' : '#ffffff';
     assert.equal(root.dataset.appearance, expected);
     assert.equal(root.style.colorScheme, expected);
-    assert.equal(theme.getAttribute('content'), expected === 'dark' ? '#000000' : '#ffffff');
-    assert.equal(body.children[0].style.backgroundColor, 'var(--shared-catalogue-canvas)');
+    assert.equal(theme.getAttribute('content'), viewerColor);
+    assert.ok(body.children[0].hasAttribute('data-mobile-catalogue-splash'));
+    assert.equal(body.children[0].style.backgroundColor, '#ffffff');
+    assert.ok(head.children[0].hasAttribute('data-portalink-launch-theme'));
+    assert.equal(head.children[0].getAttribute('content'), '#ffffff');
+    expire();
+    assert.equal(body.children.length, 0);
+    assert.deepEqual(head.children, [theme]);
+    assert.equal(theme.getAttribute('content'), viewerColor);
   }
 });
 

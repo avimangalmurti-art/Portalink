@@ -1,4 +1,4 @@
-import { handleFromPath, parseResolution, portfolioPath, validHandle, type HandleResolution } from '../features/sharing/shareModel';
+import { handleFromPath, parseResolution, portalPopupSearch, portfolioPath, validHandle, type HandleResolution } from '../features/sharing/shareModel';
 import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
 import { canRedirectPublicRequest, canResolvePublicAddress } from './publicOriginRedirect';
 export type ShareConfiguration = { supabaseUrl: string; publishableKey: string };
@@ -39,7 +39,9 @@ export function injectShareResolution(html: string, resolution?: HandleResolutio
   if (!resolution) return html;
   if (canonicalUrl) {
     const official = new URL(PUBLIC_ORIGIN);
-    official.pathname = new URL(canonicalUrl, PUBLIC_ORIGIN).pathname;
+    const canonical = new URL(canonicalUrl, PUBLIC_ORIGIN);
+    official.pathname = canonical.pathname;
+    official.search = portalPopupSearch(canonical);
     const escaped = official.href.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] ?? char));
     html = html.replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi, '').replace(/<meta\b[^>]*property=["']og:url["'][^>]*>/gi, '');
     html = html.replace('<head>', `<head><link rel="canonical" href="${escaped}"><meta property="og:url" content="${escaped}">`);

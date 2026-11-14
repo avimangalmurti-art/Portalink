@@ -22,6 +22,7 @@ const intents = load('features/auth/interactionIntent.ts', () => registration);
 const sharedSettings = load('features/sharing/sharedSettings.ts', name => name === '../auth/registration' ? registration : shareModel);
 const panels = load('utils/projectPanelLayout.ts');
 const portalBrowsing = load('components/profile/portalProjectBrowsing.ts');
+const projectPortals = load('features/projects/projectPortals.ts');
 const employer = load('features/employer/employer.ts');
 const navButtonTokens = load('data/navButtonTokens.ts');
 const profileId = '11111111-1111-4111-8111-111111111111';
@@ -64,6 +65,7 @@ function portalPopupFixture(presentation = 'mobile') {
   const focusCalls = [], h = hooks();
   const { PortalProjectPopup } = load('components/profile/PortalProjectPopup.tsx', name => {
     if (name === 'react') return h.react;
+    if (name.endsWith('/projectPortals')) return projectPortals;
     if (name.endsWith('.css')) return {};
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (...args) => focusCalls.push(args) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
@@ -311,6 +313,7 @@ function appHarness({ catalogueOrigin = null, deviceAppearance = appearance, app
     throw new Error(name);
   }, browser);
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
+    if (name.endsWith('/projectPortals')) return projectPortals;
     if (name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href, captureCatalogueReaderOrigin: () => catalogueOrigin, restoreCatalogueReaderOrigin: () => () => {} };
     if (name === './useMobileProjectReturn') return projectReturn;
     if (name === '../app/screenModules') return { loadVisitorProjectPage: () => Promise.resolve({ default: 'VisitorProjectPage' }) };
@@ -339,7 +342,7 @@ function appHarness({ catalogueOrigin = null, deviceAppearance = appearance, app
     if (name === '../data/navButtonTokens') return navButtonTokens;
     if (name === '../components/ui/DeferredDialog') return { DeferredDialog: 'DeferredDialog', DeferredSurface: 'DeferredSurface', DeferredSurfaceBoundary: 'DeferredSurfaceBoundary' };
     const component = name.split('/').at(-1);
-    if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedContextActions', 'SharedSignInBar', 'VisitorProfileGrid', 'SharedPortalPopup'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
+    if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedContextActions', 'SharedSignInBar', 'VisitorProfileGrid', 'SharedPortalPopup', 'PortalProjectPopup'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
     throw new Error(name);
   }, browser);
   return { state, assigned, replaced, navigations, queryCalls, requests, window, dispose: h.dispose,
@@ -530,6 +533,7 @@ function readerHarness(presentation = 'mobile', width = 390) {
   const h = hooks(), selected = [], statuses = {};
   const state = { project: { ...profile.projects[0], attachments: [] }, width, presentation };
   const { VisitorProjectPage } = load('visitor/VisitorProjectPage.tsx', name => {
+    if (name.endsWith('/projectPortals')) return projectPortals;
     if (name === 'react') return h.react;
     if (name === 'lucide-react') return { ChevronLeftIcon: 'ChevronLeftIcon', ListIcon: 'ListIcon', PanelLeftCloseIcon: 'PanelLeftCloseIcon',
       PanelLeftOpenIcon: 'PanelLeftOpenIcon', SearchIcon: 'SearchIcon', XIcon: 'XIcon' };
@@ -545,6 +549,7 @@ function readerHarness(presentation = 'mobile', width = 390) {
     if (name === '../components/ui/InterfaceIcon') return named('InterfaceIcon');
     if (name === '../components/profile/ProjectIndexList') return named('ProjectIndexList');
     if (name === '../components/profile/MobilePortalProjectToolbar') return named('MobilePortalProjectToolbar');
+    if (name === '../components/profile/PortalLinkCopyButton') return named('PortalLinkCopyButton');
     if (name === '../components/profile/portalProjectBrowsing') return portalBrowsing;
     if (name === '../features/projects/pageLayout') return load('features/projects/pageLayout.ts');
     if (name === '../components/profile/web-reader-spacing.css') return {};
@@ -632,6 +637,7 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false, appe
   const profileDom = { inert: false };
   const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London', showJourney };
   const { VisitorProfileGrid } = load('visitor/VisitorProfileGrid.tsx', name => {
+    if (name.endsWith('/projectPortals')) return projectPortals;
     if (name.endsWith('/useMobileHeaderMaterial')) return { useMobileHeaderMaterial() {} };
     if (name.endsWith('/mobileCatalogueScroll')) return {
       repairMobileCatalogueScroll: root => { layoutRepair.push(['repair', root]); return false; },
@@ -1235,6 +1241,78 @@ test('MOBILE public portal links open the chooser while explicit project links s
   }
 });
 
+
+test('copied portal links keep their address and open the chosen portal over the unfiltered catalogue', () => {
+  for (const presentation of ['mobile', 'web']) {
+    for (const base of [`/share/${profileId}`, '/creator']) {
+      const path = `${base}/c/portal`;
+      const search = '?view=portal&via=friend';
+      const h = appHarness({ catalogueOrigin: { path: path + search + '#collection' } });
+      const featured = { ...profile.projects[0], categoryId: 'original', additionalPortalIds: ['portal'] };
+      const portfolio = {
+        ...profile, categories: [...profile.categories, { id: 'original', label: 'Original Portal' }],
+        projects: [featured, ...profile.projects.slice(1)],
+      };
+      h.state.query.profile = portfolio;
+      h.state.presentation = presentation;
+      h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+      h.state.location = { ...h.state.location, pathname: path, search, hash: '#collection' };
+      let tree = h.render();
+      const popup = one(tree, 'PortalProjectPopup');
+      assert.equal(popup.props.categoryId, 'portal');
+      assert.equal(popup.props.showCopyLink, true);
+      assert.equal(popup.props.closeOnSelect, false);
+      assert.equal(popup.props.desktopBrowsing, true);
+      assert.equal(one(tree, 'VisitorProfileGrid').props.categoryId, null);
+      assert.equal(one(tree, 'SharedPortalPopup'), undefined);
+      assert.equal(one(tree, 'VisitorProjectPage'), undefined);
+      assert.deepEqual(h.navigations, [], 'Opening a copied link leaves its address in place');
+      popup.props.onSelect('portal', 'work');
+      assert.equal(h.navigations.at(-1)[0], `${path}/work`);
+      assert.equal(h.navigations.length, 1, 'Project selection adds only the reader navigation');
+      h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+      h.state.location = { ...h.state.location, pathname: `${path}/work`, search: '', hash: '' };
+      if (presentation === 'web') {
+        h.state.query = { ...h.state.query, status: 'loading', profile: null };
+        const pending = nodes(h.render()).find(node => node.props?.pendingProjectId === 'work');
+        assert.ok(pending, 'The confirmed portal index stays visible while the selected project loads');
+        assert.equal(pending.props.project, null);
+        h.state.query = { ...h.state.query, status: 'ready', profile: portfolio };
+      }
+      tree = h.render();
+      assert.equal(one(tree, 'PortalProjectPopup'), undefined);
+      const reader = nodes(tree).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
+      assert.equal(reader.props.project.categoryId, 'original');
+      assert.equal(reader.props.categoryId, 'portal');
+      if (presentation === 'mobile') h.window.history.state.idx = 2;
+      reader.props.onBack();
+      assert.equal(h.navigations.at(-1)[0], presentation === 'mobile' ? -1 : path + search + '#collection');
+      h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+      h.state.location = { ...h.state.location, pathname: path, search, hash: '#collection' };
+      tree = h.render();
+      one(tree, 'PortalProjectPopup').props.onClose();
+      assert.deepEqual(json(h.navigations.at(-1)), [base + '?via=friend#collection', { replace: true }]);
+      h.dispose();
+    }
+  }
+});
+
+test('a copied link to a removed portal offers the catalogue without presenting an empty popup', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = appHarness();
+    h.state.presentation = presentation;
+    h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'deleted-portal' };
+    h.state.location = { ...h.state.location, pathname: '/creator/c/deleted-portal', search: '?view=portal' };
+    const tree = h.render();
+    assert.equal(one(tree, 'PortalProjectPopup'), undefined);
+    const error = one(tree, 'RouteError');
+    assert.equal(error.props.kind, 'not-found');
+    assert.equal(one(tree, 'SharedProfileSidebar').props.mobileNavigationEnabled, true);
+    error.props.onBack();
+    assert.deepEqual(json(h.navigations.at(-1)), ['/creator', { replace: true }]);
+    h.dispose();
+  }
+});
 
 test('MOBILE sidebar portal opens its project popup without navigating to the profile route', () => {
   const h=appHarness();

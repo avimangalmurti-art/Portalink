@@ -417,7 +417,7 @@ function interactionBarHarness(mode, guest = false) {
     '../../components/ui/Button': { Button: 'button' },
     '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: !guest, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}) }) },
     '../auth/registration': { readSharedReturnPath: () => null },
-    './MobilePageContext': { MobilePageContext: {} },
+    './ProjectSharePathContext': { ProjectSharePathContext: {} }, './MobilePageContext': { MobilePageContext: {} },
     '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
     '../../presentation/mobile/contextActions': { contextActions: () => ({ primary: [], groups: [] }) },
     '../media/publicMediaUrl': { publicMediaUrl: source => source },

@@ -20,6 +20,7 @@ const { MobilePortalProjectToolbar } = compile('../src/components/profile/Mobile
   if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
   if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
   if (name.endsWith('/PreviewCreatorName')) return { PreviewCreatorName: 'scrolling-title' };
+  if (name.endsWith('/PortalLinkCopyButton')) return { PortalLinkCopyButton: 'copy-portal-link' };
   if (name.endsWith('/categoryIcons')) return { getCategoryIcon: icon => { assert.equal(icon, 'camera'); return Camera; } };
   return new Proxy({}, { get: () => () => null });
 });
@@ -110,4 +111,16 @@ test('a Timeline portal popup announces its own return destination while retaini
   assert.equal(control(tree, 'Back to profile'), undefined);
   control(tree, 'Back to Timeline').props.onClick();
   assert.deepEqual(h.calls, [['back']]);
+});
+
+test('the public Portalink action appears between sort and layout only for a shareable portal', () => {
+  const h = harness();
+  h.props.category.id = 'photos';
+  assert.equal(nodes(h.render()).some(node => node.type === 'copy-portal-link'), false);
+  h.props.publicProfileId = 'creator';
+  const items = nodes(h.render());
+  const copyAt = items.findIndex(node => node.type === 'copy-portal-link');
+  assert.ok(copyAt > items.indexOf(items.find(node => node.props['aria-label'] === 'Sort projects')));
+  assert.ok(copyAt < items.indexOf(items.find(node => node.props['aria-label'] === 'Show project grid')));
+  assert.deepEqual(items[copyAt].props, { profileId: 'creator', categoryId: 'photos' });
 });

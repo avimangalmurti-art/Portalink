@@ -5,6 +5,7 @@ import { readSharedReturnPath } from '../auth/registration';
 import { useContext } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MobilePageContext } from './MobilePageContext';
+import { ProjectSharePathContext } from './ProjectSharePathContext';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -56,7 +57,8 @@ export function MediaInteractionBar({
     label: `Page ${target.pageIndex + 1}`
   }), [target.attachmentId, target.pageIndex, target.projectId]);
   const { ref: engagementRef, pageWidth, hostWidth, isVisible } = useMediaPageSize();
-  const activity = useMediaInteractions(presentedTarget, contextOnly || isVisible);
+  const sharePath = useContext(ProjectSharePathContext);
+  const activity = useMediaInteractions(presentedTarget, contextOnly || isVisible, sharePath);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const composerRef = useRef<HTMLTextAreaElement>(null);

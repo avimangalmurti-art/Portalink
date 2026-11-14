@@ -90,6 +90,7 @@ function densityHarness({ readOnly = false, mobile = false } = {}) {
     if (name.endsWith('/pageLayout')) return layout;
     if (name.endsWith('/viewerMemory')) return { readViewerMemory: () => ({}), updateViewerMemory() {} };
     if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: () => ({ isPending: () => false, isEngaged: () => false }) };
+    if (name.endsWith('/ProjectSharePathContext')) return { ProjectSharePathContext: React.createContext(undefined) };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: React.createContext(null) };
     if (name.endsWith('/useProjectComments')) return { useProjectComments: () => ({}) };
     return new Proxy({}, { get: () => () => null });

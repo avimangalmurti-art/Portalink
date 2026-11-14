@@ -237,7 +237,11 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
           if (image) update(zoomImage(positionRef.current, { width: image.naturalWidth, height: image.naturalHeight }, ratio, Number(event.currentTarget.value)));
         }} />
         <output htmlFor={sliderId} className="w-12 text-right text-[13px] tabular-nums text-[var(--text-secondary)]">{Math.round(position.zoom * 100)}%</output>
-        <button type="button" aria-label="Reset image position and zoom" title="Reset" disabled={!canEdit} onClick={() => update(CENTER_IMAGE_POSITION)} className="shape-compact flex h-9 w-9 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40"><InterfaceIcon icon={RotateCcwIcon} /></button>
+        <button type="button" aria-label="Reset image position and zoom" title="Reset" disabled={!canEdit} onClick={() => update(CENTER_IMAGE_POSITION)}
+          data-ui-control={pinchToZoom ? 'icon' : undefined} data-control-size={pinchToZoom ? 'sm' : undefined}
+          className={pinchToZoom ? undefined : 'shape-compact flex h-9 w-9 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40'}>
+          <InterfaceIcon icon={RotateCcwIcon} />
+        </button>
       </div>
     </> : null}
     {error ? <p role="alert" className="text-[13px] leading-relaxed text-[var(--status-danger)]">{error} {!image ? <button type="button" className="font-semibold underline" onClick={() => setLoadAttempt((n) => n + 1)}>Try again</button> : null}</p> : null}

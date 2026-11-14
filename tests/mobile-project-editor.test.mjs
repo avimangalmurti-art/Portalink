@@ -51,16 +51,28 @@ test('mobile editor submits from the compact header action and accepts an empty 
  h.find(node=>node.type==='button'&&node.props.children==='Details').props.onClick();
  const title=h.find(node=>node.type==='field'&&node.props.id==='project-title');assert.equal(title.props.required,true);assert.equal(title.props.requiredIndicator,'parenthesized');
  const summary=h.find(node=>node.type==='field'&&node.props.id==='project-summary');assert.equal(summary.props.required,undefined);assert.equal(summary.props.optional,true);assert.equal(summary.props.optionalParentheses,true);
+ assert.equal(summary.props.autoGrow,true);
+ const details=h.find(node=>node.props.className==='project-form-details project-editor-main-details');
+ const fields=React.Children.toArray(details.props.children);
+ assert.equal(fields[1].props.id,'project-summary');
+ assert.equal(fields[2].props.className,'project-editor-access-footer');
+ assert.equal(nodes(fields[2]).find(node=>node.type==='select').props['aria-describedby'],'project-editor-access-note');
  await h.submit();assert.equal(h.calls.at(-1)[0],'save');assert.equal(h.calls.at(-1)[1].summary,'');
 });
 
 test('the unified mobile Files grid numbers the draft order and keeps crop and order changes pending until Save',async()=>{
  const h=harness();h.update({mode:'cover-choice'});
  const tabs=h.find(node=>node.props['aria-label']==='Edit project sections');
- assert.deepEqual(React.Children.toArray(tabs.props.children).map(button=>button.props.children),['Details','Files']);
+ const controls=React.Children.toArray(tabs.props.children);
+ assert.deepEqual(controls.slice(0,2).map(button=>button.props.children),['Details','Files']);
+ const date=nodes(controls[2]).find(node=>node.type==='input');
+ assert.equal(date.props.type,'date');
+ assert.equal(date.props['aria-label'],'Made on');
+ date.props.onChange({target:{value:'2026-11-13'}});
  assert.equal(React.Children.toArray(tabs.props.children)[1].props['aria-pressed'],true);
  const fileCards=()=>nodes(h.render()).filter(node=>node.props.className==='project-editor-file-card');
  assert.equal(fileCards().length,15);
+ assert.equal(h.find(node=>node.props.className==='project-editor-cover-summary').props['data-ui-shape'],'row');
  assert.equal(h.find(node=>node.type==='published-covers'),undefined);
  assert.equal(h.find(node=>node.props.className?.includes('project-edit-file-row')),undefined);
  h.find(node=>node.props['aria-label']==='Move Artwork 15 earlier').props.onClick();
@@ -74,7 +86,32 @@ test('the unified mobile Files grid numbers the draft order and keeps crop and o
  const frame={x:.2,y:.8,zoom:2,aspectRatio:3/4};crop.props.onSave({frame});
  assert.equal(h.find(node=>node.type==='cover-crop'),undefined);assert.equal(h.editor.attachmentEdits.find(item=>item.id==='file-15').coverFrame,frame);
  assert.equal(h.calls.some(call=>call[0]==='save'),false);
- await h.submit();assert.equal(h.calls.filter(call=>call[0]==='save').length,1);assert.equal(h.calls.at(-1)[2][13].id,'file-15');
+ await h.submit();assert.equal(h.calls.filter(call=>call[0]==='save').length,1);assert.equal(h.calls.at(-1)[1].madeOn,'2026-11-13');assert.equal(h.calls.at(-1)[2][13].id,'file-15');
+});
+
+test('mobile Files offers order controls only for photos, including queued uploads',()=>{
+ const h=harness();
+ const [first,second,last]=h.editor.originalAttachments;
+ const originalAttachments=[first,{...second,kind:'document',metadata:{coverPageNumber:4}},last];
+ const items=[
+   {id:'queued-first',family:'image',displayTitle:'First upload'},
+   {id:'queued-pdf',family:'document',displayTitle:'PDF upload'},
+   {id:'queued-last',family:'image',displayTitle:'Last upload'},
+ ];
+ h.update({
+   originalAttachments,
+   attachmentEdits:h.editor.attachmentEdits.slice(0,3),
+   addedMedia:{...h.editor.addedMedia,items,moveImage:(id,direction)=>h.calls.push(['move upload',id,direction])},
+ });
+ assert.equal(h.find(node=>node.props['aria-label']==='Move Artwork 2 earlier'),undefined);
+ assert.equal(h.find(node=>node.props['aria-label']==='Move PDF upload later'),undefined);
+ assert.ok(h.find(node=>node.props['aria-label']==='Use Artwork 2 as the cover'));
+ h.find(node=>node.props['aria-label']==='Move Last upload earlier').props.onClick();
+ assert.deepEqual(h.calls.at(-1),['move upload','queued-last',-1]);
+ h.update({upload:{...h.editor.upload,hasPersistedMedia:true}});
+ assert.equal(h.find(node=>node.props['aria-label']==='Move Last upload earlier'),undefined);
+ assert.equal(h.find(node=>node.props['aria-label']==='Remove Last upload from this edit').props.disabled,true);
+ assert.equal(h.find(node=>node.props.id==='project-replacement-files').props.disabled,true);
 });
 
 test('mobile modal Escape shares guarded close/discard behavior while WEB retains its dialog frame',()=>{
@@ -87,6 +124,7 @@ test('mobile modal Escape shares guarded close/discard behavior while WEB retain
  assert.equal(nodes(web.render()).filter(node=>node.props.className?.includes('project-edit-file-row')).length,15);
  assert.equal(web.find(node=>node.type==='field'&&node.props.id==='project-title').props.requiredIndicator,undefined);
  assert.equal(web.find(node=>node.type==='field'&&node.props.id==='project-summary').props.optionalParentheses,false);
+ assert.equal(web.find(node=>node.type==='field'&&node.props.id==='project-summary').props.autoGrow,false);
  web.update({mode:'cover-choice'});
  assert.ok(web.find(node=>node.type==='published-covers'));
  assert.equal(web.find(node=>node.props.className==='project-editor-file-grid'),undefined);

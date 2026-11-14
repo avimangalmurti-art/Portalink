@@ -313,6 +313,8 @@ export type Project = {
   creationDetails?: ProjectCreationDetails;
   id: Id;
   categoryId: Id;
+  /** Additional placements of this project. The primary Portal owns its canonical link. */
+  additionalPortalIds?: Id[];
   title: string;
   summary: string;
   /** Canonical publication time, used for recency without inventing an age. */
@@ -358,6 +360,12 @@ export type Project = {
    * work is stored.
    */
   sessionOnly?: boolean;
+};
+
+export type ProjectPortalMemberships = {
+  primaryPortalId: Id;
+  selectedPortalIds: Id[];
+  portals: PortfolioCategory[];
 };
 
 /** Owner-only per-project arrangement inside a category. */

@@ -8,7 +8,7 @@ import ts from 'typescript';
 const nodes = tree => !React.isValidElement(tree) ? [] : [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)];
 const text = tree => typeof tree === 'string' || typeof tree === 'number' ? String(tree) : React.isValidElement(tree) ? React.Children.toArray(tree.props.children).map(text).join('') : '';
 const accessibleText = tree => typeof tree === 'string' || typeof tree === 'number' ? String(tree) : React.isValidElement(tree) && tree.props['aria-hidden'] !== true && tree.props['aria-hidden'] !== 'true' ? React.Children.toArray(tree.props.children).map(accessibleText).join('') : '';
-const metricButtons = tree => nodes(tree).filter(node => node.type === 'button' && 'aria-pressed' in node.props);
+const metricButtons = tree => nodes(tree).filter(node => node.type === 'button' && 'data-insights-series' in node.props);
 const headline = tree => nodes(tree).find(node => node.props.className === 'insights-headline');
 const chartButtons = chart => React.Children.toArray(chart.props.children).filter(node => React.isValidElement(node) && node.type === 'button');
 const totals = tree => nodes(nodes(tree).find(node => node.props['aria-label'] === 'Metric totals')).filter(node => node.type === 'dd').map(node => node.props['aria-label'] ?? text(node));
@@ -220,6 +220,31 @@ test('periods drive queries, project covers load, and only recorded sources appe
   assert.equal(nodes(sources).filter(node => node.type === 'li').length, 1);
   assert.equal(nodes(sources).some(node => node.type === 'a' || node.type === 'button' || node.props.onClick), false);
   assert.equal(nodes(load([{...rows[0], refs:{}}]).render()).some(node => node.props['aria-label'] === 'Traffic sources'), false);
+});
+
+test('mobile Week and Day share the date picker, reads query, and project drill-down period', () => {
+  const fixture = load(rows, { presentation: 'mobile' });
+  const quickPeriods = tree => nodes(tree).find(node => node.props['aria-label'] === 'Quick Insights period');
+  const buttons = tree => nodes(quickPeriods(tree)).filter(node => node.type === 'button');
+  let tree = fixture.render();
+  assert.deepEqual(buttons(tree).map(text), ['Week', 'Day']);
+  assert.deepEqual(buttons(tree).map(node => node.props['aria-pressed']), [true, false]);
+
+  buttons(tree)[1].props.onClick();
+  tree = fixture.render();
+  assert.equal(fixture.periods.at(-1), 'today');
+  assert.equal(nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.value, 'today');
+  assert.deepEqual(buttons(tree).map(node => node.props['aria-pressed']), [false, true]);
+  chartButtons(nodes(tree).find(node => node.props['aria-label'] === 'Opens by project'))[0].props.onClick();
+  assert.equal(fixture.navigations.at(-1), '/insights?project=b&period=today');
+
+  nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.onChange({ target: { value: '30d' } });
+  tree = fixture.render();
+  assert.deepEqual(buttons(tree).map(node => node.props['aria-pressed']), [false, false]);
+  buttons(tree)[0].props.onClick();
+  assert.equal(nodes(fixture.render()).find(node => node.props['aria-label'] === 'Insights period').props.value, '7d');
+  assert.equal(fixture.periods.at(-1), '7d');
+  assert.equal(quickPeriods(load(rows).render()), undefined);
 });
 
 test('mobile and web initial periods stay distinct while current saves stay separate from period counts', () => {

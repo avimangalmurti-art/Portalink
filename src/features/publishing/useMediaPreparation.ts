@@ -185,6 +185,23 @@ export function useMediaPreparation() {
       return reindex(next);
     });
   }, []);
+  const moveImage = useCallback((mediaId: string, direction: -1 | 1) => {
+    setItems((current) => {
+      const index = current.findIndex(item => item.id === mediaId && item.family === 'image');
+      if (index < 0) return current;
+
+      let nextIndex = index + direction;
+      while (nextIndex >= 0 && nextIndex < current.length && current[nextIndex].family !== 'image') {
+        nextIndex += direction;
+      }
+      if (nextIndex < 0 || nextIndex >= current.length) return current;
+
+      // Swap the photos in place without shifting any of the other media.
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return reindex(next);
+    });
+  }, []);
   const setCover = useCallback((mediaId: string) => {
     setItems((current) => {
       const target = current.find(item => item.id === mediaId);
@@ -286,6 +303,7 @@ export function useMediaPreparation() {
     remove,
     clear,
     reorder,
+    moveImage,
     setCover,
     setPageCount,
     setCoverPage,

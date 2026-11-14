@@ -787,15 +787,15 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > button {
   flex-direction: column;
   align-items: stretch;
-  padding: 8px 6px 48px;
+  padding: 8px 6px 12px;
   gap: var(--project-card-media-gap, 8px);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-cover {
   flex: none;
   width: 100%;
-  height: auto;
-  aspect-ratio: 1;
+  height: calc(100cqi + 36px);
+  aspect-ratio: auto;
 }
 
 /* Keep the same metadata tracks as the main reader's project cards. */
@@ -1491,6 +1491,19 @@
   font-size: 14px;
   font-weight: 500;
   line-height: 1;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions {
+  display: grid;
+  flex: 0 0 auto;
+  min-width: 54px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions > button {
+  min-height: 44px;
+  padding-inline: 4px;
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-profile-hold-reorder] [data-preview-open] {

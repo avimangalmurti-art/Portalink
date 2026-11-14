@@ -471,7 +471,7 @@ const worker = {
     }
     if (address.resolution) for (const name of ['content-length','content-encoding','etag','last-modified']) headers.delete(name);
     if (address.unavailable) headers.set('retry-after', '30');
-    const shell = new Response(request.method === 'HEAD' ? null : address.resolution ? injectShareResolution(await response.text(), address.resolution, PUBLIC_ORIGIN + url.pathname) : response.body, { status: address.unavailable ? 503 : address.missing && handleFromPath(url.pathname) ? 404 : response.status, headers });
+    const shell = new Response(request.method === 'HEAD' ? null : address.resolution ? injectShareResolution(await response.text(), address.resolution, PUBLIC_ORIGIN + url.pathname + url.search) : response.body, { status: address.unavailable ? 503 : address.missing && handleFromPath(url.pathname) ? 404 : response.status, headers });
     if (!navigation || !shared || !LINK_PREVIEW_CRAWLER.test(request.headers.get('user-agent') ?? '')) return shell;
     return withSharedPreview(shell, request, {
       supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY,

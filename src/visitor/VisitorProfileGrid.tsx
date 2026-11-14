@@ -19,6 +19,7 @@ import { usePresentation } from '../presentation/usePresentation';
 import { useSearchParams } from 'react-router-dom';
 import { observeMobileCatalogueScroll, repairMobileCatalogueScroll } from '../components/profile/mobileCatalogueScroll';
 import '../components/profile/profile-header.css';
+import { projectBelongsToPortal } from '../features/projects/projectPortals';
 
 const JourneyView = lazy(() => import('../features/journey/JourneyView').then(m => ({ default: m.JourneyView })));
 const ProfileBioSheet = lazy(() => import('../features/profile/ProfileBioSheet').then(module => ({ default: module.ProfileBioSheet })));
@@ -55,11 +56,11 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const [timelineToolbarHost, setTimelineToolbarHost] = useState<HTMLDivElement | null>(null);
   const category = profile.categories.find(item => item.id === categoryId);
   const density = useProjectGridDensity(profile, false, 'public-catalogue');
-  const projects = useMemo(() => categoryId ? profile.projects.filter(project => project.categoryId === categoryId) : profile.projects, [profile.projects, categoryId]);
+  const projects = useMemo(() => categoryId ? profile.projects.filter(project => projectBelongsToPortal(project, categoryId)) : profile.projects, [profile.projects, categoryId]);
   const contentGutter = !isMobile && imageCatalogue && projects.length > 0 ? 'px-[12px]' : 'px-[var(--content-gutter)]';
   const links = resolveProfileLinks(profile.links, profile.socialLinks);
   const items = projects.map(project => ({ key: project.id, ratio: getProjectAspectRatio(project), content:
-    <ProjectPreviewCard active={active} project={project} creator={profile} onOpen={() => onOpen(project.categoryId, project.id)}
+    <ProjectPreviewCard active={active} project={project} creator={profile} onOpen={() => onOpen(categoryId ?? project.categoryId, project.id)}
       creatorHref={buildPath('sharedProfile', { profileId: profile.id })} showCreator={false} showEngagementMetrics={false}
       priority="viewport" allowPdfFallback={false} allowVideoFallback={true} sharedCoverFallback /> }));
   return <div ref={profilePageRef} hidden={!active} aria-hidden={!active || undefined}

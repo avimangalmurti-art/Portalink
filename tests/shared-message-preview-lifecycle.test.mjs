@@ -321,6 +321,7 @@ test('WEB MessageBody default keeps canonical text links without constructing or
 test('MOBILE only treats a standalone page share or its generated label as an image-only message', async () => {
   const origin = 'https://portalinknetworks.com';
   const { isGeneratedPageShareLabel } = sourceModule('src/features/messages/sharedContentPreview.ts', {
+    '../projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
     '../citations/publicOrigin': { PUBLIC_ORIGIN: origin },
     '../sharing/shareModel': sourceModule('src/features/sharing/shareModel.ts'),
   });

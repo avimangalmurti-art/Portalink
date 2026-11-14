@@ -20,6 +20,7 @@ const metrics = [
   { key: 'saved', label: 'Page saves', unit: 'current page saves', icon: BookmarkIcon },
 ] as const;
 const sources = [['own-link', 'Your link'], ['messages', 'Messages'], ['linkedin', 'LinkedIn'], ['other', 'Other']] as const;
+const quickPeriods = [{ key: '7d', label: 'Week' }, { key: 'today', label: 'Day' }] as const;
 type Metric = typeof metrics[number]['key'];
 type SavesState = { data?: SaveInsights; loading: boolean; refreshing?: boolean; error?: string; retry: () => void };
 const compactCount = (value: number) => value >= 10_000 ? value.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 0 }) : value.toLocaleString();
@@ -76,6 +77,10 @@ export function MobileInsights({ saves, initialPeriod = '7d' }: { saves: SavesSt
       <span className="premium-media-loading-mark" aria-hidden="true" />
       <span className="sr-only">{refreshLabel}</span>
     </>}</div>}
+    {isMobile && <div className="insights-quick-periods" data-ui-shape="capsule" role="group" aria-label="Quick Insights period">
+      {quickPeriods.map(({ key, label }) => <button key={key} type="button" data-ui-shape="capsule" data-system-color=""
+        aria-pressed={period === key} onClick={() => setPeriod(key)}>{label}</button>)}
+    </div>}
     {readStatus ? isMobile ? <div className="insights-data-surface">{mobileFilters}{readStatus}</div> : readStatus : <>
       {!isMobile && metricControls}
       <section className="insights-activity" aria-label="Project activity">

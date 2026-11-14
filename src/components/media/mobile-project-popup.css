@@ -1,4 +1,19 @@
 /* Mobile project information and portal lists share a viewport-centered frame. */
+[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > button {
+  /* Measure the cover from the card's content width. Its extra height takes
+     space from the old action footer while the card keeps its footprint. */
+  container-type: inline-size;
+}
+.mobile-project-index-artwork {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] [data-project-row-actions] > [data-row-menu] {
+  background: var(--project-control-surface, var(--surface-raised));
+  color: var(--project-control-foreground, var(--text-primary));
+}
+
 [data-presentation='mobile'] [data-project-description-overlay][data-centered-project] {
   display: flex; align-items: center; justify-content: center;
   padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));

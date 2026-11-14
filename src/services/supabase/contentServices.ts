@@ -5,6 +5,7 @@ import { mergeProjectDesign, saveProjectCreationDetails, saveProjectJourneyDetai
 import { hydrateProjects, throwProfileError, supabaseProfileReadService } from './contentReaders';
 import type { ProfileRow, CategoryRow, ProjectRow, AttachmentRow } from './contentReaders';
 import { supabaseProjectReadService } from './projectReaders';
+import { supabaseProjectPortalService } from './projectPortalFeatures';
 import { withProjectLocation } from '../../features/publishing/projectLocation';
 import type {
   DiscoveryService,
@@ -364,6 +365,7 @@ async function projectProfileId(projectId: string): Promise<string> {
 
 export const supabaseProjectService: ProjectService = {
   ...supabaseProjectReadService,
+  ...supabaseProjectPortalService,
 
   async updateProjectDesign(projectId, design) {
     if (!typefaces.some((typeface) => typeface.id === design.typefaceId)) {

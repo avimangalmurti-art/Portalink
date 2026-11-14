@@ -91,6 +91,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name === 'react-router-dom') return { useNavigate: () => path => navigationCalls.push(path) };
     if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isAuthenticated: signedIn, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}), isInitializing: false, viewerProfileId: null }) };
+    if (name.endsWith('/ProjectSharePathContext')) return { ProjectSharePathContext: { Provider: 'project-share-path' } };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions(model, priority, onOpen) { screenActions.push({model,priority,onOpen}); } };
     if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => screenActive };
@@ -205,12 +206,14 @@ test('project audio interruption belongs to the active video, including on share
 test('project sharing and copying use the official public destination with the current page state', async () => {
   for (const mobile of [true, false]) for (const readOnlyShare of [true, false]) {
     const h = harness({ mobile, readOnlyShare, search: '?media=first&page=2&view=page&via=friend', hash: '#references' });
-    h.render();
+    const tree = h.render({ primaryPortalId: 'original' });
     const model = h.screenActions.at(-1).model;
     const actions = [...model.primary, ...model.groups.flat()];
     actions.find(action => action.id === 'share').run();
     await actions.find(action => action.id === 'copy').run();
-    const expected = 'https://portalinknetworks.com/share/creator/c/portal/project?media=first&page=2&view=page&via=friend#references';
+    const expected = 'https://portalinknetworks.com/share/creator/c/original/project?media=first&page=2&view=page&via=friend#references';
+    assert.equal(nodes(tree).find(node => node.type === 'project-share-path').props.value,
+      (readOnlyShare ? '/share' : '/p') + '/creator/c/original/project');
     assert.equal(h.sharedTargets[0].url, expected);
     assert.deepEqual(h.copies, [expected]);
     assert.equal(h.sharedTargets[0].title, 'Work');
@@ -1019,6 +1022,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
       effects[i] = deps;
     } };
   const { ProfileCategoryPage } = compile('../src/components/profile/ProfileCategoryPage.tsx', name => {
+    if (name.endsWith('/projectPortals')) return compile('../src/features/projects/projectPortals.ts', () => ({}));
     if (name.endsWith('/ExportSheet')) return {ExportSheet:'export-sheet'};
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
@@ -1048,7 +1052,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/panelLayoutDefaults')) return { panelLayoutDefaults: {} };
     return new Proxy({}, { get: () => () => null });
   });
-  const props = { profile: { id: 'owner', name: 'Viewed creator', avatar: 'viewed-creator-avatar.jpg', projects: Object.freeze([
+  const props = { profile: { id: 'owner', name: 'Viewed creator', avatar: 'viewed-creator-avatar.jpg', categories: [{ id: 'portal' }], projects: Object.freeze([
       { id: 'work', categoryId: 'portal', title: 'Alpha', summary: 'Earlier project', publishedAt: '2026-09-10T12:00:00Z', pageCount: 2,
         attachments: [{ id: 'work-image', kind: 'image' }, { id: 'work-video', kind: 'video' }] },
       { id: 'second', categoryId: 'portal', title: 'Zulu', summary: 'Needle in the newer project', publishedAt: '2026-09-14T12:00:00Z', pageCount: 2,

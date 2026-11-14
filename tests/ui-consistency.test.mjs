@@ -301,7 +301,7 @@ test('project editor Escape uses existing dirty and transfer safeguards', () => 
       if (name === 'react') return react;
       return new Proxy({}, { get: (_, key) => key });
     } });
-    const dialog = ProjectEditorDialog({ management: { editor: { projectId: 'project', phase: 'loading', addedMedia: {}, attachmentEdits: [], originalAttachments: [],
+    const dialog = ProjectEditorDialog({ management: { editor: { projectId: 'project', phase: 'loading', metadata: {}, addedMedia: {}, attachmentEdits: [], originalAttachments: [],
       upload: { isCleaningUp: state.cleaning }, close() { closed++; }, ...state } } });
     dialog.props.onClose();
     const blocked = state.isSaving || state.isTransferring || state.cleaning;

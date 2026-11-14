@@ -237,11 +237,21 @@ export function useProjectManagement(profileId: Id | null) {
     setSaveFailure(null);
     setEditorPhase('editing');
   }, []);
-  const moveAttachment = useCallback((attachmentId: Id, direction: -1 | 1) => {
+  const moveAttachment = useCallback((attachmentId: Id, direction: -1 | 1, imagesOnly = false) => {
     setAttachmentEdits((current) => {
       const index = current.findIndex((edit) => edit.id === attachmentId);
-      const nextIndex = index + direction;
-      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) {
+      if (index < 0) return current;
+
+      let nextIndex = index + direction;
+      if (imagesOnly) {
+        const imageIds = new Set(originalAttachments.filter(attachment => attachment.kind === 'image').map(attachment => attachment.id));
+        if (!imageIds.has(attachmentId)) return current;
+        // Swap photo slots so documents and other files keep their positions.
+        while (nextIndex >= 0 && nextIndex < current.length && !imageIds.has(current[nextIndex].id)) {
+          nextIndex += direction;
+        }
+      }
+      if (nextIndex < 0 || nextIndex >= current.length) {
         return current;
       }
       const next = [...current];
@@ -251,7 +261,7 @@ export function useProjectManagement(profileId: Id | null) {
         order
       }));
     });
-  }, []);
+  }, [originalAttachments]);
   /**
    * Drops a file from the EDIT, not from storage. The published project keeps it
    * until the save commits, which is what makes an abandoned or failed edit
@@ -318,7 +328,10 @@ export function useProjectManagement(profileId: Id | null) {
    * Existing attachments are referenced by id and never re-sent, so they stay
    * valid throughout — and untouched until this update commits.
    */
-  const save = useCallback(async (coverUpdate?: { attachmentId: Id; frame: ProjectCoverFrame }): Promise<MetadataFieldKey | 'failed' | null> => {
+  const save = useCallback(async (
+    coverUpdate?: { attachmentId: Id; frame: ProjectCoverFrame },
+    appendUploadedFiles = false,
+  ): Promise<MetadataFieldKey | 'failed' | null> => {
     if (!editingProjectId || !profileId || isSavingRef.current || upload.isBusy) {
       if (coverUpdate) throw new Error('The project is not ready to save this preview. Try again shortly.');
       return null;
@@ -359,6 +372,7 @@ export function useProjectManagement(profileId: Id | null) {
       });
       return 'failed';
     }
+    const keepCover = appendUploadedFiles && editsForSave.some(attachment => attachment.isCover);
     let addedAttachments: PersistedAttachment[] | undefined;
     if (hasAdded && isTransportAvailable) {
       // Already stored from an earlier attempt whose update failed: reuse the
@@ -373,11 +387,18 @@ export function useProjectManagement(profileId: Id | null) {
         // rendered from its own state. Nothing about the published project moved.
         return 'failed';
       }
-      addedAttachments = persisted;
+      // New files are shown after the existing files. Their provisional cover
+      // must not compete with a cover the editor is keeping.
+      addedAttachments = appendUploadedFiles ? persisted.map((attachment, index) => ({
+        ...attachment,
+        isCover: attachment.isCover && !keepCover,
+        order: editsForSave.length + index,
+      })) : persisted;
     }
     // The session-only fallback, kept explicit: locally prepared files, and no
     // claim that anything was stored.
     const sessionMedia = hasAdded && !isTransportAvailable ? addedMedia.items : undefined;
+    const addedSessionMedia = keepCover ? sessionMedia?.map(item => ({ ...item, isCover: false })) : sessionMedia;
     const attempt = async (): Promise<boolean> => {
       isSavingRef.current = true;
       setEditorPhase('saving');
@@ -396,7 +417,7 @@ export function useProjectManagement(profileId: Id | null) {
           },
           attachments: editsForSave,
           addedAttachments,
-          addedMedia: sessionMedia
+          addedMedia: addedSessionMedia
         });
         if (!isMountedRef.current) {
           return true;

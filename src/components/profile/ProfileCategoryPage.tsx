@@ -10,6 +10,7 @@ import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusI
 import type { Profile, PortfolioCategory as ProfileCategory } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from './MobilePortalProjectToolbar';
+import { PortalLinkCopyButton } from './PortalLinkCopyButton';
 import { sortPortalProjects } from './portalProjectBrowsing';
 import { getTypefaceStack } from '../../data/typefaces';
 import { useElementSize } from '../../hooks/useElementSize';
@@ -23,6 +24,7 @@ import { useProjectArrangement } from '../../features/profile/useProjectArrangem
 import { useProjectTypography } from '../../features/projects/useProjectTypography';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { useProjectManagement } from '../../features/projects/useProjectManagement';
+import { projectBelongsToPortal } from '../../features/projects/projectPortals';
 import { DeleteProjectDialog, ProjectEditorDialog } from '../../features/projects/ProjectEditorDialog';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAssetProcessing } from '../../features/media/useAssetProcessing';
@@ -66,6 +68,7 @@ type ProfileCategoryPageProps = {
   onEngagementOpenChange: (open: boolean) => void;
   /** Public shared links preserve Portal browsing but remove social and authoring controls. */
   sharedReadOnly?: boolean;
+  canShareCategory?: boolean;
   /**
    * Returns to the discovery surface this project was opened from. Present ONLY
    * when the viewer arrived that way — reaching a portal through the sidebar
@@ -90,6 +93,7 @@ export function ProfileCategoryPage({
   isEngagementOpen: responseWanted,
   onEngagementOpenChange: changeResponsePreference,
   sharedReadOnly = false,
+  canShareCategory = false,
   onReturnToDiscovery
 }: ProfileCategoryPageProps) {
   // Mobile panels are local to the portal and independent of WEB preferences.
@@ -162,7 +166,8 @@ export function ProfileCategoryPage({
    * its own, because nothing in this component can be trusted by a backend.
    */
   const showsOwnerTools = canAuthor(viewerRole);
-  const categoryProjects = useMemo(() => profile.projects.filter((project) => project.categoryId === category.id), [profile, category]);
+  const categoryProjects = useMemo(() => profile.projects.filter(project => projectBelongsToPortal(project, category.id)), [profile, category.id]);
+  const nativeProjectIds = categoryProjects.filter(project => project.categoryId === category.id).map(project => project.id);
   /**
    * Order and the hidden set come from the service, not from this component.
    * Work the owner has hidden is withheld from everyone else — and withheld
@@ -171,7 +176,7 @@ export function ProfileCategoryPage({
    * a real implementation must carry visibility on the record and filter
    * server-side, where a client cannot reach it.
    */
-  const arrangement = useProjectArrangement(profile.id, category.id, showsOwnerTools, categoryProjects.map(project => project.id));
+  const arrangement = useProjectArrangement(profile.id, category.id, showsOwnerTools, nativeProjectIds);
   /**
    * The owner lifecycle of already-published work. Presentation calls no service:
    * the rows request an edit or a deletion, and this boundary owns loading,
@@ -179,7 +184,9 @@ export function ProfileCategoryPage({
    */
   const management = useProjectManagement(profile.id);
   const deletingProject = categoryProjects.find((project) => project.id === management.deletion.projectId) ?? null;
-  const projects = useMemo(() => arrangement.arrange(categoryProjects, showsOwnerTools), [arrangement, categoryProjects, showsOwnerTools]);
+  const projects = useMemo(() => arrangement.arrange(showsOwnerTools ? categoryProjects
+    : categoryProjects.filter(project => project.categoryId === category.id || project.isPubliclyVisible !== false), showsOwnerTools),
+  [arrangement, category.id, categoryProjects, showsOwnerTools]);
   const visibleProjects = useMemo(() => {
     const normalized = indexQuery.trim().toLowerCase();
     const filtered = normalized ? projects.filter(project => `${project.title} ${project.summary}`.toLowerCase().includes(normalized)) : projects;
@@ -189,7 +196,8 @@ export function ProfileCategoryPage({
   useMobileScreenActions(activeProject && !sharedReadOnly ? contextActions('project', { signedIn: viewerRole !== 'guest', owner: showsOwnerTools }, { title: activeProject.title, handlers: {
     edit: () => management.editor.open(activeProject.id),
     cover: () => management.editor.open(activeProject.id, 'files'),
-    visibility: !arrangement.isLoading && !arrangement.loadError && !arrangement.isSaving ? () => arrangement.toggleHidden(activeProject.id) : undefined,
+    visibility: activeProject.categoryId === category.id && !arrangement.isLoading && !arrangement.loadError && !arrangement.isSaving
+      ? () => arrangement.toggleHidden(activeProject.id) : undefined,
     delete: () => management.deletion.request(activeProject.id),
   }, labels: { visibility: arrangement.hiddenIds.includes(activeProject.id) ? 'Show in portal' : 'Hide from portal' } }) : null, 18);
   const mobileProjectView = isMobile && activeProject !== null;
@@ -226,12 +234,16 @@ export function ProfileCategoryPage({
     activeProject?.id ?? null,
     activeProject?.design?.pagesPerRow ?? 3
   );
-  const activeAttachments = useMemo(() => activeProject && !isReaderLoading ? resolveProjectAttachments(activeProject, category) : [], [activeProject, category, isReaderLoading]);
+  const readAttachments = useCallback((project: typeof categoryProjects[number]) => {
+    const originalPortal = profile.categories.find(portal => portal.id === project.categoryId);
+    return resolveProjectAttachments(project, originalPortal ?? category);
+  }, [profile.categories, category]);
+  const activeAttachments = useMemo(() => activeProject && !isReaderLoading ? readAttachments(activeProject) : [], [activeProject, isReaderLoading, readAttachments]);
   // Use the same authorized/visibility-filtered portal order as its index.
   // Scrolling never fetches another creator or exposes hidden projects.
-  const portalVideos = useMemo(() => isMobile ? projects.filter(project => Boolean(project.attachments?.length)).flatMap(project => resolveProjectAttachments(project, category)
+  const portalVideos = useMemo(() => isMobile ? projects.filter(project => Boolean(project.attachments?.length)).flatMap(project => readAttachments(project)
     .filter(attachment => attachment.kind === 'video')
-    .map(attachment => ({ projectId: project.id, projectTitle: project.title, attachment }))) : [], [isMobile, projects, category]);
+    .map(attachment => ({ projectId: project.id, projectTitle: project.title, attachment }))) : [], [isMobile, projects, readAttachments]);
   useEffect(() => {
     if (!activeProject || isReaderLoading) return undefined;
     const activeIndex = projects.findIndex((project) => project.id === activeProject.id);
@@ -240,11 +252,11 @@ export function ProfileCategoryPage({
     const timer = window.setTimeout(() => {
       for (const project of adjacentProjects) {
         if (!project.attachments?.length) continue;
-        preloadProjectMedia(resolveProjectAttachments(project, category), 3);
+        preloadProjectMedia(readAttachments(project), 3);
       }
     }, 160);
     return () => window.clearTimeout(timer);
-  }, [activeProject, category, projects, isReaderLoading]);
+  }, [activeProject, projects, isReaderLoading, readAttachments]);
   const processing = useAssetProcessing(activeAttachments);
   const [resolvedDocumentPageCounts, setResolvedDocumentPageCounts] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -439,7 +451,7 @@ export function ProfileCategoryPage({
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
           </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined} sharedReadOnly={sharedReadOnly} browsingControls
-            layout={mobileLayout} onLayout={setMobileLayout} sort={mobileSort} onSort={setMobileSort} /> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
+            layout={mobileLayout} onLayout={setMobileLayout} sort={mobileSort} onSort={setMobileSort} publicProfileId={canShareCategory ? profile.id : undefined} /> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
             {mobileProjectView && <div className="mobile-portal-projects-back side-panel-control-row side-panel-content-inset">
               <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
                 <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
@@ -539,9 +551,12 @@ export function ProfileCategoryPage({
         {/* Filters the index that is already loaded. It reaches no service, so it
            cannot disagree with what the rows show. */}
         {!isIndexCollapsed && !isMobile && <div className="project-index-search side-panel-control-stack side-panel-content-inset shrink-0">
-            <div data-ui-shape="field" className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
-              <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
-              <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects" aria-label={`Search projects in ${category.label}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+            <div className="flex min-w-0 items-center gap-2">
+              <div data-ui-shape="field" className="text-control-shell side-panel-primary-control group flex min-w-0 flex-1 items-center gap-2.5 px-3">
+                <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
+                <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects" aria-label={`Search projects in ${category.label}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+              </div>
+              {canShareCategory && <PortalLinkCopyButton key={`${profile.id}:${category.id}`} profileId={profile.id} categoryId={category.id} compact />}
             </div>
           </div>}
 
@@ -551,7 +566,7 @@ export function ProfileCategoryPage({
               arrangement.isLoading ? <LoadingState label="Loading projects…" />
                 : <ErrorState title="Projects could not be loaded" description={arrangement.loadError ?? undefined} onRetry={arrangement.reload} />
             )}
-            <ProjectIndexList arrangementWriteDisabled={arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving} onChangeCover={showsOwnerTools ? projectId => management.editor.open(projectId, 'files') : undefined} profileId={profile.id} sharedReadOnly={sharedReadOnly} mobileLayout={mobileLayout} mobileReorderFromMenu={isMobile} projects={visibleProjects} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} mobileReorderDisabled={arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving || Boolean(indexQuery.trim()) || (isMobile && mobileSort !== 'saved')} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
+            <ProjectIndexList arrangementWriteDisabled={arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving} onChangeCover={showsOwnerTools ? projectId => management.editor.open(projectId, 'files') : undefined} profileId={profile.id} sharedReadOnly={sharedReadOnly} mobileLayout={mobileLayout} mobileReorderFromMenu={isMobile} projects={visibleProjects} primaryPortalId={category.id} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} mobileReorderDisabled={arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving || Boolean(indexQuery.trim()) || (isMobile && mobileSort !== 'saved')} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
             {/* Nothing matched, said plainly rather than leaving an empty column. */}
             {mobileIndexOnly && !arrangement.isLoading && !arrangement.loadError && projects.length === 0 && !indexQuery.trim() && <EmptyState title={`No projects in ${category.label}`} description={showsOwnerTools ? 'Choose Add project to publish the first one.' : 'No work has been published in this category.'} />}
             {!arrangement.isLoading && !arrangement.loadError && indexQuery.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
@@ -593,7 +608,7 @@ export function ProfileCategoryPage({
           {/* Closing clears the selection, which the entry rule immediately
            resolves back to the portal's first project — the main area always
            shows work, and the index is what changes which. */}
-          <ProjectMediaViewer creator={profile} videoSequence={mobileProjectView ? { scope: `${sharedReadOnly ? 'shared' : 'workspace'}:${profile.id}:${category.id}`, entries: portalVideos, onSelectProject: id => onSelectProject(id, true) } : undefined} mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true), onBack } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} onDeleteProject={showsOwnerTools && !sharedReadOnly ? () => management.deletion.request(activeProject.id) : undefined} descriptionEditor={showsOwnerTools && !sharedReadOnly ? management.editor : undefined} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} savingPageLayout={showsOwnerTools && typography.savingProjectId === activeProject.id} onPagesPerRowChange={sharedReadOnly ? undefined : setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
+          <ProjectMediaViewer creator={profile} videoSequence={mobileProjectView ? { scope: `${sharedReadOnly ? 'shared' : 'workspace'}:${profile.id}:${category.id}`, entries: portalVideos, onSelectProject: id => onSelectProject(id, true) } : undefined} mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true), onBack } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} primaryPortalId={activeProject.categoryId} projectTitle={activeProject.title} projectSummary={activeProject.summary} onDeleteProject={showsOwnerTools && !sharedReadOnly ? () => management.deletion.request(activeProject.id) : undefined} descriptionEditor={showsOwnerTools && !sharedReadOnly ? management.editor : undefined} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} savingPageLayout={showsOwnerTools && typography.savingProjectId === activeProject.id} onPagesPerRowChange={sharedReadOnly ? undefined : setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
         </section> : isMissingSelection ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label="Project not found">
           <RouteError kind="not-found" creatorHandle={profile.handle} onBack={onBack} onHome={() => window.location.assign('/')} onCreator={() => window.location.assign(`${sharedReadOnly ? '/share' : '/p'}/${encodeURIComponent(profile.id)}`)} />
         </section> : <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label={`${category.label} work`}>

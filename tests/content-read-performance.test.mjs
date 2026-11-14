@@ -42,6 +42,7 @@ function contentFixture({ hiddenCategory = false, owner = false } = {}) {
   vm.runInNewContext(ts.transpileModule(program, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, {
     exports, requireSupabase: () => client, ProjectMutationError: class extends Error { constructor(code, message) { super(message); this.code = code; } },
     throwProfileError: error => { throw new Error(error.message); }, asDesign: value => value,
+    readFeaturedPortals: async () => new Map(),
     hydrateProjects: async (projects, categories, attachments) => { hydration.push(plain({ projects, attachments })); return new Map(projects.map(row => [row.id, { id: row.id, design: row.design }])); },
     deriveProjectRelevance: input => ({ topicKeys: [...input.stored.topicKeys, input.categoryLabel.toLowerCase()] }),
     isMissingDiscoveryTable: () => false,

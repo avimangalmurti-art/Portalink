@@ -6,6 +6,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 function fixture() {
   const calls = [], query = { status: 'loading', profile: null, retry() { calls.push('retry'); } };
   const { WebPortalSearchPopup } = sourceModule('src/features/portals/WebPortalSearchPopup.tsx', {
+    '../projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
     react: { ...React, useMemo: fn => fn(), useRef: current => ({ current }) },
     'lucide-react': { ChevronLeftIcon: 'back-icon' },
     '../../components/profile/PortalProjectPopup': { PortalProjectPopup: 'chooser' },
@@ -33,6 +34,7 @@ test('WEB portal chooser loads only the chosen public bundle and never requests 
   h.query.status = 'ready'; h.query.profile = h.profile;
   const chooser = h.render();
   assert.equal(chooser.type, 'chooser'); assert.equal(chooser.props.desktopBrowsing, true);
+  assert.equal(chooser.props.showCopyLink, true);
   assert.deepEqual(Array.from(chooser.props.profile.projects, item => item.id), ['public', 'another']);
   chooser.props.onSelect('work', 'hidden'); chooser.props.onSelect('other', 'another');
   assert.equal(h.calls.some(call => call[0] === 'select'), false);
@@ -58,6 +60,8 @@ test('read-only WEB chooser grid renders real preview labels through an explicit
     react, 'react-dom': { createPortal: value => value },
     '../media/MobileProjectPopup': { MobileProjectPopup: 'popup' }, '../../hooks/useMenuFocus': { useMenuFocus: () => ({}) },
     '../../utils/anchoredMenu': { positionAnchoredMenu: () => ({}) },
+    '../../features/media/videoPlayback': { videoSources: () => [] },
+    '../../features/profile/useInlineProjectContent': { useInlineProjectContent: ({ project }) => ({ project }) },
     'framer-motion': { AnimatePresence: 'presence', motion: {}, Reorder: {}, useDragControls: () => ({}) },
     'lucide-react': new Proxy({}, { get: (_, key) => String(key) }),
     '../ui/InterfaceIcon': { InterfaceIcon: 'icon' }, './TypographyInspector': { TypographyInspector: 'typeface' },
@@ -72,7 +76,8 @@ test('read-only WEB chooser grid renders real preview labels through an explicit
   const row = elements(list).find(node => typeof node.type === 'function' && node.type.name === 'ProjectLink');
   const label = elements(row.type(row.props)).find(node => typeof node.type === 'function' && node.type.name === 'MobileProjectLabel');
   assert.ok(label);
-  const cover = elements(label.type(label.props)).find(node => node.type === 'cover');
+  const indexCover = elements(label.type(label.props)).find(node => node.type?.name === 'ProjectIndexCover');
+  const cover = indexCover.type(indexCover.props);
   assert.equal(cover.props.allowPdfFallback, false); assert.equal(cover.props.allowVideoFallback, false);
   assert.equal(ProjectIndexList(props).props['data-web-project-layout'], undefined);
   state.presentation = 'mobile';

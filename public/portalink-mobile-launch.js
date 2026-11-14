@@ -36,10 +36,20 @@
     return;
   }
 
+  const catalogueLaunch = entry === 'catalogue';
+  const launchTheme = catalogueLaunch ? document.createElement('meta') : null;
+  if (launchTheme) {
+    splash.setAttribute('data-mobile-catalogue-splash', '');
+    launchTheme.setAttribute('name', 'theme-color');
+    launchTheme.setAttribute('content', '#ffffff');
+    launchTheme.setAttribute('data-portalink-launch-theme', '');
+    // Give browser chrome a temporary color without replacing the viewer's theme tags.
+    document.head.prepend(launchTheme);
+  }
   splash.setAttribute('aria-label', 'Opening Portalink');
   Object.assign(splash.style, {
     position: 'fixed', inset: '0', zIndex: '1002', display: 'grid', placeItems: 'center',
-    backgroundColor: entry === 'catalogue' ? 'var(--shared-catalogue-canvas)' : '#fdffff',
+    backgroundColor: catalogueLaunch ? '#ffffff' : '#fdffff',
   });
 
   const still = '/portalink-launch-still.webp?v=0e55dfbd';
@@ -62,6 +72,7 @@
     frame.removeEventListener('error', finish);
     window.removeEventListener('pagehide', finish);
     splash.remove();
+    launchTheme?.remove();
     window.dispatchEvent(new Event('portalink:splash-exited'));
   }
   function loaded() {

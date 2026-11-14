@@ -21,8 +21,16 @@ export function parseResolution(value: unknown): HandleResolution | null {
     ? { profileId: row.profileId, handle: row.handle, alias: row.alias } : null;
 }
 export function portfolioPath(id: string, handle?: string | null): string { return handle && validHandle(handle) ? `/${handle.endsWith('.work') && validHandle(handle.slice(0,-5)) ? handle.slice(0,-5) : handle}` : `/share/${encodeURIComponent(id)}`; }
+export function portfolioCategoryPath(id: string, categoryId: string, handle?: string | null): string {
+  return `${portfolioPath(id, handle)}/c/${encodeURIComponent(categoryId)}`;
+}
+/** Preserve only the portal popup view when advertising a copied link. */
+export function portalPopupSearch(url: URL): string {
+  const categoryPath = /^\/(?:share\/[a-z0-9_-]{1,128}|[^/]+)\/c\/[a-z0-9_-]{1,128}\/?$/i.test(url.pathname);
+  return categoryPath && url.searchParams.get('view') === 'portal' ? '?view=portal' : '';
+}
 export function portfolioProjectPath(id: string, categoryId: string, projectId: string, handle?: string | null): string {
-  return `${portfolioPath(id, handle)}/c/${encodeURIComponent(categoryId)}/${encodeURIComponent(projectId)}`;
+  return `${portfolioCategoryPath(id, categoryId, handle)}/${encodeURIComponent(projectId)}`;
 }
 export function shareCardText(name: string, headline: string | undefined, count: number, school?: string) {
   return { title: `${name.trim()} — Catalogue`, description: [headline ? plainFormattedText(headline).trim() : '', school?.trim(), `${count} ${count === 1 ? 'project' : 'projects'}`].filter(Boolean).join(' · ').slice(0, 160) };

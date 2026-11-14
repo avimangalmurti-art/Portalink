@@ -19,7 +19,8 @@ function visit(node) {
 }
 visit(file);
 assert.ok(pendingCondition, 'The route owns its existing initial profile-loading surface');
-const { canAccessProfile } = sourceModule('src/domain/contentPlacement.ts');
+const projectPortals = sourceModule('src/features/projects/projectPortals.ts');
+const { canAccessProfile } = sourceModule('src/domain/contentPlacement.ts', { '../features/projects/projectPortals': projectPortals });
 const compiled = ts.transpileModule(`function render(input) {
   const { presentation, auth, follows, route, routeProfileId, routeCategoryId, activeProjectId, viewedProfileQuery, isSharedRoute } = input;
   ${block}
@@ -35,7 +36,7 @@ function fixture() {
   const state = { presentation: 'web', auth: { isAuthenticated: true, isInitializing: false, phase: 'authenticated', user: { id: 'account' }, viewerProfileId: 'creator' },
     follows: { isResolving: false, isFollowing: false }, route: { kind: 'project' }, routeProfileId: 'creator', routeCategoryId: 'portal', activeProjectId: 'alpha',
     viewedProfileQuery: { status: 'ready', profile }, isSharedRoute: false };
-  const render = vm.runInNewContext(`${compiled}; render`, { canAccessProfile, useRef(initial) { return reference ??= { current: initial }; } });
+  const render = vm.runInNewContext(`${compiled}; render`, { canAccessProfile, ...projectPortals, useRef(initial) { return reference ??= { current: initial }; } });
   return { profile, state, render(changes = {}) { Object.assign(state, changes); return render(state); },
     pending(changes = {}) { return this.render({ activeProjectId: 'beta', viewedProfileQuery: { status: 'loading', profile: null }, ...changes }); } };
 }

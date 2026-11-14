@@ -66,6 +66,19 @@ test('manual cover, selected PDF page and crop survive append, reorder and unrel
   assert.deepEqual(Array.from(h.value.items, item => item.order), [0, 1]);
 });
 
+test('queued photos can swap around a PDF without changing the PDF cover page', async t => {
+  const h = harness(); t.after(() => h.dispose());
+  await h.select([image('first.png'), pdf('document.pdf'), image('last.png')]);
+  const [, document, last] = h.value.items;
+  h.value.setCoverPage(document.id, 4, 9); await h.flush();
+  h.value.moveImage(document.id, 1);
+  h.value.moveImage(last.id, -1); await h.flush();
+  assert.deepEqual(Array.from(h.value.items, item => item.fileName), ['last.png', 'document.pdf', 'first.png']);
+  assert.deepEqual(Array.from(h.value.items, item => item.order), [0, 1, 2]);
+  assert.equal(h.value.cover.id, document.id);
+  assert.equal(h.value.cover.metadata.coverPageNumber, 4);
+});
+
 test('a manual image cover and crop survive later PDF selection without assigning it a page', async t => {
   const h = harness(); t.after(() => h.dispose());
   await h.select([pdf('first.pdf'), image('chosen.png')]);

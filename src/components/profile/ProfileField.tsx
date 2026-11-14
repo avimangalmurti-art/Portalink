@@ -21,6 +21,7 @@ export type ProfileFieldProps = {
   label: string;
   value: string;
   multiline?: boolean;
+  autoGrow?: boolean;
   formatting?: boolean;
   optional?: boolean;
   /**
@@ -50,6 +51,7 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
   label,
   value,
   multiline = false,
+  autoGrow = false,
   formatting = false,
   optional = false,
   required = false,
@@ -77,6 +79,7 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
   // the whole field the viewer sees, not to the bare text box inside it.
   const shellClass = 'input-shell text-control-shell flex items-center gap-1 rounded-[8px] px-3';
   const invalid = Boolean(error || status?.tone === 'negative');
+  const textarea = <textarea data-ui-shape={workspace ? undefined : 'composer'} ref={textareaRef} id={id} value={value} rows={3} placeholder={placeholder} maxLength={maxLength} disabled={disabled} required={required || undefined} aria-required={required || undefined} aria-invalid={invalid || undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={`${shellClass} min-h-[76px] resize-none py-2.5 disabled:opacity-60 ${fieldClass}`} />;
   return <div data-field-workspace={workspace || undefined} data-multiline={multiline || undefined} data-field-status={status?.tone} className="flex flex-col gap-1.5">
       <label htmlFor={id} className="flex items-baseline gap-1.5 text-[14px] font-medium text-[var(--text-primary)]">
         {label}
@@ -88,7 +91,10 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
       </label>
       <div className={workspace && multiline ? "details-editor" : "contents"}>
       {multiline && formatting && <TextFormattingToolbar inputRef={textareaRef} value={value} onChange={onChange} disabled={disabled} maxLength={maxLength} variant={workspace ? "workspace" : "panel"} />}
-      {multiline ? <textarea data-ui-shape={workspace ? undefined : 'composer'} ref={textareaRef} id={id} value={value} rows={3} placeholder={placeholder} maxLength={maxLength} disabled={disabled} required={required || undefined} aria-required={required || undefined} aria-invalid={invalid || undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={`${shellClass} min-h-[76px] resize-none py-2.5 disabled:opacity-60 ${fieldClass}`} /> : <div data-ui-shape="field" className={`${shellClass} h-10`}>
+      {multiline ? autoGrow ? <div className="profile-field-autogrow">
+        {textarea}
+        <div aria-hidden="true" className="profile-field-autogrow-measure">{value}{'\u200b'}</div>
+      </div> : textarea : <div data-ui-shape="field" className={`${shellClass} h-10`}>
           {leadingIcon}
           {prefix && <span aria-hidden="true" className="shrink-0 text-[14px] text-[var(--text-tertiary)]">{prefix}</span>}
           <input id={id} ref={ref} type="text" value={value} placeholder={placeholder} inputMode={inputMode} autoComplete={autoComplete} maxLength={maxLength} disabled={disabled} required={required || undefined} aria-required={required || undefined} aria-invalid={invalid || undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={fieldClass} />

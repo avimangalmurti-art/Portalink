@@ -27,7 +27,7 @@ const attachment = (projectId, id, extra = {}) => ({ project_id: projectId, id, 
       storagePath: `${id}-page-${index + 1}.png`, width: 600, height: 800, aspectRatio: .75 })) }, ...extra });
 
 function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bitmap') }), project('legacy')], attachments,
-  accountId = 'owner', profile = {}, readable = true, errors = {}, gates = {}, multipartUnavailable = false } = {}) {
+  accountId = 'owner', profile = {}, readable = true, errors = {}, gates = {}, multipartUnavailable = false, featured = new Map() } = {}) {
   const queries = [], signing = [], multipart = [], rangeOpens = [];
   const rows = {
     profiles: readable ? [{ id: PROFILE, account_id: 'owner', name: 'Creator Name', handle: 'creator', headline: 'Bio', location: 'City',
@@ -98,6 +98,7 @@ function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bi
     normalizeProjectGridColumns: value => value,
     deriveProjectRelevance: () => ({}),
     readSharedProfileBundle: async () => ({ status: 'unsupported' }),
+    readFeaturedPortals: async () => featured,
   });
   return { ...exports, queries, signing, multipart, rangeOpens };
 }
@@ -117,6 +118,18 @@ test('bitmap overview keeps complete identity/counts/order without reading, sign
   assert.equal(h.queries.some(query => query.table === 'project_attachments'), false);
   assert.equal(h.signing.length, 0);
   assert.equal(h.multipart.length, 0);
+});
+
+test('owner overview retains extra Portal placements while the public reader drops hidden ones', async () => {
+  const projects = [project('bitmap', { cover_thumbnail: manifest('bitmap') })];
+  const featured = new Map([['bitmap', [CATEGORY, HIDDEN_CATEGORY, 'foreign-portal']]]);
+  const h = harness({ projects, featured });
+  const owner = await h.service.getProfileOverview(PROFILE);
+  assert.equal(owner.projects[0].categoryId, CATEGORY);
+  assert.deepEqual(plain(owner.projects[0].additionalPortalIds), [HIDDEN_CATEGORY]);
+  const publicProfile = await h.service.getSharedProfile(PROFILE);
+  assert.equal(publicProfile.projects[0].categoryId, CATEGORY);
+  assert.deepEqual(plain(publicProfile.projects[0].additionalPortalIds), []);
 });
 
 test('private bitmap overview signs only cover variants and does not read attachment metadata', async () => {

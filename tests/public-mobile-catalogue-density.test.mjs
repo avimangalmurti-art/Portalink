@@ -25,6 +25,7 @@ function fixture(initial = {}) {
     useState: value => [typeof value === 'function' ? value() : value, () => {}],
   };
   const { VisitorProfileGrid } = sourceModule('src/visitor/VisitorProfileGrid.tsx', {
+    '../features/projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
     react,
     'react-router-dom': { useSearchParams: () => [new URLSearchParams(state.search), () => {}] },
     '../components/ui/StateViews': { LoadingSkeleton: 'loading' },

@@ -39,3 +39,12 @@ test('public Settings rejects platform, citation and external destinations and s
   assert.equal(settings.sharedSettingsReturnPath('/settings?settings=1'), undefined);
   assert.equal(settings.sharedSettingsReturnPath('https://evil.example/portalite?settings=1'), undefined);
 });
+
+test('public Settings preserves the popup choice only on a portal address', () => {
+  for (const path of ['/portalite/c/art', '/share/11111111-1111-4111-8111-111111111111/c/art']) {
+    const origin = path + '?view=portal';
+    assert.equal(settings.sharedSettingsReturnPath(settings.sharedSettingsPath(origin)), origin);
+  }
+  assert.equal(registration.readSharedReturnPath('/portalite?view=portal'), '/portalite');
+  assert.equal(registration.readSharedReturnPath('/portalite/c/art/work?view=portal'), '/portalite/c/art/work');
+});

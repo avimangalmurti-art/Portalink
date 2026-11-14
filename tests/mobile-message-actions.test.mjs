@@ -9,6 +9,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 
 const publicOrigin = 'https://portalinknetworks.com';
 const sharedContentPreview = sourceModule('src/features/messages/sharedContentPreview.ts', {
+  '../projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
   '../citations/publicOrigin': { PUBLIC_ORIGIN: publicOrigin },
   '../sharing/shareModel': sourceModule('src/features/sharing/shareModel.ts'),
 });

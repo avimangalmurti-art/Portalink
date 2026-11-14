@@ -91,10 +91,10 @@ test('project header omits duplicate page totals but retains layout controls and
   const sharedReader = read('../src/visitor/VisitorProjectPage.tsx');
   assert.match(sharedReader, /<ProjectPagesPerRowControl value=\{pagesPerRow\} onChange=\{setPagesPerRow\} \/>/);
   const slider = read('../src/components/media/ProjectPagesPerRowControl.tsx');
-  assert.match(slider, /Pages\/row \{value\}/);
+  assert.match(slider, /\$\{value\} \$\{value === 1 \? 'page' : 'pages'\} per row/);
   assert.match(slider, /<label className="[^"]*relative[^"]*h-full[^"]*items-center[^"]*"[^>]*>[\s\S]*data-pages-per-row-slider=""/);
   assert.match(slider, /data-pages-per-row-slider=""[\s\S]*data-pages-per-row-label=""/);
-  assert.match(slider, /data-pages-per-row-label="" className="[^"]*absolute[^"]*top-\[calc\(50%\+11px\)\][^"]*text-\[8px\][^"]*text-\[var\(--text-secondary\)\]/);
+  assert.match(slider, /data-pages-per-row-label=""[^>]*>\{densityLabel\}<\/span>/);
   assert.match(slider, /aria-label="Pages per row"/);
   assert.match(slider, /min=\{MIN_PAGES_PER_ROW\}/);
   assert.match(slider, /max=\{MAX_PAGES_PER_ROW\}/);

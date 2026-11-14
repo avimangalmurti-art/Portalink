@@ -9,6 +9,7 @@ import { useSharedProfileQuery } from '../profile/useSharedProfileQuery';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import type { PublicPortalSummary } from '../../types/portals';
 import './web-portal-search-popup.css';
+import { projectBelongsToPortal } from '../projects/projectPortals';
 
 /** Only the selected public bundle loads; selecting a project opens its reader. */
 export function WebPortalSearchPopup({ portal, onClose, onSelect }: {
@@ -21,8 +22,8 @@ export function WebPortalSearchPopup({ portal, onClose, onSelect }: {
     return { ...value, projects: value.projects.filter(item => item.isPubliclyVisible !== false) };
   }, [query.profile, query.status, portal.profileId, portal.id]);
   if (profile) return <PortalProjectPopup profile={profile} categoryId={portal.id} onClose={onClose} onBack={onClose}
-    backLabel="Back to Portal search" desktopBrowsing onSelect={(categoryId, projectId) => {
-      if (categoryId !== portal.id || !profile.projects.some(item => item.id === projectId && item.categoryId === categoryId)) return;
+    backLabel="Back to Portal search" desktopBrowsing showCopyLink onSelect={(categoryId, projectId) => {
+      if (categoryId !== portal.id || !profile.projects.some(item => item.id === projectId && projectBelongsToPortal(item, categoryId))) return;
       onSelect(profile.id, categoryId, projectId);
     }} />;
   return <PortalSearchPopupStatus portal={portal} onClose={onClose}>

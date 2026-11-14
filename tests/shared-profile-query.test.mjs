@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { deferred, hookHarness } from './helpers/hook-harness.mjs';
+import { sourceModule } from './helpers/source-module.mjs';
 
 const file = new URL('../src/features/profile/useSharedProfileQuery.ts', import.meta.url);
 const compactProject = (id = 'report') => ({ id, categoryId: 'documents', title: id, attachments: [], coverThumbnail: { version: 1 } });
-const bundle = (name = 'Creator', extra = {}) => ({ id: 'creator', name, isPrivate: false, projects: [compactProject(), compactProject('second')], ...extra });
+const projectPortals = sourceModule('src/features/projects/projectPortals.ts');
+const bundle = (name = 'Creator', extra = {}) => ({ id: 'creator', name, isPrivate: false, categories: [{ id: 'documents' }], projects: [compactProject(), compactProject('second')], ...extra });
 const fullView = (title = 'Full document', id = 'report') => ({ creator: { id: 'creator', isPrivate: false },
   project: { ...compactProject(id), title, attachments: [{ id: `${id}-file`, kind: 'document', sourceUrl: `${id}-original.pdf` }] } });
 
@@ -18,7 +20,7 @@ function fixture({ initial = ['creator', null, null], shared, view, auth = { use
   for (const name of ['getProfile', 'loadProfile', 'primeProfile', 'invalidateProfiles']) {
     Object.defineProperty(profileData, name, { get() { assert.fail(`Shared read touched owner cache ${name}`); } });
   }
-  return { h: hookHarness(file, 'useSharedProfileQuery', { profiles, projects }, auth, initial, profileData), calls, auth, profileData };
+  return { h: hookHarness(file, 'useSharedProfileQuery', { profiles, projects }, auth, initial, profileData, { '../projects/projectPortals': projectPortals }), calls, auth, profileData };
 }
 
 test('shared grid → document → back reuses one compact bundle and resolves originals only for the selected document', async () => {
@@ -66,6 +68,26 @@ test('confirmed private bundles and absent public project membership refuse new 
       'The existing route receives no matching project and renders its project-not-found state');
     f.h.dispose();
   }
+});
+
+test('a public featured Portal opens the canonical project while hidden placement IDs stay out of the public bundle', async () => {
+  const f = fixture({
+    shared: async () => bundle('Creator', { categories: [{ id: 'documents' }, { id: 'featured' }],
+      projects: [{ ...compactProject(), additionalPortalIds: ['featured'] }] }),
+    view: async () => ({ ...fullView(), project: { ...fullView().project, additionalPortalIds: ['featured', 'hidden'] } }),
+  });
+  await f.h.flush();
+  f.h.options(['creator', 'report', 'featured']);
+  await f.h.flush();
+  const project = f.h.value.profile.projects[0];
+  assert.equal(project.categoryId, 'documents');
+  assert.deepEqual(project.additionalPortalIds, ['featured']);
+  assert.equal(project.attachments[0].sourceUrl, 'report-original.pdf');
+  f.h.options(['creator', 'report', 'hidden']);
+  await f.h.flush();
+  assert.deepEqual(f.calls.viewer, ['report']);
+  assert.equal(f.h.value.profile.projects[0].attachments.length, 0);
+  f.h.dispose();
 });
 
 test('viewer responses must still match the public creator/category and cannot introduce a private creator', async () => {

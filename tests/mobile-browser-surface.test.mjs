@@ -44,7 +44,7 @@ function harness(withMetadata = true) {
   const document = { ...events(), visibilityState: 'visible', documentElement: { dataset: {}, style: style() }, body: { style: style() },
     querySelector: selector => selector.includes('data-portalink-invite-splash') ? inviteSplash
       : selector.includes('data-project-opening-loader') ? projectOpening : welcome,
-    querySelectorAll: selector => { assert.equal(selector, 'meta[name="theme-color"]'); return tags; },
+    querySelectorAll: selector => { assert.equal(selector, 'meta[name="theme-color"]:not([data-portalink-launch-theme])'); return tags.filter(tag => tag.getAttribute('data-portalink-launch-theme') === null); },
     createElement: () => meta(), head: { appendChild: tag => tags.push(tag) } };
   const window = { ...events(), matchMedia: () => media }, slots = [], pendingEffects = [], frame = {};
   let token = '#000000', colorScheme = 'dark', cursor = 0;
@@ -303,6 +303,18 @@ test('missing metadata is created for mobile then removed on unmount', () => {
   assert.equal(h.document.listeners.size, 0);
   assert.equal(h.document.documentElement.style.getPropertyValue('color-scheme'), '');
   assert.equal(h.document.body.style.getPropertyValue('color-scheme'), '');
+});
+
+test('visitor theme syncing leaves the temporary catalogue splash chrome color white', () => {
+  const h = harness();
+  h.tags[0].setAttribute('data-portalink-launch-theme', '');
+  h.setColor('#141414');
+  h.render('mobile');
+  assert.deepEqual(h.tags.map(tag => tag.getAttribute('content')), ['#ffffff', '#141414']);
+  h.tags[0].remove();
+  h.splashExit();
+  assert.deepEqual(h.tags.map(tag => tag.getAttribute('content')), ['#141414']);
+  h.dispose();
 });
 
 test('both launch entries let iOS match the native status bar to the document canvas', () => {

@@ -7,12 +7,12 @@ import ts from 'typescript';
 import { sourceModule } from './helpers/source-module.mjs';
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
 const { isPublicSharePath }=sourceModule('src/features/sharing/shareModel.ts',{'../../components/text/textFormatting':{plainFormattedText:value=>value}});
-function render(shared=false, owner=false, props={}, authenticated=!shared) {
+function render(shared=false, owner=false, props={}, authenticated=!shared, projects) {
  const calls=[]; const exports={};
  const engagement={};
  const react={...React,useEffect(){},useState(){return [undefined,()=>{}];}};
  const mocks={react,'../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},'react-router-dom':{useNavigate:()=>path=>calls.push(['navigate',path]),useLocation:()=>({pathname:typeof shared==='string'?shared:shared?'/share/creator':'/home',search:''})},
- '../../contexts/ServicesContext':{useServices:()=>({profiles:{getProfile:()=>{throw Error('Supplied creator must not be fetched');}}})},
+ '../../contexts/ServicesContext':{useServices:()=>({projects,profiles:{getProfile:()=>{throw Error('Supplied creator must not be fetched');}}})},
  '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:authenticated,viewerProfileId:owner?'creator':undefined,requestAuthenticatedDestination:(...args)=>calls.push(['account',...args])})},
  '../../features/engagement/useProjectEngagement':{useProjectEngagement:id=>{calls.push(['engagement',id]);return engagement;}},
  './ProjectPopupEngagement':{ProjectPopupEngagement:'engagement'},'../profile/CreatorAvatar':{CreatorAvatar:'avatar'},
@@ -126,5 +126,23 @@ test('visitor and shared details never expose owner commands even if callbacks w
   const {tree,calls}=render(shared,owner,{onOptions:unavailable,onEditDescription:unavailable,contextHandlers:{edit:unavailable,delete:unavailable}});
   assert.equal(tree.props.optionsContent,undefined);assert.equal(tree.props.onOptions,undefined);
   assert.equal(calls.some(call=>call[0]==='obsolete-options-sheet'),false);
+ }
+});
+
+test('only the signed-in owner can open Portal placement from between Edit and Delete', () => {
+ const projects = {
+  getPortalMemberships() { assert.fail('Opening project options must not fetch memberships.'); },
+  setPortalMemberships() { assert.fail('Opening project options must not save memberships.'); },
+ };
+ const props = { contextHandlers: { edit() {}, delete() {} } };
+ const { tree, OwnerActions } = render(false, true, props, true, projects);
+ const menu = OwnerActions(tree.props.optionsContent.props);
+ const [edit, feature, deleteProject] = React.Children.toArray(menu.props.children);
+ assert.equal(edit.props.children, 'Edit project');
+ assert.equal(feature.type(feature.props).props.children[0].props.children, 'Feature in Portals');
+ assert.equal(feature.props.project.id, 'work');
+ assert.equal(deleteProject.props.children, 'Delete project');
+ for (const [shared, owner] of [[true, true], [false, false]]) {
+  assert.equal(render(shared, owner, props, true, projects).tree.props.optionsContent, undefined);
  }
 });

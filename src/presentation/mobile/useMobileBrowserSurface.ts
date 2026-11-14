@@ -22,7 +22,8 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
       priority: element.style.getPropertyPriority('background-color'),
     }));
     const bodyScheme = { value: document.body.style.getPropertyValue('color-scheme'), priority: document.body.style.getPropertyPriority('color-scheme') };
-    const existing = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]'));
+    // The static catalogue splash removes its own temporary chrome color on exit.
+    const existing = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]:not([data-portalink-launch-theme])'));
     const tags = existing.length ? existing : [document.createElement('meta')];
     if (!existing.length) {
       tags[0].name = 'theme-color';
