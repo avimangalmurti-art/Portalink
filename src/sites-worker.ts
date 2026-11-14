@@ -154,7 +154,7 @@ async function requireReadableTargets(request: Request, targets: Target[], user:
   const quote = (value: string) => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
   const endpoint = new URL(`${SUPABASE_URL}/rest/v1/projects`)
   endpoint.search = new URLSearchParams({
-    select: `${includeActionProject ? 'profile_id,category_id,title,profile:profiles!projects_profile_id_fkey!inner(account_id),' : ''}id,category:portfolio_categories!inner(id),attachments:project_attachments(id,kind,position,page_count:metadata->pageCount)`,
+    select: `${includeActionProject ? 'profile_id,category_id,title,profile:profiles!projects_profile_id_fkey!inner(account_id),' : ''}id,category:portfolio_categories!projects_category_id_fkey!inner(id),attachments:project_attachments(id,kind,position,page_count:metadata->pageCount)`,
     id: `in.(${ids.map(quote).join(',')})`,
     limit: String(ids.length),
     // Match the viewer's image sequence (all images in attachment position order).

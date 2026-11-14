@@ -9,6 +9,11 @@
   width: 100%;
   height: 100%;
 }
+
+[data-presentation='mobile'] .mobile-portal-index-heading [data-preview-creator-name][data-name-overflow] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+}
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] [data-project-row-actions] > [data-row-menu] {
   background: var(--project-control-surface, var(--surface-raised));
   color: var(--project-control-foreground, var(--text-primary));

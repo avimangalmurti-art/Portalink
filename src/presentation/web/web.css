@@ -248,3 +248,14 @@
 #root .codex-shell[data-presentation='web'] [data-account-signin] .portalink-splash-frame::after {
   box-shadow: inset 0 0 8px 12px var(--portalink-splash-background);
 }
+
+/* Keep the rails in place while image and document sections share one scroller. */
+#root .codex-shell[data-presentation='web'] [data-immersive='false'] [data-web-ordered-reading] {
+  overflow: hidden auto;
+  overscroll-behavior-y: contain;
+}
+#root .codex-shell[data-presentation='web'] [data-immersive='false'] [data-web-ordered-reading]
+  :is([data-media-frame], [data-media-frame-body], [data-document-attachment], .premium-media-mode-enter, ol.scrollbar-overlay) {
+  height: auto;
+  overflow: visible;
+}

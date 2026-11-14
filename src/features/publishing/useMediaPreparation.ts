@@ -4,6 +4,7 @@ import { canBeCover, canPreviewLocally, detectAsset, initialProcessingState } fr
 import type { MediaPreparationState, MediaRejectionCode, PreparedMedia, UploadCapability } from '../../types/publishing';
 import { readImageDimensions } from '../../utils/imageMetadata';
 import type { ProjectCoverFrame } from '../../types/domain';
+import { reorderPhotoSlots } from './reorderPhotoSlots';
 
 /**
  * Universal local asset preparation. NOTHING IS UPLOADED.
@@ -202,6 +203,12 @@ export function useMediaPreparation() {
       return reindex(next);
     });
   }, []);
+  const reorderImages = useCallback((movingId: string, targetId: string) => {
+    setItems(current => {
+      const next = reorderPhotoSlots(current, item => item.family === 'image', movingId, targetId);
+      return next === current ? current : reindex(next);
+    });
+  }, []);
   const setCover = useCallback((mediaId: string) => {
     setItems((current) => {
       const target = current.find(item => item.id === mediaId);
@@ -304,6 +311,7 @@ export function useMediaPreparation() {
     clear,
     reorder,
     moveImage,
+    reorderImages,
     setCover,
     setPageCount,
     setCoverPage,

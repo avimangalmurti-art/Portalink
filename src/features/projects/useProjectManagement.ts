@@ -6,6 +6,7 @@ import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { getProjectAspectRatio } from '../../utils/projectPresentation';
 import { validateTitle } from '../publishing/validation';
 import { useMediaPreparation } from '../publishing/useMediaPreparation';
+import { reorderPhotoSlots } from '../publishing/reorderPhotoSlots';
 import { useMediaUpload } from '../publishing/useMediaUpload';
 import { ProjectMutationError } from '../../types/publishing';
 import type { Id, Project, ProjectAttachment, ProjectCoverFrame } from '../../types/domain';
@@ -260,6 +261,13 @@ export function useProjectManagement(profileId: Id | null) {
         ...edit,
         order
       }));
+    });
+  }, [originalAttachments]);
+  const reorderImages = useCallback((movingId: Id, targetId: Id) => {
+    const imageIds = new Set(originalAttachments.filter(attachment => attachment.kind === 'image').map(attachment => attachment.id));
+    setAttachmentEdits(current => {
+      const next = reorderPhotoSlots(current, edit => imageIds.has(edit.id), movingId, targetId);
+      return next === current ? current : next.map((edit, order) => ({ ...edit, order }));
     });
   }, [originalAttachments]);
   /**
@@ -565,6 +573,7 @@ export function useProjectManagement(profileId: Id | null) {
       setCover,
       setCoverFrame,
       moveAttachment,
+      reorderImages,
       removeAttachment,
       restoreAttachments,
       save,
@@ -589,6 +598,6 @@ export function useProjectManagement(profileId: Id | null) {
       cancel: cancelDelete,
       confirm: confirmDelete
     }
-  }), [addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, previewAspectRatio, removeAttachment, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAttachmentTitle, setCover, setCoverFrame, setJourneyField, setMetadataField, upload]);
+  }), [addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, previewAspectRatio, removeAttachment, reorderImages, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAttachmentTitle, setCover, setCoverFrame, setJourneyField, setMetadataField, upload]);
 }
 export type ProjectManagement = ReturnType<typeof useProjectManagement>;

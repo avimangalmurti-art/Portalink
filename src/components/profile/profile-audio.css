@@ -183,6 +183,37 @@
   --status-danger-hover: color-mix(in srgb, var(--status-danger) 85%, black);
 }
 
+.profile-audio-options {
+  position: relative;
+  align-self: flex-start;
+  flex: none;
+}
+
+.profile-audio-options-menu {
+  position: absolute;
+  z-index: 2;
+  inset-block-end: calc(100% + 4px);
+  inset-inline-end: 0;
+  width: 176px;
+  padding: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--ui-popup-radius, 24px);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-pop);
+}
+
+.profile-audio-options-menu > button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding-inline: 10px;
+  border-radius: var(--ui-row-radius);
+  text-align: start;
+}
+
+.profile-audio-options-menu > button:is(:hover, :focus-visible) { background: var(--surface-hover); }
+.profile-audio-options-menu .profile-audio-remove-action { color: var(--status-danger); }
+
 .profile-audio-dialog[data-player] .profile-audio-details { gap: 8px; }
 .profile-audio-dialog[data-player] .profile-audio-description {
   color: var(--text-secondary);
@@ -265,6 +296,14 @@
 }
 
 .profile-audio-form :is(input, textarea):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.profile-audio-cover-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.profile-audio-cover-field input { min-width: 0; }
+[data-profile-audio-cover-preview] img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .profile-audio-form .profile-audio-check { display: flex; align-items: center; min-height: 44px; gap: 8px; }
 .profile-audio-check input { width: 20px; height: 20px; accent-color: var(--accent-solid); }
 .profile-audio-remove-cover { min-height: 44px; justify-self: start; color: var(--text-secondary); text-decoration: underline; }

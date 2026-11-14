@@ -31,6 +31,24 @@ test('period summaries filter real daily rollups and referrers, retaining the le
   assert.equal((await api.handleReachRead(request('/api/reach/projects?period=invalid',undefined,ids.owner),f.db,f.config)).status,400);
 });
 
+test('Insights loads recent Reads when a project also has featured Portal relationships', async () => {
+  const f = fixture();
+  class TestDate extends Date { static now() { return now; } }
+  const reach = loadModule('src/server/projectReach.ts', { Date: TestDate });
+  assert.equal((await ingest(f, { furthest_page: 2 })).status, 204);
+  assert.equal((await ingest(f, {}, now - 7 * 86400000)).status, 204);
+
+  const response = await reach.handleReachRead(request('/api/reach/projects?period=7d', undefined, ids.owner), f.db, f.config);
+  assert.equal(response.status, 200);
+  const rows = await response.json();
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].projectId, ids.project);
+  assert.equal(rows[0].categoryId, f.project.category_id);
+  assert.equal(rows[0].opened, 1);
+  assert.equal(rows[0].finished, 1);
+  assert.deepEqual(rows[0].reach, [1, 1, 1]);
+});
+
 test('reach schema rejects identifiers, raw referrers, extra fields and invalid ranges',()=>{
   assert.deepEqual(plain(api.validateReachPayload(payload())),payload());
   for(const field of ['account_id','ip','user_agent','referrer','extra'])assert.equal(api.validateReachPayload({...payload(),[field]:'secret'}),null);

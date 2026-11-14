@@ -1,5 +1,5 @@
-type NowPlayingArtwork = { avatar: string; title: string; artist: string };
-export type ProfileAudioSource = { key: string; url: string; artwork?: NowPlayingArtwork };
+type NowPlayingMetadata = { avatar?: string; title: string; artist: string };
+export type ProfileAudioSource = { key: string; url: string; artwork?: NowPlayingMetadata };
 
 type ProfileAudioSnapshot = {
   key: string | null;
@@ -23,7 +23,7 @@ let request = 0;
 let starting = false;
 let openVideos = 0;
 let playbackAccount: string | null | undefined;
-let artwork: NowPlayingArtwork | undefined;
+let artwork: NowPlayingMetadata | undefined;
 let publishedMetadata: MediaMetadata | null = null;
 const listeners = new Set<() => void>();
 
@@ -83,7 +83,7 @@ function publishNowPlayingArtwork() {
   }
   try {
     const { title, artist, avatar } = artwork;
-    const metadata = new MediaMetadata({ title, artist, artwork: [{ src: avatar }] });
+    const metadata = new MediaMetadata({ title, artist, artwork: avatar ? [{ src: avatar }] : [] });
     session.metadata = metadata;
     publishedMetadata = metadata;
   } catch {

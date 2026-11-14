@@ -283,7 +283,7 @@ export function ProjectMediaViewer({
     && attachments.some(attachment => attachment.id === deepLinkedAttachmentId);
   const isSavedSinglePage = explicitPageLink && deepLinkedAttachmentId === selected?.id;
   const imagePages = attachments.filter((item) => item.kind === 'image');
-  const orderedReading = isMobileViewer && !explicitPageLink && attachments.length > 1
+  const orderedReading = !explicitPageLink && attachments.length > 1
     && attachments.some(attachment => attachment.kind === 'document')
     && attachments.every(attachment => attachment.kind === 'image' || attachment.kind === 'document');
   const active = (orderedReading ? attachments.find(attachment => attachment.kind === 'document') : undefined) ?? selected;
@@ -413,8 +413,10 @@ export function ProjectMediaViewer({
   const linkedReadingPart = orderedReading ? attachments.find(attachment => attachment.id === deepLinkedAttachmentId) : undefined;
   const linkedReadingPage = linkedReadingPart?.kind === 'image' ? 1
     : Number.isSafeInteger(singlePageNumber) && singlePageNumber >= 1 ? singlePageNumber : 1;
+  const webOrderedReading = orderedReading && !isMobileViewer;
   useDocumentReadingScroll(orderedReading && !isImmersive, pageSurfaceRef,
-    `${viewerMemoryKey}:ordered-pages`, linkedReadingPart ? linkedReadingPage : null, linkedReadingPart?.id);
+    `${viewerMemoryKey}:ordered-pages${webOrderedReading ? ':web' : ''}`,
+    linkedReadingPart ? linkedReadingPage : null, linkedReadingPart?.id, webOrderedReading);
   const [openedReader, setOpenedReader] = useState<string | null>(null);
   const opening = isMobileViewer && screenActive && !mobileNavigation?.isIndexOpen && Boolean(active) && openedReader !== viewerMemoryKey;
   useLayoutEffect(() => { setOpenedReader(null); }, [viewerMemoryKey]);
@@ -710,17 +712,17 @@ export function ProjectMediaViewer({
     imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1}
     onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange}
     pageViewToggleRequest={pageViewToggleRequest} /> : emptyMedia;
-  const readingPartPreviews = orderedReading ? Object.fromEntries(attachments.map(attachment => [attachment.id, {
+  const readingPartPreviews = isMobileViewer && orderedReading ? Object.fromEntries(attachments.map(attachment => [attachment.id, {
     sources: attachment.kind === 'image' ? [attachment.sourceUrl] : (attachment.metadata?.renderedPages ?? []).filter(page => Boolean(page.sourceUrl)).map(page => page.sourceUrl),
     document: readingDocuments?.scope === previewScope ? readingDocuments.documents[attachment.id] : undefined,
   }])) : undefined;
   const renderReadingPart = (attachment: ProjectAttachment) => {
     const isImage = attachment.kind === 'image';
     const count = isImage ? 1 : Math.max(attachment.metadata?.pageCount ?? 0, attachment.metadata?.renderedPages?.length ?? 0);
-    return <MobileReadingPart key={attachment.id} count={count || undefined}
+    return <OrderedReadingPart key={attachment.id} count={count || undefined}
       hidden={focusedReadingPart !== null && focusedReadingPart !== attachment.id} focused={focusedReadingPart === attachment.id}
-      onFocus={handleReadingPartFocus} onPreview={handleReadingPreview} renderer={{
-        ...rendererProps(attachment), imageColumns: isImage ? 1 : mobilePagesPerRow,
+      onFocus={handleReadingPartFocus} onPreview={isMobileViewer ? handleReadingPreview : undefined} renderer={{
+        ...rendererProps(attachment), imageColumns: isImage ? 1 : isMobileViewer ? mobilePagesPerRow : normalizedPagesPerRow,
         verticalReading: true, manageReadingScroll: false,
         memoryScope: isImage ? `${viewerMemoryScope}:part:${attachment.id}` : viewerMemoryScope,
       }} />;
@@ -733,7 +735,7 @@ export function ProjectMediaViewer({
 
       {showEngagement && isMobileViewer && !isImmersive && (orderedReading || active?.kind === 'document') && pageTarget && <MediaInteractionBar key={`${pageTarget.attachmentId}:${currentPage}`} target={pageTarget} contextOnly isOwner={ownerReader} pageCount={currentPosition?.attachmentTotal ?? contextPosition?.total ?? pageCount ?? undefined} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
+        <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-web-ordered-reading={webOrderedReading ? '' : undefined} data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
           {orderedReading ? [...attachments].sort((first, second) => first.order - second.order).map(renderReadingPart)
             : isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
             videos={videoSequence.entries} creator={creator} activeId={`${projectId}:${active.id}`} onSelect={entry => {
@@ -917,19 +919,19 @@ export function ProjectMediaViewer({
       </>}</MediaCommentsPopover>}
     </div></MobilePageContext.Provider></ProjectSharePathContext.Provider>;
 }
-function MobileReadingPart({ renderer, count, hidden, focused, onFocus, onPreview }: {
+function OrderedReadingPart({ renderer, count, hidden, focused, onFocus, onPreview }: {
   renderer: React.ComponentProps<typeof AttachmentRenderer>;
   count?: number;
   hidden: boolean;
   focused: boolean;
   onFocus: (id: string, focused: boolean) => void;
-  onPreview: (id: string, document: PdfDocument | null) => void;
+  onPreview?: (id: string, document: PdfDocument | null) => void;
 }) {
   const { id, kind } = renderer.attachment;
   const reportFocus = useCallback((value: boolean) => onFocus(id, value), [id, onFocus]);
-  const reportPreview = useCallback((document: PdfDocument | null) => onPreview(id, document), [id, onPreview]);
+  const reportPreview = useCallback((document: PdfDocument | null) => onPreview?.(id, document), [id, onPreview]);
   return <section data-project-reading-part={id} data-project-reading-count={count} hidden={hidden} className={focused ? 'h-full min-h-0' : undefined}>
     <AttachmentRenderer {...renderer} onFocusModeChange={reportFocus}
-      onPreviewDocument={kind === 'document' ? reportPreview : undefined} />
+      onPreviewDocument={kind === 'document' && onPreview ? reportPreview : undefined} />
   </section>;
 }

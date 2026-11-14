@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
+import { arrayMove } from '@dnd-kit/sortable';
 import { hookHarness } from './helpers/hook-harness.mjs';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const assets = sourceModule('src/features/publishing/assetTypes.ts');
+const photoOrder = sourceModule('src/features/publishing/reorderPhotoSlots.ts', { '@dnd-kit/sortable': { arrayMove } });
 const pdfBytes = readFileSync(new URL('./fixtures/cover-thumbnails/report.pdf', import.meta.url));
 const file = (name, type) => new File(['original bytes'], name, { type });
 const pdf = name => new File([pdfBytes], name, { type: 'application/pdf' });
@@ -20,6 +22,7 @@ function harness() {
     media: { getUploadCapability: async () => ({ isAvailable: true, reason: 'Controlled test service' }) },
   }, {}, undefined, undefined, {
     './assetTypes': assets,
+    './reorderPhotoSlots': photoOrder,
     '../../utils/imageMetadata': { readImageDimensions: async () => ({ widthPixels: 1200, heightPixels: 900 }) },
   }, { URL: PreviewURL });
   return { ...h, created, revoked,
@@ -77,6 +80,28 @@ test('queued photos can swap around a PDF without changing the PDF cover page', 
   assert.deepEqual(Array.from(h.value.items, item => item.order), [0, 1, 2]);
   assert.equal(h.value.cover.id, document.id);
   assert.equal(h.value.cover.metadata.coverPageNumber, 4);
+});
+
+test('dragging a queued photo across several rows reorders only photo slots and keeps the chosen cover', async t => {
+  const h = harness(); t.after(() => h.dispose());
+  await h.select([image('first.png'), pdf('document.pdf'), image('middle.png'), file('video.mp4', 'video/mp4'), image('last.png')]);
+  const [first, document, middle, video, last] = h.value.items;
+  const frame = { x: .3, y: .6, zoom: 1.4, aspectRatio: 1 };
+  h.value.setCover(last.id); h.value.setCoverFrame(last.id, frame); await h.flush();
+
+  const unchanged = h.value.items;
+  h.value.reorderImages(document.id, first.id);
+  h.value.reorderImages(first.id, video.id);
+  h.value.reorderImages(first.id, first.id);
+  await h.flush();
+  assert.equal(h.value.items, unchanged);
+
+  h.value.reorderImages(last.id, first.id);
+  await h.flush();
+  assert.deepEqual(Array.from(h.value.items, item => item.id), [last.id, document.id, first.id, video.id, middle.id]);
+  assert.deepEqual(Array.from(h.value.items, item => item.order), [0, 1, 2, 3, 4]);
+  assert.equal(h.value.cover.id, last.id);
+  assert.equal(h.value.cover.metadata.coverFrame, frame);
 });
 
 test('a manual image cover and crop survive later PDF selection without assigning it a page', async t => {

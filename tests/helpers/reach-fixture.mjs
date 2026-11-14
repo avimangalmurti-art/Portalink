@@ -31,7 +31,11 @@ export function fixture({ pending = true } = {}) {
   const config={supabaseUrl:'https://fixture.supabase.test',publishableKey:'fixture-public-key',authenticate:async(req)=>{const id=req.headers.get('authorization')?.replace('Bearer ','');return id?{id}:null;},fetcher:async(url,options)=>{
     if (options.redirect !== 'manual') throw new Error('Public/owner lookup must use workerd-compatible redirect refusal');
     calls.push({url,options});const parsed=new URL(url);let rows=[];
-    if(parsed.pathname.endsWith('/projects')) rows=[project];
+    if(parsed.pathname.endsWith('/projects')) {
+      if (!parsed.searchParams.get('select')?.includes('category:portfolio_categories!projects_category_id_fkey!inner('))
+        return Response.json({code:'PGRST201'}, {status:300});
+      rows=[project];
+    }
     if(parsed.pathname.endsWith('/profiles')){const account=parsed.searchParams.get('account_id');rows=account?.startsWith('eq.')?[{id:account===`eq.${ids.owner}`?ids.profile:ids.other,account_id:account.slice(3),name:'Reader'}]:[{id:ids.other,account_id:ids.other,name:'Reader'}];}
     return Response.json(rows);
   }};

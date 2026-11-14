@@ -1,10 +1,30 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
+import {arrayMove} from '@dnd-kit/sortable';
 import {sourceModule} from './helpers/source-module.mjs';
+
+const reorderPhotoSlots = sourceModule('src/features/publishing/reorderPhotoSlots.ts', {'@dnd-kit/sortable':{arrayMove}}).reorderPhotoSlots;
+const {MobileReorderList} = sourceModule('src/presentation/mobile/MobileReorderList.tsx', {
+  react: React,
+  '@dnd-kit/core': {
+    DndContext: 'drag-context', TouchSensor: 'touch', MouseSensor: 'mouse', KeyboardSensor: 'keyboard',
+    KeyboardCode: {Space:'Space', Esc:'Escape', Enter:'Enter'},
+    useSensor: sensor => sensor, useSensors: (...sensors) => sensors,
+  },
+  '@dnd-kit/sortable': {
+    SortableContext: 'sortable-context', arrayMove, useSortable: () => ({
+      setNodeRef() {}, setActivatorNodeRef() {}, attributes: {}, listeners: {},
+    }),
+  },
+  '@dnd-kit/utilities': {CSS:{Transform:{toString:()=>undefined}}},
+  'framer-motion': {useReducedMotion:()=>true},
+});
 function nodes(node) {
   if (!React.isValidElement(node)) return [];
-  if (node.type.name === 'MobileProjectFileTile') return nodes(node.type(node.props));
+  if (['MobileReorderList','MobileReorderRow','MobileProjectFileTile'].includes(node.type.name)) {
+    return [node, ...nodes(node.type(node.props))];
+  }
   return [node, ...React.Children.toArray(node.props.children).flatMap(nodes)];
 }
 
@@ -23,13 +43,16 @@ function harness(presentation='mobile'){
   addedMedia:{items:[],capability:{isAvailable:true},isFull:false},upload:{phase:'idle',itemProgress:{},isBusy:false,isCleaningUp:false},isSaving:false,isTransferring:false,isDirty:true,previewAspectRatio:4/3,
   setField(key,value){editor.metadata[key]=value;dirty=true;},
   moveAttachment(id,direction){const from=editor.attachmentEdits.findIndex(item=>item.id===id),to=from+direction;if(to<0||to>=editor.attachmentEdits.length)return;const next=[...editor.attachmentEdits],moved=next.splice(from,1)[0];next.splice(to,0,moved);editor.attachmentEdits=next;calls.push(['move',id,direction]);dirty=true;},
+  reorderImages(id,targetId){editor.attachmentEdits=reorderPhotoSlots(editor.attachmentEdits,item=>editor.originalAttachments.find(source=>source.id===item.id)?.kind==='image',id,targetId);calls.push(['drag',id,targetId]);dirty=true;},
   setCover(id){editor.attachmentEdits=editor.attachmentEdits.map(item=>({...item,isCover:item.id===id}));calls.push(['cover',id]);dirty=true;},
   setCoverFrame(id,coverFrame){editor.attachmentEdits=editor.attachmentEdits.map(item=>item.id===id?{...item,coverFrame}:item);calls.push(['frame',id,coverFrame]);dirty=true;},
   setAttachmentTitle(id,displayName){editor.attachmentEdits=editor.attachmentEdits.map(item=>item.id===id?{...item,displayName}:item);dirty=true;},
   async save(){calls.push(['save',editor.metadata,editor.attachmentEdits]);return null;},async close(){calls.push(['close']);return true;},
  };
  const imports={react,'../../components/publishing/useAuthoringFocus':{useAuthoringFocus(){}},'../../presentation/usePresentation':{usePresentation:()=>presentation},'../../hooks/useDialogViewport':{useDialogViewport:()=>react.useRef(surface)},'../../hooks/useModalFocus':{useModalFocus:(open,ref,onClose,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);modalClose=onClose;}},'../../presentation/mobile/MobileBackNavigation':{ScreenBack:'screen-back'},'../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../components/ui/ConfirmationDialog':{ConfirmationDialog:'confirmation'},'../../components/media/ProjectCoverRepositionDialog':{ProjectCoverRepositionDialog:'cover-crop'},'../../components/media/ProjectCover':{ProjectCover:'cover'},'../../components/publishing/CoverFilmstrip':{PublishedCoverFilmstrip:'published-covers'},'../../components/publishing/ProjectFormDialog':{ProjectFormDialog:'web-frame',ProjectDiscardConfirmation:'discard'},'../../components/publishing/ProjectPreviewFrame':{ProjectPreviewFrame:'preview'},'../../components/profile/ProfileField':{ProfileField:'field'},'../../components/ui/Button':{Button:'button'},'../../components/ui/InterfaceIcon':{InterfaceIcon:'icon'},'../../components/ui/ResponsiveImage':{ResponsiveImage:'image'},'../../components/ui/StateViews':{ErrorState:'error',LoadingState:'loading'},'../publishing/validation':{TITLE_MAX_LENGTH:80},'lucide-react':new Proxy({},{get:(_,key)=>key})};
- const {ProjectEditorDialog}=sourceModule('src/features/projects/ProjectEditorDialog.tsx',imports,{document:{getElementById:id=>({focus(){focus.push(id);}})},requestAnimationFrame:callback=>{callback();return 1;},cancelAnimationFrame(){}});
+ const {ProjectEditorDialog}=sourceModule('src/features/projects/ProjectEditorDialog.tsx',{
+   ...imports,'../../presentation/mobile/MobileReorderList':{MobileReorderList},
+ },{document:{getElementById:id=>({focus(){focus.push(id);}})},requestAnimationFrame:callback=>{callback();return 1;},cancelAnimationFrame(){}});
  const run=(id,callback)=>{if(!instances.has(id))instances.set(id,{slots:[],cursor:0});current=instances.get(id);current.cursor=0;const result=callback();for(const slot of current.slots)if(slot?.pending){slot.pending=false;slot.cleanup?.();slot.cleanup=slot.callback();}return result;};
  const render=()=>{for(let pass=0;dirty;pass++){assert.ok(pass<15);dirty=false;frame=run('editor',()=>ProjectEditorDialog({management:{editor}}));tree=typeof frame.type==='function'?run('frame',()=>frame.type(frame.props)):frame;}return tree;};
  return {editor,calls,focus,render,frame:()=>{render();return frame;},find:predicate=>nodes(render()).find(predicate),escape(){render();modalClose();},update(values){Object.assign(editor,values);dirty=true;},async submit(){const form=nodes(render()).find(node=>node.type==='form');form.props.onSubmit({preventDefault(){}});for(let index=0;index<4;index++)await Promise.resolve();render();}};
@@ -70,7 +93,7 @@ test('the unified mobile Files grid numbers the draft order and keeps crop and o
  assert.equal(date.props['aria-label'],'Made on');
  date.props.onChange({target:{value:'2026-11-13'}});
  assert.equal(React.Children.toArray(tabs.props.children)[1].props['aria-pressed'],true);
- const fileCards=()=>nodes(h.render()).filter(node=>node.props.className==='project-editor-file-card');
+ const fileCards=()=>nodes(h.render()).filter(node=>node.type==='li'&&node.props.className==='project-editor-file-card');
  assert.equal(fileCards().length,15);
  assert.equal(h.find(node=>node.props.className==='project-editor-cover-summary').props['data-ui-shape'],'row');
  assert.equal(h.find(node=>node.type==='published-covers'),undefined);
@@ -89,7 +112,7 @@ test('the unified mobile Files grid numbers the draft order and keeps crop and o
  await h.submit();assert.equal(h.calls.filter(call=>call[0]==='save').length,1);assert.equal(h.calls.at(-1)[1].madeOn,'2026-11-13');assert.equal(h.calls.at(-1)[2][13].id,'file-15');
 });
 
-test('mobile Files offers order controls only for photos, including queued uploads',()=>{
+test('mobile Files reorders photos across PDF slots and keeps uploaded files separate',()=>{
  const h=harness();
  const [first,second,last]=h.editor.originalAttachments;
  const originalAttachments=[first,{...second,kind:'document',metadata:{coverPageNumber:4}},last];
@@ -101,14 +124,37 @@ test('mobile Files offers order controls only for photos, including queued uploa
  h.update({
    originalAttachments,
    attachmentEdits:h.editor.attachmentEdits.slice(0,3),
-   addedMedia:{...h.editor.addedMedia,items,moveImage:(id,direction)=>h.calls.push(['move upload',id,direction])},
+   addedMedia:{...h.editor.addedMedia,items,
+     moveImage:(id,direction)=>h.calls.push(['move upload',id,direction]),
+     reorderImages:(id,targetId)=>h.calls.push(['drag upload',id,targetId]),
+   },
+ });
+ const drop = (id, targetId) => h.find(node=>node.type==='drag-context').props.onDragEnd({
+   active:{id},over:{id:targetId},
  });
  assert.equal(h.find(node=>node.props['aria-label']==='Move Artwork 2 earlier'),undefined);
  assert.equal(h.find(node=>node.props['aria-label']==='Move PDF upload later'),undefined);
- assert.ok(h.find(node=>node.props['aria-label']==='Use Artwork 2 as the cover'));
+ const photo = h.find(node=>node.props['aria-label']==='Use Artwork 1 as the cover');
+ const document = h.find(node=>node.props['aria-label']==='Use Artwork 2 as the cover');
+ assert.equal(photo.props['data-mobile-reorder-activator'],'');
+ assert.equal(document.props['data-mobile-reorder-activator'],undefined);
+ assert.deepEqual(nodes(h.render()).filter(node=>node.props.className==='project-editor-file-name').map(node=>node.props.children),['Artwork 2','PDF upload']);
+ drop(last.id,second.id);
+ drop(last.id,'queued-first');
+ assert.deepEqual(h.calls,[]);
+ drop(last.id,first.id);
+ assert.deepEqual(h.calls.at(-1),['drag',last.id,first.id]);
+ assert.deepEqual(Array.from(h.editor.attachmentEdits,item=>item.id),[last.id,second.id,first.id]);
+ assert.equal(h.editor.attachmentEdits.find(item=>item.isCover).id,first.id);
+ drop('queued-last','queued-first');
+ assert.deepEqual(h.calls.at(-1),['drag upload','queued-last','queued-first']);
  h.find(node=>node.props['aria-label']==='Move Last upload earlier').props.onClick();
  assert.deepEqual(h.calls.at(-1),['move upload','queued-last',-1]);
  h.update({upload:{...h.editor.upload,hasPersistedMedia:true}});
+ const callsBefore = h.calls.length;
+ drop('queued-last','queued-first');
+ assert.equal(h.calls.length,callsBefore);
+ assert.equal(h.find(node=>node.props['aria-label']==='Last upload').props['data-mobile-reorder-activator'],undefined);
  assert.equal(h.find(node=>node.props['aria-label']==='Move Last upload earlier'),undefined);
  assert.equal(h.find(node=>node.props['aria-label']==='Remove Last upload from this edit').props.disabled,true);
  assert.equal(h.find(node=>node.props.id==='project-replacement-files').props.disabled,true);

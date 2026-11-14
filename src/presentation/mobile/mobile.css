@@ -1302,17 +1302,24 @@
   gap: 8px;
 }
 
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row {
+  container-type: inline-size;
+  --project-grid-cover-top: 8px;
+  --project-grid-cover-inset: var(--cdx-dense-inline-padding);
+  --project-grid-cover-height: calc(100cqi + 36px);
+}
+
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > button {
   flex-direction: column;
   align-items: stretch;
-  padding: 8px 6px 12px;
+  padding: var(--project-grid-cover-top) 6px 12px;
   gap: var(--project-card-media-gap, 8px);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-cover {
   flex: none;
   width: 100%;
-  height: calc(100cqi + 36px);
+  height: var(--project-grid-cover-height);
   aspect-ratio: auto;
 }
 
@@ -1332,9 +1339,10 @@
   overflow-wrap: anywhere;
 }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] [data-project-row-actions] {
-  top: 8px;
+  /* The menu is a sibling of the cover button, so its query width includes the button's padding. */
+  top: calc(var(--project-grid-cover-top) + var(--project-grid-cover-height) - 2 * var(--project-grid-cover-inset) - 44px);
   bottom: auto;
-  right: 6px;
+  right: var(--project-grid-cover-inset);
   width: 44px;
   height: 44px;
 }
@@ -3229,14 +3237,14 @@
   background: transparent;
   color: var(--text-secondary);
 }
-/* Activity selection stays in one aligned row with reachable read/delete actions. */
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-summary {
   gap: var(--mobile-control-group-gap);
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-summary button {
   padding-inline: 12px;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar {
+/* Selection actions share the dock's width and stay in one row. */
+#root .codex-shell[data-presentation='mobile'] .mobile-studio .studio-selection-toolbar[data-studio-selection-dock] {
   --text-secondary: var(--text-primary);
   box-sizing: border-box;
   inset-inline-start: max(var(--mobile-navigation-inset-start), (100% - var(--mobile-control-group-width)) / 2);
@@ -3252,12 +3260,12 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar > button {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio .studio-selection-toolbar[data-studio-selection-dock] > button {
   width: var(--mobile-control-target);
   height: var(--mobile-control-target);
   padding: 0;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock] .studio-bulk-actions {
   flex-flow: row nowrap;
   align-items: center;
   justify-content: center;
@@ -3266,7 +3274,7 @@
   gap: 4px;
   overflow: visible;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions button {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock] .studio-bulk-actions button {
   flex: 1 1 0;
   min-width: 0;
   height: var(--mobile-control-target);
@@ -3277,11 +3285,14 @@
   line-height: 18px;
   white-space: normal;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions button > span {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock] .studio-bulk-actions button > span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-hint {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock='bookmarks'] .studio-bulk-actions button {
+  flex-basis: auto;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock] .studio-selection-hint {
   display: flex;
   align-items: center;
   justify-content: center;

@@ -104,6 +104,8 @@ function focusEnvironment() {
     closest(selector) {
       if (selector === '.codex-shell') return this.isShell ? this : this.parent?.closest(selector) ?? null;
       if (selector === '.screen-exit') return this.exiting ? this : this.parent?.closest(selector) ?? null;
+      if (selector === '[data-mobile-reorder-row][data-dragging="true"]') return this.dragging ? this : this.parent?.closest(selector) ?? null;
+      if (selector.startsWith('[role="combobox"]')) return this.expandedCombobox ? this : this.parent?.closest(selector) ?? null;
       if (selector.includes('role=')) return this.modal ? this : this.parent?.closest(selector) ?? null;
       return this.hidden ? this : this.parent?.closest(selector) ?? null;
     }
@@ -125,7 +127,7 @@ function focusEnvironment() {
   return {
     document, window, Element, containModalFocus, dismissTopModal,
     key(key, shiftKey = false) {
-      const event = { key, shiftKey, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
+      const event = { key, shiftKey, target: document.activeElement, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
       dispatch('keydown', event); return event;
     },
     input(name, target, details = {}) {
@@ -174,6 +176,23 @@ test('only the top modal handles Escape and Tab; closing returns to its opener',
   env.key('Escape'); assert.equal(childEscapes, 1); assert.equal(parentEscapes, 0);
   closeChild(); assert.equal(env.document.activeElement, last);
   closeParent(); assert.equal(env.document.activeElement, opener);
+});
+
+test('Escape is available to a keyboard drag before it can dismiss the editor', () => {
+  const env = focusEnvironment();
+  const dialog = new env.Element(null, true);
+  const row = new env.Element(dialog);
+  const preview = new env.Element(row);
+  let dismissals = 0;
+  const release = env.containModalFocus(dialog, () => { dismissals++; });
+  preview.focus();
+  row.dragging = true;
+  assert.equal(env.key('Escape').defaultPrevented, false);
+  assert.equal(dismissals, 0);
+  row.dragging = false;
+  assert.equal(env.key('Escape').defaultPrevented, true);
+  assert.equal(dismissals, 1);
+  release();
 });
 
 test('a newly disabled or hidden focused control cannot release modal focus', () => {

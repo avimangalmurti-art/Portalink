@@ -65,6 +65,9 @@ function setup() {
       assert.ok(url.pathname.startsWith('/rest/v1/'));
       if (state.status !== 200) return Response.json({ message: 'private-upstream-detail' }, { status: state.status });
       if(state.employerColumnsMissing && url.searchParams.get('select')?.includes('portfolio_headline')) return Response.json({code:'42703',message:'column profiles.portfolio_headline does not exist'},{status:400});
+      if (url.pathname.endsWith('/projects') && url.searchParams.get('select')?.includes('category:portfolio_categories!')
+        && !url.searchParams.get('select')?.includes('category:portfolio_categories!projects_category_id_fkey!inner('))
+        return Response.json({code:'PGRST201'}, {status:300});
       if (options.method === 'HEAD') return new Response(null, {headers:{'content-range':`0-0/${state.projects.length}`}});
       if (state.overrideRows) return Response.json(state.overrideRows(url));
       const table = url.pathname.split('/').at(-1);

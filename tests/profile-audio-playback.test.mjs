@@ -5,7 +5,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 
 const track = { key: 'creator/track', url: 'https://audio.test/track.m4a' };
 const otherTrack = { key: 'another-creator/track', url: 'https://audio.test/another-track.m4a' };
-const artwork = { avatar: 'https://images.test/creator-avatar.png', title: 'Profile track', artist: 'Creator' };
+const artwork = { avatar: 'https://images.test/creator-avatar.png', title: 'Creator', artist: 'Portalink soundtrack' };
 
 function createPlayback({ autoplayAllowed = true, adjustableVolume = true, mediaSessionSupported = false } = {}) {
   let canPlay = autoplayAllowed;
@@ -134,6 +134,18 @@ test('an eligible first tap publishes Now Playing artwork, which yields to video
 
   playback.clearProfileAudioForProfile('creator');
   assert.equal(playback.mediaSession.metadata, null);
+});
+
+test('Now Playing keeps the soundtrack label when the creator has no avatar', async () => {
+  const playback = createPlayback({ mediaSessionSupported: true });
+  const { title, artist } = artwork;
+  playback.startProfileAudio({ ...track, artwork: { title, artist } });
+  await setImmediate();
+
+  assert.equal(playback.mediaSession.metadata.title, 'Creator');
+  assert.equal(playback.mediaSession.metadata.artist, 'Portalink soundtrack');
+  assert.equal(playback.mediaSession.metadata.artwork.length, 0);
+  assert.equal(playback.getProfileAudioSnapshot().playing, true);
 });
 
 test('unavailable Media Session and invalid artwork still allow playback', async () => {

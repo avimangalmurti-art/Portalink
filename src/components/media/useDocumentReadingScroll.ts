@@ -2,12 +2,15 @@ import { useLayoutEffect, useRef, type RefObject } from 'react';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { findProjectReadingPage, projectPageScrollTop } from './projectPageScroll';
 
-/** Overview pages scroll with Safari; focused zoom/pan keeps its own memory. */
+/** Overview scroll belongs to the desktop stage or the mobile window. */
 export function useDocumentReadingScroll(enabled: boolean, host: RefObject<HTMLElement | null>, memoryKey: string,
-  initialPage?: number | null, initialAttachmentId?: string | null) {
+  initialPage?: number | null, initialAttachmentId?: string | null, scrollWithinHost = false) {
   const restoredLink = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!enabled) return;
+    const stage = scrollWithinHost ? host.current : null;
+    const scroller = stage ?? window;
+    const scrollTop = () => stage?.scrollTop ?? window.scrollY;
     const linkedKey = initialPage ? JSON.stringify([memoryKey, initialAttachmentId ?? null, initialPage]) : null;
     let shouldOpenLink = linkedKey !== null && restoredLink.current !== linkedKey;
     let target = readViewerMemory(memoryKey).scrollTop ?? 0;
@@ -46,7 +49,11 @@ export function useDocumentReadingScroll(enabled: boolean, host: RefObject<HTMLE
       if (typeof ResizeObserver !== 'undefined') {
         // Earlier pages can adopt their intrinsic dimensions after the linked page mounts.
         layoutObserver = new ResizeObserver(scheduleRestore);
-        layoutObserver.observe(surface);
+        if (stage) {
+          for (const part of surface.children) layoutObserver.observe(part);
+        } else {
+          layoutObserver.observe(surface);
+        }
       }
       for (const input of userInputs) window.addEventListener(input, stopOnInput, true);
       linkTimeout = window.setTimeout(() => {
@@ -69,20 +76,22 @@ export function useDocumentReadingScroll(enabled: boolean, host: RefObject<HTMLE
           return;
         }
         if (!layoutObserver) stopWaiting();
-        if (page) target = Math.max(0, projectPageScrollTop(surface, page));
+        if (page) target = Math.max(0, stage
+          ? stage.scrollTop + page.getBoundingClientRect().top - stage.getBoundingClientRect().top
+          : projectPageScrollTop(surface, page));
       }
-      window.scrollTo({ top: target, behavior: 'instant' });
-      restored = Math.abs(window.scrollY - target) < 2 || attempts++ >= 30;
+      scroller.scrollTo({ top: target, behavior: 'instant' });
+      restored = Math.abs(scrollTop() - target) < 2 || attempts++ >= 30;
       if (restored && linkedKey) restoredLink.current = linkedKey;
       if (!restored) scheduleRestore();
     };
     scheduleRestore();
     const remember = () => {
       if (restored && !host.current?.closest('.screen-exit') && !host.current?.closest('[data-mobile-project-view]')?.querySelector('[data-mobile-focused-view]')) {
-        updateViewerMemory(memoryKey, { scrollTop: window.scrollY });
+        updateViewerMemory(memoryKey, { scrollTop: scrollTop() });
       }
     };
-    window.addEventListener('scroll', remember, { passive: true });
-    return () => { stopWaiting(); cancelAnimationFrame(frame); window.removeEventListener('scroll', remember); };
-  }, [enabled, host, memoryKey, initialPage, initialAttachmentId]);
+    scroller.addEventListener('scroll', remember, { passive: true });
+    return () => { stopWaiting(); cancelAnimationFrame(frame); scroller.removeEventListener('scroll', remember); };
+  }, [enabled, host, memoryKey, initialPage, initialAttachmentId, scrollWithinHost]);
 }

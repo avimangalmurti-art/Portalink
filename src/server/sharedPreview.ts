@@ -20,7 +20,7 @@ const previewCache = new Map<string, CachedPreview>();
 const CACHE_MILLISECONDS = 5 * 60 * 1_000;
 const MAX_CACHE_ENTRIES = 128;
 const MAX_PROJECT_ATTACHMENTS = 105;
-const projectSelect = '*,id,profile_id,category_id,title,summary,is_hidden,position,published_at,profile:profiles!projects_profile_id_fkey!inner(id,name,handle,headline,portfolio_headline,school,avatar_url,is_private),category:portfolio_categories!inner(id,profile_id,is_hidden),attachments:project_attachments(id,project_id,kind,mime_type,storage_path,is_cover,position,metadata)';
+const projectSelect = '*,id,profile_id,category_id,title,summary,is_hidden,position,published_at,profile:profiles!projects_profile_id_fkey!inner(id,name,handle,headline,portfolio_headline,school,avatar_url,is_private),category:portfolio_categories!projects_category_id_fkey!inner(id,profile_id,is_hidden),attachments:project_attachments(id,project_id,kind,mime_type,storage_path,is_cover,position,metadata)';
 
 export function isSharedPreviewPath(path: string): boolean {
   return sharedRoute.test(path);
@@ -231,7 +231,7 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
   if (!creator || !image) return null;
   const title = text(target.projectId ? project.title : category?.label, 120);
   if (target.categoryId && !title) return null;
-  const countResponse = !target.categoryId ? await fetch(`${origin}/rest/v1/projects?${new URLSearchParams({ select: 'id,category:portfolio_categories!inner(id,is_hidden)', profile_id: `eq.${target.profileId}`, is_hidden: 'eq.false', 'category.is_hidden': 'eq.false' })}`, { method: 'HEAD', headers: { apikey: config.publishableKey, Prefer: 'count=exact' }, credentials: 'omit', cache: 'no-store', redirect: 'manual', signal }) : null;
+  const countResponse = !target.categoryId ? await fetch(`${origin}/rest/v1/projects?${new URLSearchParams({ select: 'id,category:portfolio_categories!projects_category_id_fkey!inner(id,is_hidden)', profile_id: `eq.${target.profileId}`, is_hidden: 'eq.false', 'category.is_hidden': 'eq.false' })}`, { method: 'HEAD', headers: { apikey: config.publishableKey, Prefer: 'count=exact' }, credentials: 'omit', cache: 'no-store', redirect: 'manual', signal }) : null;
   const count = countResponse?.ok ? Number(countResponse.headers.get('content-range')?.split('/')[1]) : NaN;
   if (!target.categoryId && (!Number.isSafeInteger(count) || count < 1)) return null;
   const headline = typeof profile?.portfolio_headline === 'string' ? profile.portfolio_headline : typeof profile?.headline === 'string' ? profile.headline.split(/\r?\n/).find(line => line.trim()) ?? '' : '';
