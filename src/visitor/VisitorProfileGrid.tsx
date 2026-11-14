@@ -4,9 +4,11 @@ import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
 import React, { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { MoonIcon, SunIcon } from 'lucide-react';
 import type { Profile } from '../types/domain';
 import { ProfileAvatar } from '../components/profile/ProfileAvatar';
 import { AppearanceSwitch } from '../components/ui/AppearanceSwitch';
+import { InterfaceIcon } from '../components/ui/InterfaceIcon';
 import { PlatformGrid } from '../components/profile/PlatformGrid';
 import { JustifiedImageWall } from '../components/profile/JustifiedImageWall';
 import { ProjectPreviewCard } from '../components/profile/ProjectPreviewCard';
@@ -30,6 +32,8 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   profile: Profile; categoryId: string | null; onOpen: (categoryId: string, projectId: string) => void; onCollaboration: () => void; onMessage: () => void; onBack?: () => void;
   active?: boolean; onCaptureOpener?: React.MouseEventHandler<HTMLDivElement>;
   appearanceControls?: {
+    theme: 'light' | 'dark';
+    onThemeChange: (theme: 'light' | 'dark') => void;
     highContrast: boolean; reduceTranslucency: boolean;
     onHighContrastChange: (enabled: boolean) => void;
     onReduceTranslucencyChange: (enabled: boolean) => void;
@@ -82,7 +86,12 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             </div>
           </div>
         </div>
-        {appearanceControls && <div className="public-profile-appearance-controls flex shrink-0 flex-col" role="group" aria-label="Catalogue appearance">
+        {appearanceControls && <div className={`public-profile-appearance-controls flex shrink-0 ${isMobile ? 'items-center gap-1' : 'flex-col'}`} role="group" aria-label="Catalogue appearance">
+          {isMobile && <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost" data-system-color=""
+            aria-label={appearanceControls.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={() => appearanceControls.onThemeChange(appearanceControls.theme === 'dark' ? 'light' : 'dark')}>
+            <InterfaceIcon icon={appearanceControls.theme === 'dark' ? SunIcon : MoonIcon} size="md" />
+          </button>}
           <AppearanceSwitch label="High Contrast" isOn={appearanceControls.highContrast}
             onToggle={() => appearanceControls.onHighContrastChange(!appearanceControls.highContrast)} />
           {!isMobile && <AppearanceSwitch label="Translucency" isOn={!appearanceControls.reduceTranslucency}

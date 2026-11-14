@@ -34,7 +34,6 @@ test('WEB portal chooser loads only the chosen public bundle and never requests 
   h.query.status = 'ready'; h.query.profile = h.profile;
   const chooser = h.render();
   assert.equal(chooser.type, 'chooser'); assert.equal(chooser.props.desktopBrowsing, true);
-  assert.equal(chooser.props.showCopyLink, true);
   assert.deepEqual(Array.from(chooser.props.profile.projects, item => item.id), ['public', 'another']);
   chooser.props.onSelect('work', 'hidden'); chooser.props.onSelect('other', 'another');
   assert.equal(h.calls.some(call => call[0] === 'select'), false);

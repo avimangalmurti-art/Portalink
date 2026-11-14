@@ -222,29 +222,23 @@ test('periods drive queries, project covers load, and only recorded sources appe
   assert.equal(nodes(load([{...rows[0], refs:{}}]).render()).some(node => node.props['aria-label'] === 'Traffic sources'), false);
 });
 
-test('mobile Week and Day share the date picker, reads query, and project drill-down period', () => {
+test('the mobile date picker is the only period control and sets the reads query and project drill-down period', () => {
   const fixture = load(rows, { presentation: 'mobile' });
-  const quickPeriods = tree => nodes(tree).find(node => node.props['aria-label'] === 'Quick Insights period');
-  const buttons = tree => nodes(quickPeriods(tree)).filter(node => node.type === 'button');
+  const picker = tree => nodes(tree).find(node => node.props['aria-label'] === 'Insights period');
   let tree = fixture.render();
-  assert.deepEqual(buttons(tree).map(text), ['Week', 'Day']);
-  assert.deepEqual(buttons(tree).map(node => node.props['aria-pressed']), [true, false]);
+  assert.equal(nodes(tree).some(node => node.props['aria-label'] === 'Quick Insights period'), false);
+  assert.equal(picker(tree).props.value, '7d');
 
-  buttons(tree)[1].props.onClick();
+  picker(tree).props.onChange({ target: { value: 'today' } });
   tree = fixture.render();
   assert.equal(fixture.periods.at(-1), 'today');
-  assert.equal(nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.value, 'today');
-  assert.deepEqual(buttons(tree).map(node => node.props['aria-pressed']), [false, true]);
+  assert.equal(picker(tree).props.value, 'today');
   chartButtons(nodes(tree).find(node => node.props['aria-label'] === 'Opens by project'))[0].props.onClick();
   assert.equal(fixture.navigations.at(-1), '/insights?project=b&period=today');
 
-  nodes(tree).find(node => node.props['aria-label'] === 'Insights period').props.onChange({ target: { value: '30d' } });
-  tree = fixture.render();
-  assert.deepEqual(buttons(tree).map(node => node.props['aria-pressed']), [false, false]);
-  buttons(tree)[0].props.onClick();
-  assert.equal(nodes(fixture.render()).find(node => node.props['aria-label'] === 'Insights period').props.value, '7d');
+  picker(tree).props.onChange({ target: { value: '7d' } });
+  assert.equal(picker(fixture.render()).props.value, '7d');
   assert.equal(fixture.periods.at(-1), '7d');
-  assert.equal(quickPeriods(load(rows).render()), undefined);
 });
 
 test('mobile and web initial periods stay distinct while current saves stay separate from period counts', () => {

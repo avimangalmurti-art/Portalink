@@ -123,33 +123,6 @@
 .high-contrast .creator-insights .insights-bar:not([data-zero='true']) { border: 1px solid var(--text-primary); }
 
 [data-presentation='mobile'] .creator-insights { padding: 16px 18px calc(32px + env(safe-area-inset-bottom, 0px)); }
-[data-presentation='mobile'] .insights-quick-periods {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-bottom: 12px;
-  padding: 3px;
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
-  background: var(--surface-selected);
-}
-[data-presentation='mobile'] .insights-quick-periods > button {
-  min-height: 44px;
-  padding-inline: 8px;
-  border: 1px solid transparent;
-  border-radius: inherit;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 16px;
-}
-[data-presentation='mobile'] .creator-insights .insights-quick-periods > button[aria-pressed='true'] {
-  background-color: var(--surface-raised) !important;
-  border-color: var(--hairline);
-  font-weight: 600;
-}
-.high-contrast [data-presentation='mobile'] .insights-quick-periods > button[aria-pressed='true'],
-[data-presentation='mobile'].high-contrast .insights-quick-periods > button[aria-pressed='true'] {
-  border-color: currentColor;
-}
 /* The Studio canvas continues behind the individual Insights cards. */
 [data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page,
 [data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page .creator-insights {

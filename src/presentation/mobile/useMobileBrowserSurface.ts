@@ -4,8 +4,10 @@ import { PORTALINK_SPLASH_EXIT_EVENT } from '../../app/splashLifecycle';
 
 const welcomeSelector = '[data-portalink-splash][data-presentation="mobile"]:not([aria-hidden="true"]) .professional-entry';
 const inviteSplashSelector = 'html[data-invite-launch] #portalink-preboot, [data-portalink-invite-splash]:not([aria-hidden="true"])';
+const catalogueSplashSelector = 'html[data-mobile-catalogue-launch] [data-mobile-catalogue-splash]';
 const projectOpeningSelector = '[data-presentation="mobile"] [data-project-opening-loader]';
-const visibleOpeningSurface = () => document.querySelector<HTMLElement>(inviteSplashSelector)
+const visibleOpeningSurface = () => document.querySelector<HTMLElement>(catalogueSplashSelector)
+  ?? document.querySelector<HTMLElement>(inviteSplashSelector)
   ?? document.querySelector<HTMLElement>(welcomeSelector)
   ?? document.querySelector<HTMLElement>(projectOpeningSelector);
 
@@ -22,8 +24,7 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
       priority: element.style.getPropertyPriority('background-color'),
     }));
     const bodyScheme = { value: document.body.style.getPropertyValue('color-scheme'), priority: document.body.style.getPropertyPriority('color-scheme') };
-    // The static catalogue splash removes its own temporary chrome color on exit.
-    const existing = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]:not([data-portalink-launch-theme])'));
+    const existing = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]'));
     const tags = existing.length ? existing : [document.createElement('meta')];
     if (!existing.length) {
       tags[0].name = 'theme-color';

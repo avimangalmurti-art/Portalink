@@ -178,6 +178,11 @@
   inset-inline-end: 12px;
 }
 
+#root .codex-shell .profile-audio-player-close[data-control-variant='danger'] {
+  --status-danger-foreground: white;
+  --status-danger-hover: color-mix(in srgb, var(--status-danger) 85%, black);
+}
+
 .profile-audio-dialog[data-player] .profile-audio-details { gap: 8px; }
 .profile-audio-dialog[data-player] .profile-audio-description {
   color: var(--text-secondary);

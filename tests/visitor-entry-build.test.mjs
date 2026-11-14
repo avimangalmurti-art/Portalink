@@ -39,7 +39,7 @@ test('visitor HTML starts the public read before its modules and uses only the m
   assert.ok(!/portalink-welcome-loop|portalink-splash|preboot|apple-touch-startup-image/.test(html));
   const splash = html.indexOf('data-launch-entry="catalogue"');
   assert.ok(splash > preload && splash < html.indexOf('type="module"'));
-  assert.match(html, /<script defer src="\/portalink-mobile-launch\.js\?v=[0-9a-f]+" data-launch-entry="catalogue"><\/script>/);
+  assert.match(html, /<script defer src="\/portalink-mobile-launch\.js\?v=[0-9a-f]+" data-launch-entry="catalogue" onerror="document\.documentElement\.removeAttribute\('data-mobile-catalogue-launch'\)"><\/script>/);
   assert.ok(html.includes('display=swap'));
   for (const entry of ['index.html', 'share.html']) {
     const shell = read(`dist/client/${entry}`);

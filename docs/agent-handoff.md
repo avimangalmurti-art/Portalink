@@ -1,3 +1,39 @@
+## 2026-11-13 — Mobile profile audio close button
+
+In `logs/portal-catalogue-release` on `codex/portal-copy-owner-only` at `071767c`, `ProfileAudio.tsx` and `profile-audio.css` use the system red fill and white X on the mobile player close button. The change is local and unpublished. A local Chromium fixture confirmed that the 44px circle uses red in light and dark themes and closes the popup while playback continues. Desktop retains the secondary style.
+
+## 2026-11-13 — Mobile Insights date filters
+
+In `logs/portal-catalogue-release` on `codex/portal-copy-owner-only` at `071767c`, `MobileInsights.tsx` and `insights.css` remove the separate Week/Day switch and its spacing. The existing date dropdown still includes Today and Last 7 days and drives the selected period in project drill-down. Desktop keeps its existing controls.
+
+All 24 focused Insights and Reads navigation tests, targeted ESLint, and diff checks passed. The change is local and unpublished.
+
+## 2026-11-13 — Mobile catalogue appearance, reader label and Now Playing artwork
+
+Local checkout `logs/portal-catalogue-release`, branch `codex/portal-copy-owner-only` at `071767c`. `VisitorApp.tsx`, `VisitorProfileGrid.tsx` and `appearancePreferences.ts` add a light/dark shortcut beside High Contrast on mobile shared catalogues. The theme follows the viewer’s appearance, and a fresh shared-catalogue visit starts with High Contrast off. Explicit shared-catalogue choices still persist. `MobileProjectPageCounter.tsx` displays “2 per row” as the slider moves, with the full screen-reader value.
+
+`ProfileAudio.tsx`, `ProfileAudioSlot.tsx` and `profileAudio.ts` supply Portalite’s dedicated `portalite-now-playing.png` to Media Session for both the public and platform profile. The 640 × 640 export extends the source artwork’s adjacent colors through its four white outer corners. The center including the entire mascot matches the resized source pixel for pixel. Other profiles still use their own avatars, and the in-page cover and playback controls keep their existing behavior.
+
+Phone-width Chromium checks at 420, 390 and 320 px verified the shared theme shortcut, first-visit contrast and saved choice, with desktop controls unchanged. Typecheck, targeted lint, the configured client and worker build, four emitted-entry tests and 237 focused tests passed. The database integration test was skipped. The compiled artwork returned HTTP 200 as a byte-identical PNG from a local server. A physical iPhone lock screen remains unverified. These edits are local and unpublished, alongside the earlier local Portal and splash work below.
+
+## 2026-11-13 — White shared catalogue splash in mobile browsers
+
+In `logs/portal-catalogue-release` on `codex/portal-copy-owner-only` at `071767c`, the shared catalogue sets its white launch canvas and both theme-color tags before the animation script loads. The browser surface hook preserves white while the animation runs and the exit restores the catalogue theme. `share.html`, the versioned launch script and the browser surface hook implement this. The Home entry updates its asset reference and retains its existing behavior. Direct project links retain the black loading screen.
+
+The reported black bands were outside the supplied animation frames. Live handle and share routes served the earlier white overlay with the original theme handoff. Typecheck, the configured client and worker build, and focused splash, browser-surface and built visitor-entry tests passed. At iPhone 15 CSS dimensions, a Chromium preview with the saved dark theme showed white document and body before the animation script and with the artwork visible, then a black document and dark scheme after exit. Physical Instagram on iPhone remains unverified. The change is local and preserves the earlier pending Portal edits.
+
+## 2026-11-13 — Mobile Portal Search card corners
+
+In `logs/portal-catalogue-release` on `codex/portal-copy-owner-only` at `071767c`, the mobile Portal Search avatar blur now clips to the system row radius in a separate decorative layer. `PublicPortalSearchPage.tsx` and `public-portal-search.css` contain the change. The card keeps its original border, focus outline, and blur. The prior owner-only Copy Portal edits are preserved.
+
+All 18 Portal Search tests passed. A local browser preview with synthetic data checked loaded avatar blur clipped to 14px in mobile light mode at three columns and in dark high contrast at four columns, and confirmed desktop retains its existing avatar treatment at 1280 × 900. Physical iPhone Safari was not tested. Local and unpublished.
+
+## 2026-11-13 — Owner-only Copy Portal action
+
+Local branch `codex/portal-copy-owner-only` in `logs/portal-catalogue-release` builds on `071767c` from [PR #172](https://github.com/avimangalmurti-art/Portalink/pull/172), where Portal links were introduced. The public chooser and project index omit the copy action on mobile and web, and the main platform uses its owner and public visibility checks before offering **Copy Portal**. Existing public links still open the intended Portal.
+
+Typecheck and 91 focused tests passed. Targeted lint reported three existing warnings and no errors. The local browser fixture confirmed the shared toolbar and grid toggle at 420 × 912 and 1280 × 900, and the owner toolbar showed **Copy Portal** and a successful copy confirmation at 420 × 912. Ready for review. The fix is local and Sites 628 is still live.
+
 ## 2026-11-13 — Portal and mobile catalogue changes published in Sites 628
 
 [Portalink](https://portalinknetworks.com/) runs Sites 628 from `b6c7854c497a5b649c0d1fee0dbf61abc05388b6` in [PR #172](https://github.com/avimangalmurti-art/Portalink/pull/172). All five [Quality jobs](https://github.com/avimangalmurti-art/Portalink/actions/runs/43540304588) passed on that source. The PR is open and GitHub main remains at the PR #171 merge. Sites deployment `appgdep_6af7b9eb1dc0819194779564323da069` succeeded with the original public audience and runtime revision 2. The verified 662-file archive preserved all four D1 SQL payloads. Sites 626 is the prior live version. Sites 627 was saved and never deployed.

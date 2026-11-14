@@ -199,6 +199,7 @@ test('public MOBILE popup changes local list/grid and Recent/Name/Saved order wi
   assert.deepEqual(Array.from(list.props.hiddenIds), []);
   for (const callback of ['onEdit', 'onDelete', 'onChangeCover', 'onTypefaceChange']) assert.equal(list.props[callback], undefined);
   assert.equal(one(tree, 'MobilePortalProjectToolbar').props.onCreate, undefined);
+  assert.equal(one(tree, 'MobilePortalProjectToolbar').props.publicProfileId, undefined);
   assert.deepEqual(calls, [], 'Local browsing never navigates or performs an author action.');
   list.props.onSelect('beta');
   assert.deepEqual(calls, ['close', ['work', 'beta']]);
@@ -214,6 +215,7 @@ test('WEB Portal Search opts into working local sort and layout without changing
   assert.deepEqual(Array.from(one(tree, 'ProjectIndexList').props.projects, item => item.id), ['z', 'a']);
   props.desktopBrowsing = true; tree = f.PortalProjectPopup(props);
   assert.equal(one(tree, 'MobilePortalProjectToolbar').props.browsingControls, true);
+  assert.equal(one(tree, 'MobilePortalProjectToolbar').props.publicProfileId, undefined);
   assert.equal(one(tree, 'ProjectIndexList').props.readOnlyBrowsing, true);
   assert.deepEqual(Array.from(one(tree, 'ProjectIndexList').props.projects, item => item.id), ['a', 'z']);
   one(tree, 'MobilePortalProjectToolbar').props.onLayout('grid');
@@ -668,14 +670,25 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false, appe
   return { render, state, followed, bioProfile, profileDom, layoutRepair, dispose: h.dispose };
 }
 
-test('the public header shows only High Contrast on MOBILE and also offers Translucency on WEB', () => {
+test('the public header places the theme shortcut before High Contrast on MOBILE and retains Translucency on WEB', () => {
   for (const presentation of ['mobile', 'web']) {
-    const controls = { highContrast: false, reduceTranslucency: false,
+    const controls = { theme: 'dark', highContrast: false, reduceTranslucency: false,
+      onThemeChange(value) { controls.theme = value; },
       onHighContrastChange(value) { controls.highContrast = value; },
       onReduceTranslucencyChange(value) { controls.reduceTranslucency = value; } };
     const h = visitorProfileHarness({ presentation, appearanceControls: controls });
     const switches = () => nodes(h.render()).filter(node => node.type === 'AppearanceSwitch');
     const isMobile = presentation === 'mobile';
+    const actions = () => React.Children.toArray(nodes(h.render()).find(node => node.props['aria-label'] === 'Catalogue appearance').props.children);
+    if (isMobile) {
+      assert.equal(actions()[0].props['aria-label'], 'Switch to light mode');
+      actions()[0].props.onClick();
+      assert.equal(actions()[0].props['aria-label'], 'Switch to dark mode');
+      assert.equal(actions()[1].props.label, 'High Contrast');
+      assert.equal(controls.highContrast, false);
+    } else {
+      assert.equal(actions().some(node => node.type === 'button'), false);
+    }
     assert.deepEqual(switches().map(node => node.props.label), isMobile ? ['High Contrast'] : ['High Contrast', 'Translucency']);
     assert.deepEqual(switches().map(node => node.props.isOn), isMobile ? [false] : [false, true]);
     switches()[0].props.onToggle();
@@ -1260,7 +1273,6 @@ test('copied portal links keep their address and open the chosen portal over the
       let tree = h.render();
       const popup = one(tree, 'PortalProjectPopup');
       assert.equal(popup.props.categoryId, 'portal');
-      assert.equal(popup.props.showCopyLink, true);
       assert.equal(popup.props.closeOnSelect, false);
       assert.equal(popup.props.desktopBrowsing, true);
       assert.equal(one(tree, 'VisitorProfileGrid').props.categoryId, null);
@@ -1550,9 +1562,15 @@ test('shared catalogues use and persist the platform mode while preserving creat
 
     const first = open();
     assertTheme(first.render(), initialMode);
+    if (presentation === 'mobile') {
+      const appearanceControls = one(first.render(), 'VisitorProfileGrid').props.appearanceControls;
+      assert.equal(appearanceControls.theme, initialMode);
+      appearanceControls.onThemeChange(oppositeMode);
+      assertTheme(first.render(), oppositeMode);
+    }
     first.state.location.search = '?settings=1';
     const settings = one(first.render(), 'lazy:../components/ControlCenterPage');
-    assert.equal(settings.props.appearanceMode, initialMode);
+    assert.equal(settings.props.appearanceMode, presentation === 'mobile' ? oppositeMode : initialMode);
     settings.props.onAppearanceModeChange(oppositeMode);
     assertTheme(first.render(), oppositeMode);
     assert.deepEqual(JSON.parse(appearanceStorage.get(platformKey(presentation))), { ...viewerSettings, mode: oppositeMode });

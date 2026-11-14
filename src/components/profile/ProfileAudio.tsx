@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AudioLinesIcon, PauseIcon, PlayIcon, RotateCcwIcon, RotateCwIcon, Volume1Icon, Volume2Icon, XIcon } from 'lucide-react';
 import {
-  PROFILE_AUDIO_ACCEPT, PROFILE_AUDIO_COVER_ACCEPT, PROFILE_AUDIO_COVER_MAX_BYTES, PROFILE_AUDIO_MAX_BYTES,
+  PROFILE_AUDIO_ACCEPT, PROFILE_AUDIO_COVER_ACCEPT, PROFILE_AUDIO_COVER_MAX_BYTES, PROFILE_AUDIO_MAX_BYTES, profileAudioArtwork,
   type ProfileAudioEdit, type ProfileAudioTrack,
 } from '../../features/profile/profileAudio';
 import { readProfileAudioTags } from '../../features/profile/profileAudioTags';
@@ -20,6 +20,7 @@ import './profile-audio.css';
 type ProfileAudioProps = {
   track: ProfileAudioTrack | null;
   sourceKey?: string;
+  profileId: string;
   profileName: string;
   profileAvatar?: string;
   editable?: boolean;
@@ -96,7 +97,7 @@ function ProfileAudioPlayer({ source }: { source: ProfileAudioSource }) {
   </div>;
 }
 
-export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, editable, onSave, onRemove, disabled, sharedCatalogue }: ProfileAudioProps) {
+export function ProfileAudio({ track, sourceKey, profileId, profileName, profileAvatar, editable, onSave, onRemove, disabled, sharedCatalogue }: ProfileAudioProps) {
   const presentation = usePresentation();
   const screenActive = useMobileScreenActive();
   const id = useId();
@@ -121,11 +122,12 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
   const playbackKey = audioUrl ? sourceKey ?? audioUrl : null;
   const title = track?.title || profileName;
   const artist = track?.artist || profileName;
+  const artwork = profileAudioArtwork(profileId, profileAvatar);
   const source = useMemo<ProfileAudioSource | null>(() => playbackKey && audioUrl ? {
     key: playbackKey,
     url: audioUrl,
-    artwork: profileAvatar ? { avatar: profileAvatar, title, artist } : undefined,
-  } : null, [playbackKey, audioUrl, profileAvatar, title, artist]);
+    artwork: artwork ? { avatar: artwork, title, artist } : undefined,
+  } : null, [playbackKey, audioUrl, artwork, title, artist]);
   const showShortcut = canEdit || Boolean(source);
   const editing = draft !== null;
   const player = Boolean(track && !editing && !confirmingRemove);
@@ -327,7 +329,7 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
           </header>}
           {visible && player && track && <>
             <TrackCover key={JSON.stringify([track.coverUrl, profileAvatar])} url={track.coverUrl} avatar={profileAvatar} />
-            <button type="button" className="profile-audio-player-close" data-ui-control="icon" data-control-size="md" data-control-variant="secondary"
+            <button type="button" className="profile-audio-player-close" data-ui-control="icon" data-control-size="md" data-control-variant={presentation === 'mobile' ? 'danger' : 'secondary'}
               disabled={busy} aria-label="Close profile audio" onClick={close}><InterfaceIcon icon={XIcon} /></button>
             <div className="profile-audio-details">
               <header className="profile-audio-header"><div>

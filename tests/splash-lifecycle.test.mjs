@@ -104,9 +104,11 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark
   const root = makeElement('html');
   const body = makeElement('body');
   const head = makeElement('head');
-  const theme = makeElement('meta');
+  const theme = makeElement('meta'), darkTheme = makeElement('meta');
   theme.setAttribute('content', '#ffffff');
   head.append(theme);
+  darkTheme.setAttribute('content', '#000000');
+  head.append(darkTheme);
   if (entry === 'home') root.setAttribute('data-installed-home-launch', '');
   let notifyCommit, shellCommitted = false;
   const app = { querySelector: selector => shellCommitted && selector === '.app-shell' ? {} : null };
@@ -114,7 +116,7 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark
     documentElement: root, body, head, currentScript: { dataset: { launchEntry: entry } },
     createElement: makeElement,
     getElementById: id => id === 'root' ? app : null,
-    querySelectorAll: () => [theme],
+    querySelectorAll: () => [theme, darkTheme],
   };
   const events = [];
   const listeners = new Map(), timers = new Map();
@@ -135,7 +137,7 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark
   } });
   if (entry === 'catalogue') vm.runInContext(appearanceScript, context);
   vm.runInContext(launch, context);
-  return { root, body, head, theme, events, listeners, expire: () => timers.get(1)(), commitShell() { shellCommitted = true; notifyCommit?.(); } };
+  return { root, body, head, theme, darkTheme, events, listeners, expire: () => timers.get(1)(), commitShell() { shellCommitted = true; notifyCommit?.(); } };
 }
 
 test('direct mobile shared project shows one opening mark before the visitor shell commits', () => {
@@ -169,21 +171,21 @@ test('catalogue and installed Home keep their branded launch and desktop project
   assert.equal(body.children.length, 0);
 });
 
-test('shared catalogue splash is white in every viewer theme and releases its temporary chrome color on exit', () => {
+test('the shared catalogue locks the white canvas and both chrome tags until the splash exits', () => {
   for (const [systemDark, mode, expected] of [[true, 'auto', 'dark'], [false, 'dark', 'dark'], [true, 'light', 'light']]) {
-    const { root, body, head, theme, expire } = staticLaunch({ pathname: '/portalite', systemDark, mode });
+    const { root, body, head, theme, darkTheme, expire } = staticLaunch({ pathname: '/portalite', systemDark, mode });
     const viewerColor = expected === 'dark' ? '#000000' : '#ffffff';
     assert.equal(root.dataset.appearance, expected);
     assert.equal(root.style.colorScheme, expected);
-    assert.equal(theme.getAttribute('content'), viewerColor);
+    assert.ok(root.hasAttribute('data-mobile-catalogue-launch'));
     assert.ok(body.children[0].hasAttribute('data-mobile-catalogue-splash'));
     assert.equal(body.children[0].style.backgroundColor, '#ffffff');
-    assert.ok(head.children[0].hasAttribute('data-portalink-launch-theme'));
-    assert.equal(head.children[0].getAttribute('content'), '#ffffff');
+    assert.deepEqual(head.children, [theme, darkTheme]);
+    assert.ok(head.children.every(tag => tag.getAttribute('content') === '#ffffff'));
     expire();
     assert.equal(body.children.length, 0);
-    assert.deepEqual(head.children, [theme]);
-    assert.equal(theme.getAttribute('content'), viewerColor);
+    assert.equal(root.hasAttribute('data-mobile-catalogue-launch'), false);
+    assert.ok(head.children.every(tag => tag.getAttribute('content') === viewerColor));
   }
 });
 

@@ -92,11 +92,9 @@ test('WEB portal reader opens its public project index beside the read-only sele
   assert.deepEqual(h.calls, ['back', 'back']);
 });
 
-test('the public project index offers only the selected portal link in WEB and MOBILE', () => {
+test('the public project index keeps Portal browsing available without a copy action in WEB and MOBILE', () => {
   const web = fixture(), tree = web.render();
-  const copy = one(tree, 'portal-link-copy');
-  assert.ok(copy);
-  assert.deepEqual(copy.props, { profileId: 'creator', categoryId: 'work', compact: true });
+  assert.equal(one(tree, 'portal-link-copy'), undefined);
   button(tree, 'Close project list').props.onClick();
   assert.equal(one(web.render(), 'portal-link-copy'), undefined);
   const mobile = fixture('mobile');
@@ -105,7 +103,8 @@ test('the public project index offers only the selected portal link in WEB and M
   one(screen, 'media-viewer').props.mobileNavigation.onOpenIndex();
   screen = mobile.render();
   const toolbar = one(one(screen, 'media-viewer').props.mobileNavigation.index, 'portal-toolbar');
-  assert.equal(toolbar.props.publicProfileId, 'creator');
+  assert.equal(toolbar.props.publicProfileId, undefined);
+  assert.equal(toolbar.props.browsingControls, true);
   assert.equal(toolbar.props.category.id, 'work');
 });
 

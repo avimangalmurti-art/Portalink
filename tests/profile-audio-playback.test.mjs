@@ -98,6 +98,17 @@ test('Now Playing uses the profile avatar and refreshes it without restarting pl
   assert.equal(playback.mediaSession.metadata, null);
 });
 
+test('Portalite uses its dedicated Now Playing artwork and other profiles use their own avatars', () => {
+  const customArtwork = 'https://portalink.test/assets/portalite-now-playing.png';
+  const { profileAudioArtwork } = sourceModule('src/features/profile/profileAudio.ts', {
+    './portalite-now-playing.png': customArtwork,
+  });
+
+  assert.equal(profileAudioArtwork('49e4e861-795a-47f2-b4a6-b071351c4d4b', artwork.avatar), customArtwork);
+  assert.equal(profileAudioArtwork('another-creator', artwork.avatar), artwork.avatar);
+  assert.equal(profileAudioArtwork('another-creator'), undefined);
+});
+
 test('an eligible first tap publishes Now Playing artwork, which yields to video and clears on profile exit', async () => {
   const playback = createPlayback({ autoplayAllowed: false, mediaSessionSupported: true });
   const source = { ...track, artwork };

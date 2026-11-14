@@ -23,15 +23,13 @@ type PortalProjectPopupProps = {
   browsing?: PortalProjectBrowsing;
   /** Public Portal choosers opt their WEB popup into the existing browse tools. */
   desktopBrowsing?: boolean;
-  /** Opt in only when the caller used the public profile/category visibility rules. */
-  showCopyLink?: boolean;
   /** URL-driven popups navigate on selection instead of separately dismissing. */
   closeOnSelect?: boolean;
 };
 
 /** A portal's existing navigation list, floating over the screen that opened it. */
 export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onClose, onSelect, backLabel = 'Back to profile', browsing, desktopBrowsing = false,
-  showCopyLink = false, closeOnSelect = true }: PortalProjectPopupProps) {
+  closeOnSelect = true }: PortalProjectPopupProps) {
   const presentation = usePresentation();
   const [localLayout, setLocalLayout] = useState<'list' | 'grid'>('list');
   const [localSort, setLocalSort] = useState<MobileProjectSort>('recent');
@@ -52,7 +50,7 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onCl
       <section data-ui-surface="popup" data-web-portal-browsing={webBrowsing ? '' : undefined} data-portal-link-entry={!closeOnSelect ? '' : undefined}
         ref={ref} className="shared-portal-popup ps-panel" role="dialog" aria-modal="true" aria-label={category.label} tabIndex={-1}>
         <MobilePortalProjectToolbar category={category} onBack={onBack} backLabel={backLabel} sharedReadOnly browsingControls={presentation === 'mobile' || webBrowsing}
-          layout={layout} onLayout={onLayout} sort={sort} onSort={onSort} publicProfileId={showCopyLink && !profile.isPrivate ? profile.id : undefined} />
+          layout={layout} onLayout={onLayout} sort={sort} onSort={onSort} />
         <nav data-project-index-list="" className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}>
           {(presentation === 'mobile' || webBrowsing) && !projects.length && <EmptyState title={`No projects in ${category.label}`} description="No work has been published in this portal." />}
           <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={layout} readOnlyBrowsing={webBrowsing}

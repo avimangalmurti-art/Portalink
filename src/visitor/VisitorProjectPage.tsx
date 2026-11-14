@@ -14,7 +14,6 @@ import { useElementSize } from '../hooks/useElementSize';
 import { allocateProjectPanels, type ProjectPanel } from '../utils/projectPanelLayout';
 import { ProjectIndexList } from '../components/profile/ProjectIndexList';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from '../components/profile/MobilePortalProjectToolbar';
-import { PortalLinkCopyButton } from '../components/profile/PortalLinkCopyButton';
 import { sortPortalProjects, type PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
 import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from '../features/projects/pageLayout';
 import '../components/profile/web-reader-spacing.css';
@@ -105,7 +104,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
         {indexExpanded && pageCount !== null && pageCount > 1 && <ProjectPagesPerRowControl value={pagesPerRow} onChange={setPagesPerRow} />}
       </div>
     </header> : indexExpanded && category ? <MobilePortalProjectToolbar category={category} onBack={onBackToProfile} sharedReadOnly browsingControls
-      layout={mobileLayout} onLayout={onLayout} sort={mobileSort} onSort={onSort} publicProfileId={profile.isPrivate ? undefined : profile.id} />
+      layout={mobileLayout} onLayout={onLayout} sort={mobileSort} onSort={onSort} />
     : <header data-shared-navigation-header="" className={`global-control-header side-panel-control-row shrink-0 ${indexExpanded ? 'px-2' : 'justify-center'}`}>
       {indexExpanded && <span className="min-w-0 flex-1 truncate px-2">{category?.label ?? 'Projects'}</span>}
       <button data-project-index-toggle="" type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
@@ -119,7 +118,6 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
           <input type="search" value={indexQuery} onChange={event => setIndexQuery(event.target.value)}
             placeholder="Search projects" aria-label={`Search projects in ${category?.label ?? 'this portal'}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
         </div>
-        {category && !profile.isPrivate && <PortalLinkCopyButton key={`${profile.id}:${category.id}`} profileId={profile.id} categoryId={category.id} compact />}
       </div>
     </div>}
     {indexExpanded && <nav data-project-index-list="" aria-label={`${category?.label ?? 'Project'} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">

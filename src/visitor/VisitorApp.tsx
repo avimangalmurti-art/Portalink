@@ -285,6 +285,7 @@ export function VisitorApp() {
     projectReturn.open(withCataloguePageTarget(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)), id, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), id);
   } };
   const catalogueAppearanceControls = {
+    theme, onThemeChange: chooseMode,
     highContrast, reduceTranslucency,
     onHighContrastChange: (value: boolean) => appearance.chooseAppearance({ highContrast: value }),
     onReduceTranslucencyChange: (value: boolean) => appearance.chooseAppearance({ reduceTranslucency: value }),
@@ -359,7 +360,7 @@ export function VisitorApp() {
         </div>
       </div>
       {profile && sharedPortalLink && catalogueReady && categoryId && <PortalProjectPopup key={categoryId} profile={profile} categoryId={categoryId}
-        onClose={dismissSharedPortal} onSelect={openProject} closeOnSelect={false} desktopBrowsing showCopyLink browsing={browsingForPortal(categoryId)} />}
+        onClose={dismissSharedPortal} onSelect={openProject} closeOnSelect={false} desktopBrowsing browsing={browsingForPortal(categoryId)} />}
       {profile && !sharedPortalLink && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopup(null)}
         onBack={() => { setPortalPopup(null); setPortalNavigationRequest({ scope: catalogueScope }); }}
         onSelect={openProject} browsing={browsingForPortal(portalPopupId)} />}

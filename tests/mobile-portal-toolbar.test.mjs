@@ -113,7 +113,7 @@ test('a Timeline portal popup announces its own return destination while retaini
   assert.deepEqual(h.calls, [['back']]);
 });
 
-test('the public Portalink action appears between sort and layout only for a shareable portal', () => {
+test('the owner’s copy action appears between sort and layout for a shareable Portal', () => {
   const h = harness();
   h.props.category.id = 'photos';
   assert.equal(nodes(h.render()).some(node => node.type === 'copy-portal-link'), false);

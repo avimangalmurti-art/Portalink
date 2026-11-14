@@ -1,8 +1,18 @@
 (() => {
   const root = document.documentElement;
   const entry = document.currentScript?.dataset.launchEntry;
+  const catalogueLaunch = entry === 'catalogue' && root.hasAttribute('data-mobile-catalogue-launch');
+  function releaseCatalogueCanvas() {
+    if (!catalogueLaunch) return;
+    root.removeAttribute('data-mobile-catalogue-launch');
+    const theme = root.dataset.appearance === 'dark' ? '#000000' : '#ffffff';
+    document.querySelectorAll('meta[name="theme-color"]').forEach(tag => tag.setAttribute('content', theme));
+  }
   if (!window.matchMedia('(max-width: 639px)').matches
-    || (entry !== 'catalogue' && !root.hasAttribute('data-installed-home-launch'))) return;
+    || (entry !== 'catalogue' && !root.hasAttribute('data-installed-home-launch'))) {
+    releaseCatalogueCanvas();
+    return;
+  }
 
   const splash = document.createElement('div');
   splash.id = 'portalink-mobile-launch';
@@ -36,16 +46,7 @@
     return;
   }
 
-  const catalogueLaunch = entry === 'catalogue';
-  const launchTheme = catalogueLaunch ? document.createElement('meta') : null;
-  if (launchTheme) {
-    splash.setAttribute('data-mobile-catalogue-splash', '');
-    launchTheme.setAttribute('name', 'theme-color');
-    launchTheme.setAttribute('content', '#ffffff');
-    launchTheme.setAttribute('data-portalink-launch-theme', '');
-    // Give browser chrome a temporary color without replacing the viewer's theme tags.
-    document.head.prepend(launchTheme);
-  }
+  if (catalogueLaunch) splash.setAttribute('data-mobile-catalogue-splash', '');
   splash.setAttribute('aria-label', 'Opening Portalink');
   Object.assign(splash.style, {
     position: 'fixed', inset: '0', zIndex: '1002', display: 'grid', placeItems: 'center',
@@ -72,14 +73,15 @@
     frame.removeEventListener('error', finish);
     window.removeEventListener('pagehide', finish);
     splash.remove();
-    launchTheme?.remove();
+    releaseCatalogueCanvas();
     window.dispatchEvent(new Event('portalink:splash-exited'));
   }
   function loaded() {
     window.clearTimeout(timeout);
     const duration = 1000;
-    // Let the compositor hide the artwork on time even if the app is mounting.
-    splash.animate?.({ opacity: [1, 0] }, { duration, easing: 'step-end', fill: 'forwards' });
+    // Let Home's compositor hide its overlay on time. On shared links, keep the
+    // white canvas until the document and viewer theme can switch together.
+    if (!catalogueLaunch) splash.animate?.({ opacity: [1, 0] }, { duration, easing: 'step-end', fill: 'forwards' });
     timeout = window.setTimeout(finish, duration);
   }
   frame.addEventListener('load', loaded, { once: true });

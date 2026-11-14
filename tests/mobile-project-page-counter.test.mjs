@@ -252,12 +252,12 @@ test('reader density pill preserves limits, draft and commit events, save blocki
   assert.equal(slider.props.value, 1);
   assert.equal(slider.props['aria-valuetext'], '1 page per row');
   const rowLabel = tree => nodes(tree).find(node => 'data-pages-per-row-label' in node.props);
-  assert.equal(rowLabel(tree).props.children, '1 page per row');
+  assert.equal(rowLabel(tree).props.children, '1 per row');
   slider.props.onChange({ currentTarget: { value: '3' } });
   assert.deepEqual(calls, [], 'dragging updates only the slider, not the PDF layout');
   tree = h.render(undefined, props);
   assert.equal(control(tree, 'Pages per row').props.value, 3);
-  assert.equal(rowLabel(tree).props.children, '3 pages per row');
+  assert.equal(rowLabel(tree).props.children, '3 per row');
   for (const event of ['onPointerUp', 'onKeyUp', 'onBlur']) slider.props[event]({ currentTarget: { value: '3' } });
   assert.deepEqual(calls, [['change', 3], ['commit', 3], ['change', 3], ['commit', 3], ['change', 3], ['commit', 3]]);
   density.value = 3; density.saving = true;
@@ -267,7 +267,7 @@ test('reader density pill preserves limits, draft and commit events, save blocki
   density.value = 6;
   tree = h.render(undefined, props);
   assert.equal(control(tree, 'Pages per row').props.value, 6, 'a later pinch/parent density change is not masked by an old slider draft');
-  assert.equal(rowLabel(tree).props.children, '6 pages per row');
+  assert.equal(rowLabel(tree).props.children, '6 per row');
   density.value = 3;
   const counter = nodes(tree).find(node => 'data-mobile-project-page-count' in node.props);
   assert.equal(counter.props['aria-label'], 'Page 2 of 12. Show page previews');

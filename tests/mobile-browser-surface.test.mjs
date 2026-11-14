@@ -26,7 +26,7 @@ function events() {
 function harness(withMetadata = true) {
   const tags = [];
   const media = events(), observers = [];
-  let welcome = null, inviteSplash = null, projectOpening = null;
+  let welcome = null, inviteSplash = null, catalogueSplash = null, projectOpening = null;
   class MutationObserver {
     constructor(callback) { this.callback = callback; this.active = false; observers.push(this); }
     observe() { this.active = true; }
@@ -43,8 +43,9 @@ function harness(withMetadata = true) {
     meta({ content: '#000000', media: '(prefers-color-scheme: dark)' }));
   const document = { ...events(), visibilityState: 'visible', documentElement: { dataset: {}, style: style() }, body: { style: style() },
     querySelector: selector => selector.includes('data-portalink-invite-splash') ? inviteSplash
+      : selector.includes('data-mobile-catalogue-splash') ? catalogueSplash
       : selector.includes('data-project-opening-loader') ? projectOpening : welcome,
-    querySelectorAll: selector => { assert.equal(selector, 'meta[name="theme-color"]:not([data-portalink-launch-theme])'); return tags.filter(tag => tag.getAttribute('data-portalink-launch-theme') === null); },
+    querySelectorAll: selector => { assert.equal(selector, 'meta[name="theme-color"]'); return tags; },
     createElement: () => meta(), head: { appendChild: tag => tags.push(tag) } };
   const window = { ...events(), matchMedia: () => media }, slots = [], pendingEffects = [], frame = {};
   let token = '#000000', colorScheme = 'dark', cursor = 0;
@@ -53,7 +54,7 @@ function harness(withMetadata = true) {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText;
   vm.runInNewContext(source, { exports, document, window, MutationObserver, getComputedStyle: element => {
-    if (element === welcome || element === inviteSplash || element === projectOpening) return { backgroundColor: element.color, colorScheme: element.scheme };
+    if (element === welcome || element === inviteSplash || element === catalogueSplash || element === projectOpening) return { backgroundColor: element.color, colorScheme: element.scheme };
     assert.equal(element, frame);
     return { getPropertyValue: name => { assert.equal(name, '--codex-workspace-bg'); return token; }, colorScheme };
   },
@@ -70,6 +71,7 @@ function harness(withMetadata = true) {
   return { document, window, tags, media, observers,
     setWelcome(color, scheme = 'dark') { welcome = color ? { color, scheme } : null; },
     setInviteSplash(visible) { inviteSplash = visible ? { color: 'rgb(253, 255, 255)', scheme: 'light' } : null; },
+    setCatalogueSplash(visible) { catalogueSplash = visible ? { color: 'rgb(255, 255, 255)', scheme: 'light' } : null; },
     setProjectOpening(visible) { projectOpening = visible ? { color: 'rgb(0, 0, 0)', scheme: 'dark' } : null; },
     changeWelcome(color, scheme) { welcome.color = color; welcome.scheme = scheme; return welcome; },
     mutate: (records = []) => observers.filter(observer => observer.active).forEach(observer => observer.callback(records)),
@@ -305,12 +307,18 @@ test('missing metadata is created for mobile then removed on unmount', () => {
   assert.equal(h.document.body.style.getPropertyValue('color-scheme'), '');
 });
 
-test('visitor theme syncing leaves the temporary catalogue splash chrome color white', () => {
+test('mounting a dark catalogue behind the splash keeps the canvas and both chrome tags white', () => {
   const h = harness();
-  h.tags[0].setAttribute('data-portalink-launch-theme', '');
+  h.setCatalogueSplash(true);
   h.setColor('#141414');
   h.render('mobile');
-  assert.deepEqual(h.tags.map(tag => tag.getAttribute('content')), ['#ffffff', '#141414']);
+  assert.equal(h.document.body.style.getPropertyValue('background-color'), 'rgb(255, 255, 255)');
+  assert.equal(h.document.body.style.colorScheme, 'light');
+  assert.ok(h.tags.every(tag => tag.getAttribute('content') === 'rgb(255, 255, 255)'));
+  h.setCatalogueSplash(false);
+  h.splashExit();
+  assert.equal(h.document.body.style.colorScheme, 'dark');
+  assert.ok(h.tags.every(tag => tag.getAttribute('content') === '#141414'));
   h.tags[0].remove();
   h.splashExit();
   assert.deepEqual(h.tags.map(tag => tag.getAttribute('content')), ['#141414']);
@@ -340,6 +348,7 @@ test('both launch entries use the viewer’s saved appearance and resolve System
       const root = {
         dataset: {}, style: {},
         hasAttribute: name => attributes.has(name),
+        setAttribute: name => attributes.add(name),
         toggleAttribute: (name, force) => force ? attributes.add(name) : attributes.delete(name),
       };
       vm.runInNewContext(script, { URLSearchParams, document: { documentElement: root, querySelectorAll: () => tags }, window: {
@@ -349,8 +358,10 @@ test('both launch entries use the viewer’s saved appearance and resolve System
       } });
       const resolved = mode === 'auto' ? (dark ? 'dark' : 'light') : mode;
       const invite = entry === 'index.html' && mobile && welcomeLink;
-      const color = invite ? '#fdffff' : resolved === 'dark' ? '#000000' : '#ffffff';
+      const catalogue = entry === 'share.html' && mobile;
+      const color = invite ? '#fdffff' : catalogue || resolved === 'light' ? '#ffffff' : '#000000';
       assert.equal(attributes.has('data-invite-launch'), invite);
+      assert.equal(attributes.has('data-mobile-catalogue-launch'), catalogue);
       assert.deepEqual(tags.map(tag => tag.getAttribute('content')), (mobile || entry === 'share.html') ? [color, color] : ['#ffffff', '#000000']);
       if (mobile || entry === 'share.html') assert.equal(root.dataset.appearance, resolved);
     }

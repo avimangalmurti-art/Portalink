@@ -20,7 +20,7 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
   /** Local sorting and view controls do not grant authoring permissions. */
   browsingControls?: boolean;
   backLabel?: string;
-  /** Only supplied for a publicly visible portal on a public profile. */
+  /** Only supplied in the owner's workspace for a publicly visible Portal. */
   publicProfileId?: string;
 }) {
   const isMobile = usePresentation() === 'mobile';
