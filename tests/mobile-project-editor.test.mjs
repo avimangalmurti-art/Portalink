@@ -4,7 +4,7 @@ import React from 'react';
 import {arrayMove} from '@dnd-kit/sortable';
 import {sourceModule} from './helpers/source-module.mjs';
 
-const reorderPhotoSlots = sourceModule('src/features/publishing/reorderPhotoSlots.ts', {'@dnd-kit/sortable':{arrayMove}}).reorderPhotoSlots;
+const reorderPhotoSlots = sourceModule('src/features/publishing/reorderPhotoSlots.ts').reorderPhotoSlots;
 const {MobileReorderList} = sourceModule('src/presentation/mobile/MobileReorderList.tsx', {
   react: React,
   '@dnd-kit/core': {

@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { arrayMove } from '@dnd-kit/sortable';
 import { hookHarness } from './helpers/hook-harness.mjs';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const assets = sourceModule('src/features/publishing/assetTypes.ts');
-const photoOrder = sourceModule('src/features/publishing/reorderPhotoSlots.ts', { '@dnd-kit/sortable': { arrayMove } });
+const photoOrder = sourceModule('src/features/publishing/reorderPhotoSlots.ts');
 const pdfBytes = readFileSync(new URL('./fixtures/cover-thumbnails/report.pdf', import.meta.url));
 const file = (name, type) => new File(['original bytes'], name, { type });
 const pdf = name => new File([pdfBytes], name, { type: 'application/pdf' });
