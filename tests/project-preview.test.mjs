@@ -23,7 +23,7 @@ function visit(node) {
 }
 visit(hook);
 
-function saveHarness(fail = false, uploaded = []) {
+function saveHarness(fail = false, uploaded = [], addedCover) {
   const calls = [], events = [];
   const original = [
     { id: 'cover', displayName: 'Cover', order: 0, isCover: true, coverFrame: { x: .5, y: .5, zoom: 1 } },
@@ -33,7 +33,7 @@ function saveHarness(fail = false, uploaded = []) {
     editorMode: 'cover', editingProjectId: 'project', profileId: 'owner', isSavingRef: { current: false }, isMountedRef: { current: true },
     validate: () => null, attachmentEdits: original, normalizeProjectCoverFrame,
     metadata: { title: 'Existing title', summary: 'Existing description' },
-    addedMedia: { items: uploaded, clear: () => events.push('clear'), releaseOwnership() {} },
+    addedCover, addedMedia: { items: uploaded, clear: () => events.push('clear'), releaseOwnership() {} },
     isTransportAvailable: true,
     upload: { isBusy: false, hasPersistedMedia: uploaded.length > 0, attachments: uploaded, reset: () => events.push('reset'), upload: () => { throw Error('Unexpected upload'); } },
     setEditorPhase: (phase) => events.push(phase), setSaveFailure: (failure) => { if (failure) events.push('failure'); }, setSaveResult() {},
@@ -103,6 +103,21 @@ test('mobile saves place uploaded files after kept files and retain an explicit 
   const web = saveHarness(false, uploaded);
   assert.equal(await web.save(), null);
   assert.equal(web.calls[0].addedAttachments, uploaded);
+});
+
+test('an uploaded replacement and its crop survive retry without sending the files again', async () => {
+  const frame = { x: .5, y: .25, zoom: 2, aspectRatio: 1 };
+  const uploaded = [{ id: 'new-image', order: 0, isCover: true, metadata: { coverFrame: frame } }];
+  const harness = saveHarness(true, uploaded, { id: 'prepared-image' });
+  assert.equal(await harness.save(undefined, true), 'failed');
+  assert.equal(await harness.save(undefined, true), 'failed');
+  assert.equal(harness.calls.length, 2);
+  for (const input of harness.calls) {
+    assert.deepEqual(Array.from(input.attachments, item => item.isCover), [false, false]);
+    assert.equal(input.addedAttachments[0].isCover, true);
+    assert.equal(input.addedAttachments[0].metadata.coverFrame, frame);
+  }
+  assert.equal(harness.original[0].isCover, true);
 });
 
 function sourceHarness({ hold = false, failRender = false } = {}) {

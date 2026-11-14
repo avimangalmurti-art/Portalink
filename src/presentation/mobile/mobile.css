@@ -2192,7 +2192,7 @@
   max-width: 100%;
   margin: 0;
   padding: 0;
-  gap: 12px;
+  --journey-toggle-gap: 4px;
   border-radius: 0;
   background: transparent;
 }
@@ -2216,13 +2216,13 @@
   position: absolute;
   inset: -7px 0;
 }
-#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true'] {
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button:is([aria-pressed='true'], [aria-expanded='true']) {
   background: transparent !important;
   color: var(--text-primary) !important;
   font-weight: 600;
   box-shadow: none;
 }
-#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true']::after {
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button:is([aria-pressed='true'], [aria-expanded='true'])::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -2492,10 +2492,6 @@
   padding-inline: calc(7px + .125em);
   color: var(--text-tertiary);
 }
-#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded] .profile-summary-counts > .profile-count-separator {
-  flex-grow: 1;
-}
-
 #root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded]:has(.profile-summary-counts) .profile-identity-main {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
@@ -2522,7 +2518,7 @@
   grid-column: 1 / -1;
   grid-row: 3;
   flex-wrap: nowrap;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-inline-end: 0;
   overflow-x: auto;
 }
@@ -6556,6 +6552,12 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   border: 1px solid var(--hairline);
   border-radius: var(--ui-row-radius);
   background: var(--surface-sunken);
+}
+@media (max-width: 385px) {
+  [data-presentation='mobile'] .project-editor-cover-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  [data-presentation='mobile'] .project-editor-cover-actions { grid-column: 1 / -1; }
 }
 [data-presentation='mobile'] .project-editor-cover-thumb {
   display: grid;

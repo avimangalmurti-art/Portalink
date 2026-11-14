@@ -92,6 +92,7 @@ export function useProjectManagement(profileId: Id | null) {
   const [originalMetadata, setOriginalMetadata] = useState<DraftMetadata>(EMPTY_METADATA);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<MetadataFieldKey, string>>>({});
   const [attachmentEdits, setAttachmentEdits] = useState<ProjectAttachmentEdit[]>([]);
+  const [addedCoverId, setAddedCoverId] = useState<Id | null>(null);
   const [originalAttachments, setOriginalAttachments] = useState<ProjectAttachment[]>([]);
   const [previewAspectRatio, setPreviewAspectRatio] = useState(16 / 9);
   const [saveFailure, setSaveFailure] = useState<ProjectMutationFailure | null>(null);
@@ -108,6 +109,7 @@ export function useProjectManagement(profileId: Id | null) {
   }, []);
   const hydrate = useCallback((project: Project) => {
     loadedProjectRef.current = project;
+    setAddedCoverId(null);
     setPreviewAspectRatio(getProjectAspectRatio(project));
     const nextMetadata = {
       madeOn: project.madeOn ?? project.publishedAt?.slice(0,10),
@@ -188,6 +190,7 @@ export function useProjectManagement(profileId: Id | null) {
     setMetadata(EMPTY_METADATA);
     setOriginalMetadata(EMPTY_METADATA);
     setAttachmentEdits([]);
+    setAddedCoverId(null);
     setOriginalAttachments([]);
     setFieldErrors({});
     setSaveFailure(null);
@@ -227,11 +230,20 @@ export function useProjectManagement(profileId: Id | null) {
     } : edit));
   }, []);
   const setCover = useCallback((attachmentId: Id) => {
+    setAddedCoverId(null);
     setAttachmentEdits((current) => current.map((edit) => ({
       ...edit,
       isCover: edit.id === attachmentId
     })));
   }, []);
+  const addedCover = addedMedia.items.find(item => item.id === addedCoverId);
+  const setAddedCover = useCallback((mediaId: Id) => {
+    if (upload.isBusy || upload.hasPersistedMedia) return;
+    const image = addedMedia.items.find(item => item.id === mediaId && item.family === 'image' && item.previewUrl);
+    if (!image) return;
+    addedMedia.setCover(image.id);
+    setAddedCoverId(image.id);
+  }, [addedMedia, upload.hasPersistedMedia, upload.isBusy]);
   const setCoverFrame = useCallback((attachmentId: Id, frame: ProjectCoverFrame) => {
     setAttachmentEdits((current) => current.map((edit) => edit.id === attachmentId ? { ...edit, coverFrame: normalizeProjectCoverFrame(frame) } : edit));
     setSaveResult(null);
@@ -369,8 +381,11 @@ export function useProjectManagement(profileId: Id | null) {
     }
     // Direct Save must include the new crop in this request, without waiting
     // for a state update and accidentally persisting the previous frame.
-    const editsForSave = coverUpdate ? attachmentEdits.map((attachment) => attachment.id === coverUpdate.attachmentId
+    let editsForSave = coverUpdate ? attachmentEdits.map((attachment) => attachment.id === coverUpdate.attachmentId
       ? { ...attachment, coverFrame: normalizeProjectCoverFrame(coverUpdate.frame) } : attachment) : attachmentEdits;
+    if (appendUploadedFiles && addedCover) {
+      editsForSave = editsForSave.map(attachment => attachment.isCover ? { ...attachment, isCover: false } : attachment);
+    }
     const hasAdded = addedMedia.items.length > 0;
     if (attachmentEdits.length === 0 && !hasAdded) {
       setSaveFailure({
@@ -475,7 +490,7 @@ export function useProjectManagement(profileId: Id | null) {
       }
     };
     return (await attempt()) ? null : 'failed';
-  }, [addedMedia, attachmentEdits, editingProjectId, editorMode, hydrate, invalidateProfiles, isTransportAvailable, metadata, profileId, projectService, upload, validate]);
+  }, [addedCover, addedMedia, attachmentEdits, editingProjectId, editorMode, hydrate, invalidateProfiles, isTransportAvailable, metadata, originalMetadata, profileId, projectService, upload, validate]);
 
   /* ── Deleting ──────────────────────────────────────────────────────────── */
   const [deletingProjectId, setDeletingProjectId] = useState<Id | null>(null);
@@ -571,6 +586,8 @@ export function useProjectManagement(profileId: Id | null) {
       setJourneyField,
       setAttachmentTitle,
       setCover,
+      addedCover,
+      setAddedCover,
       setCoverFrame,
       moveAttachment,
       reorderImages,
@@ -598,6 +615,6 @@ export function useProjectManagement(profileId: Id | null) {
       cancel: cancelDelete,
       confirm: confirmDelete
     }
-  }), [addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, previewAspectRatio, removeAttachment, reorderImages, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAttachmentTitle, setCover, setCoverFrame, setJourneyField, setMetadataField, upload]);
+  }), [addedCover, addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, previewAspectRatio, removeAttachment, reorderImages, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAddedCover, setAttachmentTitle, setCover, setCoverFrame, setJourneyField, setMetadataField, upload]);
 }
 export type ProjectManagement = ReturnType<typeof useProjectManagement>;

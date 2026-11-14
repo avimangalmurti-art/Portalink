@@ -2346,7 +2346,7 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   max-width: 100%;
   margin: 0;
   padding: 0;
-  gap: 12px;
+  --journey-toggle-gap: 4px;
   border-radius: 0;
   background: transparent;
 }
@@ -2388,10 +2388,10 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 
 @media (max-width: 375px) {
   #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .profile-compact-header:has(> .public-profile-appearance-controls) [data-shared-portal-tabs] {
-    margin-inline-end: -44px;
+    margin-inline-end: -64px;
   }
   #root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-shared-portal-tabs] .journey-toggle {
-    gap: 4px;
+    --journey-toggle-gap: 0px;
   }
 }
 

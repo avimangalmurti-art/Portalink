@@ -1,5 +1,7 @@
 type NowPlayingMetadata = { avatar?: string; title: string; artist: string };
 export type ProfileAudioSource = { key: string; url: string; artwork?: NowPlayingMetadata };
+type AudioOutputDevices = MediaDevices & { selectAudioOutput?: () => Promise<MediaDeviceInfo> };
+type AppleAudioElement = HTMLAudioElement & { webkitShowPlaybackTargetPicker?: () => void };
 
 type ProfileAudioSnapshot = {
   key: string | null;
@@ -25,6 +27,7 @@ let openVideos = 0;
 let playbackAccount: string | null | undefined;
 let artwork: NowPlayingMetadata | undefined;
 let publishedMetadata: MediaMetadata | null = null;
+let queue: { profileId: string; sources: readonly ProfileAudioSource[] } | null = null;
 const listeners = new Set<() => void>();
 
 export function subscribeProfileAudio(listener: () => void) {
@@ -49,6 +52,32 @@ export function supportsProfileAudioVolume() {
     volumeSupported = false;
   }
   return volumeSupported;
+}
+
+export function supportsProfileAudioOutput() {
+  if (typeof Audio === 'undefined' || typeof navigator === 'undefined') return false;
+  const player = Audio.prototype as AppleAudioElement;
+  const devices = navigator.mediaDevices as AudioOutputDevices | undefined;
+  return typeof player.webkitShowPlaybackTargetPicker === 'function'
+    || (typeof devices?.selectAudioOutput === 'function' && typeof player.setSinkId === 'function');
+}
+
+export async function chooseProfileAudioOutput() {
+  if (!supportsProfileAudioOutput()) return;
+  const player = getAudio() as AppleAudioElement;
+  const devices = navigator.mediaDevices as AudioOutputDevices | undefined;
+  if (!devices?.selectAudioOutput || !player.setSinkId) {
+    player.webkitShowPlaybackTargetPicker?.();
+    return;
+  }
+  const profileId = queue?.profileId;
+  const accountId = playbackAccount;
+  try {
+    const { deviceId } = await devices.selectAudioOutput();
+    if (profileId === queue?.profileId && accountId === playbackAccount) await player.setSinkId(deviceId);
+  } catch (error) {
+    if (!(error instanceof DOMException) || error.name !== 'NotAllowedError') throw error;
+  }
 }
 
 function update(changes: Partial<ProfileAudioSnapshot>) {
@@ -120,7 +149,10 @@ function getAudio() {
     } else update({ playing: false });
   });
   player.addEventListener('ended', () => {
-    if (player.ended) update({ playing: false, wantsPlayback: false });
+    if (!player.ended) return;
+    const next = snapshot.wantsPlayback && !snapshot.videoOpen ? adjacentSource(1) : undefined;
+    if (next) startProfileAudio(next);
+    else update({ playing: false, wantsPlayback: false });
   });
   player.addEventListener('error', () => {
     if (snapshot.key && player.error) playError('This audio couldn’t load. Try playing it again.');
@@ -155,17 +187,65 @@ export function startProfileAudio({ key, url, artwork: nextArtwork }: ProfileAud
   const artworkChanged = artwork?.avatar !== nextArtwork?.avatar
     || artwork?.title !== nextArtwork?.title
     || artwork?.artist !== nextArtwork?.artist;
-  artwork = nextArtwork;
   if (snapshot.key === key) {
+    artwork = nextArtwork;
     if (artworkChanged && !snapshot.videoOpen && (snapshot.wantsPlayback || publishedMetadata)) publishNowPlayingArtwork();
     return;
   }
+  loadProfileAudio({ key, url, artwork: nextArtwork }, true);
+}
+
+function loadProfileAudio(source: ProfileAudioSource, wantsPlayback: boolean, needsGesture = false) {
   const player = getAudio();
   pauseAudio();
   clearNowPlayingArtwork();
-  player.src = url;
-  update({ key, wantsPlayback: true, needsGesture: false, position: 0, duration: 0, error: null });
+  artwork = source.artwork;
+  player.src = source.url;
+  update({ key: source.key, wantsPlayback, needsGesture, position: 0, duration: 0, error: null });
   playAudio();
+}
+
+/** Refresh the active profile's tracks without resetting the current track or manual pause. */
+export function setProfileAudioQueue(profileId: string, sources: readonly ProfileAudioSource[], autoplay: boolean) {
+  const previous = queue;
+  const key = snapshot.key;
+  queue = { profileId, sources };
+  const current = sources.find(source => source.key === key);
+  if (current) {
+    startProfileAudio(current);
+    return;
+  }
+  const oldIndex = previous?.sources.findIndex(source => source.key === key) ?? -1;
+  const sameProfile = previous?.profileId === profileId;
+  if (key && (key.startsWith(`${profileId}/`) || (sameProfile && oldIndex >= 0))) {
+    const replacement = sources[Math.min(Math.max(oldIndex, 0), sources.length - 1)];
+    if (replacement) loadProfileAudio(replacement, snapshot.wantsPlayback, snapshot.needsGesture);
+    else resetProfileAudio();
+    return;
+  }
+  if (!sameProfile && oldIndex >= 0) resetProfileAudio();
+  if (autoplay && sources.length) startProfileAudio(sources[0]);
+}
+
+function adjacentSource(direction: -1 | 1) {
+  if (!queue) return undefined;
+  const current = queue.sources.findIndex(source => source.key === snapshot.key);
+  if (snapshot.key && current < 0) return undefined;
+  return queue.sources[Math.max(0, current) + direction];
+}
+
+export function skipProfileAudioTrack(profileId: string, direction: -1 | 1) {
+  if (queue?.profileId !== profileId) return;
+  const source = adjacentSource(direction);
+  if (source) loadProfileAudio(source, !snapshot.key || snapshot.wantsPlayback || snapshot.needsGesture);
+}
+
+export function selectProfileAudioTrack(profileId: string, key: string) {
+  if (queue?.profileId !== profileId) return;
+  const source = queue.sources.find(track => track.key === key);
+  if (!source) return;
+  if (snapshot.key !== key) startProfileAudio(source);
+  else if (!snapshot.wantsPlayback) toggleProfileAudio(source);
 }
 
 export function retryProfileAudioOnGesture(source: ProfileAudioSource) {
@@ -213,7 +293,13 @@ export function setProfileAudioVolume(volume: number) {
 }
 
 export function clearProfileAudio(key?: string) {
-  if (!snapshot.key || (key && key !== snapshot.key)) return;
+  if (key && key !== snapshot.key) return;
+  queue = null;
+  resetProfileAudio();
+}
+
+function resetProfileAudio() {
+  if (!snapshot.key) return;
   pauseAudio();
   clearNowPlayingArtwork();
   artwork = undefined;
@@ -223,7 +309,11 @@ export function clearProfileAudio(key?: string) {
 }
 
 export function clearProfileAudioForProfile(profileId: string) {
-  if (snapshot.key?.startsWith(`${profileId}/`)) clearProfileAudio();
+  const ownsQueue = queue?.profileId === profileId;
+  const ownsPlayback = snapshot.key?.startsWith(`${profileId}/`) || (ownsQueue
+    && queue?.sources.some(source => source.key === snapshot.key));
+  if (ownsQueue) queue = null;
+  if (ownsPlayback) resetProfileAudio();
 }
 
 export function setProfileAudioAccount(accountId: string | null) {
