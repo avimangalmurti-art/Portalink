@@ -88,7 +88,7 @@ function appInitializer(name) {
   assert.ok(result, `Expected App rendering boundary ${name}`);
   return ts.transpileModule(`result = (${result});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React } }).outputText;
 }
-const appBoundaries = ['isCollaborationOpen', 'isOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'mobileProfileKey'];
+const appBoundaries = ['isCollaborationOpen', 'isOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'isTimelineReader', 'mobileProfileKey'];
 const appExpressions = Object.fromEntries(appBoundaries.map(name => [name, appInitializer(name)]));
 function profileRender(overrides = {}) {
   const profile = { id: 'owner', name: 'Owner', projectGridColumns: 2 };
@@ -102,7 +102,7 @@ function profileRender(overrides = {}) {
     personalScreen: null, isControlCenterOpen: false, iconPickerCategoryId: null, inDesignFeature: null,
     isMessagesOpen: false, isSearchOpen: false, routeActivityKind: null, activeCategoryId: null,
     categoryPage: null, isPortalsOpen: false, canShowOwnPortalsWorkspace: false, nav: { home() {} },
-    isWebReaderLoading: false,
+    isWebReaderLoading: false, navigationState: null,
     ...overrides,
   });
   for (const name of appBoundaries) {
@@ -154,4 +154,19 @@ test('failed or missing owner refresh replaces the gallery with the shared route
     assert.equal(state.routeStateView.props.kind, expected);
     assert.equal(state.mobileProfileKey, undefined);
   }
+});
+
+test('a Timeline reader retains a separate mobile workspace from first load to ready', () => {
+  const layers = harness();
+  const origin = profileRender();
+  const reader = { navigationState: { fromTimeline: true }, route: { kind: 'project' }, activeCategoryId: 'portal', pathname: '/p/owner/c/portal/project', categoryPage: React.createElement('reader') };
+  const loading = profileRender({ ...reader, categoryPage: null, viewedProfile: null, viewedProfileQuery: { status: 'loading' } });
+  const ready = profileRender(reader);
+  for (const state of [origin, loading, ready, origin]) layers.render(state.screenTransitionKey, state.mobileProfileKey);
+  const [before, pending, opened, after] = layers.calls.map(call => call.key);
+  assert.notEqual(before, pending);
+  assert.equal(pending, opened);
+  assert.equal(after, before);
+  assert.equal(profileRender({ ...reader, navigationState: null }).mobileProfileKey, origin.mobileProfileKey);
+  assert.equal(profileRender({ ...reader, presentation: 'web' }).mobileProfileKey, origin.mobileProfileKey);
 });

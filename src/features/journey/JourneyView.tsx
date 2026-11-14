@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import { useServices } from '../../contexts/ServicesContext';
 import { useJourneyCitations } from '../citations/useJourneyCitations';
 import { journeyTimeline, type TimelineOrder } from '../citations/journeyCitations';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { EyeIcon, MoreHorizontalIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
@@ -20,6 +20,7 @@ import { useTimelinePairs } from './useTimelinePairs';
 import { useTimelineSection } from './useTimelineSection';
 import { projectBelongsToPortal } from '../projects/projectPortals';
 import { portalChildren } from '../profile/portalHierarchy';
+import { restoreDesktopTimeline, type TimelineProjectSource, type TimelineReturn } from './desktopTimelineReturn';
 import { TimelinePairCover } from './TimelinePairCover';
 
 const PortalProjectPopup = React.lazy(() => import('../../components/profile/PortalProjectPopup').then(module => ({ default: module.PortalProjectPopup })));
@@ -34,7 +35,8 @@ export function JourneyCover({ project, sizes = '92px' }: { project: Project; si
 type JourneyViewProps = {
   active?: boolean;
   showPopular?: boolean;
-  toolbarHost?: HTMLElement | null; profile: Profile; owner: boolean; onOpen: (project: Project, categoryId?: string) => void;
+  toolbarHost?: HTMLElement | null; profile: Profile; owner: boolean; onOpen: (project: Project, categoryId?: string, source?: TimelineProjectSource) => void;
+  timelineReturn?: TimelineReturn;
   onEdit?: (project: Project) => void; onEditDescription?: (project: Project) => void; onDelete?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
   onEditPair?: (pair: TimelinePair) => void;
 };
@@ -42,7 +44,7 @@ export function JourneyView(props: JourneyViewProps) {
   // Sorting, popup and citation state belong to one viewed profile/access mode.
   return <JourneyContent key={`${props.profile.id}:${props.owner}`} {...props} />;
 }
-function JourneyContent({ active = true, showPopular = true, toolbarHost, profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair, onEditPair }: JourneyViewProps) {
+function JourneyContent({ active = true, showPopular = true, toolbarHost, profile, owner, onOpen, timelineReturn, onEdit, onEditDescription, onDelete, onAdd, onPair, onEditPair }: JourneyViewProps) {
   const isMobile = usePresentation() === 'mobile';
   const { reads } = useServices();
   const [popular, setPopular] = useState<{profileId:string; counts:Record<string,number>} | null>(null);
@@ -53,7 +55,7 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
     return()=>{current=false;};
   },[reads,profile.id,owner,isMobile]);
   const popularCounts=owner&&popular?.profileId===profile.id?popular.counts:undefined;
-  const [order, setOrder] = useState<TimelineOrder>('newest');
+  const [order, setOrder] = useState<TimelineOrder>(timelineReturn?.order ?? 'newest');
   const [pairsOnly, setPairsOnly] = useState(false);
   const [reorderingPairs, setReorderingPairs] = useState(false);
   const closePairOrder = () => setReorderingPairs(false);
@@ -102,10 +104,18 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
       const project = portalProjects.find(candidate => candidate.id === projectId && projectBelongsToPortal(candidate, categoryId));
       if (categoryId !== activePortalPopupId || !project) return;
       closePortal();
-      onOpen(project, categoryId);
+      openProject(project, undefined, categoryId);
     }} />
   </DeferredDialog>;
   const rootRef = useRef<HTMLElement>(null), toolbarRef = useRef<HTMLElement>(null), pairRef = useRef<HTMLElement>(null);
+  const restoreReady = !timelineReturn?.anchor?.startsWith('pair:') || !pairsLoading;
+  useLayoutEffect(() => {
+    if (isMobile || !active || !timelineReturn || !restoreReady || !rootRef.current) return;
+    return restoreDesktopTimeline(timelineReturn, rootRef.current);
+  }, [active, isMobile, restoreReady, timelineReturn]);
+  const openProject = (project: Project, anchor?: HTMLElement, categoryId?: string) => {
+    onOpen(project, categoryId, isMobile ? undefined : { order, anchor });
+  };
   const section = useTimelineSection({
     enabled: isMobile && active && !showingPairsOnly && pairs.length > 0,
     paused: Boolean(detailsProject || activePortalPopupId),
@@ -129,7 +139,7 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
           }}>Edit pair</Button>
       </header> : heading}
       <div className="journey-pair-grid">{[then, now].map((project, index) => <div key={project.id}>
-        <button type="button" onClick={() => onOpen(project)} aria-label={`Open ${index ? 'Now' : 'Then'}: ${project.title}`}>
+        <button type="button" data-timeline-project={`pair:${record.id}:${index}:${project.id}`} onClick={event => openProject(project, event.currentTarget)} aria-label={`Open ${index ? 'Now' : 'Then'}: ${project.title}`}>
           <TimelinePairCover project={project} position={index ? record.nowCover : record.thenCover} />
           <strong>{project.title}{projectMonth(project) && ` · ${projectMonth(project)?.slice(0, 4)}`}</strong>
         </button>{portalButton(project)}
@@ -161,7 +171,7 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
         return <li className="journey-entry" data-journey-date={day ?? undefined} data-has-options={Boolean(hasOptions) || undefined} key={`project:${project.id}`}>
           {date}
           <div className="journey-entry-copy">
-            {popularity ? <div className="journey-popular-heading"><button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button><span className="journey-popularity" aria-label={`${popularity.opens} project ${popularity.opens === 1 ? 'open' : 'opens'}`}><InterfaceIcon icon={EyeIcon} size="xs" />{popularity.opens}</span></div> : <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>}
+            {popularity ? <div className="journey-popular-heading"><button type="button" className="journey-title" data-timeline-project={`project:${project.id}`} onClick={event => openProject(project, event.currentTarget)}>{project.title}</button><span className="journey-popularity" aria-label={`${popularity.opens} project ${popularity.opens === 1 ? 'open' : 'opens'}`}><InterfaceIcon icon={EyeIcon} size="xs" />{popularity.opens}</span></div> : <button type="button" className="journey-title" data-timeline-project={`project:${project.id}`} onClick={event => openProject(project, event.currentTarget)}>{project.title}</button>}
             {portalButton(project)}
           </div>
           {hasOptions && <button type="button" className="journey-project-options" aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={isMobile ? detailsProject?.id === project.id : undefined} onClick={() => isMobile ? setDetailsProject(project) : onEdit?.(project)}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></button>}

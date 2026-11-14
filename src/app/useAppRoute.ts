@@ -289,6 +289,8 @@ export function useAppRoute(): AppRoute {
  * Navigation, expressed as destinations rather than state mutations. Every path
  * comes from the route map, so a template only ever exists in one place.
  */
+type ProjectNavigationOptions = { fromTimeline?: boolean };
+
 export function useRouteNavigator(presentation: Presentation = 'web') {
   const navigate = useNavigate();
   const location = useLocation();
@@ -354,7 +356,7 @@ export function useRouteNavigator(presentation: Presentation = 'web') {
       profileId,
       categoryId
     })),
-    sharedProject: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
+    sharedProject: (profileId: Id, categoryId: Id, projectId: Id, replace = false, options?: ProjectNavigationOptions) => {
       const viewTransition = !replace && beginProjectContinuity(projectId);
       navigate(withCataloguePageTarget(buildPath('sharedProject', {
         profileId,
@@ -362,7 +364,8 @@ export function useRouteNavigator(presentation: Presentation = 'web') {
         projectId
       }), projectId, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), {
         replace,
-        viewTransition
+        viewTransition,
+        ...(options?.fromTimeline ? { state: { fromTimeline: true } } : {})
       });
     },
     category: (profileId: Id, categoryId: Id) => navigate(buildPath('profileCategory', {
@@ -374,7 +377,7 @@ export function useRouteNavigator(presentation: Presentation = 'web') {
      * on its first project, and that must not become a history entry, or Back
      * would return to a bare category that immediately re-selects it.
      */
-    project: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
+    project: (profileId: Id, categoryId: Id, projectId: Id, replace = false, options?: ProjectNavigationOptions) => {
       const viewTransition = !replace && beginProjectContinuity(projectId);
       navigate(withCataloguePageTarget(buildPath('project', {
         profileId,
@@ -382,7 +385,8 @@ export function useRouteNavigator(presentation: Presentation = 'web') {
         projectId
       }), projectId, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), {
         replace,
-        viewTransition
+        viewTransition,
+        ...(options?.fromTimeline ? { state: { fromTimeline: true } } : {})
       });
     },
     /** The URL says `likes`/`saved`; the domain says like/save. */

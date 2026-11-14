@@ -285,7 +285,7 @@ function hooks() {
   }
   return { react, render, dispose: () => effects.forEach(effect => effect?.cleanup?.()) };
 }
-function appHarness({ catalogueOrigin = null, deviceAppearance = appearance, appearanceStorage, systemDark = false } = {}) {
+function appHarness({ catalogueOrigin = null, timelineViewport = null, deviceAppearance = appearance, appearanceStorage, systemDark = false } = {}) {
   const h = hooks(), assigned = [], replaced = [], navigations = [], queryCalls = [], requests = [];
   const navigate = (path, options) => navigations.push([path, options]);
   let pendingIntent = null;
@@ -298,7 +298,9 @@ function appHarness({ catalogueOrigin = null, deviceAppearance = appearance, app
       closeAuth: () => { state.auth = { ...state.auth, pendingView: null }; },
     } };
   const window = { scrollX: 0, scrollY: 0, innerWidth: 420, innerHeight: 912, scrollTo() {}, addEventListener() {}, removeEventListener() {}, history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
-  const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } }, querySelector: () => null, addEventListener() {}, removeEventListener() {} };
+  const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } },
+    querySelector: selector => selector === '[data-public-portfolio-grid]' && timelineViewport ? { closest: () => timelineViewport } : null,
+    addEventListener() {}, removeEventListener() {} };
   class ElementStub { matches() { return false; } }
   const browser = { window, document, Element: ElementStub, HTMLElement: ElementStub,
     requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {} };
@@ -316,7 +318,9 @@ function appHarness({ catalogueOrigin = null, deviceAppearance = appearance, app
     if (name.endsWith('/mobileCatalogueScroll')) return { repairMobileCatalogueScroll: () => false };
     throw new Error(name);
   }, browser);
+  const desktopTimelineReturn = load('features/journey/desktopTimelineReturn.ts', () => h.react, browser);
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
+    if (name.endsWith('/desktopTimelineReturn')) return desktopTimelineReturn;
     if (name.endsWith('/projectPortals')) return projectPortals;
     if (name.endsWith('/cataloguePageNavigation')) return { withCataloguePageTarget: href => href, captureCatalogueReaderOrigin: () => catalogueOrigin, restoreCatalogueReaderOrigin: () => () => {} };
     if (name === './useMobileProjectReturn') return projectReturn;
@@ -626,7 +630,7 @@ test('shared links start on Portfolio and keep Journey one tap away', () => {
         readJourneyPreference: key => saved.get(key) || 'portfolio',
         rememberJourneyPreference: (key, view) => saved.set(key, view) };
     });
-    return (profile = 'creator', remember = false) => h.render(() => useJourneySelection(profile, 'viewer', remember));
+    return (profile = 'creator', remember = false, startInTimeline = false) => h.render(() => useJourneySelection(profile, 'viewer', remember, startInTimeline));
   };
   const render = create();
   assert.equal(render().view, 'portfolio');
@@ -636,6 +640,11 @@ test('shared links start on Portfolio and keep Journey one tap away', () => {
   assert.equal(create()().view, 'portfolio');
   assert.equal(render('another').view, 'portfolio');
   assert.equal(create()('creator', true).view, 'portfolio');
+  const returned = create();
+  assert.equal(returned('creator', false, true).view, 'journey');
+  returned('creator', false, true).select('portfolio');
+  assert.equal(returned('creator', false, true).view, 'portfolio');
+  assert.equal(saved.get('viewer:creator'), 'portfolio');
 });
 
 function visitorProfileHarness({ presentation = 'web', showJourney = false, appearanceControls, onOpenPortals } = {}) {
@@ -1229,6 +1238,42 @@ test('WEB portal navigation clears prior catalogue origin while ordinary card Ba
   h.state.location.pathname = '/creator/c/portal/next'; tree = h.render();
   nodes(tree).find(node => node.props?.project?.id === 'next').props.onBack();
   assert.deepEqual(json(h.navigations.at(-1)), ['/creator', { replace: true }], 'A new sidebar portal must not restore an unrelated old catalogue location.');
+});
+
+test('WEB shared reader Back restores the exact Timeline history entry and Then/Now anchor', () => {
+  const timelineViewport = { scrollTop: 640, scrollLeft: 0, getBoundingClientRect: () => ({ top: 20 }) };
+  const h = appHarness({ timelineViewport });
+  h.state.presentation = 'web';
+  const origin = { ...h.state.location, key: 'timeline-origin', search: '?via=friend', hash: '#pair' };
+  h.state.location = origin;
+  const rendered = () => one(h.render(), 'VisitorProfileGrid');
+  const projectPath = `/share/${profileId}/c/portal/work`;
+  const anchor = { dataset: { timelineProject: 'pair:second:1:work' }, getBoundingClientRect: () => ({ top: 252 }) };
+  assert.equal(rendered().props.timelineReturn, undefined);
+  rendered().props.onOpen('portal', 'work', { order: 'oldest', anchor });
+  assert.deepEqual(json(h.navigations.at(-1)), [projectPath, { replace: false, state: { fromTimeline: true } }]);
+
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  h.state.location = { pathname: projectPath, search: '', hash: '', key: 'reader', state: h.navigations.at(-1)[1].state };
+  h.window.history.state.idx = 2;
+  const reader = () => nodes(h.render()).find(node => node.props?.project?.id === h.state.route.projectId && node.props?.onBack);
+  reader().props.onSelect('next');
+  const next = h.navigations.at(-1);
+  assert.deepEqual(json(next), [`/share/${profileId}/c/portal/next`, { replace: true, state: { fromTimeline: true } }]);
+  h.state.location = { ...h.state.location, pathname: next[0], key: 'reader-next', state: next[1].state };
+  h.state.route = { ...h.state.route, projectId: 'next' };
+  reader().props.onBack();
+  assert.deepEqual(json(h.navigations.at(-1)), [-1, null]);
+
+  h.state.route = { kind: 'sharedProfile', profileId };
+  h.state.location = origin;
+  assert.deepEqual(json(rendered().props.timelineReturn), { order: 'oldest', anchor: 'pair:second:1:work', anchorTop: 232, top: 640, left: 0 });
+  h.state.location = { ...origin, key: 'fresh-profile-entry' };
+  assert.equal(rendered().props.timelineReturn, undefined);
+  h.state.location = origin;
+  rendered().props.onLeaveTimeline();
+  assert.equal(rendered().props.timelineReturn, undefined, 'Choosing Catalogue clears the earlier Timeline return.');
+  h.dispose();
 });
 
 test('WEB legacy preview URLs use ordinary portal navigation and never recreate preview state', () => {

@@ -578,6 +578,64 @@ test('explicit page links and non-document media keep file switching on MOBILE a
   }
 });
 
+test('the mobile project switcher keeps both file choices compact and updates the active media', () => {
+  const videoName = 'AC8FE756-0043-4BA1-9DAD-30240645F713.mov';
+  const imageName = '8536649A-B758-47D2-9F9F-87995A39B562.png';
+  const attachments = [
+    { id: 'clip', kind: 'video', displayName: videoName, typeLabel: 'Video', order: 0 },
+    { id: 'artwork', kind: 'image', displayName: imageName, typeLabel: 'Image', order: 1 },
+  ];
+  for (const mobile of [true, false]) for (const readOnlyShare of [true, false]) {
+    const h = harness({ lifecycle: true, mobile, readOnlyShare });
+    const readSwitcher = tree => {
+      const strip = withProp(tree, 'data-project-file-strip');
+      assert.ok(strip);
+      assert.equal(strip.props['aria-label'], 'Work files');
+      return nodes(strip).filter(node => node.type === 'button').map(choice => ({
+        choice,
+        current: choice.props['aria-current'],
+        shape: choice.props['data-ui-shape'],
+        accessibleName: choice.props['aria-label'],
+        label: nodes(choice).find(node => node.type === 'span').props.children,
+      }));
+    };
+    let tree = h.commitFocusedPage(null, { attachments });
+    let files = readSwitcher(tree);
+    assert.deepEqual(files.map(file => file.shape), Array(2).fill(mobile ? 'capsule' : undefined));
+    assert.deepEqual(files.map(file => file.label), mobile ? ['Video', 'Image'] : [videoName, imageName]);
+    assert.deepEqual(files.map(file => file.accessibleName), mobile
+      ? [`Video, ${videoName}`, `Image, ${imageName}`]
+      : [`${videoName}, Video`, `${imageName}, Image`]);
+    assert.deepEqual(files.map(file => file.current), ['true', undefined]);
+    files[1].choice.props.onClick();
+    tree = h.commitFocusedPage(null);
+    files = readSwitcher(tree);
+    assert.deepEqual(files.map(file => file.current), [undefined, 'true']);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment.id, 'artwork');
+    assert.equal(h.memoryWrites.at(-1)[1], 'artwork');
+    files[0].choice.props.onClick();
+    tree = h.commitFocusedPage(null);
+    assert.deepEqual(readSwitcher(tree).map(file => file.current), ['true', undefined]);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment.id, 'clip');
+  }
+});
+
+test('the mobile project switcher preserves named files and distinguishes multiple unnamed files of the same type', () => {
+  const h = harness({ mobile: true });
+  const attachments = [
+    { id: 'clip-1', kind: 'video', displayName: 'AC8FE756-0043-4BA1-9DAD-30240645F713.mov', typeLabel: 'Video', order: 0 },
+    { id: 'clip-2', kind: 'video', displayName: '626C652E-544B-42CF-8B48-4217A3EDB14D.mp4', typeLabel: 'Video', order: 1 },
+    { id: 'artwork', kind: 'image', displayName: 'Storyboard.jpg', typeLabel: 'Image', order: 2 },
+  ];
+  const strip = withProp(h.render({ attachments }), 'data-project-file-strip');
+  assert.ok(strip);
+  const choices = nodes(strip).filter(node => node.type === 'button');
+  assert.deepEqual(choices.map(choice => nodes(choice).find(node => node.type === 'span').props.children), ['Video 1', 'Video 2', 'Storyboard.jpg']);
+  assert.deepEqual(choices.map(choice => choice.props['aria-label']), [
+    `Video 1, ${attachments[0].displayName}`, `Video 2, ${attachments[1].displayName}`, 'Storyboard.jpg, Image',
+  ]);
+});
+
 test('WEB focus lifecycle retains its existing rail without MOBILE controls', () => {
   for (const readOnlyShare of [false, true]) {
     const reports = [], h = harness({ lifecycle: true, mobile: false, mediaKind: 'image', readOnlyShare, search: '?media=first&page=2&view=page' });
@@ -1037,6 +1095,7 @@ test('project workspace handles mobile projects, nested Portals and Back', async
   const IndexPortal = () => null;
   const PageDensity = () => null;
   let arrangementRead = {}, typographyRead = {};
+  const reorderWrites = [];
   const react = { ...React, useState(initial) {
       const i = cursor++;
       if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
@@ -1073,7 +1132,14 @@ test('project workspace handles mobile projects, nested Portals and Back', async
     if (name.endsWith('/MobilePortalProjectToolbar')) return { MobilePortalProjectToolbar };
     if (name.endsWith('/portalProjectBrowsing')) return portalBrowsing;
     if (name.endsWith('/viewer')) return { canAuthor: role => role === 'owner' };
-    if (name.endsWith('/useProjectArrangement')) return { useProjectArrangement: () => ({ arrange: projects => Object.freeze(projects), pinnedIds: [], hiddenIds: [], isLoading: false, isSaving: false, ...arrangementRead }) };
+    if (name.endsWith('/useProjectArrangement')) return { useProjectArrangement: () => ({
+      arrange(projects) {
+        const order = reorderWrites.at(-1);
+        return Object.freeze(order ? order.map(id => projects.find(project => project.id === id)).filter(Boolean) : projects);
+      },
+      reorder: ids => reorderWrites.push(Array.from(ids)),
+      pinnedIds: [], hiddenIds: [], isLoading: false, isSaving: false, ...arrangementRead,
+    }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ deletion: { projectId: null }, editor: {} }) };
     if (name.endsWith('/useProjectTypography')) return { useProjectTypography: () => ({ resolveTypefaceId: () => null, resolvePagesPerRow: () => 3, ...typographyRead }) };
     if (name.endsWith('/typefaces')) return { getTypefaceStack: () => 'sans-serif' };
@@ -1152,15 +1218,18 @@ test('project workspace handles mobile projects, nested Portals and Back', async
   const index = () => nodes(currentList()).find(node => node.type === Index).props;
   const toolbarProps = () => nodes(currentList()).find(node => node.type === MobilePortalProjectToolbar).props;
   assert.deepEqual(Array.from(index().projects, project => project.id), ['second', 'work']);
-  assert.equal(index().mobileReorderDisabled, true, 'Recent sorting must not overwrite saved order');
+  assert.equal(index().isOwner, false, 'Visitors receive a read-only project list');
+  index().onReorder([...index().projects].reverse());
+  assert.deepEqual(reorderWrites, [], 'Visitors cannot write a project arrangement');
+  tree = render(props);
+  assert.equal(toolbarProps().sort, 'recent');
   assert.equal(button(toolbar(projectList), 'Add a new project to Portal'), undefined, 'Visitors never receive authoring controls');
   assert.equal(nodes(toolbar(projectList)).some(node => node.props.type === 'range'), false);
   toolbarProps().onSort('title'); tree = render(props);
   assert.deepEqual(Array.from(index().projects, project => project.id), ['work', 'second']);
-  assert.equal(index().mobileReorderDisabled, true);
+  assert.equal(index().isOwner, false);
   toolbarProps().onSort('saved'); tree = render(props);
   assert.deepEqual(Array.from(index().projects, project => project.id), ['work', 'second']);
-  assert.equal(index().mobileReorderDisabled, false);
   assert.equal(nodes(toolbar(currentList())).find(node => node.props.type === 'search'), undefined);
   toolbarProps().onLayout('grid'); tree = render(props);
   assert.equal(index().mobileLayout, 'grid');
@@ -1198,7 +1267,7 @@ test('project workspace handles mobile projects, nested Portals and Back', async
   assert.equal(selections.length, beforeOpeningPortal, 'Opening a MOBILE portal must wait for a project choice');
   assert.ok(nodes(tree).find(node => node.type === IndexPortal));
   assert.equal(nodes(tree).find(node => node.type === Viewer), undefined);
-  assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), ['work', 'second']);
+  assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), ['second', 'work'], 'Reopening as a visitor starts in Recent order');
   const child = { id: 'child', parentId: 'portal', label: 'Child', iconName: 'camera' };
   const creations = [], openedChildren = [];
   const portalProps = { ...props, activeProjectId: null, viewerRole: 'owner',
@@ -1207,6 +1276,33 @@ test('project workspace handles mobile projects, nested Portals and Back', async
     onSelectSubPortal: id => openedChildren.push(id),
     categoryManagement: { dismissFailure() {}, async createCategory(...args) { creations.push(args); return child; } },
   };
+  render(portalProps);
+  tree = render(portalProps);
+  const portalIndex = () => nodes(tree).find(node => node.type === Index).props;
+  const portalToolbar = () => nodes(tree).find(node => node.type === MobilePortalProjectToolbar).props;
+  assert.deepEqual(Array.from(portalIndex().projects, project => project.id), ['work', 'second'], 'Owners open the popup in Saved order');
+  for (const [sort, before, after] of [
+    ['recent', ['second', 'work'], ['work', 'second']],
+    ['title', ['work', 'second'], ['second', 'work']],
+  ]) {
+    portalToolbar().onSort(sort);
+    tree = render(portalProps);
+    assert.equal(portalToolbar().sort, sort);
+    assert.equal(portalIndex().mobileReorderDisabled, false);
+    assert.deepEqual(Array.from(portalIndex().projects, project => project.id), before);
+    portalIndex().onReorder([...portalIndex().projects].reverse());
+    tree = render(portalProps);
+    assert.deepEqual(reorderWrites.at(-1), after);
+    assert.equal(portalToolbar().sort, 'saved');
+    assert.deepEqual(Array.from(portalIndex().projects, project => project.id), after);
+  }
+  assert.equal(reorderWrites.length, 2);
+  tree = render({ ...portalProps, sharedReadOnly: true });
+  assert.equal(portalIndex().mobileReorderDisabled, true);
+  portalIndex().onReorder([...portalIndex().projects].reverse());
+  assert.equal(reorderWrites.length, 2, 'A shared Portal prevents reordering even if the viewer owns its projects');
+  reorderWrites.length = 0;
+  render(portalProps);
   tree = render(portalProps);
   nodes(tree).find(node => node.type === childList).props.onSelect(child.id);
   assert.deepEqual(openedChildren, [child.id]);
@@ -1297,7 +1393,6 @@ test('project workspace handles mobile projects, nested Portals and Back', async
   assert.equal(toolbar(tree), undefined, 'WEB keeps its existing toolbar');
   const webIndex = nodes(tree).find(node => node.type === Index).props;
   assert.deepEqual(Array.from(webIndex.projects, project => project.id), ['work', 'second']);
-  assert.equal(webIndex.mobileReorderFromMenu, false);
   assert.equal(webIndex.mobileReorderDisabled, false);
   const webProps = { ...props, isIndexCollapsed: false };
   const slider = () => nodes(tree).find(node => node.type === PageDensity);

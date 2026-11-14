@@ -22,11 +22,38 @@ function harness() {
   let presentation = 'mobile';
   let auth = { isAuthenticated: true, viewerProfileId: 'owner', phase: 'authenticated' };
   const slots = []; let cursor = 0;
-  const react = { ...React, useMemo: fn => fn(), useRef: value => ({ current: value }), useEffect() {}, useState: initial => {
-    const index = cursor++;
-    if (!(index in slots)) slots[index] = initial;
-    return [slots[index], value => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
-  } };
+  const effects = [], pendingEffects = [];
+  const timers = new Map();
+  let now = 0, nextTimer = 0;
+  const window = {
+    setTimeout(callback, delay) {
+      const timer = ++nextTimer;
+      timers.set(timer, { callback, deadline: now + delay });
+      return timer;
+    },
+    clearTimeout(timer) { timers.delete(timer); },
+  };
+  const react = {
+    ...React, useMemo: fn => fn(),
+    useRef(value) {
+      const index = cursor++;
+      return slots[index] ??= { current: value };
+    },
+    useEffect(effect, deps) {
+      const index = cursor++;
+      const previous = effects[index];
+      if (previous && deps.every((dep, i) => Object.is(dep, previous.deps[i]))) return;
+      pendingEffects.push(() => {
+        previous?.cleanup?.();
+        effects[index] = { deps, cleanup: effect() };
+      });
+    },
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in slots)) slots[index] = initial;
+      return [slots[index], value => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
+    },
+  };
   const { PortalsPage } = compile('../src/features/profile/PortalsPage.tsx', name => {
     if (name.endsWith('/SavedChangeNotice')) return { SavedChangeNotice: () => null };
     if (name === 'react') return react;
@@ -44,7 +71,7 @@ function harness() {
     if (name.endsWith('/useCategoryManagement')) return { MAX_CATEGORY_LABEL: 40 };
     if (name === './portalHierarchy') return portalHierarchy;
     throw new Error(`Unexpected import: ${name}`);
-  });
+  }, { window });
   const chosen = [];
   const profile = { id: 'owner', categories: [
     { id: 'typography', label: 'Typography', iconName: 'type' },
@@ -57,7 +84,21 @@ function harness() {
       createCategory: async () => null, renameCategory: async () => false },
     theme: 'dark', accentColor: '#ff2d55', onChangeCategoryIcon() {},
     onboardingStatus: 'ready', onContinue: () => continued++, onSelectCategory: id => chosen.push(id), onBack() {} };
-  return { props, chosen, render: () => { cursor = 0; return PortalsPage(props); },
+  return { props, chosen,
+    render() {
+      cursor = 0;
+      const tree = PortalsPage(props);
+      pendingEffects.splice(0).forEach(effect => effect());
+      return tree;
+    },
+    advance(ms) {
+      now += ms;
+      for (const [id, { callback, deadline }] of timers) {
+        if (deadline > now) continue;
+        timers.delete(id);
+        callback();
+      }
+    },
     setAuth: patch => { auth = { ...auth, ...patch }; }, setPresentation: value => { presentation = value; },
     get continued() { return continued; }, get retried() { return retried; } };
 }
@@ -279,7 +320,7 @@ test('plus creates through management, retains the dialog on failure and opens t
   assert.deepEqual(h.chosen, ['created-portal']);
 });
 
-test('row options edit that portal without navigating and retain rejected rename drafts', async () => {
+test('row options retain rejected drafts and confirm a saved rename in green before closing', async () => {
   const h = harness(); const calls = [];
   h.props.management.toggleCategoryHidden = id => calls.push(['hide', id]);
   h.props.management.deleteCategory = id => calls.push(['delete', id]);
@@ -292,13 +333,40 @@ test('row options edit that portal without navigating and retain rejected rename
   assert.deepEqual(h.chosen, []);
   menu.props.onRenameStart();
   byLabel(h.render(), 'Rename Graphic Design').props.onChange({ target: { value: 'New name' } });
-  find(h.render(), 'form').props.onSubmit({ preventDefault() {} });
+  const submit = () => find(h.render(), 'form').props.onSubmit({ preventDefault() {} });
+  const saveButton = () => byLabel(h.render(), 'Save portal name');
+  let resolveRename;
+  h.props.management.renameCategory = (id, label) => {
+    assert.equal(id, 'design');
+    assert.equal(label, 'New name');
+    h.props.management.pending = { kind: 'rename', categoryId: id };
+    return new Promise(resolve => { resolveRename = resolve; });
+  };
+  submit();
+  assert.equal(saveButton().props.disabled, true);
+  assert.equal(saveButton().props.children.props.style, undefined);
+  h.props.management.pending = null;
+  resolveRename(false);
   await flush();
   assert.equal(byLabel(h.render(), 'Rename Graphic Design').props.value, 'New name');
-  h.props.management.renameCategory = async (id, label) => { assert.equal(id, 'design'); assert.equal(label, 'New name'); return true; };
-  find(h.render(), 'form').props.onSubmit({ preventDefault() {} });
+  assert.equal(saveButton().props.disabled, false);
+  assert.equal(saveButton().props.children.props.style, undefined);
+
+  submit();
+  h.props.profileQuery.profile.categories[1].label = 'New name';
+  h.props.management.pending = null;
+  resolveRename(true);
   await flush();
+  const saved = saveButton();
+  assert.equal(saved.props.disabled, true);
+  assert.equal(saved.props.children.props.keepColor, true);
+  assert.equal(saved.props.children.props.style.color, 'var(--status-success)');
+  assert.ok(elements(h.render()).some(node => node.props.role === 'status' && node.props.children === 'Portal name saved'));
+  h.advance(849);
+  assert.ok(find(h.render(), 'form'));
+  h.advance(1);
   assert.equal(find(h.render(), 'form'), undefined);
+  assert.ok(elements(h.render()).some(node => node.props.className === 'mobile-portal-label' && node.props.children === 'New name'));
   assert.deepEqual(h.chosen, []);
 });
 

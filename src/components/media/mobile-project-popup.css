@@ -10,9 +10,13 @@
   height: 100%;
 }
 
-[data-presentation='mobile'] .mobile-portal-index-heading [data-preview-creator-name][data-name-overflow] {
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 12px), transparent);
-  mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+[data-presentation='mobile'] :is(.mobile-portal-index-heading, [data-mobile-project-layout='list'] .mobile-project-index-copy) [data-preview-creator-name][data-name-overflow] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--portal-title-fade, 12px), #000 calc(100% - var(--portal-title-fade, 12px)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--portal-title-fade, 12px), #000 calc(100% - var(--portal-title-fade, 12px)), transparent);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='list'] .mobile-project-index-title[data-name-reduced-motion] {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] [data-project-row-actions] > [data-row-menu] {
   background: var(--project-control-surface, var(--surface-raised));

@@ -2,6 +2,7 @@ import { LoadingSkeleton } from '../components/ui/StateViews';
 import { DensitySeparator } from '../components/ui/DensitySeparator';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
+import type { TimelineProjectSource, TimelineReturn } from '../features/journey/desktopTimelineReturn';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
 import React, { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MoonIcon, SunIcon } from 'lucide-react';
@@ -28,8 +29,10 @@ const ProfileBioSheet = lazy(() => import('../features/profile/ProfileBioSheet')
 const ProfileCollectionGrid = lazy(() => import('../components/profile/ProfileCollectionGrid').then(module => ({ default: module.ProfileCollectionGrid })));
 
 /** Read-only composition of the same identity, artwork, density and preview UI. */
-export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboration, onMessage, onBack, active = true, onCaptureOpener, appearanceControls, onOpenPortals }: {
-  profile: Profile; categoryId: string | null; onOpen: (categoryId: string, projectId: string) => void; onCollaboration: () => void; onMessage: () => void; onBack?: () => void;
+export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboration, onMessage, onBack, active = true, onCaptureOpener, appearanceControls, onOpenPortals, timelineReturn, onLeaveTimeline }: {
+  profile: Profile; categoryId: string | null; onOpen: (categoryId: string, projectId: string, timelineSource?: TimelineProjectSource) => void; onCollaboration: () => void; onMessage: () => void; onBack?: () => void;
+  timelineReturn?: TimelineReturn;
+  onLeaveTimeline?: () => void;
   active?: boolean; onCaptureOpener?: React.MouseEventHandler<HTMLDivElement>;
   onOpenPortals?: React.MouseEventHandler<HTMLButtonElement>;
   appearanceControls?: {
@@ -44,7 +47,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   useEffect(() => { if (!active) setBioOpen(false); }, [active]);
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
-  const journey = useJourneySelection(profile.id, auth.viewerProfileId, false);
+  const journey = useJourneySelection(profile.id, auth.viewerProfileId, false, Boolean(timelineReturn));
   const [search, setSearch] = useSearchParams();
   const portalsView = !categoryId && search.get('view') === 'portals';
   const showTimeline = profile.showJourney === true && (isMobile || (!categoryId && !portalsView));
@@ -84,6 +87,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
               {(showTimeline || openPortals) && <div className="profile-identity-view" data-shared-portal-tabs={openPortals ? '' : undefined}><JourneyToggle view={isJourney ? 'journey' : 'portfolio'} showTimeline={showTimeline}
                 portalsButton={openPortals && <button type="button" data-shared-drawer-opener="" aria-haspopup="dialog" aria-controls="mobile-shared-profile-navigation" onClick={openPortals}>Portals</button>}
                 onChange={view => {
+                  if (view === 'portfolio') onLeaveTimeline?.();
                   journey.select(view);
                   if (categoryId) onBack?.();
                   else if (portalsView) setSearch(previous => { const next = new URLSearchParams(previous); next.delete('view'); return next; });
@@ -116,7 +120,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
     <div id="profile-content" className={`min-w-0 w-full pb-4 ${contentGutter}`}>
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
-      {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView active={active} toolbarHost={isMobile ? timelineToolbarHost : null} profile={profile} owner={false} showPopular={false} onOpen={(project, portalId) => onOpen(portalId ?? project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
+      {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView active={active} toolbarHost={isMobile ? timelineToolbarHost : null} profile={profile} owner={false} showPopular={false} timelineReturn={journey.restoring ? timelineReturn : undefined} onOpen={(project, portalId, timelineSource) => onOpen(portalId ?? project.categoryId, project.id, timelineSource)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
         : projects.length ? <JustifiedImageWall label={`${profile.name} — profile imagery`} columns={density.columns} onColumnsChange={density.setColumns} allowLayoutControls={false} items={items} />
         : <p className="px-3 py-10 text-[var(--text-secondary)]">No published projects here yet.</p>}
     </div>

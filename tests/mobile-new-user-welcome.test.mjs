@@ -67,6 +67,7 @@ function harness(presentation = 'mobile') {
   const names = (...items) => Object.fromEntries(items.map(name => [name, name]));
   react.useLayoutEffect = react.useEffect;
   const { VisitorApp } = sourceModule('src/visitor/VisitorApp.tsx', {
+    '../features/journey/desktopTimelineReturn': sourceModule('src/features/journey/desktopTimelineReturn.ts', { react }),
     '../features/projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
     '../features/profile/cataloguePageNavigation': { withCataloguePageTarget: href => href, captureCatalogueReaderOrigin: () => null, restoreCatalogueReaderOrigin: () => () => {} },
     './useMobileProjectReturn': { useMobileProjectReturn: () => ({ close: () => false, open: () => {}, captureOpener: () => {} }) },

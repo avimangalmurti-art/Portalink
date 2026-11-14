@@ -233,13 +233,16 @@ export function ProjectEditorDialog({
                     <ProjectCover source={addedCover?.previewUrl ?? coverSource?.sourceUrl} alt=""
                       kind={!addedCover && (coverSource?.kind === 'document' || coverSource?.kind === 'video') ? coverSource.kind : undefined}
                       pageNumber={addedCover ? undefined : coverPage} previewSource={addedCover ? undefined : renderedCoverPage}
-                      frame={coverFrame} fit={coverFrame ? 'cover' : 'contain'} sizes="56px" />
+                      frame={coverFrame} fit={coverFrame ? 'cover' : 'contain'} sizes="76px" />
                   </div>
-                  <div className="project-editor-cover-copy"><h4>Cover</h4>{!addedCover && coverSource?.kind !== 'image' && <p>{coverEdit?.displayName}</p>}</div>
-                  <div className="project-editor-cover-actions flex flex-wrap justify-end gap-2">
-                    <Button variant="secondary" data-ui-shape="action" size="sm" disabled={isLocked} onClick={showCoverChoices}>Choose cover</Button>
-                    {(addedCover || (canEditCover && coverSource)) && <Button variant="secondary" data-ui-shape="action" size="sm"
-                      disabled={addedCover ? queuedFilesLocked : isLocked} onClick={() => setRepositionId(addedCover?.id ?? coverSource?.id ?? null)}>Edit cover</Button>}
+                  <div className="project-editor-cover-copy">
+                    <h4>Cover</h4>
+                    {!addedCover && coverSource?.kind !== 'image' && <p>{coverEdit?.displayName}</p>}
+                    <div className="project-editor-cover-actions flex flex-wrap gap-2">
+                      <Button variant="secondary" data-ui-shape="action" size="sm" disabled={isLocked} onClick={showCoverChoices}>Choose cover</Button>
+                      {(addedCover || (canEditCover && coverSource)) && <Button variant="secondary" data-ui-shape="action" size="sm"
+                        disabled={addedCover ? queuedFilesLocked : isLocked} onClick={() => setRepositionId(addedCover?.id ?? coverSource?.id ?? null)}>Edit cover</Button>}
+                    </div>
                   </div>
                 </div>}
                 {!isMobile && canEditCover && coverSource && <div className="project-media-selection">

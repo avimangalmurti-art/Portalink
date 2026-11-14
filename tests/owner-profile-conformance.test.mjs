@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 
 test('owner shell stays on device theme; public renderer defaults to creator branding',()=>{
  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8'),visitor=readFileSync(new URL('../src/visitor/VisitorApp.tsx',import.meta.url),'utf8');
- assert.match(readFileSync(new URL('../src/components/UserProfilePage.tsx',import.meta.url),'utf8'),/useJourneySelection\(profile.id, auth.viewerProfileId, false\)/);
+ assert.match(readFileSync(new URL('../src/components/UserProfilePage.tsx',import.meta.url),'utf8'),/useJourneySelection\(profile\.id, auth\.viewerProfileId, false, Boolean\(timelineReturn\)\)/);
  assert.match(app,/const interfaceTheme = theme;/);assert.match(app,/const interfaceAccentColor = accentColor;/);assert.doesNotMatch(app,/const interfaceTheme = .*publicAppearance/);
  assert.match(visitor,/const publicStyle = profile\?\.publicAppearance/);assert.match(visitor,/const accentColor = appearance\.publicAccentColor \?\? publicStyle\?\.accentColor/);
 });
