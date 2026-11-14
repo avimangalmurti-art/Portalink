@@ -26,6 +26,7 @@ function fixture(initial = {}) {
   };
   const { VisitorProfileGrid } = sourceModule('src/visitor/VisitorProfileGrid.tsx', {
     '../features/projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
+    '../features/profile/portalHierarchy': sourceModule('src/features/profile/portalHierarchy.ts'),
     react,
     'lucide-react': { MoonIcon: 'moon-icon', SunIcon: 'sun-icon' },
     'react-router-dom': { useSearchParams: () => [new URLSearchParams(state.search), () => {}] },

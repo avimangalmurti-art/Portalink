@@ -181,7 +181,7 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
       setWebSelection(current => current === webSelection ? null : current);
     }} onSelect={(profileId, categoryId, projectId) => {
       const current = currentPopup.current;
-      if (!current.enabled || current.scope !== webPopupScope || current.selection !== webSelection || profileId !== selectedPortal.profileId || categoryId !== selectedPortal.id) return;
+      if (!current.enabled || current.scope !== webPopupScope || current.selection !== webSelection || profileId !== selectedPortal.profileId) return;
       setWebSelection(null);
       navigate(buildPath('project', { profileId, categoryId, projectId }));
     }} />}

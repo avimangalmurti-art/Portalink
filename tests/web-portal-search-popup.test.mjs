@@ -5,9 +5,11 @@ import { sourceModule } from './helpers/source-module.mjs';
 
 function fixture() {
   const calls = [], query = { status: 'loading', profile: null, retry() { calls.push('retry'); } };
+  let portalPath;
   const { WebPortalSearchPopup } = sourceModule('src/features/portals/WebPortalSearchPopup.tsx', {
     '../projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
-    react: { ...React, useMemo: fn => fn(), useRef: current => ({ current }) },
+    '../profile/portalHierarchy': sourceModule('src/features/profile/portalHierarchy.ts'),
+    react: { ...React, useMemo: fn => fn(), useRef: current => ({ current }), useState: initial => [portalPath ??= initial, next => { portalPath = typeof next === 'function' ? next(portalPath) : next; }] },
     'lucide-react': { ChevronLeftIcon: 'back-icon' },
     '../../components/profile/PortalProjectPopup': { PortalProjectPopup: 'chooser' },
     '../../components/profile/categoryIcons': { getCategoryIcon: () => 'portal-icon' },
@@ -50,6 +52,22 @@ test('unavailable or private creators/categories never become chooser rows, and 
   const status = h.render(); assert.equal(status.props.children.type, 'error');
   status.props.children.props.onRetry(); assert.equal(h.calls.at(-1), 'retry');
   h.query.status = 'not-found'; assert.equal(h.render().props.children.type, 'empty');
+});
+
+test('WEB Portal Search can open a child and selects its project through the child portal', () => {
+  const h = fixture();
+  h.query.status = 'ready';
+  h.query.profile = { ...h.profile, categories: [...h.profile.categories, { id: 'other', label: 'Detail', parentId: 'work' }] };
+  h.render().props.onOpenChild('other');
+  let chooser = h.render();
+  assert.equal(chooser.props.categoryId, 'other');
+  assert.equal(chooser.props.backLabel, 'Back to Work');
+  chooser.props.onSelect('other', 'another');
+  assert.deepEqual(h.calls.at(-1), ['select', 'creator', 'other', 'another']);
+  chooser.props.onBack();
+  chooser = h.render();
+  assert.equal(chooser.props.categoryId, 'work');
+  assert.equal(chooser.props.backLabel, 'Back to Portal search');
 });
 
 test('read-only WEB chooser grid renders real preview labels through an explicit opt-in only', () => {

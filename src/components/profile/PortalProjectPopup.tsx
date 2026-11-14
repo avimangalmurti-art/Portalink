@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { Profile } from '../../types/domain';
 import { getTypefaceStack } from '../../data/typefaces';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -9,6 +9,8 @@ import { EmptyState } from '../ui/StateViews';
 import { ProjectIndexList } from './ProjectIndexList';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from './MobilePortalProjectToolbar';
 import { sortPortalProjects, type PortalProjectBrowsing } from './portalProjectBrowsing';
+import { PortalChildren } from './PortalChildren';
+import { portalChildren } from '../../features/profile/portalHierarchy';
 import './portal-project-popup.css';
 import { projectBelongsToPortal } from '../../features/projects/projectPortals';
 
@@ -19,6 +21,7 @@ type PortalProjectPopupProps = {
   onClose: () => void;
   onBack?: () => void;
   onSelect: (categoryId: string, projectId: string) => void;
+  onOpenChild?: (id: string) => void;
   backLabel?: string;
   browsing?: PortalProjectBrowsing;
   /** Public Portal choosers opt their WEB popup into the existing browse tools. */
@@ -28,16 +31,25 @@ type PortalProjectPopupProps = {
 };
 
 /** A portal's existing navigation list, floating over the screen that opened it. */
-export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onClose, onSelect, backLabel = 'Back to profile', browsing, desktopBrowsing = false,
+export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onClose, onSelect, onOpenChild, backLabel = 'Back to profile', browsing, desktopBrowsing = false,
   closeOnSelect = true }: PortalProjectPopupProps) {
   const presentation = usePresentation();
   const [localLayout, setLocalLayout] = useState<'list' | 'grid'>('list');
   const [localSort, setLocalSort] = useState<MobileProjectSort>('recent');
   const { layout, sort, onLayout, onSort } = browsing ?? { layout: localLayout, sort: localSort, onLayout: setLocalLayout, onSort: setLocalSort };
   const ref = useRef<HTMLElement>(null);
+  const scrollRef = useRef<HTMLElement>(null);
+  const previousCategory = useRef(categoryId);
   useModalFocus(true, ref, onClose, true);
+  useLayoutEffect(() => {
+    if (previousCategory.current === categoryId) return;
+    previousCategory.current = categoryId;
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    ref.current?.focus({ preventScroll: true });
+  }, [categoryId]);
   const category = profile.categories.find(item => item.id === categoryId);
   const projects = profile.projects.filter(item => projectBelongsToPortal(item, categoryId));
+  const hasChildren = onOpenChild && portalChildren(profile.categories, categoryId).length > 0;
   const webBrowsing = presentation === 'web' && desktopBrowsing;
   const visibleProjects = presentation === 'mobile' || webBrowsing ? sortPortalProjects(projects, sort) : projects;
   if (!category) return null;
@@ -51,8 +63,9 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onCl
         ref={ref} className="shared-portal-popup ps-panel" role="dialog" aria-modal="true" aria-label={category.label} tabIndex={-1}>
         <MobilePortalProjectToolbar category={category} onBack={onBack} backLabel={backLabel} sharedReadOnly browsingControls={presentation === 'mobile' || webBrowsing}
           layout={layout} onLayout={onLayout} sort={sort} onSort={onSort} />
-        <nav data-project-index-list="" className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}>
-          {(presentation === 'mobile' || webBrowsing) && !projects.length && <EmptyState title={`No projects in ${category.label}`} description="No work has been published in this portal." />}
+        <nav ref={scrollRef} data-project-index-list="" className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}>
+          {onOpenChild && <PortalChildren categories={profile.categories} parent={category} onSelect={onOpenChild} />}
+          {(presentation === 'mobile' || webBrowsing) && !projects.length && !hasChildren && <EmptyState title={`No projects in ${category.label}`} description="No work has been published in this portal." />}
           <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={layout} readOnlyBrowsing={webBrowsing}
             typefaceStacks={Object.fromEntries(projects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
             typefaceIds={{}} hiddenIds={[]} pinnedIds={projects.filter(item => item.categoryId === categoryId && item.isPinned).map(item => item.id)}

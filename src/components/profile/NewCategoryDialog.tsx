@@ -11,12 +11,13 @@ type NewCategoryDialogProps = {
   onCancel: () => void;
   onCreate: (label: string, iconName: string) => void;
   /** Lets portal-facing entry points use product language without duplicating the dialog. */
-  itemName?: 'category' | 'portal';
+  itemName?: 'category' | 'portal' | 'sub-portal';
   isSaving?: boolean;
   error?: string | null;
   initialLabel?: string;
   initialIconName?: string;
   onDraftChange?: (label: string, iconName: string) => void;
+  renameOnly?: boolean;
 };
 const DEFAULT_ICON = 'shapes';
 
@@ -43,6 +44,7 @@ export function NewCategoryDialog({
   initialLabel = '',
   initialIconName = DEFAULT_ICON,
   onDraftChange,
+  renameOnly = false,
 }: NewCategoryDialogProps) {
   const presentation = usePresentation();
   const viewportRef = useDialogViewport(presentation === 'mobile');
@@ -64,6 +66,7 @@ export function NewCategoryDialog({
   }, []);
   const PreviewIcon = getCategoryIcon(iconName);
   const trimmed = label.trim();
+  const itemLabel = itemName === 'portal' ? 'Portal' : itemName === 'sub-portal' ? 'Sub-portal' : 'Category';
 
   function returnToTitle() {
     setIsIconSearch(false);
@@ -120,39 +123,39 @@ export function NewCategoryDialog({
           <button type="button" disabled={isSaving} onClick={onCancel} aria-label="Close" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="absolute left-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
           </button>
-          <h2 id="new-category-heading" className="text-medium font-semibold text-[var(--text-primary)]">New {itemName}</h2>
+          <h2 id="new-category-heading" className="text-medium font-semibold text-[var(--text-primary)]">{renameOnly ? 'Rename' : 'New'} {itemName}</h2>
         </div>
 
         <div data-icon-create-body="" ref={presentation === 'web' ? contentRef : undefined} className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
           <div className="new-portal-pinned-controls contents">
           {/* The choice, shown as the thing being made: the selected mark at the
              size it will be recognised at. */}
-          <div data-icon-create-preview-row="" className="flex justify-center pt-4">
+          {!renameOnly && <div data-icon-create-preview-row="" className="flex justify-center pt-4">
             <span data-icon-create-preview="" aria-hidden="true" className="shape-squircle flex h-[88px] w-[88px] items-center justify-center bg-[var(--accent-primary)] text-[var(--accent-foreground)]">
               <PreviewIcon className="h-10 w-10" />
             </span>
-          </div>
+          </div>}
 
-          <label htmlFor="new-category-title" className="sr-only">{isIconSearch ? 'Search icons' : `${itemName === 'portal' ? 'Portal' : 'Category'} title`}</label>
+          <label htmlFor="new-category-title" className="sr-only">{isIconSearch ? 'Search icons' : `${itemLabel} title`}</label>
           <div data-icon-create-field="" className="mt-5 flex items-center gap-2">
             <input ref={fieldRef} disabled={isSaving} id="new-category-title" data-ui-shape="field" type={isIconSearch ? 'search' : 'text'}
               value={isIconSearch ? iconQuery : label} onChange={event => changeField(event.target.value)}
               onKeyDown={event => { if (isIconSearch && event.key === 'Enter') event.preventDefault(); }}
               maxLength={isIconSearch ? undefined : 48} autoComplete="off"
-              placeholder={isIconSearch ? 'Search icons' : `${itemName === 'portal' ? 'Portal' : 'Category'} title`}
+              placeholder={isIconSearch ? 'Search icons' : `${itemLabel} title`}
               className="text-control h-11 min-w-0 flex-1 px-3 text-center text-base font-medium text-[var(--text-primary)] placeholder:font-normal placeholder:text-[var(--text-tertiary)]" />
-            <button ref={searchToggleRef} type="button" disabled={isSaving} onClick={toggleIconSearch}
+            {!renameOnly && <button ref={searchToggleRef} type="button" disabled={isSaving} onClick={toggleIconSearch}
               aria-label={isIconSearch ? `Return to ${itemName} title` : 'Search icons'} aria-pressed={isIconSearch}
               data-ui-control="icon" data-control-size="lg" data-control-variant="secondary" className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <InterfaceIcon icon={isIconSearch ? XIcon : SearchIcon} size="lg" />
-            </button>
+            </button>}
           </div>
           {error && <p role="alert" className="mt-2 text-[13px] text-[var(--text-primary)]">{error}</p>}
 
           </div>
-          <div ref={presentation === 'mobile' ? contentRef : undefined} data-portal-icon-scroll="" className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents overflow-y-auto"}>
-          <PortalIconLibrary selected={iconName} onSelect={selectIcon} searchQuery={isIconSearch ? iconQuery : ''} disabled={isSaving} compact label={`${itemName === 'portal' ? 'Portal' : 'Category'} icon`} />
-          </div>
+          {!renameOnly && <div ref={presentation === 'mobile' ? contentRef : undefined} data-portal-icon-scroll="" className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents overflow-y-auto"}>
+          <PortalIconLibrary selected={iconName} onSelect={selectIcon} searchQuery={isIconSearch ? iconQuery : ''} disabled={isSaving} compact label={`${itemLabel} icon`} />
+          </div>}
         </div>
 
         <div data-icon-create-footer="" className="flex shrink-0 items-center gap-3 border-t border-[var(--hairline)] px-6 py-4">
@@ -162,7 +165,7 @@ export function NewCategoryDialog({
           {/* Disabled until there is a name, because a category with no title is
              not a thing that can be created. */}
           <button type="submit" disabled={isIconSearch || !trimmed || isSaving} data-ui-control="button" data-control-size="md" data-control-variant="primary" className="flex-1 bg-[var(--accent-primary)] text-[var(--accent-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            {isSaving ? 'Creating…' : `Create ${itemName}`}
+            {renameOnly ? (isSaving ? 'Saving…' : 'Save name') : (isSaving ? 'Creating…' : `Create ${itemName}`)}
           </button>
         </div>
       </form>

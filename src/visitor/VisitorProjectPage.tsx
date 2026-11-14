@@ -13,6 +13,8 @@ import { LoadingSkeleton } from '../components/ui/StateViews';
 import { useElementSize } from '../hooks/useElementSize';
 import { allocateProjectPanels, type ProjectPanel } from '../utils/projectPanelLayout';
 import { ProjectIndexList } from '../components/profile/ProjectIndexList';
+import { PortalChildren } from '../components/profile/PortalChildren';
+import { portalChildren } from '../features/profile/portalHierarchy';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from '../components/profile/MobilePortalProjectToolbar';
 import { sortPortalProjects, type PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
 import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from '../features/projects/pageLayout';
@@ -20,8 +22,9 @@ import '../components/profile/web-reader-spacing.css';
 import { projectBelongsToPortal } from '../features/projects/projectPortals';
 
 /** Uses the canonical media viewer without importing owner workspace/editors. */
-export function VisitorProjectPage({ profile, project, categoryId, loading = false, pendingProjectId, onBack, onBackToProfile, onSelect, browsing, desktopNavigationStyle }: {
+export function VisitorProjectPage({ profile, project, categoryId, loading = false, pendingProjectId, onBack, onBackToProfile, onSelect, onOpenChild, browsing, desktopNavigationStyle }: {
   profile: Profile; project: Project | null; categoryId?: string; loading?: boolean; pendingProjectId?: string; onBack: () => void; onBackToProfile: () => void; onSelect: (id: string) => void; browsing?: PortalProjectBrowsing;
+  onOpenChild?: (id: string) => void;
   desktopNavigationStyle?: React.CSSProperties;
 }) {
   const isMobile = usePresentation() === 'mobile';
@@ -59,6 +62,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   const attachments = useMemo(() => project?.attachments ?? [], [project?.attachments]);
   const currentCategoryId = categoryId ?? project?.categoryId;
   const category = profile.categories.find(item => item.id === currentCategoryId);
+  const hasChildren = onOpenChild && category && portalChildren(profile.categories, category.id).length > 0;
   const categoryProjects = profile.projects.filter(item => projectBelongsToPortal(item, currentCategoryId) && item.isPubliclyVisible !== false);
   const visibleProjects = isMobile ? sortPortalProjects(categoryProjects, mobileSort) : !indexQuery.trim() ? categoryProjects
     : categoryProjects.filter(item => item.title.toLocaleLowerCase().includes(indexQuery.trim().toLocaleLowerCase()));
@@ -121,11 +125,12 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
       </div>
     </div>}
     {indexExpanded && <nav data-project-index-list="" aria-label={`${category?.label ?? 'Project'} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
+      {onOpenChild && category && <PortalChildren categories={profile.categories} parent={category} onSelect={onOpenChild} />}
       <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={mobileLayout} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
         typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.categoryId === currentCategoryId && item.isPinned).map(item => item.id)} activeProjectId={selectedProjectId} isOwner={false} sharedReadOnly
         onReorder={() => undefined} onToggleHidden={() => undefined} onTogglePinned={() => undefined}
         onSelect={id => { if (isMobile) changeIndex(false); onSelect(id); }} />
-      {!visibleProjects.length && <p className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]">{categoryProjects.length ? `No projects match “${indexQuery.trim()}”.` : 'No published projects in this portal.'}</p>}
+      {!visibleProjects.length && (!hasChildren || indexQuery.trim()) && <p className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]">{categoryProjects.length ? `No projects match “${indexQuery.trim()}”.` : 'No published projects in this portal.'}</p>}
     </nav>}
   </aside>;
   return <div className="relative flex h-full min-h-0 w-full flex-col" data-shared-project-reader="" data-web-reader-spacing={!isMobile ? '' : undefined} data-mobile-project-view={isMobile ? '' : undefined}>
@@ -143,6 +148,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
         isRailOpen={isMobile ? railOpen : layout.responseOpen} onRailOpenChange={open => { setRailOpen(open); setLastPanel(open ? 'response' : null); }} isOwner={false} readOnlyShare onClose={onBack}
         mobileNavigation={isMobile ? { indexOpener, index, isIndexOpen: indexOpen, onOpenIndex: () => changeIndex(true), onCloseIndex: () => changeIndex(false), onBack } : undefined} />
         : loading ? <LoadingSkeleton kind="reader" label="Opening shared project…" />
+        : hasChildren ? <p className="flex min-w-0 flex-1 items-center justify-center px-6 text-center text-[13px] text-[var(--text-secondary)]">Choose a portal from the index.</p>
         : <div className="flex min-w-0 flex-1 items-center justify-center px-6 text-center"><div className="max-w-[420px]">
           <h2 className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">No projects in {category?.label ?? 'this portal'}</h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work has been published in this portal.</p>

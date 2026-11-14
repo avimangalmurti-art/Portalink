@@ -10,6 +10,7 @@
 
 import type { AssetProcessingState } from './publishing';
 import type { ProjectRelevance } from './discovery';
+import type { ImagePosition } from './imageCrop';
 export type Id = string;
 
 /* ── People ─────────────────────────────────────────────────────────────── */
@@ -42,6 +43,8 @@ export type PublicAppearance = {
   mode: 'light' | 'dark' | 'auto';
 };
 
+export type TimelinePairFraming = { thenCover?: ImagePosition | null; nowCover?: ImagePosition | null };
+
 /** A creator's public identity plus the portfolio structure they own. */
 export type PublicCitationEvent = {
  id:string; direction:"incoming"|"outgoing"; item_id:string; label:string;
@@ -62,7 +65,7 @@ export type Profile = {
   showJourney?: boolean;
   showOutgoingCitations?: boolean;
   showIncomingCitations?: boolean;
-  thenNow?: { then: Id; now: Id } | null;
+  thenNow?: ({ then: Id; now: Id } & TimelinePairFraming) | null;
   id: Id;
   name: string;
   handle: string;
@@ -109,6 +112,7 @@ export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'lo
 export type CategoryFormat = 'grid' | 'gallery' | 'story' | 'feed' | 'video' | 'audio' | 'data';
 export type PortfolioCategory = {
   id: Id;
+  parentId?: Id;
   label: string;
   iconName: string;
   format: CategoryFormat;
@@ -125,6 +129,7 @@ export type PortfolioArrangement = {
 /** What a new category needs. Everything else is the implementation's business. */
 export type CreateCategoryInput = {
   label: string;
+  parentId?: Id;
   format?: CategoryFormat;
   iconName?: string;
   blurb?: string;
@@ -145,7 +150,7 @@ export type CategoryDeletionCapability = {
   removes: readonly string[];
   /** Why it cannot be done, when `isAvailable` is false. */
   reason?: string;
-  /** Projects still filed under this category. Zero means it is safe to remove. */
+  /** Projects still filed under this category. Check isAvailable before deleting. */
   blockingProjectCount: number;
 };
 export type CategoryMutationErrorCode = 'label_required' | 'label_too_long' | 'duplicate_label' | 'not_found' | 'category_not_empty' | 'deletion_unavailable' | 'unknown';

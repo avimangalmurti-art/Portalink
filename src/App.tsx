@@ -1019,7 +1019,9 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       nav.back();
       return;
     }
-    const fallback = isSharedRoute && viewedProfileId ? buildPath('sharedProfile', { profileId: viewedProfileId })
+    const fallback = viewedProfileId && activeCategory?.parentId
+      ? buildPath(isSharedRoute ? 'sharedProfileCategory' : 'profileCategory', { profileId: viewedProfileId, categoryId: activeCategory.parentId })
+      : isSharedRoute && viewedProfileId ? buildPath('sharedProfile', { profileId: viewedProfileId })
       : isOwnerMode ? buildPath('portals')
       : viewedProfileId ? buildPath('profile', { profileId: viewedProfileId }) : buildPath('home');
     nav.to(fallback, true);
@@ -1032,11 +1034,19 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   );
   function returnToPortalCollection() {
     if (!viewedProfileId) return;
+    const categoryRoute = isSharedRoute ? 'sharedProfileCategory' : 'profileCategory';
+    const parentPath = activeCategory?.parentId
+      ? buildPath(categoryRoute, { profileId: viewedProfileId, categoryId: activeCategory.parentId }) : undefined;
     if (presentation === 'mobile' && activeCategoryId && returnToMobilePortalCollection({
-      categoryPath: buildPath(isSharedRoute ? 'sharedProfileCategory' : 'profileCategory', { profileId: viewedProfileId, categoryId: activeCategoryId }),
+      categoryPath: buildPath(categoryRoute, { profileId: viewedProfileId, categoryId: activeCategoryId }),
       profilePath: buildPath(isSharedRoute ? 'sharedProfile' : 'profile', { profileId: viewedProfileId }),
-      owner: isOwnerMode && !isSharedRoute
+      owner: isOwnerMode && !isSharedRoute,
+      parentPath,
     })) return;
+    if (parentPath) {
+      nav.to(parentPath, true);
+      return;
+    }
     const path = isSharedRoute ? buildPath('sharedProfile', { profileId: viewedProfileId })
       : isOwnerMode ? buildPath('portals')
       : `${buildPath('profile', { profileId: viewedProfileId })}?view=portals`;
@@ -1488,12 +1498,12 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     && management.arrangement?.categoryOrder.includes(activeCategory.id) && !management.isLoadingArrangement && !management.arrangementError
     && management.pending?.kind !== 'arrangement'
     && !management.arrangement.hiddenCategoryIds.includes(activeCategory.id));
-  const categoryPage = activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} readerLoading={isWebReaderLoading} onBack={returnFromPortal} onBackToPortals={returnToPortalCollection} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} canShareCategory={canShareActiveCategory} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
+  const categoryPage = activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} readerLoading={isWebReaderLoading} onBack={returnFromPortal} onBackToPortals={returnToPortalCollection} onSelectProject={selectProject} onSelectSubPortal={selectProfileCategory} onCreateProject={isOwnerMode ? requestPublish : undefined} categoryManagement={isOwnerMode && !isSharedRoute ? management : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} canShareCategory={canShareActiveCategory} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
         const target = discoveryReturn.path;
         const viewTransition = activeProjectId ? beginProjectContinuity(activeProjectId, 'return') : false;
         setDiscoveryReturn(null);
         nav.to(target, false, viewTransition);
-      } : undefined} /> : null;
+      } : undefined} portalAppearance={{ accentColor: interfaceAccentColor, theme: interfaceTheme }} onChangeCategoryIcon={isOwnerMode ? setIconPickerCategoryId : undefined} /> : null;
   const mobileWallScrollKey = `mobile-profile-wall:${auth.user?.id ?? 'guest'}:${viewedProfile?.id}:${isSharedRoute}`;
   const revealPublishedProjectId = presentation === 'mobile' && isOwnerMode && route.kind === 'profile' && screenNavigationType === 'PUSH'
     && typeof navigationState?.revealPublishedProjectId === 'string' ? navigationState.revealPublishedProjectId : undefined;

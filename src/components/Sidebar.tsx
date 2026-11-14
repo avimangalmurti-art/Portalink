@@ -14,6 +14,7 @@ import type { NavigationDestination } from './navigation';
 import type { Profile, PortfolioCategory as ProfileCategory } from '../types/domain';
 import { getCategoryIcon } from './profile/categoryIcons';
 import type { CategoryManagement } from '../features/profile/useCategoryManagement';
+import { applyPortalOrder, portalChildren, portalRootId } from '../features/profile/portalHierarchy';
 import type { CategoryDeletionCapability } from '../types/domain';
 import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, ChartNoAxesColumnIcon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, SearchIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, UserSearchIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, WarehouseIcon } from 'lucide-react';
 import { PortalRingIcon } from './PortalRingIcon';
@@ -536,6 +537,9 @@ export function Sidebar({
   // Hidden categories sink to the bottom of the list.
   const arrangedCategories = useMemo(() => [...orderedCategories.filter((category) => !hiddenCategoryIds.includes(category.id)), ...orderedCategories.filter((category) => hiddenCategoryIds.includes(category.id))], [hiddenCategoryIds, orderedCategories]);
   const arrangedCategoryIds = useMemo(() => arrangedCategories.map((category) => category.id), [arrangedCategories]);
+  const rootCategories = useMemo(() => portalChildren(arrangedCategories), [arrangedCategories]);
+  const rootCategoryIds = useMemo(() => rootCategories.map(category => category.id), [rootCategories]);
+  const activeRootCategoryId = useMemo(() => portalRootId(orderedCategories, activeCategoryId ?? null), [orderedCategories, activeCategoryId]);
   const [draftCategoryIds, setDraftCategoryIds] = useState<string[] | null>(null);
   const draftCategoryIdsRef = useRef<string[] | null>(null);
 
@@ -545,21 +549,21 @@ export function Sidebar({
   useEffect(() => {
     setDraftCategoryIds((current) => {
       if (current === null) return null;
-      const known = new Set(arrangedCategoryIds);
+      const known = new Set(rootCategoryIds);
       const retained = (current ?? []).filter((id) => known.has(id));
-      const merged = [...retained, ...arrangedCategoryIds.filter((id) => !retained.includes(id))];
+      const merged = [...retained, ...rootCategoryIds.filter((id) => !retained.includes(id))];
       draftCategoryIdsRef.current = merged;
       return merged;
     });
-  }, [arrangedCategoryIds]);
+  }, [rootCategoryIds]);
 
   const displayedCategories = useMemo(() => {
     if (!draftCategoryIds) {
-      return arrangedCategories;
+      return rootCategories;
     }
-    const byId = new Map(arrangedCategories.map((category) => [category.id, category]));
+    const byId = new Map(rootCategories.map((category) => [category.id, category]));
     return draftCategoryIds.map((id) => byId.get(id)).filter((category): category is ProfileCategory => Boolean(category));
-  }, [arrangedCategories, draftCategoryIds]);
+  }, [rootCategories, draftCategoryIds]);
   const displayedCategoryIds = useMemo(() => displayedCategories.map((category) => category.id), [displayedCategories]);
   const isCategoryReorderDisabled = management.isLoadingArrangement || !management.arrangement || management.pending !== null;
 
@@ -569,7 +573,7 @@ export function Sidebar({
   }
 
   async function commitDraftCategoryOrder(nextIds = draftCategoryIdsRef.current) {
-    try { if (nextIds && !isCategoryReorderDisabled) await management.reorderCategories(nextIds); }
+    try { if (nextIds && !isCategoryReorderDisabled) await management.reorderCategories(applyPortalOrder(arrangedCategoryIds, nextIds)); }
     finally { draftCategoryIdsRef.current = null; setDraftCategoryIds(null); }
   }
 
@@ -778,14 +782,14 @@ export function Sidebar({
                       </span>
                     </div>}
                   {isOwnerMode ? <Reorder.Group as="ul" axis="y" values={displayedCategoryIds} onReorder={updateDraftCategoryOrder} className="m-0 list-none p-0">
-                      {displayedCategories.map((category) => <DraggableCategoryRow key={category.id} category={decorateCategory(category)} isActive={activeTarget === 'category' && activeCategoryId === category.id} accentColor={accentColor} theme={theme} isHidden={hiddenCategoryIds.includes(category.id)} isReorderDisabled={isCategoryReorderDisabled} isRenaming={renamingCategoryId === category.id} isBusy={management.pending?.categoryId === category.id} readDeletionCapability={() => management.readDeletionCapability(category.id)} onSelect={() => handleCategorySelect(category.id)} onMoveByKeyboard={moveCategory} onReorderCommit={() => void commitDraftCategoryOrder()} onHideToggle={() => void management.toggleCategoryHidden(category.id)} onRenameStart={() => setRenamingCategoryId(category.id)} onRenameCancel={() => setRenamingCategoryId(null)} onRenameCommit={(label) => {
+                      {displayedCategories.map((category) => <DraggableCategoryRow key={category.id} category={decorateCategory(category)} isActive={activeTarget === 'category' && activeRootCategoryId === category.id} accentColor={accentColor} theme={theme} isHidden={hiddenCategoryIds.includes(category.id)} isReorderDisabled={isCategoryReorderDisabled} isRenaming={renamingCategoryId === category.id} isBusy={management.pending?.categoryId === category.id} readDeletionCapability={() => management.readDeletionCapability(category.id)} onSelect={() => handleCategorySelect(category.id)} onMoveByKeyboard={moveCategory} onReorderCommit={() => void commitDraftCategoryOrder()} onHideToggle={() => void management.toggleCategoryHidden(category.id)} onRenameStart={() => setRenamingCategoryId(category.id)} onRenameCancel={() => setRenamingCategoryId(null)} onRenameCommit={(label) => {
                         // The category page titles itself from the record, so the
                         // rename goes to the record rather than to a local label map.
                         void commitRename(category.id, label);
                       }} onChangeIcon={() => onChangeCategoryIcon(category.id)} onDelete={() => deleteCategory(category.id)} />)}
                     </Reorder.Group> : <ul className="m-0 list-none p-0">
-                      {arrangedCategories.map((category) => <li key={category.id} className="relative list-none">
-                          <CategoryRowContent category={decorateCategory(category)} isActive={activeTarget === 'category' && activeCategoryId === category.id} accentColor={accentColor} theme={theme} isDraggable={false} isHidden={hiddenCategoryIds.includes(category.id)} onSelect={() => handleCategorySelect(category.id)} />
+                      {rootCategories.map((category) => <li key={category.id} className="relative list-none">
+                          <CategoryRowContent category={decorateCategory(category)} isActive={activeTarget === 'category' && activeRootCategoryId === category.id} accentColor={accentColor} theme={theme} isDraggable={false} isHidden={hiddenCategoryIds.includes(category.id)} onSelect={() => handleCategorySelect(category.id)} />
                         </li>)}
                     </ul>}
                   </nav>

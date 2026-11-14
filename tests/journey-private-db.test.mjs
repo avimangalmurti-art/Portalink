@@ -43,5 +43,51 @@ test('private Journey pairs survive opt-in changes but cannot be read by visitor
  await db.exec('reset role');await db.query('update projects set is_hidden=true where id=$1',[id(31)]);await role('authenticated');assert.equal(await mirror(),null);assert.equal(await privatePair(),undefined);
  await db.exec('reset role');await db.query('update projects set is_hidden=false where id=$1',[id(31)]);await role('authenticated');await write(pair,false);
  await db.exec('reset role');await db.query('update portfolio_categories set is_hidden=true where id=$1',[id(21)]);await role('authenticated');assert.equal(await privatePair(),undefined);
+ await db.exec('reset role');
+ await db.query('update portfolio_categories set is_hidden=false where id=$1',[id(21)]);
+ await db.exec(`update profiles set show_journey=true where id='${id(11)}';
+   create function public.owns_profile(pid uuid) returns boolean language sql stable as $$
+     select exists(select 1 from public.profiles where id=pid and account_id=auth.uid()
+       and current_user = 'authenticated')
+   $$;
+   create function public.can_view_profile(pid uuid) returns boolean language sql stable as $$
+     select exists(select 1 from public.profiles where id=pid)
+   $$;`);
+ for(const name of ['202610150002_profile_timeline_pairs', '20261113193355_profile_timeline_pair_edit', '20261114043924_timeline_pair_cover_framing']){
+   await db.exec(readFileSync(new URL(`../supabase/migrations/${name}.sql`,import.meta.url),'utf8'));
+ }
+ const thenCover={x:0.2,y:0.7,zoom:2},nowCover={x:1,y:0,zoom:3};
+ const framed={...pair,thenCover,nowCover};
+ const modern=async()=> (await db.query('select then_project_id,now_project_id,then_cover,now_cover from profile_timeline_pairs where profile_id=$1',[id(11)])).rows[0];
+ const updateCover=(column,value)=>db.query(`update profile_timeline_pairs set ${column}=$1 where profile_id=$2 returning id`,[value,id(11)]);
+ await role('authenticated');
+ await write(framed);assert.deepEqual(await privatePair(),framed);assert.deepEqual(await mirror(),framed);
+ await write(pair);assert.deepEqual(await privatePair(),framed,'A legacy client can save the same project IDs.');
+ await write({...pair,thenCover:null});assert.deepEqual(await privatePair(),{...pair,nowCover});
+ await write(framed);
+ await assert.rejects(write({...framed,thenCover:{x:0,y:0,zoom:4}}),{code:'23514'});
+ await assert.rejects(write({...framed,thenCover:{x:0,y:0,zoom:'1'}}),{code:'23514'});
+ await assert.rejects(write({...framed,thenCover:{x:0,y:0,zoom:1,url:'invalid'}}),{code:'23514'});
+ await db.query('insert into profile_timeline_pairs(profile_id,then_project_id,now_project_id) values($1,$2,$3)',[id(11),id(32),id(31)]);
+ const modernThen={...thenCover,projectId:id(32)},modernNow={...nowCover,projectId:id(31)};
+ assert.deepEqual(await modern(),{then_project_id:id(32),now_project_id:id(31),then_cover:null,now_cover:null});
+ assert.equal((await updateCover('then_cover',modernThen)).rows.length,1);
+ assert.equal((await updateCover('now_cover',modernNow)).rows.length,1);
+ assert.deepEqual((await modern()).now_cover,modernNow);
+ await assert.rejects(updateCover('then_cover',{...modernThen,projectId:id(31)}),{code:'23514'});
+ await assert.rejects(updateCover('then_cover',{...modernThen,y:-1}),{code:'23514'});
+ await role('authenticated',2);
+ assert.equal((await updateCover('then_cover',null)).rows.length,0);
+ const unchanged={then_project_id:id(32),now_project_id:id(31),then_cover:modernThen,now_cover:modernNow};
+ assert.deepEqual(await modern(),unchanged);
+ await role('anon');assert.deepEqual(await modern(),unchanged);assert.deepEqual(await mirror(),framed);
+ await assert.rejects(updateCover('then_cover',null),{code:'42501'});
+ await role('authenticated');await write({then:id(32),now:id(31)});
+ assert.deepEqual(await privatePair(),{then:id(32),now:id(31)},'Replacement project IDs need their own framing.');
+ await db.query('update profile_timeline_pairs set then_project_id=$1,now_project_id=$2 where profile_id=$3',[id(31),id(32),id(11)]);
+ assert.deepEqual(await modern(),{then_project_id:id(31),now_project_id:id(32),then_cover:null,now_cover:null});
+ await updateCover('then_cover',{...thenCover,projectId:id(31)});
+ await db.query('update profiles set show_journey=false where id=$1',[id(11)]);
+ await role('anon');assert.equal(await modern(),undefined);assert.equal(await mirror(),null);
  }finally{await db.close();}
 });

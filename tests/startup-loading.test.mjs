@@ -22,7 +22,7 @@ function serviceFunction(name, globals) {
 }
 function query(result, onRead = () => {}) {
   const chain = { then(resolve, reject) { onRead(); return Promise.resolve(result).then(resolve, reject); } };
-  for (const method of ['select', 'eq', 'in', 'order', 'maybeSingle']) chain[method] = () => chain;
+  for (const method of ['select', 'eq', 'in', 'order', 'maybeSingle', 'range']) chain[method] = () => chain;
   return chain;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -78,14 +78,17 @@ test('profile data starts alongside the local session hint and server-readable r
     const rows = {
       profiles: [{ id: 'owner', account_id: 'owner-account', name: 'Owner', handle: 'owner', is_private: false }],
       portfolio_categories: [false, true].map((hidden, i) => ({ id: `c${i}`, profile_id: 'owner', is_hidden: hidden })),
+      portal_hierarchy: [],
       projects: [false, true].map((hidden, i) => ({ id: `p${i}`, profile_id: 'owner', category_id: `c${i}`, is_hidden: hidden, position: i })),
       project_attachments: [],
     };
+    const requireSupabase = () => ({ auth: { getSession: () => auth },
+      from: table => query({ data: rows[table], error: null }, () => { if (table === 'profiles') profileStarted = true; }),
+    });
     const run = serviceFunction('loadProfiles', {
       ...sourceModule('src/features/employer/employer.ts'), ...sourceModule('src/features/journey/journey.ts'),
-      requireSupabase: () => ({ auth: { getSession: () => auth },
-        from: table => query({ data: rows[table], error: null }, () => { if (table === 'profiles') profileStarted = true; }),
-      }),
+      ...sourceModule('src/services/supabase/portalHierarchy.ts', { './client': { requireSupabase } }),
+      requireSupabase,
       hydrateProjects: async projects => new Map(projects.map(p => [p.id, p])),
       readFeaturedPortals: async () => new Map(),
       deriveInitials: () => 'O', asStats: () => [], asStringRecord: () => ({}), asLinks: () => [], normalizePublicAppearance: () => ({}), normalizeProjectGridColumns: () => 2,

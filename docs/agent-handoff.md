@@ -1,3 +1,31 @@
+## 2026-11-13 — Portal and Timeline release preparation
+
+Release checkout `logs/mobile-catalogue-portals-tab`, branch `codex/mobile-catalogue-portals-tab`, from GitHub main `c23bb59`, which matches live Sites 632. The combined source contains the main and shared mobile Portals tabs, public follower and following lists for signed-in platform visitors, nested Portals on mobile and web, and independent Then/Now cover framing. The Then/Now patch was reconciled with the current Journey and prototype-service changes. Current release work excludes the separately prepared manual Splash Screen project thumbnail repair and the older cross-service audit branch.
+
+Three reviewed additive migrations are pending in production, in order `20261114043924_timeline_pair_cover_framing.sql`, `20261114071624_public_profile_connections.sql`, and `20261114072330_portal_hierarchy.sql`. Hosted read-only preflight confirmed prerequisites and absence of the target objects. Production application and the Sites rollout remain separate. No production data was changed during preparation.
+
+## 2026-11-13 — Nested Portals
+
+Continued in `logs/mobile-catalogue-portals-tab` on `codex/mobile-catalogue-portals-tab` from GitHub main `c23bb59`. Inside a Portal, its owner can choose **New project** or **New sub-portal** from the plus menu on mobile and web. A sub-portal appears under its parent and can contain projects and further sub-portals. The platform Portal indexes, shared catalogue and reader navigation follow the hierarchy. Project placements and existing Portal URLs continue to use their existing IDs.
+
+`20261114072330_portal_hierarchy.sql` adds an owner-checked creation RPC and a same-profile parent relation. Each Portal retains its own visibility. Readers receive a relationship only if both Portals are visible, and a Portal with sub-portals cannot be deleted. Changes are local and unpublished. The hierarchy and earlier public-connections migrations are unapplied in production.
+
+Typecheck, scoped ESLint with existing warnings, and a web and worker build with synthetic configuration passed. Eleven adjacent database and service checks passed, including the full replay of 60 migrations and the access and membership boundaries. Focused Portal, reader, profile persistence, and startup checks passed after updating their fixtures. Chromium with compiled prototype data verified owner creation, the nested listing, and returning to the parent at 420 and 1366 CSS pixels. The broader suite initially received an incorrect PGlite path. Targeted reruns used the corrected path. Windows also denied symlink creation for two unrelated checkpoint tests. Physical-device and live behavior remain unverified.
+
+## 2026-11-13 — Main mobile profile Portals and public follow lists
+
+Continued in `logs/mobile-catalogue-portals-tab` on `codex/mobile-catalogue-portals-tab` from GitHub main `c23bb59`. The main mobile profile uses Catalogue, Portals, Timeline in its header, with Projects, Followers, and Following in the count row. Portals opens the existing profile popup. The desktop profile keeps its current Portals count.
+
+Signed-in visitors on the main platform can open the two follow lists for public accounts. The additive `20261114071624_public_profile_connections.sql` returns paginated identity summaries for accepted connections. The existing private-profile rules and table permissions remain intact. The separate shared link keeps its current social UI. Changes are local and unpublished, and the migration is unapplied in production.
+
+Typecheck, targeted lint with five existing warnings, and 132 focused tests passed. The two PGlite checks replayed all 59 migrations and covered the new query and existing access boundaries. Chromium with prototype data verified the profile header and Portals popup at 320 and 420 CSS pixels and the desktop header at 1366. Live profile connection lists and physical iPhone testing remain pending.
+
+## 2026-11-13 — Mobile shared catalogue Portals button
+
+In `logs/mobile-catalogue-portals-tab` on `codex/mobile-catalogue-portals-tab` from GitHub main `c23bb59`, the public mobile header places Portals between Catalogue and Timeline. The text button opens the existing drawer and replaces the floating app icon on the catalogue. Portals remains available when the creator hides Timeline, and desktop keeps its sidebar. Changes are local and unpublished.
+
+Changed `VisitorApp.tsx`, `VisitorProfileGrid.tsx`, `JourneyToggle.tsx`, `SharedProfileSidebar.tsx`, `PublicProfileDrawer.tsx` and `public-mobile.css`. Typecheck, targeted ESLint and 124 focused tests passed. Local Chromium with fixture data verified the header, drawer interaction and focus return at 320, 376 and 420 CSS pixels, the project chooser at 420, and the existing desktop sidebar at 1366. Physical iPhone and Instagram testing remain pending.
+
 ## 2026-11-13 — Mobile profile audio close button
 
 In `logs/portal-catalogue-release` on `codex/portal-copy-owner-only` at `071767c`, `ProfileAudio.tsx` and `profile-audio.css` use the system red fill and white X on the mobile player close button. The change is local and unpublished. A local Chromium fixture confirmed that the 44px circle uses red in light and dark themes and closes the popup while playback continues. Desktop retains the secondary style.

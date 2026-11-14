@@ -1006,7 +1006,7 @@ test('public readers retain a density slider; WEB, non-page media and callback-f
   assert.equal(nodes(single.render(callbacks)).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
 });
 
-test('project workspace combines only resolved mobile projects and uses the existing Back callback', () => {
+test('project workspace handles mobile projects, nested Portals and Back', async () => {
   const compile = (path, require) => {
     const exports = {};
     vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
@@ -1018,6 +1018,8 @@ test('project workspace combines only resolved mobile projects and uses the exis
     return exports;
   };
   const geometry = compile('../src/utils/projectPanelLayout.ts', () => ({}));
+  const hierarchy = compile('../src/features/profile/portalHierarchy.ts', () => ({}));
+  const addChoices = 'add-portal-choices', subPortalEditor = 'sub-portal-editor', childList = 'child-portals';
   const { MobilePortalProjectToolbar } = compile('../src/components/profile/MobilePortalProjectToolbar.tsx', name => {
     if (name === 'react') return React;
     if (name.endsWith('/pageLayout')) return { MIN_PAGES_PER_ROW: 1, MAX_PAGES_PER_ROW: 6 };
@@ -1048,6 +1050,10 @@ test('project workspace combines only resolved mobile projects and uses the exis
     } };
   const { ProfileCategoryPage } = compile('../src/components/profile/ProfileCategoryPage.tsx', name => {
     if (name.endsWith('/projectPortals')) return compile('../src/features/projects/projectPortals.ts', () => ({}));
+    if (name.endsWith('/portalHierarchy')) return hierarchy;
+    if (name.endsWith('/MobileActionSheet')) return { MobileActionSheet: addChoices };
+    if (name.endsWith('/NewCategoryDialog')) return { NewCategoryDialog: subPortalEditor };
+    if (name.endsWith('/PortalChildren')) return { PortalChildren: childList };
     if (name.endsWith('/ExportSheet')) return {ExportSheet:'export-sheet'};
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
@@ -1193,6 +1199,32 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.ok(nodes(tree).find(node => node.type === IndexPortal));
   assert.equal(nodes(tree).find(node => node.type === Viewer), undefined);
   assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), ['work', 'second']);
+  const child = { id: 'child', parentId: 'portal', label: 'Child', iconName: 'camera' };
+  const creations = [], openedChildren = [];
+  const portalProps = { ...props, activeProjectId: null, viewerRole: 'owner',
+    profile: { ...props.profile, categories: [...props.profile.categories, child] },
+    onCreateProject: () => creations.push('project'),
+    onSelectSubPortal: id => openedChildren.push(id),
+    categoryManagement: { dismissFailure() {}, async createCategory(...args) { creations.push(args); return child; } },
+  };
+  tree = render(portalProps);
+  nodes(tree).find(node => node.type === childList).props.onSelect(child.id);
+  assert.deepEqual(openedChildren, [child.id]);
+  button(toolbar(tree), 'Add to Portal').props.onClick();
+  let chooser = nodes(render(portalProps)).find(node => node.type === addChoices);
+  assert.deepEqual(Array.from(chooser.props.model.groups[0], action => action.label), ['New project', 'New sub-portal']);
+  chooser.props.onAction(chooser.props.model.groups[0][0]);
+  assert.deepEqual(creations, ['project']);
+  assert.equal(nodes(render(portalProps)).some(node => node.type === addChoices), false);
+  button(toolbar(render(portalProps)), 'Add to Portal').props.onClick();
+  chooser = nodes(render(portalProps)).find(node => node.type === addChoices);
+  chooser.props.onAction(chooser.props.model.groups[0][1]);
+  const editor = nodes(render(portalProps)).find(node => node.type === subPortalEditor);
+  assert.equal(editor.props.itemName, 'sub-portal');
+  await editor.props.onCreate('Drafts', 'shapes');
+  assert.deepEqual(creations, ['project', ['Drafts', 'shapes', 'portal']]);
+  assert.equal(nodes(render(portalProps)).some(node => node.type === subPortalEditor), false);
+  assert.equal(button(toolbar(render({ ...portalProps, viewerRole: 'visitor' })), 'Add to Portal'), undefined);
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
     for (const sharedReadOnly of [false, true]) {
       tree = render({ ...props, activeProjectId: null, viewerRole, sharedReadOnly,
@@ -1340,7 +1372,7 @@ test('direct public-project Back remains public; existing browser history takes 
   for (const idx of [0, 2]) {
     const calls = [];
     const back = vm.runInNewContext(`(${fn})`, { window: { history: { state: { idx } } },
-      isSharedRoute: true, viewedProfileId: 'creator', isOwnerMode: false,
+      isSharedRoute: true, viewedProfileId: 'creator', isOwnerMode: false, activeCategory: null,
       nav: { back: () => calls.push('back'), to: (...args) => calls.push(args) },
       buildPath: (kind, values) => `${kind}/${values?.profileId ?? ''}` });
     back();
@@ -1356,7 +1388,7 @@ test('Back to portals targets the viewed creator collection rather than previous
     [false, true, 'portals/'], [false, false, 'profile/creator?view=portals'], [true, false, 'sharedProfile/creator'],
   ]) {
     const calls = [];
-    const go = vm.runInNewContext(`(${fn})`, { presentation: 'mobile', activeCategoryId: 'art', returnToMobilePortalCollection: () => false,
+    const go = vm.runInNewContext(`(${fn})`, { presentation: 'mobile', activeCategoryId: 'art', activeCategory: null, returnToMobilePortalCollection: () => false,
       isSharedRoute, isOwnerMode, viewedProfileId: 'creator',
       nav: { to: (...args) => calls.push(args), back: () => assert.fail('Must not revisit a project') },
       buildPath: (kind, values) => `${kind}/${values?.profileId ?? ''}` });

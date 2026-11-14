@@ -1,5 +1,6 @@
 import { withProjectLocation } from '../../features/publishing/projectLocation';
 import { projectBelongsToPortal } from '../../features/projects/projectPortals';
+import { sameTimelineCoverPosition } from '../../features/journey/journey';
 import { normalizePublicAppearance } from '../../utils/publicAppearance';
 import { projectRelevanceForPersistence } from '../../domain/discovery/ranking';
 /**
@@ -23,7 +24,7 @@ import { defaultReportingPeriodId, gazeCapital, getReportingPeriod, kpisForPerio
 import { getSeededProjectTypefaceId } from '../../data/projectTypefaces';
 import { typefaces } from '../../data/typefaces';
 import { attachmentsFromPreparedMedia } from '../../features/media/projectAttachments';
-import type { CommentService, DiscoveryService, EngagementService, LiveService, MediaService, MessagingService, NotificationService, ProfileService, ProjectService, SocialService } from '../interfaces';
+import type { CommentService, DiscoveryService, EngagementService, LiveService, MediaService, MessagingService, NotificationService, ProfileService, ProjectService, SocialService, TimelinePair } from '../interfaces';
 import { EngagementServiceError } from '../../types/engagement';
 import { SocialServiceError } from '../../types/social';
 import { CommentServiceError, validateCommentBody } from '../../types/comments';
@@ -118,16 +119,22 @@ function profileForCurrentViewer(profile: PrototypeProfile): Profile {
   const session = readPrototypeSession();
   const isOwner = session?.user.profileId === profile.id;
   const hiddenCategoryIds = new Set(savedArrangements.get(profile.id)?.hiddenCategoryIds ?? []);
-  const categories = isOwner ? profile.categories : profile.categories.filter((category) => !hiddenCategoryIds.has(category.id));
+  const categories: PortfolioCategory[] = isOwner ? profile.categories : profile.categories.filter((category) => !hiddenCategoryIds.has(category.id));
   const visibleCategoryIds = new Set(categories.map((category) => category.id));
+  const visibleCategories = categories.map(category => {
+    if (!category.parentId || visibleCategoryIds.has(category.parentId)) return category;
+    const visibleCategory = { ...category };
+    delete visibleCategory.parentId;
+    return visibleCategory;
+  });
   const projects = isOwner ? profile.projects : profile.projects.filter((project) => {
     if (!visibleCategoryIds.has(project.categoryId)) return false;
     return !(savedProjectArrangements.get(projectArrangementKey(profile.id, project.categoryId))?.hiddenProjectIds.includes(project.id) ?? false);
   }).map(project => ({ ...project, additionalPortalIds: project.additionalPortalIds?.filter(id => visibleCategoryIds.has(id)) }));
-  return { ...profile, categories, projects } as Profile;
+  return { ...profile, categories: visibleCategories, projects } as Profile;
 }
 
-const timelinePairs = new Map<string, Array<{ id: string; then: string; now: string }>>();
+const timelinePairs = new Map<string, TimelinePair[]>();
 const timelinePairOrders = new Map<Id, string[]>();
 let timelinePairSequence = 0;
 export const mockProfileService: ProfileService = {
@@ -169,18 +176,24 @@ export const mockProfileService: ProfileService = {
     if (pairs.some(pair => pair.then === thenId && pair.now === nowId)) throw new Error('This pair already exists.');
     timelinePairs.set(profileId, [...pairs, { id: 'pair-' + ++timelinePairSequence, then: thenId, now: nowId }]);
   },
-  async updateTimelinePair(profileId, pairId, thenId, nowId, expected) {
+  async updateTimelinePair(profileId, pairId, thenId, nowId, expected, framing) {
     if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can edit pairs.');
     const profile = findProfileById(profileId);
     const visible = new Set((profile ? profileForCurrentViewer(profile).projects : []).filter(project => !project.sessionOnly && project.isPubliclyVisible !== false).map(project => project.id));
     if (thenId === nowId || !visible.has(thenId) || !visible.has(nowId)) throw new Error('Choose two visible projects.');
     const pairs = timelinePairs.get(profileId) ?? [];
     const existing = pairs.find(pair => pair.id === pairId);
-    if (!existing || (expected && (existing.then !== expected.then || existing.now !== expected.now))) {
+    if (!existing || (expected && (existing.then !== expected.then || existing.now !== expected.now ||
+      (framing && (!sameTimelineCoverPosition(existing.thenCover, expected.thenCover)
+        || !sameTimelineCoverPosition(existing.nowCover, expected.nowCover)))))) {
       throw new Error('This pair has changed. Reopen the editor and try again.');
     }
     if (pairs.some(pair => pair.id !== pairId && pair.then === thenId && pair.now === nowId)) throw new Error('This pair already exists.');
-    timelinePairs.set(profileId, pairs.map(pair => pair.id === pairId ? { ...pair, then: thenId, now: nowId } : pair));
+    const thenCover = framing?.thenCover !== undefined ? framing.thenCover : existing.then === thenId ? existing.thenCover : null;
+    const nowCover = framing?.nowCover !== undefined ? framing.nowCover : existing.now === nowId ? existing.nowCover : null;
+    timelinePairs.set(profileId, pairs.map(pair => pair.id === pairId
+      ? { id: pairId, then: thenId, now: nowId, ...(thenCover ? { thenCover } : {}), ...(nowCover ? { nowCover } : {}) }
+      : pair));
   },
   async removeTimelinePair(profileId, pairId) {
     if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can remove pairs.');
@@ -310,8 +323,12 @@ export const mockProfileService: ProfileService = {
   async createCategory(profileId, input) {
     const label = input.label.trim();
     assertUsableCategoryLabel(profileId, label, null);
+    if (input.parentId && !findProfileById(profileId)?.categories.some(category => category.id === input.parentId)) {
+      throw new CategoryMutationError('not_found', 'Choose a parent Portal in your own Catalogue.');
+    }
     const category: PortfolioCategory = {
       id: `${toLocationId(label)}-${Math.random().toString(36).slice(2, 7)}`,
+      ...(input.parentId ? { parentId: input.parentId } : {}),
       label,
       iconName: input.iconName ?? 'FolderIcon',
       format: input.format ?? 'grid',
@@ -350,6 +367,15 @@ export const mockProfileService: ProfileService = {
       }, 90);
     }
     const blockingProjectCount = countPrototypeCategoryProjects(profileId, categoryId);
+    const categories: PortfolioCategory[] = profile.categories;
+    if (categories.some(child => child.parentId === categoryId)) {
+      return resolve({
+        isAvailable: false,
+        removes: [],
+        reason: 'Remove the subportals before deleting this Portal.',
+        blockingProjectCount,
+      }, 90);
+    }
     if (blockingProjectCount > 0) {
       // Refusing is the only safe answer: deleting the work would destroy
       // published projects, and keeping it would leave those projects filed
@@ -369,6 +395,11 @@ export const mockProfileService: ProfileService = {
   },
   async deleteCategory(profileId, categoryId) {
     const blockingProjectCount = countPrototypeCategoryProjects(profileId, categoryId);
+    const categories: PortfolioCategory[] = getProfileById(profileId).categories;
+    if (categories.some(child => child.parentId === categoryId)) {
+      throw new CategoryMutationError(blockingProjectCount > 0 ? 'category_not_empty' : 'deletion_unavailable',
+        'Remove the subportals before deleting this Portal.', blockingProjectCount);
+    }
     if (blockingProjectCount > 0) {
       // Re-checked here as well as in the capability: a destructive operation
       // never trusts the caller to have asked the right question first.
@@ -1158,17 +1189,22 @@ function requireFollowTarget(profileId: Id, action: string): {
 }
 export const mockSocialService: SocialService = {
   async listProfileConnections(profileId, kind, offset = 0) {
-    const viewer = requireOwnProfile();
-    if (viewer.profileId !== profileId) throw new SocialServiceError('permission_denied', 'Only the profile owner can view this list.');
-    const ids = kind === 'following' ? [...followsFor(viewer.accountId)] : [...followsByAccount.entries()]
+    const viewer = currentFollower();
+    if (!viewer) throw new SocialServiceError('unauthenticated', 'Sign in to see this connection list.');
+    const subject = profiles.find(profile => profile.id === profileId);
+    const owner = viewer.profileId === profileId;
+    if (!subject || (!owner && subject.isPrivate)) throw new SocialServiceError('permission_denied', 'This connection list isn’t available.');
+    const subjectAccount = owner ? viewer.accountId : [...accountProfileIds].find(([, id]) => id === profileId)?.[0];
+    const ids = kind === 'following' ? (subjectAccount ? [...(followsByAccount.get(subjectAccount) ?? [])] : []) : [...followsByAccount.entries()]
       .filter(([, targets]) => targets.has(profileId))
       .map(([accountId]) => accountProfileIds.get(accountId) ?? followRequests.find((request) => request.requesterAccountId === accountId)?.requesterProfileId);
     const people = ids.flatMap((id) => {
       const person = profiles.find((candidate) => candidate.id === id);
-      return person ? [{ profileId: person.id, name: person.name, avatar: person.avatar }] : [];
+      return person && (owner || !person.isPrivate || person.id === viewer.profileId || followsByAccount.get(viewer.accountId)?.has(person.id))
+        ? [{ profileId: person.id, name: person.name, avatar: person.avatar }] : [];
     }).sort((a, b) => a.profileId.localeCompare(b.profileId));
     const start = Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
-    return resolve({ items: people.slice(start, start + 54), total: people.length, nextOffset: start + 54 < people.length ? start + 54 : null }, 0);
+    return resolve({ items: people.slice(start, start + 54), total: ids.length, nextOffset: start + 54 < people.length ? start + 54 : null }, 0);
   },
   async getFollowState(profileId) {
     // Open to guests: the answer for someone with no account is "you do not".

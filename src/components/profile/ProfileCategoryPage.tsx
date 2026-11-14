@@ -5,11 +5,15 @@ import { SavedChangeNotice } from '../ui/SavedChangeNotice';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { MobileProjectGestureHint } from '../../presentation/mobile/MobileProjectGestureHint';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, SquareIcon } from 'lucide-react';
+import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, FolderPlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SquareIcon } from 'lucide-react';
 // Canonical domain models, not the seed module's parallel copies.
 import type { Profile, PortfolioCategory as ProfileCategory } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from './MobilePortalProjectToolbar';
+import { PortalChildren } from './PortalChildren';
+import { NewCategoryDialog } from './NewCategoryDialog';
+import { CategoryOptionsMenu } from './CategoryOptionsMenu';
+import { MobileActionSheet } from '../messages/MobileActionSheet';
 import { PortalLinkCopyButton } from './PortalLinkCopyButton';
 import { sortPortalProjects } from './portalProjectBrowsing';
 import { getTypefaceStack } from '../../data/typefaces';
@@ -21,6 +25,8 @@ import { MobileProjectIndexPortal } from '../media/MobileProjectIndexPortal';
 import { resolveProjectAttachments } from '../../features/media/projectAttachments';
 import { canAuthor, type ViewerRole } from '../../types/viewer';
 import { useProjectArrangement } from '../../features/profile/useProjectArrangement';
+import type { CategoryManagement } from '../../features/profile/useCategoryManagement';
+import { portalChildren } from '../../features/profile/portalHierarchy';
 import { useProjectTypography } from '../../features/projects/useProjectTypography';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { useProjectManagement } from '../../features/projects/useProjectManagement';
@@ -61,6 +67,10 @@ type ProfileCategoryPageProps = {
   onSelectProject: (projectId: string | null, replace?: boolean) => void;
   /** Owner-only. Absent for visitors and signed-out viewers. */
   onCreateProject?: () => void;
+  onSelectSubPortal?: (categoryId: string) => void;
+  categoryManagement?: CategoryManagement;
+  onChangeCategoryIcon?: (categoryId: string) => void;
+  portalAppearance?: { accentColor: string; theme: 'light' | 'dark' };
   /** Panel visibility belongs to the browsing session, not an individual portal. */
   isIndexCollapsed: boolean;
   onIndexCollapsedChange: (collapsed: boolean) => void;
@@ -88,6 +98,10 @@ export function ProfileCategoryPage({
   onMobileIndexOpenChange,
   onSelectProject: selectProject,
   onCreateProject,
+  onSelectSubPortal,
+  categoryManagement,
+  onChangeCategoryIcon,
+  portalAppearance,
   isIndexCollapsed: preferredIndexCollapsed,
   onIndexCollapsedChange: changeIndexPreference,
   isEngagementOpen: responseWanted,
@@ -100,6 +114,8 @@ export function ProfileCategoryPage({
   const isMobile = usePresentation() === 'mobile';
   const isReaderLoading = !isMobile && readerLoading;
   const mobileIndexOnly = isMobile && activeProjectId === null;
+  const [createMenuScope, setCreateMenuScope] = useState<string | null>(null);
+  const [subPortalEditor, setSubPortalEditor] = useState<{ parentId: string; rename?: ProfileCategory } | null>(null);
   const [mobilePanel, setMobilePanel] = useState<ProjectPanel | null>(null);
   useEffect(() => { setMobilePanel(null); }, [category.id, isMobile]);
   const projectIndexWidth = useResizablePanelWidth({
@@ -426,6 +442,27 @@ export function ProfileCategoryPage({
   }, [mobileProjectView, isIndexCollapsed, onMobileIndexOpenChange]);
   const isEngagementOpen = panelLayout.responseOpen;
   const isMissingSelection = activeProjectId !== null && activeProject === null;
+  const childPortals = portalChildren(profile.categories, category.id);
+  const hasChildPortals = childPortals.length > 0 && Boolean(onSelectSubPortal);
+  const parentPortal = category.parentId ? profile.categories.find(portal => portal.id === category.parentId) : undefined;
+  const portalBackLabel = parentPortal ? `Back to ${parentPortal.label}` : undefined;
+  const authoring = showsOwnerTools ? categoryManagement : undefined;
+  const portalEditBlocked = Boolean(authoring?.pending);
+  const childArrangementBlocked = portalEditBlocked || !authoring?.arrangement || authoring.isLoadingArrangement || Boolean(authoring.arrangementError);
+  const createMenuOpen = createMenuScope === category.id && Boolean(authoring);
+  const editor = authoring && subPortalEditor?.parentId === category.id ? subPortalEditor : null;
+  const closePortalEditor = () => { setSubPortalEditor(null); authoring?.dismissFailure(); };
+  const openPortalCreateMenu = () => setCreateMenuScope(category.id);
+  const createAction = authoring ? openPortalCreateMenu : onCreateProject;
+  const renderChildActions = authoring && portalAppearance ? (child: ProfileCategory) => <CategoryOptionsMenu
+    {...portalAppearance} category={child} mobile={isMobile} isHidden={authoring.arrangement?.hiddenCategoryIds.includes(child.id)}
+    disabled={childArrangementBlocked} isBusy={authoring.pending?.categoryId === child.id}
+    readDeletionCapability={() => authoring.readDeletionCapability(child.id)}
+    onHideToggle={() => void authoring.toggleCategoryHidden(child.id)}
+    onRenameStart={() => { authoring.dismissFailure(); setSubPortalEditor({ parentId: category.id, rename: child }); }}
+    onChangeIcon={onChangeCategoryIcon ? () => onChangeCategoryIcon(child.id) : undefined}
+    onDelete={() => authoring.deleteCategory(child.id)}
+  /> : undefined;
   const projectIndexPanel = <div ref={projectIndexRef} data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
         {/* A collapsed document rail keeps its expander in the global header.
            The open rail puts its complete toolbar there instead of reserving an
@@ -450,7 +487,7 @@ export function ProfileCategoryPage({
             <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-          </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined} sharedReadOnly={sharedReadOnly} browsingControls
+          </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} backLabel={portalBackLabel} onCreate={showsOwnerTools ? createAction : undefined} createChoices={Boolean(authoring)} createExpanded={createMenuOpen} sharedReadOnly={sharedReadOnly} browsingControls
             layout={mobileLayout} onLayout={setMobileLayout} sort={mobileSort} onSort={setMobileSort} publicProfileId={canShareCategory ? profile.id : undefined} /> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
             {mobileProjectView && <div className="mobile-portal-projects-back side-panel-control-row side-panel-content-inset">
               <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
@@ -479,8 +516,10 @@ export function ProfileCategoryPage({
               {sharedReadOnly && <button data-shared-viewer-control="fullscreen" data-borderless-control="" type="button" onClick={() => void toggleProjectFullscreen()} aria-label={isProjectFullscreen ? 'Exit fullscreen presentation' : 'Open fullscreen presentation'} aria-pressed={isProjectFullscreen} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                   <InterfaceIcon icon={isProjectFullscreen ? Minimize2Icon : Maximize2Icon} weight="medium" />
                 </button>}
-              {showsOwnerTools && onCreateProject && <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={onCreateProject} aria-label={`Add a new project to ${category.label}`} title="New project" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  <InterfaceIcon icon={FilePlusIcon} size="lg" />
+              {showsOwnerTools && createAction && <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={createAction}
+                aria-label={authoring ? `Add to ${category.label}` : `Add a new project to ${category.label}`} title={authoring ? `Add to ${category.label}` : 'New project'}
+                aria-haspopup={authoring ? 'dialog' : undefined} aria-expanded={authoring ? createMenuOpen : undefined} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                  <InterfaceIcon icon={authoring ? PlusIcon : FilePlusIcon} size="lg" />
                 </button>}
             </div>
           </header>}
@@ -561,14 +600,19 @@ export function ProfileCategoryPage({
           </div>}
 
         {!isIndexCollapsed && <nav data-project-index-list="" aria-label={`${category.label} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
+            {!isMobile && portalBackLabel && <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="ghost" onClick={onBackToPortals} className="mb-1 max-w-full">
+              <InterfaceIcon icon={ChevronLeftIcon} size="sm" mirroredInRtl /><span className="min-w-0 truncate">{portalBackLabel}</span>
+            </button>}
             {showsOwnerTools && <SavedChangeNotice history={arrangement.history} />}
+            {showsOwnerTools && authoring?.failure && !editor && <ErrorState title={authoring.failure.message} onRetry={authoring.failure.retry} />}
+            {hasChildPortals && onSelectSubPortal && <PortalChildren categories={profile.categories} parent={category} onSelect={onSelectSubPortal} renderActions={renderChildActions} />}
             {mobileIndexOnly && !showsOwnerTools && (arrangement.isLoading || arrangement.loadError) && (
               arrangement.isLoading ? <LoadingState label="Loading projects…" />
                 : <ErrorState title="Projects could not be loaded" description={arrangement.loadError ?? undefined} onRetry={arrangement.reload} />
             )}
             <ProjectIndexList arrangementWriteDisabled={arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving} onChangeCover={showsOwnerTools ? projectId => management.editor.open(projectId, 'files') : undefined} profileId={profile.id} sharedReadOnly={sharedReadOnly} mobileLayout={mobileLayout} mobileReorderFromMenu={isMobile} projects={visibleProjects} primaryPortalId={category.id} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} mobileReorderDisabled={arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving || Boolean(indexQuery.trim()) || (isMobile && mobileSort !== 'saved')} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
             {/* Nothing matched, said plainly rather than leaving an empty column. */}
-            {mobileIndexOnly && !arrangement.isLoading && !arrangement.loadError && projects.length === 0 && !indexQuery.trim() && <EmptyState title={`No projects in ${category.label}`} description={showsOwnerTools ? 'Choose Add project to publish the first one.' : 'No work has been published in this category.'} />}
+            {mobileIndexOnly && !hasChildPortals && !arrangement.isLoading && !arrangement.loadError && projects.length === 0 && !indexQuery.trim() && <EmptyState title={`No projects in ${category.label}`} description={showsOwnerTools ? 'Use the plus button to add a project or sub-portal.' : 'No work has been published in this category.'} />}
             {!arrangement.isLoading && !arrangement.loadError && indexQuery.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
 
           </nav>}
@@ -576,6 +620,22 @@ export function ProfileCategoryPage({
       </div>;
 
   return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-web-reader-spacing={!isMobile && !sharedReadOnly ? '' : undefined} data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
+      {createMenuOpen && authoring && <MobileActionSheet model={{ title: `Add to ${category.label}`, primary: [], groups: [[
+        ...(onCreateProject ? [{ id: 'project', label: 'New project', icon: FilePlusIcon, run: onCreateProject }] : []),
+        { id: 'sub-portal', label: 'New sub-portal', icon: FolderPlusIcon, run: () => {
+          authoring.dismissFailure();
+          setSubPortalEditor({ parentId: category.id });
+        } },
+      ]] }} onClose={() => setCreateMenuScope(null)} onAction={action => { setCreateMenuScope(null); return action.run(); }} />}
+      {editor && authoring && <NewCategoryDialog key={editor.rename?.id ?? category.id} itemName="sub-portal"
+        renameOnly={Boolean(editor.rename)} initialLabel={editor.rename?.label} isSaving={portalEditBlocked}
+        error={authoring.failure?.kind === (editor.rename ? 'rename' : 'create') ? authoring.failure.message : null}
+        onCancel={closePortalEditor} onCreate={async (label, iconName) => {
+          const saved = editor.rename
+            ? await authoring.renameCategory(editor.rename.id, label)
+            : await authoring.createCategory(label, iconName, editor.parentId);
+          if (saved) setSubPortalEditor(current => current === editor ? null : current);
+        }} />}
       {!sharedReadOnly && mobileProjectView && isIndexCollapsed && !isPageFocused && activeAttachments.some(attachment => attachment.kind === 'image' || attachment.kind === 'document') && <MobileProjectGestureHint />}
       {mobileProjectView && isIndexCollapsed && !isPageFocused && <>
         <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">

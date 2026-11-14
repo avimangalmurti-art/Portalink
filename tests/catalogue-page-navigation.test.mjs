@@ -243,7 +243,7 @@ test('public catalogue callback preserves image selection while MOBILE opens con
 test('public WEB Back returns to its captured catalogue only within the same creator/account scope', () => {
   const calls = [];
   const context = { settings: false, settingsReturn: null, sharedPortalLink: false, presentation: 'web', profileId: 'creator', projectId: 'project', categoryId: 'art',
-    invalidShared: false, handleError: null, profile: { id: 'creator' }, catalogueScope: 'creator:account', readerRoute: true,
+    invalidShared: false, handleError: null, profile: { id: 'creator' }, parentPortal: undefined, catalogueScope: 'creator:account', readerRoute: true,
     desktopCatalogueOrigin: { current: { scope: 'creator:account', origin: { path: '/portalite?view=projects#work' } } },
     navigate: (...args) => calls.push(args), projectReturn: { close: () => false }, location: { pathname: '/portalite/c/art/project' }, previewSuffix: '',
     portfolioPath: () => '/portalite', handleFromPath: () => 'portalite', window: { history: { state: { idx: 4 } } },

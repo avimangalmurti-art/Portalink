@@ -8,6 +8,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 const PROFILE = '11111111-1111-4111-8111-111111111111';
 const CATEGORY = '22222222-2222-4222-8222-222222222222';
 const HIDDEN_CATEGORY = '33333333-3333-4333-8333-333333333333';
+const CHILD_CATEGORY = '44444444-4444-4444-8444-444444444444';
 const HASH = 'a'.repeat(64);
 const source = ts.createSourceFile('contentReaders.ts', readFileSync(new URL('../src/services/supabase/contentReaders.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const fn = name => source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name).getText(source);
@@ -27,7 +28,9 @@ const attachment = (projectId, id, extra = {}) => ({ project_id: projectId, id, 
       storagePath: `${id}-page-${index + 1}.png`, width: 600, height: 800, aspectRatio: .75 })) }, ...extra });
 
 function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bitmap') }), project('legacy')], attachments,
-  accountId = 'owner', profile = {}, readable = true, errors = {}, gates = {}, multipartUnavailable = false, featured = new Map() } = {}) {
+  accountId = 'owner', profile = {}, readable = true, errors = {}, gates = {}, multipartUnavailable = false, featured = new Map(),
+  extraCategories = [], portalParents = [], sharedBundle = false,
+} = {}) {
   const queries = [], signing = [], multipart = [], rangeOpens = [];
   const rows = {
     profiles: readable ? [{ id: PROFILE, account_id: 'owner', name: 'Creator Name', handle: 'creator', headline: 'Bio', location: 'City',
@@ -35,21 +38,25 @@ function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bi
       links: [{ label: 'Website', href: 'https://example.com' }], is_private: false, show_journey: true, project_grid_columns: 7,
       public_appearance: { accentColor: '#000000', systemGray: 'gray6', mode: 'auto' }, then_now: { then: 'legacy', now: 'bitmap' }, ...profile }] : [],
     portfolio_categories: [{ id: CATEGORY, profile_id: PROFILE, label: 'Design', icon_name: 'palette', format: 'grid', blurb: 'Work', position: 0, is_hidden: false },
-      { id: HIDDEN_CATEGORY, profile_id: PROFILE, label: 'Hidden', icon_name: 'lock', format: 'grid', blurb: '', position: 1, is_hidden: true }],
+      { id: HIDDEN_CATEGORY, profile_id: PROFILE, label: 'Hidden', icon_name: 'lock', format: 'grid', blurb: '', position: 1, is_hidden: true },
+      ...extraCategories],
     projects,
     project_attachments: attachments ?? projects.flatMap(row => [attachment(row.id, `${row.id}-cover`),
       attachment(row.id, `${row.id}-other`, { kind: 'video', is_cover: false, position: 1, metadata: { multipart: { version: 1 } } })]),
     profile_journey_pairs: [{ profile_id: PROFILE, pair: { then: 'bitmap', now: 'legacy' } }],
+    portal_hierarchy: portalParents,
   };
   const client = {
     auth: { getSession: async () => ({ data: { session: accountId ? { user: { id: accountId } } : null }, error: null }) },
     from(table) {
       const filters = [], orders = [], record = { table, columns: '*', inputs: [] };
+      let range;
       const builder = {
         select(columns) { record.columns = columns; return builder; },
         eq(key, value) { filters.push(row => row[key] === value); record.inputs.push({ key, value }); return builder; },
         in(key, values) { filters.push(row => values.includes(row[key])); record.inputs.push({ key, values: [...values] }); return builder; },
         order(key, options) { orders.push({ key, ascending: options?.ascending !== false }); return builder; },
+        range(start, end) { range = [start, end + 1]; return builder; },
         then(resolve, reject) {
           queries.push(record);
           let data = rows[table].filter(row => filters.every(filter => filter(row)));
@@ -57,6 +64,7 @@ function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bi
             const compared = typeof a[key] === 'number' ? a[key] - b[key] : String(a[key]).localeCompare(String(b[key]));
             return ascending ? compared : -compared;
           });
+          if (range) data = data.slice(...range);
           return Promise.resolve(gates[table]).then(() => ({ data, error: errors[table] ?? null })).then(resolve, reject);
         },
       };
@@ -66,6 +74,9 @@ function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bi
   const covers = sourceModule('src/services/supabase/coverThumbnailReads.ts', {
     '../../features/media/publicMediaUrl': { publicCoverUrl: path => `/media/covers/${path}` },
   });
+  const hierarchy = sourceModule('src/services/supabase/portalHierarchy.ts', {
+    './client': { requireSupabase: () => client },
+  });
   const exports = {};
   const functions = ['deriveInitials', 'asStringRecord', 'asStats', 'asLinks', 'renderedPagePaths', 'asMetadata', 'asDesign',
     'throwProfileError', 'signedUrls', 'hydrateProjects', 'loadProfiles'].map(fn).join('\n');
@@ -74,7 +85,7 @@ function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bi
   }).outputText, {
     exports, requireSupabase: () => client,
     ...sourceModule('src/features/publishing/firstProject.ts'), ...sourceModule('src/features/journey/journey.ts'),
-    ...sourceModule('src/features/employer/employer.ts'), ...covers,
+    ...sourceModule('src/features/employer/employer.ts'), ...covers, ...hierarchy,
     PROJECT_MEDIA_BUCKET: 'project-media', MAX_PAGES_PER_ROW: 8, MIN_PAGES_PER_ROW: 1,
     ProfileServiceError: class extends Error { constructor(code, message) { super(message); this.code = code; } },
     signedMediaUrls: async (_bucket, paths) => {
@@ -97,7 +108,11 @@ function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bi
     normalizePublicAppearance: value => value,
     normalizeProjectGridColumns: value => value,
     deriveProjectRelevance: () => ({}),
-    readSharedProfileBundle: async () => ({ status: 'unsupported' }),
+    readSharedProfileBundle: async () => sharedBundle ? {
+      status: 'available', bundle: { profile: rows.profiles[0],
+        categories: rows.portfolio_categories.filter(category => !category.is_hidden),
+        projects, attachments: rows.project_attachments },
+    } : { status: 'unsupported' },
     readFeaturedPortals: async () => featured,
   });
   return { ...exports, queries, signing, multipart, rangeOpens };
@@ -272,6 +287,32 @@ test('existing public fallback keeps its original cover-only bundle behavior', a
   const query = h.queries.find(query => query.table === 'project_attachments');
   assert.deepEqual(query.inputs, [{ key: 'project_id', values: ['bitmap', 'legacy'] }]);
   assert.equal(h.queries.some(query => query.table === 'profile_journey_pairs'), false);
+});
+
+test('direct and public bundle readers hydrate nested Portals without exposing hidden parents', async () => {
+  const extraCategories = [{ id: CHILD_CATEGORY, profile_id: PROFILE, label: 'Editorial', icon_name: 'FolderIcon',
+    format: 'grid', blurb: '', position: 2, is_hidden: false }];
+  for (const parentId of [CATEGORY, HIDDEN_CATEGORY]) {
+    const portalParents = [{ profile_id: PROFILE, child_category_id: CHILD_CATEGORY, parent_category_id: parentId }];
+    const owner = harness({ extraCategories, portalParents, sharedBundle: true });
+    const publicOnly = harness({ accountId: null, extraCategories, portalParents });
+    const child = profile => profile.categories.find(category => category.id === CHILD_CATEGORY);
+    assert.equal(child(await owner.service.getProfileOverview(PROFILE)).parentId, parentId);
+    const publicParent = parentId === CATEGORY ? CATEGORY : undefined;
+    assert.equal(child(await owner.service.getSharedProfile(PROFILE)).parentId, publicParent);
+    assert.equal(child(await publicOnly.service.getSharedProfile(PROFILE)).parentId, publicParent);
+  }
+});
+
+test('an older schema reads flat Portals and other hierarchy errors still surface', async () => {
+  for (const code of ['42P01', 'PGRST205']) {
+    const h = harness({ errors: { portal_hierarchy: { code, message: 'public.portal_hierarchy does not exist' } } });
+    const profile = await h.service.getProfileOverview(PROFILE);
+    assert.equal(profile.categories.length, 2);
+    assert.ok(profile.categories.every(category => !('parentId' in category)));
+  }
+  const h = harness({ errors: { portal_hierarchy: { code: '42501', message: 'Access denied' } } });
+  await assert.rejects(h.service.getProfileOverview(PROFILE), /Portal relationships could not be loaded/);
 });
 
 test('missing/unreadable profiles remain absent and database failures are still reported', async () => {

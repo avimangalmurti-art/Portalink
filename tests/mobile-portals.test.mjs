@@ -17,6 +17,7 @@ const FeatureInDesignPage = () => null;
 const CategoryOptionsMenu = () => null, NewCategoryDialog = () => null;
 const MobileReorderList = () => null;
 const Icon = () => null;
+const portalHierarchy = compile('../src/features/profile/portalHierarchy.ts');
 function harness() {
   let presentation = 'mobile';
   let auth = { isAuthenticated: true, viewerProfileId: 'owner', phase: 'authenticated' };
@@ -29,7 +30,7 @@ function harness() {
   const { PortalsPage } = compile('../src/features/profile/PortalsPage.tsx', name => {
     if (name.endsWith('/SavedChangeNotice')) return { SavedChangeNotice: () => null };
     if (name === 'react') return react;
-    if (name === 'lucide-react') return { ChevronLeftIcon: Icon, ChevronRightIcon: Icon, CheckIcon: Icon, PlusIcon: Icon, XIcon: Icon };
+    if (name === 'lucide-react') return { ChevronLeftIcon: Icon, ChevronRightIcon: Icon, CheckIcon: Icon, PlusIcon: Icon, XIcon: Icon, LayoutGridIcon: Icon, ListIcon: Icon };
     if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useMobilePortalScrollFade')) return { useMobilePortalScrollFade: () => () => {} };
@@ -41,6 +42,7 @@ function harness() {
     if (name.endsWith('/NewCategoryDialog')) return { NewCategoryDialog };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
     if (name.endsWith('/useCategoryManagement')) return { MAX_CATEGORY_LABEL: 40 };
+    if (name === './portalHierarchy') return portalHierarchy;
     throw new Error(`Unexpected import: ${name}`);
   });
   const chosen = [];
@@ -231,7 +233,7 @@ test('visitor and guest profile entry shows that creator’s canonical portals w
 
 test('portal reordering saves the complete ordered IDs through the existing management boundary', async () => {
   const h = harness(), saves = [];
-  h.props.management.reorderCategories = async ids => { saves.push(ids); return true; };
+  h.props.management.reorderCategories = async ids => { saves.push(Array.from(ids)); return true; };
   const list = find(h.render(), MobileReorderList);
   assert.equal(list.props.disabled, false);
   list.props.onReorder([...list.props.items].reverse());
@@ -336,4 +338,29 @@ test('portal view switch preserves stable selection and saved order without a ma
  assert.deepEqual(Array.from(list.props.items,item=>item.id),['typography','design']);
  elements(tree).filter(n=>n.type==='button'&&n.props.className==='mobile-portal-row')[1].props.onClick();assert.deepEqual(h.chosen,['design']);
  elements(tree).find(n=>n.props['aria-label']==='Show portals as list').props.onClick();assert.equal(h.render().props['data-portals-layout'],'list');
+});
+
+test('the mobile Portals screen shows roots and reorders only their saved slots', () => {
+  const h = harness();
+  const child = { id: 'lettering', label: 'Lettering', iconName: 'type', parentId: 'typography' };
+  const grandchild = { id: 'posters', label: 'Posters', iconName: 'type', parentId: 'lettering' };
+  const orphan = { id: 'available-child', label: 'Available child', iconName: 'window', parentId: 'unavailable-parent' };
+  h.props.profileQuery.profile.categories.push(child, grandchild, orphan);
+  h.props.management.arrangement.categoryOrder = ['typography', 'lettering', 'design', 'posters', 'available-child'];
+  const writes = [];
+  h.props.management.reorderCategories = order => writes.push(Array.from(order));
+  const list = find(h.render(), MobileReorderList);
+  assert.deepEqual(Array.from(list.props.items, item => item.id), ['typography', 'design', 'available-child']);
+  list.props.onReorder([list.props.items[1], list.props.items[0], list.props.items[2]]);
+  assert.deepEqual(writes, [['design', 'lettering', 'typography', 'posters', 'available-child']]);
+});
+
+test('a parent lists only direct children and keeps nested descendants in their order slots', () => {
+  const categories = [
+    { id: 'a' }, { id: 'b' }, { id: 'child-1', parentId: 'a' }, { id: 'other-child', parentId: 'b' },
+    { id: 'grandchild', parentId: 'child-1' }, { id: 'child-2', parentId: 'a' },
+  ];
+  assert.deepEqual(Array.from(portalHierarchy.portalChildren(categories, 'a'), category => category.id), ['child-1', 'child-2']);
+  assert.deepEqual(Array.from(portalHierarchy.applyPortalOrder(categories.map(category => category.id), ['child-2', 'child-1'])),
+    ['a', 'b', 'child-2', 'other-child', 'grandchild', 'child-1']);
 });

@@ -15,11 +15,12 @@ function sharedDrawerRelease(progress: number, distance: number, velocity: numbe
 }
 
 /** An independent foreground layer. No drag or open state changes page layout. */
-export function PublicProfileDrawer({ name, children, enabled = true, openRequest }: {
+export function PublicProfileDrawer({ name, children, enabled = true, openRequest, hideFloatingOpener = false }: {
   name: string;
   enabled?: boolean;
-  /** Each new request restores Portals after returning from a child popup. */
+  /** Opens Portals from the header or after returning from a child popup. */
   openRequest?: object;
+  hideFloatingOpener?: boolean;
   children: (close: () => void) => React.ReactNode;
 
 }) {
@@ -124,7 +125,7 @@ export function PublicProfileDrawer({ name, children, enabled = true, openReques
 
   return <div ref={layerRef} tabIndex={-1} className="mobile-shared-drawer-layer" data-visible={visible} {...gestures}>
     {enabled && <div className="mobile-shared-drawer-edge" aria-hidden="true" />}
-    {enabled && !visible && <button ref={openerRef} type="button" data-shared-drawer-opener="" className="mobile-shared-drawer-opener shape-squircle"
+    {enabled && !visible && !hideFloatingOpener && <button ref={openerRef} type="button" data-shared-drawer-opener="" className="mobile-shared-drawer-opener shape-squircle"
       aria-label="Open profile navigation" aria-expanded={false} aria-controls="mobile-shared-profile-navigation"
       onClick={() => settle(true)}>
       <span className="mobile-shared-drawer-icon squircle">
