@@ -34,6 +34,45 @@ html:has(#root .codex-shell[data-presentation='mobile'] [data-project-opening-lo
     calc(var(--mobile-content-safe-bottom, 0px) + 76px);
 }
 
+/* Keep dock clearance outside the file capsule so only the controls are painted. */
+#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] {
+  position: sticky;
+  bottom: max(8px, var(--mobile-content-safe-bottom, 0px));
+  z-index: 1;
+  align-self: center;
+  inline-size: max-content;
+  max-inline-size: calc(100% - 2 * var(--mobile-control-edge, 16px));
+  margin-block: 4px max(8px, var(--mobile-content-safe-bottom, 0px));
+  gap: 4px;
+  padding: 3px;
+  border-width: 1px;
+  border-radius: var(--ui-capsule-radius);
+  scrollbar-width: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] > button {
+  flex: 0 0 auto;
+  max-inline-size: min(12rem, 40vw);
+  gap: 6px;
+  font-weight: 500;
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] > button [data-interface-icon-frame] {
+  flex-shrink: 0;
+  --interface-icon-size: 18px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])):has([data-project-file-strip]) {
+  min-height: var(--mobile-viewport-height, 100dvh);
+}
+#root .codex-shell[data-presentation='mobile'] [data-immersive='true'] [data-project-file-strip] {
+  margin-block: 0;
+  border-width: 0;
+}
+
+/* The in-flow capsule already keeps the video clear of the floating dock. */
+[data-presentation='mobile'] [data-immersive='false'] [data-project-work-column]:has(> [data-project-file-strip]) > [data-project-stage]
+  :is(.mobile-video-single, .mobile-video-sequence) {
+  padding-bottom: var(--mobile-control-group-gap, 8px);
+}
+
 /* Contain reader-button feedback without clipping engagement above the rail. */
 #root .codex-shell[data-presentation='mobile'] .mobile-content-action-bar {
   border-radius: var(--ui-capsule-radius);

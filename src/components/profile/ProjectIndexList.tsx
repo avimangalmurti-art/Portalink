@@ -11,11 +11,13 @@ import type { Project as ProjectEntry } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { TypographyInspector } from './TypographyInspector';
 import { usePresentation } from '../../presentation/usePresentation';
+import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 import type { MobileReorderList as MobileReorderListType, MobileReorderActivator, MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
 import { ProjectCover } from '../media/ProjectCover';
 import { getProjectCoverPreview } from '../../utils/projectPresentation';
 import { videoSources } from '../../features/media/videoPlayback';
 import { useInlineProjectContent } from '../../features/profile/useInlineProjectContent';
+import { PreviewCreatorName } from './PreviewCreatorName';
 const ProjectExportSheet=lazy(()=>import('../../features/references/ExportSheet').then(module=>({default:module.ExportSheet})));
 const MobileReorderList = lazy(() => import('../../presentation/mobile/MobileReorderList').then(module => ({ default: module.MobileReorderList }))) as unknown as typeof MobileReorderListType;
 type ProjectIndexListProps = {
@@ -37,8 +39,6 @@ type ProjectIndexListProps = {
   sharedReadOnly?: boolean;
   /** MOBILE waits for a complete, writable arrangement before starting a hold. */
   mobileReorderDisabled?: boolean;
-  /** The floating MOBILE navigation list keeps reordering in its row menu. */
-  mobileReorderFromMenu?: boolean;
   /** MOBILE changes only the presentation of this same navigation list. */
   mobileLayout?: 'list' | 'grid';
   /** Explicit WEB chooser adaptation; ordinary desktop indexes stay unchanged. */
@@ -89,7 +89,6 @@ export function ProjectIndexList({
   isOwner,
   sharedReadOnly = false,
   mobileReorderDisabled = false,
-  mobileReorderFromMenu = false,
   mobileLayout = 'list',
   readOnlyBrowsing = false,
   onReorder,
@@ -166,11 +165,9 @@ export function ProjectIndexList({
   }
 
   /*
-   * Only the unpinned group is draggable — dragging inside a pinned group would
-   * be arranging something whose position is the point of pinning it. A drag
-   * still emits the WHOLE order, with the pinned and hidden ids kept in place
-   * around it, so reordering one group can never drop the others from the saved
-   * arrangement.
+   * Desktop drags only the regular group. On mobile each group can be arranged
+   * independently. A drop includes the complete order, preserving the other
+   * groups and their visibility.
    */
   const rowProps = (project: ProjectEntry) => ({
     profileId,
@@ -191,14 +188,18 @@ export function ProjectIndexList({
     onDelete: onDelete ? () => onDelete(project.id) : undefined,
   });
   if (isMobile) {
+    const canReorderGroup = (items: ProjectEntry[]) => !mobileReorderDisabled && items.filter(isPrimary).length > 1;
+    const showReorderHint = [pinned, rest, hidden].some(canReorderGroup);
     const group = (items: ProjectEntry[], label: string, combine: (reordered: ProjectEntry[]) => ProjectEntry[]) =>
-      mobileReorderDisabled ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} disabled={mobileReorderDisabled}
+      !canReorderGroup(items) ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} layout={mobileLayout}
         className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons"
         groupForItem={project => isPrimary(project) ? 'primary' : project.id}
+        isItemDisabled={project => !isPrimary(project)}
         onReorder={reordered => onReorder(combine(reordered).filter(isPrimary))}
         renderItem={(project, activator, actions) => <ProjectRow reorderActions={isPrimary(project) ? actions : undefined}
-          {...rowProps(project)} isDraggable={false} reorderActivator={!mobileReorderFromMenu && isPrimary(project) ? activator : undefined} />} /></Suspense>;
+          {...rowProps(project)} isDraggable={false} reorderActivator={isPrimary(project) ? activator : undefined} />} /></Suspense>;
     return <div data-mobile-project-layout={mobileLayout}>
+      {showReorderHint && <p className="px-2 pb-2 text-[12px] text-[var(--text-secondary)]">Hold and drag to reorder.</p>}
       {pinned.length > 0 && <><SectionHeading label="Pinned" icon={PinIcon} />{group(pinned, 'Pinned projects', reordered => [...reordered, ...rest, ...hidden])}</>}
       {rest.length > 0 && <>
         {(pinned.length > 0 || hidden.length > 0) && <SectionHeading label="Projects" icon={FolderIcon} />}
@@ -270,8 +271,11 @@ function ProjectIndexVideoCover({ project, profileId, sharedReadOnly }: {
 function MobileProjectLabel({ project, isActive, profileId, mobileGrid = false, sharedReadOnly = false }: {
   project: ProjectEntry; isActive: boolean; profileId?: string; mobileGrid?: boolean; sharedReadOnly?: boolean;
 }) {
+  const isMobile = usePresentation() === 'mobile';
+  const active = useMobileScreenActive();
   const published = project.publishedAt ? new Date(project.publishedAt) : null;
   const validPublished = published && Number.isFinite(published.getTime()) ? published : null;
+  const titleClassName = `mobile-project-index-title ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)]'}`;
   return <>
     <span className="mobile-project-index-cover" aria-hidden="true">
       <span className="mobile-project-index-artwork">
@@ -281,7 +285,9 @@ function MobileProjectLabel({ project, isActive, profileId, mobileGrid = false, 
       </span>
     </span>
     <span className="mobile-project-index-copy">
-      <span className={`mobile-project-index-title ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)]'}`}>{project.title}</span>
+      {isMobile && !mobileGrid
+        ? <PreviewCreatorName name={project.title} active={active} centered visibleOnly fadeInset={8} className={titleClassName} />
+        : <span className={titleClassName}>{project.title}</span>}
       {validPublished && <time className="mobile-project-index-date" dateTime={project.publishedAt}>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(validPublished)}</time>}
     </span>
   </>;

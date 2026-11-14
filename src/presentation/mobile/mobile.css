@@ -1470,10 +1470,6 @@
   padding-bottom: var(--mobile-content-safe-bottom);
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] {
-  padding-bottom: max(8px, var(--mobile-content-safe-bottom));
-}
-
 #root .codex-shell[data-presentation='mobile'] [data-shared-account-footer] {
   padding-bottom: max(8px, var(--safe-area-bottom));
 }
@@ -6544,26 +6540,20 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 [data-presentation='mobile'] .project-editor-file-tools > h3 { font-size: 16px; font-weight: 600; }
 [data-presentation='mobile'] .project-editor-cover-summary {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   padding: 10px;
   border: 1px solid var(--hairline);
   border-radius: var(--ui-row-radius);
   background: var(--surface-sunken);
 }
-@media (max-width: 385px) {
-  [data-presentation='mobile'] .project-editor-cover-summary {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-  [data-presentation='mobile'] .project-editor-cover-actions { grid-column: 1 / -1; }
-}
 [data-presentation='mobile'] .project-editor-cover-thumb {
   display: grid;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
-  width: 56px;
+  width: 76px;
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: var(--ui-row-radius);
@@ -6575,7 +6565,7 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   object-fit: contain;
 }
 [data-presentation='mobile'] .project-editor-cover-copy { min-width: 0; }
-[data-presentation='mobile'] .project-editor-cover-copy > :is(h4, strong) { font-size: 14px; font-weight: 600; }
+[data-presentation='mobile'] .project-editor-cover-copy > h4 { font-size: 14px; font-weight: 600; }
 [data-presentation='mobile'] .project-editor-cover-copy > p {
   overflow: hidden;
   color: var(--text-secondary);
@@ -6583,6 +6573,8 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+[data-presentation='mobile'] .project-editor-cover-actions { margin-top: 6px; }
+[data-presentation='mobile'] .project-editor-cover-actions > button { flex-grow: 1; }
 #root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen :is(input, textarea, select) { font-size: 16px; }
 
 /* File management keeps the shared sheet material and its full-height list. */

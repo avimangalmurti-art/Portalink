@@ -39,6 +39,7 @@ function componentHarness(file, name, initial, overrides = {}) {
     '../../components/media/MobileProjectPopup': { MobileProjectPopup: 'project-popup' },
     '../../components/media/ProjectCover': { ProjectCover: 'project-cover' },
     './TimelinePairCover': { TimelinePairCover: 'timeline-pair-cover' },
+    './desktopTimelineReturn': { restoreDesktopTimeline() {} },
     '../../utils/projectPresentation': sourceModule('src/utils/projectPresentation.ts'),
     '../../components/profile/PortalProjectPopup': { PortalProjectPopup: 'portal-project-popup' },
     '../../presentation/usePresentation': { usePresentation: () => props.presentation ?? 'mobile' },
@@ -134,7 +135,7 @@ for (const presentation of ['mobile', 'web']) test(`${presentation} continuous T
     assert.equal(children[1].props.className, 'journey-entry-copy');
   }
   assert.equal(h.nodes.find(node => node.type === 'a' && node.props.children === 'A real citation').props.href, '/cite/page');
-  h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-title' && node.props.children === 'leap').props.onClick();
+  h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-title' && node.props.children === 'leap').props.onClick({ currentTarget: {} });
   assert.equal(opened[0], works[1], 'The title still opens the canonical project object.');opened.length = 0;
   sortButton(h, 'Oldest first').props.onClick();h.frames();
   assert.equal(timelineOrder(h), 'oldest');assert.equal(h.wrapperKey, key);
@@ -253,7 +254,7 @@ test('a same-profile refresh removing the open portal releases the Timeline and 
 
 for (const presentation of ['mobile', 'web']) {
   test(`${presentation} Timeline portal popup stays local, preserves list order and date position, and guards project selection`, () => {
-    const opened = [];
+    const opened = [], origins = [];
     const published = project('early', '2024-02-29', { summary: 'Never display this summary.', thenNowCaption: 'Never display this caption.' });
     const recent = project('recent', '2026-10-13', { creationDetails: { answers: { learned: 'Never display this learned line.' } } });
     const hidden = project('hidden', '2026-10-14', { isPubliclyVisible: false });
@@ -261,7 +262,7 @@ for (const presentation of ['mobile', 'web']) {
     const other = project('other', '2026-10-14', { categoryId: 'other' });
     const featured = project('featured', '2026-10-15', { categoryId: 'other', additionalPortalIds: ['portal'] });
     const viewed = { ...profile, showJourney: true, thenNow: { then: published.id, now: recent.id }, projects: [published, recent, hidden, draft, other, featured] };
-    const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: viewed, owner: false, presentation, onOpen: value => opened.push(value.id) });
+    const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: viewed, owner: false, presentation, onOpen: (value, _portalId, origin) => { opened.push(value.id); origins.push(origin); } });
     const popup = () => h.nodes.find(node => node.type === 'portal-project-popup');
     const openPortal = () => h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props.onClick();
     sortButton(h, 'Oldest first').props.onClick();
@@ -269,8 +270,15 @@ for (const presentation of ['mobile', 'web']) {
     const pair = h.nodes.find(node => node.props.className === 'journey-pair');
     assert.ok(h.nodes.indexOf(pair) > h.nodes.indexOf(yearSections(h).at(-1)), 'Then / Now follows the continuous year list.');
     assert.ok(nodes(pair).some(node => node.type === 'button' && node.props.children === 'Work'), 'Then / Now includes the same portal action.');
-    nodes(pair).find(node => node.type === 'button' && node.props['aria-label'] === 'Open Then: early').props.onClick();
+    const opener = nodes(pair).find(node => node.type === 'button' && node.props['aria-label'] === 'Open Then: early');
+    const anchor = { dataset: { timelineProject: opener.props['data-timeline-project'] } };
+    opener.props.onClick({ currentTarget: anchor });
     assert.deepEqual(opened, ['early']); opened.length = 0;
+    assert.equal(anchor.dataset.timelineProject, 'pair:legacy:0:early');
+    if (presentation === 'web') {
+      assert.equal(origins[0].order, 'oldest');
+      assert.equal(origins[0].anchor, anchor);
+    } else assert.equal(origins[0], undefined);
     h.frames();assert.deepEqual(h.scrolls, []);
     const key = h.wrapperKey, position = h.target('2024-02-29');position.top = 176;
     const scrollCount = h.scrolls.length;
@@ -336,7 +344,7 @@ test('shared mobile Timeline omits Popular while preserving the three native con
  assert.equal(h.wrapperKey,key); assert.equal(timelineOrder(h),'oldest');
  assert.equal(sortButton(h,'Oldest').props['aria-pressed'],true);
  assert.deepEqual(timelineRows(h).map(node=>node.key),['project:early','project:recent']);
- h.nodes.find(node=>node.props.className==='journey-title'&&text(node)==='early').props.onClick();
+ h.nodes.find(node=>node.props.className==='journey-title'&&text(node)==='early').props.onClick({ currentTarget: {} });
  assert.deepEqual(opened,['early']);
  h.button('Show details for early').props.onClick();
  assert.ok(h.nodes.find(node=>node.type==='project-popup'));
@@ -457,7 +465,7 @@ test('mobile owners can edit the specific pair while visitors and desktop keep t
  second.props.onClick({currentTarget:{focus:options=>focus.push(options.preventScroll)}});
  assert.deepEqual(edits,[pairs[1]]);
  assert.deepEqual(focus,[true]);
- h.button('Open Then: other').props.onClick();
+ h.button('Open Then: other').props.onClick({ currentTarget: {} });
  assert.deepEqual(opened,[other.id]);
  const reorder=()=>sortButton(h,'Reorder pairs');
  assert.equal(reorder(),undefined);

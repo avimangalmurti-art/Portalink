@@ -938,10 +938,6 @@
   padding-bottom: max(16px, var(--mobile-content-safe-bottom));
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] {
-  padding-bottom: max(8px, var(--mobile-content-safe-bottom));
-}
-
 #root .codex-shell[data-presentation='mobile'] [data-shared-account-footer] {
   padding-bottom: max(8px, var(--safe-area-bottom));
 }

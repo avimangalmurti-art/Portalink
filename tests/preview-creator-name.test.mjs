@@ -7,7 +7,7 @@ import React from 'react';
 import ts from 'typescript';
 
 function harness() {
-  const refs = [], animations = [], observers = [];
+  const refs = [], animations = [], observers = [], intersections = [];
   let cursor = 0, effect, cleanup, previousDeps, presentation = 'mobile', reducedMotion = false;
   const attributes = new Set();
   const viewport = { clientWidth: 100,
@@ -41,8 +41,13 @@ function harness() {
     constructor(callback) { this.callback = callback; observers.push(this); }
     observe(target) { this.targets.push(target); }
     disconnect() { this.disconnected = true; }
+  }, IntersectionObserver: class {
+    targets = []; disconnected = false;
+    constructor(callback) { this.callback = callback; intersections.push(this); }
+    observe(target) { this.targets.push(target); }
+    disconnect() { this.disconnected = true; }
   } });
-  return { viewport, text, animations, observers,
+  return { viewport, text, animations, observers, intersections,
     render(props = {}) {
       cursor = 0;
       const tree = exports.PreviewCreatorName({ name: 'Portalink Networks Inc.', active: true, ...props });
@@ -61,6 +66,7 @@ test('overflow starts revealing immediately and stops exactly at the end of the 
   h.render();
   assert.equal(h.viewport.hasAttribute('data-name-overflow'), true);
   assert.equal(h.animations.length, 1);
+  assert.equal(h.intersections.length, 0, 'Existing labels start without waiting for intersection');
   const { frames, options } = h.animations[0];
   assert.equal(frames[0].transform, 'translateX(0)');
   assert.equal(frames.at(-1).transform, 'translateX(-80px)');
@@ -70,6 +76,29 @@ test('overflow starts revealing immediately and stops exactly at the end of the 
   assert.deepEqual(h.observers[0].targets, [h.viewport, h.text]);
   h.observers[0].callback();
   assert.equal(h.animations.length, 1, 'Unchanged measurements must not restart the text');
+});
+
+test('long Portal project titles animate only while visible, with both endpoints clear of the fade', () => {
+  const h = harness(); h.render({ centered: true, visibleOnly: true, fadeInset: 8 });
+  assert.equal(h.animations.length, 0);
+  const [visibility] = h.intersections;
+  assert.deepEqual(visibility.targets, [h.viewport]);
+  const setVisible = isIntersecting => visibility.callback([{ target: h.viewport, isIntersecting }]);
+  setVisible(true);
+  assert.equal(h.viewport.hasAttribute('data-name-overflow'), true);
+  assert.equal(h.animations.length, 1);
+  const { frames, options } = h.animations[0];
+  assert.equal(options.direction, 'alternate');
+  assert.equal(options.duration, 96 / 22 * 1000 + 2400);
+  assert.equal(frames[0].transform, 'translateX(8px)');
+  assert.equal(frames.at(-1).transform, 'translateX(-88px)');
+  setVisible(false);
+  assert.equal(h.animations[0].cancelled, true);
+  setVisible(true);
+  assert.equal(h.animations.length, 2);
+  h.unmount();
+  assert.equal(visibility.disconnected, true);
+  assert.equal(h.animations[1].cancelled, true);
 });
 
 test('short names stay still; layout and font-size changes recalculate the hidden text', () => {

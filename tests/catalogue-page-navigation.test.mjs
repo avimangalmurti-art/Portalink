@@ -143,6 +143,14 @@ test('main and shared navigators open catalogue images continuously only on MOBI
     h.positions.set('project', { index: 4, key: 'pdf:page:4', attachmentId: 'pdf', page: 4 });
     nav.project('creator', 'portal', 'project');
     assert.equal(calls.at(-1)[0], `/p/creator/c/portal/project?media=pdf&page=4${mode}`);
+    nav.project('creator', 'portal', 'project', false, { fromTimeline: true });
+    assert.deepEqual(plain(calls.at(-1)[1]), {
+      replace: false, viewTransition: true, state: { fromTimeline: true },
+    });
+    nav.sharedProject('creator', 'portal', 'project', true, { fromTimeline: true });
+    assert.deepEqual(plain(calls.at(-1)[1]), {
+      replace: true, viewTransition: false, state: { fromTimeline: true },
+    });
   }
 });
 
@@ -202,7 +210,7 @@ test('public catalogue entry uses the selected page while preserving preview suf
   paths.positions.set('project', { index: 3, key: 'pdf:page:3', attachmentId: 'pdf', page: 3 });
   const root = {}, origin = { profileId: 'creator', path: '/portalite?view=projects#work', projectId: 'project' };
   const context = {
-    profileId: 'creator', projectId: null, presentation: 'web', catalogueReady: true, catalogueScope: 'creator:guest',
+    profileId: 'creator', projectId: null, presentation: 'web', isDesktopTimelineReader: false, catalogueReady: true, catalogueScope: 'creator:guest',
     location: { pathname: '/portalite', search: '?view=projects', hash: '#work' },
     desktopCatalogueOrigin: { current: null }, setPortalPopup: value => calls.push(['popup', value]), setPortalNavigationRequest() {},
     captureCatalogueReaderOrigin: (...args) => { captures.push(args); return origin; },
@@ -224,7 +232,7 @@ test('public catalogue callback preserves image selection while MOBILE opens con
   for (const presentation of ['mobile', 'web']) {
     const paths = fixture(), calls = [];
     paths.positions.set('project', { index: 4, key: 'image:image', attachmentId: 'image', page: 3 });
-    const context = { profileId: 'creator', projectId: null, presentation, catalogueReady: true, catalogueScope: 'creator:guest',
+    const context = { profileId: 'creator', projectId: null, presentation, isDesktopTimelineReader: false, catalogueReady: true, catalogueScope: 'creator:guest',
       location: { pathname: '/portalite', search: '', hash: '' }, desktopCatalogueOrigin: { current: null },
       setPortalPopup: value => calls.push(['popup', value]), setPortalNavigationRequest() {},
       captureCatalogueReaderOrigin: () => null, document: { querySelector: () => null },
@@ -242,7 +250,7 @@ test('public catalogue callback preserves image selection while MOBILE opens con
 
 test('public WEB Back returns to its captured catalogue only within the same creator/account scope', () => {
   const calls = [];
-  const context = { settings: false, settingsReturn: null, sharedPortalLink: false, presentation: 'web', profileId: 'creator', projectId: 'project', categoryId: 'art',
+  const context = { settings: false, settingsReturn: null, sharedPortalLink: false, presentation: 'web', isDesktopTimelineReader: false, profileId: 'creator', projectId: 'project', categoryId: 'art',
     invalidShared: false, handleError: null, profile: { id: 'creator' }, parentPortal: undefined, catalogueScope: 'creator:account', readerRoute: true,
     desktopCatalogueOrigin: { current: { scope: 'creator:account', origin: { path: '/portalite?view=projects#work' } } },
     navigate: (...args) => calls.push(args), projectReturn: { close: () => false }, location: { pathname: '/portalite/c/art/project' }, previewSuffix: '',

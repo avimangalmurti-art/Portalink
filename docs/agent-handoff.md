@@ -1,3 +1,37 @@
+## 2026-11-14 — Owner Portal drag without changing sort
+
+Prepared in `logs/sites638-release` from Sites 637 source `d833b78`. The release contains `ProfileCategoryPage.tsx` and two focused test updates from `codex/portal-project-drag` (GitHub base `10b51b5`). Owners can hold and drag in a Portal from Recent, Name, or Saved order. The completed drop saves the new sequence and switches mobile to Saved order automatically. Permissions, Portal membership, and desktop arrangement follow the existing model. No database migration is required.
+
+An isolated Chromium preview with prototype data at 420 × 912 repeated successful touch drags from both Recent and Name and showed the dropped order. Physical iPhone testing remains pending.
+
+## 2026-11-14 — Combined Sites release from 636
+
+Prepared from Sites source `a9da6272` with the same tree as GitHub main `10b51b5`. Includes the mobile cover-card layout, Timeline reader Back on web and mobile, mobile Portal project reordering, green Portal rename confirmation, faded scrolling Portal list titles, and a compact mixed-media file switcher on mobile. The release requires no migration. Typecheck, lint (107 warnings, zero errors), 254 focused tests, and the configured client and worker build passed on the combined task worktree. Reviewed the 30 changed source and test files against the release checkout. The Sites checkout repeated the production build and the 254 focused tests. Prior browser checks used prototype data. A physical iPhone remains unverified.
+
+## 2026-11-14 — Compact mobile file switcher
+
+Continued in `logs/portal-project-drag` on `codex/portal-project-drag`, based on `github/main` at `10b51b5`. `ProjectMediaViewer.tsx` and the shared mobile reader CSS give mixed-media projects a compact capsule with 44 px rounded file buttons. Generated filenames use a short media label with numbering when needed, and the original name remains available to assistive technology. Named files keep their titles. The capsule stays above the reader dock during switching and avoids double clearance below videos. The redundant padding rules were removed from both mobile entry stylesheets. Desktop and the continuous image/PDF reader retain their behavior.
+
+Typecheck and all 82 focused reader tests passed. Scoped ESLint found one existing non-null assertion warning. Local Chromium verified video and image switching in the workspace at 420 × 912 and the shared reader at 420 × 912 and 390 × 844. At 390 × 844 the capsule remained 52 px tall and 16 px above the dock in both states. Desktop at 1366 × 900 kept its original file strip. The preview used prototype data. A physical iPhone and production remain unverified. Changes are local and require no migration.
+
+## 2026-11-14 — Scrolling mobile Portal project titles
+
+Local worktree `logs/portal-project-drag`, branch `codex/portal-project-drag`, from `github/main` at `10b51b5`. Mobile project list rows in the app and shared catalogue use the Portal header's overflow motion. `ProjectIndexList.tsx`, `PreviewCreatorName.tsx`, and `mobile-project-popup.css` add soft edge fades and room to read the first and last letters at each pause. Motion runs for visible overflow rows, and Reduced Motion wraps the title. Grid cards and desktop titles remain static.
+
+Typecheck, scoped ESLint, diff checks, and 108 focused tests passed, including project index rows, label animation, and the desktop Portal chooser. A local Chromium preview with prototype data confirmed movement, fades, and clearance from the row menu at 420 × 912 and 390 × 844. The grid stayed static and the desktop title used its original rendering at 1366 × 900. Physical iPhone and live shared catalogue behavior remain unverified. No migration is needed. The branch is unpublished.
+
+## 2026-11-14 — Mobile Portal rename confirmation
+
+Continued in `logs/portal-project-drag` on `codex/portal-project-drag` at `10b51b5`. `PortalsPage.tsx` gives the inline rename check the same semantic green as Copy public catalogue link for 850 ms after a confirmed save. It then returns to the renamed row. A failed save retains the draft.
+
+Typecheck, scoped ESLint, diff checks, and all 91 focused tests passed. A 420 × 912 Chromium preview with prototype data confirmed the inline success color token and the updated row after closing. Physical iPhone and live behavior remain unchecked. Changes are local and require no migration.
+
+## 2026-11-14 — Hold and drag projects inside a Portal
+
+Local worktree `logs/portal-project-drag`, branch `codex/portal-project-drag`, from `github/main` at `10b51b5`. In the signed-in owner's mobile Portal, `ProfileCategoryPage.tsx` starts in Saved order. `ProjectIndexList.tsx` enables direct hold-and-drag in list and grid and uses the existing arrangement save. An ordinary tap still opens the project. The existing ordering model applies to projects in their home Portal and keeps pinned, regular, and hidden groups separate. Desktop continues to use its existing drag handles.
+
+At 420 × 912 CSS pixels, a Chromium preview with prototype data verified Saved order on entry, keyboard reordering in list and grid, and reopening the Portal with the saved order. The desktop index showed the same saved order at 1366 × 900. All 126 focused tests passed, covering direct touch activation and the owner and visitor entry paths. A separate featured-project test also passed against a fresh local database replay. Scoped ESLint reported one existing hook dependency warning. Physical iPhone and live behavior have not been checked. This branch is unpublished and requires no migration.
+
 ## 2026-11-13 — Portal and Timeline release preparation
 
 Release checkout `logs/mobile-catalogue-portals-tab`, branch `codex/mobile-catalogue-portals-tab`, from GitHub main `c23bb59`, which matches live Sites 632. The combined source contains the main and shared mobile Portals tabs, public follower and following lists for signed-in platform visitors, nested Portals on mobile and web, and independent Then/Now cover framing. The Then/Now patch was reconciled with the current Journey and prototype-service changes. Current release work excludes the separately prepared manual Splash Screen project thumbnail repair and the older cross-service audit branch.

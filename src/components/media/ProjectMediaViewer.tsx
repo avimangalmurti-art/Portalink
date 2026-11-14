@@ -59,6 +59,15 @@ const KIND_ICONS: Record<MediaKind, LucideIcon> = {
   model3d: BoxIcon,
   unknown: FileIcon
 };
+const FILE_KIND_LABELS: Record<MediaKind, string> = {
+  image: 'Image',
+  video: 'Video',
+  audio: 'Audio',
+  document: 'Document',
+  model3d: '3D model',
+  unknown: 'File',
+};
+const GENERATED_FILE_NAME = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}(?:\.[a-z0-9]+)?$/i;
 
 const SAMPLE_VERIFICATION_SIGNALS = [
   {
@@ -135,7 +144,8 @@ export function ProjectMediaViewer({
   isOwner = false,
   readOnlyShare = false,
   sharedDesktopRailStyle,
-  onClose
+  onClose,
+  onTimelineBack
 
 
 
@@ -146,7 +156,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { indexOpener?: React.RefObject<HTMLButtonElement>; index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;primaryPortalId?: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];onDeleteProject?: () => void;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public catalogue reading hides engagement and creator editing. */readOnlyShare?: boolean;sharedDesktopRailStyle?: React.CSSProperties;onClose: () => void;}) {
+}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { indexOpener?: React.RefObject<HTMLButtonElement>; index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;primaryPortalId?: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];onDeleteProject?: () => void;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public catalogue reading hides engagement and creator editing. */readOnlyShare?: boolean;sharedDesktopRailStyle?: React.CSSProperties;onTimelineBack?: () => void;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -769,15 +779,24 @@ export function ProjectMediaViewer({
         {!orderedReading && switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="side-panel-control-row side-panel-content-inset shrink-0 overflow-x-auto border-t border-[var(--hairline)] py-2">
           {switchable.map((attachment) => {
           const Icon = KIND_ICONS[attachment.kind];
+          let label = attachment.displayName;
+          if (isMobileViewer && GENERATED_FILE_NAME.test(label)) {
+            const sameKind = switchable.filter(file => file.kind === attachment.kind);
+            label = FILE_KIND_LABELS[attachment.kind];
+            if (sameKind.length > 1) label += ` ${sameKind.indexOf(attachment) + 1}`;
+          }
+          const accessibleLabel = label === attachment.displayName
+            ? `${attachment.displayName}, ${attachment.typeLabel}`
+            : `${label}, ${attachment.displayName}`;
           // Any image being shown means the whole image sequence is being shown,
           // so its single entry is the current one.
           const isActive = attachment.id === active?.id || attachment.kind === 'image' && active?.kind === 'image';
-          return <button key={attachment.id} type="button" onClick={() => {
+          return <button key={attachment.id} type="button" data-ui-shape={isMobileViewer ? 'capsule' : undefined} title={isMobileViewer ? attachment.displayName : undefined} onClick={() => {
             setActiveId(attachment.id);
             updateViewerMemory(viewerMemoryKey, { activeAttachmentId: attachment.id });
-          }} aria-current={isActive ? 'true' : undefined} aria-label={`${attachment.displayName}, ${attachment.typeLabel}`} className={`side-panel-primary-control side-panel-control-row max-w-[220px] px-2.5 text-[13px] transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
+          }} aria-current={isActive ? 'true' : undefined} aria-label={accessibleLabel} className={`side-panel-primary-control side-panel-control-row max-w-[220px] px-2.5 text-[13px] transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
                 <InterfaceIcon icon={Icon} size="sm" weight="medium" />
-                <span className="min-w-0 truncate">{attachment.displayName}</span>
+                <span className="min-w-0 truncate">{label}</span>
               </button>;
         })}
         </nav>}
@@ -859,6 +878,10 @@ export function ProjectMediaViewer({
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
         <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? (isOwner ? 'engagement-panel-toolbar px-2' : 'side-panel-control-row overflow-x-auto px-2') : 'justify-center px-1.5'}`}>
+          {singlePanel === 'response' && onTimelineBack && <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
+            className="side-panel-header-control side-panel-header-icon" aria-label="Back to Timeline" title="Back to Timeline" onClick={onTimelineBack}>
+            <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
+          </button>}
           <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide engagement and comments' : 'Show engagement and comments'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
           </button>

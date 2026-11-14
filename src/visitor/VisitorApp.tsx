@@ -33,6 +33,7 @@ import type { AuthIntent } from '../types/auth';
 import { loadVisitorProjectPage } from '../app/screenModules';
 import { captureCatalogueReaderOrigin, restoreCatalogueReaderOrigin, withCataloguePageTarget, type CatalogueReaderOrigin } from '../features/profile/cataloguePageNavigation';
 import '../app/screenTransitions.css';
+import { useDesktopTimelineReturn, type TimelineProjectSource } from '../features/journey/desktopTimelineReturn';
 import { projectBelongsToPortal } from '../features/projects/projectPortals';
 
 const VisitorProjectPage = lazy(loadVisitorProjectPage);
@@ -149,6 +150,8 @@ export function VisitorApp() {
     return () => clearProfileAudioForProfile(returnProfileId);
   }, [returnProfileId]);
   const catalogueScope = `${returnProfileId ?? ''}:${auth.user?.id ?? ''}`;
+  const { origin: timelineReturn, remember: rememberTimeline, forget: forgetTimeline } = useDesktopTimelineReturn(catalogueScope, location.key, presentation === 'web');
+  const isDesktopTimelineReader = presentation === 'web' && Boolean(projectId) && location.state?.fromTimeline === true;
   const [portalNavigationRequest, setPortalNavigationRequest] = useState<{ scope: string } | null>(null);
   useEffect(() => {
     setPortalNavigationRequest(null);
@@ -204,6 +207,10 @@ export function VisitorApp() {
   const back = () => {
     if (sharedPortalLink && !invalidShared) { dismissSharedPortal(); return; }
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
+    if (isDesktopTimelineReader && (window.history.state?.idx ?? 0) > 0) {
+      navigate(-1);
+      return;
+    }
     const desktopOrigin = desktopCatalogueOrigin.current;
     if (presentation === 'web' && projectId && desktopOrigin?.scope === catalogueScope) {
       navigate(desktopOrigin.origin.path);
@@ -292,14 +299,22 @@ export function VisitorApp() {
     if (navigationGray === systemGray) return undefined;
     return resolveNavButtonTokens(theme, accentColor, highContrast, reduceTranslucency, navigationGray) as React.CSSProperties;
   }, [navigationGray, systemGray, theme, accentColor, highContrast, reduceTranslucency]);
-  const openProject = (category: string, id: string) => { if (profileId) {
+  const openProject = (category: string, id: string, timelineSource?: TimelineProjectSource) => { if (profileId) {
     if (presentation === 'mobile') { setPortalPopup(null); setPortalNavigationRequest(null); }
-    if (presentation === 'web' && !projectId && catalogueReady) {
+    if (presentation === 'web' && timelineSource && catalogueReady) {
+      rememberTimeline(timelineSource, document.querySelector<HTMLElement>('[data-public-portfolio-grid]')?.closest('main') ?? null);
+      desktopCatalogueOrigin.current = null;
+    } else if (presentation === 'web' && !projectId && catalogueReady) {
       const origin = captureCatalogueReaderOrigin(profileId, location.pathname + location.search + location.hash, id,
         document.querySelector<HTMLElement>('[data-public-portfolio-grid]'));
       desktopCatalogueOrigin.current = origin ? { scope: catalogueScope, origin, pending: true } : null;
     }
-    projectReturn.open(withCataloguePageTarget(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)), id, undefined, presentation === 'mobile' ? 'scroll' : 'focused'), id);
+    const path = withCataloguePageTarget(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)), id, undefined, presentation === 'mobile' ? 'scroll' : 'focused');
+    if (presentation === 'web' && (timelineSource || isDesktopTimelineReader)) {
+      navigate(path, { replace: isDesktopTimelineReader, state: { fromTimeline: true } });
+    } else {
+      projectReturn.open(path, id);
+    }
   } };
   const openDesktopPortal = (id: string) => {
     if (!profileId) return;
@@ -372,7 +387,7 @@ export function VisitorApp() {
                       : missingSharedPortal || (presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId)) ? <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
                       : webCategoryRoute ? webCategoryReady && !firstCategoryProjectId ? <VisitorProjectPage key={`${profile.id}/${categoryId}`} profile={profile} project={null} categoryId={categoryId ?? undefined} onBack={back} desktopNavigationStyle={desktopNavigationStyle}
                         onBackToProfile={back} onOpenChild={openPortalFromReader} onSelect={id => { if (categoryId) openProject(categoryId, id); }} /> : pending
-                      : presentation === 'mobile' ? null : <VisitorProfileGrid key={`${profile.id}/${sharedPortalLink ? '' : categoryId ?? ''}`} profile={profile} categoryId={sharedPortalLink ? null : categoryId} appearanceControls={catalogueAppearanceControls} onOpen={openProject} onBack={back} onMessage={openMessages}
+                      : presentation === 'mobile' ? null : <VisitorProfileGrid key={`${profile.id}/${sharedPortalLink ? '' : categoryId ?? ''}`} profile={profile} categoryId={sharedPortalLink ? null : categoryId} timelineReturn={timelineReturn} onLeaveTimeline={forgetTimeline} appearanceControls={catalogueAppearanceControls} onOpen={openProject} onBack={back} onMessage={openMessages}
                         onCollaboration={openMessages} />}
                   </Suspense>
                 </DeferredSurfaceBoundary>

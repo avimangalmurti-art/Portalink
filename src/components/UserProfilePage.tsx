@@ -9,6 +9,7 @@ import { observeMobileCatalogueScroll, repairMobileCatalogueScroll } from './pro
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { useAuth } from '../contexts/AuthContext';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
+import type { TimelineProjectSource, TimelineReturn } from '../features/journey/desktopTimelineReturn';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
 import { journeyAllowed } from '../features/journey/journey';
 import { readLivePortfolio, livePortfolioDismissed } from '../features/publishing/firstProject';
@@ -74,6 +75,8 @@ const ProfileShareDialog = lazyWithMobileRecovery(() => import('../features/shar
 type UserProfilePageProps = {
   publishedProjectId?: string;
   revealPublishedProjectId?: string;
+  timelineReturn?: TimelineReturn;
+  onLeaveTimeline?: () => void;
   /** The canonical record. Read through the profile data boundary, so a saved edit shows immediately. */
   profile: Profile;
   onBack: () => void;
@@ -114,7 +117,7 @@ type UserProfilePageProps = {
   };
   onSignInRequest?: () => void;
   /** Opens the published project represented by a profile image. */
-  onOpenProject: (projectId: string, categoryId: string, options?: { openComments?: boolean }) => void;
+  onOpenProject: (projectId: string, categoryId: string, options?: { openComments?: boolean; fromTimeline?: boolean; timelineSource?: TimelineProjectSource }) => void;
   onEditProfile?: () => void;
   /** Starts the existing publisher with an owned category as its default. */
   onPublishProject?: () => void;
@@ -399,6 +402,8 @@ export function UserProfilePage({
   profile,
   publishedProjectId,
   revealPublishedProjectId,
+  timelineReturn,
+  onLeaveTimeline,
   mobilePortalsView,
   mobileContent,
   mobileContentView,
@@ -428,7 +433,11 @@ export function UserProfilePage({
   const showsOwnerTools = canAuthor(viewerRole) && !isSharedView;
   const webVisitorHeader = webProfileHeader && !showsOwnerTools;
   const auth = useAuth();
-  const journey = useJourneySelection(profile.id, auth.viewerProfileId, false);
+  const journey = useJourneySelection(profile.id, auth.viewerProfileId, false, Boolean(timelineReturn));
+  const selectJourneyView = (view: 'portfolio' | 'journey') => {
+    if (view === 'portfolio') onLeaveTimeline?.();
+    journey.select(view);
+  };
   const canSeeJourney = journeyAllowed(profile, showsOwnerTools);
   const [pairSelection, setPairSelection] = useState<string | null>(null);
   const [pairEdit, setPairEdit] = useState<{ profileId: string; pair: TimelinePair } | null>(null);
@@ -459,7 +468,7 @@ export function UserProfilePage({
     }, { replace: !(isMobile && view === 'portals') });
   };
   const selectProfileContent = (view: ProfileContentView) => {
-    if (webProfileHeader && view === 'projects') journey.select('portfolio');
+    if (webProfileHeader && view === 'projects') selectJourneyView('portfolio');
     setActiveView(view);
   };
   // This page renders portfolio media from canonical projects and nothing else.
@@ -808,7 +817,7 @@ export function UserProfilePage({
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
           profileView={mobilePortalTab || ((isMobile || webProfileHeader) && canSeeJourney) ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={profileControlsDisabled} showTimeline={canSeeJourney} portalsOpen={mobilePortalsOpen}
             portalsButton={mobilePortalTab && <button type="button" aria-haspopup="dialog" aria-expanded={mobilePortalsOpen} disabled={profileControlsDisabled} onClick={() => selectProfileContent('portals')}>Portals</button>}
-            onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}
+            onChange={view => { selectJourneyView(view); setActiveView('projects'); }} /> : undefined}
           summaryCounts={isJourney || isSharedView || (isMobile && !mobileContent && !isMobileToolsOpen) ? undefined : { projectCount, portalCount: profile.categories.length, showPortalCount: !mobilePortalTab, followers, following, expanded: isMobileToolsOpen || webProfileHeader, canViewConnections, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: selectProfileContent, disabled: profileControlsDisabled }} />
         {webVisitorHeader ? <button type="button" className="profile-header-options" aria-label="Back to previous screen" title="Back" onClick={dismissProfile}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button>
         : isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
@@ -902,7 +911,7 @@ export function UserProfilePage({
         </div>
       </header>}
 
-      {!isMobile && !webProfileHeader && isJourney && <JourneyToggle view="journey" disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} />}
+      {!isMobile && !webProfileHeader && isJourney && <JourneyToggle view="journey" disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { selectJourneyView(view); setActiveView('projects'); }} />}
       {isMobile && isJourney && <div className="timeline-header-controls" ref={setTimelineToolbarHost} />}
       {(isMobileWall || showsWebDensity) && !isSharedView && !isReorderingProjects && <DensitySeparator columns={columnsPerRow} onChange={density.setColumns} onPreview={density.previewColumns} label="Profile content per row" />}
       </div>
@@ -943,9 +952,9 @@ export function UserProfilePage({
          Holding the photographs off the same margin only narrowed the rows and
          left the sides of the page bare. */}
       {!mobileContent && activeView === 'projects' && <EmployerOverview profile={profile} onOpen={project => onOpenProject(project.id,project.categoryId)} />}
-      {!isMobile && !webProfileHeader && canSeeJourney && !mobileContent && !isJourney && <JourneyToggle view="portfolio" disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} />}
+      {!isMobile && !webProfileHeader && canSeeJourney && !mobileContent && !isJourney && <JourneyToggle view="portfolio" disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { selectJourneyView(view); setActiveView('projects'); }} />}
       <main id="profile-content" data-profile-empty-work={imageryCells.length === 0 && !showsOwnerTools && !isSharedView ? '' : undefined} data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
-        {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView toolbarHost={isMobile?timelineToolbarHost:null} profile={profile} owner={showsOwnerTools} onOpen={(project, categoryId) => onOpenProject(project.id, categoryId ?? project.categoryId)} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, isMobile ? undefined : 'journey') : undefined} onEditDescription={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'description') : undefined} onDelete={showsOwnerTools ? project => projectManagement.deletion.request(project.id) : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} onEditPair={showsOwnerTools && isMobile ? pair => setPairEdit({ profileId: profile.id, pair }) : undefined} /></Suspense> : isMobileWall || nestedMobileContent ? <>
+        {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView active={screenActive} toolbarHost={isMobile?timelineToolbarHost:null} profile={profile} owner={showsOwnerTools} timelineReturn={journey.restoring ? timelineReturn : undefined} onOpen={(project, categoryId, timelineSource) => onOpenProject(project.id, categoryId ?? project.categoryId, { fromTimeline: true, timelineSource })} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, isMobile ? undefined : 'journey') : undefined} onEditDescription={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'description') : undefined} onDelete={showsOwnerTools ? project => projectManagement.deletion.request(project.id) : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} onEditPair={showsOwnerTools && isMobile ? pair => setPairEdit({ profileId: profile.id, pair }) : undefined} /></Suspense> : isMobileWall || nestedMobileContent ? <>
           {isMobile && <div className="mobile-profile-wall scrollbar-overlay" hidden={!isMobileWall} style={!isMobileWall ? { display: 'none' } : undefined} aria-hidden={!isMobileWall || mobilePortalOverlay ? true : undefined} onScroll={event => {
             mobileWallScroll.current.top = event.currentTarget.scrollTop;
             mobileWallScrollMemory?.save(event.currentTarget.scrollTop);

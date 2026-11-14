@@ -34,10 +34,15 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
   const auth = useAuth();
   const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [isAdding, setIsAdding] = useState(false);
-  const [renaming, setRenaming] = useState<{ id: string; label: string } | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; label: string; saved?: boolean } | null>(null);
   const portalScrollRef = useMobilePortalScrollFade<HTMLDivElement>();
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  useEffect(() => {
+    if (!renaming?.saved) return;
+    const timeout = window.setTimeout(() => setRenaming(current => current === renaming ? null : current), 850);
+    return () => window.clearTimeout(timeout);
+  }, [renaming]);
   const { profile, status, retry } = profileQuery;
   const ownsProfile = auth.isAuthenticated && !auth.isInitializing && auth.phase !== 'authenticating' && auth.phase !== 'signing-out'
     && profile?.id === auth.viewerProfileId && (status === 'ready' || status === 'loading');
@@ -54,14 +59,17 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
   if (presentation === 'web') return <FeatureInDesignPage feature="Portals" onBack={onBack} />;
 
   const actionsDisabled = Boolean(management.pending) || management.isLoadingArrangement || Boolean(management.arrangementError) || !management.arrangement;
+  const renameLocked = Boolean(management.pending || renaming?.saved);
   async function createPortal(label: string, iconName: string) {
     if (!ownsProfile || actionsDisabled) return;
     const created = await management.createCategory(label, iconName);
     if (created && active.current) { setIsAdding(false); onSelectCategory(created.id); }
   }
   async function saveRename() {
-    if (!ownsProfile || !renaming || actionsDisabled) return;
-    if (await management.renameCategory(renaming.id, renaming.label)) setRenaming(null);
+    if (!ownsProfile || !renaming?.label.trim() || renaming.saved || actionsDisabled) return;
+    if (await management.renameCategory(renaming.id, renaming.label) && active.current) {
+      setRenaming(current => current === renaming ? { ...renaming, saved: true } : current);
+    }
   }
   let content: React.ReactNode;
   if (auth.isInitializing || auth.phase === 'authenticating' || auth.phase === 'signing-out') {
@@ -90,10 +98,13 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
         }
       }}
       renderItem={(category, activator, actions) => <>
-        {ownsProfile && renaming?.id === category.id ? <form className="mobile-portal-rename" onSubmit={event => { event.preventDefault(); void saveRename(); }} onKeyDown={event => { if (event.key === 'Escape' && !management.pending) setRenaming(null); }}>
-          <input autoFocus aria-label={`Rename ${category.label}`} maxLength={MAX_CATEGORY_LABEL} disabled={Boolean(management.pending)} value={renaming.label} onChange={event => setRenaming({ id: category.id, label: event.target.value })} className="text-control min-w-0 flex-1 px-2 py-2" />
-          <button type="submit" disabled={actionsDisabled || !renaming.label.trim()} aria-label="Save portal name" className="mobile-portal-action"><InterfaceIcon icon={CheckIcon} /></button>
-          <button type="button" disabled={Boolean(management.pending)} aria-label="Cancel rename" onClick={() => setRenaming(null)} className="mobile-portal-action"><InterfaceIcon icon={XIcon} /></button>
+        {ownsProfile && renaming?.id === category.id ? <form className="mobile-portal-rename" onSubmit={event => { event.preventDefault(); void saveRename(); }} onKeyDown={event => { if (event.key === 'Escape' && !renameLocked) setRenaming(null); }}>
+          <input autoFocus aria-label={`Rename ${category.label}`} maxLength={MAX_CATEGORY_LABEL} disabled={renameLocked} value={renaming.label} onChange={event => setRenaming({ id: category.id, label: event.target.value })} className="text-control min-w-0 flex-1 px-2 py-2" />
+          <button type="submit" disabled={actionsDisabled || renameLocked || !renaming.label.trim()} aria-label="Save portal name" className="mobile-portal-action" style={renaming.saved ? { opacity: 1 } : undefined}>
+            <InterfaceIcon icon={CheckIcon} keepColor={renaming.saved} style={renaming.saved ? { color: 'var(--status-success)' } : undefined} />
+          </button>
+          <button type="button" disabled={renameLocked} aria-label="Cancel rename" onClick={() => setRenaming(null)} className="mobile-portal-action"><InterfaceIcon icon={XIcon} /></button>
+          <span role="status" className="sr-only">{renaming.saved ? 'Portal name saved' : ''}</span>
         </form> : <>
         <button {...activator} type="button" className="mobile-portal-row" data-hidden={(ownsProfile && management.arrangement?.hiddenCategoryIds.includes(category.id)) || undefined} onClick={() => onSelectCategory(category.id)}>
           <InterfaceIcon icon={getCategoryIcon((ownsProfile ? management.categoryIcons[category.id] : undefined) ?? category.iconName)} size="lg" weight="medium" />

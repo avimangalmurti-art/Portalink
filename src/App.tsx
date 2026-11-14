@@ -25,6 +25,7 @@ import { ActivityCollectionPage } from './components/profile/ActivityCollectionP
 import { ActivityPage, SavedPage, InsightsPage } from './features/library/PersonalPages';
 import type { NavigationDestination } from './components/navigation';
 import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, useRouteNavigator } from './app/useAppRoute';
+import { useDesktopTimelineReturn } from './features/journey/desktopTimelineReturn';
 import { useMobilePortalCollectionReturn } from './presentation/mobile/useMobilePortalCollectionReturn';
 import { AccountEntryBoundary } from './app/AccountEntryBoundary';
 import { useLocation, useNavigationType } from 'react-router-dom';
@@ -702,6 +703,9 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     // Deliberately once, at startup: a preset is initialization, not navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const { origin: timelineReturn, remember: rememberTimeline, forget: forgetTimeline } = useDesktopTimelineReturn(
+    `${auth.user?.id ?? 'guest'}:${isSharedRoute}`, screenLocation.key, presentation === 'web'
+  );
   /**
    * Scroll restoration, keyed by path rather than by a hand-rolled history array.
    * Each destination remembers where it was left, so browser Back returns to the
@@ -711,6 +715,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
   useEffect(() => {
+    if (timelineReturn) return;
     const target = scrollPositionsRef.current.get(pathname) ?? 0;
     let frame = 0;
     let attempts = 0;
@@ -732,7 +737,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     };
     frame = requestAnimationFrame(apply);
     return () => cancelAnimationFrame(frame);
-  }, [pathname, presentation]);
+  }, [pathname, presentation, timelineReturn]);
   useEffect(() => {
     if (presentation !== 'mobile') return;
     const remember = () => scrollPositionsRef.current.set(pathnameRef.current, window.scrollY);
@@ -1287,17 +1292,20 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     dismissTopModal,
     reopen: requestMobilePublish,
   });
+  const isTimelineReader = (route.kind === 'project' || route.kind === 'sharedProject')
+    && navigationState?.fromTimeline === true;
   /** Opening or closing a project inside its category is a change of URL. */
   function selectProject(projectId: string | null, replace = false) {
     if (!activeCategory || !viewedProfileId) {
       return;
     }
     if (projectId) {
+      const options = isTimelineReader ? { fromTimeline: true } : undefined;
       if (isSharedRoute) {
-        nav.sharedProject(viewedProfileId, activeCategory.id, projectId, replace);
+        nav.sharedProject(viewedProfileId, activeCategory.id, projectId, replace || isTimelineReader, options);
         return;
       }
-      nav.project(viewedProfileId, activeCategory.id, projectId, replace);
+      nav.project(viewedProfileId, activeCategory.id, projectId, replace || isTimelineReader, options);
       return;
     }
     if (isSharedRoute) {
@@ -1498,7 +1506,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     && management.arrangement?.categoryOrder.includes(activeCategory.id) && !management.isLoadingArrangement && !management.arrangementError
     && management.pending?.kind !== 'arrangement'
     && !management.arrangement.hiddenCategoryIds.includes(activeCategory.id));
-  const categoryPage = activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} readerLoading={isWebReaderLoading} onBack={returnFromPortal} onBackToPortals={returnToPortalCollection} onSelectProject={selectProject} onSelectSubPortal={selectProfileCategory} onCreateProject={isOwnerMode ? requestPublish : undefined} categoryManagement={isOwnerMode && !isSharedRoute ? management : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} canShareCategory={canShareActiveCategory} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
+  const categoryPage = activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} readerLoading={isWebReaderLoading} onBack={returnFromPortal} onBackToPortals={returnToPortalCollection} onSelectProject={selectProject} onSelectSubPortal={selectProfileCategory} onCreateProject={isOwnerMode ? requestPublish : undefined} categoryManagement={isOwnerMode && !isSharedRoute ? management : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} canShareCategory={canShareActiveCategory} onReturnToTimeline={isTimelineReader ? returnFromPortal : undefined} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
         const target = discoveryReturn.path;
         const viewTransition = activeProjectId ? beginProjectContinuity(activeProjectId, 'return') : false;
         setDiscoveryReturn(null);
@@ -1507,7 +1515,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const mobileWallScrollKey = `mobile-profile-wall:${auth.user?.id ?? 'guest'}:${viewedProfile?.id}:${isSharedRoute}`;
   const revealPublishedProjectId = presentation === 'mobile' && isOwnerMode && route.kind === 'profile' && screenNavigationType === 'PUSH'
     && typeof navigationState?.revealPublishedProjectId === 'string' ? navigationState.revealPublishedProjectId : undefined;
-  const profilePage = viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} publishedProjectId={firstProjectPublisher && isFirstProjectPublish ? publishConfirmation?.projectId : undefined} revealPublishedProjectId={revealPublishedProjectId} onBack={closeUserProfile} mobilePortalsView={portalsPage} mobileWallScrollMemory={{
+  const profilePage = viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} timelineReturn={timelineReturn} onLeaveTimeline={forgetTimeline} publishedProjectId={firstProjectPublisher && isFirstProjectPublish ? publishConfirmation?.projectId : undefined} revealPublishedProjectId={revealPublishedProjectId} onBack={closeUserProfile} mobilePortalsView={portalsPage} mobileWallScrollMemory={{
     read: () => scrollPositionsRef.current.get(mobileWallScrollKey) ?? 0,
     save: top => { scrollPositionsRef.current.set(mobileWallScrollKey, top); }
   }} onMobileViewChange={(view) => {
@@ -1532,8 +1540,9 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         onToggle: toggleFollowProfile,
         onRetry: follows.retryMutation
       }} onSignInRequest={() => isSharedRoute ? auth.requestAuthenticatedDestination(interactionIntent('follow this creator', pathname + search)) : auth.requestAuth('signIn')} onOpenProject={(projectId, categoryId, options) => {
+        if (options?.timelineSource) rememberTimeline(options.timelineSource, mainContentRef.current);
         if (isSharedRoute) {
-          nav.sharedProject(viewedProfile.id, categoryId, projectId);
+          nav.sharedProject(viewedProfile.id, categoryId, projectId, false, options);
           return;
         }
         if (options?.openComments) {
@@ -1542,7 +1551,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         // The profile is the entrance to this creator's Portal, not a discovery
         // feed. Navigate directly so the Portal index opens alongside the chosen
         // project; discovery-only return state would intentionally collapse it.
-        nav.project(viewedProfile.id, categoryId, projectId);
+        nav.project(viewedProfile.id, categoryId, projectId, false, options);
       }} onAddJourneyProject={isOwnerMode ? year => { setJourneyMadeIn(year ? `${year}-01` : ''); requestGlobalPublish(); } : undefined} onPublishProject={isOwnerMode ? requestGlobalPublish : undefined} onEditProfile={isOwnerMode ? nav.profileEditor : undefined} onCollaboration={() => presentation === 'mobile' ? nav.collaboration(viewedProfile.id, isSharedRoute) : openMessages(auth.viewerProfileId === viewedProfile.id ? undefined : viewedProfile.id)} onMessage={() => openMessages(auth.viewerProfileId === viewedProfile.id ? undefined : viewedProfile.id)} onAddCategory={isOwnerMode ? (label, iconName) => setAddCategoryRequest((request) => ({
         nonce: (request?.nonce ?? 0) + 1,
         label,
@@ -1552,7 +1561,11 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const mobilePortalsWorkspace = canShowOwnPortalsWorkspace
     ? <MobileProfileWorkspace overview={profilePage} view="portals">{portalsPage}</MobileProfileWorkspace>
     : portalsPage;
-  const mobileProfileKey = !isProfileEditorRoute && !routeStateView && !personalScreen && !isControlCenterOpen && !iconPickerCategoryId && viewedProfile &&
+  // A Timeline-launched reader needs its own layer, including while the project
+  // loads, so Back can reveal the mounted Timeline with its filter and scroll.
+  const mobileProfileKey = presentation === 'mobile' && isTimelineReader
+    ? `mobile-timeline-reader-${auth.user?.id ?? 'guest'}-${routeProfileId}-${isSharedRoute}`
+    : !isProfileEditorRoute && !routeStateView && !personalScreen && !isControlCenterOpen && !iconPickerCategoryId && viewedProfile &&
     (categoryPage || ((route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady) || (isPortalsOpen && canShowOwnPortalsWorkspace))
       ? `mobile-profile-${auth.user?.id ?? 'guest'}-${viewedProfile.id}-${isSharedRoute}` : undefined;
   const screenContent = <div data-screen-scroll={isProfileEditorRoute || activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen || isStudioPageOpen || isPortalSearchOpen ? 'nested' : 'page'} className={`feed-starfield min-h-full ${isProfileEditorRoute || activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen || isStudioPageOpen || isPortalSearchOpen ? 'h-full' : ''}`}>
