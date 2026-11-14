@@ -1,4 +1,5 @@
 import type { Id, Profile, ProjectView } from '../types/domain';
+import { projectBelongsToPortal } from '../features/projects/projectPortals';
 
 export type ProjectPlacementSurface =
   | 'home'
@@ -94,7 +95,7 @@ export function decideProjectPlacement(input: ProjectPlacementInput): ProjectPla
     return { eligible: false, reason: 'hidden_project' };
   }
 
-  if (surface === 'portal' && input.requestedCategoryId !== view.project.categoryId) {
+  if (surface === 'portal' && !projectBelongsToPortal(view.project, input.requestedCategoryId)) {
     return { eligible: false, reason: 'wrong_portal' };
   }
   if (surface === 'location') {

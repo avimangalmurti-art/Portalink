@@ -169,7 +169,8 @@ export function readInterfaceAppearance(presentation: Presentation, scope: Appea
   const fallback: InterfaceAppearance = scope === 'public' && presentation === 'mobile' ? {
     ...readInterfaceAppearance(presentation),
     publicAccentColor: undefined,
-    // Public mobile starts translucent until the visitor makes their own choice.
+    // Public mobile starts with standard contrast and translucency.
+    highContrast: false,
     reduceTranslucency: false,
   } : {
     mode: readDeviceAppearanceMode(),

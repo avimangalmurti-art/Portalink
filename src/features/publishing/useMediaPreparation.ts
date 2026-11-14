@@ -4,6 +4,7 @@ import { canBeCover, canPreviewLocally, detectAsset, initialProcessingState } fr
 import type { MediaPreparationState, MediaRejectionCode, PreparedMedia, UploadCapability } from '../../types/publishing';
 import { readImageDimensions } from '../../utils/imageMetadata';
 import type { ProjectCoverFrame } from '../../types/domain';
+import { reorderPhotoSlots } from './reorderPhotoSlots';
 
 /**
  * Universal local asset preparation. NOTHING IS UPLOADED.
@@ -185,6 +186,29 @@ export function useMediaPreparation() {
       return reindex(next);
     });
   }, []);
+  const moveImage = useCallback((mediaId: string, direction: -1 | 1) => {
+    setItems((current) => {
+      const index = current.findIndex(item => item.id === mediaId && item.family === 'image');
+      if (index < 0) return current;
+
+      let nextIndex = index + direction;
+      while (nextIndex >= 0 && nextIndex < current.length && current[nextIndex].family !== 'image') {
+        nextIndex += direction;
+      }
+      if (nextIndex < 0 || nextIndex >= current.length) return current;
+
+      // Swap the photos in place without shifting any of the other media.
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return reindex(next);
+    });
+  }, []);
+  const reorderImages = useCallback((movingId: string, targetId: string) => {
+    setItems(current => {
+      const next = reorderPhotoSlots(current, item => item.family === 'image', movingId, targetId);
+      return next === current ? current : reindex(next);
+    });
+  }, []);
   const setCover = useCallback((mediaId: string) => {
     setItems((current) => {
       const target = current.find(item => item.id === mediaId);
@@ -286,6 +310,8 @@ export function useMediaPreparation() {
     remove,
     clear,
     reorder,
+    moveImage,
+    reorderImages,
     setCover,
     setPageCount,
     setCoverPage,

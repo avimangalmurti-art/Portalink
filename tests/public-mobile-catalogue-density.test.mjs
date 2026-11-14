@@ -25,10 +25,13 @@ function fixture(initial = {}) {
     useState: value => [typeof value === 'function' ? value() : value, () => {}],
   };
   const { VisitorProfileGrid } = sourceModule('src/visitor/VisitorProfileGrid.tsx', {
+    '../features/projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
     react,
+    'lucide-react': { MoonIcon: 'moon-icon', SunIcon: 'sun-icon' },
     'react-router-dom': { useSearchParams: () => [new URLSearchParams(state.search), () => {}] },
     '../components/ui/StateViews': { LoadingSkeleton: 'loading' },
     '../components/ui/DensitySeparator': { DensitySeparator: 'density-control' },
+    '../components/ui/InterfaceIcon': { InterfaceIcon: 'interface-icon' },
     '../features/employer/EmployerOverview': { EmployerOverview: 'employer-overview' },
     '../features/journey/JourneyToggle': { JourneyToggle: 'journey-toggle' },
     '../features/journey/useJourneySelection': { useJourneySelection: () => ({ view: state.view, select(value) { state.view = value; } }) },

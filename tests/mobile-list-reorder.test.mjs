@@ -5,7 +5,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
-import { arrayMove } from '@dnd-kit/sortable';
+import { arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { TouchSensor as InstalledTouchSensor } from '@dnd-kit/core';
 
 function compile(path, require, globals = {}) {
@@ -28,10 +28,10 @@ function harness() {
       KeyboardCode: { Space: 'Space', Esc: 'Escape', Enter: 'Enter' },
       useSensor: (sensor, options) => ({ sensor, options }), useSensors: (...sensors) => sensors,
       closestCenter: args => args.droppableContainers.map(container => ({ id: container.id })) };
-    if (name === '@dnd-kit/sortable') return { SortableContext, arrayMove, sortableKeyboardCoordinates,
+    if (name === '@dnd-kit/sortable') return { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates,
       verticalListSortingStrategy() {}, useSortable: ({ disabled }) => ({
         attributes: { tabIndex: 0, role: 'button' },
-        listeners: disabled ? {} : { onTouchStart: activateTouch, onMouseDown: activateMouse, onKeyDown: activateKeyboard },
+        listeners: disabled.draggable ? {} : { onTouchStart: activateTouch, onMouseDown: activateMouse, onKeyDown: activateKeyboard },
         setNodeRef() {}, setActivatorNodeRef() {}, transform: null, transition: 'transform 200ms', isDragging: dragging,
       }) };
     if (name === '@dnd-kit/utilities') return { CSS: { Transform: { toString: () => undefined } } };
@@ -79,6 +79,26 @@ test('collision candidates stay within visibility groups', () => {
   const tree = harness().render();
   const result = tree.props.collisionDetection({ active: { id: 'a' }, droppableContainers: [{ id: 'a' }, { id: 'b' }, { id: 'hidden' }] });
   assert.deepEqual(Array.from(result, item => item.id), ['a', 'b']);
+});
+
+test('a disabled file stays put during a grid drag and cannot receive the drop', () => {
+  const h = harness();
+  h.props.items = ['a', 'pdf', 'b'].map(id => ({ id }));
+  h.props.groupForItem = () => 'saved';
+  h.props.isItemDisabled = item => item.id === 'pdf';
+  h.props.layout = 'grid';
+  const tree = h.render();
+  const candidates = tree.props.collisionDetection({ active: { id: 'a' },
+    droppableContainers: h.props.items });
+  assert.deepEqual(Array.from(candidates, item => item.id), ['a', 'b']);
+  drop(tree, 'a', 'pdf');
+  assert.deepEqual(h.moves, []);
+
+  const { strategy } = tree.props.children.props;
+  const rects = [0, 100, 200].map(left => ({ left, top: 0, width: 100, height: 100 }));
+  const args = { activeIndex: 0, overIndex: 2, rects };
+  assert.equal(strategy({ ...args, index: 1 }), null);
+  assert.equal(strategy({ ...args, index: 2 }).x, -200);
 });
 
 test('only the destination gets hold listeners; disabled rows remain ordinary buttons', () => {

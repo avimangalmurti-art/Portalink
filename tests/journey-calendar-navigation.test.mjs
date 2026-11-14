@@ -5,6 +5,7 @@ import { sourceModule } from './helpers/source-module.mjs';
 
 const calendar = sourceModule('src/features/journey/calendar.ts');
 const journey = sourceModule('src/features/journey/journey.ts');
+const portalMembership = sourceModule('src/features/projects/projectPortals.ts');
 const timeline = sourceModule('src/features/citations/journeyCitations.ts', { '../journey/journey': journey });
 const nodes = tree => Array.isArray(tree) ? tree.flatMap(nodes) : React.isValidElement(tree) ? [tree, ...nodes(tree.props.children)] : [];
 const project = (id, date, patch = {}) => ({ id, categoryId: 'portal', title: id, summary: 'A real project', cover: '', madeOn: date, ...patch });
@@ -29,7 +30,7 @@ function componentHarness(file, name, initial, overrides = {}) {
   const imports = {
     'react-dom':{createPortal:children=>children}, '../../contexts/ServicesContext':{useServices:()=>({})},
     react, 'lucide-react': new Proxy({}, { get: (_target, key) => key }),
-    './calendar': calendar, './journey': journey,
+    './calendar': calendar, './journey': journey, '../projects/projectPortals': portalMembership,
     '../../components/text/FormattedText': { FormattedText: 'formatted-text' },
     '../../components/ui/InterfaceIcon': { InterfaceIcon: 'icon' },
     '../../components/ui/Button': { Button: 'button' },
@@ -256,7 +257,8 @@ for (const presentation of ['mobile', 'web']) {
     const hidden = project('hidden', '2026-10-14', { isPubliclyVisible: false });
     const draft = project('draft', '2026-10-14', { sessionOnly: true });
     const other = project('other', '2026-10-14', { categoryId: 'other' });
-    const viewed = { ...profile, showJourney: true, thenNow: { then: published.id, now: recent.id }, projects: [published, recent, hidden, draft, other] };
+    const featured = project('featured', '2026-10-15', { categoryId: 'other', additionalPortalIds: ['portal'] });
+    const viewed = { ...profile, showJourney: true, thenNow: { then: published.id, now: recent.id }, projects: [published, recent, hidden, draft, other, featured] };
     const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: viewed, owner: false, presentation, onOpen: value => opened.push(value.id) });
     const popup = () => h.nodes.find(node => node.type === 'portal-project-popup');
     const openPortal = () => h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props.onClick();
@@ -275,7 +277,7 @@ for (const presentation of ['mobile', 'web']) {
     assert.equal(popup().props.categoryId, 'portal');
     assert.equal(popup().props.backLabel, 'Back to Timeline');
     assert.equal(popup().props.profile.id, viewed.id);
-    assert.deepEqual(popup().props.profile.projects.map(value => value.id), ['early', 'recent', 'other']);
+    assert.deepEqual(popup().props.profile.projects.map(value => value.id), ['early', 'recent', 'other', 'featured']);
     assert.deepEqual(opened, [], 'Opening the Portal Popup does not invoke canonical project navigation.');
     popup().props.onClose();
     assert.equal(popup(), undefined);
@@ -284,10 +286,14 @@ for (const presentation of ['mobile', 'web']) {
     assert.equal(h.scrolls.length, scrollCount);assert.equal(h.target('2024-02-29'), position);assert.equal(position.top, 176);
     assert.deepEqual(h.nodes.filter(node => node.props['data-journey-date']).map(node => node.key), datedRows);
     openPortal();
-    for (const [categoryId, id] of [['portal', 'hidden'], ['portal', 'draft'], ['portal', 'missing'], ['other', 'early'], ['other', 'other']]) popup().props.onSelect(categoryId, id);
+    for (const [categoryId, id] of [['portal', 'hidden'], ['portal', 'draft'], ['portal', 'missing'], ['portal', 'other'], ['other', 'early'], ['other', 'other']]) popup().props.onSelect(categoryId, id);
     assert.deepEqual(opened, [], 'An injected row cannot select hidden, session-only, nonexistent, or another-portal work.');
     popup().props.onSelect('portal', 'recent');
     assert.deepEqual(opened, ['recent']);
+    assert.equal(popup(), undefined);
+    openPortal();
+    popup().props.onSelect('portal', 'featured');
+    assert.deepEqual(opened, ['recent', 'featured']);
     assert.equal(popup(), undefined);
     openPortal();
     h.update({ profile: { ...viewed, id: 'another-profile' } });
@@ -297,9 +303,9 @@ for (const presentation of ['mobile', 'web']) {
     h.update({ owner: true });
     assert.equal(popup(), undefined, 'Changing the access mode closes the old local popup.');
     openPortal();
-    assert.deepEqual(popup().props.profile.projects.map(value => value.id), ['early', 'recent', 'hidden', 'other']);
+    assert.deepEqual(popup().props.profile.projects.map(value => value.id), ['early', 'recent', 'hidden', 'other', 'featured']);
     popup().props.onSelect('portal', 'hidden');
-    assert.deepEqual(opened, ['recent', 'hidden'], 'Owners retain their existing access to hidden published work.');
+    assert.deepEqual(opened, ['recent', 'featured', 'hidden'], 'Owners retain their existing access to hidden published work.');
     h.dispose();
   });
 }

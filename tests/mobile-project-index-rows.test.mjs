@@ -9,10 +9,13 @@ const MobileReorderList = () => null;
 const ProjectCover = () => null;
 const ReorderGroup = () => null;
 function nodes(node) {
-  return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
+  if (!React.isValidElement(node)) return [];
+  if (node.type?.name === 'ProjectIndexCover') return [node, ...nodes(node.type(node.props))];
+  return [node, ...React.Children.toArray(node.props.children).flatMap(nodes)];
 }
-function harness({ presentation = 'mobile', isOwner = false, mobileLayout, sharedReadOnly, publishedAt = '2026-09-14T12:00:00Z' } = {}) {
+function harness({ presentation = 'mobile', isOwner = false, mobileLayout, sharedReadOnly, publishedAt = '2026-09-14T12:00:00Z', projectFields, loadedProject } = {}) {
   const exports = {};
+  const loads = [];
   const react = { ...React, lazy: () => MobileReorderList, useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
     useRef: current => ({ current }), useCallback: fn => fn, useLayoutEffect() {} };
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/profile/ProjectIndexList.tsx', import.meta.url), 'utf8'), {
@@ -26,15 +29,20 @@ function harness({ presentation = 'mobile', isOwner = false, mobileLayout, share
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
     if (name.endsWith('/ProjectCover')) return { ProjectCover };
+    if (name.endsWith('/videoPlayback')) return { videoSources: attachment => [attachment.metadata?.playbackVideo?.sourceUrl, attachment.sourceUrl].filter(Boolean) };
+    if (name.endsWith('/useInlineProjectContent')) return { useInlineProjectContent: options => {
+      loads.push(options);
+      return { project: options.enabled && loadedProject ? { ...options.project, ...loadedProject } : options.project };
+    } };
     if (name.endsWith('/projectPresentation')) return { getProjectCoverPreview: () => undefined };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: () => null };
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({}) };
     return {};
   } });
   const project = { id: 'work', title: 'Plant Cell Microscope Photography', cover: '/cover.pdf', coverAlt: 'Plant cells',
-    coverKind: 'document', coverPageNumber: 3, coverAspectRatio: 0.75, coverFrame: { x: 0.4, y: 0.6, zoom: 1.2 }, publishedAt };
+    coverKind: 'document', coverPageNumber: 3, coverAspectRatio: 0.75, coverFrame: { x: 0.4, y: 0.6, zoom: 1.2 }, publishedAt, ...projectFields };
   const selections = [];
-  const props = { projects: [project], typefaceStacks: { work: 'Custom Project Typeface' }, typefaceIds: {},
+  const props = { profileId: 'creator', projects: [project], typefaceStacks: { work: 'Custom Project Typeface' }, typefaceIds: {},
     hiddenIds: [], pinnedIds: [], activeProjectId: 'work', isOwner, mobileLayout, sharedReadOnly, mobileReorderFromMenu: true,
     onSelect: id => selections.push(id), onReorder() {}, onToggleHidden() {}, onTogglePinned() {} };
   const tree = exports.ProjectIndexList(props);
@@ -43,7 +51,7 @@ function harness({ presentation = 'mobile', isOwner = false, mobileLayout, share
     : nodes(tree).find(node => node.props.project === project);
   const renderedRow = row.type(row.props);
   const label = nodes(renderedRow).find(node => node.type?.name === 'MobileProjectLabel');
-  return { tree, project, row, renderedRow, label: label ? label.type(label.props) : undefined, selections };
+  return { tree, project, row, renderedRow, label: label ? label.type(label.props) : undefined, selections, loads };
 }
 
 test('MOBILE owner and visitor rows show the canonical cover, title, and real publication date', () => {
@@ -106,6 +114,24 @@ test('MOBILE grid/list changes annotate the same owner and visitor navigation wi
       assert.deepEqual(h.selections, ['work']);
     }
   }
+});
+
+test('MOBILE video grid resolves the matching poster-only attachment and does not autoplay in list view', () => {
+  const projectFields = { coverKind: 'video', cover: '', coverThumbnail: { sourceAttachmentId: 'cover-video' } };
+  const loadedProject = { attachments: [
+    { id: 'other-video', kind: 'video', sourceUrl: '/other.mp4' },
+    { id: 'cover-video', kind: 'video', sourceUrl: '/original.mov', metadata: { playbackVideo: { sourceUrl: '/converted.mp4' } } },
+  ] };
+  const grid = harness({ mobileLayout: 'grid', sharedReadOnly: true, projectFields, loadedProject });
+  const videoCover = nodes(grid.label).find(node => node.type?.name === 'ProjectIndexVideoCover');
+  const cover = nodes(videoCover.type(videoCover.props)).find(node => node.type === ProjectCover);
+  assert.deepEqual(Array.from(cover.props.autoplaySources), ['/converted.mp4', '/original.mov']);
+  assert.equal(cover.props.thumbnail, projectFields.coverThumbnail);
+  assert.equal(grid.loads[0].creatorId, 'creator');
+  assert.equal(grid.loads[0].enabled, true);
+  const list = harness({ mobileLayout: 'list', sharedReadOnly: true, projectFields, loadedProject });
+  assert.equal(nodes(list.label).find(node => node.type === ProjectCover).props.autoplaySources, undefined);
+  assert.deepEqual(list.loads, []);
 });
 
 test('WEB keeps its existing title-only project typography and does not receive MOBILE layout', () => {

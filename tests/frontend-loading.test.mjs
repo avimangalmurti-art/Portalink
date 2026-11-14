@@ -71,6 +71,11 @@ test('the production startup graph excludes mock identities, seed imagery and un
       if (!specifier.startsWith('.') || /\.css$/.test(specifier)) continue;
       const alias = aliases.find(item => item.find.test(specifier));
       const base = alias?.replacement ?? resolve(dirname(file), specifier);
+      if (specifier.endsWith('.png')) {
+        assert.ok(existsSync(base), `Cannot resolve ${specifier} from ${relative(root, file)}`);
+        visit(base);
+        continue;
+      }
       const target = ['', '.ts', '.tsx', '.js', '.mjs', '.json', '/index.ts', '/index.tsx'].map(extension => base + extension).find(candidate => existsSync(candidate) && /\.[m]?[jt]sx?$|\.json$/.test(candidate));
       assert.ok(target, `Cannot resolve ${specifier} from ${relative(root, file)}`);
       visit(target);

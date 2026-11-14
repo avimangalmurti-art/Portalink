@@ -7,16 +7,16 @@ import ts from 'typescript';
 import { sourceModule } from './helpers/source-module.mjs';
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
 const { isPublicSharePath }=sourceModule('src/features/sharing/shareModel.ts',{'../../components/text/textFormatting':{plainFormattedText:value=>value}});
-function render(shared=false, owner=false, props={}, authenticated=!shared) {
+function render(shared=false, owner=false, props={}, authenticated=!shared, projects, hooks) {
  const calls=[]; const exports={};
  const engagement={};
- const react={...React,useEffect(){},useState(){return [undefined,()=>{}];}};
+ const react={...React,useEffect(){},useMemo:create=>create(),useState(){return [undefined,()=>{}];},...hooks};
  const mocks={react,'../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},'react-router-dom':{useNavigate:()=>path=>calls.push(['navigate',path]),useLocation:()=>({pathname:typeof shared==='string'?shared:shared?'/share/creator':'/home',search:''})},
- '../../contexts/ServicesContext':{useServices:()=>({profiles:{getProfile:()=>{throw Error('Supplied creator must not be fetched');}}})},
- '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:authenticated,viewerProfileId:owner?'creator':undefined,requestAuthenticatedDestination:(...args)=>calls.push(['account',...args])})},
+ '../../contexts/ServicesContext':{useServices:()=>({projects,profiles:{getProfile:()=>{throw Error('Supplied creator must not be fetched');}}})},
+ '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:authenticated,viewerProfileId:owner?'creator':undefined,loginSession:hooks?.loginSession,requestAuthenticatedDestination:(...args)=>calls.push(['account',...args])})},
  '../../features/engagement/useProjectEngagement':{useProjectEngagement:id=>{calls.push(['engagement',id]);return engagement;}},
  './ProjectPopupEngagement':{ProjectPopupEngagement:'engagement'},'../profile/CreatorAvatar':{CreatorAvatar:'avatar'},
- './FollowContentInfoPopup':{FollowContentInfoPopup:'dialog'},
+ './FollowContentInfoPopup':{FollowContentInfoPopup:'dialog'},'../../features/projects/ProjectPortalMembershipDialog':{ProjectPortalMembershipDialog:()=>null},
  '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>target=>calls.push(['share',target])},
  '../../presentation/mobile/MobileContextActions':{useMobileActions:()=>({open(){calls.push(['obsolete-options-sheet']);}})},
  '../../presentation/mobile/contextActions':{contextActions:(kind,viewer,target)=>({primary:Object.entries(target.handlers).filter(([,run])=>run).map(([id,run])=>({id,run})),groups:[]})},
@@ -127,4 +127,108 @@ test('visitor and shared details never expose owner commands even if callbacks w
   assert.equal(tree.props.optionsContent,undefined);assert.equal(tree.props.onOptions,undefined);
   assert.equal(calls.some(call=>call[0]==='obsolete-options-sheet'),false);
  }
+});
+
+test('only the signed-in owner can open Portal placement from between Edit and Delete', () => {
+ const projects = {
+  getPortalMemberships() { assert.fail('Opening project options must not fetch memberships.'); },
+  setPortalMemberships() { assert.fail('Opening project options must not save memberships.'); },
+ };
+ const props = { contextHandlers: { edit() {}, delete() {} } };
+ const { tree, OwnerActions } = render(false, true, props, true, projects);
+ const menu = OwnerActions(tree.props.optionsContent.props);
+ const [edit, feature, deleteProject] = React.Children.toArray(menu.props.children);
+ assert.equal(edit.props.children, 'Edit project');
+ assert.equal(feature.type(feature.props).props.children[0].props.children, 'Feature in Portals');
+ assert.equal(feature.props.project.id, 'work');
+ assert.equal(deleteProject.props.children, 'Delete project');
+ for (const [shared, owner] of [[true, true], [false, false]]) {
+  assert.equal(render(shared, owner, props, true, projects).tree.props.optionsContent, undefined);
+ }
+});
+
+function membershipHarness(probe) {
+ const states = [], effects = [], memos = [];
+ let stateIndex, effectIndex, memoIndex;
+ const same = (previous, current) => previous?.every((value, index) => Object.is(value, current[index]));
+ const hooks = {
+  loginSession: {},
+  useState() {
+   const index = stateIndex++;
+   return [states[index], value => { states[index] = value; }];
+  },
+  useMemo(create, deps) {
+   const index = memoIndex++;
+   if (!same(memos[index]?.deps, deps)) memos[index] = { deps, value: create() };
+   return memos[index].value;
+  },
+  useEffect(create, deps) {
+   const index = effectIndex++;
+   if (same(effects[index]?.deps, deps)) return;
+   effects[index]?.dispose?.();
+   effects[index] = { deps, dispose: create() };
+  },
+ };
+ const projects = {
+  getPortalMemberships() { assert.fail('The options menu must not read Portal placements.'); },
+  setPortalMemberships() { assert.fail('The options menu must not change Portal placements.'); },
+  isPortalMembershipAvailable: probe,
+ };
+ const { tree, OwnerActions } = render(false, true, { contextHandlers: { edit() {}, delete() {} } }, true, projects, hooks);
+ const feature = React.Children.toArray(OwnerActions(tree.props.optionsContent.props).props.children)[1];
+ return {
+  render(project = feature.props.project) {
+   stateIndex = effectIndex = memoIndex = 0;
+   return feature.type({ project });
+  },
+  newLogin() { hooks.loginSession = {}; },
+  unmount() { effects.forEach(effect => effect.dispose?.()); },
+ };
+}
+
+test('the owner menu hides Portal placement while checking and while the membership table is absent', async () => {
+ let tested = 0;
+ const menu = membershipHarness(async () => { tested++; return false; });
+ assert.equal(tested, 0, 'A closed owner menu does not probe Supabase.');
+ assert.equal(menu.render(), null);
+ await Promise.resolve();
+ assert.equal(menu.render(), null);
+ assert.equal(tested, 1);
+ menu.unmount();
+
+ const reopened = membershipHarness(async () => true);
+ assert.equal(reopened.render(), null);
+ await Promise.resolve();
+ assert.equal(reopened.render().props.children[0].props.children, 'Feature in Portals');
+ reopened.unmount();
+});
+
+test('stale availability for an old project or login does not reach the owner menu', async () => {
+ const polls = [];
+ const menu = membershipHarness(() => new Promise(resolve => polls.push(resolve)));
+ const another = { id: 'another', title: 'Another', profileId: 'creator' };
+ assert.equal(menu.render(), null);
+ assert.equal(menu.render(another), null);
+ polls[0](true);
+ await Promise.resolve();
+ assert.equal(menu.render(another), null);
+ polls[1](true);
+ await Promise.resolve();
+ const feature = menu.render(another).props.children[0];
+ feature.props.onClick();
+ assert.ok(menu.render(another).props.children[1]);
+ menu.newLogin();
+ assert.equal(menu.render(another), null);
+ polls[2](true);
+ await Promise.resolve();
+ assert.equal(menu.render(another).props.children[1], false);
+ menu.unmount();
+});
+
+test('a transient availability error leaves the Portal placement action available for normal retry', async () => {
+ const menu = membershipHarness(async () => { throw Error('Temporary network failure'); });
+ assert.equal(menu.render(), null);
+ await Promise.resolve();
+ assert.equal(menu.render().props.children[0].props.children, 'Feature in Portals');
+ menu.unmount();
 });

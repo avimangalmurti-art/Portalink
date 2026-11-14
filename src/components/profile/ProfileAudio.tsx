@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { AudioLinesIcon, PauseIcon, PlayIcon, RotateCcwIcon, RotateCwIcon, Volume1Icon, Volume2Icon, XIcon } from 'lucide-react';
+import { AudioLinesIcon, MoreHorizontalIcon, PauseIcon, PlayIcon, RotateCcwIcon, RotateCwIcon, Volume1Icon, Volume2Icon, XIcon } from 'lucide-react';
 import {
-  PROFILE_AUDIO_ACCEPT, PROFILE_AUDIO_COVER_ACCEPT, PROFILE_AUDIO_COVER_MAX_BYTES, PROFILE_AUDIO_MAX_BYTES,
+  PROFILE_AUDIO_ACCEPT, PROFILE_AUDIO_COVER_ACCEPT, PROFILE_AUDIO_COVER_MAX_BYTES, PROFILE_AUDIO_MAX_BYTES, profileAudioArtwork,
   type ProfileAudioEdit, type ProfileAudioTrack,
 } from '../../features/profile/profileAudio';
 import { readProfileAudioTags } from '../../features/profile/profileAudioTags';
@@ -10,6 +10,7 @@ import {
   subscribeProfileAudio, supportsProfileAudioVolume, toggleProfileAudio, type ProfileAudioSource,
 } from '../../features/profile/profileAudioPlayback';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { useMenuFocus } from '../../hooks/useMenuFocus';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { ScreenBack, useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../../presentation/usePresentation';
@@ -20,6 +21,7 @@ import './profile-audio.css';
 type ProfileAudioProps = {
   track: ProfileAudioTrack | null;
   sourceKey?: string;
+  profileId: string;
   profileName: string;
   profileAvatar?: string;
   editable?: boolean;
@@ -40,6 +42,21 @@ function TrackCover({ url, avatar }: { url: string | null; avatar?: string }) {
     {image ? <img src={image} alt="" onError={() => setFailed(previous => [...previous, image])} />
       : <InterfaceIcon icon={AudioLinesIcon} size="xl" />}
   </div>;
+}
+
+function CoverArtPreview({ source }: { source: string | File }) {
+  const image = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const thumbnail = image.current;
+    if (!thumbnail || typeof source === 'string') return;
+    const url = URL.createObjectURL(source);
+    thumbnail.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [source]);
+
+  return <span className="mobile-project-index-cover" data-profile-audio-cover-preview="">
+    <img ref={image} src={typeof source === 'string' ? source : undefined} alt="" />
+  </span>;
 }
 
 function formatAudioTime(seconds: number): string {
@@ -96,13 +113,15 @@ function ProfileAudioPlayer({ source }: { source: ProfileAudioSource }) {
   </div>;
 }
 
-export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, editable, onSave, onRemove, disabled, sharedCatalogue }: ProfileAudioProps) {
+export function ProfileAudio({ track, sourceKey, profileId, profileName, profileAvatar, editable, onSave, onRemove, disabled, sharedCatalogue }: ProfileAudioProps) {
   const presentation = usePresentation();
   const screenActive = useMobileScreenActive();
   const id = useId();
   const coverInput = useRef<HTMLInputElement>(null);
   const shortcut = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLElement>(null);
+  const optionsTrigger = useRef<HTMLButtonElement>(null);
+  const optionsMenu = useRef<HTMLDivElement>(null);
   const isOpen = useRef(false);
   const tagAttempt = useRef(0);
   const editedDetails = useRef({ title: false, artist: false });
@@ -110,6 +129,7 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<ProfileAudioEdit | null>(null);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [readingTags, setReadingTags] = useState(false);
   const [error, setError] = useState('');
@@ -119,16 +139,23 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
   const canEdit = Boolean(editable && onSave);
   const audioUrl = track?.enabled ? track.audioUrl : null;
   const playbackKey = audioUrl ? sourceKey ?? audioUrl : null;
-  const title = track?.title || profileName;
-  const artist = track?.artist || profileName;
+  const artwork = profileAudioArtwork(profileId, profileAvatar);
   const source = useMemo<ProfileAudioSource | null>(() => playbackKey && audioUrl ? {
     key: playbackKey,
     url: audioUrl,
-    artwork: profileAvatar ? { avatar: profileAvatar, title, artist } : undefined,
-  } : null, [playbackKey, audioUrl, profileAvatar, title, artist]);
+    artwork: { avatar: artwork, title: profileName, artist: 'Portalink soundtrack' },
+  } : null, [playbackKey, audioUrl, artwork, profileName]);
   const showShortcut = canEdit || Boolean(source);
   const editing = draft !== null;
+  const mobileEditor = presentation === 'mobile';
+  const coverPreview = draft?.coverFile === undefined ? track?.coverUrl : draft.coverFile;
   const player = Boolean(track && !editing && !confirmingRemove);
+  const showOwnerOptions = presentation === 'mobile' && player && canEdit;
+  const menuOpen = visible && showOwnerOptions && optionsOpen;
+  const menuFocus = useMenuFocus({
+    open: menuOpen, menuRef: optionsMenu, triggerRef: optionsTrigger,
+    onOpen: () => setOptionsOpen(true), onClose: () => setOptionsOpen(false),
+  });
   const getPlaying = useCallback(() => {
     const playback = getProfileAudioSnapshot();
     return playback.key === playbackKey && playback.playing;
@@ -147,6 +174,7 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
     setOpen(false);
     setDraft(null);
     setConfirmingRemove(false);
+    setOptionsOpen(false);
     setError('');
   }, []);
 
@@ -156,7 +184,10 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
 
   function back() {
     if (saving.current) return;
-    if (confirmingRemove) {
+    if (menuOpen) {
+      setOptionsOpen(false);
+      optionsTrigger.current?.focus({ preventScroll: true });
+    } else if (confirmingRemove) {
       setConfirmingRemove(false);
       setError('');
     } else if (draft) {
@@ -204,6 +235,7 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
   }, [visible, editing, confirmingRemove]);
 
   function edit() {
+    setOptionsOpen(false);
     setError('');
     tagAttempt.current++;
     setReadingTags(false);
@@ -214,6 +246,12 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
       description: track?.description ?? '',
       enabled: track?.enabled ?? true,
     });
+  }
+
+  function confirmRemoval() {
+    setOptionsOpen(false);
+    setError('');
+    setConfirmingRemove(true);
   }
 
   function show(event: React.MouseEvent<HTMLButtonElement>) {
@@ -312,7 +350,11 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
     </button>
     <ModalPortal>
       <div ref={viewport} hidden={!visible} data-presentation={presentation} className="profile-audio-overlay modal-scrim"
-        onPointerDown={event => { event.stopPropagation(); if (event.target === event.currentTarget) close(); }}
+        onPointerDown={event => {
+          event.stopPropagation();
+          if (event.target === event.currentTarget) close();
+          else if (menuOpen && !optionsMenu.current?.contains(event.target as Node) && !optionsTrigger.current?.contains(event.target as Node)) setOptionsOpen(false);
+        }}
         onClick={event => event.stopPropagation()}>
         {visible && <ScreenBack action={back}>{null}</ScreenBack>}
         <section id={id} ref={dialog} role="dialog" aria-modal={visible || undefined} aria-labelledby={`${id}-title`}
@@ -327,13 +369,26 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
           </header>}
           {visible && player && track && <>
             <TrackCover key={JSON.stringify([track.coverUrl, profileAvatar])} url={track.coverUrl} avatar={profileAvatar} />
-            <button type="button" className="profile-audio-player-close" data-ui-control="icon" data-control-size="md" data-control-variant="secondary"
+            <button type="button" className="profile-audio-player-close" data-ui-control="icon" data-control-size="md" data-control-variant={presentation === 'mobile' ? 'danger' : 'secondary'}
               disabled={busy} aria-label="Close profile audio" onClick={close}><InterfaceIcon icon={XIcon} /></button>
             <div className="profile-audio-details">
-              <header className="profile-audio-header"><div>
-                <h2 id={`${id}-title`}>{heading}</h2>
-                <p>{track.artist || profileName}</p>
-              </div></header>
+              <header className="profile-audio-header">
+                <div>
+                  <h2 id={`${id}-title`}>{heading}</h2>
+                  <p>{track.artist || profileName}</p>
+                </div>
+                {showOwnerOptions && <div className="profile-audio-options">
+                  <button ref={optionsTrigger} type="button" data-ui-control="icon" data-ui-shape="icon" data-control-size="md"
+                    data-control-variant="ghost" aria-label="Audio options" aria-haspopup="menu" aria-expanded={menuOpen}
+                    aria-controls={menuOpen ? `${id}-options` : undefined} onKeyDown={menuFocus.onTriggerKeyDown}
+                    onClick={() => setOptionsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>
+                  {menuOpen && <div ref={optionsMenu} id={`${id}-options`} role="menu" aria-label="Audio options" tabIndex={-1}
+                    data-ui-shape="popup" className="profile-audio-options-menu">
+                    <button type="button" role="menuitem" tabIndex={-1} onClick={edit}>Edit audio</button>
+                    {onRemove && <button type="button" role="menuitem" tabIndex={-1} className="profile-audio-remove-action" onClick={confirmRemoval}>Remove audio</button>}
+                  </div>}
+                </div>}
+              </header>
               {!track.enabled && <p className="profile-audio-muted">Playback is off.</p>}
               {track.enabled && !track.audioUrl && <p role="status" className="profile-audio-muted">Audio is unavailable.</p>}
             </div>
@@ -351,10 +406,15 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
                 editedDetails.current.artist = true;
                 setDraft({ ...draft, artist: event.target.value });
               }} /></label>
-              <label>Description<textarea rows={3} value={draft.description} maxLength={600} onChange={event => setDraft({ ...draft, description: event.target.value })} /></label>
+              {!mobileEditor && <label>Description<textarea rows={3} value={draft.description} maxLength={600} onChange={event => setDraft({ ...draft, description: event.target.value })} /></label>}
               <label>{track ? 'Replace audio file' : 'Audio file'}<input type="file" accept={PROFILE_AUDIO_ACCEPT} onChange={selectAudio} /></label>
-              <label>Cover art<input ref={coverInput} type="file" accept={PROFILE_AUDIO_COVER_ACCEPT}
-                onChange={event => { const file = event.target.files?.[0]; if (file) setDraft({ ...draft, coverFile: file }); }} /></label>
+              <label>Cover art
+                <span className="profile-audio-cover-field">
+                  {mobileEditor && coverPreview && <CoverArtPreview source={coverPreview} />}
+                  <input ref={coverInput} type="file" accept={PROFILE_AUDIO_COVER_ACCEPT}
+                    onChange={event => { const file = event.target.files?.[0]; if (file) setDraft({ ...draft, coverFile: file }); }} />
+                </span>
+              </label>
               {draft.coverFile !== null && (draft.coverFile || track?.coverUrl) && <button type="button" className="profile-audio-remove-cover"
                 onClick={() => {
                   if (coverInput.current) {
@@ -380,9 +440,9 @@ export function ProfileAudio({ track, sourceKey, profileName, profileAvatar, edi
                 <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="danger" disabled={busy}
                   onClick={() => { void remove(); }}>{busy ? 'Removing…' : 'Remove audio'}</button>
               </div>
-            </div> : <div className="profile-audio-actions">
+            </div> : !showOwnerOptions && <div className="profile-audio-actions">
               {track && onRemove && <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="ghost"
-                onClick={() => { setError(''); setConfirmingRemove(true); }}>Remove audio</button>}
+                onClick={confirmRemoval}>Remove audio</button>}
               <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary" onClick={edit}>
                 {track ? 'Edit audio' : 'Add audio'}
               </button>

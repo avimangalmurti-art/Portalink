@@ -7,6 +7,7 @@ const legacy = 'https://portalinknetworksinc.avimangalmurti566055.chatgpt.site';
 const local = 'http://localhost:5173';
 const shareModel = sourceModule('src/features/sharing/shareModel.ts');
 const { parseSharedContentLink: parse, resolveSharedContentPreview: resolve } = sourceModule('src/features/messages/sharedContentPreview.ts', {
+  '../projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
   '../citations/publicOrigin': { PUBLIC_ORIGIN },
   '../sharing/shareModel': shareModel,
 });

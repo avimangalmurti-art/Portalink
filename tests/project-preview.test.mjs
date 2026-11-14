@@ -12,14 +12,18 @@ function execute(source, globals = {}) {
 }
 const { normalizeProjectCoverFrame } = execute(read('../src/utils/coverFrame.ts'));
 const hook = ts.createSourceFile('management.ts', read('../src/features/projects/useProjectManagement.ts'), ts.ScriptTarget.Latest, true);
-let saveCallback;
+let saveCallback, moveCallback;
 function visit(node) {
-  if (ts.isVariableDeclaration(node) && node.name.getText(hook) === 'save') saveCallback = node.initializer.arguments[0].getText(hook);
+  if (ts.isVariableDeclaration(node)) {
+    const name = node.name.getText(hook);
+    if (name === 'save') saveCallback = node.initializer.arguments[0].getText(hook);
+    if (name === 'moveAttachment') moveCallback = node.initializer.arguments[0].getText(hook);
+  }
   ts.forEachChild(node, visit);
 }
 visit(hook);
 
-function saveHarness(fail = false) {
+function saveHarness(fail = false, uploaded = []) {
   const calls = [], events = [];
   const original = [
     { id: 'cover', displayName: 'Cover', order: 0, isCover: true, coverFrame: { x: .5, y: .5, zoom: 1 } },
@@ -29,9 +33,9 @@ function saveHarness(fail = false) {
     editorMode: 'cover', editingProjectId: 'project', profileId: 'owner', isSavingRef: { current: false }, isMountedRef: { current: true },
     validate: () => null, attachmentEdits: original, normalizeProjectCoverFrame,
     metadata: { title: 'Existing title', summary: 'Existing description' },
-    addedMedia: { items: [], clear: () => events.push('clear'), releaseOwnership() {} },
+    addedMedia: { items: uploaded, clear: () => events.push('clear'), releaseOwnership() {} },
     isTransportAvailable: true,
-    upload: { isBusy: false, reset: () => events.push('reset'), upload: () => { throw Error('Unexpected upload'); } },
+    upload: { isBusy: false, hasPersistedMedia: uploaded.length > 0, attachments: uploaded, reset: () => events.push('reset'), upload: () => { throw Error('Unexpected upload'); } },
     setEditorPhase: (phase) => events.push(phase), setSaveFailure: (failure) => { if (failure) events.push('failure'); }, setSaveResult() {},
     projectService: { updateProject: async (input) => { calls.push(input); if (fail) throw Error('Network failed'); return { project: { id: 'project' } }; } },
     invalidateProfiles: () => events.push('invalidate'), hydrate: () => events.push('hydrate'),
@@ -69,6 +73,36 @@ test('a stale cover selection cannot apply a crop to another attachment', async 
   const harness = saveHarness();
   await assert.rejects(harness.save({ attachmentId: 'second', frame: { x: 0, y: 0, zoom: 2 } }), /preview has changed/);
   assert.equal(harness.calls.length, 0);
+});
+
+test('photo moves swap image slots without shifting PDFs or losing the chosen cover', () => {
+  const originalAttachments = [
+    { id: 'first', kind: 'image' }, { id: 'pdf', kind: 'document' }, { id: 'last', kind: 'image' }
+  ];
+  let edits = originalAttachments.map(({ id }, order) => ({ id, order, isCover: id === 'first' }));
+  const { move } = execute(`exports.move = ${moveCallback}`, {
+    originalAttachments, setAttachmentEdits: update => { edits = update(edits); },
+  });
+  move('pdf', 1, true);
+  assert.deepEqual(Array.from(edits, edit => edit.id), ['first', 'pdf', 'last']);
+  move('last', -1, true);
+  assert.deepEqual(Array.from(edits, edit => edit.id), ['last', 'pdf', 'first']);
+  assert.deepEqual(Array.from(edits, edit => edit.order), [0, 1, 2]);
+  assert.equal(edits.find(edit => edit.isCover).id, 'first');
+  move('pdf', -1);
+  assert.deepEqual(Array.from(edits, edit => edit.id), ['pdf', 'last', 'first'], 'Web keeps its existing attachment controls.');
+});
+
+test('mobile saves place uploaded files after kept files and retain an explicit cover', async () => {
+  const uploaded = [{ id: 'photo', order: 0, isCover: true }, { id: 'pdf', order: 1, isCover: false }];
+  const mobile = saveHarness(false, uploaded);
+  assert.equal(await mobile.save(undefined, true), null);
+  const saved = mobile.calls[0].addedAttachments;
+  assert.deepEqual(Array.from(saved, item => [item.id, item.order, item.isCover]), [['photo', 2, false], ['pdf', 3, false]]);
+  assert.equal(mobile.calls[0].attachments[0].isCover, true);
+  const web = saveHarness(false, uploaded);
+  assert.equal(await web.save(), null);
+  assert.equal(web.calls[0].addedAttachments, uploaded);
 });
 
 function sourceHarness({ hold = false, failRender = false } = {}) {

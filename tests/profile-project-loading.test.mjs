@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deferred, hookHarness } from './helpers/hook-harness.mjs';
+import { sourceModule } from './helpers/source-module.mjs';
 const file = new URL('../src/features/profile/useProfileProjectQuery.ts', import.meta.url);
-const overview = { id: 'creator', projects: ['one', 'two'].map(id => ({ id, categoryId: 'work', cover: id+'.webp', attachments: [] })) };
+const projectPortals = sourceModule('src/features/projects/projectPortals.ts');
+const overview = { id: 'creator', categories: [{ id: 'work' }], projects: ['one', 'two'].map(id => ({ id, categoryId: 'work', cover: id+'.webp', attachments: [] })) };
 const view = id => ({ creator: { id: 'creator' }, project: { id, categoryId: 'work', attachments: [{ sourceUrl: id+'.pdf' }] } });
 function fixture(read = async id => view(id), presentation = 'web', initialQuery = {}) {
   const data = { scope: {}, revision: 0 };
@@ -10,7 +12,7 @@ function fixture(read = async id => view(id), presentation = 'web', initialQuery
   const query = { profile: overview, status: 'ready', error: null, retry() {}, ...initialQuery };
   const full = {profile:null,status:'loading'}, fullIds=[];
   data.peekProfile = (id, mode) => mode === 'full' && full.profile?.id === id ? full.profile : null;
-  const dependencies = { '../../presentation/usePresentation': { usePresentation: () => presentation }, '../../contexts/ProfileDataContext': { useProfileData: () => data, useProfileQuery: (id, mode) => { if(mode==='full'){if(id)fullIds.push(id);return full;}assert.equal(mode, 'overview'); return query; } } };
+  const dependencies = { '../projects/projectPortals': projectPortals, '../../presentation/usePresentation': { usePresentation: () => presentation }, '../../contexts/ProfileDataContext': { useProfileData: () => data, useProfileQuery: (id, mode) => { if(mode==='full'){if(id)fullIds.push(id);return full;}assert.equal(mode, 'overview'); return query; } } };
   const h = hookHarness(file, 'useProfileProjectQuery', { projects: { getProjectView(id) { calls.push(id); return read(id); } } }, {}, ['creator', null, null], data, dependencies);
   return { h, data, calls, query, full, fullIds };
 }
@@ -31,6 +33,23 @@ test('overview opens without preparing originals; only selected project hydrates
   f.h.options(['creator','one','work']);
   assert.equal(f.h.value.status,'ready');
   await f.h.flush(); assert.deepEqual(f.calls,['one']);
+});
+
+test('opening a featured project keeps the original category, and a removed placement does not open its media', async () => {
+  const featured = { ...overview.projects[0], additionalPortalIds: ['extra'] };
+  const profile = { ...overview, categories: [...overview.categories, { id: 'extra' }], projects: [featured, overview.projects[1]] };
+  const f = fixture(async id => ({ ...view(id), project: { ...view(id).project, additionalPortalIds: ['extra'] } }), 'web', { profile });
+  f.h.options(['creator', 'one', 'extra']);
+  await f.h.flush();
+  assert.deepEqual(f.calls, ['one']);
+  assert.equal(f.h.value.profile.projects[0].categoryId, 'work');
+  assert.equal(f.h.value.profile.projects[0].attachments[0].sourceUrl, 'one.pdf');
+  f.data.revision++;
+  f.query.profile = { ...profile, projects: overview.projects };
+  f.h.rerender();
+  await f.h.flush();
+  assert.deepEqual(f.calls, ['one']);
+  assert.equal(f.h.value.profile.projects[0].attachments.length, 0);
 });
 for (const presentation of ['mobile', 'web']) test(`first ${presentation} project visit prepares selected media in parallel without showing it before overview confirmation`, async () => {
   for (const mediaFirst of [true, false]) {

@@ -87,6 +87,7 @@ test('profile data starts alongside the local session hint and server-readable r
         from: table => query({ data: rows[table], error: null }, () => { if (table === 'profiles') profileStarted = true; }),
       }),
       hydrateProjects: async projects => new Map(projects.map(p => [p.id, p])),
+      readFeaturedPortals: async () => new Map(),
       deriveInitials: () => 'O', asStats: () => [], asStringRecord: () => ({}), asLinks: () => [], normalizePublicAppearance: () => ({}), normalizeProjectGridColumns: () => 2,
     });
     const pending = run('owner').then(value => { resolved = true; return value; });

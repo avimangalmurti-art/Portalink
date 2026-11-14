@@ -55,7 +55,7 @@ export function ProjectCoverRepositionDialog({ source, kind = 'image', pageNumbe
   return <ImageRepositionDialog mobileAuthoring title={isMobile ? 'Edit cover' : 'Reposition project preview'} source={isImage ? source : prepared ?? ''} alt={alt} aspectRatio={ratio} initialPosition={initialFrame} outputWidth={1920}
     preparing={!isImage && !prepared} preparationError={error} onRetryPreparation={() => setAttempt((value) => value + 1)} onClose={onClose}
     controls={<label className="flex items-center justify-between gap-3 text-[13px] text-[var(--text-secondary)]">{isMobile ? 'Cover shape' : 'Preview shape'}
-      <select aria-label={isMobile ? 'Cover shape' : 'Project preview shape'} value={ratio} onChange={(event) => setRatio(Number(event.target.value))} className="text-control h-9 min-w-0 rounded-[8px] px-2 text-[13px] text-[var(--text-primary)]">
+      <select aria-label={isMobile ? 'Cover shape' : 'Project preview shape'} data-ui-shape={isMobile ? 'action' : undefined} value={ratio} onChange={(event) => setRatio(Number(event.target.value))} className="text-control h-9 min-w-0 rounded-[8px] px-2 text-[13px] text-[var(--text-primary)]">
         {ratios.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
       </select>
     </label>}

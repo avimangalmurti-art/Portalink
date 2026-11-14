@@ -2,6 +2,7 @@ import type { Services } from '../../services/interfaces';
 import type { ProjectCoverThumbnail } from '../../types/domain';
 import { PUBLIC_ORIGIN } from '../citations/publicOrigin';
 import { handleFromPath } from '../sharing/shareModel';
+import { projectBelongsToPortal } from '../projects/projectPortals';
 
 export type SharedContentTarget = {
   to: string;
@@ -105,7 +106,7 @@ export async function resolveSharedContentPreview(
   if (!profileId) return unavailable();
   const view = await services.projects.getProjectView(target.projectId);
   const { project, creator } = view;
-  if (project.id !== target.projectId || project.categoryId !== target.categoryId || creator.id !== profileId) return unavailable();
+  if (project.id !== target.projectId || !projectBelongsToPortal(project, target.categoryId) || creator.id !== profileId) return unavailable();
   const attachments = [...(project.attachments ?? [])].sort((left, right) => left.order - right.order);
   if (target.attachmentId !== null) {
     const attachment = attachments.find(item => item.id === target.attachmentId);

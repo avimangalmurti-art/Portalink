@@ -6,12 +6,13 @@ import { getCategoryIcon } from './categoryIcons';
 import { PreviewCreatorName } from './PreviewCreatorName';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
+import { PortalLinkCopyButton } from './PortalLinkCopyButton';
 
 export type MobileProjectSort = 'recent' | 'title' | 'saved';
 
 /** Mobile browsing controls; authoring callbacks are supplied only for the owner. */
 export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout, onLayout,
-  sort, onSort, sharedReadOnly = false, browsingControls = !sharedReadOnly, backLabel }: {
+  sort, onSort, sharedReadOnly = false, browsingControls = !sharedReadOnly, backLabel, publicProfileId }: {
   category: PortfolioCategory; onBack: () => void; onCreate?: () => void;
   layout: 'list' | 'grid'; onLayout: (value: 'list' | 'grid') => void;
   sort: MobileProjectSort; onSort: (value: MobileProjectSort) => void;
@@ -19,6 +20,8 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
   /** Local sorting and view controls do not grant authoring permissions. */
   browsingControls?: boolean;
   backLabel?: string;
+  /** Only supplied in the owner's workspace for a publicly visible Portal. */
+  publicProfileId?: string;
 }) {
   const isMobile = usePresentation() === 'mobile';
   const active = useMobileScreenActive();
@@ -44,6 +47,9 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
           <option value="recent">Recent</option><option value="title">Name</option><option value="saved">Saved order</option>
         </select>
       </label>
+      {publicProfileId && <div className="flex min-w-0 flex-1 justify-center">
+        <PortalLinkCopyButton key={`${publicProfileId}:${category.id}`} profileId={publicProfileId} categoryId={category.id} />
+      </div>}
       <div className="mobile-portal-index-view-controls">
         <button type="button" className="mobile-portal-index-control mobile-portal-index-layout" aria-label={layout === 'list' ? 'Show project grid' : 'Show project list'} aria-pressed={layout === 'grid'} onClick={() => onLayout(layout === 'list' ? 'grid' : 'list')}>
           <InterfaceIcon icon={layout === 'list' ? Grid2X2Icon : ListIcon} />

@@ -152,8 +152,10 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
                       event.preventDefault();
                       setWebSelection({ scope: webPopupScope, portal });
                     } : undefined}>
-                    {backdropAvatar && <ResponsiveImage key={backdropAvatar} src={backdropAvatar} decorative className="public-portal-avatar-backdrop"
-                      onLoad={({ currentTarget }) => { currentTarget.dataset.portalAvatarReady = ''; }} />}
+                    {backdropAvatar && <span className="public-portal-avatar-crop" aria-hidden="true">
+                      <ResponsiveImage key={backdropAvatar} src={backdropAvatar} decorative className="public-portal-avatar-backdrop"
+                        onLoad={({ currentTarget }) => { currentTarget.dataset.portalAvatarReady = ''; }} />
+                    </span>}
                     <span className="public-portal-mark" aria-hidden="true">
                       <span className="public-portal-glyph">
                         <InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor style={{ color: portal.creator.accentColor || 'var(--text-secondary)' }} />

@@ -18,6 +18,7 @@ import { DeferredDialog } from '../../components/ui/DeferredDialog';
 import './journey.css';
 import { useTimelinePairs } from './useTimelinePairs';
 import { useTimelineSection } from './useTimelineSection';
+import { projectBelongsToPortal } from '../projects/projectPortals';
 
 const PortalProjectPopup = React.lazy(() => import('../../components/profile/PortalProjectPopup').then(module => ({ default: module.PortalProjectPopup })));
 const ReorderTimelinePairs = React.lazy(() => import('./ThenNowDialog').then(module => ({ default: module.ReorderTimelinePairs })));
@@ -88,7 +89,7 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
   };
   const portalPopup = active && activePortalPopupId && <DeferredDialog active onClose={() => setPortalPopupId(null)}>
     <PortalProjectPopup profile={portalProfile} categoryId={activePortalPopupId} backLabel="Back to Timeline" onClose={() => setPortalPopupId(null)} onSelect={(categoryId, projectId) => {
-      const project = portalProjects.find(candidate => candidate.id === projectId && candidate.categoryId === categoryId);
+      const project = portalProjects.find(candidate => candidate.id === projectId && projectBelongsToPortal(candidate, categoryId));
       if (categoryId !== activePortalPopupId || !project) return;
       setPortalPopupId(null);
       onOpen(project);

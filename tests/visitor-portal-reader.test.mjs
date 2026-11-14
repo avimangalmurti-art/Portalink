@@ -39,6 +39,7 @@ function fixture(presentation = 'web', { empty = false } = {}) {
     useCallback(callback, dependencies) { return react.useMemo(() => callback, dependencies); },
   };
   const { VisitorProjectPage } = sourceModule('src/visitor/VisitorProjectPage.tsx', {
+    '../features/projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
     react,
     'lucide-react': { ChevronLeftIcon: 'back-icon', ListIcon: 'list-icon', PanelLeftCloseIcon: 'collapse-icon', PanelLeftOpenIcon: 'expand-icon', SearchIcon: 'search-icon', XIcon: 'close-icon' },
     '../presentation/usePresentation': { usePresentation: () => state.presentation },
@@ -54,6 +55,7 @@ function fixture(presentation = 'web', { empty = false } = {}) {
     '../utils/projectPanelLayout': panels,
     '../components/profile/ProjectIndexList': { ProjectIndexList: 'project-index' },
     '../components/profile/MobilePortalProjectToolbar': { MobilePortalProjectToolbar: 'portal-toolbar' },
+    '../components/profile/PortalLinkCopyButton': { PortalLinkCopyButton: 'portal-link-copy' },
     '../components/profile/portalProjectBrowsing': portalBrowsing,
     '../features/projects/pageLayout': pageLayout,
     '../components/profile/web-reader-spacing.css': {},
@@ -88,6 +90,34 @@ test('WEB portal reader opens its public project index beside the read-only sele
   assert.equal(h.processingReads.every(attachments => attachments.length === 0), true, 'Public media never queries owner job tables');
   button(tree, 'Back').props.onClick(); viewer.props.onClose();
   assert.deepEqual(h.calls, ['back', 'back']);
+});
+
+test('the public project index keeps Portal browsing available without a copy action in WEB and MOBILE', () => {
+  const web = fixture(), tree = web.render();
+  assert.equal(one(tree, 'portal-link-copy'), undefined);
+  button(tree, 'Close project list').props.onClick();
+  assert.equal(one(web.render(), 'portal-link-copy'), undefined);
+  const mobile = fixture('mobile');
+  let screen = mobile.render();
+  assert.equal(one(screen, 'portal-link-copy'), undefined);
+  one(screen, 'media-viewer').props.mobileNavigation.onOpenIndex();
+  screen = mobile.render();
+  const toolbar = one(one(screen, 'media-viewer').props.mobileNavigation.index, 'portal-toolbar');
+  assert.equal(toolbar.props.publicProfileId, undefined);
+  assert.equal(toolbar.props.browsingControls, true);
+  assert.equal(toolbar.props.category.id, 'work');
+});
+
+test('the reader keeps the selected Portal index when the open project is featured there', () => {
+  const h = fixture();
+  const featured = { ...h.alpha, additionalPortalIds: ['empty'] };
+  h.state.profile.projects = [featured, ...h.state.profile.projects.slice(1)];
+  h.state.categoryId = 'empty';
+  h.state.project = featured;
+  const tree = h.render();
+  assert.equal(one(tree, 'nav').props['aria-label'], 'Empty portal index');
+  assert.deepEqual(one(tree, 'project-index').props.projects.map(project => project.id), ['alpha']);
+  assert.equal(one(tree, 'media-viewer').props.projectId, 'alpha');
 });
 
 test('WEB project index adjusts the public media layout for multi-page work without committing an owner change', () => {

@@ -35,6 +35,7 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
   const [openScope, setOpenScope] = useState<string | null>(null);
   const [densityDraft, setDensityDraft] = useState<{ scope: string; value: number } | null>(null);
   const densityValue = densityDraft?.scope === scope ? densityDraft.value : density?.value;
+  const densityLabel = `${densityValue} ${densityValue === 1 ? 'page' : 'pages'} per row`;
   const commitDensity = (value: number) => { setDensityDraft(null); density?.onChange(value); density?.onCommit(value); };
   const open = showControl && openScope === scope && position?.scope === scope;
   const navigatorRef = useRef<HTMLDivElement>(null);
@@ -166,7 +167,8 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
         onPointerUp={event => commitDensity(Number(event.currentTarget.value))}
         onKeyUp={event => commitDensity(Number(event.currentTarget.value))}
         onBlur={event => commitDensity(Number(event.currentTarget.value))}
-        aria-label="Pages per row" aria-valuetext={`${densityValue} ${densityValue === 1 ? 'page' : 'pages'} per row`} />
+        aria-label="Pages per row" aria-valuetext={densityLabel} />
+      <span data-pages-per-row-label="" aria-hidden="true">{`${densityValue} per row`}</span>
     </label>}
     {readingMode && <button type="button" aria-label="Previous page" disabled={position.current <= 1} onClick={() => onSelectPage?.(position.current-1)}><InterfaceIcon icon={ChevronLeftIcon} size="lg" /></button>}
     <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" data-ui-shape={readingMode || showProgress ? undefined : 'capsule'} className="mobile-project-page-counter"

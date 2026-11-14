@@ -91,6 +91,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name === 'react-router-dom') return { useNavigate: () => path => navigationCalls.push(path) };
     if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isAuthenticated: signedIn, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}), isInitializing: false, viewerProfileId: null }) };
+    if (name.endsWith('/ProjectSharePathContext')) return { ProjectSharePathContext: { Provider: 'project-share-path' } };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions(model, priority, onOpen) { screenActions.push({model,priority,onOpen}); } };
     if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => screenActive };
@@ -205,12 +206,14 @@ test('project audio interruption belongs to the active video, including on share
 test('project sharing and copying use the official public destination with the current page state', async () => {
   for (const mobile of [true, false]) for (const readOnlyShare of [true, false]) {
     const h = harness({ mobile, readOnlyShare, search: '?media=first&page=2&view=page&via=friend', hash: '#references' });
-    h.render();
+    const tree = h.render({ primaryPortalId: 'original' });
     const model = h.screenActions.at(-1).model;
     const actions = [...model.primary, ...model.groups.flat()];
     actions.find(action => action.id === 'share').run();
     await actions.find(action => action.id === 'copy').run();
-    const expected = 'https://portalinknetworks.com/share/creator/c/portal/project?media=first&page=2&view=page&via=friend#references';
+    const expected = 'https://portalinknetworks.com/share/creator/c/original/project?media=first&page=2&view=page&via=friend#references';
+    assert.equal(nodes(tree).find(node => node.type === 'project-share-path').props.value,
+      (readOnlyShare ? '/share' : '/p') + '/creator/c/original/project');
     assert.equal(h.sharedTargets[0].url, expected);
     assert.deepEqual(h.copies, [expected]);
     assert.equal(h.sharedTargets[0].title, 'Work');
@@ -236,7 +239,7 @@ test('project overview attaches mobile swipe Back to the work stage and uses nav
 
 test('shared project details retain disclosure and content without a layout resize handle', () => {
   const h = harness({ mobile: false, readOnlyShare: true, mediaKind: 'document' });
-  const tree = h.render({ isRailOpen: true });
+  const tree = h.render({ isRailOpen: true, attachments: [h.attachments[0]] });
   assert.ok(button(tree, 'Hide project details'));
   assert.ok(button(tree, 'Show project information'));
   assert.ok(nodes(tree).find(node => node.type === AttachmentRenderer));
@@ -530,25 +533,48 @@ test('MOBILE continuous reading follows stored order across PDF covers, appendix
   assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
 });
 
-test('WEB file switching and explicit MOBILE page links keep their own attachment target', () => {
-  for (const [mobile, search, active] of [
-    [false, '', 'first'],
-    [true, '?media=second&page=1&view=page', 'second'],
-  ]) {
-    const h = harness({ mobile, search, mediaKind: 'image' });
-    const tree = h.render({ attachments: mixedCoverPdf(h.attachments) });
-    assert.equal(readingParts(tree).length, 0);
-    assert.ok(withProp(tree, 'data-project-file-strip'));
-    const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
-    assert.equal(renderer.props.attachment.id, active);
-    assert.equal(renderer.props.verticalReading, mobile && active === 'first');
-  }
-  for (const [id, page] of [['first', 1], ['second', 2]]) {
-    const linked = harness({ mediaKind: 'image', search: `?media=${id}&page=${page}` });
-    const tree = linked.render({ attachments: mixedCoverPdf(linked.attachments) });
-    assert.deepEqual(readingParts(tree).map(part => part.renderer.attachment.id), ['first', 'second']);
+test('WEB platform and shared readers stack images and PDFs in saved order', () => {
+  for (const readOnlyShare of [false, true]) {
+    const h = harness({ lifecycle: true, mobile: false, mediaKind: 'image', readOnlyShare });
+    const [cover, pdf] = mixedCoverPdf(h.attachments);
+    const attachments = [{ ...pdf, order: 1 }, { ...cover, order: 0 }, { ...pdf, id: 'report-two', order: 2 }];
+    const tree = h.commitFocusedPage(false, { attachments, pagesPerRow: 4 });
+    const parts = readingParts(tree);
+    assert.deepEqual(parts.map(({ renderer }) => renderer.attachment.id), ['first', 'second', 'report-two']);
+    assert.deepEqual(parts.map(({ renderer }) => renderer.imageColumns), [1, 4, 4]);
+    assert.ok(parts.every(({ renderer }) => renderer.manageReadingScroll === false));
+    assert.ok(withProp(tree, 'data-web-ordered-reading'));
+    assert.ok(withProp(tree, 'data-project-response-rail'));
     assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
-    assert.deepEqual(linked.readingScroll.at(-1).slice(3), [page, id]);
+    assert.equal(nodes(tree).some(node => node.type === MobileProjectPageCounter), false);
+    assert.equal(h.readingScroll.at(-1)[5], true);
+    assert.equal(readingParts(h.commitFocusedPage(true))[0].hidden, true);
+    assert.equal(readingParts(h.commitFocusedPage(false))[0].hidden, false);
+  }
+});
+
+test('explicit page links and non-document media keep file switching on MOBILE and WEB', () => {
+  for (const mobile of [true, false]) {
+    for (const [search, otherKind, active] of [
+      ['?media=second&page=1&view=page', 'image', 'second'],
+      ['', 'video', 'first'],
+    ]) {
+      const h = harness({ mobile, search, mediaKind: 'image' });
+      const [cover, pdf] = mixedCoverPdf(h.attachments);
+      const tree = h.render({ attachments: [{ ...cover, kind: otherKind }, pdf] });
+      assert.equal(readingParts(tree).length, 0);
+      assert.ok(withProp(tree, 'data-project-file-strip'));
+      const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
+      assert.equal(renderer.props.attachment.id, active);
+      assert.equal(renderer.props.verticalReading, false);
+    }
+    for (const [id, page] of [['first', 1], ['second', 2]]) {
+      const linked = harness({ mobile, mediaKind: 'image', search: `?media=${id}&page=${page}` });
+      const tree = linked.render({ attachments: mixedCoverPdf(linked.attachments) });
+      assert.deepEqual(readingParts(tree).map(part => part.renderer.attachment.id), ['first', 'second']);
+      assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
+      assert.deepEqual(linked.readingScroll.at(-1).slice(3), [page, id, !mobile]);
+    }
   }
 });
 
@@ -965,7 +991,9 @@ test('public readers retain a density slider; WEB, non-page media and callback-f
     assert.equal((nodes(shared).find(node => node.type === AttachmentRenderer)?.props ?? readingParts(shared)[0].renderer).imageColumns, 1);
     const web = harness({ mobile: false, mediaKind }).render(callbacks);
     assert.equal(nodes(web).some(node => node.type === MobileProjectPageCounter), false);
-    assert.equal(nodes(web).find(node => node.type === AttachmentRenderer).props.imageColumns, 7);
+    const webRenderers = readingParts(web).map(({ renderer }) => renderer);
+    if (!webRenderers.length) webRenderers.push(nodes(web).find(node => node.type === AttachmentRenderer).props);
+    assert.ok(webRenderers.every(renderer => renderer.imageColumns === 7));
   }
   for (const mediaKind of ['video', 'audio', 'model3d']) {
     const tree = harness({ mediaKind }).render(callbacks);
@@ -1019,6 +1047,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
       effects[i] = deps;
     } };
   const { ProfileCategoryPage } = compile('../src/components/profile/ProfileCategoryPage.tsx', name => {
+    if (name.endsWith('/projectPortals')) return compile('../src/features/projects/projectPortals.ts', () => ({}));
     if (name.endsWith('/ExportSheet')) return {ExportSheet:'export-sheet'};
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
@@ -1048,7 +1077,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/panelLayoutDefaults')) return { panelLayoutDefaults: {} };
     return new Proxy({}, { get: () => () => null });
   });
-  const props = { profile: { id: 'owner', name: 'Viewed creator', avatar: 'viewed-creator-avatar.jpg', projects: Object.freeze([
+  const props = { profile: { id: 'owner', name: 'Viewed creator', avatar: 'viewed-creator-avatar.jpg', categories: [{ id: 'portal' }], projects: Object.freeze([
       { id: 'work', categoryId: 'portal', title: 'Alpha', summary: 'Earlier project', publishedAt: '2026-09-10T12:00:00Z', pageCount: 2,
         attachments: [{ id: 'work-image', kind: 'image' }, { id: 'work-video', kind: 'video' }] },
       { id: 'second', categoryId: 'portal', title: 'Zulu', summary: 'Needle in the newer project', publishedAt: '2026-09-14T12:00:00Z', pageCount: 2,

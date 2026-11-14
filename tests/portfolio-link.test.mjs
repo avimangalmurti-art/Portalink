@@ -31,6 +31,18 @@ test('handle grammar, suggestions, all product roots and URL fallbacks',()=>{
  assert.equal(model.portfolioProjectPath(id,'portal','project','avi'),'/avi/c/portal/project');
  for(const name of ['Avi Mangal Murti','A','Portalink','!!!']) {const values=model.handleSuggestions(name);assert.equal(values.length,3);assert.ok(values.every(model.validHandle));}
 });
+test('public portal links use the canonical handle or the creator UUID fallback', () => {
+ const categoryId = '22222222-2222-4222-8222-222222222222';
+ const handlePath = model.portfolioCategoryPath(id, categoryId, 'avi.work');
+ const uuidPath = model.portfolioCategoryPath(id, categoryId, 'legacy_name');
+ assert.equal(handlePath, `/avi/c/${categoryId}`);
+ assert.equal(uuidPath, `/share/${id}/c/${categoryId}`);
+ assert.equal(model.portfolioCategoryPath(id, categoryId), uuidPath);
+ assert.equal(model.handleFromPath(handlePath), 'avi');
+ assert.ok(model.isPublicSharePath(uuidPath));
+ assert.equal(model.portfolioCategoryPath(id, 'a/b?c#d', 'avi'), '/avi/c/a%2Fb%3Fc%23d');
+ assert.equal(model.portfolioProjectPath(id, categoryId, 'project', 'avi.work'), `${handlePath}/project`);
+});
 test('shared card text, mailto and optional referral contain exactly authored values',()=>{
  const card=model.shareCardText('Avi','Architecture',7,'School');assert.equal(card.title,'Avi — Catalogue');assert.equal(card.description,'Architecture · School · 7 projects');
  const url=model.withReferral('https://example.test/avi','a12b');assert.equal(url,'https://example.test/avi?via=a12b');
@@ -153,6 +165,11 @@ test('bare creator handles are canonical; work and UUID aliases redirect once wi
  const html=server.injectShareResolution('<head><meta property="og:url" content="old"><link rel="canonical" href="old"></head>',resolution,'https://site.test/portalite');
  assert.match(html,/rel="canonical" href="https:\/\/portalinknetworks.com\/portalite"/);
  assert.doesNotMatch(html,/content="old"|href="old"/);
+ const portal=await server.resolveShareRequest(new Request('https://site.test/share/'+id+'/c/portal?view=portal'),config);
+ assert.equal(portal.redirect.headers.get('location'),officialOrigin+'/portalite/c/portal?view=portal');
+ const popup=server.injectShareResolution('<head></head>',resolution,'https://site.test/portalite/c/portal?view=portal&source=message');
+ assert.ok(popup.includes(`rel="canonical" href="${officialOrigin}/portalite/c/portal?view=portal"`));
+ assert.doesNotMatch(popup,/source=message/);
 });
 
 test('public sitemap emits only bare valid public handles and fails closed on upstream errors',async()=>{

@@ -1,3 +1,7 @@
+import portaliteNowPlaying from './portalite-now-playing.png';
+
+const PORTALITE_PROFILE_ID = '49e4e861-795a-47f2-b4a6-b071351c4d4b';
+
 const AUDIO_FORMATS = {
   mp3: 'audio/mpeg',
   m4a: 'audio/mp4',
@@ -39,6 +43,10 @@ export type ProfileAudioEdit = ProfileAudioDetails & {
   audioFile?: File;
   coverFile?: File | null;
 };
+
+export function profileAudioArtwork(profileId: string, profileAvatar?: string) {
+  return profileId === PORTALITE_PROFILE_ID ? portaliteNowPlaying : profileAvatar;
+}
 
 export function profileAudioFileFormat(file: File, kind: 'audio' | 'cover') {
   const extension = file.name.split('.').at(-1)?.toLowerCase() ?? '';

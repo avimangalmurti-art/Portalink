@@ -1,4 +1,5 @@
 import { withProjectLocation } from '../../features/publishing/projectLocation';
+import { projectBelongsToPortal } from '../../features/projects/projectPortals';
 import { normalizePublicAppearance } from '../../utils/publicAppearance';
 import { projectRelevanceForPersistence } from '../../domain/discovery/ranking';
 /**
@@ -122,7 +123,7 @@ function profileForCurrentViewer(profile: PrototypeProfile): Profile {
   const projects = isOwner ? profile.projects : profile.projects.filter((project) => {
     if (!visibleCategoryIds.has(project.categoryId)) return false;
     return !(savedProjectArrangements.get(projectArrangementKey(profile.id, project.categoryId))?.hiddenProjectIds.includes(project.id) ?? false);
-  });
+  }).map(project => ({ ...project, additionalPortalIds: project.additionalPortalIds?.filter(id => visibleCategoryIds.has(id)) }));
   return { ...profile, categories, projects } as Profile;
 }
 
@@ -466,6 +467,21 @@ function designFor(projectId: Id): ProjectDesign {
   };
 }
 export const mockProjectService: ProjectService = {
+  async getPortalMemberships(projectId) {
+    const owner = findProjectOwner(projectId);
+    if (!owner || requireOwnProfile().profileId !== owner.profile.id) throw new Error('You can only feature projects you own.');
+    const portals = owner.profile.categories;
+    return { primaryPortalId: owner.project.categoryId,
+      selectedPortalIds: (owner.project.additionalPortalIds ?? []).filter(id => portals.some(portal => portal.id === id)), portals };
+  },
+  async setPortalMemberships(projectId, additionalPortalIds) {
+    const owner = findProjectOwner(projectId);
+    if (!owner || requireOwnProfile().profileId !== owner.profile.id) throw new Error('You can only feature projects you own.');
+    if (additionalPortalIds.some(id => !owner.profile.categories.some(portal => portal.id === id))) throw new Error('One of these Portals is no longer available.');
+    const selected = [...new Set(additionalPortalIds)].filter(id => id !== owner.project.categoryId);
+    updatePrototypeProject(owner.profile.id, { ...owner.project, additionalPortalIds: selected });
+    return selected;
+  },
   async getProject(projectId) {
     const owner = findProjectOwner(projectId);
     if (!owner) {
@@ -486,8 +502,8 @@ export const mockProjectService: ProjectService = {
     return resolve(views);
   },
   async listProjects(profileId, categoryId) {
-    const all = getProfileById(profileId).projects as Project[];
-    return resolve(categoryId ? all.filter((project) => project.categoryId === categoryId) : all);
+    const all = profileForCurrentViewer(getProfileById(profileId)).projects;
+    return resolve(categoryId ? all.filter(project => projectBelongsToPortal(project, categoryId)) : all);
   },
   async getProjectDesign(projectId) {
     const owner = findProjectOwner(projectId);

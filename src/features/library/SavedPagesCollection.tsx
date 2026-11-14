@@ -6,8 +6,8 @@ import { mediaInteractionRequest } from '../media-interactions/mediaInteractionR
 import { BookmarkIcon } from 'lucide-react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAccountQuery } from './useAccountQuery';
-import { removeSavedPage, savedPageKey, savedPagePresentation, type SavedPageTarget } from './savedPages';
-import { loadSavedPageBatch } from './collectionQueries';
+import { removeSavedPage, savedPageKey, type SavedPageTarget } from './savedPages';
+import { loadSavedPageBatch, type SavedPageEntry } from './collectionQueries';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { Button } from '../../components/ui/Button';
@@ -36,7 +36,7 @@ export function SavedPagesCollection() {
   </section>;
 }
 
-function SavedPageCard({ target, presentation, onRemoved }: { target: SavedPageTarget; presentation: ReturnType<typeof savedPagePresentation>; onRemoved: () => void }) {
+function SavedPageCard({ target, presentation, onRemoved }: SavedPageEntry & { onRemoved: () => void }) {
   const navigate = useNavigate();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -48,27 +48,23 @@ function SavedPageCard({ target, presentation, onRemoved }: { target: SavedPageT
     finally { setPending(false); }
   }
   return <li className="min-w-0 self-start">
-    {presentation ? <ProjectPreviewCard project={presentation.view.project} creator={presentation.view.creator}
+    <ProjectPreviewCard project={presentation.view.project} creator={presentation.view.creator}
       label={`Open ${presentation.label} of ${presentation.view.project.title}`} onOpen={() => navigate(presentation.href)}
       href={presentation.href}
       aspectRatio={4 / 3} showEngagementMetrics={false}
-      metrics={<SavedPageMetrics target={target} label={presentation.label} onOpen={() => navigate(presentation.href)} />}
-      footerEnd={<button data-ui-shape="icon" data-control-size="sm" type="button" onClick={() => void remove()} disabled={pending} aria-label={`Remove ${presentation ? `${presentation.label} of ${presentation.view.project.title}` : 'unavailable page'} from Saved`} title="Remove saved page" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"><InterfaceIcon icon={BookmarkIcon} size="sm" keepColor fill="currentColor" /></button>}
+      metrics={<SavedPageMetrics target={target} currentPageIndex={presentation.pageNumber - 1} label={presentation.label} onOpen={() => navigate(presentation.href)} />}
+      footerEnd={<button data-ui-shape="icon" data-control-size="sm" type="button" onClick={() => void remove()} disabled={pending} aria-label={`Remove ${presentation.label} of ${presentation.view.project.title} from Saved`} title="Remove saved page" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"><InterfaceIcon icon={BookmarkIcon} size="sm" keepColor fill="currentColor" /></button>}
       cover={<ProjectCover source={presentation.source} kind={presentation.kind} pageNumber={presentation.pageNumber} fit="contain" alt={`${presentation.label} of ${presentation.view.project.title}`} aspectRatio={presentation.aspectRatio} className="h-full w-full" sizes="(min-width: 1280px) 30vw, (min-width: 640px) 46vw, 92vw" />} />
-      : <div className="shape-container border border-[var(--hairline)] p-5 text-center text-[13px] text-[var(--text-secondary)]">
-        <p>This page was removed or is no longer shared with you.</p>
-        <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={() => void remove()} disabled={pending} aria-label="Remove unavailable page from Saved" title="Remove saved page" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"><InterfaceIcon icon={BookmarkIcon} size="sm" keepColor fill="currentColor" /></button>
-      </div>}
     {error && <p role="alert" className="mt-2 text-[12px] text-[var(--status-danger)]">{error}</p>}
   </li>;
 }
 
-function SavedPageMetrics({ target, label, onOpen }: { target: SavedPageTarget; label: string; onOpen: () => void }) {
+function SavedPageMetrics({ target, currentPageIndex, label, onOpen }: { target: SavedPageTarget; currentPageIndex: number; label: string; onOpen: () => void }) {
   // Reading a preview must not consume/replay the viewer's pending actions.
   const query = useCallback(() => mediaInteractionRequest<{
     counts: Record<'like' | 'save', number>;
     comments: unknown[];
-  }>(`/api/media-interactions?${new URLSearchParams({ projectId: target.projectId, attachmentId: target.attachmentId, pageIndex: String(target.pageIndex) })}`), [target.projectId, target.attachmentId, target.pageIndex]);
+  }>(`/api/media-interactions?${new URLSearchParams({ projectId: target.projectId, attachmentId: target.attachmentId, pageIndex: String(currentPageIndex) })}`), [target.projectId, target.attachmentId, currentPageIndex]);
   const activity = useAccountQuery(query);
   const record = !activity.loading && !activity.error ? activity.data : null;
   return <div className="flex min-w-0 flex-col gap-1">

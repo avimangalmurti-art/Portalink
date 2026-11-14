@@ -15,6 +15,7 @@ import { requireDirectoryAccount } from './requireDirectoryAccount';
 import { signedMediaUrls } from './mediaUrlCache';
 import { coverThumbnailWithUrls, readCoverThumbnail } from './coverThumbnailReads';
 import { readSharedProfileBundle } from './sharedProfileBundle';
+import { readFeaturedPortals } from './projectPortalFeatures';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { normalizePublicAppearance } from '../../utils/publicAppearance';
 import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
@@ -241,6 +242,7 @@ async function hydrateProjects(
   categoryRows: Array<Pick<CategoryRow, 'id' | 'label'> & Partial<Pick<CategoryRow, 'is_hidden'>>>,
   attachmentRows: AttachmentRow[],
   mode: 'full' | 'cover' = 'full',
+  featuredPortals?: ReadonlyMap<string, string[]>,
 ): Promise<Map<string, Project>> {
   const thumbnails = new Map(projectRows.map(row => [row.id, readCoverThumbnail(row.cover_thumbnail, row.profile_id, row.id)]));
   const rawAttachments = new Map(attachmentRows.map(row => [row.id, row]));
@@ -334,6 +336,7 @@ async function hydrateProjects(
     const project: Project = {
       id: row.id,
       categoryId: row.category_id,
+      additionalPortalIds: featuredPortals?.get(row.id)?.filter(id => id !== row.category_id && categoryLabels.has(id)),
       title: row.title,
       summary: row.summary,
       tags: row.design && typeof row.design === 'object' && Array.isArray((row.design as { tags?: unknown }).tags)
@@ -409,9 +412,12 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
   const projectIds = projectRows
     .filter(row => mediaMode !== 'overview' || !readCoverThumbnail(row.cover_thumbnail, row.profile_id, row.id))
     .map((row) => row.id);
-  const attachmentResult = projectIds.length > 0
-    ? await client.from('project_attachments').select('*').in('project_id', projectIds).order('position')
-    : { data: [], error: null };
+  const [attachmentResult, featured] = await Promise.all([
+    projectIds.length > 0
+      ? client.from('project_attachments').select('*').in('project_id', projectIds).order('position')
+      : { data: [], error: null },
+    profileId ? readFeaturedPortals(projectRows.map(row => row.id)) : undefined,
+  ]);
   if (attachmentResult.error) throw new Error(attachmentResult.error.message);
   let attachmentRows = (attachmentResult.data ?? []) as unknown as AttachmentRow[];
   if (mediaMode === 'overview') {
@@ -432,7 +438,7 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
       return cover ? [cover] : [];
     });
   }
-  const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows, mediaMode === 'overview' || publicOnly ? 'cover' : 'full');
+  const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows, mediaMode === 'overview' || publicOnly ? 'cover' : 'full', featured);
   if (mediaMode === 'overview') {
     projectsById.forEach(project => {
       // The authenticated wall also uses `cover` to decide whether a published
@@ -541,7 +547,8 @@ async getSharedProfile(profileId) {
     }
     if (!response.bundle) throw new ProfileServiceError('not_found', 'That creator profile could not be found.');
     const { profile: row, categories, projects, attachments, citations } = response.bundle;
-    const hydrated = await hydrateProjects(projects, categories, attachments, 'cover');
+    const featured = await readFeaturedPortals(projects.map(project => project.id));
+    const hydrated = await hydrateProjects(projects, categories, attachments, 'cover', featured);
     const ordered = projects.some(project => project.position < 0)
       ? [...projects].sort((a, b) => a.position - b.position || b.published_at.localeCompare(a.published_at)) : projects;
     return {

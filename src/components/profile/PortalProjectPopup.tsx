@@ -10,6 +10,7 @@ import { ProjectIndexList } from './ProjectIndexList';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from './MobilePortalProjectToolbar';
 import { sortPortalProjects, type PortalProjectBrowsing } from './portalProjectBrowsing';
 import './portal-project-popup.css';
+import { projectBelongsToPortal } from '../../features/projects/projectPortals';
 
 type PortalProjectPopupProps = {
   /** Canonical projects have already been filtered for the viewer's access. */
@@ -20,12 +21,15 @@ type PortalProjectPopupProps = {
   onSelect: (categoryId: string, projectId: string) => void;
   backLabel?: string;
   browsing?: PortalProjectBrowsing;
-  /** Portal Search opts its WEB chooser into the existing read-only browse tools. */
+  /** Public Portal choosers opt their WEB popup into the existing browse tools. */
   desktopBrowsing?: boolean;
+  /** URL-driven popups navigate on selection instead of separately dismissing. */
+  closeOnSelect?: boolean;
 };
 
 /** A portal's existing navigation list, floating over the screen that opened it. */
-export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onClose, onSelect, backLabel = 'Back to profile', browsing, desktopBrowsing = false }: PortalProjectPopupProps) {
+export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onClose, onSelect, backLabel = 'Back to profile', browsing, desktopBrowsing = false,
+  closeOnSelect = true }: PortalProjectPopupProps) {
   const presentation = usePresentation();
   const [localLayout, setLocalLayout] = useState<'list' | 'grid'>('list');
   const [localSort, setLocalSort] = useState<MobileProjectSort>('recent');
@@ -33,7 +37,7 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onCl
   const ref = useRef<HTMLElement>(null);
   useModalFocus(true, ref, onClose, true);
   const category = profile.categories.find(item => item.id === categoryId);
-  const projects = profile.projects.filter(item => item.categoryId === categoryId);
+  const projects = profile.projects.filter(item => projectBelongsToPortal(item, categoryId));
   const webBrowsing = presentation === 'web' && desktopBrowsing;
   const visibleProjects = presentation === 'mobile' || webBrowsing ? sortPortalProjects(projects, sort) : projects;
   if (!category) return null;
@@ -43,18 +47,19 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onCl
       if (event.target === event.currentTarget) onClose();
     }}>
       <ScreenBack action={onBack}>{null}</ScreenBack>
-      <section data-ui-surface="popup" data-web-portal-browsing={webBrowsing ? '' : undefined} ref={ref} className="shared-portal-popup ps-panel" role="dialog" aria-modal="true" aria-label={category.label} tabIndex={-1}>
+      <section data-ui-surface="popup" data-web-portal-browsing={webBrowsing ? '' : undefined} data-portal-link-entry={!closeOnSelect ? '' : undefined}
+        ref={ref} className="shared-portal-popup ps-panel" role="dialog" aria-modal="true" aria-label={category.label} tabIndex={-1}>
         <MobilePortalProjectToolbar category={category} onBack={onBack} backLabel={backLabel} sharedReadOnly browsingControls={presentation === 'mobile' || webBrowsing}
           layout={layout} onLayout={onLayout} sort={sort} onSort={onSort} />
         <nav data-project-index-list="" className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}>
           {(presentation === 'mobile' || webBrowsing) && !projects.length && <EmptyState title={`No projects in ${category.label}`} description="No work has been published in this portal." />}
           <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={layout} readOnlyBrowsing={webBrowsing}
             typefaceStacks={Object.fromEntries(projects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
-            typefaceIds={{}} hiddenIds={[]} pinnedIds={projects.filter(item => item.isPinned).map(item => item.id)}
+            typefaceIds={{}} hiddenIds={[]} pinnedIds={projects.filter(item => item.categoryId === categoryId && item.isPinned).map(item => item.id)}
             activeProjectId={null} isOwner={false} sharedReadOnly onReorder={() => undefined}
             onToggleHidden={() => undefined} onTogglePinned={() => undefined} onSelect={id => {
               if (!projects.some(item => item.id === id)) return;
-              onClose();
+              if (closeOnSelect) onClose();
               onSelect(categoryId, id);
             }} />
         </nav>

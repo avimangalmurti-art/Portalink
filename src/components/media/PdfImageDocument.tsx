@@ -423,10 +423,12 @@ export function PdfImageDocument({ projectId, attachmentId, source, openPdfRange
       return;
     }
     const callbacks = overviewPages.current;
+    const root = manageReadingScroll ? scrollRootRef.current
+      : host.closest('[data-web-ordered-reading]') ?? scrollRootRef.current;
     // One observer shares the actual reader scroller, including its preload area.
     const observer = overviewObserver.current ??= new IntersectionObserver(entries => {
       for (const entry of entries) callbacks.get(entry.target)?.(entry.isIntersecting);
-    }, { root: scrollRootRef.current, rootMargin: '240px 0px' });
+    }, { root, rootMargin: '240px 0px' });
     callbacks.set(host, onNearViewport);
     observer.observe(host);
     return () => {
@@ -437,7 +439,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, openPdfRange
         overviewObserver.current = null;
       }
     };
-  }, []);
+  }, [manageReadingScroll]);
   // Reader-local presentation history contains page numbers only. Keep it when
   // a transport recovers or a page leaves the viewport, not across documents.
   const presentedPagesRef = useRef(new Set<number>());

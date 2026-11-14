@@ -4,9 +4,11 @@ import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
 import React, { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { MoonIcon, SunIcon } from 'lucide-react';
 import type { Profile } from '../types/domain';
 import { ProfileAvatar } from '../components/profile/ProfileAvatar';
 import { AppearanceSwitch } from '../components/ui/AppearanceSwitch';
+import { InterfaceIcon } from '../components/ui/InterfaceIcon';
 import { PlatformGrid } from '../components/profile/PlatformGrid';
 import { JustifiedImageWall } from '../components/profile/JustifiedImageWall';
 import { ProjectPreviewCard } from '../components/profile/ProjectPreviewCard';
@@ -19,6 +21,7 @@ import { usePresentation } from '../presentation/usePresentation';
 import { useSearchParams } from 'react-router-dom';
 import { observeMobileCatalogueScroll, repairMobileCatalogueScroll } from '../components/profile/mobileCatalogueScroll';
 import '../components/profile/profile-header.css';
+import { projectBelongsToPortal } from '../features/projects/projectPortals';
 
 const JourneyView = lazy(() => import('../features/journey/JourneyView').then(m => ({ default: m.JourneyView })));
 const ProfileBioSheet = lazy(() => import('../features/profile/ProfileBioSheet').then(module => ({ default: module.ProfileBioSheet })));
@@ -29,6 +32,8 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   profile: Profile; categoryId: string | null; onOpen: (categoryId: string, projectId: string) => void; onCollaboration: () => void; onMessage: () => void; onBack?: () => void;
   active?: boolean; onCaptureOpener?: React.MouseEventHandler<HTMLDivElement>;
   appearanceControls?: {
+    theme: 'light' | 'dark';
+    onThemeChange: (theme: 'light' | 'dark') => void;
     highContrast: boolean; reduceTranslucency: boolean;
     onHighContrastChange: (enabled: boolean) => void;
     onReduceTranslucencyChange: (enabled: boolean) => void;
@@ -55,11 +60,11 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const [timelineToolbarHost, setTimelineToolbarHost] = useState<HTMLDivElement | null>(null);
   const category = profile.categories.find(item => item.id === categoryId);
   const density = useProjectGridDensity(profile, false, 'public-catalogue');
-  const projects = useMemo(() => categoryId ? profile.projects.filter(project => project.categoryId === categoryId) : profile.projects, [profile.projects, categoryId]);
+  const projects = useMemo(() => categoryId ? profile.projects.filter(project => projectBelongsToPortal(project, categoryId)) : profile.projects, [profile.projects, categoryId]);
   const contentGutter = !isMobile && imageCatalogue && projects.length > 0 ? 'px-[12px]' : 'px-[var(--content-gutter)]';
   const links = resolveProfileLinks(profile.links, profile.socialLinks);
   const items = projects.map(project => ({ key: project.id, ratio: getProjectAspectRatio(project), content:
-    <ProjectPreviewCard active={active} project={project} creator={profile} onOpen={() => onOpen(project.categoryId, project.id)}
+    <ProjectPreviewCard active={active} project={project} creator={profile} onOpen={() => onOpen(categoryId ?? project.categoryId, project.id)}
       creatorHref={buildPath('sharedProfile', { profileId: profile.id })} showCreator={false} showEngagementMetrics={false}
       priority="viewport" allowPdfFallback={false} allowVideoFallback={true} sharedCoverFallback /> }));
   return <div ref={profilePageRef} hidden={!active} aria-hidden={!active || undefined}
@@ -81,7 +86,12 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             </div>
           </div>
         </div>
-        {appearanceControls && <div className="public-profile-appearance-controls flex shrink-0 flex-col" role="group" aria-label="Catalogue appearance">
+        {appearanceControls && <div className={`public-profile-appearance-controls flex shrink-0 ${isMobile ? 'items-center gap-1' : 'flex-col'}`} role="group" aria-label="Catalogue appearance">
+          {isMobile && <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost" data-system-color=""
+            aria-label={appearanceControls.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={() => appearanceControls.onThemeChange(appearanceControls.theme === 'dark' ? 'light' : 'dark')}>
+            <InterfaceIcon icon={appearanceControls.theme === 'dark' ? SunIcon : MoonIcon} size="md" />
+          </button>}
           <AppearanceSwitch label="High Contrast" isOn={appearanceControls.highContrast}
             onToggle={() => appearanceControls.onHighContrastChange(!appearanceControls.highContrast)} />
           {!isMobile && <AppearanceSwitch label="Translucency" isOn={!appearanceControls.reduceTranslucency}

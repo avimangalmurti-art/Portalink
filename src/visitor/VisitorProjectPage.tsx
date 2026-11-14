@@ -17,6 +17,7 @@ import { MobilePortalProjectToolbar, type MobileProjectSort } from '../component
 import { sortPortalProjects, type PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
 import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from '../features/projects/pageLayout';
 import '../components/profile/web-reader-spacing.css';
+import { projectBelongsToPortal } from '../features/projects/projectPortals';
 
 /** Uses the canonical media viewer without importing owner workspace/editors. */
 export function VisitorProjectPage({ profile, project, categoryId, loading = false, pendingProjectId, onBack, onBackToProfile, onSelect, browsing, desktopNavigationStyle }: {
@@ -27,7 +28,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   // WEB may keep confirmed index metadata while the selected media is loading.
   // It never becomes reader media or supplies unconfirmed attachment counts.
   const pendingProject = !isMobile && !profile.isPrivate && loading && !project && pendingProjectId && categoryId
-    ? profile.projects.find(item => item.id === pendingProjectId && item.categoryId === categoryId && item.isPubliclyVisible !== false) : undefined;
+    ? profile.projects.find(item => item.id === pendingProjectId && projectBelongsToPortal(item, categoryId) && item.isPubliclyVisible !== false) : undefined;
   const selectedProjectId = project?.id ?? pendingProject?.id ?? null;
   const [indexOpen, setIndexOpen] = useState(!isMobile), [railOpen, setRailOpen] = useState(false);
   const [lastPanel, setLastPanel] = useState<ProjectPanel | null>(null);
@@ -56,9 +57,9 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   const workspace = useElementSize<HTMLDivElement>();
   const indexOpener = useRef<HTMLButtonElement>(null);
   const attachments = useMemo(() => project?.attachments ?? [], [project?.attachments]);
-  const currentCategoryId = project?.categoryId ?? categoryId;
+  const currentCategoryId = categoryId ?? project?.categoryId;
   const category = profile.categories.find(item => item.id === currentCategoryId);
-  const categoryProjects = profile.projects.filter(item => item.categoryId === currentCategoryId && item.isPubliclyVisible !== false);
+  const categoryProjects = profile.projects.filter(item => projectBelongsToPortal(item, currentCategoryId) && item.isPubliclyVisible !== false);
   const visibleProjects = isMobile ? sortPortalProjects(categoryProjects, mobileSort) : !indexQuery.trim() ? categoryProjects
     : categoryProjects.filter(item => item.title.toLocaleLowerCase().includes(indexQuery.trim().toLocaleLowerCase()));
   // Public readers use published metadata, without querying owner job tables.
@@ -111,15 +112,17 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
     </header>}
     {!isMobile && !indexExpanded && <div data-project-index-back="" className="side-panel-control-row shrink-0 justify-center">{webBack}</div>}
     {indexExpanded && !isMobile && <div className="project-index-search side-panel-control-stack side-panel-content-inset shrink-0">
-      <div data-ui-shape="field" className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
-        <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
-        <input type="search" value={indexQuery} onChange={event => setIndexQuery(event.target.value)}
-          placeholder="Search projects" aria-label={`Search projects in ${category?.label ?? 'this portal'}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+      <div className="flex min-w-0 items-center gap-2">
+        <div data-ui-shape="field" className="text-control-shell side-panel-primary-control group flex min-w-0 flex-1 items-center gap-2.5 px-3">
+          <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
+          <input type="search" value={indexQuery} onChange={event => setIndexQuery(event.target.value)}
+            placeholder="Search projects" aria-label={`Search projects in ${category?.label ?? 'this portal'}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+        </div>
       </div>
     </div>}
     {indexExpanded && <nav data-project-index-list="" aria-label={`${category?.label ?? 'Project'} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
       <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={mobileLayout} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
-        typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.isPinned).map(item => item.id)} activeProjectId={selectedProjectId} isOwner={false} sharedReadOnly
+        typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.categoryId === currentCategoryId && item.isPinned).map(item => item.id)} activeProjectId={selectedProjectId} isOwner={false} sharedReadOnly
         onReorder={() => undefined} onToggleHidden={() => undefined} onTogglePinned={() => undefined}
         onSelect={id => { if (isMobile) changeIndex(false); onSelect(id); }} />
       {!visibleProjects.length && <p className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]">{categoryProjects.length ? `No projects match “${indexQuery.trim()}”.` : 'No published projects in this portal.'}</p>}
@@ -132,7 +135,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
     <div ref={workspace.ref} className="relative flex min-h-0 flex-1">
       {!isMobile && index}
       <section className="flex min-h-0 min-w-0 flex-1" style={{ display: !isMobile && layout.singlePanel === 'index' ? 'none' : undefined }} aria-label={project ? `${project.title} files` : `${category?.label ?? 'Portal'} work`}>
-      {project ? <ProjectMediaViewer key={project.id} creator={profile} projectId={project.id} projectTitle={project.title} projectSummary={project.summary}
+      {project ? <ProjectMediaViewer key={project.id} creator={profile} projectId={project.id} primaryPortalId={project.categoryId} projectTitle={project.title} projectSummary={project.summary}
         publishedAt={project.publishedAt} credits={project.credits} attachments={attachments} pageCount={pageCount} onDocumentPageCountResolved={resolvePageCount}
         contentTypefaceStack={getTypefaceStack(project.design?.typefaceId ?? 'default')} pagesPerRow={pagesPerRow} onPagesPerRowChange={setPagesPerRow} onPageFocusModeChange={setFocused}
         sharedDesktopRailStyle={isMobile ? undefined : desktopNavigationStyle}

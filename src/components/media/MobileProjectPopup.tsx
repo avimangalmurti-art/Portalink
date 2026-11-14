@@ -2,7 +2,7 @@ import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import { ProjectPopupEngagement } from './ProjectPopupEngagement';
 import type { ContextTarget } from '../../presentation/mobile/contextActions';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -17,6 +17,7 @@ import { useProjectEngagement } from '../../features/engagement/useProjectEngage
 import { CreatorAvatar } from '../profile/CreatorAvatar';
 
 import { FollowContentInfoPopup } from './FollowContentInfoPopup';
+import { ProjectPortalMembershipDialog } from '../../features/projects/ProjectPortalMembershipDialog';
 
 
 
@@ -28,6 +29,7 @@ import type { Project } from '../../types/domain';
 
 import type { VideoCreator } from './MobileVideoFrame';
 
+type PortalProject = { id: string; title: string; profileId: string };
 
 
 /** Mount only on request, so project grids do not fetch engagement per tile. */
@@ -69,12 +71,16 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
  const url = new URL(buildPath('sharedProject', {profileId: creator?.id ?? creatorId ?? '',categoryId:project.categoryId,projectId:project.id}),PUBLIC_ORIGIN).href;
 
- const owner = !shared && auth.viewerProfileId === (creator?.id ?? creatorId);
+ const profileId = creator?.id ?? creatorId;
+ const owner = !shared && Boolean(profileId && auth.viewerProfileId === profileId);
  const editTitle = contextHandlers?.edit ?? onOptions;
  const editDescription = onEditDescription ?? contextHandlers?.edit ?? onOptions;
- const hasOwnerActions = owner && Boolean(onOptions || editTitle || editDescription || contextHandlers?.delete);
+ const portalProject = owner && auth.isAuthenticated && profileId && services.projects?.getPortalMemberships && services.projects?.setPortalMemberships
+  ? { id: project.id, title: project.title, profileId }
+  : undefined;
+ const hasOwnerActions = owner && Boolean(onOptions || editTitle || editDescription || contextHandlers?.delete || portalProject);
 
- return <FollowContentInfoPopup projectId={project.id} title={project.title} description={project.summary} showEngagement={!shared} optionsContent={hasOwnerActions ? <ProjectPopupOwnerActions onOptions={onOptions} onEditTitle={editTitle} onEditDescription={editDescription} onDelete={contextHandlers?.delete} onClose={onClose} /> : undefined} onComments={() => { onClose(); onOpenComments?.(); }} engagement={engagement} onRequireAccount={requireAccount} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} engagementContent={shared ? undefined : <>
+ return <FollowContentInfoPopup projectId={project.id} title={project.title} description={project.summary} showEngagement={!shared} optionsContent={hasOwnerActions ? <ProjectPopupOwnerActions onOptions={onOptions} onEditTitle={editTitle} onEditDescription={editDescription} portalProject={portalProject} onDelete={contextHandlers?.delete} onClose={onClose} /> : undefined} onComments={() => { onClose(); onOpenComments?.(); }} engagement={engagement} onRequireAccount={requireAccount} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} engagementContent={shared ? undefined : <>
 
   <ProjectPopupEngagement projectId={project.id} projectTitle={project.title} url={url} engagement={engagement} onRequireAccount={requireAccount} onOpenComments={onOpenComments ? () => { onClose(); onOpenComments(); } : undefined} />
 
@@ -90,9 +96,45 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 }
 
 
-export function ProjectPopupOwnerActions({ onOptions, onEditTitle, onEditDescription, onDelete, onClose }: { onOptions?: () => unknown; onEditTitle?: () => unknown; onEditDescription?: () => unknown; onDelete?: () => unknown; onClose: () => void }) {
+export function ProjectPopupOwnerActions({ onOptions, onEditTitle, onEditDescription, portalProject, onDelete, onClose }: {
+ onOptions?: () => unknown; onEditTitle?: () => unknown; onEditDescription?: () => unknown;
+ portalProject?: PortalProject;
+ onDelete?: () => unknown; onClose: () => void;
+}) {
  const editProject = onEditTitle ?? onOptions ?? onEditDescription;
  return <div className="project-popup-owner-actions">
-  {([['Edit project', editProject], ['Delete project', onDelete]] as const).map(([label, run]) => run && <button key={label} type="button" className="project-popup-owner-button" data-destructive={label === 'Delete project' || undefined} onClick={() => { onClose(); void run(); }}>{label}</button>)}
+  {editProject && <button type="button" className="project-popup-owner-button" onClick={() => { onClose(); void editProject(); }}>Edit project</button>}
+  {portalProject && <ProjectPortalMembershipAction key={`${portalProject.profileId}:${portalProject.id}`} project={portalProject} />}
+  {onDelete && <button type="button" className="project-popup-owner-button" data-destructive onClick={() => { onClose(); void onDelete(); }}>Delete project</button>}
  </div>;
+}
+
+function ProjectPortalMembershipAction({ project }: { project: PortalProject }) {
+ const { projects } = useServices();
+ const { isAuthenticated, viewerProfileId, loginSession } = useAuth();
+ const isOwner = isAuthenticated && viewerProfileId === project.profileId;
+ const hasMembershipActions = Boolean(projects.getPortalMemberships && projects.setPortalMemberships);
+ const shouldProbe = isOwner && hasMembershipActions && Boolean(projects.isPortalMembershipAvailable);
+ const { id, profileId } = project;
+ const scope = useMemo(() => ({ projects, loginSession, id, profileId, shouldProbe }),
+  [projects, loginSession, id, profileId, shouldProbe]);
+ const [availability, setAvailability] = useState<{ scope: typeof scope; available: boolean }>();
+ const [openScope, setOpenScope] = useState<typeof scope>();
+
+ useEffect(() => {
+  if (!shouldProbe || !projects.isPortalMembershipAvailable) return;
+  let active = true;
+  const update = (available: boolean) => {
+   if (active) setAvailability({ scope, available });
+  };
+  // A temporary failure can use the picker's existing loading and retry path.
+  void projects.isPortalMembershipAvailable().then(update, () => update(true));
+  return () => { active = false; };
+ }, [projects, scope, shouldProbe]);
+
+ if (!isOwner || !hasMembershipActions || (shouldProbe && (availability?.scope !== scope || !availability.available))) return null;
+ return <>
+  <button type="button" className="project-popup-owner-button" aria-haspopup="dialog" onClick={() => setOpenScope(scope)}>Feature in Portals</button>
+  {openScope === scope && <ProjectPortalMembershipDialog project={project} onClose={() => setOpenScope(undefined)} />}
+ </>;
 }

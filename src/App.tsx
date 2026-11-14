@@ -59,6 +59,7 @@ import './app/screenTransitions.css';
 import { buildPath } from './app/routes';
 import { beginProjectContinuity, isProjectContinuityActive } from './utils/projectContinuity';
 import { canAccessProfile } from './domain/contentPlacement';
+import { projectBelongsToPortal } from './features/projects/projectPortals';
 import { PANEL_LAYOUT_RESET_EVENT } from './utils/panelLayoutDefaults';
 import { useCreatorAppearance } from './features/profile/useCreatorAppearance';
 import { canResumeRegistration, readSharedReturnPath } from './features/auth/registration';
@@ -511,12 +512,12 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   if (webReaderScope && viewedProfileQuery.status === 'ready') {
     const readyProfile = viewedProfileQuery.profile;
     const confirmed = readyProfile && canRetainWebReader(readyProfile)
-      && (!activeProjectId || readyProfile.projects.some(project => project.id === activeProjectId && project.categoryId === routeCategoryId && (!isSharedRoute || project.isPubliclyVisible !== false)));
+      && (!activeProjectId || readyProfile.projects.some(project => project.id === activeProjectId && projectBelongsToPortal(project, routeCategoryId) && (!isSharedRoute || project.isPubliclyVisible !== false)));
     confirmedWebReader.current = confirmed ? { scope: webReaderScope, profile: readyProfile } : null;
   }
   const retainedWebReaderProfile = webReaderScope && activeProjectId && viewedProfileQuery.status === 'loading'
     && confirmedWebReader.current?.scope === webReaderScope
-    && confirmedWebReader.current.profile.projects.some(project => project.id === activeProjectId && project.categoryId === routeCategoryId && (!isSharedRoute || project.isPubliclyVisible !== false))
+    && confirmedWebReader.current.profile.projects.some(project => project.id === activeProjectId && projectBelongsToPortal(project, routeCategoryId) && (!isSharedRoute || project.isPubliclyVisible !== false))
     ? confirmedWebReader.current.profile : null;
   const isWebReaderLoading = Boolean(retainedWebReaderProfile);
   const viewedProfile = retainedWebReaderProfile ?? viewedProfileQuery.profile;
@@ -1483,7 +1484,11 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const screenMainClassName = `scroll-edge-fade is-at-top min-h-0 w-full flex-1 ${isProfileEditorRoute || activeCategory || isSearchOpen || isMessagesOpen || isStudioPageOpen || isPortalSearchOpen || inDesignFeature ? 'overflow-hidden' : 'overflow-y-auto'} ${activeCategory ? '' : 'mono-icons'}`;
   const screenAriaLabel = isCollaborationOpen ? `${viewedProfile?.name ?? 'Creator'} collaboration` : isControlCenterOpen ? 'Settings' : isProfileEditorRoute ? 'Edit profile' : personalScreen ?? inDesignFeature ?? (isMessagesOpen ? 'Messages' : isSearchOpen ? 'Search and browse' : activeCategory ? `${viewedProfile?.name ?? 'Catalogue'} · ${activeCategory.label}${isSharedRoute ? ' · shared read-only view' : ''}` : (route.kind === 'profile' || route.kind === 'sharedProfile') && viewedProfile ? `${viewedProfile.name} profile${isSharedRoute ? ' · shared read-only view' : ''}` : selectedApp ? `${selectedApp.name} details` : `${activeDestination} content`);
   const portalsPage = <PortalsPage key={`${auth.user?.id ?? 'guest'}:${viewedProfileId ?? 'setup'}`} profileQuery={viewedProfileQuery} profileContext={route.kind === 'profile'} onboardingStatus={onboardingStatus} management={management} accentColor={interfaceAccentColor} theme={interfaceTheme} onChangeCategoryIcon={setIconPickerCategoryId} onContinue={continueToPortals} onSelectCategory={selectProfileCategory} onBack={returnFromPortalCollection} />;
-  const categoryPage = activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} readerLoading={isWebReaderLoading} onBack={returnFromPortal} onBackToPortals={returnToPortalCollection} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
+  const canShareActiveCategory = Boolean(isOwnerMode && activeCategory && viewedProfile && !viewedProfile.isPrivate
+    && management.arrangement?.categoryOrder.includes(activeCategory.id) && !management.isLoadingArrangement && !management.arrangementError
+    && management.pending?.kind !== 'arrangement'
+    && !management.arrangement.hiddenCategoryIds.includes(activeCategory.id));
+  const categoryPage = activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} readerLoading={isWebReaderLoading} onBack={returnFromPortal} onBackToPortals={returnToPortalCollection} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} canShareCategory={canShareActiveCategory} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
         const target = discoveryReturn.path;
         const viewTransition = activeProjectId ? beginProjectContinuity(activeProjectId, 'return') : false;
         setDiscoveryReturn(null);

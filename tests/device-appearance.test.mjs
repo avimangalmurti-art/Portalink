@@ -26,14 +26,14 @@ test('public mobile appearance previews and persists without rewriting platform 
   assert.equal(returning.render('mobile').theme, 'dark');
 });
 
-test('public mobile arrives translucent and respects a saved public accessibility choice', () => {
+test('public mobile starts with standard contrast and translucency and persists visitor choices', () => {
   const platformKey = 'portalinknetworks.interfaceAppearance.mobile';
   const publicKey = 'portalinknetworks.publicAppearance.mobile';
   const storage = new Map([[platformKey, JSON.stringify({ reduceTranslucency: true, highContrast: true })]]);
   const firstVisit = harness({ storage, namespace: 'public' });
   assert.equal(firstVisit.render('mobile').reduceTranslucency, false);
-  assert.equal(firstVisit.render('mobile').highContrast, true);
-  firstVisit.render('mobile').chooseAppearance({ reduceTranslucency: true });
+  assert.equal(firstVisit.render('mobile').highContrast, false);
+  firstVisit.render('mobile').chooseAppearance({ reduceTranslucency: true, highContrast: true });
   assert.equal(firstVisit.render('mobile').reduceTranslucency, true);
   assert.equal(JSON.parse(storage.get(publicKey)).reduceTranslucency, true);
   assert.equal(JSON.parse(storage.get(platformKey)).reduceTranslucency, true);
@@ -41,6 +41,7 @@ test('public mobile arrives translucent and respects a saved public accessibilit
 
   const returning = harness({ storage, namespace: 'public' });
   assert.equal(returning.render('mobile').reduceTranslucency, true);
+  assert.equal(returning.render('mobile').highContrast, true);
   returning.dispose();
 });
 const scopedKey = scope => `portalinknetworks.interfaceAppearance.${scope}`;
@@ -308,7 +309,8 @@ test('shared catalogue preboot matches the platform mode and system color on eit
         [scopedKey(scope === 'mobile' ? 'web' : 'mobile'), JSON.stringify({ mode: expected === 'dark' ? 'light' : 'dark' })],
         ['portalinknetworks.publicAppearance.mobile', JSON.stringify({ mode: expected === 'dark' ? 'light' : 'dark' })],
       ]);
-      const root = { dataset: {}, style: {} };
+      const flags = new Set();
+      const root = { dataset: {}, style: {}, setAttribute: name => flags.add(name) };
       const meta = new Map([['content', '#123456']]);
       const window = {
         location: { pathname: '/portalite' },
@@ -320,7 +322,8 @@ test('shared catalogue preboot matches the platform mode and system color on eit
       const platform = harness({ dark, storage });
       assert.equal(root.dataset.appearance, expected);
       assert.equal(root.style.colorScheme, platform.render(scope).theme);
-      assert.equal(meta.get('content'), expected === 'dark' ? '#000000' : '#ffffff');
+      assert.equal(flags.has('data-mobile-catalogue-launch'), scope === 'mobile');
+      assert.equal(meta.get('content'), scope === 'mobile' || expected === 'light' ? '#ffffff' : '#000000');
       platform.dispose();
     }
   }

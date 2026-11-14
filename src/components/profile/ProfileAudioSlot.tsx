@@ -57,7 +57,7 @@ export default function ProfileAudioSlot({ profileId, accountId, profileName, pr
   }
 
   return <li className="list-none">
-    <ProfileAudio track={stored?.track ?? null} sourceKey={stored?.row.audio_path} profileName={profileName} profileAvatar={profileAvatar} editable={editable} disabled={!active} sharedCatalogue={sharedCatalogue}
+    <ProfileAudio track={stored?.track ?? null} sourceKey={stored?.row.audio_path} profileId={profileId} profileName={profileName} profileAvatar={profileAvatar} editable={editable} disabled={!active} sharedCatalogue={sharedCatalogue}
       onSave={editable ? save : undefined} onRemove={editable ? remove : undefined} />
   </li>;
 }

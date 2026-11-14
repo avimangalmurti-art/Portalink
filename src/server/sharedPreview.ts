@@ -1,6 +1,6 @@
 import { plainFormattedText } from '../components/text/textFormatting';
 import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
-import { portfolioPath, shareCardText, type PortfolioCard } from '../features/sharing/shareModel';
+import { portalPopupSearch, portfolioPath, shareCardText, type PortfolioCard } from '../features/sharing/shareModel';
 import { readCoverThumbnail } from '../services/supabase/coverThumbnailReads';
 type PreviewConfiguration = { supabaseUrl: string; publishableKey: string };
 type SharedTarget = { profileId: string; categoryId?: string; projectId?: string };
@@ -20,7 +20,7 @@ const previewCache = new Map<string, CachedPreview>();
 const CACHE_MILLISECONDS = 5 * 60 * 1_000;
 const MAX_CACHE_ENTRIES = 128;
 const MAX_PROJECT_ATTACHMENTS = 105;
-const projectSelect = '*,id,profile_id,category_id,title,summary,is_hidden,position,published_at,profile:profiles!projects_profile_id_fkey!inner(id,name,handle,headline,portfolio_headline,school,avatar_url,is_private),category:portfolio_categories!inner(id,profile_id,is_hidden),attachments:project_attachments(id,project_id,kind,mime_type,storage_path,is_cover,position,metadata)';
+const projectSelect = '*,id,profile_id,category_id,title,summary,is_hidden,position,published_at,profile:profiles!projects_profile_id_fkey!inner(id,name,handle,headline,portfolio_headline,school,avatar_url,is_private),category:portfolio_categories!projects_category_id_fkey!inner(id,profile_id,is_hidden),attachments:project_attachments(id,project_id,kind,mime_type,storage_path,is_cover,position,metadata)';
 
 export function isSharedPreviewPath(path: string): boolean {
   return sharedRoute.test(path);
@@ -136,6 +136,23 @@ async function readProject(target: SharedTarget, origin: string, config: Preview
     query.set('order', 'published_at.desc,id.asc');
     rows = await readRows('projects', query, origin, config, signal);
   }
+  if (rows?.length === 0 && target.categoryId) {
+    // A featured project retains its original category. Confirm the requested
+    // placement through anonymous RLS before fetching its canonical metadata.
+    const placementQuery = new URLSearchParams({ select: 'project_id,category_id', category_id: `eq.${target.categoryId}`, limit: '1', order: 'project_id' });
+    if (target.projectId) placementQuery.set('project_id', `eq.${target.projectId}`);
+    const placements = await readRows('project_portal_features', placementQuery, origin, config, signal);
+    const placement = placements?.[0];
+    if (placement && typeof placement.project_id === 'string' && uuid.test(placement.project_id)
+      && sameId(placement.category_id, target.categoryId)
+      && (!target.projectId || sameId(placement.project_id, target.projectId))) {
+      query.delete('category_id');
+      query.set('id', `eq.${placement.project_id}`);
+      const featured = await readRows('projects', query, origin, config, signal);
+      const candidate = featured?.[0];
+      if (candidate && visibleProject(candidate, { profileId: target.profileId, projectId: placement.project_id })) return candidate;
+    }
+  }
   return rows?.length === 1 && visibleProject(rows[0], target) ? rows[0] : null;
 }
 
@@ -214,7 +231,7 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
   if (!creator || !image) return null;
   const title = text(target.projectId ? project.title : category?.label, 120);
   if (target.categoryId && !title) return null;
-  const countResponse = !target.categoryId ? await fetch(`${origin}/rest/v1/projects?${new URLSearchParams({ select: 'id,category:portfolio_categories!inner(id,is_hidden)', profile_id: `eq.${target.profileId}`, is_hidden: 'eq.false', 'category.is_hidden': 'eq.false' })}`, { method: 'HEAD', headers: { apikey: config.publishableKey, Prefer: 'count=exact' }, credentials: 'omit', cache: 'no-store', redirect: 'manual', signal }) : null;
+  const countResponse = !target.categoryId ? await fetch(`${origin}/rest/v1/projects?${new URLSearchParams({ select: 'id,category:portfolio_categories!projects_category_id_fkey!inner(id,is_hidden)', profile_id: `eq.${target.profileId}`, is_hidden: 'eq.false', 'category.is_hidden': 'eq.false' })}`, { method: 'HEAD', headers: { apikey: config.publishableKey, Prefer: 'count=exact' }, credentials: 'omit', cache: 'no-store', redirect: 'manual', signal }) : null;
   const count = countResponse?.ok ? Number(countResponse.headers.get('content-range')?.split('/')[1]) : NaN;
   if (!target.categoryId && (!Number.isSafeInteger(count) || count < 1)) return null;
   const headline = typeof profile?.portfolio_headline === 'string' ? profile.portfolio_headline : typeof profile?.headline === 'string' ? profile.headline.split(/\r?\n/).find(line => line.trim()) ?? '' : '';
@@ -288,7 +305,8 @@ export async function withSharedPreview(response: Response, request: Request, co
   for (const name of ['etag', 'last-modified', 'content-length', 'content-encoding']) headers.delete(name);
   if (request.method === 'HEAD') return new Response(null, { status: response.status, headers });
   const shell = await response.text();
-  const cacheKey = `${url.origin}${url.pathname}`;
+  const popupSearch = portalPopupSearch(url);
+  const cacheKey = `${url.origin}${url.pathname}${popupSearch}`;
   let html = shell;
   try {
     const origin = serviceOrigin(config);
@@ -303,7 +321,7 @@ export async function withSharedPreview(response: Response, request: Request, co
       } else {
         const image = preview.image.public ? `${PUBLIC_ORIGIN}/media/${preview.image.avatar ? 'avatars' : 'covers'}/${preview.image.path}` : await signImage(preview.image.path, origin, config, signal);
         if (image) {
-          html = rewriteHead(shell, preview, image, `${PUBLIC_ORIGIN}${url.pathname.replace(/\/$/, '')}`);
+          html = rewriteHead(shell, preview, image, `${PUBLIC_ORIGIN}${url.pathname.replace(/\/$/, '')}${popupSearch}`);
           previewCache.delete(cacheKey);
           previewCache.set(cacheKey, { configuration, fingerprint, shell, html, expiresAt: Date.now() + CACHE_MILLISECONDS });
           while (previewCache.size > MAX_CACHE_ENTRIES) {

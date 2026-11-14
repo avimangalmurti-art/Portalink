@@ -27,7 +27,10 @@ export async function loadSavedPageBatch(projects: ProjectService, cursor: strin
   const byId = new Map(views.filter((view) => view !== undefined).map((view) => [view.project.id, view]));
   return {
     nextCursor: batch.nextCursor,
-    items: batch.items.map((target) => ({ target, presentation: savedPagePresentation(target, byId.get(target.projectId)) })),
+    items: batch.items.flatMap((target) => {
+      const presentation = savedPagePresentation(target, byId.get(target.projectId));
+      return presentation ? [{ target, presentation }] : [];
+    }),
   };
 }
 

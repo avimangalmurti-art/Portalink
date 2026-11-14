@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData, type ProfileQuery } from '../../contexts/ProfileDataContext';
 import type { Profile } from '../../types/domain';
+import { projectBelongsToPortal } from '../projects/projectPortals';
 
 /** Public bundles never enter the owner's full-profile cache. Only the opened
  * document resolves its originals; the grid retains its small cover records. */
@@ -27,7 +28,8 @@ export function useSharedProfileQuery(profileId: string | null, projectId: strin
     setState({ scope, key, profile: null, status: 'loading', error: null });
     if (!scope.bundle) scope.bundle = profiles.getSharedProfile
       ? profiles.getSharedProfile(profileId) : profiles.getProfile(profileId);
-    const confirmedSelection = scope.profile?.projects.find(project => project.id === projectId && project.categoryId === categoryId);
+    const confirmedSelection = scope.profile?.categories.some(category => category.id === categoryId)
+      ? scope.profile.projects.find(project => project.id === projectId && projectBelongsToPortal(project, categoryId)) : undefined;
     // A first direct link starts both RLS-backed reads together. A confirmed
     // public bundle can refuse an absent project before preparing any media.
     // Capture rejection immediately even if the bundle is slower or navigation leaves.
@@ -38,15 +40,19 @@ export function useSharedProfileQuery(profileId: string | null, projectId: strin
       if (bundle.id !== profileId || bundle.isPrivate) throw new Error('That creator profile could not be found.');
       scope.profile = bundle;
       if (!projectId) return bundle;
-      const selected = bundle.projects.find(project => project.id === projectId && project.categoryId === categoryId);
+      const selected = bundle.categories.some(category => category.id === categoryId)
+        ? bundle.projects.find(project => project.id === projectId && projectBelongsToPortal(project, categoryId)) : undefined;
       if (!selected) return bundle; // Existing route handles truthful project-not-found.
       if (selected.isPubliclyVisible === false || !selectedRequest) throw new Error('That project could not be found.');
       const result = await selectedRequest;
       if (cancelled || currentScope.current !== scope) return bundle;
       if ('error' in result) throw result.error;
       const { view } = result;
-      if (view.creator.id !== bundle.id || view.creator.isPrivate || view.project.id !== projectId || view.project.isPubliclyVisible === false || view.project.categoryId !== categoryId) throw new Error('That project could not be found.');
-      const detailed = { ...bundle, projects: bundle.projects.map(project => project.id === projectId ? view.project : project) };
+      if (view.creator.id !== bundle.id || view.creator.isPrivate || view.project.id !== projectId
+        || view.project.isPubliclyVisible === false || !projectBelongsToPortal(view.project, categoryId)) throw new Error('That project could not be found.');
+      // A signed-in visitor's individual read can include owner-only placement IDs.
+      const publicProject = { ...view.project, additionalPortalIds: selected.additionalPortalIds };
+      const detailed = { ...bundle, projects: bundle.projects.map(project => project.id === projectId ? publicProject : project) };
       const oldest = scope.views.keys().next().value;
       if (scope.views.size >= 16 && oldest !== undefined) scope.views.delete(oldest);
       scope.views.set(key, detailed);

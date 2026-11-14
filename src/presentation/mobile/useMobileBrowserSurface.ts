@@ -4,8 +4,10 @@ import { PORTALINK_SPLASH_EXIT_EVENT } from '../../app/splashLifecycle';
 
 const welcomeSelector = '[data-portalink-splash][data-presentation="mobile"]:not([aria-hidden="true"]) .professional-entry';
 const inviteSplashSelector = 'html[data-invite-launch] #portalink-preboot, [data-portalink-invite-splash]:not([aria-hidden="true"])';
+const catalogueSplashSelector = 'html[data-mobile-catalogue-launch] [data-mobile-catalogue-splash]';
 const projectOpeningSelector = '[data-presentation="mobile"] [data-project-opening-loader]';
-const visibleOpeningSurface = () => document.querySelector<HTMLElement>(inviteSplashSelector)
+const visibleOpeningSurface = () => document.querySelector<HTMLElement>(catalogueSplashSelector)
+  ?? document.querySelector<HTMLElement>(inviteSplashSelector)
   ?? document.querySelector<HTMLElement>(welcomeSelector)
   ?? document.querySelector<HTMLElement>(projectOpeningSelector);
 

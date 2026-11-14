@@ -61,6 +61,12 @@
       @media (max-width: 639px) {
         /* Keep the scroll boundary on the catalogue's canvas in embedded browsers. */
         html[data-shared-view] { overscroll-behavior-y: none; }
+        html[data-mobile-catalogue-launch],
+        html[data-mobile-catalogue-launch] body {
+          background-color: #ffffff !important;
+          color-scheme: light !important;
+        }
+        html[data-mobile-catalogue-launch] #root { visibility: hidden; }
       }
       html[data-shared-view][data-mobile-project-launch] {
         --shared-catalogue-canvas: #000;
@@ -103,17 +109,19 @@
         const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
         const resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
         const root = document.documentElement;
+        const catalogueLaunch = presentation === 'mobile' && !projectLaunch;
         if (projectLaunch) root.setAttribute('data-mobile-project-launch', '');
+        if (catalogueLaunch) root.setAttribute('data-mobile-catalogue-launch', '');
         root.dataset.appearance = resolved;
         root.style.colorScheme = resolved;
         const color = resolved === 'dark' ? '#000000' : '#ffffff';
         document.querySelectorAll('meta[name="theme-color"]').forEach(tag => {
           tag.setAttribute('data-portalink-theme-original', tag.getAttribute('content'));
-          tag.setAttribute('content', projectLaunch ? '#000000' : color);
+          tag.setAttribute('content', projectLaunch ? '#000000' : catalogueLaunch ? '#ffffff' : color);
         });
       })();
     </script>
-    <script defer src="/portalink-mobile-launch.js?v=1cbecab0" data-launch-entry="catalogue"></script>
+    <script defer src="/portalink-mobile-launch.js?v=110a115c" data-launch-entry="catalogue" onerror="document.documentElement.removeAttribute('data-mobile-catalogue-launch')"></script>
   </head>
   <body>
     <div id="root"></div>

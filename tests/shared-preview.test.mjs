@@ -36,7 +36,7 @@ function setup() {
   const state = {
     profiles: [creator()],
     categories: [{ id: id(2), profile_id: id(1), label: 'Architecture', blurb: 'Selected projects', is_hidden: false, profile: creator() }],
-    projects: [project()], status: 200, failure: null, signStatus: 200, signedURL: null,
+    projects: [project()], features: [], status: 200, failure: null, signStatus: 200, signedURL: null,
     extraHead: '', extraBody: '', now: 1_800_000_000_000, key: config.publishableKey,
     overrideRows: null, waitForAbort: false, employerColumnsMissing: false,
   };
@@ -65,12 +65,15 @@ function setup() {
       assert.ok(url.pathname.startsWith('/rest/v1/'));
       if (state.status !== 200) return Response.json({ message: 'private-upstream-detail' }, { status: state.status });
       if(state.employerColumnsMissing && url.searchParams.get('select')?.includes('portfolio_headline')) return Response.json({code:'42703',message:'column profiles.portfolio_headline does not exist'},{status:400});
+      if (url.pathname.endsWith('/projects') && url.searchParams.get('select')?.includes('category:portfolio_categories!')
+        && !url.searchParams.get('select')?.includes('category:portfolio_categories!projects_category_id_fkey!inner('))
+        return Response.json({code:'PGRST201'}, {status:300});
       if (options.method === 'HEAD') return new Response(null, {headers:{'content-range':`0-0/${state.projects.length}`}});
       if (state.overrideRows) return Response.json(state.overrideRows(url));
       const table = url.pathname.split('/').at(-1);
-      let rows = clone(table === 'profiles' ? state.profiles : table === 'portfolio_categories' ? state.categories : state.projects);
+      let rows = clone(table === 'profiles' ? state.profiles : table === 'portfolio_categories' ? state.categories : table === 'project_portal_features' ? state.features : state.projects);
       const query = url.searchParams;
-      for (const key of ['id', 'profile_id', 'category_id']) {
+      for (const key of ['id', 'profile_id', 'category_id', 'project_id']) {
         const constraint = query.get(key);
         if (constraint?.startsWith('eq.')) rows = rows.filter(row => row[key] === constraint.slice(3));
       }
@@ -163,6 +166,21 @@ function assertImage(html, path = coverPath, width = 1600, height = 900) {
   assert.equal(value(html, 'twitter:card'), 'summary_large_image');
   assert.doesNotMatch(html.slice(0, html.indexOf('</head>')), /og\.png|Hello World — the Portalink character/);
 }
+
+test('featured Portal URLs preview the same visible project while it belongs to that Portal', async () => {
+  const h = setup();
+  const featuredPortal = id(7);
+  const featuredPath = profilePath + '/c/' + featuredPortal;
+  h.state.categories.push({ ...h.state.categories[0], id: featuredPortal, label: 'Featured work' });
+  h.state.features.push({ project_id: id(3), category_id: featuredPortal });
+  assertImage(await (await h.request(featuredPath)).text());
+  assertImage(await (await h.request(featuredPath + '/' + id(3))).text());
+  h.state.projects[0].category.is_hidden = true;
+  assertGeneric(await (await h.request(featuredPath + '/' + id(3))).text());
+  h.state.projects[0].category.is_hidden = false;
+  h.state.features = [];
+  assertGeneric(await (await h.request(featuredPath + '/' + id(3))).text());
+});
 
 test('profile card uses its public avatar, creator title, public-only queries and clean canonical URL', async () => {
   const h = setup();
@@ -519,6 +537,16 @@ test('cache isolates request origin and configuration while emitting the officia
   assert.equal(h.signs().length, 3);
   await h.direct(categoryPath, { previewConfig: { ...config, publishableKey: 'another-public-key' } });
   assert.equal(h.signs().length, 4);
+});
+
+test('copied Portal preview retains its popup destination and drops unrelated query parameters', async () => {
+  const h = setup();
+  const plain = await (await h.request(categoryPath)).text();
+  const popup = await (await h.request(categoryPath + '?view=portal&source=message')).text();
+  assert.equal(value(plain, 'og:url'), officialOrigin + categoryPath);
+  assert.equal(value(popup, 'og:url'), officialOrigin + categoryPath + '?view=portal');
+  assert.equal(await (await h.request(categoryPath + '?view=portal')).text(), popup);
+  assert.equal(await (await h.request(categoryPath)).text(), plain);
 });
 
 test('crawler HTML, wildcard and absent Accept headers work; higher JSON preference or HTML exclusion skips metadata', async () => {
