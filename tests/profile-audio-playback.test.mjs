@@ -4,15 +4,13 @@ import test from 'node:test';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const track = { key: 'creator/track', url: 'https://audio.test/track.m4a' };
-const secondTrack = { key: 'creator/second-track', url: 'https://audio.test/second-track.m4a' };
 const otherTrack = { key: 'another-creator/track', url: 'https://audio.test/another-track.m4a' };
 const artwork = { avatar: 'https://images.test/creator-avatar.png', title: 'Creator', artist: 'Portalink soundtrack' };
 
-function createPlayback({ autoplayAllowed = true, adjustableVolume = true, mediaSessionSupported = false, audioOutput } = {}) {
+function createPlayback({ autoplayAllowed = true, adjustableVolume = true, mediaSessionSupported = false } = {}) {
   let canPlay = autoplayAllowed;
   const players = [];
   const attempts = [];
-  const outputs = [];
   const mediaSession = mediaSessionSupported ? { metadata: null } : undefined;
 
   class AudioFixture extends EventTarget {
@@ -22,14 +20,6 @@ function createPlayback({ autoplayAllowed = true, adjustableVolume = true, media
     error = null;
     ended = false;
     #volume = 1;
-    #src;
-
-    get src() { return this.#src; }
-    set src(next) {
-      this.#src = next;
-      this.currentTime = 0;
-      this.ended = false;
-    }
 
     get volume() { return this.#volume; }
     set volume(next) {
@@ -66,10 +56,6 @@ function createPlayback({ autoplayAllowed = true, adjustableVolume = true, media
     }
   }
 
-  if (audioOutput === 'sink') AudioFixture.prototype.setSinkId = async (id) => { outputs.push(id); };
-  if (audioOutput === 'webkit') AudioFixture.prototype.webkitShowPlaybackTargetPicker = () => { outputs.push('webkit'); };
-  const mediaDevices = audioOutput === 'sink' ? { selectAudioOutput: async () => ({ deviceId: 'selected-output' }) } : undefined;
-
   class MediaMetadataFixture {
     constructor({ title, artist, artwork: images }) {
       this.title = title;
@@ -81,13 +67,11 @@ function createPlayback({ autoplayAllowed = true, adjustableVolume = true, media
   return {
     ...sourceModule('src/features/profile/profileAudioPlayback.ts', {}, {
       Audio: AudioFixture, DOMException, queueMicrotask,
-      navigator: { mediaSession, mediaDevices }, MediaMetadata: mediaSessionSupported ? MediaMetadataFixture : undefined,
+      navigator: { mediaSession }, MediaMetadata: mediaSessionSupported ? MediaMetadataFixture : undefined,
     }),
     attempts,
     players,
     mediaSession,
-    mediaDevices,
-    outputs,
     get player() { return players.find(player => player.preload === 'metadata'); },
     grantPlayback() { canPlay = true; },
   };
@@ -347,97 +331,4 @@ test('leaving a platform profile clears only that creator and prevents a pending
   assert.equal(playback.player.src, '');
   assert.equal(playback.player.paused, true);
   assert.equal(playback.attempts.length, 1);
-});
-
-test('the ordered soundtrack auto-advances and stops after the last track', async () => {
-  const playback = createPlayback();
-  playback.setProfileAudioQueue('creator', [track, secondTrack], true);
-  await setImmediate();
-  playback.player.paused = true;
-  playback.player.ended = true;
-  playback.player.dispatchEvent(new Event('ended'));
-  await setImmediate();
-  assert.equal(playback.getProfileAudioSnapshot().key, secondTrack.key);
-  assert.equal(playback.getProfileAudioSnapshot().playing, true);
-  assert.equal(playback.players.length, 1, 'The next track uses the previously activated audio element');
-
-  playback.player.paused = true;
-  playback.player.ended = true;
-  playback.player.dispatchEvent(new Event('ended'));
-  await setImmediate();
-  assert.equal(playback.getProfileAudioSnapshot().wantsPlayback, false);
-  assert.deepEqual(playback.attempts.map(attempt => attempt.source), [track.url, secondTrack.url]);
-});
-
-test('skip and a queue refresh preserve manual Pause while selecting a track starts playback', async () => {
-  const playback = createPlayback();
-  playback.setProfileAudioQueue('creator', [track, secondTrack], false);
-  assert.equal(playback.attempts.length, 0, 'Registering a desktop queue does not autoplay');
-
-  playback.selectProfileAudioTrack('creator', track.key);
-  await setImmediate();
-  playback.toggleProfileAudio(track);
-  await setImmediate();
-  playback.skipProfileAudioTrack('creator', 1);
-  playback.setProfileAudioQueue('creator', [track, { ...secondTrack, artwork }], true);
-  await setImmediate();
-  assert.equal(playback.getProfileAudioSnapshot().key, secondTrack.key);
-  assert.equal(playback.getProfileAudioSnapshot().wantsPlayback, false);
-  assert.equal(playback.attempts.length, 1);
-
-  playback.selectProfileAudioTrack('creator', secondTrack.key);
-  await setImmediate();
-  assert.equal(playback.getProfileAudioSnapshot().playing, true);
-  playback.skipProfileAudioTrack('creator', -1);
-  await setImmediate();
-  assert.deepEqual(playback.attempts.map(attempt => attempt.source), [track.url, secondTrack.url, track.url]);
-});
-
-test('a track removed while video is open resumes the next available track after the video closes', async () => {
-  const playback = createPlayback();
-  playback.setProfileAudioQueue('creator', [track, secondTrack], true);
-  await setImmediate();
-  const leaveVideo = playback.suspendProfileAudioForVideo();
-  playback.setProfileAudioQueue('creator', [secondTrack], true);
-  await setImmediate();
-  assert.equal(playback.getProfileAudioSnapshot().key, secondTrack.key);
-  assert.equal(playback.attempts.length, 1);
-
-  leaveVideo();
-  await setImmediate();
-  assert.equal(playback.getProfileAudioSnapshot().playing, true);
-  assert.deepEqual(playback.attempts.map(attempt => attempt.source), [track.url, secondTrack.url]);
-
-  playback.clearProfileAudioForProfile('creator');
-  playback.selectProfileAudioTrack('creator', secondTrack.key);
-  assert.equal(playback.getProfileAudioSnapshot().key, null);
-  assert.equal(playback.attempts.length, 2);
-});
-
-test('skipping a blocked soundtrack handles the eligible click for the new track', async () => {
-  const playback = createPlayback({ autoplayAllowed: false });
-  playback.setProfileAudioQueue('creator', [track, secondTrack], true);
-  await setImmediate();
-  assert.equal(playback.getProfileAudioSnapshot().needsGesture, true);
-  playback.grantPlayback();
-  playback.skipProfileAudioTrack('creator', 1);
-  await setImmediate();
-  assert.equal(playback.getProfileAudioSnapshot().key, secondTrack.key);
-  assert.equal(playback.getProfileAudioSnapshot().playing, true);
-  assert.equal(playback.getProfileAudioSnapshot().needsGesture, false);
-});
-
-test('audio output delegates device selection to supported browsers', async () => {
-  const unsupported = createPlayback();
-  const sink = createPlayback({ audioOutput: 'sink' });
-  const webkit = createPlayback({ audioOutput: 'webkit' });
-  assert.equal(unsupported.supportsProfileAudioOutput(), false);
-  assert.equal(sink.supportsProfileAudioOutput(), true);
-  assert.equal(webkit.supportsProfileAudioOutput(), true);
-  await unsupported.chooseProfileAudioOutput();
-  await sink.chooseProfileAudioOutput();
-  await webkit.chooseProfileAudioOutput();
-  assert.equal(unsupported.players.length, 0);
-  assert.deepEqual(sink.outputs, ['selected-output']);
-  assert.deepEqual(webkit.outputs, ['webkit']);
 });

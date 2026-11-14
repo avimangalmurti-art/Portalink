@@ -3,15 +3,11 @@ import { requireSupabase, requireSupabaseProjectUrl } from './client';
 
 const TABLE = 'profile_audio_tracks';
 const BUCKET = 'profile-audio';
-const LEGACY_COLUMNS = 'title,artist,description,enabled,audio_path,cover_path,revision';
-const COLUMNS = `id,${LEGACY_COLUMNS}`;
+const COLUMNS = 'title,artist,description,enabled,audio_path,cover_path,revision';
 const CHUNK_BYTES = 6 * 1024 * 1024;
 const SIGNED_SECONDS = 3 * 60 * 60;
-const TRACK_PAGE_SIZE = 100;
-const SIGNED_PATH_BATCH_SIZE = 100;
 
 type TrackRow = Pick<ProfileAudioTrack, 'title' | 'artist' | 'description' | 'enabled'> & {
-  id?: string;
   audio_path: string;
   cover_path: string | null;
   revision: string;
@@ -19,52 +15,21 @@ type TrackRow = Pick<ProfileAudioTrack, 'title' | 'artist' | 'description' | 'en
 
 export type StoredProfileAudio = { row: TrackRow; track: ProfileAudioTrack };
 
-function missingTrackColumns(error: { code: string; message: string } | null) {
-  return error && ['42703', 'PGRST204'].includes(error.code) && /\b(id|created_at)\b/.test(error.message);
+async function playableTrack(row: TrackRow): Promise<StoredProfileAudio> {
+  const paths = row.cover_path ? [row.audio_path, row.cover_path] : [row.audio_path];
+  const { data, error } = await requireSupabase().storage.from(BUCKET).createSignedUrls(paths, SIGNED_SECONDS);
+  const urls = new Map(error ? [] : data?.map(item => [item.path, item.signedUrl]));
+  const { title, artist, description, enabled } = row;
+  return { row, track: { title, artist, description, enabled, audioUrl: urls.get(row.audio_path) ?? '', coverUrl: urls.get(row.cover_path ?? '') ?? null } };
 }
 
-async function playableTracks(profileId: string, rows: TrackRow[], signal?: AbortSignal): Promise<StoredProfileAudio[]> {
-  const paths = [...new Set(rows.flatMap(row => row.cover_path ? [row.audio_path, row.cover_path] : [row.audio_path]))];
-  const urls = new Map<string, string>();
-  for (let offset = 0; offset < paths.length; offset += SIGNED_PATH_BATCH_SIZE) {
-    signal?.throwIfAborted();
-    const { data, error } = await requireSupabase().storage.from(BUCKET)
-      .createSignedUrls(paths.slice(offset, offset + SIGNED_PATH_BATCH_SIZE), SIGNED_SECONDS);
-    if (error) continue;
-    for (const file of data ?? []) {
-      if (file.path && file.signedUrl) urls.set(file.path, file.signedUrl);
-    }
-  }
-  signal?.throwIfAborted();
-  return rows.map(row => ({
-    row,
-    track: {
-      id: row.id ?? profileId, title: row.title, artist: row.artist, description: row.description, enabled: row.enabled,
-      audioUrl: urls.get(row.audio_path) ?? '', coverUrl: row.cover_path ? urls.get(row.cover_path) ?? null : null,
-    },
-  }));
-}
-
-export async function readProfileAudioTracks(profileId: string, signal: AbortSignal): Promise<StoredProfileAudio[]> {
-  const client = requireSupabase();
-  const rows: TrackRow[] = [];
-  for (let offset = 0; ; offset += TRACK_PAGE_SIZE) {
-    const page = await client.from(TABLE).select(COLUMNS).eq('profile_id', profileId)
-      .order('created_at').order('id').range(offset, offset + TRACK_PAGE_SIZE - 1).abortSignal(signal);
-    signal.throwIfAborted();
-    // The earlier schema already carried one soundtrack. Keep playback and
-    // editing available while source and the additive migration roll out.
-    if (offset === 0 && missingTrackColumns(page.error)) {
-      const legacy = await client.from(TABLE).select(LEGACY_COLUMNS).eq('profile_id', profileId).abortSignal(signal).maybeSingle();
-      signal.throwIfAborted();
-      if (legacy.error) throw legacy.error;
-      return playableTracks(profileId, legacy.data ? [legacy.data] : [], signal);
-    }
-    if (page.error) throw page.error;
-    rows.push(...page.data);
-    if (page.data.length < TRACK_PAGE_SIZE) break;
-  }
-  return playableTracks(profileId, rows, signal);
+export async function readProfileAudio(profileId: string, signal: AbortSignal): Promise<StoredProfileAudio | null> {
+  const { data, error } = await requireSupabase().from(TABLE).select(COLUMNS).eq('profile_id', profileId).abortSignal(signal).maybeSingle();
+  signal.throwIfAborted();
+  if (error) throw error;
+  const result = data ? await playableTrack(data) : null;
+  signal.throwIfAborted();
+  return result;
 }
 
 async function uploadTrack(path: string, file: File, contentType: string) {
@@ -122,31 +87,19 @@ export async function saveProfileAudio(profileId: string, current: StoredProfile
   if (!audioPath) throw new Error('Choose an audio file first.');
   const client = requireSupabase();
   const row: TrackRow = { title, artist, description, enabled: input.enabled, audio_path: audioPath, cover_path: coverPath, revision };
-  const write = (columns: typeof COLUMNS | typeof LEGACY_COLUMNS) => {
-    if (!current) return client.from(TABLE).insert({ ...row, profile_id: profileId }).select(columns).single().overrideTypes<TrackRow, { merge: false }>();
-    const query = client.from(TABLE).update(row).eq('profile_id', profileId).eq('revision', current.row.revision);
-    return (current.row.id ? query.eq('id', current.row.id) : query).select(columns).maybeSingle().overrideTypes<TrackRow | null, { merge: false }>();
-  };
-  let storedRow: TrackRow;
   try {
     if (audio && audioFormat && newAudio) await uploadTrack(newAudio, audio, audioFormat.contentType);
     if (cover && coverFormat && newCover) {
       const { error } = await client.storage.from(BUCKET).upload(newCover, cover, { contentType: coverFormat.contentType, upsert: false });
       if (error) throw new Error('The cover image could not be uploaded. Try saving again.');
     }
-    let result = await write(COLUMNS);
-    if (!current?.row.id && missingTrackColumns(result.error)) {
-      result = await write(LEGACY_COLUMNS);
-      if (!current && result.error?.code === '23505') {
-        throw new Error('Adding another track is not available yet. Your current soundtrack is still saved.');
-      }
-    }
-    if (result.error?.code === '23505') {
+    const result = current
+      ? await client.from(TABLE).update(row).eq('profile_id', profileId).eq('revision', current.row.revision).select(COLUMNS).maybeSingle()
+      : await client.from(TABLE).insert({ ...row, profile_id: profileId }).select(COLUMNS).single();
+    if (result.error?.code === '23505' || (!result.error && !result.data)) {
       throw new Error('This track changed elsewhere. Reopen your profile before saving again.');
     }
     if (result.error) throw new Error('Profile audio could not be saved. Try again.');
-    if (!result.data) throw new Error('This track changed elsewhere. Reopen your profile before saving again.');
-    storedRow = result.data;
   } catch (error) {
     await removeFiles([newAudio, newCover]);
     throw error;
@@ -155,12 +108,12 @@ export async function saveProfileAudio(profileId: string, current: StoredProfile
     current?.row.audio_path !== audioPath ? current?.row.audio_path : null,
     current?.row.cover_path !== coverPath ? current?.row.cover_path : null,
   ]);
-  return (await playableTracks(profileId, [storedRow]))[0];
+  return playableTrack(row);
 }
 
 export async function removeProfileAudio(profileId: string, current: StoredProfileAudio): Promise<void> {
-  const query = requireSupabase().from(TABLE).delete().eq('profile_id', profileId).eq('revision', current.row.revision);
-  const { data, error } = await (current.row.id ? query.eq('id', current.row.id) : query).select('revision').maybeSingle();
+  const { data, error } = await requireSupabase().from(TABLE).delete().eq('profile_id', profileId)
+    .eq('revision', current.row.revision).select('profile_id').maybeSingle();
   if (error || !data) throw new Error('This track could not be removed. Reopen your profile and try again.');
   await removeFiles([current.row.audio_path, current.row.cover_path]);
 }
