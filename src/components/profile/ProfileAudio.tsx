@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { AudioLinesIcon, MoreHorizontalIcon, PauseIcon, PlayIcon, RotateCcwIcon, RotateCwIcon, Volume1Icon, Volume2Icon, XIcon } from 'lucide-react';
+import { AudioLinesIcon, HeadphonesIcon, MoreHorizontalIcon, PauseIcon, PlayIcon, PlusIcon, RotateCcwIcon, RotateCwIcon, SkipBackIcon, SkipForwardIcon, Volume1Icon, Volume2Icon, XIcon } from 'lucide-react';
 import {
   PROFILE_AUDIO_ACCEPT, PROFILE_AUDIO_COVER_ACCEPT, PROFILE_AUDIO_COVER_MAX_BYTES, PROFILE_AUDIO_MAX_BYTES, profileAudioArtwork,
   type ProfileAudioEdit, type ProfileAudioTrack,
 } from '../../features/profile/profileAudio';
 import { readProfileAudioTags } from '../../features/profile/profileAudioTags';
 import {
-  getProfileAudioSnapshot, retryProfileAudioOnGesture, seekProfileAudio, setProfileAudioVolume, startProfileAudio,
-  subscribeProfileAudio, supportsProfileAudioVolume, toggleProfileAudio, type ProfileAudioSource,
+  chooseProfileAudioOutput, getProfileAudioSnapshot, retryProfileAudioOnGesture, seekProfileAudio, selectProfileAudioTrack,
+  setProfileAudioQueue, setProfileAudioVolume, skipProfileAudioTrack, subscribeProfileAudio,
+  supportsProfileAudioOutput, supportsProfileAudioVolume, toggleProfileAudio, type ProfileAudioSource,
 } from '../../features/profile/profileAudioPlayback';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useMenuFocus } from '../../hooks/useMenuFocus';
@@ -19,14 +20,13 @@ import { ModalPortal } from '../ui/ModalPortal';
 import './profile-audio.css';
 
 type ProfileAudioProps = {
-  track: ProfileAudioTrack | null;
-  sourceKey?: string;
+  tracks: { track: ProfileAudioTrack; sourceKey: string }[];
   profileId: string;
   profileName: string;
   profileAvatar?: string;
   editable?: boolean;
-  onSave?: (input: ProfileAudioEdit) => Promise<void>;
-  onRemove?: () => Promise<void>;
+  onSave?: (trackId: string | null, input: ProfileAudioEdit) => Promise<void>;
+  onRemove?: (trackId: string) => Promise<void>;
   disabled?: boolean;
   sharedCatalogue?: boolean;
 };
@@ -67,10 +67,15 @@ function formatAudioTime(seconds: number): string {
   return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${paddedSeconds}` : `${minutes}:${paddedSeconds}`;
 }
 
-function ProfileAudioPlayer({ source }: { source: ProfileAudioSource }) {
+function ProfileAudioPlayer({ profileId, source, previous, next }: { profileId: string; source: ProfileAudioSource; previous: boolean; next: boolean }) {
   const playback = useSyncExternalStore(subscribeProfileAudio, getProfileAudioSnapshot, getProfileAudioSnapshot);
   const [hasVolumeControl, setHasVolumeControl] = useState(false);
-  useEffect(() => setHasVolumeControl(supportsProfileAudioVolume()), []);
+  const [hasOutputPicker, setHasOutputPicker] = useState(false);
+  const [outputError, setOutputError] = useState('');
+  useEffect(() => {
+    setHasVolumeControl(supportsProfileAudioVolume());
+    setHasOutputPicker(supportsProfileAudioOutput());
+  }, []);
   const current = playback.key === source.key;
   const wantsPlayback = current && playback.wantsPlayback;
   const duration = current ? playback.duration : 0;
@@ -89,6 +94,10 @@ function ProfileAudioPlayer({ source }: { source: ProfileAudioSource }) {
     </div>
     <div className="profile-audio-player-controls">
       <button type="button" className="profile-audio-skip" data-ui-control="icon" data-control-variant="ghost"
+        aria-label="Previous track" disabled={!previous} onClick={() => skipProfileAudioTrack(profileId, -1)}>
+        <InterfaceIcon icon={SkipBackIcon} size="md" />
+      </button>
+      <button type="button" className="profile-audio-skip" data-ui-control="icon" data-control-variant="ghost"
         aria-label="Back 10 seconds" disabled={!duration || position <= 0} onClick={() => seekProfileAudio(source.key, position - 10)}>
         <span className="profile-audio-skip-icon" aria-hidden="true"><InterfaceIcon icon={RotateCcwIcon} size="lg" /><span>10</span></span>
       </button>
@@ -100,6 +109,10 @@ function ProfileAudioPlayer({ source }: { source: ProfileAudioSource }) {
         aria-label="Forward 10 seconds" disabled={!duration || position >= duration} onClick={() => seekProfileAudio(source.key, position + 10)}>
         <span className="profile-audio-skip-icon" aria-hidden="true"><InterfaceIcon icon={RotateCwIcon} size="lg" /><span>10</span></span>
       </button>
+      <button type="button" className="profile-audio-skip" data-ui-control="icon" data-control-variant="ghost"
+        aria-label="Next track" disabled={!next} onClick={() => skipProfileAudioTrack(profileId, 1)}>
+        <InterfaceIcon icon={SkipForwardIcon} size="md" />
+      </button>
     </div>
     {hasVolumeControl && <div className="profile-audio-volume">
       <InterfaceIcon icon={Volume1Icon} size="sm" />
@@ -108,12 +121,18 @@ function ProfileAudioPlayer({ source }: { source: ProfileAudioSource }) {
         onChange={event => setProfileAudioVolume(event.currentTarget.valueAsNumber)} />
       <InterfaceIcon icon={Volume2Icon} size="sm" />
     </div>}
+    {hasOutputPicker && <button type="button" className="profile-audio-output" data-ui-control="button" data-ui-shape="action" data-control-variant="secondary"
+      onClick={() => {
+        setOutputError('');
+        void chooseProfileAudioOutput().catch(() => setOutputError('The audio output couldn’t be changed.'));
+      }}><InterfaceIcon icon={HeadphonesIcon} size="sm" /> Audio output</button>}
     {interrupted && <p role="status" className="profile-audio-muted">Paused while video is open.</p>}
     {current && playback.error && <p role="status" className="profile-audio-muted">{playback.error}</p>}
+    {outputError && <p role="status" className="profile-audio-muted">{outputError}</p>}
   </div>;
 }
 
-export function ProfileAudio({ track, sourceKey, profileId, profileName, profileAvatar, editable, onSave, onRemove, disabled, sharedCatalogue }: ProfileAudioProps) {
+export function ProfileAudio({ tracks, profileId, profileName, profileAvatar, editable, onSave, onRemove, disabled, sharedCatalogue }: ProfileAudioProps) {
   const presentation = usePresentation();
   const screenActive = useMobileScreenActive();
   const id = useId();
@@ -128,7 +147,9 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
   const saving = useRef(false);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<ProfileAudioEdit | null>(null);
-  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [editedTrackId, setEditedTrackId] = useState<string | null>(null);
+  const [removeTrackId, setRemoveTrackId] = useState<string | null>(null);
+  const [inspectedTrackId, setInspectedTrackId] = useState<string | null>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [readingTags, setReadingTags] = useState(false);
@@ -137,20 +158,26 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
   const visible = open && isActive;
   const viewport = useDialogViewport(visible);
   const canEdit = Boolean(editable && onSave);
-  const audioUrl = track?.enabled ? track.audioUrl : null;
-  const playbackKey = audioUrl ? sourceKey ?? audioUrl : null;
   const artwork = profileAudioArtwork(profileId, profileAvatar);
-  const source = useMemo<ProfileAudioSource | null>(() => playbackKey && audioUrl ? {
-    key: playbackKey,
-    url: audioUrl,
-    artwork: { avatar: artwork, title: profileName, artist: 'Portalink soundtrack' },
-  } : null, [playbackKey, audioUrl, artwork, profileName]);
-  const showShortcut = canEdit || Boolean(source);
+  const sources = useMemo<ProfileAudioSource[]>(() => tracks.filter(({ track }) => track.enabled && track.audioUrl)
+    .map(({ track, sourceKey }) => ({ key: sourceKey, url: track.audioUrl, artwork: { avatar: artwork, title: profileName, artist: 'Portalink soundtrack' } })), [tracks, artwork, profileName]);
+  const getPlaybackKey = () => getProfileAudioSnapshot().key;
+  const playbackKey = useSyncExternalStore(subscribeProfileAudio, getPlaybackKey, getPlaybackKey);
+  const currentSource = sources.find(item => item.key === playbackKey) ?? sources[0];
+  const selectedEntry = tracks.find(({ track }) => track.id === inspectedTrackId)
+    ?? tracks.find(item => item.sourceKey === currentSource?.key) ?? tracks[0];
+  const track = selectedEntry?.track;
+  const sourceIndex = sources.findIndex(item => item.key === selectedEntry?.sourceKey);
+  const source = sources[sourceIndex];
+  const showShortcut = canEdit || sources.length > 0;
   const editing = draft !== null;
+  const editedTrack = tracks.find(item => item.track.id === editedTrackId)?.track;
+  const removingTrack = tracks.find(item => item.track.id === removeTrackId)?.track;
+  const confirmingRemove = Boolean(removeTrackId);
   const mobileEditor = presentation === 'mobile';
-  const coverPreview = draft?.coverFile === undefined ? track?.coverUrl : draft.coverFile;
+  const coverPreview = draft?.coverFile === undefined ? editedTrack?.coverUrl : draft.coverFile;
   const player = Boolean(track && !editing && !confirmingRemove);
-  const showOwnerOptions = presentation === 'mobile' && player && canEdit;
+  const showOwnerOptions = player && canEdit;
   const menuOpen = visible && showOwnerOptions && optionsOpen;
   const menuFocus = useMenuFocus({
     open: menuOpen, menuRef: optionsMenu, triggerRef: optionsTrigger,
@@ -158,14 +185,13 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
   });
   const getPlaying = useCallback(() => {
     const playback = getProfileAudioSnapshot();
-    return playback.key === playbackKey && playback.playing;
-  }, [playbackKey]);
+    return sources.some(item => item.key === playback.key) && playback.playing;
+  }, [sources]);
   const playing = useSyncExternalStore(subscribeProfileAudio, getPlaying, getPlaying);
   const getNeedsGesture = useCallback(() => {
     const playback = getProfileAudioSnapshot();
-    return Boolean(presentation === 'mobile' && sharedCatalogue && playback.key === playbackKey && playback.needsGesture && !playback.videoOpen);
-  }, [presentation, sharedCatalogue, playbackKey]);
-  const needsGesture = useSyncExternalStore(subscribeProfileAudio, getNeedsGesture, getNeedsGesture);
+    return Boolean(currentSource && playback.key === currentSource.key && playback.needsGesture && !playback.videoOpen);
+  }, [currentSource]);
 
   const dismiss = useCallback(() => {
     isOpen.current = false;
@@ -173,7 +199,9 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
     setReadingTags(false);
     setOpen(false);
     setDraft(null);
-    setConfirmingRemove(false);
+    setEditedTrackId(null);
+    setRemoveTrackId(null);
+    setInspectedTrackId(null);
     setOptionsOpen(false);
     setError('');
   }, []);
@@ -188,12 +216,13 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
       setOptionsOpen(false);
       optionsTrigger.current?.focus({ preventScroll: true });
     } else if (confirmingRemove) {
-      setConfirmingRemove(false);
+      setRemoveTrackId(null);
       setError('');
     } else if (draft) {
       tagAttempt.current++;
       setReadingTags(false);
       setDraft(null);
+      setEditedTrackId(null);
       setError('');
     } else close();
   }
@@ -203,14 +232,13 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
     if (!isActive && isOpen.current) dismiss();
   }, [isActive, dismiss]);
   useEffect(() => {
-    if (!isActive || !source) return;
-    const activeSource = source;
-    if (presentation !== 'mobile') {
-      // Refresh the artwork for an existing desktop session without starting one.
-      if (getProfileAudioSnapshot().key === activeSource.key) startProfileAudio(activeSource);
-      return;
-    }
-    startProfileAudio(activeSource);
+    if (!isActive) return;
+    setProfileAudioQueue(profileId, sources, presentation === 'mobile');
+  }, [isActive, presentation, profileId, sources]);
+
+  useEffect(() => {
+    if (!isActive || !currentSource || presentation !== 'mobile') return;
+    const activeSource = currentSource;
 
     function retryOnGesture(event: Event) {
       // The browser needs play() inside the gesture. The open player handles its own controls.
@@ -229,37 +257,35 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
       document.removeEventListener('touchend', retryOnGesture, true);
       if (sharedCatalogue) document.removeEventListener('pointerup', retryOnPointerUp, true);
     };
-  }, [presentation, isActive, source, sharedCatalogue]);
+  }, [presentation, isActive, currentSource, sharedCatalogue]);
   useEffect(() => {
     if (visible) dialog.current?.focus({ preventScroll: true });
   }, [visible, editing, confirmingRemove]);
 
-  function edit() {
+  function edit(target?: ProfileAudioTrack) {
     setOptionsOpen(false);
     setError('');
     tagAttempt.current++;
     setReadingTags(false);
-    editedDetails.current = { title: Boolean(track?.title), artist: Boolean(track?.artist) };
+    setEditedTrackId(target?.id ?? null);
+    editedDetails.current = { title: Boolean(target?.title), artist: Boolean(target?.artist) };
     setDraft({
-      title: track?.title ?? '',
-      artist: track?.artist ?? '',
-      description: track?.description ?? '',
-      enabled: track?.enabled ?? true,
+      title: target?.title ?? '',
+      artist: target?.artist ?? '',
+      description: target?.description ?? '',
+      enabled: target?.enabled ?? true,
     });
   }
 
   function confirmRemoval() {
     setOptionsOpen(false);
     setError('');
-    setConfirmingRemove(true);
+    if (track) setRemoveTrackId(track.id);
   }
 
   function show(event: React.MouseEvent<HTMLButtonElement>) {
     event.currentTarget.focus({ preventScroll: true });
-    if (source && getNeedsGesture()) {
-      retryProfileAudioOnGesture(source);
-      return;
-    }
+    if (currentSource && getNeedsGesture()) retryProfileAudioOnGesture(currentSource);
     isOpen.current = true;
     setOpen(true);
     if (!track && canEdit) edit();
@@ -300,7 +326,7 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
     event.preventDefault();
     if (!draft || !onSave || readingTags || saving.current) return;
     if (!draft.title.trim()) { setError('Enter a title.'); return; }
-    if (!track && !draft.audioFile) { setError('Choose an audio file.'); return; }
+    if (!editedTrackId && !draft.audioFile) { setError('Choose an audio file.'); return; }
     if (draft.audioFile && draft.audioFile.size > PROFILE_AUDIO_MAX_BYTES) {
       setError('Choose an audio file that is 50 MB or smaller.');
       return;
@@ -313,8 +339,9 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
     setBusy(true);
     setError('');
     try {
-      await onSave(draft);
+      await onSave(editedTrackId, draft);
       setDraft(null);
+      setEditedTrackId(null);
     } catch (failure) {
       if (isOpen.current) setError(failure instanceof Error ? failure.message : 'Audio couldn’t be saved. Try again.');
     } finally {
@@ -324,13 +351,14 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
   }
 
   async function remove() {
-    if (!onRemove || saving.current) return;
+    if (!onRemove || !removeTrackId || saving.current) return;
     saving.current = true;
     setBusy(true);
     setError('');
     try {
-      await onRemove();
-      setConfirmingRemove(false);
+      await onRemove(removeTrackId);
+      setRemoveTrackId(null);
+      setInspectedTrackId(null);
     } catch (failure) {
       if (isOpen.current) setError(failure instanceof Error ? failure.message : 'Audio couldn’t be removed. Try again.');
     } finally {
@@ -340,11 +368,11 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
   }
 
   if (!showShortcut) return null;
-  const shortcutLabel = needsGesture ? 'Play profile audio' : !track && canEdit ? 'Add profile audio' : 'Open profile audio';
-  const heading = draft ? (track ? 'Edit profile audio' : 'Add profile audio') : track?.title || 'Profile audio';
+  const shortcutLabel = !track && canEdit ? 'Add profile audio' : 'Open profile audio';
+  const heading = draft ? (editedTrackId ? 'Edit profile audio' : 'Add profile audio') : removingTrack?.title || track?.title || 'Profile audio';
   return <>
     <button ref={shortcut} type="button" className="profile-audio-shortcut" disabled={!isActive || busy}
-      aria-label={shortcutLabel} title={needsGesture ? undefined : shortcutLabel} aria-haspopup={needsGesture ? undefined : 'dialog'} aria-expanded={needsGesture ? undefined : visible}
+      aria-label={shortcutLabel} title={shortcutLabel} aria-haspopup="dialog" aria-expanded={visible}
       aria-controls={visible ? id : undefined} data-playing={playing || undefined} onClick={show}>
       <Waveform />
     </button>
@@ -371,29 +399,57 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
             <TrackCover key={JSON.stringify([track.coverUrl, profileAvatar])} url={track.coverUrl} avatar={profileAvatar} />
             <button type="button" className="profile-audio-player-close" data-ui-control="icon" data-control-size="md" data-control-variant={presentation === 'mobile' ? 'danger' : 'secondary'}
               disabled={busy} aria-label="Close profile audio" onClick={close}><InterfaceIcon icon={XIcon} /></button>
-            <div className="profile-audio-details">
-              <header className="profile-audio-header">
-                <div>
-                  <h2 id={`${id}-title`}>{heading}</h2>
-                  <p>{track.artist || profileName}</p>
-                </div>
-                {showOwnerOptions && <div className="profile-audio-options">
-                  <button ref={optionsTrigger} type="button" data-ui-control="icon" data-ui-shape="icon" data-control-size="md"
-                    data-control-variant="ghost" aria-label="Audio options" aria-haspopup="menu" aria-expanded={menuOpen}
-                    aria-controls={menuOpen ? `${id}-options` : undefined} onKeyDown={menuFocus.onTriggerKeyDown}
-                    onClick={() => setOptionsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>
-                  {menuOpen && <div ref={optionsMenu} id={`${id}-options`} role="menu" aria-label="Audio options" tabIndex={-1}
-                    data-ui-shape="popup" className="profile-audio-options-menu">
-                    <button type="button" role="menuitem" tabIndex={-1} onClick={edit}>Edit audio</button>
-                    {onRemove && <button type="button" role="menuitem" tabIndex={-1} className="profile-audio-remove-action" onClick={confirmRemoval}>Remove audio</button>}
+            <div className="profile-audio-player-panel">
+              <div className="profile-audio-details">
+                <header className="profile-audio-header">
+                  <div>
+                    <h2 id={`${id}-title`}>{heading}</h2>
+                    <p>{track.artist || profileName}</p>
+                  </div>
+                  {showOwnerOptions && <div className="profile-audio-options">
+                    <button ref={optionsTrigger} type="button" data-ui-control="icon" data-ui-shape="icon" data-control-size="md"
+                      data-control-variant="ghost" aria-label="Audio options" aria-haspopup="menu" aria-expanded={menuOpen}
+                      aria-controls={menuOpen ? `${id}-options` : undefined} onKeyDown={menuFocus.onTriggerKeyDown}
+                      onClick={() => setOptionsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>
+                    {menuOpen && <div ref={optionsMenu} id={`${id}-options`} role="menu" aria-label="Audio options" tabIndex={-1}
+                      data-ui-shape="popup" className="profile-audio-options-menu">
+                      <button type="button" role="menuitem" tabIndex={-1} onClick={() => edit(track)}>Edit audio</button>
+                      {onRemove && <button type="button" role="menuitem" tabIndex={-1} className="profile-audio-remove-action" onClick={confirmRemoval}>Remove audio</button>}
+                    </div>}
                   </div>}
-                </div>}
-              </header>
-              {!track.enabled && <p className="profile-audio-muted">Playback is off.</p>}
-              {track.enabled && !track.audioUrl && <p role="status" className="profile-audio-muted">Audio is unavailable.</p>}
+                </header>
+                {!track.enabled && <p className="profile-audio-muted">Playback is off.</p>}
+                {track.enabled && !track.audioUrl && <p role="status" className="profile-audio-muted">Audio is unavailable.</p>}
+              </div>
+              {source && <ProfileAudioPlayer profileId={profileId} source={source} previous={sourceIndex > 0} next={sourceIndex < sources.length - 1} />}
+              {!source && currentSource && <button type="button" data-ui-control="button" data-control-variant="secondary"
+                onClick={() => setInspectedTrackId(null)}>Return to playback</button>}
             </div>
-            {source && <ProfileAudioPlayer source={source} />}
             {track.description && <p className="profile-audio-description">{track.description}</p>}
+            {(canEdit || tracks.length > 1) && <section className="profile-audio-queue" aria-labelledby={`${id}-tracks`}>
+              <div className="profile-audio-queue-heading">
+                <h3 id={`${id}-tracks`}>Tracks</h3>
+                {canEdit && <button type="button" data-ui-control="button" data-ui-shape="action" data-control-variant="secondary" onClick={() => edit()}>
+                  <InterfaceIcon icon={PlusIcon} size="sm" /> Add audio
+                </button>}
+              </div>
+              <ol className="profile-audio-track-list">
+                {tracks.map(({ track: item, sourceKey }, index) => <li key={item.id} className="profile-audio-track-row">
+                  <button type="button" className="profile-audio-track-select" aria-current={item.id === track.id ? true : undefined}
+                    onClick={() => {
+                      if (item.enabled && item.audioUrl) {
+                        setInspectedTrackId(null);
+                        selectProfileAudioTrack(profileId, sourceKey);
+                      } else setInspectedTrackId(item.id);
+                    }}>
+                    <span className="profile-audio-track-index" aria-hidden="true">{index + 1}</span>
+                    <span className="profile-audio-track-copy"><strong>{item.title}</strong>{item.artist && <small>{item.artist}</small>}</span>
+                    {!item.enabled && <small className="profile-audio-queue-status">Off</small>}
+                    {item.enabled && !item.audioUrl && <small className="profile-audio-queue-status">Unavailable</small>}
+                  </button>
+                </li>)}
+              </ol>
+            </section>}
           </>}
           {visible && !draft && !track && <p className="profile-audio-muted">No profile audio has been added.</p>}
           {visible && draft && <form className="profile-audio-form" onSubmit={event => { void save(event); }}>
@@ -407,7 +463,7 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
                 setDraft({ ...draft, artist: event.target.value });
               }} /></label>
               {!mobileEditor && <label>Description<textarea rows={3} value={draft.description} maxLength={600} onChange={event => setDraft({ ...draft, description: event.target.value })} /></label>}
-              <label>{track ? 'Replace audio file' : 'Audio file'}<input type="file" accept={PROFILE_AUDIO_ACCEPT} onChange={selectAudio} /></label>
+              <label>{editedTrackId ? 'Replace audio file' : 'Audio file'}<input type="file" accept={PROFILE_AUDIO_ACCEPT} onChange={selectAudio} /></label>
               <label>Cover art
                 <span className="profile-audio-cover-field">
                   {mobileEditor && coverPreview && <CoverArtPreview source={coverPreview} />}
@@ -415,7 +471,7 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
                     onChange={event => { const file = event.target.files?.[0]; if (file) setDraft({ ...draft, coverFile: file }); }} />
                 </span>
               </label>
-              {draft.coverFile !== null && (draft.coverFile || track?.coverUrl) && <button type="button" className="profile-audio-remove-cover"
+              {draft.coverFile !== null && (draft.coverFile || editedTrack?.coverUrl) && <button type="button" className="profile-audio-remove-cover"
                 onClick={() => {
                   if (coverInput.current) {
                     coverInput.current.value = '';
@@ -434,18 +490,14 @@ export function ProfileAudio({ track, sourceKey, profileId, profileName, profile
           </form>}
           {visible && !draft && canEdit && (confirmingRemove
             ? <div className="profile-audio-remove">
-              <p>Remove audio from this profile?</p>
+              <p>Remove this track from the soundtrack?</p>
               <div className="profile-audio-actions">
                 <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary" disabled={busy} onClick={back}>Cancel</button>
                 <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="danger" disabled={busy}
                   onClick={() => { void remove(); }}>{busy ? 'Removing…' : 'Remove audio'}</button>
               </div>
-            </div> : !showOwnerOptions && <div className="profile-audio-actions">
-              {track && onRemove && <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="ghost"
-                onClick={confirmRemoval}>Remove audio</button>}
-              <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary" onClick={edit}>
-                {track ? 'Edit audio' : 'Add audio'}
-              </button>
+            </div> : !track && <div className="profile-audio-actions">
+              <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary" onClick={() => edit()}>Add audio</button>
             </div>)}
           {visible && error && <p role="alert" className="profile-audio-error">{error}</p>}
         </section>

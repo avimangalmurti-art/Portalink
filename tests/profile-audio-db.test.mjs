@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import process from 'node:process';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 
@@ -7,7 +8,7 @@ const modulePath = process.env.PGLITE_MODULE_PATH ?? process.env.PGLITE_MODULE;
 const id = number => `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`;
 const migration = filename => readFileSync(new URL(`../supabase/migrations/${filename}`, import.meta.url), 'utf8');
 
-test('profile audio metadata and immutable objects follow owner, enabled and public-profile boundaries', { skip: !modulePath }, async () => {
+test('a legacy track survives the soundtrack upgrade and every track follows owner, enabled and public-profile boundaries', { skip: !modulePath }, async () => {
   const { PGlite } = await import(pathToFileURL(modulePath).href);
   const db = new PGlite();
   const ownerId = id(1);
@@ -18,6 +19,7 @@ test('profile audio metadata and immutable objects follow owner, enabled and pub
   const cover = `${profileId}/${id(22)}/cover.webp`;
   const replacement = `${profileId}/${id(23)}/audio.mp3`;
   const foreignPath = `${otherProfileId}/${id(24)}/audio.wav`;
+  const nextAudio = `${profileId}/${id(29)}/audio.m4a`;
   const sql = readFileSync(new URL('../supabase/migrations/202611120001_profile_audio_tracks.sql', import.meta.url), 'utf8');
 
   const setRole = async (role, accountId = null) => {
@@ -28,6 +30,7 @@ test('profile audio metadata and immutable objects follow owner, enabled and pub
   const addObject = name => db.query("insert into storage.objects (bucket_id, name) values ('profile-audio', $1)", [name]);
   const objects = async () => (await db.query("select name from storage.objects where bucket_id = 'profile-audio' order by name")).rows.map(row => row.name);
   const track = async () => (await db.query('select * from public.profile_audio_tracks where profile_id = $1', [profileId])).rows[0];
+  const queue = async () => (await db.query('select id, title, enabled from public.profile_audio_tracks where profile_id = $1 order by created_at, id', [profileId])).rows;
   const removeObject = name => db.query("delete from storage.objects where bucket_id = 'profile-audio' and name = $1 returning name", [name]);
 
   try {
@@ -87,16 +90,41 @@ test('profile audio metadata and immutable objects follow owner, enabled and pub
     await db.query('insert into public.profile_audio_tracks (profile_id,title,audio_path,cover_path) values ($1,$2,$3,$4)', [profileId, 'Test track', audio, cover]);
     const firstRevision = (await track()).revision;
     assert.match(firstRevision, /^[0-9a-f-]{36}$/);
+
+    await db.exec('reset role');
+    await db.exec(migration('20261114114747_profile_soundtrack_tracks.sql'));
+    await setRole('authenticated', ownerId);
+    const firstTrack = await track();
+    assert.equal(firstTrack.revision, firstRevision);
+    assert.equal(firstTrack.audio_path, audio);
+    assert.equal(firstTrack.cover_path, cover);
+    assert.match(firstTrack.id, /^[0-9a-f-]{36}$/);
+
+    await addObject(nextAudio);
+    const { rows: [secondTrack] } = await db.query(`insert into public.profile_audio_tracks (profile_id,title,audio_path)
+      values ($1, 'Second track', $2) returning id`, [profileId, nextAudio]);
+    assert.notEqual(secondTrack.id, firstTrack.id);
+    assert.deepEqual((await queue()).map(row => row.id), [firstTrack.id, secondTrack.id]);
+    await assert.rejects(db.query('update public.profile_audio_tracks set created_at = now() where id = $1', [secondTrack.id]), { code: '42501' });
+    await assert.rejects(db.query('update public.profile_audio_tracks set id = $2 where id = $1', [secondTrack.id, id(90)]), { code: '42501' });
+    assert.deepEqual((await removeObject(nextAudio)).rows, []);
     assert.deepEqual((await removeObject(audio)).rows, []);
     assert.deepEqual((await removeObject(cover)).rows, []);
     const attemptedOverwrite = await db.query("update storage.objects set name = $1 where bucket_id = 'profile-audio' and name = $2 returning name", [`${profileId}/${id(25)}/audio.m4a`, audio]);
     assert.deepEqual(attemptedOverwrite.rows, []);
 
     await setRole('anon');
-    assert.equal((await track()).title, 'Test track');
+    assert.deepEqual((await queue()).map(row => row.title), ['Test track', 'Second track']);
+    assert.deepEqual(await objects(), [audio, cover, nextAudio]);
+    await setRole('authenticated', ownerId);
+    await db.query('update public.profile_audio_tracks set enabled = false where id = $1', [secondTrack.id]);
+    assert.equal((await queue()).length, 2, 'The owner can manage disabled tracks');
+    await setRole('anon');
+    assert.deepEqual((await queue()).map(row => row.title), ['Test track']);
     assert.deepEqual(await objects(), [audio, cover]);
     await setRole('authenticated', otherId);
     assert.deepEqual((await db.query('update public.profile_audio_tracks set enabled = false where profile_id = $1 returning profile_id', [profileId])).rows, []);
+    assert.deepEqual((await db.query('delete from public.profile_audio_tracks where id = $1 returning id', [firstTrack.id])).rows, []);
     assert.deepEqual((await removeObject(audio)).rows, []);
 
     await db.exec('reset role');
@@ -114,6 +142,7 @@ test('profile audio metadata and immutable objects follow owner, enabled and pub
     await setRole('authenticated', ownerId);
     const swapped = await db.query('update public.profile_audio_tracks set audio_path = $1, enabled = false, revision = $2 where profile_id = $3 and revision = $4 returning revision', [replacement, id(30), profileId, firstRevision]);
     assert.equal(swapped.rows[0].revision, id(30));
+    assert.equal((await queue())[0].id, firstTrack.id, 'Replacing audio leaves the track in its existing queue position');
     assert.deepEqual((await db.query('delete from public.profile_audio_tracks where profile_id = $1 and revision = $2 returning profile_id', [profileId, firstRevision])).rows, []);
     assert.equal((await removeObject(audio)).rows.length, 1, 'A superseded object can be cleaned up');
     assert.deepEqual((await removeObject(replacement)).rows, [], 'Disabling does not unreference the audio');
@@ -121,10 +150,14 @@ test('profile audio metadata and immutable objects follow owner, enabled and pub
     assert.equal(await track(), undefined);
     assert.deepEqual(await objects(), []);
     await setRole('authenticated', ownerId);
-    assert.equal((await track()).enabled, false);
+    assert.deepEqual((await queue()).map(row => row.enabled), [false, false]);
     await db.query('delete from public.profile_audio_tracks where profile_id = $1 and revision = $2', [profileId, id(30)]);
+    assert.deepEqual((await queue()).map(row => row.id), [secondTrack.id]);
     assert.equal((await removeObject(replacement)).rows.length, 1);
     assert.equal((await removeObject(cover)).rows.length, 1);
+    assert.deepEqual((await removeObject(nextAudio)).rows, []);
+    await db.query('delete from public.profile_audio_tracks where id = $1', [secondTrack.id]);
+    assert.equal((await removeObject(nextAudio)).rows.length, 1);
   } finally {
     await db.close();
   }

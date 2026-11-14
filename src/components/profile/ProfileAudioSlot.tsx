@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { ProfileAudioEdit } from '../../features/profile/profileAudio';
-import { clearProfileAudio } from '../../features/profile/profileAudioPlayback';
 import { removeProfileAudio, saveProfileAudio, type StoredProfileAudio } from '../../services/supabase/profileAudioService';
 import { ProfileAudio } from './ProfileAudio';
 import { acquireProfileAudio, invalidatePreparedProfileAudio } from './usePrepareProfileAudio';
@@ -14,7 +13,7 @@ export default function ProfileAudioSlot({ profileId, accountId, profileName, pr
   active: boolean;
   sharedCatalogue: boolean;
 }) {
-  const [stored, setStored] = useState<StoredProfileAudio | null>(null);
+  const [stored, setStored] = useState<StoredProfileAudio[]>([]);
   const [load, setLoad] = useState<'pending' | 'ready' | 'failed'>('pending');
   useEffect(() => {
     if (!active || load !== 'pending') return;
@@ -36,28 +35,29 @@ export default function ProfileAudioSlot({ profileId, accountId, profileName, pr
     };
   }, [active, load, profileId, accountId]);
 
-  if (load === 'pending' || (!editable && (!stored?.track.enabled || !stored.track.audioUrl))) return null;
+  const tracks = useMemo(() => stored.filter(({ track }) => editable || (track.enabled && track.audioUrl))
+    .map(({ row, track }) => ({ track, sourceKey: row.audio_path })), [editable, stored]);
+  if (load === 'pending' || (!editable && !tracks.length)) return null;
 
-  async function save(input: ProfileAudioEdit) {
+  async function save(trackId: string | null, input: ProfileAudioEdit) {
     if (load === 'failed') throw new Error('Profile audio could not load. Reopen your profile and try again.');
-    const next = await saveProfileAudio(profileId, stored, input);
+    const current = stored.find(({ track }) => track.id === trackId);
+    if (trackId && !current) throw new Error('This track is no longer in the soundtrack.');
+    const next = await saveProfileAudio(profileId, current ?? null, input);
     invalidatePreparedProfileAudio(profileId, accountId);
-    if (stored && (!next.track.enabled || next.row.audio_path !== stored.row.audio_path)) {
-      clearProfileAudio(stored.row.audio_path);
-    }
-    setStored(next);
+    setStored(items => current ? items.map(item => item.track.id === trackId ? next : item) : [...items, next]);
   }
 
-  async function remove() {
-    if (!stored) return;
-    await removeProfileAudio(profileId, stored);
+  async function remove(trackId: string) {
+    const current = stored.find(({ track }) => track.id === trackId);
+    if (!current) return;
+    await removeProfileAudio(profileId, current);
     invalidatePreparedProfileAudio(profileId, accountId);
-    clearProfileAudio(stored.row.audio_path);
-    setStored(null);
+    setStored(items => items.filter(({ track }) => track.id !== trackId));
   }
 
   return <li className="list-none">
-    <ProfileAudio track={stored?.track ?? null} sourceKey={stored?.row.audio_path} profileId={profileId} profileName={profileName} profileAvatar={profileAvatar} editable={editable} disabled={!active} sharedCatalogue={sharedCatalogue}
+    <ProfileAudio tracks={tracks} profileId={profileId} profileName={profileName} profileAvatar={profileAvatar} editable={editable} disabled={!active} sharedCatalogue={sharedCatalogue}
       onSave={editable ? save : undefined} onRemove={editable ? remove : undefined} />
   </li>;
 }

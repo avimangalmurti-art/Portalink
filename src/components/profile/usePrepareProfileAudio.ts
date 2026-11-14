@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { readProfileAudio, type StoredProfileAudio } from '../../services/supabase/profileAudioService';
+import { readProfileAudioTracks, type StoredProfileAudio } from '../../services/supabase/profileAudioService';
 
 type ProfileAudioRequest = {
-  result: Promise<StoredProfileAudio | null>;
+  result: Promise<StoredProfileAudio[]>;
   controller: AbortController;
   consumers: number;
   settledAt: number | null;
@@ -26,14 +26,14 @@ export function acquireProfileAudio(profileId: string, accountId: string | null)
   let request = requests.get(key);
   if (!request || (request.settledAt !== null && Date.now() - request.settledAt >= PREPARED_RESULT_MS)) {
     const controller = new AbortController();
-    const pending: ProfileAudioRequest = { result: readProfileAudio(profileId, controller.signal), controller, consumers: 0, settledAt: null };
+    const pending: ProfileAudioRequest = { result: readProfileAudioTracks(profileId, controller.signal), controller, consumers: 0, settledAt: null };
     requests.set(key, pending);
     const evict = () => {
       if (requests.get(key) === pending) requests.delete(key);
     };
     void pending.result.then(result => {
       pending.settledAt = Date.now();
-      if (result?.track.enabled && !result.track.audioUrl) evict();
+      if (result.some(item => item.track.enabled && !item.track.audioUrl)) evict();
     }, evict);
     request = pending;
   }

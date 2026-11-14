@@ -35,6 +35,7 @@ type ProfileAudioDetails = {
 };
 
 export type ProfileAudioTrack = ProfileAudioDetails & {
+  id: string;
   audioUrl: string;
   coverUrl: string | null;
 };
