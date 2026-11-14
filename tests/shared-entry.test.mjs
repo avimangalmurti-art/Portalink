@@ -16,8 +16,6 @@ function load(path, imports, globals = {}) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
-    if (name.endsWith('/CatalogWelcome') && !(name in imports)) return { CatalogWelcome: 'catalog-welcome' };
-    if (name.endsWith('/catalogWelcomeState') && !(name in imports)) return { hasEnteredCatalogWelcome: () => true, canOfferCatalogWelcome: () => false };
     if (name === 'lucide-react' && !(name in imports)) return new Proxy({}, { get: (_object, key) => key });
     if (name.endsWith('/InterfaceIcon') && !(name in imports)) return { InterfaceIcon: 'icon' };
 

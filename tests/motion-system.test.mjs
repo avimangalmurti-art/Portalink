@@ -5,11 +5,6 @@ import React from 'react';
 import postcss from 'postcss';
 import {sourceModule} from './helpers/source-module.mjs';
 const cssFiles=dir=>readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?cssFiles(dir+'/'+e.name):e.name.endsWith('.css')?[dir+'/'+e.name]:[]);
-const welcomeArtwork = new Map([
- ['.catalog-world-idea-link', 'catalog-world-connect .7s ease-out both'],
- ['.catalog-world-idea-ring', 'catalog-world-ripple 1.4s ease-out both'],
-]);
-const welcomeActionSelector = ".catalog-welcome[data-instant='false'] .catalog-welcome-action[data-ready='true']";
 test('finite interface motion is capped at 260ms and interface opacity fades at 180ms',()=>{
  const sheets=cssFiles('src').map(file=>({file,root:postcss.parse(readFileSync(file,'utf8'))}));
  const keyframes=new Map(),tokens={fast:120,base:180,slow:260};
@@ -24,12 +19,10 @@ test('finite interface motion is capped at 260ms and interface opacity fades at 
   const declarations=rule.nodes.filter(node=>node.type==='decl'),lookup=property=>declarations.findLast(node=>node.prop===property)?.value;
   for(const declaration of declarations.filter(node=>node.prop==='animation'))for(const value of postcss.list.comma(declaration.value)){
    if(value==='none'||/\binfinite\b/.test(value))continue;
-   if(file==='src/components/auth/catalog-welcome.css'&&welcomeArtwork.get(rule.selector)===value)continue;
    const name=[...keyframes.keys()].find(name=>new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(value));
    assert.ok(name,`${file}: ${value}`);const duration=milliseconds(value);
    assert.ok(duration<=260,`${file}: ${name} exceeds screen motion cap`);
-   const welcomeReveal=file==='src/components/auth/catalog-welcome.css'&&rule.selector===welcomeActionSelector&&name==='catalog-welcome-action-arrive';
-   if(keyframes.get(name).opacity&&!welcomeReveal)assert.ok(duration<=180,`${file}: ${name} exceeds fade cap`);
+   if(keyframes.get(name).opacity)assert.ok(duration<=180,`${file}: ${name} exceeds fade cap`);
   }
   const names=lookup('animation-name'),duration=lookup('animation-duration');
   if(names&&names!=='none'&&duration&&lookup('animation-iteration-count')!=='infinite')for(const name of postcss.list.comma(names)){
@@ -51,7 +44,6 @@ test('authored durations use shared motion tokens or the established component t
  const files=cssFiles('src'),definitions=[];
  const componentTimings=new Map([
   ['src/presentation/motion/motion.css',['120ms','180ms','260ms','600ms','1400ms']],
-  ['src/components/auth/catalog-welcome.css',['0ms','0ms','.7s','1.4s']],
   ['src/components/auth/professional-entry.css',['160ms']],
   ['src/components/messages/mobile-message-actions.css',['130ms']],
   ['src/presentation/mobile/reader-scroll-controls.css',['0s','0s']],

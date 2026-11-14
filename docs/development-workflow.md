@@ -250,9 +250,8 @@ checkpoint pushes also do not match the push trigger. The recovery branch has
 no root workflow files and must never be opened as a PR.
 The September 29 source adds the full Node/database suite on Windows and Linux
 and video-worker tests with FFmpeg, alongside typecheck, lint, build and PDF tests.
-PGlite 0.5.8 installs into an isolated CI tools directory, not application
-dependencies. These new jobs await their first remote CI run. See the
-[release plan](trust-and-activation-release.md) for local results.
+CI installs PGlite 0.5.8 into an isolated tools directory. The
+[production release record](production-release.md) records passing Quality runs.
 
 Keep `autosave/**` excluded from all application workflows and future Sites,
 worker, EAS, signing, and app-store release pipelines, including manual and

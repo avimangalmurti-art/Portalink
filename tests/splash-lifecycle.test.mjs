@@ -193,7 +193,7 @@ function compile(path, imports, globals) {
       '../presentation/mobile/useMobileResumeSession': { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) },
       '../presentation/mobile/MobileResumeContext': { MobileResumeProvider: 'resume-provider' },
       '../presentation/usePresentation': { PresentationContext: { Provider: 'presentation-provider' } },
-      '../components/auth/ProfessionalEntry': { ProfessionalEntry: 'professional-entry' }, '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
+      '../components/auth/ProfessionalEntry': { ProfessionalEntry: 'professional-entry' },
       ...imports,
     };
     globals = { Event: class { constructor(type) { this.type = type; } }, document: { getElementById: () => null }, ...globals,

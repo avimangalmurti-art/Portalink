@@ -1663,7 +1663,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         setProjectSetupAccountId(null);
         setIsPublishOpen(true);
       }}/></DeferredDialog>}
-      <DeferredDialog key={auth.user?.id ?? 'guest'} active={canShowPublisher} onClose={closePublisher}><PublishProjectDialog initialMetadata={projectSetupMetadata} resumeDraft={publishResumeDraft} firstProject={firstProjectPublisher ? { madeIn: journeyMadeIn ?? undefined, name: viewedProfile?.name ?? '', categories: viewedProfile?.categories.map(category => category.label) ?? [] } : undefined} isOpen={canShowPublisher} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={projectSetupMetadata?.categoryLabel ?? viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={closePublisher} onPublished={(result, title) => {
+      <DeferredDialog key={auth.user?.id ?? 'guest'} active={canShowPublisher} onClose={closePublisher}><PublishProjectDialog initialMetadata={projectSetupMetadata} resumeDraft={publishResumeDraft} firstProject={firstProjectPublisher ? { madeIn: journeyMadeIn ?? undefined } : undefined} isOpen={canShowPublisher} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={projectSetupMetadata?.categoryLabel ?? viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={closePublisher} onPublished={(result, title) => {
         const targetCategoryId = publishTargetCategoryId;
         if (presentation === 'web' && result.projectId && result.mediaPersisted && !result.sessionOnly
           && publishAccountId && publishAccountId === auth.user?.id && auth.viewerProfileId

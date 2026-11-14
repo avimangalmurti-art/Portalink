@@ -42,6 +42,7 @@ import { JustifiedImageWall, type WallItem } from './profile/JustifiedImageWall'
 import type { Profile, ProfileLink, Project } from '../types/domain';
 import { canAuthor, needsAccount, type ViewerRole } from '../types/viewer';
 import { getProjectAspectRatio } from '../utils/projectPresentation';
+import { Button } from './ui/Button';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import { ResponsiveImage } from './ui/ResponsiveImage';
 import { ProfileAvatar } from './profile/ProfileAvatar';
@@ -803,8 +804,8 @@ export function UserProfilePage({
           summaryCounts={isJourney || isSharedView || (isMobile && !mobileContent && !isMobileToolsOpen) ? undefined : { projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen || webProfileHeader, canViewConnections: showsOwnerTools || (!isSharedView && connections.counts.canViewConnections === true), activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: selectProfileContent, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
         {webVisitorHeader ? <button type="button" className="profile-header-options" aria-label="Back to previous screen" title="Back" onClick={dismissProfile}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button>
         : isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
-          <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
-          <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
+          <Button variant="secondary" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</Button>
+          <Button variant="primary" isLoading={projectOrder.isSaving} onClick={() => { void finishReordering(); }}>{projectOrder.isSaving ? 'Saving…' : 'Done'}</Button>
         </div> : !isMobile && (!isJourney || showsOwnerTools) && <button type="button" className="profile-header-options" aria-label="Profile options" aria-haspopup={usesWebProfileActions ? 'dialog' : undefined} aria-expanded={usesWebProfileActions ? webProfileActionsOpen : isMobileToolsOpen} aria-controls={usesWebProfileActions ? undefined : 'profile-navigation-tools'} onClick={() => { if (usesWebProfileActions) { setWebProfileActionError(''); setWebProfileActionsOpen(true); } else setIsMobileToolsOpen(open => !open); }}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
@@ -957,19 +958,5 @@ export function UserProfilePage({
       {showsOwnerTools && pairOpen && <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closePair }}><Suspense fallback={null}><ThenNowDialog key={editingPair ? `edit:${editingPair.id}` : pairSelection ?? requestedPair} profile={profile} selectedId={pairSelection || requestedPair || undefined} editingPair={editingPair} onClose={closePair} /></Suspense></DeferredSurfaceOwnerContext.Provider>}
       {showsOwnerTools && !isSharedView && projectManagement.editor.mode !== 'description' ? <ProjectEditorDialog management={projectManagement} /> : null}
       {showsOwnerTools && !isSharedView && projectManagement.deletion?.projectId && <DeleteProjectDialog management={projectManagement} projectTitle={profile.projects.find(project => project.id === projectManagement.deletion.projectId)?.title ?? 'Project'} onDeleted={projectManagement.deletion.cancel} />}
-    </div>;
-}
-function Fact({
-  label,
-  value
-
-
-
-}: {label: string;value: string;}) {
-  // The count is stacked under its own name, letterspaced, so the pairing reads
-  // as a single figure closing the header rather than two loose lines.
-  return <div className="min-w-0 text-center">
-      <p className="text-[15px] font-bold uppercase tracking-[0.18em] text-[var(--text-primary)]">{label}</p>
-      <p className={`font-bold leading-tight text-[var(--text-primary)] ${value.length > 16 ? 'mt-1 text-[15px]' : 'mt-2 text-[30px]'}`}>{value}</p>
     </div>;
 }

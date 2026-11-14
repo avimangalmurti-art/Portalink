@@ -205,8 +205,6 @@ test('public bootstrap honors a newly opened creator link while retaining guest 
       : name.includes('useMobileInstall') ? { useMobileInstallCapture() {} }
       : name.includes('useMobileResumeSession') ? { useMobileResumeSession: () => ({ resumeTo: null, launchRecord: null }) }
       : name.includes('MobileResumeContext') ? { MobileResumeProvider: 'resume-provider' }
-      : name.endsWith('/CatalogWelcome') ? { CatalogWelcome: 'catalog-welcome' }
-      : name.endsWith('/catalogWelcomeState') ? { hasEnteredCatalogWelcome: () => true }
       : name === './routes' ? { routes, buildPath: (_, params) => `/share/${params.profileId}` }
       : name === './screenModules' ? { warmScreenForPath: () => Promise.resolve([]) } : {},
   });

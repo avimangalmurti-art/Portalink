@@ -78,19 +78,6 @@ test('scrolling the blank leading gap does not activate material before content 
  assert.equal(exports.headerHasUnderlap(header,nested,scope),false,'Empty spacing is not content');
 });
 
-test('Journey calendar foreground does not hide agenda underlap from the profile header',()=>{
- const profileHeader={closest:()=>null,contains:()=>false,style:{position:'sticky',top:'0px'},getBoundingClientRect:()=>bounds(0,100)};
- const calendarInput={closest:selector=>selector.includes('.journey-calendar-header')?{}:null,getBoundingClientRect:()=>bounds(100,156)};
- const agendaRow={closest:()=>null,getBoundingClientRect:()=>bounds(270,330)};
- const profileScope={contains:()=>true,querySelectorAll:()=>[calendarInput,agendaRow]};
- const documentScroller={scrollTop:20,contains:()=>true,getBoundingClientRect:()=>bounds(0,912)};
- assert.equal(exports.headerHasUnderlap(profileHeader,documentScroller,profileScope),false,'Pinned calendar alone is not content under the identity');
- agendaRow.getBoundingClientRect=()=>bounds(99,159);
- assert.equal(exports.headerHasUnderlap(profileHeader,documentScroller,profileScope),true,'Agenda crossing the profile edge activates glass despite the pinned calendar');
- documentScroller.scrollTop=0;
- assert.equal(exports.headerHasUnderlap(profileHeader,documentScroller,profileScope),false,'Returning to the top restores the solid header');
-});
-
 test('a floating status label does not hide interactive content crossing a dialog header',()=>{
  const status={closest:selector=>selector.includes('[role="status"]')?{}:null,getBoundingClientRect:()=>bounds(270,302)};
  const row={closest:()=>null,getBoundingClientRect:()=>bounds(-20,70)};
