@@ -25,6 +25,8 @@ import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscov
 import type { PublicPortalPage } from '../types/portals';
 import type { ConversationPage, ConversationSummary, DirectMessage, MessageCursor, MessagePage, MessageParticipant, MessageReaction, MessagingPreferences } from '../types/messages';
 import type { SaveInsights } from '../types/creatorSaves';
+import type { TimelinePairFraming } from '../types/domain';
+export type { TimelinePairFraming } from '../types/domain';
 
 /**
  * Authentication. The dependency direction is
@@ -128,13 +130,14 @@ export interface AuthService {
  * in a parallel onboarding layer, so onboarding and later profile editing share
  * one model, one validation vocabulary, and one service boundary.
  */
-export type TimelinePair = { id: string; then: string; now: string };
+export type TimelinePair = { id: string; then: string; now: string } & TimelinePairFraming;
 export interface ProfileService {
   listTimelinePairs?(profileId: Id): Promise<TimelinePair[]>;
   listTimelinePairOrder?(profileId: Id): Promise<string[]>;
   reorderTimelinePairs?(profileId: Id, pairIds: string[]): Promise<void>;
   addTimelinePair?(profileId: Id, thenId: Id, nowId: Id): Promise<void>;
-  updateTimelinePair?(profileId: Id, pairId: Id, thenId: Id, nowId: Id, expected?: Pick<TimelinePair, 'then' | 'now'>): Promise<void>;
+  updateTimelinePair?(profileId: Id, pairId: Id, thenId: Id, nowId: Id,
+    expected?: Pick<TimelinePair, 'then' | 'now'> & TimelinePairFraming, framing?: TimelinePairFraming): Promise<void>;
   removeTimelinePair?(profileId: Id, pairId: Id): Promise<void>;
   /**
    * Rejects when the id names no profile. Absence must be an error rather than a

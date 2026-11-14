@@ -18,6 +18,7 @@ const gridDensity = compile('../src/utils/projectGridDensity.ts', () => ({}));
 const socialTypes = compile('../src/types/social.ts', () => ({}));
 const engagementTypes = compile('../src/types/engagement.ts', () => ({}));
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
+const portalHierarchy = compile('../src/features/profile/portalHierarchy.ts', () => ({}));
 const linkHelpers = compile('../src/features/profile/profileLinks.ts', () => ({profileLinkIconNames:['globe','instagram','soundcloud']}));
 const placeholder = new Proxy({}, { get: (_, key) => key });
 const contextActions = compile('../src/presentation/mobile/contextActions.ts', () => placeholder);
@@ -34,10 +35,14 @@ const workspaceViewer = tree => {
   return content?.type === React.Fragment ? content.props.children[2] : content;
 };
 
-function serviceHarness(owner = 'owner', failure = null, mutual = false) {
+function serviceHarness(owner = 'owner', failure = null, mutual = false, publicPage = { data: null, error: null }) {
   const calls = [];
   const client = {
     async rpc(name, args) {
+      if (name === 'public_profile_connections') {
+        calls.push({ rpc: name, args });
+        return publicPage;
+      }
       if (name === 'can_view_profile_connections') return { data: mutual, error: null };
       assert.equal(name, 'profile_identities');
       assert.deepEqual(Array.from(args.p_profile_ids), ['person']);
@@ -82,11 +87,29 @@ test('owner lists use confirmed edges, stable pagination and canonical person da
   }
 });
 
-test('non-owner reads are refused before querying relationships and network failures are not empty lists', async () => {
+test('private non-mutual viewers cannot query relationships and network failures are not empty lists', async () => {
   const denied = serviceHarness('another-owner');
   await assert.rejects(denied.service.listProfileConnections('owner', 'followers'), (error) => error.code === 'permission_denied');
-  assert.equal(denied.calls.length, 0);
+  assert.equal(denied.calls.length, 1);
+  assert.equal(denied.calls[0].rpc, 'public_profile_connections');
   await assert.rejects(serviceHarness('owner', { message: 'offline' }).service.listProfileConnections('owner', 'following'), (error) => error.code === 'network');
+});
+
+test('signed-in public profile visitors use the limited, paginated connection RPC in both directions', async () => {
+  const data = { items: [{ profileId: 'person', name: 'Person Name', avatar: '' }], total: 55, nextOffset: 54 };
+  for (const kind of ['followers', 'following']) {
+    const h = serviceHarness('another-owner', null, false, { data, error: null });
+    assert.deepEqual(await h.service.listProfileConnections('owner', kind, 54), data);
+    assert.deepEqual(JSON.parse(JSON.stringify(h.calls)), [{
+      rpc: 'public_profile_connections', args: { p_profile_id: 'owner', p_kind: kind, p_offset: 54 }
+    }]);
+  }
+  const unavailable = serviceHarness('another-owner', null, true, { data: null, error: { code: 'offline' } });
+  await assert.rejects(unavailable.service.listProfileConnections('owner', 'followers'), error => error.code === 'network');
+  const denied = serviceHarness('another-owner', null, false, { data: null, error: { code: '42501' } });
+  await assert.rejects(denied.service.listProfileConnections('owner', 'followers'), error => error.code === 'permission_denied');
+  const legacy = serviceHarness('mutual', null, true, { data: null, error: { code: 'PGRST202' } });
+  assert.equal((await legacy.service.listProfileConnections('owner', 'following')).items[0].profileId, 'person');
 });
 
 function hookHarness(withCounts = false) {
@@ -163,10 +186,12 @@ test('collection tiles navigate to real portals/profiles and keep labels outside
     if (name.endsWith('/usePresentation')) return { usePresentation: () => 'mobile' };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => 'camera-icon' };
+    if (name.endsWith('/portalHierarchy')) return portalHierarchy;
     return placeholder;
   });
   for (const kind of ['portals', 'followers', 'following']) {
-    const tree = ProfileCollectionGrid({ profileId: 'owner', kind, portals: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], people: [{ profileId: 'person', name: 'Person Name', avatar: '' }], loading: false, error: null, hasMore: false });
+    const tree = ProfileCollectionGrid({ profileId: 'owner', kind, portals: [{ id: 'photos', label: 'Photography', iconName: 'camera' }, { id: 'child', label: 'Portraits', parentId: 'photos', iconName: 'camera' }], people: [{ profileId: 'person', name: 'Person Name', avatar: '' }], loading: false, error: null, hasMore: false });
+    assert.equal(nodes(tree).filter(node => node.type === 'Link').length, 1);
     const link = nodes(tree).find((node) => node.type === 'Link');
     assert.equal(link.props.to, kind === 'portals' ? '/p/owner/c/photos' : `/p/person?fromConnections=owner&connectionList=${kind}`);
     const children = React.Children.toArray(link.props.children);
@@ -236,7 +261,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useJourneySelection')) return { useJourneySelection: () => journey };
     if (name.endsWith('/employer')) return employer;
     if (name.endsWith('/journey')) return journeyHelpers;
-    if (name.endsWith('/useProfileVisibility')) return { useProfileVisibility: () => ({ isPrivate: false }) };
+    if (name.endsWith('/useProfileVisibility')) return { useProfileVisibility: (profile) => ({ isPrivate: profile.isPrivate === true }) };
     if (name.endsWith('/useFollowRequests')) return { useFollowRequests: () => ({ count: 0, requests: [] }) };
     if (name.endsWith('/useProfileConnections')) return { useProfileConnections: () => ({ items: [{ profileId: 'person', name: 'Person Name', avatar: '' }], counts: {}, loading: false, error: null, nextOffset: null }) };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'MobileContextButton', useMobileScreenActions(model) { mobileActions = model; }, useMobileContextPress: model => { mobilePressModel = model; return {}; } };
@@ -299,7 +324,7 @@ test('mobile header keeps its Journey choice while hiding counts and links until
   assert.equal(nodes(tree).find(node => node.props?.className === 'profile-compact-header').props['data-expanded'], true);
   const restored = nodes(tree);
   const stats = restored.find(node => node.type?.name === 'ProfileStats');
-  assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
+  assert.deepEqual(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').map(node => node.props.children.at(-1)), ['projects', 'followers', 'following']);
   assert.equal(restored.some(node => node.props?.['data-mobile-profile-links'] !== undefined), true);
   assert.ok(restored.indexOf(stats) < restored.indexOf(restored.find(node => node.props?.id === 'profile-navigation-tools')));
   openProfileOptions(h);
@@ -309,9 +334,9 @@ test('mobile header keeps its Journey choice while hiding counts and links until
 test('profile Journey controls retain owner/public permissions, editor guard and WEB header placement', () => {
   for (const [viewerRole, showJourney, allowed] of [['owner', false, true], ['member', true, true], ['member', false, false], ['guest', false, false]]) {
     const h = profileHarness('', { presentation: 'mobile', viewerRole, showJourney });
-    assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), allowed);
+    assert.equal(nodes(h.render()).find(node => node.type === 'JourneyToggle').props.showTimeline, allowed);
     openProfileOptions(h);
-    assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), allowed);
+    assert.equal(nodes(h.render()).find(node => node.type === 'JourneyToggle').props.showTimeline, allowed);
   }
   const privateShare = profileHarness('', { presentation: 'mobile', viewerRole: 'owner', isSharedView: true, showJourney: false });
   assert.equal(nodes(privateShare.render()).some(node => node.type === 'JourneyToggle'), false);
@@ -355,7 +380,7 @@ test('WEB header exposes all four count destinations before opening Profile opti
   for (const viewerRole of ['visitor', 'guest']) {
     const stats = nodes(profileHarness('', { presentation: 'web', viewerRole }).render()).find(node => node.type?.name === 'ProfileStats');
     const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
-    assert.deepEqual(controls.map(node => node.type), ['button', 'button', 'span', 'span']);
+    assert.deepEqual(controls.map(node => node.type), viewerRole === 'visitor' ? ['button', 'button', 'button', 'button'] : ['button', 'button', 'span', 'span']);
   }
 });
 
@@ -437,7 +462,7 @@ test('mobile portal chooser consumes outside taps across the screen and preserve
     };
     return { h, listeners, dispatch };
   }
-  for (const target of ['header', 'dock', 'portals-count', 'backdrop']) {
+  for (const target of ['header', 'dock', 'portals-tab', 'backdrop']) {
     const { h, listeners, dispatch } = setup();
     dispatch('pointerdown', target);
     const click = dispatch('click', target);
@@ -464,7 +489,7 @@ test('mobile portal chooser consumes outside taps across the screen and preserve
   assert.equal(setup('web').listeners.size, 0, 'WEB collections have no popup dismissal listener');
 });
 
-test('disclosed mobile portal count floats the supplied chooser above the wall and preserves profile history', () => {
+test('mobile Portals header action floats the supplied chooser above the wall and preserves profile history', () => {
   const mobilePortalsView = React.createElement('section', { 'aria-label': 'Portal list' });
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
     for (const reopen of [false, true]) {
@@ -477,8 +502,11 @@ test('disclosed mobile portal count floats the supplied chooser above the wall a
         openProfileOptions(h);
       }
       tree = h.render();
-      const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
-      nodes(stats.type(stats.props)).filter(node => node.type === 'button')[1].props.onClick();
+      const { JourneyToggle } = compile('../src/features/journey/JourneyToggle.tsx', name => name === 'react' ? React : {});
+      const toggle = nodes(tree).find(node => node.type === 'JourneyToggle');
+      const tabs = nodes(JourneyToggle(toggle.props)).filter(node => node.type === 'button');
+      assert.deepEqual(tabs.map(node => node.props.children), h.isOwner ? ['Catalogue', 'Portals', 'Timeline'] : ['Catalogue', 'Portals']);
+      tabs[1].props.onClick();
       const portalTree = h.render();
       const portalSurface = nodes(portalTree).find(node => node.type === 'DeferredSurface');
       assert.equal(portalSurface?.props.children, mobilePortalsView, 'The lazy chooser has its own loading/error boundary');
@@ -1317,18 +1345,23 @@ test('profile reorder drop, Done, Cancel and outside save never change the activ
   }
 });
 
-test('shared headers omit counts even when expanded, while regular visitors cannot open owner-only lists', () => {
+test('main-platform visitors can open public connection lists and private or shared profiles retain their gates', () => {
   for (const presentation of ['mobile', 'web']) {
-    for (const options of [{ viewerRole: 'guest', isSharedView: true }, { viewerRole: 'owner', isSharedView: true }, { viewerRole: 'visitor' }]) {
+    for (const options of [{ viewerRole: 'guest', isSharedView: true }, { viewerRole: 'owner', isSharedView: true }, { viewerRole: 'visitor', isPrivate: true }, { viewerRole: 'visitor' }, { viewerRole: 'guest' }]) {
       const h = profileHarness('view=followers', { ...options, presentation });
       openProfileOptions(h);
       const stats = nodes(h.render()).find(node => node.type?.name === 'ProfileStats');
       if (options.isSharedView) { assert.equal(stats, undefined); continue; }
-      assert.equal(stats.props.activeView, 'followers', 'A typed URL retains the selected view; service/RLS still deny the private list');
+      assert.equal(stats.props.activeView, options.viewerRole === 'guest' ? 'projects' : 'followers');
       const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
-      assert.deepEqual(controls.map(node => node.type), ['button', 'button', 'span', 'span']);
-      assert.equal(controls[2].props.onClick, undefined);
-      assert.equal(controls[3].props.onClick, undefined);
+      const people = controls.slice(-2);
+      const allowed = options.viewerRole === 'visitor' && !options.isPrivate;
+      assert.deepEqual(people.map(node => node.type), allowed ? ['button', 'button'] : ['span', 'span']);
+      if (allowed) {
+        people[1].props.onClick();
+        assert.equal(profileContent(h.render()).props.children.props.kind, 'following');
+        assert.equal(profileContent(h.render()).props.children.props.people[0].name, 'Person Name');
+      }
     }
   }
 });
@@ -1377,10 +1410,10 @@ test('profile headers keep Bio behind its control and use Portals consistently o
     assert.equal(Boolean(stats), !isSharedView, 'Shared headers omit counts; ordinary profiles retain them');
     if (stats) {
       const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
-      assert.equal(controls[1].props.children.at(-1), 'portal');
+      assert.equal(controls[1].props.children.at(-1), presentation === 'mobile' ? 'followers' : 'portal');
     }
   }
-  const { ProfileCollectionGrid } = compile('../src/components/profile/ProfileCollectionGrid.tsx', name => name.endsWith('/usePresentation') ? {usePresentation:()=> 'web'} : name === 'react' ? React : name === '../../app/routes' ? routes : name.endsWith('/categoryIcons') ? { getCategoryIcon: () => 'category-icon' } : placeholder);
+  const { ProfileCollectionGrid } = compile('../src/components/profile/ProfileCollectionGrid.tsx', name => name.endsWith('/usePresentation') ? {usePresentation:()=> 'web'} : name === 'react' ? React : name === '../../app/routes' ? routes : name.endsWith('/portalHierarchy') ? portalHierarchy : name.endsWith('/categoryIcons') ? { getCategoryIcon: () => 'category-icon' } : placeholder);
   const shared = ProfileCollectionGrid({ shared: true, profileId: 'owner', kind: 'portals', portals: profile.categories, people: [], loading: false, error: null, hasMore: false });
   assert.equal(shared.props['aria-label'], 'Portals');
   assert.equal(nodes(shared).find(node => node.type === 'Link').props.to, '/share/owner/c/photos');

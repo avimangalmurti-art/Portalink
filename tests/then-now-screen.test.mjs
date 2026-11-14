@@ -4,10 +4,12 @@ import React from 'react';
 import ts from 'typescript';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
+import { sourceModule } from './helpers/source-module.mjs';
+const journey = sourceModule('src/features/journey/journey.ts');
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
 function harness(presentation, { editingPair, pairs = [], legacy, updateError, removePair } = {}) {
   let cursor=0; const slots=[], calls=[];
-  const react={...React,useRef:v=>({current:v}),useState:v=>{const i=cursor++;if(!(i in slots))slots[i]=v;return[slots[i],v=>slots[i]=v];}};
+  const react={...React,useRef:v=>({current:v}),useState:v=>{const i=cursor++;if(!(i in slots))slots[i]=v;return[slots[i],next=>slots[i]=typeof next==='function'?next(slots[i]):next];}};
   const exports={};
   const profiles={
     addTimelinePair:async(id,then,now)=>calls.push(['add',id,then,now]),
@@ -15,7 +17,8 @@ function harness(presentation, { editingPair, pairs = [], legacy, updateError, r
     updateProfile:async(...args)=>calls.push(['legacy',...args]),
     removeTimelinePair:async(...args)=>{calls.push(['remove',...args]);await removePair?.();},
   };
-  const imports={react,'./useTimelinePairs':{useTimelinePairs:()=>({pairs,error:null,loading:false})}, '../../presentation/usePresentation':{usePresentation:()=>presentation}, '../../contexts/ServicesContext':{useServices:()=>({profiles})}, '../../contexts/ProfileDataContext':{useProfileData:()=>({invalidateProfiles:()=>calls.push('invalidate')})}, './journey':{journeyProjects:p=>p}, '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})}, '../../hooks/useModalFocus':{useModalFocus:()=>undefined}};
+  const imports={react,'./useTimelinePairs':{useTimelinePairs:()=>({pairs,error:null,loading:false})}, '../../presentation/usePresentation':{usePresentation:()=>presentation}, '../../contexts/ServicesContext':{useServices:()=>({profiles})}, '../../contexts/ProfileDataContext':{useProfileData:()=>({invalidateProfiles:()=>calls.push('invalidate')})}, './journey':journey, '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})}, '../../hooks/useModalFocus':{useModalFocus:()=>undefined}};
+  imports['./timelinePairArtwork'] = { timelinePairArtwork: project => ({ src: project.id + '.png' }) };
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/features/journey/ThenNowDialog.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require:n=>imports[n]??new Proxy({},{get:(_,k)=>k==='__esModule'?false:k})});
   const render=()=>{cursor=0;return exports.ThenNowDialog({profile:{id:'me',thenNow:legacy,projects:[{id:'a',title:'A'},{id:'b',title:'B'},{id:'c',title:'C'}]},selectedId:'a',editingPair,onClose:()=>calls.push('close')});};
   return {render,calls};
@@ -78,6 +81,33 @@ test('the legacy pair is edited through its existing profile field', async () =>
   field(h.render(),'Now').props.onChange({target:{value:'c'}});
   await submit(h.render());
   assert.deepEqual(JSON.parse(JSON.stringify(h.calls)),[['legacy','me',{thenNow:{then:'a',now:'c'}}],'invalidate','close']);
+});
+
+test('pair cover edits save only to the pair, and replacing a side resets only its framing', async () => {
+  const initial = { x: .5, y: .5, zoom: 1.5 }, adjusted = { x: .3, y: .8, zoom: 2 };
+  const pair = { id: 'existing', then: 'a', now: 'b', thenCover: initial };
+  const h = harness('mobile', { editingPair: pair, pairs: [pair] });
+  const edit = nodes(h.render()).find(node => node.props.type === 'button' && node.props.children?.join?.('') === 'Edit Now cover');
+  edit.props.onClick({ currentTarget: { focus() {} } });
+  const crop = nodes(h.render()).find(node => node.type === 'ImageRepositionDialog');
+  assert.equal(crop.props.shape, 'square');
+  assert.equal(crop.props.source, 'b.png');
+  crop.props.onSavePosition(adjusted);
+  assert.deepEqual(h.calls, [], 'Applying the crop is only a local edit.');
+  field(h.render(), 'Then').props.onChange({ target: { value: 'c' } });
+  await submit(h.render());
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls)),
+    [['update', 'me', 'existing', 'c', 'b', pair, { thenCover: null, nowCover: adjusted }], 'invalidate', 'close']);
+});
+
+test('resetting a legacy composition explicitly clears its saved position', async () => {
+  const nowCover = { x: .25, y: .75, zoom: 2 };
+  const pair = { id: 'legacy', then: 'a', now: 'b', nowCover };
+  const h = harness('mobile', { editingPair: pair, legacy: { then: 'a', now: 'b', nowCover } });
+  nodes(h.render()).find(node => node.props['aria-label'] === 'Reset Now cover').props.onClick();
+  await submit(h.render());
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls)),
+    [['legacy', 'me', { thenNow: { then: 'a', now: 'b', thenCover: null, nowCover: null } }], 'invalidate', 'close']);
 });
 
 function confirmDeletion(h) {

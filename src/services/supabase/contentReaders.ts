@@ -16,6 +16,7 @@ import { signedMediaUrls } from './mediaUrlCache';
 import { coverThumbnailWithUrls, readCoverThumbnail } from './coverThumbnailReads';
 import { readSharedProfileBundle } from './sharedProfileBundle';
 import { readFeaturedPortals } from './projectPortalFeatures';
+import { attachPortalParents, readPortalParents } from './portalHierarchy';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { normalizePublicAppearance } from '../../utils/publicAppearance';
 import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
@@ -398,9 +399,10 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
   const pairRequest = ownerIds.length ? Promise.allSettled([
     client.from('profile_journey_pairs').select('profile_id,pair').in('profile_id', ownerIds),
   ]) : null;
-  const [categoryResult, projectResult] = await Promise.all([
+  const [categoryResult, projectResult, portalParents] = await Promise.all([
     client.from('portfolio_categories').select('*').in('profile_id', profileIds).order('position'),
     client.from('projects').select('*').in('profile_id', profileIds).order('published_at', { ascending: false }),
+    readPortalParents(profileIds),
   ]);
   if (categoryResult.error) throw new Error(categoryResult.error.message);
   if (projectResult.error) throw new Error(projectResult.error.message);
@@ -499,13 +501,13 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
     stats: asStats(row.stats),
     socialLinks: asStringRecord(row.social_links),
     links: asLinks(row.links),
-    categories: visibleCategories.map((category) => ({
+    categories: attachPortalParents(row.id, visibleCategories.map((category) => ({
         id: category.id,
         label: category.label,
         iconName: category.icon_name,
         format: category.format as CategoryFormat,
         blurb: category.blurb,
-      })),
+      })), portalParents),
     projects: (projectsByProfile.get(row.id) ?? []).filter((project) => visibleProjectIds.has(project.id)),
     isPrivate: row.is_private,
     publicAppearance: normalizePublicAppearance(row.public_appearance),
@@ -547,7 +549,10 @@ async getSharedProfile(profileId) {
     }
     if (!response.bundle) throw new ProfileServiceError('not_found', 'That creator profile could not be found.');
     const { profile: row, categories, projects, attachments, citations } = response.bundle;
-    const featured = await readFeaturedPortals(projects.map(project => project.id));
+    const [featured, portalParents] = await Promise.all([
+      readFeaturedPortals(projects.map(project => project.id)),
+      readPortalParents([row.id]),
+    ]);
     const hydrated = await hydrateProjects(projects, categories, attachments, 'cover', featured);
     const ordered = projects.some(project => project.position < 0)
       ? [...projects].sort((a, b) => a.position - b.position || b.published_at.localeCompare(a.published_at)) : projects;
@@ -557,7 +562,9 @@ async getSharedProfile(profileId) {
       id: row.id, name: row.name, handle: `@${row.handle}`, headline: row.headline, location: row.location,
       initials: deriveInitials(row.name), avatar: row.avatar_url, navHeading: row.nav_heading,
       stats: asStats(row.stats), socialLinks: asStringRecord(row.social_links), links: asLinks(row.links),
-      categories: categories.map(category => ({ id: category.id, label: category.label, iconName: category.icon_name, format: category.format as CategoryFormat, blurb: category.blurb })),
+      categories: attachPortalParents(row.id, categories.map(category => ({
+        id: category.id, label: category.label, iconName: category.icon_name, format: category.format as CategoryFormat, blurb: category.blurb,
+      })), portalParents),
       projects: ordered.flatMap(project => { const item = hydrated.get(project.id); return item ? [item] : []; }), isPrivate: false,
       publicAppearance: normalizePublicAppearance(row.public_appearance), projectGridColumns: normalizeProjectGridColumns(row.project_grid_columns),
       showJourney: row.show_journey === true,

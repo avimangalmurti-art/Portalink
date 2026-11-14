@@ -121,6 +121,19 @@ test('failed export keeps the crop editable and never invokes Save', async () =>
   editor.dispose();
 });
 
+test('position-only editing saves its framing without exporting a new image', async () => {
+  const saves = [];
+  const editor = editorHarness({ shape: 'square', onSave: undefined, onSavePosition: position => saves.push(position) });
+  await editor.flush();
+  editor.zoom(2);
+  editor.failExport();
+  editor.button('Save').props.onClick();
+  await editor.flush();
+  assert.equal(saves[0]?.zoom, 2);
+  assert.equal(editor.find(node => node.props?.role === 'alert'), null);
+  editor.dispose();
+});
+
 test('changing preview shape preserves unsaved zoom and exports the new aspect ratio', async () => {
   const saves=[]; const editor=editorHarness({aspectRatio:1,onSave:(result)=>saves.push(result)});
   await editor.flush(); editor.zoom(2.4); await editor.flush();

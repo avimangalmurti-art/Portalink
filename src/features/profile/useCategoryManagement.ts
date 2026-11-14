@@ -66,7 +66,7 @@ export type CategoryManagement = {
   pending: PendingOperation | null;
   failure: CategoryFailure | null;
   dismissFailure: () => void;
-  createCategory: (label: string, iconName?: string) => Promise<PortfolioCategory | null>;
+  createCategory: (label: string, iconName?: string, parentId?: Id) => Promise<PortfolioCategory | null>;
   renameCategory: (categoryId: Id, label: string) => Promise<boolean>;
   setCategoryIcon: (categoryId: Id, iconName: string) => Promise<boolean>;
   reorderCategories: (categoryOrder: Id[]) => Promise<boolean>;
@@ -173,7 +173,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
       }
     }
   }, [invalidateProfiles]);
-  const createCategory = useCallback(async function createCategory(label: string, iconName?: string): Promise<PortfolioCategory | null> {
+  const createCategory = useCallback(async function createCategory(label: string, iconName?: string, parentId?: Id): Promise<PortfolioCategory | null> {
     if (!profileId) {
       return null;
     }
@@ -198,10 +198,11 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
       // travels with the write instead of needing a second request afterwards.
     }, () => profileService.createCategory(profileId, {
       label,
+      ...(parentId ? { parentId } : {}),
       ...(iconName ? {
         iconName
       } : {})
-    }), 'That category could not be created.', undefined, { isCurrent: () => scopeRef.current === scope, retry: () => { void createCategory(label, iconName); } });
+    }), parentId ? 'That sub-portal could not be created.' : 'That category could not be created.', undefined, { isCurrent: () => scopeRef.current === scope, retry: () => { void createCategory(label, iconName, parentId); } });
     if (created) {
       loadArrangement();
     }

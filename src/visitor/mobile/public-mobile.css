@@ -2386,6 +2386,15 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   background: var(--accent-primary);
 }
 
+@media (max-width: 375px) {
+  #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .profile-compact-header:has(> .public-profile-appearance-controls) [data-shared-portal-tabs] {
+    margin-inline-end: -44px;
+  }
+  #root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-shared-portal-tabs] .journey-toggle {
+    gap: 4px;
+  }
+}
+
 /* Center the shared reader's sidebar toggle and content controls together. */
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) {
   --public-reader-toggle-size: calc(44px + 2 * var(--mobile-control-inset));

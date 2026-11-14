@@ -12,7 +12,7 @@ export type MobileProjectSort = 'recent' | 'title' | 'saved';
 
 /** Mobile browsing controls; authoring callbacks are supplied only for the owner. */
 export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout, onLayout,
-  sort, onSort, sharedReadOnly = false, browsingControls = !sharedReadOnly, backLabel, publicProfileId }: {
+  sort, onSort, sharedReadOnly = false, browsingControls = !sharedReadOnly, backLabel, publicProfileId, createChoices = false, createExpanded }: {
   category: PortfolioCategory; onBack: () => void; onCreate?: () => void;
   layout: 'list' | 'grid'; onLayout: (value: 'list' | 'grid') => void;
   sort: MobileProjectSort; onSort: (value: MobileProjectSort) => void;
@@ -22,6 +22,8 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
   backLabel?: string;
   /** Only supplied in the owner's workspace for a publicly visible Portal. */
   publicProfileId?: string;
+  createChoices?: boolean;
+  createExpanded?: boolean;
 }) {
   const isMobile = usePresentation() === 'mobile';
   const active = useMobileScreenActive();
@@ -35,7 +37,8 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
       <h2 title={category.label} className={isMobile ? 'flex items-center justify-center gap-2' : undefined}>
         {isMobile ? <>{categoryIcon}<PreviewCreatorName name={category.label} active={active} centered className="block !flex-initial [font:inherit]" /></> : category.label}
       </h2>
-      {onCreate && <button type="button" onClick={onCreate} aria-label={`Add a new project to ${category.label}`} className="mobile-portal-index-control">
+      {onCreate && <button type="button" onClick={onCreate} aria-label={createChoices ? `Add to ${category.label}` : `Add a new project to ${category.label}`}
+        aria-haspopup={createChoices ? 'dialog' : undefined} aria-expanded={createChoices ? createExpanded : undefined} className="mobile-portal-index-control">
         <InterfaceIcon icon={PlusIcon} size="lg" />
       </button>}
     </div>

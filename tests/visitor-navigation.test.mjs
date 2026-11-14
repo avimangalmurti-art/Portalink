@@ -23,6 +23,7 @@ const sharedSettings = load('features/sharing/sharedSettings.ts', name => name =
 const panels = load('utils/projectPanelLayout.ts');
 const portalBrowsing = load('components/profile/portalProjectBrowsing.ts');
 const projectPortals = load('features/projects/projectPortals.ts');
+const portalHierarchy = load('features/profile/portalHierarchy.ts');
 const employer = load('features/employer/employer.ts');
 const navButtonTokens = load('data/navButtonTokens.ts');
 const profileId = '11111111-1111-4111-8111-111111111111';
@@ -66,6 +67,7 @@ function portalPopupFixture(presentation = 'mobile') {
   const { PortalProjectPopup } = load('components/profile/PortalProjectPopup.tsx', name => {
     if (name === 'react') return h.react;
     if (name.endsWith('/projectPortals')) return projectPortals;
+    if (name.endsWith('/portalHierarchy')) return portalHierarchy;
     if (name.endsWith('.css')) return {};
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (...args) => focusCalls.push(args) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
@@ -536,6 +538,8 @@ function readerHarness(presentation = 'mobile', width = 390) {
   const state = { project: { ...profile.projects[0], attachments: [] }, width, presentation };
   const { VisitorProjectPage } = load('visitor/VisitorProjectPage.tsx', name => {
     if (name.endsWith('/projectPortals')) return projectPortals;
+    if (name.endsWith('/portalHierarchy')) return portalHierarchy;
+    if (name.endsWith('/PortalChildren')) return named('PortalChildren');
     if (name === 'react') return h.react;
     if (name === 'lucide-react') return { ChevronLeftIcon: 'ChevronLeftIcon', ListIcon: 'ListIcon', PanelLeftCloseIcon: 'PanelLeftCloseIcon',
       PanelLeftOpenIcon: 'PanelLeftOpenIcon', SearchIcon: 'SearchIcon', XIcon: 'XIcon' };
@@ -634,12 +638,13 @@ test('shared links start on Portfolio and keep Journey one tap away', () => {
   assert.equal(create()('creator', true).view, 'portfolio');
 });
 
-function visitorProfileHarness({ presentation = 'web', showJourney = false, appearanceControls } = {}) {
+function visitorProfileHarness({ presentation = 'web', showJourney = false, appearanceControls, onOpenPortals } = {}) {
   const h = hooks(), followed = [], layoutRepair = [], state = { own: true, signedIn: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio', active: true };
   const profileDom = { inert: false };
   const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London', showJourney };
   const { VisitorProfileGrid } = load('visitor/VisitorProfileGrid.tsx', name => {
     if (name.endsWith('/projectPortals')) return projectPortals;
+    if (name.endsWith('/portalHierarchy')) return portalHierarchy;
     if (name.endsWith('/useMobileHeaderMaterial')) return { useMobileHeaderMaterial() {} };
     if (name.endsWith('/mobileCatalogueScroll')) return {
       repairMobileCatalogueScroll: root => { layoutRepair.push(['repair', root]); return false; },
@@ -663,12 +668,36 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false, appe
     return named(name.split('/').at(-1));
   });
   const render = () => h.render(() => {
-    const tree = VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, active: state.active, appearanceControls, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() { state.categoryId = null; } });
+    const tree = VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, active: state.active, appearanceControls, onOpenPortals, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() { state.categoryId = null; } });
     tree.ref.current = profileDom; // React attaches the host before layout effects run.
     return tree;
   });
   return { render, state, followed, bioProfile, profileDom, layoutRepair, dispose: h.dispose };
 }
+
+test('the mobile shared header places the Portals drawer trigger between Catalogue and Timeline', () => {
+  const { JourneyToggle } = load('features/journey/JourneyToggle.tsx', name => name === 'react' ? React : {});
+  for (const [presentation, showJourney, labels] of [
+    ['mobile', true, ['Catalogue', 'Portals', 'Timeline']],
+    ['mobile', false, ['Catalogue', 'Portals']],
+    ['web', true, ['Catalogue', 'Timeline']],
+  ]) {
+    let opened = 0;
+    const h = visitorProfileHarness({ presentation, showJourney, onOpenPortals: () => opened++ });
+    h.state.view = 'journey';
+    const group = JourneyToggle(one(h.render(), 'JourneyToggle').props);
+    const buttons = nodes(group).filter(node => node.type === 'button');
+    assert.deepEqual(buttons.map(node => node.props.children), labels);
+    if (presentation === 'mobile') {
+      assert.equal(buttons[1].props['aria-haspopup'], 'dialog');
+      assert.equal(buttons[1].props['aria-controls'], 'mobile-shared-profile-navigation');
+      buttons[1].props.onClick();
+      assert.equal(opened, 1);
+      assert.equal(h.state.view, 'journey');
+      assert.equal(buttons[0].props['aria-pressed'], !showJourney);
+    }
+  }
+});
 
 test('the public header places the theme shortcut before High Contrast on MOBILE and retains Translucency on WEB', () => {
   for (const presentation of ['mobile', 'web']) {
@@ -877,6 +906,7 @@ test('retained project cards discard body popup state while inactive and ordinar
 test('retained Timeline clears body popup state while preserving the selected sort', () => {
   const h = hooks(), state = { active: undefined }, project = profile.projects[0];
   const { JourneyView } = load('features/journey/JourneyView.tsx', name => {
+    if (name.endsWith('/portalHierarchy')) return portalHierarchy;
     if (name === 'react') return h.react;
     if (name === 'react-dom') return { createPortal: children => children };
     if (name.endsWith('.css')) return {};
@@ -1339,8 +1369,64 @@ test('MOBILE sidebar portal opens its project popup without navigating to the pr
   assert.ok(h.navigations.length>0);
 });
 
+test('MOBILE shared chooser opens child portals in place and returns to their parent', () => {
+  const h = appHarness();
+  h.state.query.profile = { ...profile, categories: [...profile.categories, { id: 'child', label: 'Birds', parentId: 'portal' }] };
+  one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
+  one(h.render(), 'SharedPortalPopup').props.onOpenChild('child');
+  const child = one(h.render(), 'SharedPortalPopup');
+  assert.equal(child.props.categoryId, 'child');
+  assert.equal(child.props.backLabel, 'Back to Photography');
+  child.props.onBack();
+  assert.equal(one(h.render(), 'SharedPortalPopup').props.categoryId, 'portal');
+  assert.deepEqual(h.navigations, []);
+  h.dispose();
+});
+
+test('copied shared portal retains address parameters when moving between a parent and child', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = appHarness();
+    h.state.presentation = presentation;
+    h.state.query.profile = { ...profile, categories: [...profile.categories, { id: 'child', label: 'Birds', parentId: 'portal' }] };
+    const show = id => {
+      h.state.location = { ...h.state.location, pathname: `/creator/c/${id}`, search: '?view=portal&via=friend', hash: '#collection' };
+      h.state.route = { kind: 'sharedCategory', profileId, categoryId: id };
+      return one(h.render(), 'PortalProjectPopup');
+    };
+    show('portal').props.onOpenChild('child');
+    assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/child?view=portal&via=friend#collection', { replace: true }]);
+    const child = show('child');
+    assert.equal(child.props.backLabel, 'Back to Photography');
+    child.props.onBack();
+    assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal?view=portal&via=friend#collection', { replace: true }]);
+    child.props.onClose();
+    assert.deepEqual(json(h.navigations.at(-1)), ['/creator?via=friend#collection', { replace: true }]);
+    h.dispose();
+  }
+});
+
+test('WEB direct child portal reader returns to its parent through the project index Back', () => {
+  const h = appHarness();
+  h.state.presentation = 'web';
+  h.state.location = { ...h.state.location, pathname: '/creator/c/child/work' };
+  h.state.route = { kind: 'sharedProject', profileId, categoryId: 'child', projectId: 'work' };
+  h.state.query.profile = { ...profile, categories: [...profile.categories, { id: 'child', label: 'Birds', parentId: 'portal' }],
+    projects: [{ ...profile.projects[0], categoryId: 'child' }] };
+  const reader = nodes(h.render()).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
+  assert.ok(reader);
+  reader.props.onBack();
+  assert.deepEqual(json(h.navigations.at(-1)), ['/creator/c/portal', { replace: true }]);
+  h.dispose();
+});
+
 test('MOBILE shared popup Back requests its Portals chooser without navigating or reopening on ordinary dismissal and selection', () => {
   const h = appHarness();
+  const initial = h.render();
+  assert.equal(one(initial, 'SharedProfileSidebar').props.useMobileHeaderOpener, true);
+  let focused = false;
+  one(initial, 'VisitorProfileGrid').props.onOpenPortals({ currentTarget: { focus(options) { focused = options.preventScroll; } } });
+  assert.equal(focused, true);
+  assert.ok(one(h.render(), 'SharedProfileSidebar').props.mobileNavigationRequest);
   one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
   let tree = h.render();
   assert.equal(one(tree, 'SharedProfileSidebar').props.mobileNavigationEnabled, false);

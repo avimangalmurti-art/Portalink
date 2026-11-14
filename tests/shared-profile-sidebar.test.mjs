@@ -15,6 +15,7 @@ function compile(path, require) {
 }
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
 const layoutDefaults = compile('../src/utils/panelLayoutDefaults.ts', () => ({}));
+const portalHierarchy = compile('../src/features/profile/portalHierarchy.ts', () => ({}));
 
 // Render the real component and exercise its handlers without creating users,
 // changing live data, or requiring a browser. Only hooks and external UI are stubbed.
@@ -36,6 +37,7 @@ function harness(initialPresentation = 'web') {
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useMobilePortalScrollFade')) return { useMobilePortalScrollFade: () => () => {} };
+    if (name.endsWith('/portalHierarchy')) return portalHierarchy;
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button' };
     if (name === 'react') return react;
     if (name === '../../app/routes') return routes;

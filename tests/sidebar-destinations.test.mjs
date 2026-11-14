@@ -25,6 +25,7 @@ function harness({ collapsed = false, authenticated = true, presentation = 'web'
   });
   const { Sidebar } = sourceModule('src/components/Sidebar.tsx', {
     react, 'react-router-dom': router, 'lucide-react': icons,
+    '../features/profile/portalHierarchy': sourceModule('src/features/profile/portalHierarchy.ts'),
     'framer-motion': { Reorder: { Group: 'reorder-group', Item: 'reorder-item' }, useDragControls: () => ({ start() {} }), useReducedMotion: () => true },
     './ui/SavedChangeNotice': { SavedChangeNotice: 'saved-notice' },
     '../presentation/mobile/MobileNavigation': { MobileNavigation },

@@ -19,6 +19,8 @@ import './journey.css';
 import { useTimelinePairs } from './useTimelinePairs';
 import { useTimelineSection } from './useTimelineSection';
 import { projectBelongsToPortal } from '../projects/projectPortals';
+import { portalChildren } from '../profile/portalHierarchy';
+import { TimelinePairCover } from './TimelinePairCover';
 
 const PortalProjectPopup = React.lazy(() => import('../../components/profile/PortalProjectPopup').then(module => ({ default: module.PortalProjectPopup })));
 const ReorderTimelinePairs = React.lazy(() => import('./ThenNowDialog').then(module => ({ default: module.ReorderTimelinePairs })));
@@ -32,7 +34,7 @@ export function JourneyCover({ project, sizes = '92px' }: { project: Project; si
 type JourneyViewProps = {
   active?: boolean;
   showPopular?: boolean;
-  toolbarHost?: HTMLElement | null; profile: Profile; owner: boolean; onOpen: (project: Project) => void;
+  toolbarHost?: HTMLElement | null; profile: Profile; owner: boolean; onOpen: (project: Project, categoryId?: string) => void;
   onEdit?: (project: Project) => void; onEditDescription?: (project: Project) => void; onDelete?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
   onEditPair?: (pair: TimelinePair) => void;
 };
@@ -57,8 +59,10 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
   const closePairOrder = () => setReorderingPairs(false);
   const showingPairsOnly = isMobile && pairsOnly;
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
-  const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
-  useEffect(() => { if (!active) { setDetailsProject(null); setPortalPopupId(null); setReorderingPairs(false); } }, [active]);
+  const [portalPath, setPortalPath] = useState<string[]>([]);
+  const portalPopupId = portalPath.at(-1) ?? null;
+  const closePortal = () => setPortalPath([]);
+  useEffect(() => { if (!active) { setDetailsProject(null); setPortalPath([]); setReorderingPairs(false); } }, [active]);
   const events=useJourneyCitations(profile,owner);
   const groups = useMemo(() => journeyTimeline(profile.projects,events,owner,order,popularCounts), [profile.projects, events, owner, order, popularCounts]);
   const popularityRanks = useMemo(() => {
@@ -78,21 +82,27 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
   const portalProjects = useMemo(() => journeyProjects(profile.projects, owner), [profile.projects, owner]);
   const portalProfile = useMemo(() => ({ ...profile, projects: portalProjects }), [profile, portalProjects]);
   const activePortalPopupId = profile.categories.some(category => category.id === portalPopupId) ? portalPopupId : null;
+  const portalOpener = profile.categories.find(category => category.id === portalPath.at(-2));
   const { pairs, error: pairsError, orderError, loading: pairsLoading, saveOrder } = useTimelinePairs(profile, owner);
   const orderUnavailable = pairsLoading || Boolean(pairsError || orderError);
   useEffect(() => {
-    if (portalPopupId && !activePortalPopupId) setPortalPopupId(null);
+    if (portalPopupId && !activePortalPopupId) setPortalPath([]);
   }, [portalPopupId, activePortalPopupId]);
   const portalButton = (project: Project) => {
     const portal = profile.categories.find(category => category.id === project.categoryId);
-    return portal ? <button type="button" className="journey-portal" aria-haspopup="dialog" aria-expanded={activePortalPopupId === portal.id} onClick={() => setPortalPopupId(portal.id)}>{portal.label}</button> : null;
+    return portal ? <button type="button" className="journey-portal" aria-haspopup="dialog" aria-expanded={Boolean(activePortalPopupId && portalPath[0] === portal.id)} onClick={() => setPortalPath([portal.id])}>{portal.label}</button> : null;
   };
-  const portalPopup = active && activePortalPopupId && <DeferredDialog active onClose={() => setPortalPopupId(null)}>
-    <PortalProjectPopup profile={portalProfile} categoryId={activePortalPopupId} backLabel="Back to Timeline" onClose={() => setPortalPopupId(null)} onSelect={(categoryId, projectId) => {
+  const portalPopup = active && activePortalPopupId && <DeferredDialog active onClose={closePortal}>
+    <PortalProjectPopup profile={portalProfile} categoryId={activePortalPopupId}
+      backLabel={portalOpener ? `Back to ${portalOpener.label}` : 'Back to Timeline'} onClose={closePortal}
+      onBack={portalOpener ? () => setPortalPath(current => current.slice(0, -1)) : closePortal}
+      onOpenChild={id => {
+        if (portalChildren(profile.categories, activePortalPopupId).some(category => category.id === id)) setPortalPath([...portalPath, id]);
+      }} onSelect={(categoryId, projectId) => {
       const project = portalProjects.find(candidate => candidate.id === projectId && projectBelongsToPortal(candidate, categoryId));
       if (categoryId !== activePortalPopupId || !project) return;
-      setPortalPopupId(null);
-      onOpen(project);
+      closePortal();
+      onOpen(project, categoryId);
     }} />
   </DeferredDialog>;
   const rootRef = useRef<HTMLElement>(null), toolbarRef = useRef<HTMLElement>(null), pairRef = useRef<HTMLElement>(null);
@@ -120,7 +130,7 @@ function JourneyContent({ active = true, showPopular = true, toolbarHost, profil
       </header> : heading}
       <div className="journey-pair-grid">{[then, now].map((project, index) => <div key={project.id}>
         <button type="button" onClick={() => onOpen(project)} aria-label={`Open ${index ? 'Now' : 'Then'}: ${project.title}`}>
-          <span className="journey-pair-cover"><JourneyCover project={project} sizes="(max-width: 639px) 42vw, 240px" /></span>
+          <TimelinePairCover project={project} position={index ? record.nowCover : record.thenCover} />
           <strong>{project.title}{projectMonth(project) && ` · ${projectMonth(project)?.slice(0, 4)}`}</strong>
         </button>{portalButton(project)}
       </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Manage pairs</button>}

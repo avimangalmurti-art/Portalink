@@ -6,6 +6,7 @@ import { hydrateProjects, throwProfileError, supabaseProfileReadService } from '
 import type { ProfileRow, CategoryRow, ProjectRow, AttachmentRow } from './contentReaders';
 import { supabaseProjectReadService } from './projectReaders';
 import { supabaseProjectPortalService } from './projectPortalFeatures';
+import { hasSubPortals, isMissingCreateSubPortal, isPortalParentDeleteError } from './portalHierarchy';
 import { withProjectLocation } from '../../features/publishing/projectLocation';
 import type {
   DiscoveryService,
@@ -59,6 +60,7 @@ import { MAX_PROJECT_GRID_COLUMNS, MIN_PROJECT_GRID_COLUMNS, normalizeProjectGri
 
 export { PROJECT_MEDIA_BUCKET } from './contentReaders';
 export const AVATAR_BUCKET = 'avatars';
+const SUBPORTALS_BLOCK_DELETION = 'Remove the subportals before deleting this Portal.';
 
 type DraftRow = {
   id: string;
@@ -205,6 +207,10 @@ export const supabaseProfileService: ProfileService = {
     const { error } = await requireSupabase().from('profiles').update(update).eq('id', profileId).eq('account_id', authData.session.user.id).select('id').single();
     if (error && ['42703','PGRST204'].includes(error.code) && /portfolio_headline|school|availability|contact_email|allow_pdf_download|start_here_project_id/.test(error.message)) throw new Error('These catalogue settings are not enabled yet. Your changes have not been saved.');
     if (error && ['42703', 'PGRST204'].includes(error.code) && /show_journey|then_now/.test(error.message)) throw new Error('Timeline sharing and pairs are not enabled yet. Your changes have not been saved.');
+    if (error?.code === '23514' && error.message === 'Choose exactly two projects for Then/Now.'
+      && input.thenNow && (input.thenNow.thenCover !== undefined || input.thenNow.nowCover !== undefined)) {
+      throw new Error('Then/Now cover framing is not available yet. Your changes were not saved.');
+    }
     if (error) throwProfileError(error, 'Your profile changes could not be saved.');
     return this.getProfile(profileId);
   },
@@ -254,6 +260,24 @@ export const supabaseProfileService: ProfileService = {
   },
 
   async createCategory(profileId, input) {
+    if (input.parentId) {
+      const { data, error } = await requireSupabase().rpc('create_sub_portal', {
+        p_profile_id: profileId,
+        p_parent_category_id: input.parentId,
+        p_label: input.label.trim(),
+        p_icon_name: input.iconName ?? 'FolderIcon',
+        p_format: input.format ?? 'grid',
+        p_blurb: input.blurb?.trim() ?? '',
+      }).single();
+      if (error) {
+        const code = error.code === '23505' ? 'duplicate_label' : error.code === '22023' ? 'not_found' : 'unknown';
+        throw new CategoryMutationError(code, isMissingCreateSubPortal(error) ? 'Subportals are not available yet.' : error.message);
+      }
+      const row = data as unknown as CategoryRow | null;
+      if (!row) throw new CategoryMutationError('unknown', 'The subportal could not be created.');
+      return { id: row.id, parentId: input.parentId, label: row.label, iconName: row.icon_name,
+        format: row.format as CategoryFormat, blurb: row.blurb };
+    }
     const { data: existing, error: readError } = await requireSupabase()
       .from('portfolio_categories')
       .select('position')
@@ -311,18 +335,18 @@ export const supabaseProfileService: ProfileService = {
   },
 
   async getCategoryDeletionCapability(profileId, categoryId) {
-    const { count, error } = await requireSupabase()
-      .from('projects')
-      .select('id', { count: 'exact', head: true })
-      .eq('profile_id', profileId)
-      .eq('category_id', categoryId);
+    const [{ count, error }, hasChildren] = await Promise.all([
+      requireSupabase().from('projects').select('id', { count: 'exact', head: true })
+        .eq('profile_id', profileId).eq('category_id', categoryId),
+      hasSubPortals(profileId, categoryId),
+    ]);
     if (error) throw new CategoryMutationError('unknown', error.message);
     const blockingProjectCount = count ?? 0;
-    return blockingProjectCount > 0
+    return blockingProjectCount > 0 || hasChildren
       ? {
           isAvailable: false,
           removes: [],
-          reason: 'Move or delete the work in this category before removing it.',
+          reason: hasChildren ? SUBPORTALS_BLOCK_DELETION : 'Move or delete the work in this category before removing it.',
           blockingProjectCount,
         }
       : {
@@ -335,13 +359,15 @@ export const supabaseProfileService: ProfileService = {
   async deleteCategory(profileId, categoryId) {
     const capability = await this.getCategoryDeletionCapability(profileId, categoryId);
     if (!capability.isAvailable) {
-      throw new CategoryMutationError('category_not_empty', capability.reason ?? 'That category is not empty.', capability.blockingProjectCount);
+      throw new CategoryMutationError(capability.blockingProjectCount > 0 ? 'category_not_empty' : 'deletion_unavailable',
+        capability.reason ?? 'That category is not empty.', capability.blockingProjectCount);
     }
     const { error } = await requireSupabase()
       .from('portfolio_categories')
       .delete()
       .eq('id', categoryId)
       .eq('profile_id', profileId);
+    if (error && isPortalParentDeleteError(error)) throw new CategoryMutationError('deletion_unavailable', SUBPORTALS_BLOCK_DELETION);
     if (error) throw new CategoryMutationError('unknown', error.message);
   },
 };

@@ -12,11 +12,13 @@ import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panel
 import { usePresentation } from '../../presentation/usePresentation';
 import { useMobilePortalScrollFade } from '../../presentation/mobile/useMobilePortalScrollFade';
 import { PublicProfileDrawer } from '../../visitor/mobile/PublicProfileDrawer';
+import { portalChildren, portalRootId } from '../../features/profile/portalHierarchy';
 
 type SharedProfileSidebarProps = {
   profile: Profile;
   mobileNavigationEnabled?: boolean;
   mobileNavigationRequest?: object;
+  useMobileHeaderOpener?: boolean;
   activeCategoryId: string | null;
   theme: AppearanceTheme;
   desktopNavigationStyle?: React.CSSProperties;
@@ -35,6 +37,7 @@ export function SharedProfileSidebar({
   profile,
   mobileNavigationEnabled = true,
   mobileNavigationRequest,
+  useMobileHeaderOpener,
   activeCategoryId,
   theme,
   desktopNavigationStyle,
@@ -43,6 +46,8 @@ export function SharedProfileSidebar({
   onSettingsOpen
 }: SharedProfileSidebarProps) {
   const isMobile = usePresentation() === 'mobile';
+  const rootPortals = portalChildren(profile.categories);
+  const activeRootId = portalRootId(profile.categories, activeCategoryId);
   const sharedSidebarWidth = useResizablePanelWidth({
     // Public viewing keeps its own resize choice, with the same navigation default.
     id: 'shared-profile-navigation-standard',
@@ -84,11 +89,12 @@ export function SharedProfileSidebar({
           </span>
         </h2>
         <ul className={`sidebar-pill-group m-0 flex list-none flex-col p-0 ${isCollapsed ? 'items-center' : ''}`}>
-          {profile.categories.map((category) => {
+          {rootPortals.map((category) => {
           const Icon = getCategoryIcon(category.iconName);
           const isActive = category.id === activeCategoryId;
+          const isActiveBranch = category.id === activeRootId;
           return <li key={category.id} className={`side-panel-row group/row relative mb-[var(--side-panel-row-gap)] list-none ${isCollapsed ? 'w-10 shrink-0' : 'w-full'}`}>
-                <button type="button" data-category-row="" onClick={() => { closeDrawer?.(); compactNavigation.closeCompact(); onOpenCategory(category.id); }} aria-label={category.label} title={category.label} aria-current={isActive ? 'page' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[var(--m-base)]  ease-[var(--m-enter)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isCollapsed ? 'justify-center' : ''} ${isActive ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
+                <button type="button" data-category-row="" onClick={() => { closeDrawer?.(); compactNavigation.closeCompact(); onOpenCategory(category.id); }} aria-label={category.label} title={category.label} aria-current={isActive ? 'page' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[var(--m-base)]  ease-[var(--m-enter)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isCollapsed ? 'justify-center' : ''} ${isActiveBranch ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
                   <span aria-hidden="true" data-icon-tile="" className="flex h-4 w-6 shrink-0 items-center justify-center">
                     <InterfaceIcon icon={Icon} weight="medium" />
                   </span>
@@ -115,7 +121,7 @@ export function SharedProfileSidebar({
         </div>
       </div>
     </aside>;
-  return isMobile ? <PublicProfileDrawer name={profile.name} enabled={mobileNavigationEnabled} openRequest={mobileNavigationRequest}>{close => <section className="mobile-portals-page shared-mobile-portals" data-portals-layout={portalLayout} aria-label={`${profile.name} portals`}>
+  return isMobile ? <PublicProfileDrawer name={profile.name} enabled={mobileNavigationEnabled} openRequest={mobileNavigationRequest} hideFloatingOpener={useMobileHeaderOpener}>{close => <section className="mobile-portals-page shared-mobile-portals" data-portals-layout={portalLayout} aria-label={`${profile.name} portals`}>
     <header className="global-control-header shrink-0 gap-2 px-4">
       <button type="button" aria-label="Go back" className="mobile-portal-action" onClick={close}><InterfaceIcon icon={ChevronLeftIcon} size="lg" mirroredInRtl /></button>
       <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold">Portals</h1>
@@ -133,11 +139,11 @@ export function SharedProfileSidebar({
     </header>
     <nav ref={portalScrollRef} className="mobile-portals-scroll scrollbar-overlay sidebar-scroll-fade is-at-top is-at-bottom" aria-label={`${profile.name} public portals`}>
       <ul className="mobile-portals-list">
-        {profile.categories.map(category => <li key={category.id} className="mobile-portal-item"><button type="button" data-category-row="" className="mobile-portal-row" aria-current={category.id === activeCategoryId ? 'page' : undefined} onClick={() => { close(); onOpenCategory(category.id); }}>
+        {rootPortals.map(category => <li key={category.id} className="mobile-portal-item"><button type="button" data-category-row="" className="mobile-portal-row" aria-current={category.id === activeCategoryId ? 'page' : undefined} onClick={() => { close(); onOpenCategory(category.id); }}>
           <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" weight="medium" /><span className="mobile-portal-label">{category.label}</span><InterfaceIcon icon={ChevronRightIcon} size="sm" className="text-[var(--text-tertiary)]" />
         </button></li>)}
       </ul>
-      {!profile.categories.length && <p className="p-4 text-[var(--text-secondary)]">No portals yet</p>}
+      {!rootPortals.length && <p className="p-4 text-[var(--text-secondary)]">No portals yet</p>}
     </nav>
   </section>}</PublicProfileDrawer> : renderSidebar();
 }

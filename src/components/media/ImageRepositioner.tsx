@@ -6,7 +6,15 @@ import { pinchDistance } from '../../utils/pinchGesture';
 import { Button } from '../ui/Button';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 
-export type ImageRepositionerProps = {
+export type ImageRepositionSave = {
+  onSave: (result: ImageCropResult) => void | Promise<void>;
+  onSavePosition?: never;
+} | {
+  onSave?: never;
+  onSavePosition: (position: ImagePosition) => void | Promise<void>;
+};
+
+export type ImageRepositionerProps = ImageRepositionSave & {
   source: string | Blob;
   alt: string;
   /** Rectangles default to 16:9. Circle and square modes always use 1:1. */
@@ -21,7 +29,6 @@ export type ImageRepositionerProps = {
   mimeType?: 'image/png' | 'image/jpeg' | 'image/webp';
   /** A circular preview normally exports a square image for reusable avatar masks. */
   exportCircle?: boolean;
-  onSave: (result: ImageCropResult) => void | Promise<void>;
   onCancel?: () => void;
   onEditingChange?: (editing: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
@@ -40,7 +47,7 @@ function getPinch(pointers: ReadonlyMap<number, CropPointer>) {
 }
 
 /** Local, transactional crop editor. Only Save exports or invokes the caller. */
-export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = 'rectangle', initialPosition, initialCrop, startEditing = false, pinchToZoom = false, disabled = false, outputWidth, mimeType, exportCircle = false, onSave, onCancel, onEditingChange, onSavingChange, instructions = 'Drag to reposition. Scroll or use the slider to zoom. Arrow keys make small adjustments.', saveLabel = 'Save' }: ImageRepositionerProps) {
+export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = 'rectangle', initialPosition, initialCrop, startEditing = false, pinchToZoom = false, disabled = false, outputWidth, mimeType, exportCircle = false, onSave, onSavePosition, onCancel, onEditingChange, onSavingChange, instructions = 'Drag to reposition. Scroll or use the slider to zoom. Arrow keys make small adjustments.', saveLabel = 'Save' }: ImageRepositionerProps) {
   const ratio = shape === 'rectangle' && Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [position, setPosition] = useState<ImagePosition>(CENTER_IMAGE_POSITION);
@@ -62,8 +69,8 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
   }, []);
   const initialRef = useRef({ initialCrop, initialPosition });
   initialRef.current = { initialCrop, initialPosition };
-  const callbacks = useRef({ onSave, onCancel, onEditingChange, onSavingChange });
-  callbacks.current = { onSave, onCancel, onEditingChange, onSavingChange };
+  const callbacks = useRef({ onSave, onSavePosition, onCancel, onEditingChange, onSavingChange });
+  callbacks.current = { onSave, onSavePosition, onCancel, onEditingChange, onSavingChange };
   const sliderId = useId();
   const instructionsId = useId();
 
@@ -84,7 +91,7 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
     try {
       const url = typeof source === 'string' ? source : (ownedUrl = URL.createObjectURL(source));
       next = new Image();
-      next.crossOrigin = 'anonymous';
+      if (!callbacks.current.onSavePosition) next.crossOrigin = 'anonymous';
       next.decoding = 'async';
       next.onload = () => {
         if (version !== sourceVersion.current || !next) return;
@@ -149,9 +156,13 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
     const sourceSize = { width: image.naturalWidth, height: image.naturalHeight };
     const crop = cropFromPosition(sourceSize, ratio, nextPosition);
     try {
-      const result = await renderImageCrop(image, crop, { outputWidth, mimeType, circle: exportCircle });
-      if (version !== sourceVersion.current) return;
-      await callbacks.current.onSave({ ...result, crop, position: nextPosition, sourceSize, outputSize: { width: result.canvas.width, height: result.canvas.height } });
+      if (callbacks.current.onSavePosition) {
+        await callbacks.current.onSavePosition(nextPosition);
+      } else {
+        const result = await renderImageCrop(image, crop, { outputWidth, mimeType, circle: exportCircle });
+        if (version !== sourceVersion.current) return;
+        await callbacks.current.onSave?.({ ...result, crop, position: nextPosition, sourceSize, outputSize: { width: result.canvas.width, height: result.canvas.height } });
+      }
       if (version !== sourceVersion.current) return;
       savedRef.current = nextPosition;
       changeEditing(false);

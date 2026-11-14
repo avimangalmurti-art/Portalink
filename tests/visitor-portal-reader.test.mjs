@@ -40,6 +40,8 @@ function fixture(presentation = 'web', { empty = false } = {}) {
   };
   const { VisitorProjectPage } = sourceModule('src/visitor/VisitorProjectPage.tsx', {
     '../features/projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
+    '../features/profile/portalHierarchy': sourceModule('src/features/profile/portalHierarchy.ts'),
+    '../components/profile/PortalChildren': { PortalChildren: 'child-portals' },
     react,
     'lucide-react': { ChevronLeftIcon: 'back-icon', ListIcon: 'list-icon', PanelLeftCloseIcon: 'collapse-icon', PanelLeftOpenIcon: 'expand-icon', SearchIcon: 'search-icon', XIcon: 'close-icon' },
     '../presentation/usePresentation': { usePresentation: () => state.presentation },

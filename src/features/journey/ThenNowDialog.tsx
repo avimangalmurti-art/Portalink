@@ -6,15 +6,23 @@ import { useProfileData } from '../../contexts/ProfileDataContext';
 import { ProjectFormDialog } from '../../components/publishing/ProjectFormDialog';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
-import { journeyProjects } from './journey';
+import { journeyProjects, sameTimelineCoverPosition } from './journey';
 import { ArrowDownIcon, ArrowLeftIcon, ArrowUpIcon } from 'lucide-react';
 import { usePresentation } from '../../presentation/usePresentation';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
+import { ImageRepositionDialog } from '../../components/media/ImageRepositionDialog';
+import type { ImagePosition } from '../../types/imageCrop';
 import './journey.css';
 import { useTimelinePairs } from './useTimelinePairs';
+import { TimelinePairCover } from './TimelinePairCover';
+import { timelinePairArtwork } from './timelinePairArtwork';
+
+const PAIR_SIDES = ['then', 'now'] as const;
+type PairSide = typeof PAIR_SIDES[number];
+const SIDE_LABELS = { then: 'Then', now: 'Now' } as const;
 
 function PairScreen({ title, busy, onClose, children }: { title: string; busy: boolean; onClose: () => void; children: React.ReactNode }) {
   const viewport = useDialogViewport<HTMLElement>();
@@ -101,36 +109,53 @@ export function ThenNowDialog({ profile, selectedId, editingPair, onClose }: { p
   const { pairs, error: loadError, loading } = useTimelinePairs(profile, true);
   const [then, setThen] = useState(available(editingPair?.then ?? selectedId));
   const [now, setNow] = useState(available(editingPair?.now));
-  const changed = !editingPair || editingPair.then !== then || editingPair.now !== now;
+  const [framing, setFraming] = useState<Record<PairSide, ImagePosition | null>>({ then: editingPair?.thenCover ?? null, now: editingPair?.nowCover ?? null });
+  const [editingCover, setEditingCover] = useState<PairSide | null>(null);
+  const framingChanged = !sameTimelineCoverPosition(framing.then, editingPair?.thenCover)
+    || !sameTimelineCoverPosition(framing.now, editingPair?.nowCover);
+  const coverUpdate = framingChanged ? { thenCover: framing.then, nowCover: framing.now } : undefined;
+  const changed = !editingPair || editingPair.then !== then || editingPair.now !== now || framingChanged;
   const validPair = changed && then !== now && Boolean(available(then) && available(now));
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const saving = useRef(false);
+  const updateFraming = (side: PairSide, position: ImagePosition | null) => {
+    setFraming(current => ({ ...current, [side]: position }));
+    setError('');
+  };
+  const selectedProjects = { then: choices.find(project => project.id === then), now: choices.find(project => project.id === now) };
+  const coverProject = editingCover && selectedProjects[editingCover];
+  const coverArtwork = coverProject && timelinePairArtwork(coverProject);
   const close = () => {
     if (saving.current) return;
-    if (confirmDelete) {
+    if (editingCover) setEditingCover(null);
+    else if (confirmDelete) {
       setConfirmDelete(false);
       setDeleteError('');
     } else onClose();
   };
   const checkLegacy = () => {
     if (editingPair?.id === 'legacy' &&
-      (profile.thenNow?.then !== editingPair.then || profile.thenNow.now !== editingPair.now)) {
+      (profile.thenNow?.then !== editingPair.then || profile.thenNow.now !== editingPair.now
+        || !sameTimelineCoverPosition(profile.thenNow.thenCover, editingPair.thenCover)
+        || !sameTimelineCoverPosition(profile.thenNow.nowCover, editingPair.nowCover))) {
       throw new Error('This pair has changed. Go back and reopen it to see the latest version.');
     }
   };
   const save = async () => {
-    if (saving.current || confirmDelete || !validPair || loading || loadError) return;
+    if (saving.current || editingCover || confirmDelete || !validPair || loading || loadError) return;
     saving.current = true; setBusy(true); setError('');
     try {
       if (pairs.some(pair => pair.id !== editingPair?.id && pair.then === then && pair.now === now)) throw new Error('This pair already exists.');
       if (editingPair?.id === 'legacy') {
         checkLegacy();
-        await profiles.updateProfile(profile.id, { thenNow: { then, now } });
+        await profiles.updateProfile(profile.id, { thenNow: { then, now, ...coverUpdate } });
       } else if (editingPair) {
         if (!profiles.updateTimelinePair) throw new Error('Pair editing is not available yet.');
-        await profiles.updateTimelinePair(profile.id, editingPair.id, then, now, editingPair);
+        const expected = [profile.id, editingPair.id, then, now, editingPair] as const;
+        if (coverUpdate) await profiles.updateTimelinePair(...expected, coverUpdate);
+        else await profiles.updateTimelinePair(...expected);
       } else {
         if (!profiles.addTimelinePair) throw new Error('Multiple Then/Now pairs are not available yet.');
         await profiles.addTimelinePair(profile.id, then, now);
@@ -159,12 +184,33 @@ export function ThenNowDialog({ profile, selectedId, editingPair, onClose }: { p
   };
   const form = <form className="project-form-content journey-pair-form" onSubmit={event => { event.preventDefault(); void save(); }}>
       <p>Choose two visible published projects that show how your work has changed. Hiding either project removes the pair.</p>
-      {(['Then', 'Now'] as const).map(label => <label key={label}>{label}<select aria-label={`${label} project`} data-ui-shape={isMobile ? 'action' : undefined} value={label === 'Then' ? then : now} disabled={busy} onChange={event => {
-        (label === 'Then' ? setThen : setNow)(event.target.value);
-        setError('');
+      {PAIR_SIDES.map(side => <label key={side}>{SIDE_LABELS[side]}<select aria-label={`${SIDE_LABELS[side]} project`} data-ui-shape={isMobile ? 'action' : undefined} value={side === 'then' ? then : now} disabled={busy} onChange={event => {
+        const id = event.target.value;
+        (side === 'then' ? setThen : setNow)(id);
+        updateFraming(side, id === editingPair?.[side] ? editingPair[side === 'then' ? 'thenCover' : 'nowCover'] ?? null : null);
       }}>
         <option value="">Choose a project</option>{choices.map(project => <option key={project.id} value={project.id}>{project.title}</option>)}
       </select></label>)}
+      {editingPair && <fieldset className="journey-pair-framing">
+        <legend>Cover framing</legend>
+        <div className="journey-pair-framing-grid">{PAIR_SIDES.map(side => {
+          const project = selectedProjects[side];
+          if (!project) return null;
+          const label = SIDE_LABELS[side];
+          const canFrame = Boolean(timelinePairArtwork(project));
+          return <div key={side}>
+            <TimelinePairCover project={project} position={framing[side]} />
+            <Button type="button" variant="secondary" aria-haspopup="dialog" disabled={busy || !canFrame}
+              onClick={event => {
+                event.currentTarget.focus({ preventScroll: true });
+                setEditingCover(side);
+              }}>Edit {label} cover</Button>
+            {framing[side] && <Button type="button" variant="ghost" aria-label={`Reset ${label} cover`} disabled={busy}
+              onClick={() => updateFraming(side, null)}>Reset</Button>}
+            {!canFrame && <span className="journey-pair-framing-unavailable">Cover preview unavailable</span>}
+          </div>;
+        })}</div>
+      </fieldset>}
       {loadError && <p role="alert">{loadError}</p>}
       {error && <p role="alert">{error}</p>}
       {!editingPair && pairs.map(pair => <div key={pair.id}>
@@ -186,6 +232,14 @@ export function ThenNowDialog({ profile, selectedId, editingPair, onClose }: { p
     : <ProjectFormDialog title={title} titleId="journey-pair-title" onClose={close} closeDisabled={busy}>{form}</ProjectFormDialog>;
   return editingPair ? <>
     {screen}
+    {editingCover && coverProject && coverArtwork && <ImageRepositionDialog mobileAuthoring
+      title={`Edit ${SIDE_LABELS[editingCover]} cover`} shape="square" source={coverArtwork.src}
+      alt={coverProject.coverAlt || coverProject.title} initialPosition={framing[editingCover] ?? undefined}
+      saveLabel="Apply framing" onClose={() => setEditingCover(null)}
+      onSavePosition={position => {
+        updateFraming(editingCover, position);
+        setEditingCover(null);
+      }} />}
     {confirmDelete && <ConfirmationDialog title="Delete this Then/Now pair?"
       description="This removes the pair from Timeline. Both projects will stay in your catalogue."
       confirmLabel="Delete pair" variant="destructive" pending={busy} pendingLabel="Deleting…"

@@ -46,7 +46,7 @@ function harness({ mobile = true, owner = true, shared = false, initial = '/p/cr
   }
   const buildPath = (name, values = {}) => name === 'home' ? '/' : name === 'portals' ? '/portals' :
     `${name.startsWith('shared') ? '/share' : '/p'}/${values.profileId}${name.endsWith('Category') ? `/c/${values.categoryId}` : ''}`;
-  const context = { URLSearchParams, presentation: mobile ? 'mobile' : 'web', activeCategoryId: 'art', viewedProfileId: 'creator', isOwnerMode: owner, isSharedRoute: shared, buildPath,
+  const context = { URLSearchParams, presentation: mobile ? 'mobile' : 'web', activeCategoryId: 'art', activeCategory: null, viewedProfileId: 'creator', isOwnerMode: owner, isSharedRoute: shared, buildPath,
     nav: { back: () => go(-1), to: (value, isReplacement) => isReplacement ? replace(value) : push(value) },
     returnToMobilePortalCollection: options => history.returnToCollection(identity, location, browser, options, go),
     closeMobileProfilePortals: profilePath => history.closeProfileCollection(identity, location, browser, profilePath, go),
@@ -78,6 +78,23 @@ test('MOBILE reader Back restores category, then chooser dismissal restores the 
 test('an owner who opens from /portals returns to that exact collection and its query', () => {
   const h = harness({ initial: '/portals?sort=recent' }); h.push(category); h.close();
   assert.equal(h.path, '/portals?sort=recent'); assert.deepEqual(h.traversals, [-1]); assert.deepEqual(h.replacements, []);
+});
+
+test('closing a sub-portal returns to its parent with real history or a direct-link fallback', () => {
+  const parent = '/p/creator/c/design';
+  const opened = harness({ initial: parent + '?layout=grid' });
+  opened.context.activeCategory = { parentId: 'design' };
+  opened.push(category);
+  opened.close();
+  assert.equal(opened.path, parent + '?layout=grid');
+  assert.deepEqual(opened.traversals, [-1]);
+  assert.deepEqual(opened.replacements, []);
+
+  const direct = harness({ initial: category });
+  direct.context.activeCategory = { parentId: 'design' };
+  direct.close();
+  assert.equal(direct.path, parent);
+  assert.deepEqual(direct.replacements, [parent]);
 });
 
 test('category query replacement and contiguous sort entries return with one bounded traversal', () => {
