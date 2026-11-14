@@ -690,6 +690,7 @@ export function UserProfilePage({
   const closePortalsRef = useRef(() => setActiveView('projects'));
   closePortalsRef.current = () => setActiveView('projects');
   const hasMobilePortalOverlay = Boolean(mobilePortalOverlay);
+  const mobilePortalsOpen = mobilePortalTab && (hasMobilePortalOverlay || mobileProjectIndexOpen);
   useMobilePortalPopupSize(profilePageRef, portalOverlayRef, hasMobilePortalOverlay);
   useEffect(() => {
     if (!hasMobilePortalOverlay) return;
@@ -805,8 +806,8 @@ export function UserProfilePage({
       {canDismissMobileProfile && <div className="profile-return-navigation"><button type="button" className="profile-return-back" aria-label="Back to previous screen" onClick={dismissProfile}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button></div>}
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
-          profileView={mobilePortalTab || ((isMobile || webProfileHeader) && canSeeJourney) ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={profileControlsDisabled} showTimeline={canSeeJourney}
-            portalsButton={mobilePortalTab && <button type="button" aria-haspopup="dialog" disabled={profileControlsDisabled} onClick={() => selectProfileContent('portals')}>Portals</button>}
+          profileView={mobilePortalTab || ((isMobile || webProfileHeader) && canSeeJourney) ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={profileControlsDisabled} showTimeline={canSeeJourney} portalsOpen={mobilePortalsOpen}
+            portalsButton={mobilePortalTab && <button type="button" aria-haspopup="dialog" aria-expanded={mobilePortalsOpen} disabled={profileControlsDisabled} onClick={() => selectProfileContent('portals')}>Portals</button>}
             onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}
           summaryCounts={isJourney || isSharedView || (isMobile && !mobileContent && !isMobileToolsOpen) ? undefined : { projectCount, portalCount: profile.categories.length, showPortalCount: !mobilePortalTab, followers, following, expanded: isMobileToolsOpen || webProfileHeader, canViewConnections, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: selectProfileContent, disabled: profileControlsDisabled }} />
         {webVisitorHeader ? <button type="button" className="profile-header-options" aria-label="Back to previous screen" title="Back" onClick={dismissProfile}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button>

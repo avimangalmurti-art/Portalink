@@ -97,9 +97,9 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             onClick={() => appearanceControls.onThemeChange(appearanceControls.theme === 'dark' ? 'light' : 'dark')}>
             <InterfaceIcon icon={appearanceControls.theme === 'dark' ? SunIcon : MoonIcon} size="md" />
           </button>}
-          <AppearanceSwitch label="High Contrast" isOn={appearanceControls.highContrast}
+          <AppearanceSwitch label="High Contrast" showLabel={!isMobile} isOn={appearanceControls.highContrast}
             onToggle={() => appearanceControls.onHighContrastChange(!appearanceControls.highContrast)} />
-          {!isMobile && <AppearanceSwitch label="Translucency" isOn={!appearanceControls.reduceTranslucency}
+          {!isMobile && <AppearanceSwitch label="Translucency" showLabel isOn={!appearanceControls.reduceTranslucency}
             onToggle={() => appearanceControls.onReduceTranslucencyChange(!appearanceControls.reduceTranslucency)} />}
         </div>}
       </header>

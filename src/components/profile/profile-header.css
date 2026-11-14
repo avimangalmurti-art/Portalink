@@ -8,6 +8,10 @@
   color: var(--text-primary);
 }
 #root .codex-shell .profile-compact-header .profile-identity-and-links { flex: 1; min-width: 0; gap: 0; }
+/* Keep the public desktop identity readable when the sidebar leaves a narrow pane. */
+#root .codex-shell[data-public-portfolio][data-presentation='web'] .profile-compact-header:has(> .public-profile-appearance-controls) { flex-wrap: wrap; }
+#root .codex-shell[data-public-portfolio][data-presentation='web'] .profile-compact-header:has(> .public-profile-appearance-controls) > .profile-identity-and-links { flex-basis: 16rem; }
+#root .codex-shell[data-public-portfolio][data-presentation='web'] .public-profile-appearance-controls { margin-inline-start: auto; }
 #root .codex-shell .profile-compact-header .profile-identity-main { flex: 1; min-width: 0; gap: 14px; align-items: flex-start; }
 #root .codex-shell .profile-compact-header .profile-identity-avatar { width: 76px; height: 76px; min-width: 76px; min-height: 76px; border-radius: 22%; overflow: hidden; border: 1px solid var(--hairline); }
 #root .codex-shell .profile-compact-header .profile-identity-copy { flex: 1; min-width: 0; padding-inline-end: 38px; }
@@ -119,7 +123,7 @@
   max-width: 100%;
   margin: 0;
   padding: 0;
-  gap: 12px;
+  --journey-toggle-gap: 4px;
   border-radius: 0;
   background: transparent;
 }

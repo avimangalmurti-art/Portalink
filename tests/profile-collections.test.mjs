@@ -491,6 +491,11 @@ test('mobile portal chooser consumes outside taps across the screen and preserve
 
 test('mobile Portals header action floats the supplied chooser above the wall and preserves profile history', () => {
   const mobilePortalsView = React.createElement('section', { 'aria-label': 'Portal list' });
+  const { JourneyToggle } = compile('../src/features/journey/JourneyToggle.tsx', name => name === 'react' ? React : {});
+  const renderedTabs = tree => {
+    const toggle = nodes(tree).find(node => node.type === 'JourneyToggle');
+    return nodes(JourneyToggle(toggle.props)).filter(node => node.type === 'button');
+  };
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
     for (const reopen of [false, true]) {
       const h = profileHarness('keep=value', { presentation: 'mobile', viewerRole, projects: reorderProjects, props: { mobilePortalsView } });
@@ -502,12 +507,17 @@ test('mobile Portals header action floats the supplied chooser above the wall an
         openProfileOptions(h);
       }
       tree = h.render();
-      const { JourneyToggle } = compile('../src/features/journey/JourneyToggle.tsx', name => name === 'react' ? React : {});
-      const toggle = nodes(tree).find(node => node.type === 'JourneyToggle');
-      const tabs = nodes(JourneyToggle(toggle.props)).filter(node => node.type === 'button');
+      const tabs = renderedTabs(tree);
       assert.deepEqual(tabs.map(node => node.props.children), h.isOwner ? ['Catalogue', 'Portals', 'Timeline'] : ['Catalogue', 'Portals']);
-      tabs[1].props.onClick();
+      if (h.isOwner && reopen) tabs[2].props.onClick();
+      const before = renderedTabs(h.render());
+      const selectedBefore = before.find(node => node.props['aria-pressed']).props.children;
+      assert.equal(before[1].props['aria-expanded'], false);
+      before[1].props.onClick();
       const portalTree = h.render();
+      const openedTabs = renderedTabs(portalTree);
+      assert.equal(openedTabs[1].props['aria-expanded'], true);
+      assert.equal(openedTabs.some(node => node.props['aria-pressed']), false);
       const portalSurface = nodes(portalTree).find(node => node.type === 'DeferredSurface');
       assert.equal(portalSurface?.props.children, mobilePortalsView, 'The lazy chooser has its own loading/error boundary');
       assert.equal(portalSurface.props.active, true);
@@ -527,7 +537,14 @@ test('mobile Portals header action floats the supplied chooser above the wall an
       assert.ok(nodes(restored).some(node => node.props === mobilePortalsView.props));
       portalSurface.props.onClose();
       const closed = h.render();
+      const closedTabs = renderedTabs(closed);
+      assert.equal(closedTabs[1].props['aria-expanded'], false);
+      assert.equal(closedTabs.find(node => node.props['aria-pressed']).props.children, selectedBefore);
       assert.equal(nodes(closed).some(node => node.props === mobilePortalsView.props), false);
+      if (selectedBefore === 'Timeline') {
+        assert.equal(nodes(closed).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
+        continue;
+      }
       const restoredWall = nodes(closed).find(node => node.props?.className === underlay.props.className);
       assert.equal(restoredWall.type, underlay.type);
       restoredWall.ref(element);

@@ -51,16 +51,21 @@ export function ProjectEditorDialog({
   const [repositionId, setRepositionId] = useState<string | null>(null);
   const coverEdit = editor.attachmentEdits.find((item) => item.isCover);
   const coverSource = editor.originalAttachments.find((item) => item.id === coverEdit?.id);
-  const coverPreviewRatio = coverEdit?.coverFrame?.aspectRatio ?? coverSource?.metadata?.aspectRatio ??
-    (coverSource?.metadata?.widthPixels && coverSource.metadata.heightPixels ? coverSource.metadata.widthPixels / coverSource.metadata.heightPixels : 1);
+  const added = editor.addedMedia;
+  const addedCover = isMobile ? editor.addedCover : undefined;
+  const coverFrame = addedCover ? addedCover.metadata?.coverFrame : coverEdit?.coverFrame;
+  const coverMetadata = addedCover ? addedCover.metadata : coverSource?.metadata;
+  const coverPreviewRatio = coverFrame?.aspectRatio ?? coverMetadata?.aspectRatio ??
+    (coverMetadata?.widthPixels && coverMetadata.heightPixels ? coverMetadata.widthPixels / coverMetadata.heightPixels : 1);
   const repositionSource = editor.originalAttachments.find((item) => item.id === repositionId);
   const repositionEdit = editor.attachmentEdits.find((item) => item.id === repositionId);
+  const repositionAdded = addedCover?.id === repositionId ? addedCover : undefined;
   useEffect(() => setRepositionId(null), [editor.projectId]);
   // Preparation AND transport are owned by the management boundary. This dialog
   // only reads their state and calls their callbacks; it never touches a service.
-  const added = editor.addedMedia;
   const upload = editor.upload;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverChoicesRef = useRef<HTMLParagraphElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
@@ -68,9 +73,17 @@ export function ProjectEditorDialog({
     if (!isOpen) setIsConfirmingDiscard(false);
   }, [isOpen]);
   const isLocked = editor.isSaving || editor.isTransferring;
-  const queuedFilesLocked = isLocked || (isMobile && upload.hasPersistedMedia);
+  const preparingFiles = isMobile && added.state === 'selecting';
+  const queuedFilesLocked = isLocked || preparingFiles || (isMobile && upload.hasPersistedMedia);
+  const showCoverChoices = () => {
+    setRepositionId(null);
+    requestAnimationFrame(() => {
+      coverChoicesRef.current?.scrollIntoView({ block: 'start' });
+      coverChoicesRef.current?.focus({ preventScroll: true });
+    });
+  };
   const requestClose = () => {
-    if (isLocked || upload.isCleaningUp) return;
+    if (isLocked || preparingFiles || upload.isCleaningUp) return;
     if (editor.isDirty) {
       setIsConfirmingDiscard(true);
       return;
@@ -109,8 +122,10 @@ export function ProjectEditorDialog({
   // A card's Reposition action is one transaction; only confirmed Save
   // writes to the project. Closing or cancelling leaves the existing crop.
   if (editor.mode === 'cover') {
+    const projectId = editor.projectId;
+    const chooseCover = isMobile && projectId ? () => editor.open(projectId, 'cover-choice') : undefined;
     if (editor.phase !== 'loading' && editor.phase !== 'load-failed' && coverSource?.sourceUrl && ['image', 'document', 'video'].includes(coverSource.kind) && coverEdit) {
-      return <ProjectCoverRepositionDialog key={`${editor.projectId}:${coverSource.id}`} source={coverSource.sourceUrl} kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : 'image'} pageNumber={coverSource.metadata?.coverPageNumber} alt={editor.metadata.title} aspectRatio={editor.previewAspectRatio} frame={coverEdit.coverFrame} onClose={() => { void editor.close(); }} onSave={async ({ frame }) => {
+      return <ProjectCoverRepositionDialog key={`${editor.projectId}:${coverSource.id}`} source={coverSource.sourceUrl} kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : 'image'} pageNumber={coverSource.metadata?.coverPageNumber} alt={editor.metadata.title} aspectRatio={editor.previewAspectRatio} frame={coverEdit.coverFrame} onClose={() => { void editor.close(); }} onChooseCover={chooseCover} onSave={async ({ frame }) => {
         const outcome = await editor.save({ attachmentId: coverSource.id, frame });
         if (outcome === 'failed') throw new Error('The preview could not be saved. Your adjustments are still here; try Save again.');
         if (outcome) throw new Error(`Add a project ${outcome === 'summary' ? 'description' : 'title'} in Edit project before saving this preview.`);
@@ -118,7 +133,10 @@ export function ProjectEditorDialog({
       }} />;
     }
     return <ProjectFormDialog mobileFlow={isMobile} title={isMobile ? 'Edit cover' : 'Reposition project preview'} titleId="project-preview-editor-title" onClose={() => { void editor.close(); }}>
-      <div className="project-form-content scrollbar-slim">{editor.phase === 'loading' ? <LoadingState label="Loading project preview…" /> : editor.phase === 'load-failed' ? <ErrorState title="The preview could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <ErrorState title="No cover preview is available" description="Choose a cover file in Edit project first." />}</div>
+      <div className="project-form-content scrollbar-slim">{editor.phase === 'loading' ? <LoadingState label="Loading project preview…" /> : editor.phase === 'load-failed' ? <ErrorState title="The preview could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <>
+        <ErrorState title="No cover preview is available" description="Choose a cover file in Edit project first." />
+        {chooseCover && <Button data-ui-shape="action" onClick={chooseCover}>Choose cover</Button>}
+      </>}</div>
     </ProjectFormDialog>;
   }
   const canAddFiles = added.capability?.isAvailable === true;
@@ -126,6 +144,7 @@ export function ProjectEditorDialog({
     requestAnimationFrame(() => document.getElementById(`project-${key}`)?.focus());
   };
   async function saveChanges() {
+    if (preparingFiles) return;
     // One call: the boundary uploads any new files, waits for real persisted
     // references, and only then updates the published project.
     const outcome = await editor.save(undefined, isMobile);
@@ -134,7 +153,7 @@ export function ProjectEditorDialog({
       focusField(outcome);
     }
   }
-  const saveDisabled = (!editor.isDirty && editor.mode !== 'cover-choice') || isLocked || editor.phase === 'loading' || editor.phase === 'load-failed';
+  const saveDisabled = (!editor.isDirty && editor.mode !== 'cover-choice') || isLocked || preparingFiles || editor.phase === 'loading' || editor.phase === 'load-failed';
   const saveLabel = editor.isTransferring ? 'Uploading…' : editor.isSaving ? 'Saving…' : 'Save changes';
   const saveFeedback = editor.failure || (editor.phase === 'saved' && editor.result) ? <>
     {editor.failure && <p role="alert" className="flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
@@ -167,7 +186,6 @@ export function ProjectEditorDialog({
   const canEditCover = Boolean(coverSource?.sourceUrl && ['image', 'video', 'document'].includes(coverSource.kind));
   const coverPage = coverSource?.metadata?.coverPageNumber ?? 1;
   const renderedCoverPage = coverSource?.metadata?.renderedPages?.find(page => page.withinDocumentIndex === coverPage)?.sourceUrl ?? undefined;
-  const canChooseCover = mobileFiles.some(file => file.origin === 'saved' && ['image', 'document', 'video'].includes(file.source?.kind ?? ''));
   const canDragPhotos = !isLocked && (photoIds.length > 1 || queuedPhotoIds.length > 1);
   const madeOn = editor.metadata.madeOn ?? '';
   const madeOnDate = new Date(`${madeOn}T00:00:00Z`);
@@ -180,7 +198,7 @@ export function ProjectEditorDialog({
       <option value="citable">Citable</option>
     </select>
   </label>;
-  return <EditorFrame {...mobileHeader} mobileFlow={isMobile} title={!isMobile && editor.mode === 'cover-choice' ? 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={isMobile ? undefined : editor.mode === 'story' ? 'Describe your project.' : editor.mode === 'journey' ? 'Update when you made this work.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
+  return <EditorFrame {...mobileHeader} mobileFlow={isMobile} title={!isMobile && editor.mode === 'cover-choice' ? 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={isMobile ? undefined : editor.mode === 'story' ? 'Describe your project.' : editor.mode === 'journey' ? 'Update when you made this work.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || preparingFiles || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
     if (await editor.close()) setIsConfirmingDiscard(false);
   }} /> : null}>
         <form id="project-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void saveChanges(); }} className="project-form-content scrollbar-slim">
@@ -210,26 +228,39 @@ export function ProjectEditorDialog({
                   <Button id="project-replacement-files" variant={isMobile ? 'secondary' : 'ghost'} data-ui-shape={isMobile ? 'action' : undefined} size="sm" onClick={() => fileInputRef.current?.click()} disabled={queuedFilesLocked || added.isFull}><InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />{isMobile ? 'Add files' : 'Add'}</Button>
                 </div>
                 {!isMobile && <details><summary className="min-h-11 cursor-pointer py-3 text-sm">How to replace a file</summary><p className="text-sm text-[var(--text-secondary)]">Add the new version and remove the old one. Changes apply when you save.</p></details>}
-                {canEditCover && coverSource && (isMobile ? section === 'files' && <div className="project-editor-cover-summary" data-ui-shape="row">
+                {isMobile && section === 'files' && <div className="project-editor-cover-summary" data-ui-shape="row">
                   <div className="project-editor-cover-thumb" aria-hidden="true">
-                    <ProjectCover source={coverSource.sourceUrl} alt="" kind={coverSource.kind === 'document' || coverSource.kind === 'video' ? coverSource.kind : undefined}
-                      pageNumber={coverPage} previewSource={renderedCoverPage} frame={coverEdit?.coverFrame} fit={coverEdit?.coverFrame ? 'cover' : 'contain'} sizes="56px" />
+                    <ProjectCover source={addedCover?.previewUrl ?? coverSource?.sourceUrl} alt=""
+                      kind={!addedCover && (coverSource?.kind === 'document' || coverSource?.kind === 'video') ? coverSource.kind : undefined}
+                      pageNumber={addedCover ? undefined : coverPage} previewSource={addedCover ? undefined : renderedCoverPage}
+                      frame={coverFrame} fit={coverFrame ? 'cover' : 'contain'} sizes="56px" />
                   </div>
-                  <div className="project-editor-cover-copy"><h4>Cover</h4>{coverSource.kind !== 'image' && <p>{coverEdit?.displayName}</p>}</div>
-                  <Button variant="secondary" data-ui-shape="action" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>Edit cover</Button>
-                </div> : <div className="project-media-selection">
+                  <div className="project-editor-cover-copy"><h4>Cover</h4>{!addedCover && coverSource?.kind !== 'image' && <p>{coverEdit?.displayName}</p>}</div>
+                  <div className="project-editor-cover-actions flex flex-wrap justify-end gap-2">
+                    <Button variant="secondary" data-ui-shape="action" size="sm" disabled={isLocked} onClick={showCoverChoices}>Choose cover</Button>
+                    {(addedCover || (canEditCover && coverSource)) && <Button variant="secondary" data-ui-shape="action" size="sm"
+                      disabled={addedCover ? queuedFilesLocked : isLocked} onClick={() => setRepositionId(addedCover?.id ?? coverSource?.id ?? null)}>Edit cover</Button>}
+                  </div>
+                </div>}
+                {!isMobile && canEditCover && coverSource && <div className="project-media-selection">
                   <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>Reposition preview</Button></div>
                   <ProjectPreviewFrame aspectRatio={coverPreviewRatio}><ProjectCover source={coverSource.sourceUrl} alt="Project cover preview" kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : undefined} pageNumber={coverSource.metadata?.coverPageNumber} frame={coverEdit?.coverFrame} /></ProjectPreviewFrame>
-                </div>)}
-                {repositionSource?.sourceUrl && ['image', 'document', 'video'].includes(repositionSource.kind) && repositionEdit ? <ProjectCoverRepositionDialog key={repositionSource.id} source={repositionSource.sourceUrl} kind={repositionSource.kind === 'document' ? 'document' : repositionSource.kind === 'video' ? 'video' : 'image'} pageNumber={repositionSource.metadata?.coverPageNumber} alt={repositionEdit.displayName} aspectRatio={coverPreviewRatio} frame={repositionEdit.coverFrame} onClose={() => setRepositionId(null)} onSave={({ frame }) => {
+                </div>}
+                {repositionSource?.sourceUrl && ['image', 'document', 'video'].includes(repositionSource.kind) && repositionEdit ? <ProjectCoverRepositionDialog key={repositionSource.id} source={repositionSource.sourceUrl} kind={repositionSource.kind === 'document' ? 'document' : repositionSource.kind === 'video' ? 'video' : 'image'} pageNumber={repositionSource.metadata?.coverPageNumber} alt={repositionEdit.displayName} aspectRatio={coverPreviewRatio} frame={repositionEdit.coverFrame} onClose={() => setRepositionId(null)} onChooseCover={isMobile ? showCoverChoices : undefined} onSave={({ frame }) => {
                   editor.setCoverFrame(repositionSource.id, frame);
                   setRepositionId(null);
                 }} /> : null}
+                {repositionAdded?.previewUrl && <ProjectCoverRepositionDialog key={repositionAdded.id} source={repositionAdded.previewUrl}
+                  alt={repositionAdded.displayTitle} aspectRatio={coverPreviewRatio} frame={repositionAdded.metadata?.coverFrame}
+                  onClose={() => setRepositionId(null)} onChooseCover={showCoverChoices} onSave={({ frame }) => {
+                    added.setCoverFrame(repositionAdded.id, frame);
+                    setRepositionId(null);
+                  }} />}
                 {isMobile ? section === 'files' && <>
-                  {(canChooseCover || canDragPhotos) && <p className="text-[13px] text-[var(--text-secondary)]">
-                    {canChooseCover && 'Tap a preview to choose the cover.'}{canChooseCover && canDragPhotos && ' '}
-                    {canDragPhotos && 'Hold and drag photos to reorder.'}
-                  </p>}
+                  <p ref={coverChoicesRef} tabIndex={-1} className="text-[13px] text-[var(--text-secondary)]">
+                    Choose <strong>Use as cover</strong> below a file, or use <strong>Add files</strong> to upload a new image.
+                    {canDragPhotos && ' Hold and drag photos to reorder.'}
+                  </p>
                   <MobileReorderList items={mobileFiles} label="Project files, in presentation order" layout="grid"
                     className="project-editor-file-grid" itemClassName="project-editor-file-card" disabled={isLocked}
                     groupForItem={file => file.origin}
@@ -248,6 +279,8 @@ export function ProjectEditorDialog({
                         return <MobileProjectFileTile position={position} name={item.displayTitle}
                           isPhoto={item.family === 'image'} activator={activator}
                           locked={queuedFilesLocked} progress={upload.itemProgress[item.id]?.fraction}
+                          isCover={addedCover?.id === item.id}
+                          onSelectCover={item.family === 'image' && item.previewUrl ? () => editor.setAddedCover(item.id) : undefined}
                           preview={<ProjectCover source={item.family === 'image' ? item.previewUrl : undefined} alt="" fit="contain" />}
                           onMoveEarlier={photoIndex > 0 ? () => added.moveImage(item.id, -1) : undefined}
                           onMoveLater={photoIndex >= 0 && photoIndex < queuedPhotoIds.length - 1 ? () => added.moveImage(item.id, 1) : undefined}
@@ -258,7 +291,7 @@ export function ProjectEditorDialog({
                       const coverable = kind === 'image' || kind === 'document' || kind === 'video';
                       const photoIndex = photoIds.indexOf(edit.id);
                       return <MobileProjectFileTile position={position} name={edit.displayName} isPhoto={kind === 'image'}
-                        isCover={edit.isCover} activator={activator}
+                        isCover={!addedCover && edit.isCover} activator={activator}
                         onSelectCover={coverable ? () => editor.setCover(edit.id) : undefined} locked={isLocked}
                         preview={<ProjectCover source={coverable ? source?.sourceUrl : undefined} alt="" fit="contain"
                           kind={kind === 'document' || kind === 'video' ? kind : undefined} pageNumber={source?.metadata?.coverPageNumber} />}
@@ -417,6 +450,9 @@ function MobileProjectFileTile({ position, name, isPhoto, preview, isCover, acti
       <span className="project-editor-file-position">{position}</span>
       {!isPhoto && <span className="project-editor-file-name" title={name}>{name}</span>}
     </div>
+    {onSelectCover && <Button variant={isCover ? 'ghost' : 'secondary'} data-ui-shape="action" size="sm"
+      aria-label={isCover ? `${name} is the cover` : `Set ${name} as cover`} aria-pressed={Boolean(isCover)}
+      disabled={locked} onClick={onSelectCover}>{isCover ? 'Current cover' : 'Use as cover'}</Button>}
     {progress !== undefined && <span className="text-center text-[12px] tabular-nums text-[var(--text-secondary)]">{Math.round(progress * 100)}%</span>}
     <div className="project-editor-file-actions">
       {(onMoveEarlier || onMoveLater) && <>

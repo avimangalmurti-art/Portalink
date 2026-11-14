@@ -688,6 +688,9 @@ test('the mobile shared header places the Portals drawer trigger between Catalog
     const group = JourneyToggle(one(h.render(), 'JourneyToggle').props);
     const buttons = nodes(group).filter(node => node.type === 'button');
     assert.deepEqual(buttons.map(node => node.props.children), labels);
+    const separators = nodes(group).filter(node => node.props.className === 'journey-toggle-separator');
+    assert.equal(separators.length, labels.length - 1);
+    assert.ok(separators.every(node => node.props['aria-hidden'] === 'true' && node.props.children === '·'));
     if (presentation === 'mobile') {
       assert.equal(buttons[1].props['aria-haspopup'], 'dialog');
       assert.equal(buttons[1].props['aria-controls'], 'mobile-shared-profile-navigation');
