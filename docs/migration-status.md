@@ -15,6 +15,10 @@ The numbered migrations include eight previously applied SQL files that were sto
 
 These versions place historically applied SQL in fresh replay order. The earlier manual application receipts establish schema changes separately from the production migration ledger. A hosted reconciliation requires a comparison of that ledger and schema before planning a push or history repair. See the [local rebuild instructions](development-workflow.md#rebuild-the-database-locally).
 
+## Pending — Projects in multiple Portals (2026-11-13)
+
+[`20261114003337_project_portal_features.sql`](../supabase/migrations/20261114003337_project_portal_features.sql) adds a placement table, owner-only atomic replacement and visibility-scoped reads. Fresh local PostgreSQL and PGlite rebuilds passed. A read-only hosted preflight verified absence of the new relation and save function, and presence of the original visibility helpers. The web menu exposes the action once the relation is available. Awaiting explicit production approval for this one migration. The earlier migration ledger and manually applied schema are unrelated.
+
 ## Applied — Then/Now editing and order (2026-11-13)
 
 Supabase recorded the [editing migration](../supabase/migrations/20261113193355_profile_timeline_pair_edit.sql) as `20261113193355` and the [order migration](../supabase/migrations/20261113194228_profile_timeline_pair_order.sql) as `20261113194228`. The checked-in files match the SQL recorded in production byte for byte. Their original comments are preserved for that reason. The [production release record](production-release.md) identifies the published source and rollback version.

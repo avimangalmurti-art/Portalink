@@ -195,6 +195,8 @@ export interface ProjectService {
    */
   listProjectViews(projectIds: Id[]): Promise<ProjectView[]>;
   listProjects(profileId: Id, categoryId?: Id): Promise<Project[]>;
+  /** Whether the deployed database supports additional Portal placements. */
+  isPortalMembershipAvailable?(): Promise<boolean>;
   /** Owner-only. Extra placements are replaced atomically. */
   getPortalMemberships?(projectId: Id): Promise<ProjectPortalMemberships>;
   setPortalMemberships?(projectId: Id, additionalPortalIds: Id[]): Promise<Id[]>;

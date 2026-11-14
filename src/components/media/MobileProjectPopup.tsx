@@ -2,7 +2,7 @@ import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import { ProjectPopupEngagement } from './ProjectPopupEngagement';
 import type { ContextTarget } from '../../presentation/mobile/contextActions';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -104,18 +104,37 @@ export function ProjectPopupOwnerActions({ onOptions, onEditTitle, onEditDescrip
  const editProject = onEditTitle ?? onOptions ?? onEditDescription;
  return <div className="project-popup-owner-actions">
   {editProject && <button type="button" className="project-popup-owner-button" onClick={() => { onClose(); void editProject(); }}>Edit project</button>}
-  {portalProject && <ProjectPortalMembershipAction key={portalProject.id} project={portalProject} />}
+  {portalProject && <ProjectPortalMembershipAction key={`${portalProject.profileId}:${portalProject.id}`} project={portalProject} />}
   {onDelete && <button type="button" className="project-popup-owner-button" data-destructive onClick={() => { onClose(); void onDelete(); }}>Delete project</button>}
  </div>;
 }
 
 function ProjectPortalMembershipAction({ project }: { project: PortalProject }) {
  const { projects } = useServices();
- const [open, setOpen] = useState(false);
- if (!projects.getPortalMemberships || !projects.setPortalMemberships) return null;
- const close = () => setOpen(false);
+ const { isAuthenticated, viewerProfileId, loginSession } = useAuth();
+ const isOwner = isAuthenticated && viewerProfileId === project.profileId;
+ const hasMembershipActions = Boolean(projects.getPortalMemberships && projects.setPortalMemberships);
+ const shouldProbe = isOwner && hasMembershipActions && Boolean(projects.isPortalMembershipAvailable);
+ const { id, profileId } = project;
+ const scope = useMemo(() => ({ projects, loginSession, id, profileId, shouldProbe }),
+  [projects, loginSession, id, profileId, shouldProbe]);
+ const [availability, setAvailability] = useState<{ scope: typeof scope; available: boolean }>();
+ const [openScope, setOpenScope] = useState<typeof scope>();
+
+ useEffect(() => {
+  if (!shouldProbe || !projects.isPortalMembershipAvailable) return;
+  let active = true;
+  const update = (available: boolean) => {
+   if (active) setAvailability({ scope, available });
+  };
+  // A temporary failure can use the picker's existing loading and retry path.
+  void projects.isPortalMembershipAvailable().then(update, () => update(true));
+  return () => { active = false; };
+ }, [projects, scope, shouldProbe]);
+
+ if (!isOwner || !hasMembershipActions || (shouldProbe && (availability?.scope !== scope || !availability.available))) return null;
  return <>
-  <button type="button" className="project-popup-owner-button" aria-haspopup="dialog" onClick={() => setOpen(true)}>Feature in Portals</button>
-  {open && <ProjectPortalMembershipDialog project={project} onClose={close} />}
+  <button type="button" className="project-popup-owner-button" aria-haspopup="dialog" onClick={() => setOpenScope(scope)}>Feature in Portals</button>
+  {openScope === scope && <ProjectPortalMembershipDialog project={project} onClose={() => setOpenScope(undefined)} />}
  </>;
 }

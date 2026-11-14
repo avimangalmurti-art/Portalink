@@ -50,6 +50,40 @@ function contentFixture({ hiddenCategory = false, owner = false } = {}) {
   return { ...exports, queries, hydration, signals };
 }
 
+test('Portal placement availability probes one column and treats only the missing feature table as unsupported', async () => {
+  const requests = [];
+  let error = null;
+  const { supabaseProjectPortalService } = sourceModule('src/services/supabase/projectPortalFeatures.ts', {
+    './client': { requireSupabase: () => ({
+      from: table => ({
+        select: columns => ({
+          limit: async limit => {
+            requests.push({ table, columns, limit });
+            return { data: [], error };
+          },
+        }),
+      }),
+    }) },
+  });
+  const probe = supabaseProjectPortalService.isPortalMembershipAvailable;
+  assert.equal(await probe(), true, 'An empty table still supports placements');
+  assert.deepEqual(requests, [{ table: 'project_portal_features', columns: 'project_id', limit: 1 }]);
+  for (const code of ['42P01', 'PGRST205']) {
+    error = { code, message: 'public.project_portal_features is missing' };
+    assert.equal(await probe(), false);
+  }
+  for (const failure of [
+    { code: 'PGRST205', message: 'public.other_table is missing' },
+    { code: '42501', message: 'Permission denied for project_portal_features' },
+    { code: '57014', message: 'Request timed out' },
+  ]) {
+    error = failure;
+    await assert.rejects(probe(), { message: failure.message });
+  }
+  error = null;
+  assert.equal(await probe(), true, 'A later call detects newly deployed schema');
+});
+
 test('opening one project reads only that project and its attachments, not the creator portfolio', async () => {
   const h = contentFixture();
   assert.equal((await h.projects.getProjectView('a')).project.id, 'a');

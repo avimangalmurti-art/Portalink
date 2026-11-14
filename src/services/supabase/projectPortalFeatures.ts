@@ -35,7 +35,13 @@ export async function readFeaturedPortals(projectIds: string[], allowMissing = t
   return result;
 }
 
-export const supabaseProjectPortalService: Required<Pick<ProjectService, 'getPortalMemberships' | 'setPortalMemberships'>> = {
+export const supabaseProjectPortalService: Required<Pick<ProjectService, 'isPortalMembershipAvailable' | 'getPortalMemberships' | 'setPortalMemberships'>> = {
+  async isPortalMembershipAvailable() {
+    const { error } = await requireSupabase().from('project_portal_features').select('project_id').limit(1);
+    if (error && missingPlacementTable(error)) return false;
+    if (error) throw new Error(error.message);
+    return true;
+  },
   async getPortalMemberships(projectId) {
     const client = requireSupabase();
     const { data: auth } = await client.auth.getSession();
