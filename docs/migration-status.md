@@ -15,9 +15,11 @@ The numbered migrations include eight previously applied SQL files that were sto
 
 These versions place historically applied SQL in fresh replay order. The earlier manual application receipts establish schema changes separately from the production migration ledger. A hosted reconciliation requires a comparison of that ledger and schema before planning a push or history repair. See the [local rebuild instructions](development-workflow.md#rebuild-the-database-locally).
 
-## Pending — Projects in multiple Portals (2026-11-13)
+## Applied — Projects in multiple Portals (2026-11-13)
 
-[`20261114003337_project_portal_features.sql`](../supabase/migrations/20261114003337_project_portal_features.sql) adds a placement table, owner-only atomic replacement and visibility-scoped reads. Fresh local PostgreSQL and PGlite rebuilds passed. A read-only hosted preflight verified absence of the new relation and save function, and presence of the original visibility helpers. The web menu exposes the action once the relation is available. Awaiting explicit production approval for this one migration. The earlier migration ledger and manually applied schema are unrelated.
+The reviewed SQL, originally named `20261114003337_project_portal_features.sql`, was applied separately with production approval. Supabase recorded it as [`20261114013655_project_portal_features.sql`](../supabase/migrations/20261114013655_project_portal_features.sql). The ledger's 4,625 bytes match the checked-in file (MD5 `a8a41f4cd4fb459a3ec605ea519ea6be`, SHA256 `c84000f92709401da5346166a0cce9f0b638ab96331df663dc0be07367a3f4c1`). Only the filename changed.
+
+Production checks confirmed row-level security, visibility-scoped reads, the composite key and both cascading foreign keys, and the authenticated save function with no direct browser writes to the table. Fresh local PostgreSQL and PGlite rebuilds verified atomic edits and owner enforcement. Earlier migration history was not changed.
 
 ## Applied — Then/Now editing and order (2026-11-13)
 
