@@ -54,7 +54,8 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onCl
   const webBrowsing = presentation === 'web' && desktopBrowsing;
   const browsingSort = presentation === 'mobile' || webBrowsing ? sort : 'saved';
   const savedOrder = useSavedPortalOrder(profile.id, category?.id, browsingSort === 'saved');
-  const visibleProjects = sortPortalProjects(projects, browsingSort, savedOrder);
+  const loadingOrder = Boolean(browsing && projects.length && savedOrder === null);
+  const visibleProjects = sortPortalProjects(projects, browsingSort, savedOrder ?? undefined);
   if (!category) return null;
 
   return <ModalPortal>
@@ -69,7 +70,9 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onCl
         <nav ref={scrollRef} data-project-index-list="" className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}>
           {onOpenChild && <PortalChildren categories={profile.categories} parent={category} onSelect={onOpenChild} />}
           {(presentation === 'mobile' || webBrowsing) && !projects.length && !hasChildren && <EmptyState title={`No projects in ${category.label}`} description="No work has been published in this portal." />}
-          <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={layout} readOnlyBrowsing={webBrowsing}
+          {loadingOrder ? <div role="status" aria-label="Loading saved order" className="flex min-h-20 items-center justify-center">
+            <span className="premium-media-loading-mark" aria-hidden="true" />
+          </div> : <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={layout} readOnlyBrowsing={webBrowsing}
             typefaceStacks={Object.fromEntries(projects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
             typefaceIds={{}} hiddenIds={[]} pinnedIds={projects.filter(item => item.categoryId === categoryId && item.isPinned).map(item => item.id)}
             activeProjectId={null} isOwner={false} sharedReadOnly onReorder={() => undefined}
@@ -77,7 +80,7 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onCl
               if (!projects.some(item => item.id === id)) return;
               if (closeOnSelect) onClose();
               onSelect(categoryId, id);
-            }} />
+            }} />}
         </nav>
       </section>
     </div>

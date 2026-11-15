@@ -573,10 +573,12 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   // seed store, and its own id is authoritative even if the service resolved an
   // alias, so a profile that exists nowhere in the seed data renders exactly as
   // returned.
-  // Saving gallery density refreshes the owner's record. Keep this same
-  // profile mounted so its open Layout controls and scroll do not reset. The
-  // query masks retained records immediately when account or profile changes.
-  const isOwnerProfileRefreshing = route.kind === 'profile' &&
+  // Keep the owner's gallery or mobile Portal mounted while its confirmed
+  // profile refreshes after saving layout or project order. The query masks
+  // retained records immediately when the account or profile changes.
+  const isOwnerProfileRefreshing = (route.kind === 'profile' ||
+    (presentation === 'mobile' && route.kind === 'category' && viewedProfile?.id === routeProfileId &&
+      viewedProfile?.categories.some(category => category.id === routeCategoryId))) &&
     auth.isAuthenticated && auth.phase === 'authenticated' && viewedProfileQuery.status === 'loading' &&
     viewedProfile !== null && auth.viewerProfileId === viewedProfile.id;
   const isProfileRouteReady = routeProfileId !== null && (viewedProfileQuery.status === 'ready' || isOwnerProfileRefreshing || isWebReaderLoading) && viewedProfile !== null;

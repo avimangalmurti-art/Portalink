@@ -124,3 +124,28 @@ test('the owner’s copy action appears between sort and layout for a shareable 
   assert.ok(copyAt < items.indexOf(items.find(node => node.props['aria-label'] === 'Show project grid')));
   assert.deepEqual(items[copyAt].props, { profileId: 'creator', categoryId: 'photos' });
 });
+
+test('Copy Portal only shows mobile text for confirmation or retry', () => {
+  const LinkIcon = () => null;
+  const CheckIcon = () => null;
+  let result = null;
+  const { PortalLinkCopyButton } = compile('../src/components/profile/PortalLinkCopyButton.tsx', name => {
+    if (name === 'react') return { ...React, useState: initial => [initial === null ? result : initial, () => {}], useEffect: () => {} };
+    if (name === 'lucide-react') return { CheckIcon, LinkIcon };
+    if (name.endsWith('/Button')) return { Button: 'copy-button' };
+    return {};
+  });
+  const button = compact => nodes(PortalLinkCopyButton({ profileId: 'creator', categoryId: 'photos', compact }))
+    .find(node => node.type === 'copy-button').props;
+  assert.deepEqual(React.Children.toArray(button(false).children), []);
+  assert.equal(button(false).icon, LinkIcon);
+  assert.equal(button(false)['aria-label'], 'Copy Portal');
+  result = 'copied';
+  assert.equal(button(false).children, 'Copied');
+  assert.equal(button(false).icon, CheckIcon);
+  assert.equal(button(false).style['--ui-control-text'], 'var(--status-success)');
+  assert.deepEqual(React.Children.toArray(button(true).children), []);
+  result = 'error';
+  assert.equal(button(false).children, 'Try again');
+  assert.deepEqual(React.Children.toArray(button(true).children), []);
+});

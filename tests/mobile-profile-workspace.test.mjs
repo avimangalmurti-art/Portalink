@@ -91,10 +91,10 @@ function appInitializer(name) {
 const appBoundaries = ['isCollaborationOpen', 'isOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'isTimelineReader', 'mobileProfileKey'];
 const appExpressions = Object.fromEntries(appBoundaries.map(name => [name, appInitializer(name)]));
 function profileRender(overrides = {}) {
-  const profile = { id: 'owner', name: 'Owner', projectGridColumns: 2 };
+  const profile = { id: 'owner', name: 'Owner', projectGridColumns: 2, categories: [{ id: 'portal' }] };
   const context = vm.createContext({
     React, LoadingSkeleton: 'loading', openingProjectId:null, LoadingState: 'loading', EmptyState: 'empty', ErrorState: 'error', RouteError: 'route-error', routeErrorKind: () => 'network',
-    presentation: 'mobile', route: { kind: 'profile' }, pathname: '/p/owner', routeProfileId: 'owner', viewedProfileId: 'owner',
+    presentation: 'mobile', route: { kind: 'profile' }, pathname: '/p/owner', routeProfileId: 'owner', viewedProfileId: 'owner', routeCategoryId: null,
     auth: { user: { id: 'account' }, viewerProfileId: 'owner', isAuthenticated: true, phase: 'authenticated' },
     viewedProfile: profile, viewedProfileQuery: { profile, status: 'ready', error: null, retry() {} },
     isProfileEditorRoute: false, isRouteBlocked: false, routeItemId: null, isSharedRoute: false,
@@ -126,11 +126,29 @@ for (const presentation of ['mobile', 'web']) test(`saving density keeps the exi
   assert.equal(new Set(layers.calls.map(call => call.key)).size, 1, 'Open Layout controls must retain their mounted state until Done');
 });
 
+test('saving project order keeps the same mobile owner Portal open through its background refresh', () => {
+  const layers = harness();
+  const portal = { route: { kind: 'category' }, pathname: '/p/owner/c/portal', routeCategoryId: 'portal',
+    activeCategoryId: 'portal', categoryPage: React.createElement('portal-index') };
+  for (const status of ['ready', 'loading', 'ready']) {
+    const state = profileRender({ ...portal, viewedProfileQuery: { status } });
+    assert.equal(state.isOwnerProfileRefreshing, status === 'loading');
+    assert.equal(state.isProfileRouteReady, true);
+    assert.equal(state.routeStateView, null);
+    layers.render(state.screenTransitionKey, state.mobileProfileKey);
+  }
+  assert.equal(new Set(layers.calls.map(call => call.key)).size, 1);
+});
+
 test('profile refresh preservation never applies to visitors, shares, other routes or account transitions', () => {
   const cases = [
     { viewedProfile: { id: 'another', name: 'Another creator' }, viewedProfileId: 'another', routeProfileId: 'another' },
     { route: { kind: 'sharedProfile' }, isSharedRoute: true },
-    { route: { kind: 'category' } },
+    { route: { kind: 'sharedCategory' }, routeCategoryId: 'portal', isSharedRoute: true },
+    { route: { kind: 'category' }, routeCategoryId: 'unknown' },
+    { route: { kind: 'category' }, routeCategoryId: 'portal', presentation: 'web' },
+    { route: { kind: 'category' }, routeCategoryId: 'portal', routeProfileId: 'another' },
+    { route: { kind: 'category' }, routeCategoryId: 'portal', viewedProfile: null },
     { route: { kind: 'project' } },
     { viewedProfile: null },
     { auth: { user: null, viewerProfileId: null, isAuthenticated: false, phase: 'unauthenticated' } },

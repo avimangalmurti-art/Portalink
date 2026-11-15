@@ -43,6 +43,7 @@ type ProjectIndexListProps = {
   sharedReadOnly?: boolean;
   /** MOBILE waits for a complete, writable arrangement before starting a hold. */
   mobileReorderDisabled?: boolean;
+  isSavingArrangement?: boolean;
   /** MOBILE changes only the presentation of this same navigation list. */
   mobileLayout?: 'list' | 'grid';
   /** Explicit WEB chooser adaptation; ordinary desktop indexes stay unchanged. */
@@ -103,6 +104,7 @@ export function ProjectIndexList({
   isOwner,
   sharedReadOnly = false,
   mobileReorderDisabled = false,
+  isSavingArrangement = false,
   mobileLayout = 'list',
   readOnlyBrowsing = false,
   onReorder,
@@ -206,7 +208,8 @@ export function ProjectIndexList({
   });
   if (isMobile) {
     const canReorder = (project: ProjectEntry) => supportsFeaturedOrder || isPrimary(project);
-    const canReorderGroup = (items: ProjectEntry[]) => !mobileReorderDisabled && items.filter(canReorder).length > 1;
+    // Keep the same keyed rows mounted while their order is being saved.
+    const canReorderGroup = (items: ProjectEntry[]) => (!mobileReorderDisabled || isSavingArrangement) && items.filter(canReorder).length > 1;
     const showReorderHint = [pinned, rest, hidden].some(canReorderGroup);
     const unsaved = new Map([...pinned, ...rest, ...hidden].filter(canReorder).map(project => [project.id, project]));
     const canonical = (savedOrder ?? []).flatMap(id => {
@@ -216,7 +219,7 @@ export function ProjectIndexList({
     });
     canonical.push(...unsaved.values());
     const group = (items: ProjectEntry[], label: string) =>
-      !canReorderGroup(items) ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} layout={mobileLayout}
+      !canReorderGroup(items) ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} layout={mobileLayout} disabled={mobileReorderDisabled}
         className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons"
         groupForItem={supportsFeaturedOrder ? undefined : project => isPrimary(project) ? 'primary' : project.id}
         isItemDisabled={supportsFeaturedOrder ? undefined : project => !isPrimary(project)}

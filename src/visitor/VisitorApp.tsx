@@ -83,7 +83,7 @@ export function VisitorApp() {
   // The chooser and keyed project readers share only local browsing preferences.
   const browsingForPortal = (portalId: string): PortalProjectBrowsing => {
     const scope = `${profileId}/${portalId}`;
-    const defaults = { layout: 'list' as const, sort: 'recent' as const };
+    const defaults = { layout: 'list' as const, sort: 'saved' as const };
     return {
       ...(portalBrowsing[scope] ?? defaults),
       onLayout: layout => setPortalBrowsing(current => ({ ...current, [scope]: { ...(current[scope] ?? defaults), layout } })),

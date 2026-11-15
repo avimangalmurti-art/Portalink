@@ -63,12 +63,12 @@ const button = (tree, label) => nodes(tree).find(node => node.type === 'button' 
 const json = value => JSON.parse(JSON.stringify(value));
 
 function portalPopupFixture(presentation = 'mobile') {
-  const focusCalls = [], h = hooks();
+  const focusCalls = [], h = hooks(), state = {};
   const { PortalProjectPopup } = load('components/profile/PortalProjectPopup.tsx', name => {
     if (name === 'react') return h.react;
     if (name.endsWith('/projectPortals')) return projectPortals;
     if (name.endsWith('/portalHierarchy')) return portalHierarchy;
-    if (name.endsWith('/useSavedPortalOrder')) return { useSavedPortalOrder: () => undefined };
+    if (name.endsWith('/useSavedPortalOrder')) return { useSavedPortalOrder: (_profile, _category, enabled) => enabled ? state.savedOrder : undefined };
     if (name.endsWith('.css')) return {};
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (...args) => focusCalls.push(args) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
@@ -79,8 +79,34 @@ function portalPopupFixture(presentation = 'mobile') {
     if (component === 'MobileBackNavigation') return named('ScreenBack');
     return named(component);
   });
-  return { PortalProjectPopup: props => h.render(() => PortalProjectPopup(props)), focusCalls };
+  return { PortalProjectPopup: props => h.render(() => PortalProjectPopup(props)), focusCalls, state };
 }
+
+test('shared portal shows the owner’s order on the first paint of project rows', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const f = portalPopupFixture(presentation);
+    const projects = [
+      { id: 'home', categoryId: 'work', title: 'Home', publishedAt: '2026-11-01' },
+      { id: 'new', categoryId: 'work', title: 'New', publishedAt: '2026-11-14' },
+      { id: 'featured', categoryId: 'other', additionalPortalIds: ['work'], title: 'Featured', publishedAt: '2026-11-03' },
+    ];
+    const browsing = { layout: 'list', sort: 'saved', onLayout() {}, onSort() {} };
+    const render = () => f.PortalProjectPopup({ profile: { id: 'creator', categories: [{ id: 'work', label: 'Work' }], projects },
+      categoryId: 'work', onClose() {}, onSelect() {}, browsing, desktopBrowsing: true });
+    const ids = tree => Array.from(one(tree, 'ProjectIndexList').props.projects, project => project.id);
+    f.state.savedOrder = null;
+    const pending = render();
+    assert.equal(one(pending, 'ProjectIndexList'), undefined);
+    assert.ok(nodes(pending).some(node => node.props?.['aria-label'] === 'Loading saved order'));
+    f.state.savedOrder = ['hidden', 'featured', 'home', 'new'];
+    assert.deepEqual(ids(render()), ['featured', 'home', 'new']);
+    browsing.sort = 'recent';
+    assert.deepEqual(ids(render()), ['new', 'featured', 'home']);
+    browsing.sort = 'saved';
+    f.state.savedOrder = undefined;
+    assert.deepEqual(ids(render()), ['home', 'new', 'featured']);
+  }
+});
 
 test('shared portal popup gives its published rows the mobile list sizing and keeps selection and dismissal', () => {
   let closed = 0;
@@ -1355,6 +1381,7 @@ test('copied portal links keep their address and open the chosen portal over the
       assert.equal(popup.props.categoryId, 'portal');
       assert.equal(popup.props.closeOnSelect, false);
       assert.equal(popup.props.desktopBrowsing, true);
+      assert.equal(popup.props.browsing.sort, 'saved');
       assert.equal(one(tree, 'VisitorProfileGrid').props.categoryId, null);
       assert.equal(one(tree, 'SharedPortalPopup'), undefined);
       assert.equal(one(tree, 'VisitorProjectPage'), undefined);
@@ -1376,6 +1403,7 @@ test('copied portal links keep their address and open the chosen portal over the
       const reader = nodes(tree).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
       assert.equal(reader.props.project.categoryId, 'original');
       assert.equal(reader.props.categoryId, 'portal');
+      if (presentation === 'mobile') assert.equal(reader.props.browsing.sort, 'saved');
       if (presentation === 'mobile') h.window.history.state.idx = 2;
       reader.props.onBack();
       assert.equal(h.navigations.at(-1)[0], presentation === 'mobile' ? -1 : path + search + '#collection');
@@ -1536,7 +1564,7 @@ test('MOBILE public browse preferences survive chooser-to-reader and project rem
   one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
   let popup = one(h.render(), 'SharedPortalPopup');
   assert.equal(popup.props.browsing.layout, 'list');
-  assert.equal(popup.props.browsing.sort, 'recent');
+  assert.equal(popup.props.browsing.sort, 'saved');
   popup.props.browsing.onLayout('grid');
   popup.props.browsing.onSort('title');
   popup = one(h.render(), 'SharedPortalPopup');
@@ -1563,7 +1591,7 @@ test('MOBILE public browse preferences survive chooser-to-reader and project rem
   one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('other');
   popup = one(h.render(), 'SharedPortalPopup');
   assert.equal(popup.props.browsing.layout, 'list');
-  assert.equal(popup.props.browsing.sort, 'recent');
+  assert.equal(popup.props.browsing.sort, 'saved');
   popup.props.onClose();
   one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
   popup = one(h.render(), 'SharedPortalPopup');
