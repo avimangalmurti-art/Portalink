@@ -510,6 +510,11 @@ export const mockProjectService: ProjectService = {
     if (!owner || requireOwnProfile().profileId !== owner.profile.id) throw new Error('You can only feature projects you own.');
     if (additionalPortalIds.some(id => !owner.profile.categories.some(portal => portal.id === id))) throw new Error('One of these Portals is no longer available.');
     const selected = [...new Set(additionalPortalIds)].filter(id => id !== owner.project.categoryId);
+    for (const portalId of owner.project.additionalPortalIds ?? []) {
+      if (selected.includes(portalId)) continue;
+      const arrangement = savedProjectArrangements.get(projectArrangementKey(owner.profile.id, portalId));
+      if (arrangement) arrangement.projectOrder = arrangement.projectOrder.filter(id => id !== projectId);
+    }
     updatePrototypeProject(owner.profile.id, { ...owner.project, additionalPortalIds: selected });
     return selected;
   },
@@ -593,10 +598,13 @@ export const mockProjectService: ProjectService = {
     // correctly rather than dropped or invented: known ids keep their saved
     // position, newly published work joins the end, and ids that no longer name
     // a project in this category fall out of both lists.
-    const live = getProfileById(profileId).projects.filter((project) => project.categoryId === categoryId).map((project) => project.id);
+    const projects = getProfileById(profileId).projects.filter((project) => projectBelongsToPortal(project, categoryId));
+    const homeIds = projects.filter((project) => project.categoryId === categoryId).map((project) => project.id);
+    const live = [...homeIds, ...projects.filter((project) => project.categoryId !== categoryId).map((project) => project.id)];
     const saved = savedProjectArrangements.get(projectArrangementKey(profileId, categoryId));
     if (!saved) {
       return resolve({
+        supportsFeaturedOrder: true,
         projectOrder: live,
         hiddenProjectIds: [],
         pinnedProjectIds: []
@@ -605,19 +613,24 @@ export const mockProjectService: ProjectService = {
     const known = saved.projectOrder.filter((projectId) => live.includes(projectId));
     const added = live.filter((projectId) => !known.includes(projectId));
     return resolve({
+      supportsFeaturedOrder: true,
       projectOrder: [...known, ...added],
-      hiddenProjectIds: saved.hiddenProjectIds.filter((projectId) => live.includes(projectId)),
+      hiddenProjectIds: saved.hiddenProjectIds.filter((projectId) => homeIds.includes(projectId)),
       // Reconciled the same way: a pin cannot outlive the project it names.
-      pinnedProjectIds: (saved.pinnedProjectIds ?? []).filter((projectId) => live.includes(projectId))
+      pinnedProjectIds: (saved.pinnedProjectIds ?? []).filter((projectId) => homeIds.includes(projectId))
     } satisfies ProjectArrangement);
   },
   async saveProjectArrangement(profileId, categoryId, arrangement) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the profile owner can arrange this work.');
     await resolve(undefined, 220);
     // An arrangement can only speak about work this category actually holds, so
     // an id from anywhere else is refused rather than silently stored.
-    const live = getProfileById(profileId).projects.filter((project) => project.categoryId === categoryId).map((project) => project.id);
-    const foreign = [...arrangement.projectOrder, ...arrangement.hiddenProjectIds, ...arrangement.pinnedProjectIds].find((projectId) => !live.includes(projectId));
-    if (foreign) {
+    const projects = getProfileById(profileId).projects;
+    const homeIds = new Set(projects.filter((project) => project.categoryId === categoryId).map((project) => project.id));
+    const live = new Set(projects.filter((project) => projectBelongsToPortal(project, categoryId)).map((project) => project.id));
+    if (new Set(arrangement.projectOrder).size !== live.size || arrangement.projectOrder.length !== live.size
+      || arrangement.projectOrder.some((projectId) => !live.has(projectId))
+      || [...arrangement.hiddenProjectIds, ...arrangement.pinnedProjectIds].some((projectId) => !homeIds.has(projectId))) {
       throw new Error('That arrangement refers to work this category does not hold.');
     }
     savedProjectArrangements.set(projectArrangementKey(profileId, categoryId), {

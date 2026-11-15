@@ -4,7 +4,7 @@ import { markMobileBackNavigation } from './backNavigationTransition';
 
 const reserved = 'input, textarea, select, [contenteditable="true"], [role="slider"], [role="menu"], [role="dialog"], [role="alertdialog"], video, audio, canvas, iframe, model-viewer, [draggable="true"], [data-inline-project-pages], .inline-project-pages, [data-premium-project-viewer], [data-studio-row], [data-mobile-focused-view], [data-focused-page-scroll], [inert], [aria-hidden="true"]';
 
-type Gesture = { id: number; x: number; y: number; time: number; horizontal: boolean; root: HTMLElement; path: string };
+type Gesture = { id: number; x: number; y: number; time: number; horizontal: boolean; root: HTMLElement; path: string; projectRow: Element | null };
 
 /** A rightward content swipe uses the screen's Back action, including local steps. */
 export function useMobileBackSwipe(enabled: boolean, onBack: () => void) {
@@ -32,12 +32,15 @@ export function useMobileBackSwipe(enabled: boolean, onBack: () => void) {
       for (let node: Element | null = target; node && node !== root; node = node.parentElement) {
         if (node.scrollWidth > node.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(node).overflowX)) return;
       }
-      gesture = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: event.timeStamp, horizontal: false, root, path: path() };
+      const projectRow = target.closest('[data-mobile-project-layout] [data-mobile-reorder-row]');
+      gesture = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: event.timeStamp, horizontal: false, root, path: path(), projectRow };
     };
     const currentTouch = (event: TouchEvent) => event.touches.length === 1 && event.touches[0].identifier === gesture?.id ? event.touches[0] : undefined;
     const move = (event: TouchEvent) => {
       const touch = currentTouch(event), current = gesture;
       if (!touch || !current || !current.root.isConnected || current.path !== path()) { cancel(); return; }
+      // Once a project has lifted, a sideways move belongs to its reorder gesture.
+      if (current.projectRow?.hasAttribute('data-dragging')) { cancel(); return; }
       const dx = touch.clientX - current.x, dy = Math.abs(touch.clientY - current.y);
       if (!current.horizontal && Math.max(Math.abs(dx), dy) > 10) {
         if (dx <= dy * 1.5) { cancel(); return; }
@@ -51,7 +54,7 @@ export function useMobileBackSwipe(enabled: boolean, onBack: () => void) {
     const end = (event: TouchEvent) => {
       const current = gesture;
       cancel();
-      if (!current?.horizontal || event.touches.length || !current.root.isConnected || current.path !== path() || modalOpen()) return;
+      if (!current?.horizontal || current.projectRow?.hasAttribute('data-dragging') || event.touches.length || !current.root.isConnected || current.path !== path() || modalOpen()) return;
       const touch = Array.from(event.changedTouches).find(item => item.identifier === current.id);
       if (touch && navigationSwipe(current, { x: touch.clientX, y: touch.clientY, time: event.timeStamp }) === 'right') {
         markMobileBackNavigation();

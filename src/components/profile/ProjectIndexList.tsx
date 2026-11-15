@@ -24,8 +24,12 @@ type ProjectIndexListProps = {
   profileId?: string;
   arrangementWriteDisabled?: boolean;
   projects: ProjectEntry[];
-  /** Featured projects use the arrangement of their original Portal. */
+  /** Pinning and hiding still belong to the original Portal. */
   primaryPortalId?: string;
+  /** The store can save the order of primary and featured placements together. */
+  supportsFeaturedOrder?: boolean;
+  /** Canonical order before applying the current browsing sort. */
+  savedOrder?: readonly string[];
   /** Each row reads in the face of the project it points at, keyed by id. */
   typefaceStacks: Record<string, string>;
   typefaceIds: Record<string, string>;
@@ -76,11 +80,21 @@ function SectionHeading({
       {label}
     </h3>;
 }
+
+/** Replace the moved group's slots without disturbing the rest of the Portal. */
+function replaceProjectOrderSlots(order: ProjectEntry[], reordered: ProjectEntry[]) {
+  const movedIds = new Set(reordered.map(project => project.id));
+  let index = 0;
+  return order.map(project => movedIds.has(project.id) ? reordered[index++] : project);
+}
+
 export function ProjectIndexList({
   profileId,
   arrangementWriteDisabled = false,
   projects,
   primaryPortalId,
+  supportsFeaturedOrder = false,
+  savedOrder,
   typefaceStacks,
   typefaceIds,
   hiddenIds,
@@ -111,7 +125,8 @@ export function ProjectIndexList({
    */
   const [desktopDraft, setDesktopDraft] = useState<{ scope: string; ids: string[] } | null>(null);
   const desktopDraftRef = useRef<typeof desktopDraft>(null);
-  const dragScope = JSON.stringify([projects.map(project => project.id), pinnedIds, hiddenIds]);
+  const projectIds = projects.map(project => project.id);
+  const dragScope = JSON.stringify([projectIds, pinnedIds, hiddenIds, supportsFeaturedOrder, savedOrder]);
   const byId = new Map(projects.map(project => [project.id, project]));
   const displayedProjects = !isMobile && desktopDraft?.scope === dragScope
     ? desktopDraft.ids.flatMap(id => byId.get(id) ?? []) : projects;
@@ -123,13 +138,15 @@ export function ProjectIndexList({
   // Keep drag frames local; persist exactly the final dropped order.
   const startDesktopDrag = () => {
     if (mobileReorderDisabled) return;
-    const next = { scope: dragScope, ids: projects.map(project => project.id) };
+    const next = { scope: dragScope, ids: projectIds };
     desktopDraftRef.current = next;
     setDesktopDraft(next);
   };
   const stageDesktopDrag = (reordered: ProjectEntry[]) => {
     if (desktopDraftRef.current?.scope !== dragScope) return;
-    const next = { scope: dragScope, ids: [...pinned, ...reordered, ...rest.filter(project => !isPrimary(project)), ...hidden].map(project => project.id) };
+    const nextOrder = supportsFeaturedOrder ? replaceProjectOrderSlots(projects, reordered)
+      : [...pinned, ...reordered, ...rest.filter(project => !isPrimary(project)), ...hidden];
+    const next = { scope: dragScope, ids: nextOrder.map(project => project.id) };
     desktopDraftRef.current = next;
     setDesktopDraft(next);
   };
@@ -138,8 +155,8 @@ export function ProjectIndexList({
     desktopDraftRef.current = null;
     setDesktopDraft(null);
     if (!draft || draft.scope !== dragScope || mobileReorderDisabled ||
-      JSON.stringify(draft.ids) === JSON.stringify(projects.map(project => project.id))) return;
-    onReorder(draft.ids.flatMap(id => byId.get(id) ?? []).filter(isPrimary));
+      JSON.stringify(draft.ids) === JSON.stringify(projectIds)) return;
+    onReorder(draft.ids.flatMap(id => byId.get(id) ?? []).filter(project => supportsFeaturedOrder || isPrimary(project)));
   };
 
   // A visitor reads a published index, so it is a plain list with no handles.
@@ -188,24 +205,32 @@ export function ProjectIndexList({
     onDelete: onDelete ? () => onDelete(project.id) : undefined,
   });
   if (isMobile) {
-    const canReorderGroup = (items: ProjectEntry[]) => !mobileReorderDisabled && items.filter(isPrimary).length > 1;
+    const canReorder = (project: ProjectEntry) => supportsFeaturedOrder || isPrimary(project);
+    const canReorderGroup = (items: ProjectEntry[]) => !mobileReorderDisabled && items.filter(canReorder).length > 1;
     const showReorderHint = [pinned, rest, hidden].some(canReorderGroup);
-    const group = (items: ProjectEntry[], label: string, combine: (reordered: ProjectEntry[]) => ProjectEntry[]) =>
+    const unsaved = new Map([...pinned, ...rest, ...hidden].filter(canReorder).map(project => [project.id, project]));
+    const canonical = (savedOrder ?? []).flatMap(id => {
+      const project = unsaved.get(id);
+      unsaved.delete(id);
+      return project ?? [];
+    });
+    canonical.push(...unsaved.values());
+    const group = (items: ProjectEntry[], label: string) =>
       !canReorderGroup(items) ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} layout={mobileLayout}
         className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons"
-        groupForItem={project => isPrimary(project) ? 'primary' : project.id}
-        isItemDisabled={project => !isPrimary(project)}
-        onReorder={reordered => onReorder(combine(reordered).filter(isPrimary))}
-        renderItem={(project, activator, actions) => <ProjectRow reorderActions={isPrimary(project) ? actions : undefined}
-          {...rowProps(project)} isDraggable={false} reorderActivator={isPrimary(project) ? activator : undefined} />} /></Suspense>;
+        groupForItem={supportsFeaturedOrder ? undefined : project => isPrimary(project) ? 'primary' : project.id}
+        isItemDisabled={supportsFeaturedOrder ? undefined : project => !isPrimary(project)}
+        onReorder={reordered => onReorder(replaceProjectOrderSlots(canonical, reordered.filter(canReorder)))}
+        renderItem={(project, activator, actions) => <ProjectRow reorderActions={canReorder(project) ? actions : undefined}
+          {...rowProps(project)} isDraggable={false} reorderActivator={canReorder(project) ? activator : undefined} />} /></Suspense>;
     return <div data-mobile-project-layout={mobileLayout}>
       {showReorderHint && <p className="px-2 pb-2 text-[12px] text-[var(--text-secondary)]">Hold and drag to reorder.</p>}
-      {pinned.length > 0 && <><SectionHeading label="Pinned" icon={PinIcon} />{group(pinned, 'Pinned projects', reordered => [...reordered, ...rest, ...hidden])}</>}
+      {pinned.length > 0 && <><SectionHeading label="Pinned" icon={PinIcon} />{group(pinned, 'Pinned projects')}</>}
       {rest.length > 0 && <>
         {(pinned.length > 0 || hidden.length > 0) && <SectionHeading label="Projects" icon={FolderIcon} />}
-        {group(rest, 'Projects', reordered => [...pinned, ...reordered, ...hidden])}
+        {group(rest, 'Projects')}
       </>}
-      {hidden.length > 0 && <><SectionHeading label="Hidden" icon={EyeOffIcon} />{group(hidden, 'Hidden projects', reordered => [...pinned, ...rest, ...reordered])}</>}
+      {hidden.length > 0 && <><SectionHeading label="Hidden" icon={EyeOffIcon} />{group(hidden, 'Hidden projects')}</>}
     </div>;
   }
   return <div>

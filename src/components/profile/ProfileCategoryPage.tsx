@@ -186,7 +186,6 @@ export function ProfileCategoryPage({
   const [mobileSort, setMobileSort] = useState<MobileProjectSort>(mobileDefaultSort);
   const [mobileLayout, setMobileLayout] = useState<'list' | 'grid'>('list');
   const categoryProjects = useMemo(() => profile.projects.filter(project => projectBelongsToPortal(project, category.id)), [profile, category.id]);
-  const nativeProjectIds = categoryProjects.filter(project => project.categoryId === category.id).map(project => project.id);
   /**
    * Order and the hidden set come from the service, not from this component.
    * Work the owner has hidden is withheld from everyone else — and withheld
@@ -195,7 +194,7 @@ export function ProfileCategoryPage({
    * a real implementation must carry visibility on the record and filter
    * server-side, where a client cannot reach it.
    */
-  const arrangement = useProjectArrangement(profile.id, category.id, showsOwnerTools, nativeProjectIds);
+  const arrangement = useProjectArrangement(profile.id, category.id, showsOwnerTools, categoryProjects.map(project => project.id));
   const arrangementWriteDisabled = arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving;
   const reorderDisabled = sharedReadOnly || arrangementWriteDisabled || Boolean(indexQuery.trim());
   const reorderProjects = (reordered: Project[]) => {
@@ -618,7 +617,7 @@ export function ProfileCategoryPage({
               arrangement.isLoading ? <LoadingState label="Loading projects…" />
                 : <ErrorState title="Projects could not be loaded" description={arrangement.loadError ?? undefined} onRetry={arrangement.reload} />
             )}
-            <ProjectIndexList arrangementWriteDisabled={arrangementWriteDisabled} onChangeCover={showsOwnerTools ? projectId => management.editor.open(projectId, 'files') : undefined} profileId={profile.id} sharedReadOnly={sharedReadOnly} mobileLayout={mobileLayout} projects={visibleProjects} primaryPortalId={category.id} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} mobileReorderDisabled={reorderDisabled} activeProjectId={activeProjectId} onReorder={reorderProjects} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
+            <ProjectIndexList arrangementWriteDisabled={arrangementWriteDisabled} onChangeCover={showsOwnerTools ? projectId => management.editor.open(projectId, 'files') : undefined} profileId={profile.id} sharedReadOnly={sharedReadOnly} mobileLayout={mobileLayout} projects={visibleProjects} primaryPortalId={category.id} supportsFeaturedOrder={arrangement.supportsFeaturedOrder} savedOrder={arrangement.order} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} mobileReorderDisabled={reorderDisabled} activeProjectId={activeProjectId} onReorder={reorderProjects} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
             {/* Nothing matched, said plainly rather than leaving an empty column. */}
             {mobileIndexOnly && !hasChildPortals && !arrangement.isLoading && !arrangement.loadError && projects.length === 0 && !indexQuery.trim() && <EmptyState title={`No projects in ${category.label}`} description={showsOwnerTools ? 'Use the plus button to add a project or sub-portal.' : 'No work has been published in this category.'} />}
             {!arrangement.isLoading && !arrangement.loadError && indexQuery.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}

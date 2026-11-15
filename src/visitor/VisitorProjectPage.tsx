@@ -17,6 +17,7 @@ import { PortalChildren } from '../components/profile/PortalChildren';
 import { portalChildren } from '../features/profile/portalHierarchy';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from '../components/profile/MobilePortalProjectToolbar';
 import { sortPortalProjects, type PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
+import { useSavedPortalOrder } from '../features/profile/useSavedPortalOrder';
 import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from '../features/projects/pageLayout';
 import '../components/profile/web-reader-spacing.css';
 import { projectBelongsToPortal } from '../features/projects/projectPortals';
@@ -64,8 +65,6 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   const category = profile.categories.find(item => item.id === currentCategoryId);
   const hasChildren = onOpenChild && category && portalChildren(profile.categories, category.id).length > 0;
   const categoryProjects = profile.projects.filter(item => projectBelongsToPortal(item, currentCategoryId) && item.isPubliclyVisible !== false);
-  const visibleProjects = isMobile ? sortPortalProjects(categoryProjects, mobileSort) : !indexQuery.trim() ? categoryProjects
-    : categoryProjects.filter(item => item.title.toLocaleLowerCase().includes(indexQuery.trim().toLocaleLowerCase()));
   // Public readers use published metadata, without querying owner job tables.
   const processing = useAssetProcessing([]);
   const rail = useResizablePanelWidth({ id: 'shared-project-details-standard', defaultWidth: panelLayoutDefaults.sharedDetails, minWidth: 240, maxWidth: 440, viewportReserve: 420 });
@@ -91,6 +90,12 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   };
   const layout = allocateProjectPanels(workspace.width, indexOpen, railOpen, 240, rail.preferredWidth, 240, lastPanel, lastPanel);
   const indexExpanded = isMobile ? indexOpen : layout.indexOpen;
+  const indexSort = isMobile ? mobileSort : 'saved';
+  const savedOrder = useSavedPortalOrder(profile.id, category?.id, indexExpanded && indexSort === 'saved');
+  const matchingProjects = !isMobile && indexQuery.trim()
+    ? categoryProjects.filter(item => item.title.toLocaleLowerCase().includes(indexQuery.trim().toLocaleLowerCase()))
+    : categoryProjects;
+  const visibleProjects = isMobile || savedOrder?.length ? sortPortalProjects(matchingProjects, indexSort, savedOrder) : matchingProjects;
   const webBack = <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
     className="side-panel-header-control side-panel-header-icon" aria-label="Back" title="Back" onClick={onBack}>
     <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />

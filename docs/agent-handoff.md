@@ -1,3 +1,11 @@
+## 2026-11-14 — Sites 639 Portal order and reader navigation
+
+Published Sites 639 from `ef97b09746a00030e59b10872552b867290954cf`. Mobile Portal owners can hold and drag original and featured projects in the same Portal, including featured-only Portals. The release also handles mobile back-swipe conflicts and preserves the Portal project index when opening a project from a shared Portal.
+
+Production Supabase already has the approved migration recorded as `20261115014245_portal_project_arrangement`. The repository file uses the hosted timestamp and the applied SQL bytes. See [migration status](migration-status.md#applied--project-order-within-a-portal-2026-11-14). No second migration or Sites publication is needed for the source sync.
+
+Release typecheck, build, and 180 focused checks passed. Homepage and shared catalogue assets matched the published build. Mobile Chromium verified both Portal arrangements with disposable in-memory records and confirmed the read-only viewer sees the saved order. Physical iPhone testing remains outstanding.
+
 ## 2026-11-14 — Owner Portal drag without changing sort
 
 Prepared in `logs/sites638-release` from Sites 637 source `d833b78`. The release contains `ProfileCategoryPage.tsx` and two focused test updates from `codex/portal-project-drag` (GitHub base `10b51b5`). Owners can hold and drag in a Portal from Recent, Name, or Saved order. The completed drop saves the new sequence and switches mobile to Saved order automatically. Permissions, Portal membership, and desktop arrangement follow the existing model. No database migration is required.

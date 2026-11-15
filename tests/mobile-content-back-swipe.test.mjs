@@ -7,10 +7,14 @@ function harness(enabled = true) {
   let install, cleanup, action, selected = false, modal = false;
   const root = { isConnected: true };
   class Element {
-    constructor({ reserved = false, overflowX = 'visible', scrollWidth = 420 } = {}) {
-      Object.assign(this, { reserved, overflowX, scrollWidth, clientWidth: 420, parentElement: root });
+    constructor({ reserved = false, overflowX = 'visible', scrollWidth = 420, projectRow = null } = {}) {
+      Object.assign(this, { reserved, overflowX, scrollWidth, projectRow, clientWidth: 420, parentElement: root });
     }
-    closest(selector) { return selector.startsWith('.codex-shell') ? root : this.reserved ? this : null; }
+    closest(selector) {
+      if (selector.startsWith('.codex-shell')) return root;
+      if (selector === '[data-mobile-project-layout] [data-mobile-reorder-row]') return this.projectRow;
+      return this.reserved ? this : null;
+    }
   }
   const window = { innerWidth: 420, location: { href: 'https://fixture.invalid/search' }, getSelection: () => ({ isCollapsed: !selected }) };
   const document = {
@@ -53,6 +57,23 @@ test('vertical scrolling, leftward drags and slow incomplete swipes do not navig
   }
   h.start(); h.move(215, 380); h.move(320, 385); h.end(320, 385);
   assert.deepEqual(h.calls, []);
+});
+
+test('an active project reorder keeps sideways movement while an ordinary swipe still goes back', () => {
+  const h = harness();
+  let dragging = false;
+  const target = new h.Element({ projectRow: { hasAttribute: name => name === 'data-dragging' && dragging } });
+  h.start({ target });
+  dragging = true;
+  assert.equal(h.move(300, 350, { timeStamp: 500 }).prevented, undefined);
+  h.end(300, 350, { timeStamp: 600 });
+  assert.deepEqual(h.calls, []);
+
+  dragging = false;
+  h.start({ target });
+  assert.equal(h.move(300).prevented, true);
+  h.end(300);
+  assert.deepEqual(h.calls, ['mark', 'back']);
 });
 
 test('page gestures, forms, horizontal scrollers, modal controls and browser edges retain ownership', () => {

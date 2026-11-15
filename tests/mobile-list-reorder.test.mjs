@@ -166,6 +166,51 @@ test('mobile project groups emit complete membership without changing pinned or 
   assert.equal(all(h.render()).filter(node => node.type === 'ul').length, 3);
 });
 
+test('owners can reorder a Portal that contains only featured projects in mobile list and grid', () => {
+  const h = projectHarness();
+  const featured = ['f1', 'f2'].map(id => ({ id, title: id, categoryId: 'origin' }));
+  Object.assign(h.props, { projects: featured, primaryPortalId: 'portal', pinnedIds: [], hiddenIds: [] });
+  const sorter = () => all(h.render()).find(node => node.type === MobileReorderList);
+  assert.equal(sorter(), undefined, 'Before the order capability, featured rows remain unmovable.');
+  h.props.supportsFeaturedOrder = true;
+  for (const layout of ['list', 'grid']) {
+    h.props.mobileLayout = layout;
+    const group = sorter();
+    assert.equal(group.props.layout, layout);
+    assert.equal(group.props.isItemDisabled, undefined);
+    const activator = { onTouchStart: activateTouch };
+    const row = group.props.renderItem(featured[0], activator, {});
+    assert.equal(row.props.reorderActivator, activator);
+    assert.equal(row.props.onTogglePinned, undefined);
+    assert.equal(row.props.onToggleHidden, undefined);
+    group.props.onReorder([...featured].reverse());
+    assert.deepEqual(h.saves.at(-1), ['f2', 'f1']);
+  }
+  h.props.isOwner = false;
+  assert.equal(sorter(), undefined, 'A viewer can browse the owner’s order without reordering.');
+});
+
+test('mobile mixed drops preserve the saved order of untouched groups and include new placements', () => {
+  const h = projectHarness();
+  const projects = [
+    ...h.props.projects.filter(project => project.id !== 'b').map(project => ({ ...project, categoryId: 'portal' })),
+    { id: 'featured', title: 'featured', categoryId: 'origin' },
+  ];
+  const savedOrder = ['p2', 'p1', 'a', 'featured', 'h2', 'h1'];
+  Object.assign(h.props, { projects, primaryPortalId: 'portal', supportsFeaturedOrder: true, savedOrder });
+  const regularGroup = () => all(h.render()).find(node => node.type === MobileReorderList && node.props.label === 'Projects');
+  let group = regularGroup();
+  assert.deepEqual(Array.from(group.props.items, project => project.id), ['a', 'featured']);
+  group.props.onReorder([...group.props.items].reverse());
+  assert.deepEqual(h.saves.at(-1), ['p2', 'p1', 'featured', 'a', 'h2', 'h1']);
+
+  h.props.projects = [...projects, { id: 'new', title: 'new', categoryId: 'origin' }];
+  h.props.savedOrder = [...savedOrder, 'removed', 'a'];
+  group = regularGroup();
+  group.props.onReorder([...group.props.items].reverse());
+  assert.deepEqual(h.saves.at(-1), ['p2', 'p1', 'new', 'featured', 'h2', 'h1', 'a']);
+});
+
 test('visitor index has no reordering and WEB keeps its original drag group', () => {
   const h = projectHarness();
   h.props.isOwner = false;
@@ -344,6 +389,33 @@ test('WEB stages drag frames locally and saves only the final drop with complete
   assert.deepEqual(Array.from(group.props.values,p=>p.id),['b','a']);assert.deepEqual(h.saves,[]);
   group.props.children[0].props.onReorderEnd();
   assert.deepEqual(h.saves,[['p1','p2','b','a','h1','h2']]);
+});
+
+test('WEB keeps featured placements fixed while reordering primary projects in a mixed Portal', () => {
+  const h = projectHarness();
+  h.setPresentation('web');
+  Object.assign(h.props, {
+    primaryPortalId: 'portal', supportsFeaturedOrder: true,
+    projects: [
+      { id: 'p1', title: 'p1', categoryId: 'portal' },
+      { id: 'a', title: 'a', categoryId: 'portal' },
+      { id: 'featured', title: 'featured', categoryId: 'origin' },
+      { id: 'b', title: 'b', categoryId: 'portal' },
+      { id: 'h1', title: 'h1', categoryId: 'portal' },
+    ],
+  });
+  const getGroup = () => all(h.render()).find(node => node.type === ReorderGroup);
+  let group = getGroup();
+  assert.deepEqual(Array.from(group.props.values, project => project.id), ['a', 'b']);
+  assert.equal(group.props.children[1].props.children.props.isDraggable, false);
+  group.props.children[0].props.onReorderStart();
+  group.props.onReorder([...group.props.values].reverse());
+  group = getGroup();
+  const visibleOrder = Array.from(group.props.children, row => (row.props.project ?? row.props.children.props.project).id);
+  assert.deepEqual(visibleOrder, ['b', 'featured', 'a']);
+  assert.deepEqual(h.saves, []);
+  group.props.children[0].props.onReorderEnd();
+  assert.deepEqual(h.saves, [['p1', 'b', 'featured', 'a', 'h1']]);
 });
 
 test('visible move actions respect the same group boundaries and disabled state as dragging',()=>{

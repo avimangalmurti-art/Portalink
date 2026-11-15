@@ -124,6 +124,27 @@
  outline-offset: -1px;
 }
 
+/* Hold the project button itself, including its artwork and moving title. */
+#root .codex-shell[data-presentation='mobile'] .project-index-row > [data-mobile-reorder-activator] > :is(.mobile-project-index-cover, .mobile-project-index-copy) {
+ pointer-events: none;
+}
+
+/* Draw the lift outline above the card's own fill. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout] [data-mobile-reorder-row][data-dragging]::before {
+ content: '';
+ position: absolute;
+ inset: 0;
+ z-index: 1;
+ border: 2px solid var(--accent-primary);
+ border-radius: inherit;
+ pointer-events: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout] [data-mobile-reorder-row][data-dragging] .project-index-row {
+ background: transparent !important;
+ outline: none !important;
+}
+
 [data-presentation='mobile'] [data-centered-project] [data-engagement-action] { min-height: 64px; color: var(--text-primary); background: var(--surface-sunken); border-radius: 12px; }
 [data-presentation='mobile'] [data-centered-project] [data-engagement-action] > span { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 [data-presentation='mobile'] .project-popup-owner-actions { display: grid; gap: 8px; margin-top: 16px; }
