@@ -3,6 +3,11 @@ import test from 'node:test';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const { sortPortalProjects } = sourceModule('src/components/profile/portalProjectBrowsing.ts');
+
+test('saved order ranks only the Portal projects already available to the viewer', () => {
+  const visible = [{ id: 'home', title: 'Home' }, { id: 'featured', title: 'Featured' }, { id: 'new', title: 'New' }];
+  assert.deepEqual(ids(sortPortalProjects(visible, 'saved', ['hidden', 'featured', 'home'])), ['featured', 'home', 'new']);
+});
 const ids = projects => Array.from(projects, project => project.id);
 const projects = Object.freeze([
   Object.freeze({ id: 'zebra', title: 'Zebra', publishedAt: '2026-01-02T00:00:00Z' }),

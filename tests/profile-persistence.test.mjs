@@ -22,7 +22,7 @@ const gridDensity = {};
 vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/utils/projectGridDensity.ts', import.meta.url), 'utf8'), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText, { exports: gridDensity });
-function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message: 'RPC not installed' } }, journeyReadError = null } = {}) {
+function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message: 'RPC not installed' } }, portalArrangement, journeyReadError = null } = {}) {
   const db = {
     profiles: [{id:'owner',account_id:'account',name:'Original',handle:'owner',headline:'Bio',location:'City',links:[],social_links:{},is_private:false}],
     portfolio_categories: ['one','two'].map((id,position)=>({id,profile_id:'owner',label:id,position,icon_name:'FolderIcon',is_hidden:false})),
@@ -33,7 +33,7 @@ function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message:
   };
   let denied=false,failId=null,viewer='account';
   const writes=[], rpcCalls=[], tableCalls=[];
-  const client={rpc:async(name,params)=>{rpcCalls.push({name,params:plain(params)});return rpcResult;},auth:{getSession:async()=>({data:{session:viewer?{user:{id:viewer}}:null}})},from(table){
+  const client={rpc:async(name,params)=>{rpcCalls.push({name,params:plain(params)});return name === 'get_portal_project_arrangement' && portalArrangement ? portalArrangement : rpcResult;},auth:{getSession:async()=>({data:{session:viewer?{user:{id:viewer}}:null}})},from(table){
     tableCalls.push(table);
     const filters=[],orders=[];let patch=null,singular=false,returning=false,range;
     const query={
@@ -164,6 +164,26 @@ test('profile order survives reload and a portal reorder preserves other portals
   assert.deepEqual(plain((await h.profiles.getProfile('owner')).projects.map(p=>p.id)),['a','b','c']);
   const saved=await h.projects.getProjectArrangement('owner','one');
   assert.deepEqual(plain(saved),{projectOrder:['a','c'],hiddenProjectIds:['c'],pinnedProjectIds:['a']});
+});
+
+test('featured Portal order reads and saves all placements without direct row writes', async () => {
+  const portalArrangement = { data: [
+    { project_id: 'b', is_hidden: false, is_pinned: false },
+    { project_id: 'a', is_hidden: false, is_pinned: true },
+    { project_id: 'c', is_hidden: true, is_pinned: false },
+  ], error: null };
+  const h = fixture({ portalArrangement, rpcResult: { data: null, error: null } });
+  const arrangement = await h.projects.getProjectArrangement('owner', 'one');
+  assert.deepEqual(plain(arrangement), { supportsFeaturedOrder: true, projectOrder: ['b', 'a', 'c'], hiddenProjectIds: ['c'], pinnedProjectIds: ['a'] });
+  await h.projects.saveProjectArrangement('owner', 'one', { ...arrangement, projectOrder: ['a', 'b', 'c'] });
+  assert.deepEqual(h.rpcCalls, [
+    { name: 'get_portal_project_arrangement', params: { p_profile_id: 'owner', p_category_id: 'one' } },
+    { name: 'save_portal_project_arrangement', params: { p_profile_id: 'owner', p_category_id: 'one', p_project_order: ['a', 'b', 'c'], p_hidden_project_ids: ['c'], p_pinned_project_ids: ['a'] } },
+  ]);
+  assert.deepEqual(h.tableCalls, []);
+  const stale = fixture({ portalArrangement });
+  await assert.rejects(stale.projects.saveProjectArrangement('owner', 'one', arrangement), /RPC not installed/);
+  assert.deepEqual(stale.tableCalls, []);
 });
 
 test('portal order, visibility, icon and title survive reopening',async()=>{

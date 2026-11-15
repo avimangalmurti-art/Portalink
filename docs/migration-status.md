@@ -15,6 +15,12 @@ The numbered migrations include eight previously applied SQL files that were sto
 
 These versions place historically applied SQL in fresh replay order. The earlier manual application receipts establish schema changes separately from the production migration ledger. A hosted reconciliation requires a comparison of that ledger and schema before planning a push or history repair. See the [local rebuild instructions](development-workflow.md#rebuild-the-database-locally).
 
+## Applied — Project order within a Portal (2026-11-14)
+
+The approved SQL was reviewed as `20261115004426_portal_project_arrangement.sql` and recorded by production Supabase as [`20261115014245_portal_project_arrangement.sql`](../supabase/migrations/20261115014245_portal_project_arrangement.sql). The repository uses the hosted version. The SQL in Git matches the production ledger byte for byte (SHA256 `8d97ad14c9593f82198c5e1072886c8d1666a8c9d93b142063fda370f46d7533`).
+
+Production checks confirmed row-level security, visibility-scoped reads, authenticated execution of the owner-checked save RPC, and denial of direct browser writes. Local database tests covered mixed and featured-only Portals, cross-Portal independence, and rollback. Sites 639 is the associated frontend release.
+
 ## Applied — Projects in multiple Portals (2026-11-13)
 
 The reviewed SQL, originally named `20261114003337_project_portal_features.sql`, was applied separately with production approval. Supabase recorded it as [`20261114013655_project_portal_features.sql`](../supabase/migrations/20261114013655_project_portal_features.sql). The ledger's 4,625 bytes match the checked-in file (MD5 `a8a41f4cd4fb459a3ec605ea519ea6be`, SHA256 `c84000f92709401da5346166a0cce9f0b638ab96331df663dc0be07367a3f4c1`). Only the filename changed.

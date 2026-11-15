@@ -375,6 +375,7 @@ export type ProjectPortalMemberships = {
 
 /** Owner-only per-project arrangement inside a category. */
 export type ProjectArrangement = {
+  supportsFeaturedOrder?: boolean;
   projectOrder: Id[];
   hiddenProjectIds: Id[];
   /**

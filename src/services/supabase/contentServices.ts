@@ -440,7 +440,22 @@ export const supabaseProjectService: ProjectService = {
   },
 
   async getProjectArrangement(profileId, categoryId) {
-    const { data, error } = await requireSupabase()
+    const client = requireSupabase();
+    const { data: portalData, error: portalError } = await client.rpc('get_portal_project_arrangement', {
+      p_profile_id: profileId,
+      p_category_id: categoryId,
+    });
+    if (!portalError) {
+      const rows = (portalData ?? []) as unknown as Array<{ project_id: string; is_hidden: boolean; is_pinned: boolean }>;
+      return {
+        supportsFeaturedOrder: true,
+        projectOrder: rows.map((row) => row.project_id),
+        hiddenProjectIds: rows.filter((row) => row.is_hidden).map((row) => row.project_id),
+        pinnedProjectIds: rows.filter((row) => row.is_pinned).map((row) => row.project_id),
+      };
+    }
+    if (portalError.code !== 'PGRST202' && portalError.code !== '42883') throw new Error(portalError.message);
+    const { data, error } = await client
       .from('projects')
       .select('id,is_hidden,is_pinned')
       .eq('profile_id', profileId)
@@ -458,7 +473,8 @@ export const supabaseProjectService: ProjectService = {
   async saveProjectArrangement(profileId, categoryId, arrangement) {
     const client = requireSupabase();
     await removeProfilePublicCovers(profileId, [categoryId], arrangement.hiddenProjectIds);
-    const { error: rpcError } = await client.rpc('save_project_arrangement', {
+    const rpc = arrangement.supportsFeaturedOrder ? 'save_portal_project_arrangement' : 'save_project_arrangement';
+    const { error: rpcError } = await client.rpc(rpc, {
       p_profile_id: profileId,
       p_category_id: categoryId,
       p_project_order: arrangement.projectOrder,
@@ -466,7 +482,7 @@ export const supabaseProjectService: ProjectService = {
       p_pinned_project_ids: arrangement.pinnedProjectIds,
     });
     if (!rpcError) return;
-    if (rpcError.code !== 'PGRST202' && rpcError.code !== '42883') throw new Error(rpcError.message);
+    if (arrangement.supportsFeaturedOrder || (rpcError.code !== 'PGRST202' && rpcError.code !== '42883')) throw new Error(rpcError.message);
     const { data: profileData, error: profileError } = await client
       .from('projects')
       .select('id,category_id,position')

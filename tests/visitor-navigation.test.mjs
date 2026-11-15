@@ -68,6 +68,7 @@ function portalPopupFixture(presentation = 'mobile') {
     if (name === 'react') return h.react;
     if (name.endsWith('/projectPortals')) return projectPortals;
     if (name.endsWith('/portalHierarchy')) return portalHierarchy;
+    if (name.endsWith('/useSavedPortalOrder')) return { useSavedPortalOrder: () => undefined };
     if (name.endsWith('.css')) return {};
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (...args) => focusCalls.push(args) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
@@ -543,6 +544,7 @@ function readerHarness(presentation = 'mobile', width = 390) {
   const { VisitorProjectPage } = load('visitor/VisitorProjectPage.tsx', name => {
     if (name.endsWith('/projectPortals')) return projectPortals;
     if (name.endsWith('/portalHierarchy')) return portalHierarchy;
+    if (name.endsWith('/useSavedPortalOrder')) return { useSavedPortalOrder: () => undefined };
     if (name.endsWith('/PortalChildren')) return named('PortalChildren');
     if (name === 'react') return h.react;
     if (name === 'lucide-react') return { ChevronLeftIcon: 'ChevronLeftIcon', ListIcon: 'ListIcon', PanelLeftCloseIcon: 'PanelLeftCloseIcon',

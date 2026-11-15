@@ -11,6 +11,7 @@ import { MobilePortalProjectToolbar, type MobileProjectSort } from './MobilePort
 import { sortPortalProjects, type PortalProjectBrowsing } from './portalProjectBrowsing';
 import { PortalChildren } from './PortalChildren';
 import { portalChildren } from '../../features/profile/portalHierarchy';
+import { useSavedPortalOrder } from '../../features/profile/useSavedPortalOrder';
 import './portal-project-popup.css';
 import { projectBelongsToPortal } from '../../features/projects/projectPortals';
 
@@ -51,7 +52,9 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onCl
   const projects = profile.projects.filter(item => projectBelongsToPortal(item, categoryId));
   const hasChildren = onOpenChild && portalChildren(profile.categories, categoryId).length > 0;
   const webBrowsing = presentation === 'web' && desktopBrowsing;
-  const visibleProjects = presentation === 'mobile' || webBrowsing ? sortPortalProjects(projects, sort) : projects;
+  const browsingSort = presentation === 'mobile' || webBrowsing ? sort : 'saved';
+  const savedOrder = useSavedPortalOrder(profile.id, category?.id, browsingSort === 'saved');
+  const visibleProjects = sortPortalProjects(projects, browsingSort, savedOrder);
   if (!category) return null;
 
   return <ModalPortal>
