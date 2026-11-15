@@ -360,8 +360,14 @@ test('MOBILE public reader consumes shared browsing preferences and delegates ch
   one(index, 'portal-toolbar').props.onSort('saved');
   assert.deepEqual(changes, [['layout', 'list'], ['sort', 'saved']]);
   h.state.browsing = { ...h.state.browsing, layout: 'list', sort: 'saved' };
+  h.state.savedOrder = null;
+  index = one(h.render(), 'media-viewer').props.mobileNavigation.index;
+  assert.equal(one(index, 'project-index'), undefined);
+  assert.ok(nodes(index).some(node => node.props['aria-label'] === 'Loading saved order'));
+  h.state.savedOrder = ['hidden', 'beta', 'alpha'];
   index = one(h.render(), 'media-viewer').props.mobileNavigation.index;
   assert.equal(one(index, 'project-index').props.mobileLayout, 'list');
+  assert.deepEqual(Array.from(one(index, 'project-index').props.projects, project => project.id), ['beta', 'alpha']);
   assert.equal(one(index, 'portal-toolbar').props.sort, 'saved');
   assert.equal(one(index, 'project-index').props.isOwner, false);
 });

@@ -95,7 +95,8 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
   const matchingProjects = !isMobile && indexQuery.trim()
     ? categoryProjects.filter(item => item.title.toLocaleLowerCase().includes(indexQuery.trim().toLocaleLowerCase()))
     : categoryProjects;
-  const visibleProjects = isMobile || savedOrder?.length ? sortPortalProjects(matchingProjects, indexSort, savedOrder) : matchingProjects;
+  const loadingOrder = isMobile && matchingProjects.length > 0 && savedOrder === null;
+  const visibleProjects = isMobile || savedOrder?.length ? sortPortalProjects(matchingProjects, indexSort, savedOrder ?? undefined) : matchingProjects;
   const webBack = <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
     className="side-panel-header-control side-panel-header-icon" aria-label="Back" title="Back" onClick={onBack}>
     <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
@@ -131,10 +132,12 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
     </div>}
     {indexExpanded && <nav data-project-index-list="" aria-label={`${category?.label ?? 'Project'} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
       {onOpenChild && category && <PortalChildren categories={profile.categories} parent={category} onSelect={onOpenChild} />}
-      <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={mobileLayout} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
+      {loadingOrder ? <div role="status" aria-label="Loading saved order" className="flex min-h-20 items-center justify-center">
+        <span className="premium-media-loading-mark" aria-hidden="true" />
+      </div> : <ProjectIndexList profileId={profile.id} projects={visibleProjects} mobileLayout={mobileLayout} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
         typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.categoryId === currentCategoryId && item.isPinned).map(item => item.id)} activeProjectId={selectedProjectId} isOwner={false} sharedReadOnly
         onReorder={() => undefined} onToggleHidden={() => undefined} onTogglePinned={() => undefined}
-        onSelect={id => { if (isMobile) changeIndex(false); onSelect(id); }} />
+        onSelect={id => { if (isMobile) changeIndex(false); onSelect(id); }} />}
       {!visibleProjects.length && (!hasChildren || indexQuery.trim()) && <p className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]">{categoryProjects.length ? `No projects match “${indexQuery.trim()}”.` : 'No published projects in this portal.'}</p>}
     </nav>}
   </aside>;

@@ -190,6 +190,21 @@ test('owners can reorder a Portal that contains only featured projects in mobile
   assert.equal(sorter(), undefined, 'A viewer can browse the owner’s order without reordering.');
 });
 
+test('a pending mobile order save keeps the sorters mounted and disables new drags', () => {
+  const h = projectHarness();
+  const groups = () => all(h.render()).filter(node => node.type === MobileReorderList);
+  const labels = groups().map(node => node.props.label);
+  for (const layout of ['list', 'grid']) {
+    Object.assign(h.props, { mobileLayout: layout, mobileReorderDisabled: true, isSavingArrangement: true });
+    const pending = groups();
+    assert.deepEqual(pending.map(node => node.props.label), labels);
+    assert.ok(pending.every(node => node.props.disabled));
+    assert.ok(all(h.render()).some(node => node.props.children === 'Hold and drag to reorder.'));
+    Object.assign(h.props, { mobileReorderDisabled: false, isSavingArrangement: false });
+    assert.ok(groups().every(node => !node.props.disabled));
+  }
+});
+
 test('mobile mixed drops preserve the saved order of untouched groups and include new placements', () => {
   const h = projectHarness();
   const projects = [
@@ -226,6 +241,7 @@ test('project writes are gated during unavailable arrangements, partial search, 
   const expression = source.match(/const reorderDisabled = ([^;]+);/)?.[1];
   assert.ok(writeDisabled && expression);
   assert.match(source, /<ProjectIndexList[^\n]*mobileReorderDisabled=\{reorderDisabled\}/);
+  assert.match(source, /<ProjectIndexList[^\n]*isSavingArrangement=\{arrangement\.isSaving\}/);
   const evaluate = (overrides = {}) => vm.runInNewContext(`const arrangementWriteDisabled = ${writeDisabled}; ${expression}`, {
     arrangement: { isLoading: false, loadError: null, isSaving: false }, indexQuery: '', sharedReadOnly: false, isMobile: true, ...overrides,
   });

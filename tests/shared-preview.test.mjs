@@ -98,7 +98,7 @@ function setup() {
   const model = compile('../src/features/sharing/shareModel.ts');
   const media = compile('../src/features/media/publicMediaUrl.ts');
   const reads = compile('../src/services/supabase/coverThumbnailReads.ts', {'../../features/media/publicMediaUrl':media});
-  const preview = compile('../src/server/sharedPreview.ts', {'../features/sharing/shareModel':model,'../services/supabase/coverThumbnailReads':reads});
+  const preview = compile('../src/server/sharedPreview.ts', {'../features/sharing/shareModel':model,'../features/media/publicMediaUrl':media,'../services/supabase/coverThumbnailReads':reads});
   const reachCore=compile('../src/features/reads/readSignal.ts');
   const reach=compile('../src/server/projectReach.ts', {'../features/reads/readSignal':reachCore});
   const worker = compile('../src/sites-worker.ts', { './server/referenceResolver':{},'./server/portfolioExport':{},'./server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach':reach, './server/sharedPreview': preview, './features/sharing/shareModel':model, './server/shareAddress':{resolveShareRequest:async()=>({}),injectShareResolution:html=>html},
@@ -150,8 +150,8 @@ function value(html, name) {
 function assertGeneric(html, expected = shell) {
   assert.equal(html, expected, 'Unavailable/unsafe cover keeps the original generic shell intact');
 }
-function assertProfileImage(html) {
-  assert.equal(value(html, 'og:image'), officialOrigin+'/media/avatars/' + id(1) + '/avatar.webp');
+function assertProfileImage(html, path = id(1) + '/avatar.webp') {
+  assert.equal(value(html, 'og:image'), officialOrigin+'/media/avatars/' + path);
   assert.equal(value(html, 'twitter:image'), value(html, 'og:image'));
   assert.equal(value(html, 'og:image:width'), '800');
   assert.equal(value(html, 'og:image:height'), '800');
@@ -302,7 +302,7 @@ test('missing optional employer columns retry the legacy public projection witho
  const h=setup();h.state.employerColumnsMissing=true;
  assert.equal(value(await (await h.direct()).text(),'og:description'),'1 project');
  assert.ok(h.calls.some(call=>call.url.searchParams.get('select')?.includes('portfolio_headline')));
- assert.ok(h.calls.some(call=>call.url.searchParams.get('select')==='id,name,handle,headline,avatar_url,is_private'));
+ assert.ok(h.calls.some(call=>call.url.searchParams.get('select')==='id,account_id,name,handle,headline,avatar_url,is_private'));
 });
 test('project metadata selects the owner relation explicitly when profiles also pins a project',async()=>{
  const h=setup();await h.request(projectPath);
@@ -539,14 +539,51 @@ test('cache isolates request origin and configuration while emitting the officia
   assert.equal(h.signs().length, 4);
 });
 
-test('copied Portal preview retains its popup destination and drops unrelated query parameters', async () => {
+test('copied Portal preview uses the creator avatar and retains its popup destination', async () => {
   const h = setup();
   const plain = await (await h.request(categoryPath)).text();
-  const popup = await (await h.request(categoryPath + '?view=portal&source=message')).text();
+  const popup = await (await h.request(categoryPath + '?view=portal&source=message', { 'user-agent': 'WhatsApp/2.24' })).text();
+  assertImage(plain);
+  assertProfileImage(popup);
+  assert.equal(value(popup, 'og:title'), 'Architecture — Test creator | Portalink');
+  assert.equal(value(popup, 'og:description'), 'Selected projects');
+  assert.equal(value(popup, 'og:image:alt'), 'Test creator profile picture');
   assert.equal(value(plain, 'og:url'), officialOrigin + categoryPath);
   assert.equal(value(popup, 'og:url'), officialOrigin + categoryPath + '?view=portal');
   assert.equal(await (await h.request(categoryPath + '?view=portal')).text(), popup);
   assert.equal(await (await h.request(categoryPath)).text(), plain);
+  assert.equal(h.signs().length, 1, 'Only the plain category signs a project cover');
+});
+
+test('copied Portal handle previews work without projects and recheck Portal visibility', async () => {
+  const h = setup();
+  const path = `/creator/c/${id(2)}?view=portal`;
+  const request = () => h.preview.withSharedPreview(
+    new Response(shell, { headers: { 'content-type': 'text/html' } }),
+    new Request('https://portalink.example' + path), config, id(1),
+  );
+  h.state.projects = [];
+  const category = h.state.categories[0];
+  const avatarPath = `${id(6)}/portrait.png`;
+  const avatarUrl = `${config.supabaseUrl}/storage/v1/object/public/avatars/${avatarPath}`;
+  category.profile.account_id = id(6);
+  category.profile.avatar_url = avatarUrl;
+  const popup = await (await request()).text();
+  assertProfileImage(popup, avatarPath);
+  assert.equal(value(popup, 'og:url'), officialOrigin + path);
+  assert.match(h.reads()[0].url.searchParams.get('select'), /profile:profiles!inner\(id,account_id,/);
+  category.profile.avatar_url = avatarUrl.replace(id(6), id(7));
+  assertGeneric(await (await request()).text());
+  category.profile.avatar_url = null;
+  assertGeneric(await (await request()).text());
+  category.profile.avatar_url = avatarUrl;
+  category.profile.is_private = true;
+  assertGeneric(await (await request()).text());
+  category.profile.is_private = false;
+  category.is_hidden = true;
+  assertGeneric(await (await request()).text());
+  assert.ok(h.reads().every(({ url }) => url.pathname.endsWith('/portfolio_categories')));
+  assert.equal(h.signs().length, 0);
 });
 
 test('crawler HTML, wildcard and absent Accept headers work; higher JSON preference or HTML exclusion skips metadata', async () => {
@@ -672,9 +709,9 @@ test('portfolio card and pasted-link metadata use the profile avatar rather than
 });
 
 
-test('nested handle project crawler metadata keeps its project rather than showing a profile card', async () => {
+test('nested handle project crawler metadata keeps its project even with the Portal popup query', async () => {
  const h=setup(), path=`/creator/c/${id(2)}/${id(3)}`;
- const response=await h.preview.withSharedPreview(new Response(h.html(),{headers:{'content-type':'text/html'}}),new Request('https://portalink.example'+path,{headers:{accept:'text/html','user-agent':'Twitterbot'}}),config,id(1));
+ const response=await h.preview.withSharedPreview(new Response(h.html(),{headers:{'content-type':'text/html'}}),new Request('https://portalink.example'+path+'?view=portal',{headers:{accept:'text/html','user-agent':'Twitterbot'}}),config,id(1));
  const html=await response.text();
  assert.match(html, /Courtyard — Test creator/);
  assert.equal(value(html,'og:url'),officialOrigin+path);

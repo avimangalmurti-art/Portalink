@@ -1,9 +1,10 @@
 import { plainFormattedText } from '../components/text/textFormatting';
 import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
+import { validPublicMediaPath } from '../features/media/publicMediaUrl';
 import { portalPopupSearch, portfolioPath, shareCardText, type PortfolioCard } from '../features/sharing/shareModel';
 import { readCoverThumbnail } from '../services/supabase/coverThumbnailReads';
 type PreviewConfiguration = { supabaseUrl: string; publishableKey: string };
-type SharedTarget = { profileId: string; categoryId?: string; projectId?: string };
+type SharedTarget = { profileId: string; categoryId?: string; projectId?: string; portalPopup?: boolean };
 type Row = Record<string, unknown>;
 type Preview = {
   title: string;
@@ -20,7 +21,8 @@ const previewCache = new Map<string, CachedPreview>();
 const CACHE_MILLISECONDS = 5 * 60 * 1_000;
 const MAX_CACHE_ENTRIES = 128;
 const MAX_PROJECT_ATTACHMENTS = 105;
-const projectSelect = '*,id,profile_id,category_id,title,summary,is_hidden,position,published_at,profile:profiles!projects_profile_id_fkey!inner(id,name,handle,headline,portfolio_headline,school,avatar_url,is_private),category:portfolio_categories!projects_category_id_fkey!inner(id,profile_id,is_hidden),attachments:project_attachments(id,project_id,kind,mime_type,storage_path,is_cover,position,metadata)';
+const profileSelect = 'id,account_id,name,handle,headline,portfolio_headline,school,avatar_url,is_private';
+const projectSelect = `*,id,profile_id,category_id,title,summary,is_hidden,position,published_at,profile:profiles!projects_profile_id_fkey!inner(${profileSelect}),category:portfolio_categories!projects_category_id_fkey!inner(id,profile_id,is_hidden),attachments:project_attachments(id,project_id,kind,mime_type,storage_path,is_cover,position,metadata)`;
 
 export function isSharedPreviewPath(path: string): boolean {
   return sharedRoute.test(path);
@@ -190,9 +192,12 @@ function profileImage(profile: Row | null, profileId: string, origin: string): P
   try {
     const url = new URL(profile.avatar_url);
     const prefix = '/storage/v1/object/public/avatars/';
-    if (url.origin !== origin || !url.pathname.startsWith(prefix) || url.search || url.hash) return null;
+    if (url.origin !== origin || url.username || url.password || !url.pathname.startsWith(prefix) || url.search || url.hash) return null;
     const path = url.pathname.slice(prefix.length);
-    if (!new RegExp(`^${profileId}/[a-zA-Z0-9._-]+$`, 'i').test(path) || path.endsWith('/..') || path.endsWith('/.')) return null;
+    if (!validPublicMediaPath('avatars', path)) return null;
+    // Avatar uploads use the owner's account folder. Older profiles can use their profile ID.
+    const folder = path.split('/')[0];
+    if (!sameId(folder, profileId) && !sameId(profile.account_id, folder)) return null;
     return { path, public: true, avatar: true, width: 800, height: 800, alt: `${text(profile.name, 80)} profile picture` };
   } catch { return null; }
 }
@@ -203,13 +208,13 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
   if (!target.projectId) {
     const query = new URLSearchParams({ limit: '1', id: `eq.${target.categoryId ?? target.profileId}` });
     if (target.categoryId) {
-      query.set('select', 'id,profile_id,label,blurb,is_hidden,profile:profiles!inner(id,name,handle,headline,portfolio_headline,school,avatar_url,is_private)');
+      query.set('select', `id,profile_id,label,blurb,is_hidden,profile:profiles!inner(${profileSelect})`);
       query.set('profile_id', `eq.${target.profileId}`);
       query.set('is_hidden', 'eq.false');
       query.set('profile.id', `eq.${target.profileId}`);
       query.set('profile.is_private', 'eq.false');
     } else {
-      query.set('select', 'id,name,handle,headline,portfolio_headline,school,avatar_url,is_private');
+      query.set('select', profileSelect);
       query.set('is_private', 'eq.false');
     }
     const rows = await readRows(target.categoryId ? 'portfolio_categories' : 'profiles', query, origin, config, signal);
@@ -221,15 +226,13 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
     } else profile = visibleProfile(rows[0], target.profileId);
     if (!profile) return null;
   }
-  const project = await readProject(target, origin, config, signal);
-  if (!project) return null;
-  // This final project read also revalidates the profile and collection after
-  // the initial lookup, so a prior cached shell never grants public visibility.
-  profile = visibleProfile(project.profile, target.profileId);
+  const project = target.portalPopup ? null : await readProject(target, origin, config, signal);
+  if (project) profile = visibleProfile(project.profile, target.profileId);
+  else if (!target.portalPopup) return null;
   const creator = text(profile?.name, 80);
-  const image = !target.categoryId ? profileImage(profile, target.profileId, origin) : coverImage(project, target.profileId);
+  const image = project && target.categoryId ? coverImage(project, target.profileId) : profileImage(profile, target.profileId, origin);
   if (!creator || !image) return null;
-  const title = text(target.projectId ? project.title : category?.label, 120);
+  const title = text(target.projectId ? project?.title : category?.label, 120);
   if (target.categoryId && !title) return null;
   const countResponse = !target.categoryId ? await fetch(`${origin}/rest/v1/projects?${new URLSearchParams({ select: 'id,category:portfolio_categories!projects_category_id_fkey!inner(id,is_hidden)', profile_id: `eq.${target.profileId}`, is_hidden: 'eq.false', 'category.is_hidden': 'eq.false' })}`, { method: 'HEAD', headers: { apikey: config.publishableKey, Prefer: 'count=exact' }, credentials: 'omit', cache: 'no-store', redirect: 'manual', signal }) : null;
   const count = countResponse?.ok ? Number(countResponse.headers.get('content-range')?.split('/')[1]) : NaN;
@@ -239,8 +242,8 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
   return {
     handle: typeof profile?.handle === 'string' ? profile.handle : undefined,
     title: title ? `${title} — ${creator} | Portalink` : card.title,
-    description: !target.categoryId ? card.description : text(plainFormattedText(String((target.projectId ? project.summary : category?.blurb) ?? '')), 160)
-      || text(headline, 80) || text(plainFormattedText(typeof project.summary === 'string' ? project.summary : ''), 160)
+    description: !target.categoryId ? card.description : text(plainFormattedText(String((target.projectId ? project?.summary : category?.blurb) ?? '')), 160)
+      || text(headline, 80) || text(plainFormattedText(typeof project?.summary === 'string' ? project.summary : ''), 160)
       || `Explore ${creator}'s creative work on Portalink.`,
     type: target.categoryId ? 'article' : 'profile', image,
   };
@@ -311,7 +314,8 @@ export async function withSharedPreview(response: Response, request: Request, co
   try {
     const origin = serviceOrigin(config);
     const signal = AbortSignal.timeout(2_000);
-    const preview = origin && config.publishableKey ? await readPublicPreview({ profileId: match[1], categoryId: match[2], projectId: match[3] }, origin, config, signal) : null;
+    const target = { profileId: match[1], categoryId: match[2], projectId: match[3], portalPopup: Boolean(popupSearch) };
+    const preview = origin && config.publishableKey ? await readPublicPreview(target, origin, config, signal) : null;
     if (preview && origin && /<head\b[^>]*>[\s\S]*?<\/head\s*>/i.test(shell)) {
       const configuration = `${origin}\n${config.publishableKey}`;
       const fingerprint = JSON.stringify(preview);

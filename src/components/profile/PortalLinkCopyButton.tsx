@@ -35,13 +35,14 @@ export function PortalLinkCopyButton({ profileId, categoryId, compact = false }:
   };
   const label = result === 'copied' ? 'Copied Portal link' : result === 'error' && !compact ? 'Try again to copy Portal' : 'Copy Portal';
   const message = result === 'copied' ? 'Portal link copied' : result === 'error' ? 'Could not copy the Portal link. Try again.' : '';
+  const feedback = !compact && (result === 'copied' ? 'Copied' : result === 'error' ? 'Try again' : null);
   return <>
     <Button aria-label={label}
       title={message || 'Copy Portal'} aria-busy={busy}
-      className={compact ? '!gap-0 !px-2.5' : 'whitespace-nowrap !gap-1.5 !px-2.5 !text-xs'}
+      className={compact ? '!gap-0 !px-2.5' : feedback ? 'whitespace-nowrap !gap-1.5 !px-2.5 !text-xs' : '!size-11 !gap-0 !p-0'}
       style={result === 'copied' ? { '--ui-control-text': 'var(--status-success)' } as React.CSSProperties : undefined}
       icon={result === 'copied' ? CheckIcon : LinkIcon} onClick={() => void copyLink()}>
-      {!compact && (result === 'copied' ? 'Copied' : result === 'error' ? 'Try again' : 'Copy Portal')}
+      {feedback}
     </Button>
     <span className="sr-only" role="status">{message}</span>
   </>;

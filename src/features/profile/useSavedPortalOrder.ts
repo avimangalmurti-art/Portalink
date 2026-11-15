@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import type { Id } from '../../types/domain';
 
-/** The viewer can rank its already-visible projects using the owner's saved order. */
-export function useSavedPortalOrder(profileId: Id, portalId: Id | undefined, enabled: boolean): Id[] | undefined {
+/** Rank already-visible projects. Null means loading, undefined means no saved order is available. */
+export function useSavedPortalOrder(profileId: Id, portalId: Id | undefined, enabled: boolean): Id[] | null | undefined {
   const { projects } = useServices();
   const scope = enabled && portalId ? `${profileId}:${portalId}` : null;
   const [saved, setSaved] = useState<{ scope: string; order: Id[] | undefined }>();
@@ -19,5 +19,6 @@ export function useSavedPortalOrder(profileId: Id, portalId: Id | undefined, ena
     return () => { active = false; };
   }, [scope, profileId, portalId, projects]);
 
-  return saved?.scope === scope ? saved.order : undefined;
+  if (!scope) return undefined;
+  return saved?.scope === scope ? saved.order : null;
 }

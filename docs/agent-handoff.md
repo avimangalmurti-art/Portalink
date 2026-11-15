@@ -1,3 +1,29 @@
+## 2026-11-15 — Sites 641 published for Portal sharing and ordering
+
+Published Sites 641 from `0854ce22a290a156bfb8d674a12661cbc97f5dce`, deployment `appgdep_6af9e50486748191bbe3104eec753814`. It includes the mobile icon-only Copy Portal control, in-place owner reorder, the saved default order on shared Portal links, and the creator avatar in copied Portal previews. Sites 640 exposed a production storage path mismatch: avatar uploads use the owner's account UUID. Sites 641 validates the account folder or the earlier profile folder within the existing public avatar bucket. The source release carries the already-applied arrangement migration's GitHub filename. No database migration was run. This GitHub sync takes the published release source from `0854ce2`.
+
+Production build and bundle guards, typecheck, lint, 191 release regressions and 63 focused follow-up checks passed. The live custom domain matches the built main and visitor entry assets. A WhatsApp crawler request for Application - Product Design Roles returned the same reachable PNG as the public Portalite profile, and the individual Campus Posters link returned its project cover. WhatsApp Web rendered Portalite's current avatar and the correct Portal title in an unsent self-chat draft using the exact Copy Portal URL. The temporary draft was cleared and no message was sent.
+
+## 2026-11-15 — Use the creator's avatar in copied Portal previews
+
+Continued in `logs/mobile-copy-portal-icon` on `codex/mobile-copy-portal-icon` from GitHub main `def45a4`. `sharedPreview.ts` uses the public creator avatar for copied `?view=portal` URLs, keeping the exact Portal as the destination. The preview works for empty public Portals and uses the standard image when the creator has no usable avatar. Direct project links and ordinary category URLs still use project artwork.
+
+Typecheck, scoped lint, a local Sites build with the CI fixture, and 93 focused tests passed. One optional database fixture skipped because its isolated runtime was unavailable. Crawler tests cover WhatsApp-style requests, both Portal URL formats, and private or hidden Portal responses. The fix is local and awaits production and real WhatsApp verification. There is no migration.
+
+## 2026-11-15 — Shared Portal links open in the owner's order
+
+Continued in `logs/mobile-copy-portal-icon` on `codex/mobile-copy-portal-icon` from GitHub main `def45a4`. `VisitorApp.tsx` defaults copied Portal links on mobile and desktop, and the mobile public catalogue chooser and reader, to Saved order. Recent and Name remain visitor choices scoped to each Portal. `useSavedPortalOrder.ts` distinguishes a pending read from an unavailable saved order so the shared popup and mobile reader do not briefly show the wrong sequence. Unavailable ranks fall back to the visible catalogue order. No Supabase migration or permission change is required.
+
+Typecheck, focused lint, diff checks, and 128 focused tests passed across this and the prior two mobile Portal fixes. A Chromium preview of the real visitor app with a disposable mixed Portal and delayed service response confirmed no project rows before the saved order was ready, the featured project first on mobile and desktop, and Recent and Saved order switching on mobile. Physical-device and production behavior remain unverified. The changes are local and unpublished.
+
+## 2026-11-15 — Keep the mobile Portal open while reordering
+
+Local worktree `logs/mobile-copy-portal-icon` on `codex/mobile-copy-portal-icon`, based on GitHub main `def45a4` (Sites 639). `App.tsx` keeps the authenticated owner's existing mobile Portal mounted through the same profile's background refresh. `ProfileCategoryPage.tsx` and `ProjectIndexList.tsx` keep the same sortable rows and reorder hint mounted during the save while blocking a second in-flight drop. Profile invalidation, access checks, error and retry behavior, and desktop ordering remain in their existing paths.
+
+`PortalLinkCopyButton.tsx` restores the previously requested icon-only mobile idle control that missed the Sites 639 release. Successful copies still show the green check and “Copied.” The desktop compact control retains its existing behavior.
+
+Fifty focused regressions and typecheck passed. Scoped ESLint returned zero errors and four existing warnings. Local Chromium at 420 × 912 used simulated accounts and a deliberately delayed save and profile refresh. Two consecutive touch drops kept the same popup, rows, route and scroll position. The copy action showed an idle 44 × 44 icon, announced successful copying and returned to idle. The desktop compact icon was checked at 1366 × 900. Physical iPhone and live behavior remain unverified. There is no migration. The changes are local and unpublished.
+
 ## 2026-11-14 — Sites 639 Portal order and reader navigation
 
 Published Sites 639 from `ef97b09746a00030e59b10872552b867290954cf`. Mobile Portal owners can hold and drag original and featured projects in the same Portal, including featured-only Portals. The release also handles mobile back-swipe conflicts and preserves the Portal project index when opening a project from a shared Portal.
