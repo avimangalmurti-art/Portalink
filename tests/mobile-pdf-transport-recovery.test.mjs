@@ -75,6 +75,7 @@ function fixture({ mobile = true, focusedPage = 3, observe = false } = {}) {
       if (path === './useSinglePageZoom') return { useSinglePageZoom: () => 2.25 };
       if (path === './useFocusedPageSwipe') return { useFocusedPageSwipe: () => ({ isMobile: mobile, swipeStyle: { transform: 'translate3d(0,0,0)' }, swipeHandlers: {} }) };
       if (path === './useDocumentReadingScroll') return { useDocumentReadingScroll() {} };
+      if (path === './useDesktopPagePacking') return { useDesktopPagePacking() {} };
       if (path === './viewerMemory') return { readViewerMemory: () => memory, updateViewerMemory: (key, patch) => memoryWrites.push({ key, patch }) };
       if (path === '../../features/projects/pageLayout') return { normalizePagesPerRow: value => value, MAX_PAGES_PER_ROW: 9 };
       return new Proxy({}, { get: (_, property) => property === '__esModule' ? false : `stub-${String(property)}` });

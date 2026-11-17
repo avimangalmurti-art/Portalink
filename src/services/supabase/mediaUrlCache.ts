@@ -1,4 +1,4 @@
-import { requireSupabase } from './client';
+import { requireSupabase, requireSupabaseProjectUrl } from './client';
 
 const SIGNED_URL_SECONDS = 6 * 60 * 60;
 const REFRESH_BUFFER_MS = 5 * 60_000;
@@ -61,6 +61,54 @@ function store(scope: Scope, key: string, value: Promise<string | null>, lifetim
   return entry;
 }
 
+function enqueueSigning<T>(scope: Scope, generation: number, sign: () => Promise<T>): Promise<T> {
+  const lane = scope.nextSigningLane;
+  scope.nextSigningLane = (lane + 1) % MAX_SIGNING_REQUESTS;
+  const request = scope.signingLanes[lane].then(() => {
+    if (generation !== scope.generation) throw new Error('Your session changed. Please try again.');
+    return sign();
+  });
+  scope.signingLanes[lane] = request.catch(() => undefined);
+  return request;
+}
+
+/** A catalogue thumbnail can only be derived from an already-resolved signed project image. */
+export function signedProjectImagePath(source: string, projectUrl?: string): string | null {
+  try {
+    const url = new URL(source);
+    if (url.origin !== new URL(projectUrl ?? requireSupabaseProjectUrl()).origin || url.username || url.password || url.hash || !url.searchParams.get('token')) return null;
+    const path = /^\/storage\/v1\/object\/sign\/project-media\/(.+)$/.exec(url.pathname)?.[1];
+    if (!path || /%2f|%5c/i.test(path)) return null;
+    const decoded = decodeURIComponent(path);
+    return !/[%?#\\]/.test(decoded) && decoded.split('/').every(segment => segment && segment !== '.' && segment !== '..')
+      ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function signedProjectImageThumbnail(path: string, size: number, stillNeeded: () => boolean): Promise<string | null> {
+  const { client, scope, generation } = await mediaScope();
+  if (!stillNeeded()) return null;
+  const key = `signed-project-thumbnail:${size}:${path}`;
+  const cached = scope.entries.get(key);
+  if (cached) {
+    const url = await cached.value;
+    if (url && generation === scope.generation) return url;
+  }
+  if (generation !== scope.generation || !stillNeeded()) return null;
+  const request = enqueueSigning(scope, generation, async () => {
+    if (!stillNeeded()) return null;
+    const { data, error } = await client.storage.from('project-media').createSignedUrl(path, SIGNED_URL_SECONDS, {
+      transform: { width: size, height: size, resize: 'contain', quality: 75 },
+    });
+    return error ? null : data.signedUrl;
+  });
+  store(scope, key, request, SIGNED_URL_SECONDS * 1000 - REFRESH_BUFFER_MS);
+  const url = await request;
+  return generation === scope.generation ? url : null;
+}
+
 /** Reuse URLs only in memory and only for the current account. The RLS-backed
  * content read still precedes signing; this cache grants no project access. */
 export async function signedMediaUrls(bucket: string, paths: string[], minimumLifetimeMs = 0, singleBatch = false): Promise<Map<string, string>> {
@@ -78,17 +126,11 @@ export async function signedMediaUrls(bucket: string, paths: string[], minimumLi
   const batchSize = singleBatch ? Math.max(1, missing.length) : 100;
   for (let start = 0; start < missing.length; start += batchSize) {
     const batch = missing.slice(start, start + batchSize);
-    const lane = scope.nextSigningLane;
-    scope.nextSigningLane = (lane + 1) % MAX_SIGNING_REQUESTS;
-    const request = scope.signingLanes[lane].then(() => {
-      if (generation !== scope.generation) throw new Error('Your session changed. Please try again.');
-      return client.storage.from(bucket).createSignedUrls(batch, SIGNED_URL_SECONDS);
-    })
-      .then(({ data, error }) => {
-        if (error) throw new Error(error.message);
-        return new Map((data ?? []).map((item) => [item.path, item.signedUrl]));
-      });
-    scope.signingLanes[lane] = request.catch(() => undefined);
+    const request = enqueueSigning(scope, generation, async () => {
+      const { data, error } = await client.storage.from(bucket).createSignedUrls(batch, SIGNED_URL_SECONDS);
+      if (error) throw new Error(error.message);
+      return new Map((data ?? []).map((item) => [item.path, item.signedUrl]));
+    });
     for (const path of batch) {
       const value = request.then((urls) => urls.get(path) || null);
       values.set(path, value);

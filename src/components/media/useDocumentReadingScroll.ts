@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
-import { findProjectReadingPage, projectPageScrollTop } from './projectPageScroll';
+import { findProjectReadingPage, projectPageScrollTop, projectPageSelector } from './projectPageScroll';
 
 /** Overview scroll belongs to the desktop stage or the mobile window. */
 export function useDocumentReadingScroll(enabled: boolean, host: RefObject<HTMLElement | null>, memoryKey: string,
@@ -68,6 +68,11 @@ export function useDocumentReadingScroll(enabled: boolean, host: RefObject<HTMLE
       if (!surface?.isConnected) return;
       if (shouldOpenLink && initialPage) {
         if (initialAttachmentId) watchOrderedLayout(surface);
+        // Flattened grid sections have no layout box. Watch the actual pages as
+        // they appear so changed dimensions above a deep link still retarget it.
+        if (layoutObserver && stage?.hasAttribute('data-web-ordered-page-grid')) {
+          for (const page of stage.querySelectorAll(projectPageSelector)) layoutObserver.observe(page);
+        }
         const page = initialAttachmentId ? findProjectReadingPage(surface, initialAttachmentId, initialPage)
           : surface.querySelector<HTMLElement>(`[data-project-page-number="${initialPage}"]`);
         if (!page && initialAttachmentId) {

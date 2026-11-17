@@ -81,13 +81,14 @@ test('mobile fallback contains the supplied clip as an infinite animation, not a
   assert.equal(createHash('sha256').update(clip).digest('hex').slice(0,8),'9c1a9457');
 });
 
-function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark = false, mode = 'auto' }) {
+function staticLaunch({ pathname, search = '', mobile = true, entry = 'catalogue', systemDark = false, mode = 'auto', reducedMotion = false }) {
   const html = readFileSync(new URL('../share.html', import.meta.url), 'utf8');
   const appearanceScript = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
     .find(([, script]) => script.includes('data-mobile-project-launch'))[1];
   const launch = readFileSync(new URL('../public/portalink-mobile-launch.js', import.meta.url), 'utf8');
   const makeElement = tag => {
     const attributes = new Map();
+    const handlers = new Map();
     return {
       tag, dataset: {}, style: {}, children: [],
       hasAttribute: name => attributes.has(name),
@@ -97,8 +98,11 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark
       append(child) { this.children.push(child); child.parent = this; },
       prepend(child) { this.children.unshift(child); child.parent = this; },
       remove() { if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this); },
-      addEventListener() {},
-      removeEventListener() {},
+      addEventListener(name, handler) { handlers.set(name, handler); },
+      removeEventListener(name) { handlers.delete(name); },
+      emit(name) { handlers.get(name)?.(); },
+      play() { this.playRequested = true; this.paused = false; return Promise.resolve(); },
+      pause() { this.paused = true; },
     };
   };
   const root = makeElement('html');
@@ -112,32 +116,41 @@ function staticLaunch({ pathname, mobile = true, entry = 'catalogue', systemDark
   if (entry === 'home') root.setAttribute('data-installed-home-launch', '');
   let notifyCommit, shellCommitted = false;
   const app = { querySelector: selector => shellCommitted && selector === '.app-shell' ? {} : null };
+  const documentListeners = new Map();
   const document = {
-    documentElement: root, body, head, currentScript: { dataset: { launchEntry: entry } },
+    documentElement: root, body, head, hidden: false, currentScript: { dataset: { launchEntry: entry } },
     createElement: makeElement,
     getElementById: id => id === 'root' ? app : null,
     querySelectorAll: () => [theme, darkTheme],
+    addEventListener: (name, fn) => documentListeners.set(name, fn),
+    removeEventListener: name => documentListeners.delete(name),
   };
   const events = [];
   const listeners = new Map(), timers = new Map();
   const window = {
-    location: { pathname },
-    matchMedia: query => ({ matches: query === '(max-width: 639px)' ? mobile : query === '(prefers-color-scheme: dark)' && systemDark }),
+    location: { pathname, search },
+    matchMedia: query => ({ matches: query === '(max-width: 639px)' ? mobile
+      : query === '(prefers-color-scheme: dark)' ? systemDark : reducedMotion }),
     localStorage: { getItem: key => key === 'portalinknetworks.interfaceAppearance.mobile' ? JSON.stringify({ mode }) : null },
     addEventListener: (name, fn) => listeners.set(name, fn),
     removeEventListener: name => listeners.delete(name),
     dispatchEvent: event => events.push(event.type),
-    setTimeout: callback => { timers.set(1, callback); return 1; },
+    setTimeout: (callback, delay) => { timers.set(1, { callback, delay }); return 1; },
     clearTimeout: id => timers.delete(id),
   };
-  const context = vm.createContext({ document, window, Event, MutationObserver: class {
+  const context = vm.createContext({ document, window, Event, URLSearchParams, MutationObserver: class {
     constructor(callback) { this.callback = callback; }
     observe(target) { assert.equal(target, app); notifyCommit = this.callback; }
     disconnect() { notifyCommit = undefined; }
   } });
   if (entry === 'catalogue') vm.runInContext(appearanceScript, context);
   vm.runInContext(launch, context);
-  return { root, body, head, theme, darkTheme, events, listeners, expire: () => timers.get(1)(), commitShell() { shellCommitted = true; notifyCommit?.(); } };
+  return {
+    root, body, head, theme, darkTheme, events, listeners, timers,
+    expire: () => timers.get(1).callback(),
+    setHidden(hidden) { document.hidden = hidden; documentListeners.get('visibilitychange')?.(); },
+    commitShell() { shellCommitted = true; notifyCommit?.(); },
+  };
 }
 
 test('direct mobile shared project shows one opening mark before the visitor shell commits', () => {
@@ -187,6 +200,83 @@ test('the shared catalogue locks the white canvas and both chrome tags until the
     assert.equal(root.hasAttribute('data-mobile-catalogue-launch'), false);
     assert.ok(head.children.every(tag => tag.getAttribute('content') === viewerColor));
   }
+});
+
+test('desktop Catalogue and exact Portal links play the full shared opening even when the app is ready', () => {
+  for (const [pathname, search] of [
+    ['/portalite/', '?via=friend'], ['/share/profile', ''], ['/portalite/c/design', '?view=portal'],
+    ['/share/profile/c/design/', '?view=portal'],
+  ]) {
+    const launch = staticLaunch({ pathname, search, mobile: false, systemDark: true });
+    assert.equal(launch.root.hasAttribute('data-mobile-catalogue-launch'), false);
+    assert.equal(launch.root.hasAttribute('data-web-catalogue-launch'), true);
+    const [layer] = launch.body.children;
+    assert.equal(layer.getAttribute('aria-label'), 'Opening Portalink');
+    assert.equal(layer.hasAttribute('data-web-catalogue-splash'), true);
+    const [video] = layer.children;
+    assert.equal(video.tag, 'video');
+    assert.match(video.src, /portalink-splash-mobile\.mp4/);
+    assert.match(video.poster, /portalink-launch-still\.webp/);
+    assert.equal(video.playRequested, true);
+    assert.equal(video.muted, true);
+    launch.commitShell();
+    assert.equal(launch.body.children[0], layer);
+    video.emit('playing');
+    assert.equal(launch.timers.size, 0);
+    video.emit('timeupdate');
+    assert.equal(launch.body.children[0], layer);
+    video.emit('ended');
+    assert.equal(launch.body.children.length, 0);
+    assert.equal(launch.root.hasAttribute('data-web-catalogue-launch'), false);
+    assert.equal(launch.theme.getAttribute('content'), '#000000');
+    assert.deepEqual(launch.events, ['portalink:splash-exited']);
+  }
+});
+
+test('desktop splash resumes after buffering and keeps its startup fallback off in a hidden tab', () => {
+  const launch = staticLaunch({ pathname: '/portalite/c/design', search: '?view=portal', mobile: false });
+  const [layer] = launch.body.children;
+  const [video] = layer.children;
+  assert.equal(launch.timers.get(1).delay, 8000);
+  launch.setHidden(true);
+  assert.equal(launch.timers.size, 0);
+  assert.equal(video.paused, true);
+  launch.setHidden(false);
+  assert.equal(launch.timers.get(1).delay, 8000);
+  assert.equal(video.paused, false);
+  video.emit('playing');
+  video.emit('waiting');
+  assert.equal(launch.timers.get(1).delay, 8000);
+  video.emit('playing');
+  assert.equal(launch.timers.size, 0);
+  assert.equal(launch.body.children[0], layer);
+  video.emit('ended');
+  assert.deepEqual(launch.events, ['portalink:splash-exited']);
+});
+
+test('desktop reader and Settings open directly and missing or reduced motion media releases the splash', () => {
+  for (const [pathname, search] of [
+    ['/portalite', '?settings=1'], ['/portalite/c/design', '?view=portal&settings=1'],
+    ['/portalite/c/design', ''], ['/share/profile/c/design/project', '?view=portal'],
+    ['/portalite/collaboration', ''],
+  ]) {
+    const launch = staticLaunch({ pathname, search, mobile: false });
+    assert.equal(launch.root.hasAttribute('data-web-catalogue-launch'), false);
+    assert.equal(launch.body.children.length, 0);
+  }
+  const launch = staticLaunch({ pathname: '/portalite', mobile: false, reducedMotion: true });
+  const [layer] = launch.body.children;
+  assert.match(layer.children[0].src, /portalink-launch-still\.webp/);
+  layer.children[0].emit('error');
+  assert.equal(launch.body.children.length, 0);
+  assert.equal(launch.root.hasAttribute('data-web-catalogue-launch'), false);
+  assert.equal(launch.timers.size, 0);
+
+  const stalled = staticLaunch({ pathname: '/portalite', mobile: false });
+  stalled.expire();
+  assert.equal(stalled.body.children.length, 0);
+  assert.equal(stalled.root.hasAttribute('data-web-catalogue-launch'), false);
+  assert.deepEqual(stalled.events, ['portalink:splash-exited']);
 });
 
 test('both entry documents version the shared launch script by content', () => {
@@ -822,10 +912,9 @@ test('preboot matches the supplied clip ratio and canvas on MOBILE and WEB', () 
   assert.match(preboot, /<video[^>]*autoplay muted playsinline[^>]*preload="auto"/);
 });
 
-test('ready content enters after restoration without requiring an intro; navigation and auth retries remain bounded', () => {
+test('desktop startup waits for restoration and the full opening; navigation and auth retries remain bounded', () => {
   for (const first of ['auth', 'media']) {
-  // Screen warming overlaps session restoration. Restored accounts can enter
-  // directly; the immediate guest choices are covered separately below.
+  // Screen warming overlaps session restoration and first-visit playback.
   const h = hooks(), auth = { isInitializing: true, isAuthenticated: true }, location = { pathname: '/' };
   const storage = new Map(), warmed = [];
   const { ApplicationBootstrap } = compile('../src/app/ApplicationBootstrap.tsx', {
@@ -854,12 +943,15 @@ test('ready content enters after restoration without requiring an intro; navigat
   auth.isInitializing = false;
   [app, presence] = render();
   assert.equal(app.type, 'app', 'data starts loading before the intro completes');
-  assert.equal(presence.props.children, null);
   if (first === 'auth') {
+    const intro = presence.props.children;
+    assert.equal(intro.type, 'splash');
     [app, presence] = render();
     assert.equal(app.type, 'app');
-    assert.equal(presence.props.children, null, 'a restored account does not wait for decorative playback');
-  }
+    assert.equal(presence.props.children.key, intro.key, 'readiness cannot replace the playing intro');
+    assert.equal(presence.props.children.props.stillOnly, false);
+    intro.props.onComplete();
+  } else assert.equal(presence.props.children, null);
   render(); [app, presence] = render();
   assert.equal(app.type, 'app'); assert.equal(presence.props.children, null);
   location.pathname = '/messages'; [app, presence] = render();
@@ -952,11 +1044,17 @@ test('direct shared entry retains public Settings access and the existing guest 
   assert.equal(h.requested.length,0);
 });
 
-test('account-only landing exposes professional entry immediately and wires account actions to the existing flow', () => {
+test('account-only landing exposes professional entry after the desktop intro and wires existing account actions', () => {
   for (const presentation of ['mobile', 'web']) {
-    const h = sharedBootstrap({ path: '/', search: '?welcome=1', presentation });
+    const h = sharedBootstrap({ path: '/', search: '', presentation });
     h.render(); h.auth.isInitializing = false;
-    const landing = h.render().props.landing;
+    let opening = h.render();
+    if (presentation === 'web') {
+      assert.equal(opening.props.landing, undefined);
+      opening.props.onComplete();
+      opening = h.render();
+    }
+    const landing = opening.props.landing;
     assert.equal(landing.hideMedia, true);
     assert.equal(landing.content.type, 'presentation-provider');
     assert.equal(landing.content.props.value, presentation, 'The pre-shell entry receives the existing presentation choice');
@@ -987,10 +1085,46 @@ test('invites open root welcome without a previous shared-profile redirect or ac
   }
   h.authenticate(); h.render(); h.render(); assert.equal(h.render(),null);
   assert.equal(h.render(),null,'the welcome marker cannot reopen entry after successful authentication');
-  const desktop=sharedBootstrap({path:'/',search:'?welcome=1',presentation:'web'}); desktop.auth.isInitializing=false;
-  assert.equal(desktop.render().props.landing.ready,true);
   const reopened=sharedBootstrap({path:'/',search:'?welcome=1'}); reopened.auth.isInitializing=false;
   assert.equal(reopened.render().props.landing.ready,true,'opening a new invitation shows welcome again');
+});
+
+test('desktop invites keep the opening splash mounted until playback reports completion', () => {
+  for (const authReadyFirst of [false, true]) {
+    const h = sharedBootstrap({ path: '/', search: '?welcome=1', presentation: 'web' });
+    h.auth.isInitializing = !authReadyFirst;
+    const initial = h.render();
+    assert.equal(initial.props.inviteOpening, true);
+    assert.equal(initial.props.landing, undefined);
+    h.auth.isInitializing = false;
+    const restored = h.render();
+    assert.equal(restored.key, initial.key);
+    assert.equal(restored.props.landing, undefined);
+    assert.equal(restored.props.stillOnly, false);
+
+    initial.props.onComplete();
+    const entry = h.render();
+    assert.equal(entry.key, initial.key);
+    assert.equal(entry.props.landing.ready, true);
+    assert.equal(entry.props.landing.hideMedia, true);
+    assert.equal(h.requested.length, 0);
+    entry.props.landing.onSignIn();
+    assert.deepEqual(h.requested, [{ view: 'signIn' }]);
+  }
+});
+
+test('a signed-in desktop invite keeps Home retry behind the clip until playback completes', () => {
+  const h = sharedBootstrap({ path: '/', search: '?welcome=1', presentation: 'web', authenticated: true, homeReady: false });
+  const splash = h.render();
+  h.auth.isInitializing = false;
+  assert.equal(h.render().key, splash.key);
+  h.timer();
+  assert.equal(h.render().key, splash.key);
+  assert.equal(h.homeError, false);
+
+  splash.props.onComplete();
+  assert.equal(h.render(), null);
+  assert.equal(h.homeError.props.children.type, 'home-error');
 });
 
 test('MOBILE visitor readiness hands off once to account entry, retaining it through cancellation until authentication', () => {
@@ -1033,7 +1167,7 @@ test('invitation marker does not override signed-in, recovery or authentication 
   assert.equal(ordinary.requested.length,0);
 });
 
-test('restored MOBILE and WEB sessions bypass the intro and retain ready-screen handoff', () => {
+test('restored MOBILE sessions open directly and restored WEB sessions finish the intro before handoff', () => {
  for (const presentation of ['mobile','web']) {
   const h=sharedBootstrap({path:'/',search:'',presentation}); let splash=h.render();
   assert.equal(splash.props.landing,undefined); assert.equal(splash.props.hidden,false);
@@ -1041,6 +1175,12 @@ test('restored MOBILE and WEB sessions bypass the intro and retain ready-screen 
   h.auth.isInitializing=false; h.auth.isAuthenticated=true;
   splash=h.render(); splash=h.render();
   assert.equal(h.app.type,'app');
+  if (presentation === 'web') {
+    assert.equal(splash.type, 'splash');
+    assert.equal(splash.props.stillOnly, false);
+    splash.props.onComplete();
+    splash = h.render();
+  }
   assert.equal(splash,null); h.render(); assert.equal(h.render(),null); assert.equal(h.app.props.homeStartupPending,false);
   assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
   h.render(); h.location.pathname='/messages'; assert.equal(h.render(),null);
@@ -1113,10 +1253,11 @@ test('authenticated visitors, recovery and callbacks bypass account entry until 
   }
 });
 
-test('WEB opening Home retains decoded-content and shell readiness without requiring a film', () => {
+test('WEB opening Home retains feed and shell readiness after the film finishes', () => {
  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation:'web',homeReady:false});h.auth.isInitializing=false;
- assert.equal(h.render(),null);assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,true);
- h.app.props.onHomeStartupShellReady(true);assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);
+ const splash=h.render();assert.equal(splash.type,'splash');assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,true);
+ h.app.props.onHomeStartupShellReady(true);assert.equal(h.render().key,splash.key);assert.equal(h.app.props.homeStartupPending,true);
+ splash.props.onComplete();assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);
  h.app.props.onHomeStartupReady(false);assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);
  h.app.props.onHomeStartupReady(true);h.render();assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,false);
  h.location.pathname='/messages';assert.equal(h.render(),null);
@@ -1139,16 +1280,24 @@ test('returning MOBILE sessions enter unready Home immediately without a startup
 
 test('an opening WEB visit retains Home readiness and retry ownership after rotation to MOBILE', () => {
   const h=sharedBootstrap({path:'/',search:'',presentation:'web',authenticated:true,homeReady:false});
-  h.render();h.setPresentation('mobile');h.auth.isInitializing=false;
+  const initial=h.render();h.setPresentation('mobile');h.auth.isInitializing=false;
+  const rotated=h.render();assert.equal(rotated.key,initial.key);assert.equal(rotated.props.onComplete,initial.props.onComplete);
+  rotated.props.onComplete();
   assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);assert.equal(h.homeTimerCount,1);
   h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
-test('ready Home enters directly on both WEB and MOBILE', () => {
+test('ready Home enters directly on MOBILE and immediately after the intro on WEB', () => {
  for(const presentation of ['mobile','web']) {
   const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation,homeReady:false});h.auth.isInitializing=false;
-  h.render(); h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);
-  const splash=h.render();
+  const opening=h.render(); h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);
+  let splash=h.render();
+  if (presentation === 'web') {
+    assert.equal(splash.key, opening.key);
+    assert.equal(splash.props.stillOnly, false);
+    splash.props.onComplete();
+    splash = h.render();
+  }
   assert.equal(splash,null);h.render();assert.equal(h.render(),null);
  }
 });
@@ -1157,7 +1306,8 @@ test('WEB Home timeout retains Retry and rejects stale account or startup-attemp
  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation:'web',homeReady:false});h.auth.isInitializing=false;
  h.render(); h.render();
  const old=h.app.props;
- h.timer();assert.equal(h.render(),null);assert.equal(h.homeError.props.children.type,'home-error');
+ h.timer();const opening=h.render();assert.equal(opening.type,'splash');assert.equal(h.homeError,false);
+ opening.props.onComplete();assert.equal(h.render(),null);assert.equal(h.homeError.props.children.type,'home-error');
  h.homeError.props.children.props.onRetry();assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupAttempt,1);
  old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render(),null);
  const retry=h.app.props;h.auth.user={id:'different'};h.auth.session={user:h.auth.user};h.render();
@@ -1167,6 +1317,7 @@ test('WEB Home timeout retains Retry and rejects stale account or startup-attemp
 
 test('successful WEB welcome authentication retains the Home readiness handoff without reopening entry actions', () => {
  const h=sharedBootstrap({path:'/',search:'?welcome=1',presentation:'web',homeReady:false});h.auth.isInitializing=false;
+ h.render().props.onComplete();
  const splash=h.render();assert.equal(splash.props.landing.onDismiss,undefined);h.authenticate();
  const waiting=h.render();assert.equal(waiting.type,'splash');assert.equal(waiting.props.landing,undefined);assert.equal(waiting.props.welcomeHandoff,true);
  h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
@@ -1214,7 +1365,12 @@ const welcome = {ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){
 test('Escape and system Back cannot dismiss main account entry but still cancel a dismissible auth landing', async () => {
   for (const presentation of ['mobile', 'web']) for (const dismissible of [false, true]) {
     const startup = sharedBootstrap({ path: '/', search: '', presentation }); startup.auth.isInitializing = false;
-    const mainLanding = startup.render().props.landing;
+    let opening = startup.render();
+    if (presentation === 'web') {
+      opening.props.onComplete();
+      opening = startup.render();
+    }
+    const mainLanding = opening.props.landing;
     let cancellations = 0;
     const h = loader({ presentation, landing: dismissible ? { ...mainLanding, onDismiss: () => cancellations++ } : mainLanding });
     h.render(); assert.equal(h.modalCalls.at(-1), true); const completedBeforeDismissal = h.completed;
@@ -1394,7 +1550,13 @@ test('shared visitors can open Settings while the public-view boundary remains i
 test('signed-out direct routes and legacy guest query modes always retain account entry', () => {
   for(const presentation of ['mobile','web']) for(const [path,search] of [['/','?guest=home'],['/','?guest=world'],['/','?guest=search&q=creator'],['/','?guest=profile'],['/messages',''],['/portalink/city',''],['/search','?q=creator'],['/p/creator','?view=portals']]) {
     const h=sharedBootstrap({presentation,path,search,hash:'#requested'});h.auth.isInitializing=false;
-    const entry=h.render();assert.equal(entry.props.landing.ready,true,`${presentation}/${path}${search}`);
+    let entry=h.render();
+    if (presentation === 'web') {
+      assert.equal(entry.props.landing, undefined);
+      entry.props.onComplete();
+      entry = h.render();
+    }
+    assert.equal(entry.props.landing.ready,true,`${presentation}/${path}${search}`);
     assert.equal(entry.props.landing.onDismiss,undefined);assert.equal(h.homeTimerCount,0);
     entry.props.landing.onSignIn();
     if(path==='/') assert.deepEqual(h.requested.at(-1),{view:'signIn'});

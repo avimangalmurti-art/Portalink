@@ -1,21 +1,24 @@
 (() => {
   const root = document.documentElement;
   const entry = document.currentScript?.dataset.launchEntry;
-  const catalogueLaunch = entry === 'catalogue' && root.hasAttribute('data-mobile-catalogue-launch');
+  const mobileCatalogueLaunch = entry === 'catalogue' && root.hasAttribute('data-mobile-catalogue-launch');
+  const webCatalogueLaunch = entry === 'catalogue' && root.hasAttribute('data-web-catalogue-launch');
+  const catalogueLaunch = mobileCatalogueLaunch || webCatalogueLaunch;
   function releaseCatalogueCanvas() {
-    if (!catalogueLaunch) return;
+    if (webCatalogueLaunch) root.removeAttribute('data-web-catalogue-launch');
+    if (!mobileCatalogueLaunch) return;
     root.removeAttribute('data-mobile-catalogue-launch');
     const theme = root.dataset.appearance === 'dark' ? '#000000' : '#ffffff';
     document.querySelectorAll('meta[name="theme-color"]').forEach(tag => tag.setAttribute('content', theme));
   }
-  if (!window.matchMedia('(max-width: 639px)').matches
-    || (entry !== 'catalogue' && !root.hasAttribute('data-installed-home-launch'))) {
+  if (!webCatalogueLaunch && (!window.matchMedia('(max-width: 639px)').matches
+    || (entry !== 'catalogue' && !root.hasAttribute('data-installed-home-launch')))) {
     releaseCatalogueCanvas();
     return;
   }
 
   const splash = document.createElement('div');
-  splash.id = 'portalink-mobile-launch';
+  splash.id = webCatalogueLaunch ? 'portalink-web-launch' : 'portalink-mobile-launch';
   splash.setAttribute('role', 'status');
   if (entry === 'catalogue' && root.hasAttribute('data-mobile-project-launch')) {
     const app = document.getElementById('root');
@@ -46,7 +49,8 @@
     return;
   }
 
-  if (catalogueLaunch) splash.setAttribute('data-mobile-catalogue-splash', '');
+  if (mobileCatalogueLaunch) splash.setAttribute('data-mobile-catalogue-splash', '');
+  if (webCatalogueLaunch) splash.setAttribute('data-web-catalogue-splash', '');
   splash.setAttribute('aria-label', 'Opening Portalink');
   Object.assign(splash.style, {
     position: 'fixed', inset: '0', zIndex: '1002', display: 'grid', placeItems: 'center',
@@ -54,22 +58,44 @@
   });
 
   const still = '/portalink-launch-still.webp?v=0e55dfbd';
-  const frame = document.createElement('img');
-  frame.alt = '';
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const useVideo = webCatalogueLaunch && !reducedMotion;
+  const frame = document.createElement(useVideo ? 'video' : 'img');
   frame.width = 512;
-  frame.height = 724;
+  frame.height = useVideo ? 720 : 724;
   Object.assign(frame.style, {
-    display: 'block', width: '100vw', maxWidth: '70.7182dvh', height: 'auto',
-    aspectRatio: '512 / 724',
+    display: 'block', width: webCatalogueLaunch ? 'min(100vw, 407px)' : '100vw', maxWidth: '70.7182dvh', height: 'auto',
+    aspectRatio: useVideo ? '512 / 720' : '512 / 724',
     background: `#fdffff url("${still}") center / contain no-repeat`,
   });
+
+  let timeout;
+  let finished = false;
+  let waitingForPlayback = useVideo;
+  if (useVideo) {
+    frame.poster = still;
+    frame.preload = 'auto';
+    frame.muted = true;
+    frame.defaultMuted = true;
+    frame.playsInline = true;
+    frame.setAttribute('aria-hidden', 'true');
+  } else {
+    frame.alt = '';
+  }
   splash.append(frame);
   document.body.append(splash);
 
-  let timeout = window.setTimeout(finish, 1500);
   function finish() {
+    if (finished) return;
+    finished = true;
     window.clearTimeout(timeout);
-    frame.removeEventListener('load', loaded);
+    if (useVideo) {
+      frame.removeEventListener('ended', finish);
+      frame.removeEventListener('playing', playing);
+      frame.removeEventListener('waiting', waiting);
+      document.removeEventListener('visibilitychange', syncVideoVisibility);
+      frame.pause();
+    } else frame.removeEventListener('load', loaded);
     frame.removeEventListener('error', finish);
     window.removeEventListener('pagehide', finish);
     splash.remove();
@@ -84,9 +110,44 @@
     if (!catalogueLaunch) splash.animate?.({ opacity: [1, 0] }, { duration, easing: 'step-end', fill: 'forwards' });
     timeout = window.setTimeout(finish, duration);
   }
-  frame.addEventListener('load', loaded, { once: true });
+  function updateVideoTimeout() {
+    window.clearTimeout(timeout);
+    if (waitingForPlayback && !document.hidden) timeout = window.setTimeout(finish, 8000);
+  }
+  function playing() {
+    waitingForPlayback = false;
+    updateVideoTimeout();
+  }
+  function waiting() {
+    waitingForPlayback = true;
+    updateVideoTimeout();
+  }
+  function syncVideoVisibility() {
+    if (document.hidden) {
+      window.clearTimeout(timeout);
+      frame.pause();
+      waitingForPlayback = true;
+      return;
+    }
+    updateVideoTimeout();
+    frame.play()?.catch(error => {
+      if (!document.hidden && error?.name !== 'AbortError') finish();
+    });
+  }
+
   frame.addEventListener('error', finish, { once: true });
   window.addEventListener('pagehide', finish, { once: true });
-  frame.src = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ? still : '/portalink-launch-animation.webp?v=1069a07c';
+  if (useVideo) {
+    // Only a stalled or failed video can exit early. Hidden tabs may delay autoplay.
+    frame.addEventListener('ended', finish, { once: true });
+    frame.addEventListener('playing', playing);
+    frame.addEventListener('waiting', waiting);
+    document.addEventListener('visibilitychange', syncVideoVisibility);
+    frame.src = '/portalink-splash-mobile.mp4?v=9c1a9457';
+    syncVideoVisibility();
+  } else {
+    timeout = window.setTimeout(finish, 1500);
+    frame.addEventListener('load', loaded, { once: true });
+    frame.src = reducedMotion ? still : '/portalink-launch-animation.webp?v=1069a07c';
+  }
 })();

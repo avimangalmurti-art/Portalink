@@ -65,7 +65,7 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onBack = onCl
       <ScreenBack action={onBack}>{null}</ScreenBack>
       <section data-ui-surface="popup" data-web-portal-browsing={webBrowsing ? '' : undefined} data-portal-link-entry={!closeOnSelect ? '' : undefined}
         ref={ref} className="shared-portal-popup ps-panel" role="dialog" aria-modal="true" aria-label={category.label} tabIndex={-1}>
-        <MobilePortalProjectToolbar category={category} onBack={onBack} backLabel={backLabel} sharedReadOnly browsingControls={presentation === 'mobile' || webBrowsing}
+        <MobilePortalProjectToolbar category={category} onBack={onBack} backLabel={backLabel} sharedReadOnly browsingControls={presentation === 'mobile' || webBrowsing} animateTitleOnWeb={webBrowsing}
           layout={layout} onLayout={onLayout} sort={sort} onSort={onSort} />
         <nav ref={scrollRef} data-project-index-list="" className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}>
           {onOpenChild && <PortalChildren categories={profile.categories} parent={category} onSelect={onOpenChild} />}

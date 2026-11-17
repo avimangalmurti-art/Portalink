@@ -195,14 +195,18 @@ test('MOBILE account entry stays gated through cancellation and ignores another 
   assert.equal(h.app.type, 'app'); assert.equal(h.splash, null); assert.equal(h.app.props.homeStartupPending, false); h.dispose();
 });
 
-test('restored WEB skips the intro but retains decoded Home readiness instead of using MOBILE resume or install capture', () => {
+test('restored WEB prepares Home under the intro without using MOBILE resume or install capture', () => {
   const h = fixture({ presentation: 'web', initializing: false }); h.render(); h.settle();
-  assert.equal(h.app.type, 'app'); assert.equal(h.splash, null);
+  assert.equal(h.app.type, 'app'); assert.equal(h.splash.type, 'splash');
+  const key = h.splash.key;
   assert.equal(h.app.props.homeStartupPending, true); assert.equal(h.destination.props.enabled, false); assert.ok(h.captures.every(enabled => enabled === false));
   h.app.props.onHomeStartupShellReady(true); h.rerender(); h.settle(); assert.equal(h.app.props.homeStartupPending, true);
-  h.app.props.onHomeStartupReady(true); h.app.props.onHomeStartupShellReady(true); h.rerender(); h.settle(); assert.equal(h.splash, null);
+  h.app.props.onHomeStartupReady(true); h.app.props.onHomeStartupShellReady(true); h.rerender(); h.settle();
+  assert.equal(h.splash.key, key); assert.equal(h.splash.props.stillOnly, false);
+  assert.equal(h.trace.some(item => item[0] === 'pause-video'), false);
+  h.splash.props.onComplete(); h.rerender(); h.settle(); assert.equal(h.splash, null);
   assert.equal(h.app.props.homeStartupPending, false);
-  assert.equal(h.trace.some(item => item[0] === 'pause-video'), true); h.dispose();
+  h.dispose();
 });
 
 test('explicit projects, city pages and Settings/security links stay authoritative over saved route hints', () => {
@@ -294,9 +298,13 @@ test('a skipped MOBILE intro stays complete when session revalidation temporaril
   assert.equal(h.waiting.props.children.props.label, 'Opening Portalink…'); h.dispose();
 });
 
-test('MOBILE and WEB root visitors receive immediate account-only company entry', () => {
+test('MOBILE and WEB root visitors receive account-only company entry after any opening clip', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = fixture({ presentation, authenticated: false, initializing: false, savedPath: null }); h.render(); h.settle();
+    if (presentation === 'web') {
+      assert.equal(h.splash.props.landing, undefined);
+      h.splash.props.onComplete(); h.rerender(); h.settle();
+    }
     assert.equal(h.catalogWelcome, false); assert.equal(h.splash.props.hidden, false); assert.equal(h.splash.props.landing.ready, true);
     assert.equal(h.trace.some(item => item[0] === 'request-auth'), false); assert.equal(h.auth.pendingView, null);
     const landing = h.splash.props.landing;
@@ -323,6 +331,8 @@ test('a legacy browser-local entered marker cannot bypass account entry after ca
   first.splash.props.landing.onCreateAccount(); first.rerender(); first.settle(); assert.equal(first.splash.props.hidden, true);
   first.auth.pendingView = null; first.rerender(); first.settle(); assert.equal(first.splash.props.hidden, false); first.dispose();
   const next = fixture({ presentation: 'web', authenticated: false, initializing: false, savedPath: null, storage }); next.render(); next.settle();
+  assert.equal(next.splash.props.landing, undefined);
+  next.splash.props.onComplete(); next.rerender(); next.settle();
   assert.equal(next.catalogWelcome, false); assert.equal(next.splash.props.hidden, false); assert.equal(next.splash.props.landing.onDismiss, undefined); assert.equal(next.splash.props.landing.onContinue, undefined); next.dispose();
   assert.equal(storage.get(legacyMarker), 'done');
 });

@@ -30,7 +30,7 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
   pdfDocument?: PdfDocument | null;
   readingPartPreviews?: ReadingPartPreviews;
 }) {
-  const [measurement, setMeasurement] = useState<ReadingMeasurement | null>(null);
+  const measurement = useProjectPageMeasurement(surfaceRef, scope);
   const position = measurement?.position ?? null;
   const [openScope, setOpenScope] = useState<string | null>(null);
   const [densityDraft, setDensityDraft] = useState<{ scope: string; value: number } | null>(null);
@@ -59,101 +59,6 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
       document.removeEventListener('keydown', escape, true);
     };
   }, [open]);
-
-  useLayoutEffect(() => {
-    let surface: HTMLDivElement | null = null;
-    let frame: number | null = null;
-    let stopped = false;
-    const observedPages = new Set<HTMLElement>();
-    const measure = () => {
-      frame = null;
-      if (stopped) return;
-      if (!surface) {
-        surface = surfaceRef.current;
-        if (!surface) return;
-        surface.addEventListener('scroll', schedule, { passive: true, capture: true });
-        surface.addEventListener('load', schedule, true);
-        mutations?.observe(surface, { childList: true, subtree: true, attributes: true,
-          attributeFilter: ['data-project-page-number', 'data-project-page-total', 'data-project-page-ready', 'data-project-reading-part', 'data-project-reading-count'] });
-        resize?.observe(surface);
-      }
-      const bounds = surface.getBoundingClientRect();
-      const top = Math.max(0, bounds.top);
-      const bottom = Math.min(window.innerHeight, bounds.bottom);
-      const left = Math.max(0, bounds.left);
-      const right = Math.min(window.innerWidth, bounds.right);
-      const sections = projectReadingParts(surface);
-      const parts = sections.map(({ attachmentId, firstPage, count }) => ({ attachmentId, firstPage, count }));
-      const totalPages = parts.reduce((sum, part) => sum + part.count, 0);
-      const complete = parts.every(part => part.count > 0);
-      const pages = sections.length
-        ? sections.flatMap(({ element, ...part }) => Array.from(element.querySelectorAll<HTMLElement>(projectPageSelector), page => ({ page, part })))
-        : Array.from(surface.querySelectorAll<HTMLElement>(projectPageSelector), page => ({ page, part: undefined }));
-      const presentPages = new Set(pages.map(({ page }) => page));
-      for (const previous of observedPages) {
-        if (!presentPages.has(previous)) {
-          resize?.unobserve(previous);
-          observedPages.delete(previous);
-        }
-      }
-      let visible: PagePosition | null = null;
-      let largestArea = 0;
-      // At the end of a vertical document, a short final page can occupy less
-      // area than the preceding portrait page. It is still the current page.
-      const atReadingEnd = window.scrollY > 0 && surface.closest('[data-mobile-page-reader]')
-        && !surface.querySelector('[data-mobile-focused-view]')
-        && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
-      for (const { page, part } of pages) {
-        if (!observedPages.has(page)) {
-          resize?.observe(page);
-          observedPages.add(page);
-        }
-        const attachmentPage = Number(page.dataset.projectPageNumber);
-        const attachmentTotal = Number(page.dataset.projectPageTotal);
-        if (!complete || !Number.isInteger(attachmentPage) || !Number.isInteger(attachmentTotal) || attachmentPage < 1 || attachmentTotal < attachmentPage) continue;
-        const current = part ? part.firstPage + attachmentPage - 1 : attachmentPage;
-        const total = part ? totalPages : attachmentTotal;
-        const rect = page.getBoundingClientRect();
-        const area = Math.max(0, Math.min(bottom, rect.bottom) - Math.max(top, rect.top))
-          * Math.max(0, Math.min(right, rect.right) - Math.max(left, rect.left));
-        // In a multi-column row, ties follow the work's page order, not DOM column order.
-        if (area > 0 && (atReadingEnd ? !visible || current > visible.current
-          : area > largestArea + 0.5 || (Math.abs(area - largestArea) <= 0.5 && (!visible || current < visible.current)))) {
-          largestArea = area;
-          visible = { scope, current, total, ready: page.dataset.projectPageReady !== 'false',
-            ...(part && { attachmentId: part.attachmentId, attachmentPage, attachmentTotal }) };
-        }
-      }
-      setMeasurement(previous => {
-        if (!visible) return null;
-        if (!previous) return { position: visible, parts };
-        const current = previous.position;
-        return current.scope === visible.scope && current.current === visible.current && current.total === visible.total && current.ready === visible.ready
-          && current.attachmentId === visible.attachmentId && current.attachmentPage === visible.attachmentPage && current.attachmentTotal === visible.attachmentTotal
-          && previous.parts.length === parts.length && previous.parts.every((part, index) => part.attachmentId === parts[index].attachmentId && part.count === parts[index].count)
-          ? previous : { position: visible, parts };
-      });
-    };
-    const schedule = () => {
-      if (!stopped && frame === null) frame = requestAnimationFrame(measure);
-    };
-    const mutations = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedule);
-    const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
-    window.addEventListener('resize', schedule, { passive: true });
-    window.addEventListener('scroll', schedule, { passive: true });
-    // A child layout effect can precede assignment of its parent's surface ref.
-    schedule();
-    return () => {
-      stopped = true;
-      if (frame !== null) cancelAnimationFrame(frame);
-      surface?.removeEventListener('scroll', schedule, true);
-      surface?.removeEventListener('load', schedule, true);
-      window.removeEventListener('resize', schedule);
-      window.removeEventListener('scroll', schedule);
-      mutations?.disconnect();
-      resize?.disconnect();
-    };
-  }, [scope, surfaceRef]);
 
   useEffect(() => { onPositionChange?.(position); }, [position, onPositionChange]);
   useEffect(() => () => onPositionChange?.(null), [onPositionChange]);
@@ -186,4 +91,121 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
     {open && <MobilePageThumbnails onSelectPage={onSelectPage} id={panelId} current={position.current} total={position.total} surfaceRef={surfaceRef}
       previewSources={previewSources} pdfDocument={pdfDocument} readingParts={measurement?.parts} readingPartPreviews={readingPartPreviews} />}
   </div>;
+}
+
+export function DesktopProjectPageCounter({ surfaceRef, scope }: { surfaceRef: React.RefObject<HTMLDivElement>; scope: string }) {
+  const position = useProjectPageMeasurement(surfaceRef, scope, true)?.position;
+  if (!position || position.scope !== scope) return null;
+  return <div data-desktop-project-page-count="">
+    <span aria-hidden="true">{position.current} / {position.total}</span>
+    <span className="sr-only">Page {position.current} of {position.total}</span>
+  </div>;
+}
+
+function useProjectPageMeasurement(surfaceRef: React.RefObject<HTMLDivElement>, scope: string, desktop = false) {
+  const [measurement, setMeasurement] = useState<ReadingMeasurement | null>(null);
+  useLayoutEffect(() => {
+    let surface: HTMLDivElement | null = null;
+    let scroller: Element | null = null;
+    let frame: number | null = null;
+    let stopped = false;
+    const observedPages = new Set<HTMLElement>();
+    const measure = () => {
+      frame = null;
+      if (stopped) return;
+      if (!surface) {
+        surface = surfaceRef.current;
+        if (!surface) return;
+        surface.addEventListener('scroll', onSurfaceScroll, { passive: true, capture: true });
+        surface.addEventListener('load', schedule, true);
+        mutations?.observe(surface, { childList: true, subtree: true, attributes: true,
+          attributeFilter: ['data-project-page-number', 'data-project-page-total', 'data-project-page-ready', 'data-project-reading-part', 'data-project-reading-count'] });
+        resize?.observe(surface);
+      }
+      const bounds = surface.getBoundingClientRect();
+      const top = Math.max(0, bounds.top);
+      const bottom = Math.min(window.innerHeight, bounds.bottom);
+      const left = Math.max(0, bounds.left);
+      const right = Math.min(window.innerWidth, bounds.right);
+      const sections = projectReadingParts(surface);
+      const parts = sections.map(({ attachmentId, firstPage, count }) => ({ attachmentId, firstPage, count }));
+      const totalPages = parts.reduce((sum, part) => sum + part.count, 0);
+      const complete = parts.every(part => part.count > 0);
+      const pages = sections.length
+        ? sections.flatMap(({ element, ...part }) => Array.from(element.querySelectorAll<HTMLElement>(projectPageSelector), page => ({ page, part })))
+        : Array.from(surface.querySelectorAll<HTMLElement>(projectPageSelector), page => ({ page, part: undefined }));
+      const presentPages = new Set(pages.map(({ page }) => page));
+      for (const previous of observedPages) {
+        if (!presentPages.has(previous)) {
+          resize?.unobserve(previous);
+          observedPages.delete(previous);
+        }
+      }
+      let visible: PagePosition | null = null;
+      let largestArea = 0;
+      // At the end of a vertical document, a short final page can occupy less
+      // area than the preceding portrait page. It is still the current page.
+      const atReadingEnd = desktop
+        ? scroller && surface.contains(scroller) && scroller.scrollTop > 0 && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2
+        : window.scrollY > 0 && surface.closest('[data-mobile-page-reader]')
+          && !surface.querySelector('[data-mobile-focused-view]')
+          && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+      for (const { page, part } of pages) {
+        if (!observedPages.has(page)) {
+          resize?.observe(page);
+          observedPages.add(page);
+        }
+        const attachmentPage = Number(page.dataset.projectPageNumber);
+        const attachmentTotal = Number(page.dataset.projectPageTotal);
+        if (!complete || !Number.isInteger(attachmentPage) || !Number.isInteger(attachmentTotal) || attachmentPage < 1 || attachmentTotal < attachmentPage) continue;
+        const current = part ? part.firstPage + attachmentPage - 1 : attachmentPage;
+        const total = part ? totalPages : attachmentTotal;
+        const rect = page.getBoundingClientRect();
+        const area = Math.max(0, Math.min(bottom, rect.bottom) - Math.max(top, rect.top))
+          * Math.max(0, Math.min(right, rect.right) - Math.max(left, rect.left));
+        // Fractional desktop column widths can differ slightly in the same row.
+        const tieTolerance = desktop ? Math.max(0.5, largestArea / 1000) : 0.5;
+        // Equivalent coverage follows page order rather than DOM column order.
+        if (area > 0 && (atReadingEnd ? !visible || current > visible.current
+          : area > largestArea + tieTolerance || (Math.abs(area - largestArea) <= tieTolerance && (!visible || current < visible.current)))) {
+          largestArea = area;
+          visible = { scope, current, total, ready: page.dataset.projectPageReady !== 'false',
+            ...(part && { attachmentId: part.attachmentId, attachmentPage, attachmentTotal }) };
+        }
+      }
+      setMeasurement(previous => {
+        if (!visible) return null;
+        if (!previous) return { position: visible, parts };
+        const current = previous.position;
+        return current.scope === visible.scope && current.current === visible.current && current.total === visible.total && current.ready === visible.ready
+          && current.attachmentId === visible.attachmentId && current.attachmentPage === visible.attachmentPage && current.attachmentTotal === visible.attachmentTotal
+          && previous.parts.length === parts.length && previous.parts.every((part, index) => part.attachmentId === parts[index].attachmentId && part.count === parts[index].count)
+          ? previous : { position: visible, parts };
+      });
+    };
+    const schedule = () => {
+      if (!stopped && frame === null) frame = requestAnimationFrame(measure);
+    };
+    const onSurfaceScroll = (event: Event) => {
+      if (desktop && event.target instanceof Element) scroller = event.target;
+      schedule();
+    };
+    const mutations = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedule);
+    const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    window.addEventListener('resize', schedule, { passive: true });
+    window.addEventListener('scroll', schedule, { passive: true });
+    // A child layout effect can precede assignment of its parent's surface ref.
+    schedule();
+    return () => {
+      stopped = true;
+      if (frame !== null) cancelAnimationFrame(frame);
+      surface?.removeEventListener('scroll', onSurfaceScroll, true);
+      surface?.removeEventListener('load', schedule, true);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule);
+      mutations?.disconnect();
+      resize?.disconnect();
+    };
+  }, [desktop, scope, surfaceRef]);
+  return measurement;
 }

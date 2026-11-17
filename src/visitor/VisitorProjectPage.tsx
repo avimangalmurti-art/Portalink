@@ -18,7 +18,7 @@ import { portalChildren } from '../features/profile/portalHierarchy';
 import { MobilePortalProjectToolbar, type MobileProjectSort } from '../components/profile/MobilePortalProjectToolbar';
 import { sortPortalProjects, type PortalProjectBrowsing } from '../components/profile/portalProjectBrowsing';
 import { useSavedPortalOrder } from '../features/profile/useSavedPortalOrder';
-import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from '../features/projects/pageLayout';
+import { DEFAULT_PAGES_PER_ROW, defaultDesktopPagesPerRow, normalizePagesPerRow } from '../features/projects/pageLayout';
 import '../components/profile/web-reader-spacing.css';
 import { projectBelongsToPortal } from '../features/projects/projectPortals';
 
@@ -43,15 +43,14 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
     currentScope.current = { profileId: profile.id, projectId: selectedProjectId };
   }
   const readerScope = currentScope.current;
-  const defaultPagesPerRow = normalizePagesPerRow((project ?? pendingProject)?.design?.pagesPerRow ?? DEFAULT_PAGES_PER_ROW);
-  type ReaderState = { scope: typeof readerScope; focused: boolean; pagesPerRow: number; resolvedCounts: Record<string, number> };
-  const [readerState, setReaderState] = useState<ReaderState>({ scope: readerScope, focused: false, pagesPerRow: defaultPagesPerRow, resolvedCounts: {} });
-  const { focused, pagesPerRow, resolvedCounts } = readerState.scope === readerScope ? readerState
-    : { focused: false, pagesPerRow: defaultPagesPerRow, resolvedCounts: {} as Record<string, number> };
+  type ReaderState = { scope: typeof readerScope; focused: boolean; pagesPerRow?: number; resolvedCounts: Record<string, number> };
+  const [readerState, setReaderState] = useState<ReaderState>({ scope: readerScope, focused: false, resolvedCounts: {} });
+  const { focused, pagesPerRow: adjustedPagesPerRow, resolvedCounts } = readerState.scope === readerScope ? readerState
+    : { focused: false, resolvedCounts: {} as Record<string, number> };
   const updateReader = useCallback((update: (state: ReaderState) => ReaderState) => {
     setReaderState(current => currentScope.current !== readerScope ? current : update(current.scope === readerScope ? current
-      : { scope: readerScope, focused: false, pagesPerRow: defaultPagesPerRow, resolvedCounts: {} }));
-  }, [readerScope, defaultPagesPerRow]);
+      : { scope: readerScope, focused: false, resolvedCounts: {} }));
+  }, [readerScope]);
   const setFocused = useCallback((value: boolean) => updateReader(current => ({ ...current, focused: value })), [updateReader]);
   const setPagesPerRow = useCallback((value: number) => updateReader(current => ({ ...current, pagesPerRow: value })), [updateReader]);
   const [indexQuery, setIndexQuery] = useState('');
@@ -82,6 +81,8 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
     }
     return attachments.length > 0 && attachments.every(item => item.kind === 'image') ? attachments.length : null;
   }, [project?.pageCount, pendingProject, attachments, processing.statuses, resolvedCounts]);
+  const selectedPagesPerRow = adjustedPagesPerRow ?? (project ?? pendingProject)?.design?.pagesPerRow;
+  const pagesPerRow = normalizePagesPerRow(selectedPagesPerRow ?? (isMobile ? DEFAULT_PAGES_PER_ROW : defaultDesktopPagesPerRow(pageCount, attachments)));
   const resolvePageCount = useCallback((id: string, count: number) => updateReader(current => current.resolvedCounts[id] === count ? current
     : { ...current, resolvedCounts: { ...current.resolvedCounts, [id]: count } }), [updateReader]);
   const changeIndex = (open: boolean) => {
@@ -111,7 +112,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
           <InterfaceIcon icon={indexExpanded ? PanelLeftCloseIcon : PanelLeftOpenIcon} mirroredInRtl />
         </button>
         {indexExpanded && <span aria-hidden="true" className="min-w-0 flex-1" />}
-        {indexExpanded && pageCount !== null && pageCount > 1 && <ProjectPagesPerRowControl value={pagesPerRow} onChange={setPagesPerRow} />}
+        {indexExpanded && selectedProjectId && <ProjectPagesPerRowControl value={pagesPerRow} onChange={setPagesPerRow} />}
       </div>
     </header> : indexExpanded && category ? <MobilePortalProjectToolbar category={category} onBack={onBackToProfile} sharedReadOnly browsingControls
       layout={mobileLayout} onLayout={onLayout} sort={mobileSort} onSort={onSort} />
@@ -150,7 +151,7 @@ export function VisitorProjectPage({ profile, project, categoryId, loading = fal
       <section className="flex min-h-0 min-w-0 flex-1" style={{ display: !isMobile && layout.singlePanel === 'index' ? 'none' : undefined }} aria-label={project ? `${project.title} files` : `${category?.label ?? 'Portal'} work`}>
       {project ? <ProjectMediaViewer key={project.id} creator={profile} projectId={project.id} primaryPortalId={project.categoryId} projectTitle={project.title} projectSummary={project.summary}
         publishedAt={project.publishedAt} credits={project.credits} attachments={attachments} pageCount={pageCount} onDocumentPageCountResolved={resolvePageCount}
-        contentTypefaceStack={getTypefaceStack(project.design?.typefaceId ?? 'default')} pagesPerRow={pagesPerRow} onPagesPerRowChange={setPagesPerRow} onPageFocusModeChange={setFocused}
+        contentTypefaceStack={getTypefaceStack(project.design?.typefaceId ?? 'default')} pagesPerRow={pagesPerRow} desktopMediaColumns={selectedPagesPerRow} resolvedDocumentPageCounts={resolvedCounts} onPagesPerRowChange={setPagesPerRow} onPageFocusModeChange={setFocused}
         sharedDesktopRailStyle={isMobile ? undefined : desktopNavigationStyle}
         processing={processing} responseRailWidth={{ ...rail, width: isMobile ? rail.width : layout.responseWidth }} singlePanel={isMobile ? null : layout.singlePanel}
         isRailOpen={isMobile ? railOpen : layout.responseOpen} onRailOpenChange={open => { setRailOpen(open); setLastPanel(open ? 'response' : null); }} isOwner={false} readOnlyShare onClose={onBack}

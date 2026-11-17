@@ -134,6 +134,7 @@ function ProfileAudioPlayer({ profileId, source, previous, next }: { profileId: 
 
 export function ProfileAudio({ tracks, profileId, profileName, profileAvatar, editable, onSave, onRemove, disabled, sharedCatalogue }: ProfileAudioProps) {
   const presentation = usePresentation();
+  const autoplay = presentation === 'mobile' || sharedCatalogue === true;
   const screenActive = useMobileScreenActive();
   const id = useId();
   const coverInput = useRef<HTMLInputElement>(null);
@@ -233,11 +234,11 @@ export function ProfileAudio({ tracks, profileId, profileName, profileAvatar, ed
   }, [isActive, dismiss]);
   useEffect(() => {
     if (!isActive) return;
-    setProfileAudioQueue(profileId, sources, presentation === 'mobile');
-  }, [isActive, presentation, profileId, sources]);
+    setProfileAudioQueue(profileId, sources, autoplay);
+  }, [isActive, autoplay, profileId, sources]);
 
   useEffect(() => {
-    if (!isActive || !currentSource || presentation !== 'mobile') return;
+    if (!isActive || !currentSource || !autoplay) return;
     const activeSource = currentSource;
 
     function retryOnGesture(event: Event) {
@@ -257,7 +258,7 @@ export function ProfileAudio({ tracks, profileId, profileName, profileAvatar, ed
       document.removeEventListener('touchend', retryOnGesture, true);
       if (sharedCatalogue) document.removeEventListener('pointerup', retryOnPointerUp, true);
     };
-  }, [presentation, isActive, currentSource, sharedCatalogue]);
+  }, [autoplay, isActive, currentSource, sharedCatalogue]);
   useEffect(() => {
     if (visible) dialog.current?.focus({ preventScroll: true });
   }, [visible, editing, confirmingRemove]);
@@ -377,7 +378,8 @@ export function ProfileAudio({ tracks, profileId, profileName, profileAvatar, ed
       <Waveform />
     </button>
     <ModalPortal>
-      <div ref={viewport} hidden={!visible} data-presentation={presentation} className="profile-audio-overlay modal-scrim"
+      {visible && presentation === 'web' && <div data-profile-audio-backdrop="" aria-hidden="true" />}
+      <div ref={viewport} hidden={!visible} data-presentation={presentation} className={`profile-audio-overlay${presentation === 'mobile' ? ' modal-scrim' : ''}`}
         onPointerDown={event => {
           event.stopPropagation();
           if (event.target === event.currentTarget) close();

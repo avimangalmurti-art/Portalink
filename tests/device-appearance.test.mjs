@@ -318,11 +318,12 @@ test('shared catalogue preboot matches the platform mode and system color on eit
         matchMedia: query => ({ matches: query.includes('639') ? width <= 639 : dark }),
       };
       const document = { documentElement: root, querySelectorAll: () => [{ getAttribute: key => meta.get(key), setAttribute: (key, value) => meta.set(key, value) }] };
-      vm.runInNewContext(bootstrap, { window, document });
+      vm.runInNewContext(bootstrap, { window, document, URLSearchParams });
       const platform = harness({ dark, storage });
       assert.equal(root.dataset.appearance, expected);
       assert.equal(root.style.colorScheme, platform.render(scope).theme);
       assert.equal(flags.has('data-mobile-catalogue-launch'), scope === 'mobile');
+      assert.equal(flags.has('data-web-catalogue-launch'), scope === 'web');
       assert.equal(meta.get('content'), scope === 'mobile' || expected === 'light' ? '#ffffff' : '#000000');
       platform.dispose();
     }

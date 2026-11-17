@@ -1,3 +1,73 @@
+## 2026-11-17 — Sync published Sites 643 to GitHub
+
+The `codex/sync-sites-643` branch in `logs/github-sites643-sync` starts from GitHub main `57b9031` and carries the published Sites 643 source from `2902998bcf3ba6d19b8b46e8e490d47911083e3d`. Before this receipt was added, the complete staged tree matched the published source tree `856a50bd9f889c24977a86d2393c8d3afe6d7c68`. The sync includes the preceding Sites 642 desktop performance, soundtrack and reader changes, plus the full desktop splash.
+
+Sites 643 is live at https://portalinknetworks.com. Real Chromium verified full playback on the signed-out desktop platform, invite, shared Catalogue and direct Portal link. All four showed the 1.466667-second clip through its final visible frame. All 120 startup regressions, six entry/build checks, typecheck and the production build passed. This task owns GitHub review, merge and postmerge checks. The PR and main checks are pending.
+
+## 2026-11-17 — Play the complete desktop splash
+
+Continued in `logs/sites640-portal-sharing-release/.sites-checkout` on the Sites source branch from `dfda684` (live Sites 642). `ApplicationBootstrap.tsx` keeps the desktop startup clip mounted while account restoration, sign-in entry and Home readiness settle. `public/portalink-mobile-launch.js` uses the same existing 1.47-second MP4 on public Catalogue and exact Portal links. The shared overlay releases on video end, pauses in hidden tabs and falls back if video is unavailable. The mobile launch and reduced-motion paths retain their existing media.
+
+Chromium verified 12 cases against the built HTML, including signed-out and restored platform entry with fixture data, desktop invites, Catalogue and direct Portal links, delayed media, background pause and resume, unavailable media, Reduced Motion and 420 × 912 mobile. All 120 startup regressions and six postbuild checks passed, as did typecheck, the production client and worker build and bundle guards. Scoped lint reported one existing warning and zero errors. The change is local and unpublished. No migration is needed.
+
+## 2026-11-17 — Integrate the pending Portalink release
+
+The checkout at `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` combines the pending reader, Portal title, shared Catalogue splash and soundtrack changes below with the two previously separate desktop fixes. The performance changes from `logs/desktop-performance-followup` apply each sidebar's final width once, reserve scroll gutters, request smaller catalogue covers and let Home open while artwork loads. The invite fix from `logs/desktop-invite-splash` lets the existing desktop invite clip finish before sign-in or a Home retry appears. The active soundtrack implementation supersedes the earlier prototype in `logs/web-soundtrack-dialog`.
+
+The integration uses GitHub main `57b9031`, the synced Sites 641 application source. There are no migration, worker binding or dependency changes. Pending rollout and final release checks are tracked separately from the feature receipts below.
+
+## 2026-11-17 — Match desktop reader sidebar headers
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). The desktop rules in `src/presentation/web/web.css` now let the project list and response sidebar paint their header backgrounds, extending the existing shared reader treatment to the workspace. Content scrolling behind a header retains the navigation tint. The change is local and unpublished. All 37 focused header, presentation and public reader tests passed.
+
+Chromium at 1920 × 875 verified that both header fills matched their sidebar bodies in dark and light appearance, in the workspace and shared reader. The 420 × 912 mobile preview kept its page counter and mobile controls.
+
+## 2026-11-17 — Fill gaps between desktop reader pages
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). `useDesktopPagePacking.ts` places the next page directly below the shortest available equal-width column for desktop ordered projects and standalone PDFs. The reader keeps each page's proportions and DOM order. The existing single-column, focused and mobile paths are retained. Renderer markers let both generated PDF-page images and live PDF canvases keep their existing loading and focus behavior.
+
+Chromium verified the desktop workspace and shared catalogue at 1440 × 900 with portrait and landscape pages, including mixed files, standalone PDFs, and both PDF renderers. Pages repacked cleanly when switching from three columns to one and back, the page count reached the final page, and page focus worked. Shared mobile at 420 × 912 kept its vertical layout and page count. No uncaught runtime exceptions were observed.
+
+Typecheck, client and worker build with CI fixture configuration, bundle guards, focused reader and build tests, and diff checks passed. Scoped lint returned zero errors and one existing warning. This change is local and unpublished. No migration is needed.
+
+## 2026-11-16 — Mixed desktop page grid and shared mobile Portal titles
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). When zooming out in mixed desktop projects, `ProjectMediaViewer.tsx` and the renderers expose image and PDF overview pages to a shared equal-column grid. Pages retain source order, proportions, focus behavior and existing lazy PDF rendering. Mixed projects without a saved density start stacked. Mobile reading is unchanged.
+
+In mobile Portal project rows, `PreviewCreatorName.tsx`, `ProjectIndexList.tsx` and `mobile-project-popup.css` animate positioned text and show an unmasked fallback whenever the title is static. Chromium at 420 × 912 verified long and short titles, the animated fade, Reduced Motion and missing animation support on a shared Portal. The physical iPhone WhatsApp browser remains unverified.
+
+The 125 reader and 29 title tests, typecheck, build with CI fixture configuration and bundle guards passed. Scoped lint found zero errors and one existing warning. Chromium checked both desktop readers with real image, live PDF canvas and pre-rendered PDF pages, including Ctrl+wheel and slider changes, equal widths, page proportions, non-overlapping rows, ordered page counts, fullscreen page focus and unchanged mobile reading. The built stylesheet contains the final grid rules. Changes are local and unpublished. No migration is needed.
+
+## 2026-11-16 — Page count at the top of both desktop readers
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). The shared `ProjectMediaViewer.tsx` renders a top-left current/total badge for desktop image and document reading. `MobileProjectPageCounter.tsx` shares the existing page measurement across desktop and mobile, including mixed ordered sections. `web.css` anchors the badge above the scroll surface and suppresses the old focused-mode badge when the new badge is present. Non-paginated media and mobile retain their original controls.
+
+Typecheck, the client and worker build with CI fixture configuration, bundle guards, 144 reader tests and diff checks passed. Scoped lint returned zero errors and one existing warning. Local Chromium used disposable media to check the top-left position in shared and signed-in desktop readers, scrolling through image, PDF and mixed projects, the focus view and mobile counter behavior. The changes are local and unpublished. No migration is needed.
+
+## 2026-11-16 — Pages per row for all desktop project files
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). `VisitorProjectPage.tsx` and `ProfileCategoryPage.tsx` show Pages per row for single-page, unpaginated and multipage projects in the desktop toolbar. `ProjectMediaViewer.tsx` uses the existing page grids for documents and image sets and sizes standalone previews to the selected column width. Single items open at full width unless an authored setting applies. Public adjustments remain local to the reader, and owner saves still use the existing project design path. Mobile controls retain their existing behavior.
+
+Typecheck, the client and worker build with CI fixture configuration, bundle guards and 172 focused tests passed. Scoped lint returned zero errors and two warnings on existing code. Local Chromium with synthetic data measured actual single image, one-page PDF, audio and video widths changing at 1440 × 900, and actual column changes in multipage image, PDF and mixed collections. Mobile Chromium at 420 × 912 retained its existing controls and sizing. The changes are local and unpublished. No migration is needed.
+
+## 2026-11-16 — Splash on desktop shared Catalogue links
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). `share.html` enables the existing one-second Catalogue animation on desktop public profile links and exact Portal popup links. `public/portalink-mobile-launch.js` uses the existing still with Reduced Motion and removes the overlay after the animation or a media failure. The profile can load underneath. Desktop direct project, bare category, collaboration and Settings links skip the splash. Both HTML entries reference the updated script hash.
+
+Typecheck, the client and worker build with CI fixture configuration, bundle guards, 207 focused tests and diff checks passed. Local Chromium loaded the built visitor entry with disposable profile data and verified animated frames, dark-mode handoff, Reduced Motion, missing media, exact Catalogue and Portal destinations, desktop reader exclusions and mobile Catalogue entry. Changes are local and unpublished. No migration is needed.
+
+## 2026-11-16 — Shared desktop Portal title and soundtrack startup
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). `PortalProjectPopup.tsx`, `MobilePortalProjectToolbar.tsx`, `PreviewCreatorName.tsx` and `mobile-project-popup.css` reuse mobile's overflow motion and two-edge mask for the desktop shared Portal heading. `VisitorApp.tsx` prepares shared catalogue and exact Portal audio while the profile loads. `ProfileAudio.tsx` uses the existing autoplay and trusted-interaction retry on desktop shared catalogues. Signed-in desktop keeps manual playback.
+
+132 focused tests, typecheck, scoped lint and a local build with CI fixture configuration passed. A local Chromium full-route fixture checked animation and fades for long desktop titles, static short titles, Reduced Motion wrapping, one early audio lookup, playback before any click when allowed, and playback on a trusted Portal click when required. Mobile Chromium at 420 × 912 confirmed the existing title motion and autoplay. The changes are local and unpublished. There is no migration.
+
+## 2026-11-16 — Desktop soundtrack layout and frosted backdrop
+
+Local worktree `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup`, based on GitHub main `57b9031` (Sites 641). `ProfileAudio.tsx` and `profile-audio.css` keep the cover art and controls in one scrollable desktop column. `index.css` applies the profile-avatar backdrop styles to the soundtrack popup for both the desktop profile and shared catalogue.
+
+Typecheck, the local Sites build with the CI fixture, and 59 focused tests passed. Chromium component fixtures verified playback controls below the artwork, matching avatar and soundtrack backdrops, reduced translucency, and matching mobile layout measurements against the baseline. Changes are local and unpublished. There is no migration.
+
 ## 2026-11-15 — Sites 641 published for Portal sharing and ordering
 
 Published Sites 641 from `0854ce22a290a156bfb8d674a12661cbc97f5dce`, deployment `appgdep_6af9e50486748191bbe3104eec753814`. It includes the mobile icon-only Copy Portal control, in-place owner reorder, the saved default order on shared Portal links, and the creator avatar in copied Portal previews. Sites 640 exposed a production storage path mismatch: avatar uploads use the owner's account UUID. Sites 641 validates the account folder or the earlier profile folder within the existing public avatar bucket. The source release carries the already-applied arrangement migration's GitHub filename. No database migration was run. This GitHub sync takes the published release source from `0854ce2`.

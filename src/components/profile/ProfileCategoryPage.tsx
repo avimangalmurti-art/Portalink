@@ -28,7 +28,7 @@ import { useProjectArrangement } from '../../features/profile/useProjectArrangem
 import type { CategoryManagement } from '../../features/profile/useCategoryManagement';
 import { portalChildren } from '../../features/profile/portalHierarchy';
 import { useProjectTypography } from '../../features/projects/useProjectTypography';
-import { normalizePagesPerRow } from '../../features/projects/pageLayout';
+import { DEFAULT_PAGES_PER_ROW, defaultDesktopPagesPerRow, normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { useProjectManagement } from '../../features/projects/useProjectManagement';
 import { projectBelongsToPortal } from '../../features/projects/projectPortals';
 import { DeleteProjectDialog, ProjectEditorDialog } from '../../features/projects/ProjectEditorDialog';
@@ -255,10 +255,6 @@ export function ProfileCategoryPage({
   // The open project's own face. The overview belongs to the category rather
   // than to any one project, so it stays in the interface face.
   const activeTypefaceId = typography.resolveTypefaceId(activeProject?.id ?? null);
-  const activePagesPerRow = typography.resolvePagesPerRow(
-    activeProject?.id ?? null,
-    activeProject?.design?.pagesPerRow ?? 3
-  );
   const readAttachments = useCallback((project: typeof categoryProjects[number]) => {
     const originalPortal = profile.categories.find(portal => portal.id === project.categoryId);
     return resolveProjectAttachments(project, originalPortal ?? category);
@@ -326,14 +322,24 @@ export function ProfileCategoryPage({
   const [pageViewToggleRequest, setPageViewToggleRequest] = useState(0);
   const [isPageFocused, setIsPageFocused] = useState(false);
   const [isProjectFullscreen, setIsProjectFullscreen] = useState(false);
-  const [pageLayoutDraft, setPageLayoutDraft] = useState(() => normalizePagesPerRow(activePagesPerRow));
+  const authoredPagesPerRow = typography.resolvePagesPerRow(activeProject?.id ?? null) ?? activeProject?.design?.pagesPerRow;
+  const activePagesPerRow = authoredPagesPerRow ?? (isMobile ? DEFAULT_PAGES_PER_ROW : defaultDesktopPagesPerRow(activePageCount, activeAttachments));
+  const [pageLayoutAdjustment, setPageLayoutAdjustment] = useState<{ projectId: string; value: number }>();
+  const draftPageLayout = pageLayoutAdjustment && pageLayoutAdjustment.projectId === activeProject?.id ? pageLayoutAdjustment.value : undefined;
+  const pageLayoutDraft = draftPageLayout ?? normalizePagesPerRow(activePagesPerRow);
+  const layoutProjectId = activeProject?.id;
+  const setPageLayoutDraft = useCallback((value: number) => {
+    if (layoutProjectId) setPageLayoutAdjustment({ projectId: layoutProjectId, value });
+  }, [layoutProjectId]);
   const [pendingPageLayoutSave, setPendingPageLayoutSave] = useState<{ projectId: string; pagesPerRow: number } | null>(null);
   // Confirmed values are keyed by project. A save for one project can therefore
   // never resolve after navigation and become the comparison value for another.
   const confirmedPagesPerRow = useRef(new Map<string, number>());
   useEffect(() => {
+    setPageLayoutAdjustment(undefined);
+  }, [authoredPagesPerRow, activeProject, typography.savingProjectId]);
+  useEffect(() => {
     const stored = normalizePagesPerRow(activePagesPerRow);
-    setPageLayoutDraft(stored);
     if (activeProject && typography.savingProjectId !== activeProject.id) {
       confirmedPagesPerRow.current.set(activeProject.id, stored);
     }
@@ -353,7 +359,7 @@ export function ProfileCategoryPage({
     // the final value instead of dropping it; the effect below serializes it once
     // the project-design service is available again.
     setPendingPageLayoutSave({ projectId: activeProject.id, pagesPerRow: next });
-  }, [activeProject, showsOwnerTools]);
+  }, [activeProject, showsOwnerTools, setPageLayoutDraft]);
   useEffect(() => {
     if (!pendingPageLayoutSave) {
       return;
@@ -416,7 +422,7 @@ export function ProfileCategoryPage({
       setPageLayoutDraft(Math.min(4, activePageCount));
     }
     setPageViewToggleRequest((request) => request + 1);
-  }, [activePageCount, isPageFocused, sharedReadOnly]);
+  }, [activePageCount, isPageFocused, sharedReadOnly, setPageLayoutDraft]);
   const toggleProjectFullscreen = useCallback(async () => {
     const presentation = projectPresentationRef.current;
     if (!presentation) return;
@@ -473,7 +479,7 @@ export function ProfileCategoryPage({
   /> : undefined;
   const returnToSource = isMobile ? onReturnToDiscovery : onReturnToTimeline ?? onReturnToDiscovery;
   const returnToSourceLabel = !isMobile && onReturnToTimeline ? 'Back to Timeline' : 'Back to home';
-  const projectIndexPanel = <div ref={projectIndexRef} data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
+  const projectIndexPanel = <div ref={projectIndexRef} data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent ${isMobile ? 'transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)]' : ''} ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
         {/* A collapsed document rail keeps its expander in the global header.
            The open rail puts its complete toolbar there instead of reserving an
            empty, darker band above the controls. */}
@@ -514,7 +520,7 @@ export function ProfileCategoryPage({
               {/* Page totals belong in project information, not the toolbar.
                  Keep the remaining controls aligned with the adjacent rails. */}
               {!mobileIndexOnly && <span aria-hidden="true" className="min-w-0 flex-1" />}
-              {!sharedReadOnly && activePageCount !== null && activePageCount > 1 && <ProjectPagesPerRowControl value={pageLayoutDraft}
+              {!sharedReadOnly && activeProject && !isReaderLoading && <ProjectPagesPerRowControl value={pageLayoutDraft}
                 onChange={setPageLayoutDraft} onCommit={showsOwnerTools ? commitPageLayout : undefined}
                 saving={showsOwnerTools && typography.savingProjectId === activeProject?.id} />}
               {sharedReadOnly && activePageCount !== null && activePageCount > 1 && <button data-shared-viewer-control="overview" data-borderless-control="" type="button" onClick={togglePageView} aria-label={isPageFocused ? 'Open page overview' : 'Return to selected page'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
@@ -675,7 +681,7 @@ export function ProfileCategoryPage({
           {/* Closing clears the selection, which the entry rule immediately
            resolves back to the portal's first project — the main area always
            shows work, and the index is what changes which. */}
-          <ProjectMediaViewer creator={profile} videoSequence={mobileProjectView ? { scope: `${sharedReadOnly ? 'shared' : 'workspace'}:${profile.id}:${category.id}`, entries: portalVideos, onSelectProject: id => onSelectProject(id, true) } : undefined} mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true), onBack } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} primaryPortalId={activeProject.categoryId} projectTitle={activeProject.title} projectSummary={activeProject.summary} onDeleteProject={showsOwnerTools && !sharedReadOnly ? () => management.deletion.request(activeProject.id) : undefined} descriptionEditor={showsOwnerTools && !sharedReadOnly ? management.editor : undefined} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} savingPageLayout={showsOwnerTools && typography.savingProjectId === activeProject.id} onPagesPerRowChange={sharedReadOnly ? undefined : setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onTimelineBack={onReturnToTimeline} onClose={onReturnToTimeline ?? (() => onSelectProject(null))} />
+          <ProjectMediaViewer creator={profile} videoSequence={mobileProjectView ? { scope: `${sharedReadOnly ? 'shared' : 'workspace'}:${profile.id}:${category.id}`, entries: portalVideos, onSelectProject: id => onSelectProject(id, true) } : undefined} mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true), onBack } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} primaryPortalId={activeProject.categoryId} projectTitle={activeProject.title} projectSummary={activeProject.summary} onDeleteProject={showsOwnerTools && !sharedReadOnly ? () => management.deletion.request(activeProject.id) : undefined} descriptionEditor={showsOwnerTools && !sharedReadOnly ? management.editor : undefined} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} desktopMediaColumns={draftPageLayout ?? authoredPagesPerRow} resolvedDocumentPageCounts={resolvedDocumentPageCounts} savingPageLayout={showsOwnerTools && typography.savingProjectId === activeProject.id} onPagesPerRowChange={sharedReadOnly ? undefined : setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onTimelineBack={onReturnToTimeline} onClose={onReturnToTimeline ?? (() => onSelectProject(null))} />
         </section> : isMissingSelection ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label="Project not found">
           <RouteError kind="not-found" creatorHandle={profile.handle} onBack={onBack} onHome={() => window.location.assign('/')} onCreator={() => window.location.assign(`${sharedReadOnly ? '/share' : '/p'}/${encodeURIComponent(profile.id)}`)} />
         </section> : <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label={`${category.label} work`}>

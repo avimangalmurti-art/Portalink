@@ -12,6 +12,7 @@ function harness() {
   const attributes = new Set();
   const viewport = { clientWidth: 100,
     toggleAttribute(name, enabled) { if (enabled) attributes.add(name); else attributes.delete(name); },
+    setAttribute(name) { attributes.add(name); },
     removeAttribute(name) { attributes.delete(name); },
     hasAttribute(name) { return attributes.has(name); },
   };
@@ -78,27 +79,44 @@ test('overflow starts revealing immediately and stops exactly at the end of the 
   assert.equal(h.animations.length, 1, 'Unchanged measurements must not restart the text');
 });
 
-test('long Portal project titles animate only while visible, with both endpoints clear of the fade', () => {
-  const h = harness(); h.render({ centered: true, visibleOnly: true, fadeInset: 8 });
+test('long Portal project titles paint unmasked until their visible row starts moving', () => {
+  const h = harness();
+  const title = h.render({ centered: true, visibleOnly: true, animatePosition: true, fadeInset: 8 });
+  assert.equal(title.props.children.props.children, 'Portalink Networks Inc.');
+  assert.match(title.props.children.props.className, /relative/);
+  assert.equal(h.viewport.hasAttribute('data-name-animating'), false);
   assert.equal(h.animations.length, 0);
   const [visibility] = h.intersections;
   assert.deepEqual(visibility.targets, [h.viewport]);
   const setVisible = isIntersecting => visibility.callback([{ target: h.viewport, isIntersecting }]);
   setVisible(true);
   assert.equal(h.viewport.hasAttribute('data-name-overflow'), true);
+  assert.equal(h.viewport.hasAttribute('data-name-animating'), true);
   assert.equal(h.animations.length, 1);
   const { frames, options } = h.animations[0];
   assert.equal(options.direction, 'alternate');
   assert.equal(options.duration, 96 / 22 * 1000 + 2400);
-  assert.equal(frames[0].transform, 'translateX(8px)');
-  assert.equal(frames.at(-1).transform, 'translateX(-88px)');
+  assert.equal(frames[0].left, '8px');
+  assert.equal(frames.at(-1).left, '-88px');
+  assert.ok(frames.every(frame => !frame.transform), 'Avoid the composited transform under the modal mask');
   setVisible(false);
+  assert.equal(h.viewport.hasAttribute('data-name-animating'), false);
   assert.equal(h.animations[0].cancelled, true);
   setVisible(true);
   assert.equal(h.animations.length, 2);
   h.unmount();
+  assert.equal(h.viewport.hasAttribute('data-name-animating'), false);
   assert.equal(visibility.disconnected, true);
   assert.equal(h.animations[1].cancelled, true);
+});
+
+test('a reader without the animation API still renders the original Portal title', () => {
+  const h = harness();
+  h.text.animate = undefined;
+  const title = h.render({ centered: true, visibleOnly: true, animatePosition: true, fadeInset: 8 });
+  assert.equal(title.props.children.props.children, 'Portalink Networks Inc.');
+  assert.equal(h.viewport.hasAttribute('data-name-animating'), false);
+  assert.equal(h.observers.length, 0);
 });
 
 test('short names stay still; layout and font-size changes recalculate the hidden text', () => {
@@ -167,4 +185,20 @@ test('short connection names remain centered and still; desktop stays unchanged'
   assert.equal(h.animations.length, 0);
   h.setPresentation('web');
   assert.equal(h.render({ centered: true }).props['data-name-centered'], undefined);
+});
+
+test('desktop Portal titles opt into the same motion and keep the complete text with reduced motion', () => {
+  const h = harness();
+  h.setPresentation('web');
+  const options = { animateOnWeb: true, centered: true, fadeInset: 12 };
+  h.render(options);
+  const [animation] = h.animations;
+  assert.equal(animation.options.direction, 'alternate');
+  assert.equal(animation.frames[0].transform, 'translateX(12px)');
+  assert.equal(animation.frames.at(-1).transform, 'translateX(-92px)');
+  h.setReducedMotion(true);
+  const reduced = h.render(options);
+  assert.equal(animation.cancelled, true);
+  assert.match(reduced.props.className, /whitespace-normal/);
+  assert.equal(reduced.props.children.props.children, 'Portalink Networks Inc.');
 });

@@ -43,6 +43,7 @@ test('single-column rendered documents retain vertical reading and the existing 
     if (name === 'react') return react;
     if (name === './useSinglePageZoom') return { useSinglePageZoom: () => 1 };
     if (name === './useDocumentReadingScroll') return { useDocumentReadingScroll() {} };
+    if (name === './useDesktopPagePacking') return { useDesktopPagePacking() {} };
     if (name === './useFocusedPageSwipe') return { useFocusedPageSwipe: () => ({ isMobile: true, swipeStyle: {}, swipeHandlers: {} }) };
     if (name === './viewerMemory') return { readViewerMemory: () => ({focusedPageNumber: 1}), updateViewerMemory: (key, patch) => writes.push({ key, patch }) };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value, MAX_PAGES_PER_ROW: 7 };

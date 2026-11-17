@@ -93,7 +93,7 @@ export function VisitorApp() {
   const deferredIntent = useRef<AuthIntent | null>(null);
   const interactiveSignIn = useRef(false), resumedRegistration = useRef<string | null>(null);
   const invalidShared = !settings && sharedShell && (!shared || !profileId || !isProfileId(profileId));
-  usePrepareProfileAudio(presentation === 'mobile' && !auth.isInitializing && (route.kind === 'sharedProfile' || sharedPortalLink) && !settings
+  usePrepareProfileAudio(!auth.isInitializing && (route.kind === 'sharedProfile' || sharedPortalLink) && !settings
     && !handlePending && !handleError && !invalidShared && isProfileId(route.profileId)
     && new URLSearchParams(location.search).get('view') !== 'portals' ? route.profileId : null, auth.user?.id ?? null);
   const query = useSharedProfileQuery(invalidShared ? null : profileId, projectId, categoryId);

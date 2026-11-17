@@ -313,7 +313,7 @@ function hooks() {
   return { react, render, dispose: () => effects.forEach(effect => effect?.cleanup?.()) };
 }
 function appHarness({ catalogueOrigin = null, timelineViewport = null, deviceAppearance = appearance, appearanceStorage, systemDark = false } = {}) {
-  const h = hooks(), assigned = [], replaced = [], navigations = [], queryCalls = [], requests = [];
+  const h = hooks(), assigned = [], replaced = [], navigations = [], queryCalls = [], requests = [], audioPreparation = [];
   const navigate = (path, options) => navigations.push([path, options]);
   let pendingIntent = null;
   const state = { route: { kind: 'sharedProfile', profileId }, location: { pathname: `/share/${profileId}`, search: '', hash: '', state: null }, presentation: 'mobile', handlePending: false, handleError: '',
@@ -364,7 +364,7 @@ function appHarness({ catalogueOrigin = null, timelineViewport = null, deviceApp
     if (name === '../app/useAppRoute') return { useAppRoute: () => state.route };
     if (name === '../app/routes') return routes;
     if (name === '../contexts/AuthContext') return { useAuth: () => state.auth };
-    if (name === '../components/profile/usePrepareProfileAudio') return { usePrepareProfileAudio() {} };
+    if (name === '../components/profile/usePrepareProfileAudio') return { usePrepareProfileAudio: (...args) => audioPreparation.push(args) };
     if (name === '../features/profile/profileAudioPlayback') return { clearProfileAudioForProfile() {} };
     if (name === '../features/profile/useSharedProfileQuery') return { useSharedProfileQuery: (...args) => { queryCalls.push(args); return args[0] ? state.query : { status: 'idle', profile: null }; } };
     if (name === '../hooks/useDeviceAppearance') return { useDeviceAppearance: appearanceHook };
@@ -380,11 +380,31 @@ function appHarness({ catalogueOrigin = null, timelineViewport = null, deviceApp
     if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedContextActions', 'SharedSignInBar', 'VisitorProfileGrid', 'SharedPortalPopup', 'PortalProjectPopup'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
     throw new Error(name);
   }, browser);
-  return { state, assigned, replaced, navigations, queryCalls, requests, window, dispose: h.dispose,
+  return { state, assigned, replaced, navigations, queryCalls, requests, audioPreparation, window, dispose: h.dispose,
     render: () => h.render(VisitorApp), pending: intent => { pendingIntent = intent; },
     signedIn(overrides = {}) { state.auth = { ...state.auth, phase: 'authenticated', isAuthenticated: true, viewerProfileId: 'viewer', user: { id: 'account', profileId: 'viewer' }, session: { user: { id: 'account', profileId: 'viewer', isEmailVerified: true } }, ...overrides }; },
   };
 }
+
+test('WEB shared catalogues and exact Portal links prepare audio while the profile is loading', () => {
+  const h = appHarness();
+  h.state.presentation = 'web';
+  h.state.query = { ...h.state.query, status: 'loading', profile: null };
+  h.render();
+  assert.deepEqual(h.audioPreparation.at(-1), [profileId, null]);
+  h.state.route = { kind: 'sharedCategory', profileId, categoryId: 'portal' };
+  h.state.location = { ...h.state.location, pathname: `/share/${profileId}/c/portal`, search: '?view=portal' };
+  h.render();
+  assert.deepEqual(h.audioPreparation.at(-1), [profileId, null]);
+  h.state.auth.isInitializing = true;
+  h.render();
+  assert.deepEqual(h.audioPreparation.at(-1), [null, null]);
+  h.state.auth.isInitializing = false;
+  h.state.location.search = '';
+  h.render();
+  assert.deepEqual(h.audioPreparation.at(-1), [null, null]);
+  h.dispose();
+});
 
 test('cold public mobile visit shows the portfolio immediately and keeps the exact shared URL', () => {
   const h = appHarness();
