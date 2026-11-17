@@ -72,6 +72,8 @@
   background: rgb(0 0 0 / 32%);
 }
 
+.profile-audio-overlay[data-presentation='web']:not([hidden]) { background: transparent; }
+
 .profile-audio-dialog {
   display: grid;
   gap: 16px;
@@ -150,6 +152,20 @@
   width: min(100%, max(144px, calc(var(--dialog-viewport-height, 100dvh) - 350px)));
   border-radius: var(--ui-popup-radius, 24px);
   box-shadow: var(--shadow-pop);
+}
+
+/* Keep the cover, controls and queue in flow in short desktop windows. */
+.profile-audio-overlay[data-presentation='web'] .profile-audio-dialog[data-player] {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-audio-overlay[data-presentation='web'] .profile-audio-dialog[data-player] > :not(.profile-audio-player-close) {
+  flex: none;
+}
+
+.profile-audio-overlay[data-presentation='web'] .profile-audio-dialog[data-player] .profile-audio-cover {
+  align-self: center;
 }
 
 .profile-audio-dialog[data-player] .profile-audio-cover > [data-interface-icon-frame] {

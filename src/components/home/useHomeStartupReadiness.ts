@@ -48,6 +48,7 @@ export function inspectHomeStartupArtwork(root: HTMLElement, projectCount: numbe
 
 type Options = {
   enabled: boolean;
+  waitForArtwork?: boolean;
   attempt: number;
   ref: RefObject<HTMLElement | null>;
   settled: boolean;
@@ -57,10 +58,14 @@ type Options = {
   onReady?: (ready: boolean) => void;
 };
 
-/** A launch-only paint check; it performs no fetches and never gates later navigation. */
-export function useHomeStartupReadiness({ enabled, attempt, ref, settled, terminalError, projectCount, documentProjects, onReady }: Options) {
+/** A launch-only readiness check; it performs no fetches and never gates later navigation. */
+export function useHomeStartupReadiness({ enabled, waitForArtwork = true, attempt, ref, settled, terminalError, projectCount, documentProjects, onReady }: Options) {
   useEffect(() => {
     if (!enabled || !onReady) return;
+    if (!waitForArtwork) {
+      onReady(settled || terminalError);
+      return;
+    }
     let active = true, frame = 0, poll = 0, stableFrames = 0, reported = false;
     const decoded = new WeakMap<HTMLImageElement, { source: string; complete: boolean }>();
     // Capture this attempt's callback: a decode finishing between a new render
@@ -125,5 +130,5 @@ export function useHomeStartupReadiness({ enabled, attempt, ref, settled, termin
       window.removeEventListener('resize', schedule);
       // Completion unmounts this observer. Do not revoke its accepted ready report.
     };
-  }, [enabled, attempt, ref, settled, terminalError, projectCount, documentProjects, onReady]);
+  }, [enabled, waitForArtwork, attempt, ref, settled, terminalError, projectCount, documentProjects, onReady]);
 }

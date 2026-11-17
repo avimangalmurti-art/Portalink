@@ -3,11 +3,13 @@ import React, { useLayoutEffect, useRef } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { usePresentation } from '../../presentation/usePresentation';
 
-/** Reveal the hidden end of a mobile label without moving adjacent controls. */
-export function PreviewCreatorName({ name, active, centered = false, visibleOnly = false, fadeInset = 0, className = 'text-[11px] font-semibold' }: {
-  name: string; active: boolean; centered?: boolean; visibleOnly?: boolean; fadeInset?: number; className?: string;
+/** Reveal the hidden end of a label without moving adjacent controls. */
+export function PreviewCreatorName({ name, active, centered = false, visibleOnly = false, fadeInset = 0, animateOnWeb = false, animatePosition = false, className = 'text-[11px] font-semibold' }: {
+  name: string; active: boolean; centered?: boolean; visibleOnly?: boolean; fadeInset?: number; animateOnWeb?: boolean;
+  /** Keep scrolling Portal row text on the clipped container's paint layer. */
+  animatePosition?: boolean; className?: string;
 }) {
-  const isMobile = usePresentation() === 'mobile';
+  const animateOverflow = usePresentation() === 'mobile' || animateOnWeb;
   const reduceMotion = useReducedMotion();
   const viewportRef = useRef<HTMLSpanElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
@@ -15,7 +17,8 @@ export function PreviewCreatorName({ name, active, centered = false, visibleOnly
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     const text = textRef.current;
-    if (!isMobile || !active || reduceMotion || !viewport || !text) return;
+    if (!animateOverflow || !active || reduceMotion || !viewport || !text
+      || typeof ResizeObserver === 'undefined' || typeof text.animate !== 'function') return;
 
     let animation: Animation | undefined;
     let previousDistance = -1;
@@ -28,24 +31,29 @@ export function PreviewCreatorName({ name, active, centered = false, visibleOnly
       previousDistance = distance;
       animation?.cancel();
       animation = undefined;
+      viewport.removeAttribute('data-name-animating');
       if (distance <= 1) return;
 
       // Keep the first and last glyphs clear of the mask at the pauses.
       const travelTime = Math.max(1200, (distance + 2 * fadeInset) / 22 * 1000);
-      const start = fadeInset ? `translateX(${fadeInset}px)` : 'translateX(0)';
-      const end = `translateX(-${distance + fadeInset}px)`;
+      const frameAt = (offset: number): Keyframe => animatePosition
+        ? { left: `${offset}px` }
+        : { transform: `translateX(${offset ? `${offset}px` : '0'})` };
+      const start = frameAt(fadeInset);
+      const end = frameAt(-distance - fadeInset);
       // Connection labels are continuous reading motion, not a screen transition.
       const duration = centered ? travelTime + 2400 : motionMs('slow');
       animation = text.animate(centered ? [
-        { transform: start, offset: 0 },
-        { transform: start, offset: 1200 / duration, easing: 'ease-in-out' },
-        { transform: end, offset: (1200 + travelTime) / duration },
-        { transform: end, offset: 1 },
+        { ...start, offset: 0 },
+        { ...start, offset: 1200 / duration, easing: 'ease-in-out' },
+        { ...end, offset: (1200 + travelTime) / duration },
+        { ...end, offset: 1 },
       ] : [
-        { transform: start },
-        { transform: end, offset: travelTime / (travelTime + 1200) },
-        { transform: end },
+        start,
+        { ...end, offset: travelTime / (travelTime + 1200) },
+        end,
       ], { duration, iterations: Infinity, direction: 'alternate', easing: centered ? 'linear' : motionEase() });
+      if (animatePosition) viewport.setAttribute('data-name-animating', '');
     };
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
@@ -61,14 +69,15 @@ export function PreviewCreatorName({ name, active, centered = false, visibleOnly
       visibility?.disconnect();
       animation?.cancel();
       viewport.removeAttribute('data-name-overflow');
+      viewport.removeAttribute('data-name-animating');
     };
-  }, [active, centered, fadeInset, isMobile, name, reduceMotion, visibleOnly]);
+  }, [active, animateOverflow, animatePosition, centered, fadeInset, name, reduceMotion, visibleOnly]);
 
-  if (!isMobile) return <span className={`min-w-0 truncate text-left ${className}`}>{name}</span>;
+  if (!animateOverflow) return <span className={`min-w-0 truncate text-left ${className}`}>{name}</span>;
 
   return <span ref={viewportRef} data-preview-creator-name="" data-name-centered={centered ? '' : undefined} data-name-reduced-motion={reduceMotion ? '' : undefined}
     style={fadeInset ? { '--portal-title-fade': `${fadeInset}px` } as React.CSSProperties : undefined}
     className={`min-w-0 flex-1 overflow-hidden text-left ${className} ${reduceMotion ? 'whitespace-normal break-words' : 'whitespace-nowrap'}`}>
-    <span ref={textRef} className={reduceMotion ? 'block' : 'block w-max'}>{name}</span>
+    <span ref={textRef} className={reduceMotion ? 'block' : animatePosition ? 'relative block w-max' : 'block w-max'}>{name}</span>
   </span>;
 }

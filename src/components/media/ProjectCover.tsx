@@ -5,6 +5,8 @@ import { ResponsiveImage, type ImagePriority } from '../ui/ResponsiveImage';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { coverThumbnailSources } from '../../features/media/coverThumbnailSources';
+import { signedProjectImagePath } from '../../services/supabase/mediaUrlCache';
+import { DesktopCatalogueCoverImage } from './DesktopCatalogueCoverImage';
 
 // Only legacy projects without a stored thumbnail may ask for the PDF module.
 const PdfPage = lazy(() => import('./PdfPage').then(module => ({ default: module.PdfPage })));
@@ -21,6 +23,7 @@ type ProjectCoverProps = {
   sizes?: string;
   priority?: ImagePriority;
   showLoadingIndicator?: boolean;
+  preferCatalogueThumbnail?: boolean;
   /** Visitor grids show existing bitmaps or a placeholder, never a live PDF. */
   allowPdfFallback?: boolean;
   /** Visitor grids defer original video playback until the project is opened. */
@@ -116,6 +119,7 @@ export function ProjectCover({
   sizes,
   priority = false,
   showLoadingIndicator = false,
+  preferCatalogueThumbnail = false,
   allowPdfFallback = true,
   allowVideoFallback = true,
   autoplaySources,
@@ -181,6 +185,22 @@ export function ProjectCover({
   const renderPdf = kind === 'document' && !useDocumentPreview;
   if (renderPdf && !allowPdfFallback) return placeholder;
   if (kind === 'video' && !allowVideoFallback) return placeholder;
+  const imageSource = mediaSource ?? source;
+  const catalogueThumbnailPath = preferCatalogueThumbnail && !renderPdf && kind !== 'video'
+    ? signedProjectImagePath(imageSource) : null;
+  const imageProps = {
+    trackCoverPaint: true,
+    src: imageSource,
+    alt,
+    width: Math.max(1, Math.round(safeRatio * 1000)),
+    height: 1000,
+    sizes,
+    priority,
+    onLoad: markLoaded,
+    onError: () => useDocumentPreview ? setPreviewFailed(true) : setImageFailed(true),
+    style: { objectPosition },
+    className: `h-full w-full ${useDocumentPreview && !assetLoading ? 'bg-white ' : ''}${(useDocumentPreview ? Boolean(normalizedFrame) : effectiveFit === 'cover') ? 'object-cover' : 'object-contain'}`,
+  };
   const content = renderPdf
     ? <Suspense fallback={loadingMark ?? placeholder}><PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} showLoadingIndicator={showLoadingIndicator} fit={normalizedFrame ? 'cover' : 'contain'} objectPosition={objectPosition} className="h-full w-full" /></Suspense>
     : kind === 'video'
@@ -199,20 +219,9 @@ export function ProjectCover({
           style={{ objectPosition }}
           className={`h-full w-full ${effectiveFit === 'cover' ? 'object-cover' : 'object-contain'}`}
         />
-      : <ResponsiveImage
-          key={showLoadingIndicator ? mediaSource : undefined}
-          trackCoverPaint
-          src={mediaSource ?? source}
-          alt={alt}
-          width={Math.max(1, Math.round(safeRatio * 1000))}
-          height={1000}
-          sizes={sizes}
-          priority={priority}
-          onLoad={markLoaded}
-          onError={() => useDocumentPreview ? setPreviewFailed(true) : setImageFailed(true)}
-          style={{ objectPosition }}
-          className={`h-full w-full ${useDocumentPreview && !assetLoading ? 'bg-white ' : ''}${(useDocumentPreview ? Boolean(normalizedFrame) : effectiveFit === 'cover') ? 'object-cover' : 'object-contain'}`}
-        />;
+      : catalogueThumbnailPath
+        ? <DesktopCatalogueCoverImage key={imageSource} {...imageProps} path={catalogueThumbnailPath} zoom={normalizedFrame?.zoom ?? 1} />
+        : <ResponsiveImage key={showLoadingIndicator ? mediaSource : undefined} {...imageProps} />;
 
   if (!normalizedFrame) {
     if (renderPdf) {

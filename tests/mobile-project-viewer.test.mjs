@@ -11,6 +11,7 @@ const portalBrowsing = sourceModule('src/components/profile/portalProjectBrowsin
 
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
 const MobileProjectPageCounter = () => null;
+const DesktopProjectPageCounter = () => null;
 const ProjectOpeningLoader = () => null;
 const FollowContentInfoPopup = () => null;
 const MobileVideoSequence = () => null;
@@ -105,7 +106,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name.endsWith('/useDocumentReadingScroll')) return { useDocumentReadingScroll: (...args) => readingScroll.push(args) };
     if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
     if (name.endsWith('/MobileVideoFrame')) return { MobileVideoFrame };
-    if (name.endsWith('/MobileProjectPageCounter')) return { MobileProjectPageCounter };
+    if (name.endsWith('/MobileProjectPageCounter')) return { DesktopProjectPageCounter, MobileProjectPageCounter };
     if (name.endsWith('/EngagementBar')) return { EngagementBar, EngagementFeedback };
     if (name.endsWith('/CommentThreadView')) return { CommentThreadView };
     if (name.endsWith('/FollowContentInfoPopup')) return { FollowContentInfoPopup };
@@ -533,22 +534,29 @@ test('MOBILE continuous reading follows stored order across PDF covers, appendix
   assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
 });
 
-test('WEB platform and shared readers stack images and PDFs in saved order', () => {
+test('WEB platform and shared readers place images and PDF pages in one grid while retaining attachment order', () => {
   for (const readOnlyShare of [false, true]) {
     const h = harness({ lifecycle: true, mobile: false, mediaKind: 'image', readOnlyShare });
     const [cover, pdf] = mixedCoverPdf(h.attachments);
     const attachments = [{ ...pdf, order: 1 }, { ...cover, order: 0 }, { ...pdf, id: 'report-two', order: 2 }];
+    const stacked = h.commitFocusedPage(false, { attachments, pagesPerRow: 1 });
+    assert.equal(withProp(stacked, 'data-project-stage').props['data-web-ordered-page-grid'], undefined);
     const tree = h.commitFocusedPage(false, { attachments, pagesPerRow: 4 });
     const parts = readingParts(tree);
     assert.deepEqual(parts.map(({ renderer }) => renderer.attachment.id), ['first', 'second', 'report-two']);
-    assert.deepEqual(parts.map(({ renderer }) => renderer.imageColumns), [1, 4, 4]);
+    assert.deepEqual(parts.map(({ renderer }) => renderer.imageColumns), [1, 1, 1]);
+    assert.equal(withProp(tree, 'data-project-stage').props['data-web-ordered-page-grid'], '');
+    assert.equal(withProp(tree, 'data-project-stage').props.style['--ordered-page-columns'], 4);
     assert.ok(parts.every(({ renderer }) => renderer.manageReadingScroll === false));
     assert.ok(withProp(tree, 'data-web-ordered-reading'));
     assert.ok(withProp(tree, 'data-project-response-rail'));
     assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
     assert.equal(nodes(tree).some(node => node.type === MobileProjectPageCounter), false);
+    assert.equal(nodes(withProp(tree, 'data-project-work-column')).filter(node => node.type === DesktopProjectPageCounter).length, 1);
     assert.equal(h.readingScroll.at(-1)[5], true);
-    assert.equal(readingParts(h.commitFocusedPage(true))[0].hidden, true);
+    const focused = h.commitFocusedPage(true);
+    assert.equal(readingParts(focused)[0].hidden, true);
+    assert.equal(withProp(focused, 'data-project-stage').props['data-web-ordered-page-grid'], undefined);
     assert.equal(readingParts(h.commitFocusedPage(false))[0].hidden, false);
   }
 });
@@ -1051,17 +1059,38 @@ test('public readers retain a density slider; WEB, non-page media and callback-f
     assert.equal(nodes(web).some(node => node.type === MobileProjectPageCounter), false);
     const webRenderers = readingParts(web).map(({ renderer }) => renderer);
     if (!webRenderers.length) webRenderers.push(nodes(web).find(node => node.type === AttachmentRenderer).props);
-    assert.ok(webRenderers.every(renderer => renderer.imageColumns === 7));
+    if (mediaKind === 'document') {
+      assert.equal(withProp(web, 'data-project-stage').props.style['--ordered-page-columns'], 7);
+      assert.ok(webRenderers.every(renderer => renderer.imageColumns === 1), 'The shared packing surface owns desktop PDF columns');
+    } else {
+      assert.ok(webRenderers.every(renderer => renderer.imageColumns === 7));
+    }
   }
   for (const mediaKind of ['video', 'audio', 'model3d']) {
     const tree = harness({ mediaKind }).render(callbacks);
     assert.equal(nodes(tree).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
+    const web = harness({ mediaKind, mobile: false }).render(callbacks);
+    assert.equal(nodes(web).some(node => node.type === DesktopProjectPageCounter), false);
   }
   const noCallbacks = harness({ mediaKind: 'document' }).render();
   assert.equal(nodes(noCallbacks).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
   const single = harness({ mediaKind: 'image' });
   single.attachments.splice(1);
   assert.equal(nodes(single.render(callbacks)).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
+});
+
+test('desktop density sizes standalone media without narrowing a multi-page image grid', () => {
+  for (const mediaKind of ['image', 'document', 'video', 'audio', 'model3d', 'unknown']) {
+    const h = harness({ mobile: false, mediaKind });
+    h.attachments.splice(1);
+    let tree = h.render({ pageCount: 1, pagesPerRow: 1 });
+    assert.equal(withProp(tree, 'data-desktop-media-preview').props.style.width, undefined);
+    tree = h.render({ pageCount: 1, pagesPerRow: 2, desktopMediaColumns: 2 });
+    assert.match(withProp(tree, 'data-desktop-media-preview').props.style.width, /50%/);
+  }
+  const grid = harness({ mobile: false, mediaKind: 'image' }).render({ pagesPerRow: 2, desktopMediaColumns: 2 });
+  assert.equal(withProp(grid, 'data-desktop-media-preview').props.style.width, undefined);
+  assert.equal(nodes(grid).find(node => node.type === AttachmentRenderer).props.imageColumns, 2);
 });
 
 test('project workspace handles mobile projects, nested Portals and Back', async () => {
@@ -1141,10 +1170,10 @@ test('project workspace handles mobile projects, nested Portals and Back', async
       pinnedIds: [], hiddenIds: [], isLoading: false, isSaving: false, ...arrangementRead,
     }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ deletion: { projectId: null }, editor: {} }) };
-    if (name.endsWith('/useProjectTypography')) return { useProjectTypography: () => ({ resolveTypefaceId: () => null, resolvePagesPerRow: () => 3, ...typographyRead }) };
+    if (name.endsWith('/useProjectTypography')) return { useProjectTypography: () => ({ resolveTypefaceId: () => null, resolvePagesPerRow: () => undefined, ...typographyRead }) };
     if (name.endsWith('/typefaces')) return { getTypefaceStack: () => 'sans-serif' };
     if (name.endsWith('/projectAttachments')) return { resolveProjectAttachments: project => project.attachments ?? [] };
-    if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value };
+    if (name.endsWith('/pageLayout')) return pageLayout;
     if (name.endsWith('/useAssetProcessing')) return { useAssetProcessing: () => ({ statuses: {} }) };
     if (name.endsWith('/panelLayoutDefaults')) return { panelLayoutDefaults: {} };
     return new Proxy({}, { get: () => () => null });
@@ -1414,10 +1443,15 @@ test('project workspace handles mobile projects, nested Portals and Back', async
   tree = render({ ...webProps, sharedReadOnly: true });
   assert.equal(slider(), undefined, 'The public reader owns its own slider');
   typographyRead = {};
-  tree = render({ ...webProps, profile: { ...props.profile, projects: [
+  const singlePageProps = { ...webProps, profile: { ...props.profile, projects: [
     { ...props.profile.projects[0], pageCount: 1 }, props.profile.projects[1],
-  ] } });
-  assert.equal(slider(), undefined, 'Single-page work has no row density control');
+  ] } };
+  tree = render(singlePageProps);
+  tree = render(singlePageProps);
+  assert.equal(slider().props.value, 1, 'Single-page work starts at full width');
+  slider().props.onChange(2);
+  tree = render(singlePageProps);
+  assert.equal(viewer().props.desktopMediaColumns, 2);
 
   currentRoute = { kind: 'category', profileId: 'owner', categoryId: 'portal' };
   tree = render({ ...props, activeProjectId: null, isIndexCollapsed: false });

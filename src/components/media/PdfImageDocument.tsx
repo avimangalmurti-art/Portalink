@@ -1,6 +1,7 @@
 import {createPageRenderQueue, queuePageRender, type PageRenderTask} from './pageRenderQueue';
 import { rememberPageHeading } from '../../features/reads/pageHeadings';
 import { useDocumentReadingScroll } from './useDocumentReadingScroll';
+import { useDesktopPagePacking } from './useDesktopPagePacking';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
 import { loadPdfJs, pdfSourceOptions } from './PdfPage';
@@ -413,6 +414,7 @@ function PdfImagePage({
  */
 export function PdfImageDocument({ projectId, attachmentId, source, openPdfRanges, label, columns = 1, onError, onPageCount, onPreviewDocument, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0, readingMode = false, verticalReading = false, manageReadingScroll = true, readerPageRequest = null, onReaderRequestHandled }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
+  const pageGridRef = useRef<HTMLOListElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
   const overviewObserver = useRef<IntersectionObserver | null>(null);
@@ -618,8 +620,11 @@ export function PdfImageDocument({ projectId, attachmentId, source, openPdfRange
     ? Array.from({ length: pageCount }, (_, index) => index + 1)
     : [focusedPageNumber];
   const overviewZoom = isMobile && focusedPageNumber === null && zoom > 1;
+  const orderedPageWrapper = !isMobile && !manageReadingScroll && focusedPageNumber === null ? '' : undefined;
+  const packDesktopPages = !isMobile && manageReadingScroll && focusedPageNumber === null && Boolean(document) && columnCount > 1;
+  useDesktopPagePacking(pageGridRef, packDesktopPages, columnCount);
 
-  return <div key={focusedPageNumber === null ? 'pdf-grid' : isMobile ? 'pdf-focused' : `pdf-page-${focusedPageNumber}`} ref={scrollRootRef} tabIndex={focusedPageNumber === null ? undefined : 0} onScroll={focusedPageNumber === null ? (event) => updateViewerMemory(memoryKey, isMobile ? { scrollLeft: event.currentTarget.scrollLeft } : { scrollTop: event.currentTarget.scrollTop }) : undefined} onKeyDown={focusedPageNumber === null ? undefined : (event) => {
+  return <div key={focusedPageNumber === null ? 'pdf-grid' : isMobile ? 'pdf-focused' : `pdf-page-${focusedPageNumber}`} ref={scrollRootRef} data-ordered-page-wrapper={orderedPageWrapper} tabIndex={focusedPageNumber === null ? undefined : 0} onScroll={focusedPageNumber === null ? (event) => updateViewerMemory(memoryKey, isMobile ? { scrollLeft: event.currentTarget.scrollLeft } : { scrollTop: event.currentTarget.scrollTop }) : undefined} onKeyDown={focusedPageNumber === null ? undefined : (event) => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
       moveFocusedPage(-1);
@@ -640,12 +645,14 @@ export function PdfImageDocument({ projectId, attachmentId, source, openPdfRange
         </button> : null}
         <FocusedPageCounter current={focusedPageNumber} total={pageCount} showMediaInteractions={showMediaInteractions} />
       </> : null}
-      {!document && <div data-page-loading="" data-reader-media-state="pending" data-initial-page-loading="" role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
+      {!document && <div data-page-loading="" data-reader-media-state="pending" data-initial-page-loading="" data-ordered-page-notice={orderedPageWrapper} role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <span className="premium-media-loading-mark" aria-hidden="true" />
       <span className="sr-only">Preparing page images</span>
     </div>}
-    {document && <ol aria-label={`${label} pages`} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))`, ...(overviewZoom ? { width: `${zoom * 100}%`, maxWidth: 'none' } : {}) }}>
-      {pageNumbers.map((pageNumber) => <li key={isMobile && focusedPageNumber !== null ? 'focused' : pageNumber} className={`${focusedPageNumber === pageNumber ? 'h-full min-h-0' : ''} group/media flex w-full justify-center`}>
+    {document && <ol ref={pageGridRef} aria-label={`${label} pages`} data-ordered-page-wrapper={orderedPageWrapper}
+      data-desktop-page-packing={packDesktopPages ? '' : undefined} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))`, ...(overviewZoom ? { width: `${zoom * 100}%`, maxWidth: 'none' } : {}) }}>
+      {pageNumbers.map((pageNumber) => <li key={isMobile && focusedPageNumber !== null ? 'focused' : pageNumber}
+        data-desktop-page-cell={packDesktopPages || orderedPageWrapper !== undefined ? '' : undefined} className={`${focusedPageNumber === pageNumber ? 'h-full min-h-0' : ''} group/media flex w-full justify-center`}>
         <PdfImagePage
           projectId={projectId}
           attachmentId={attachmentId}

@@ -17,12 +17,17 @@ const page = (number, total, bounds) => ({ dataset: { projectPageNumber: `${numb
 const part = (id, count, pages = []) => ({ dataset: { projectReadingPart: id, projectReadingCount: count }, pages,
   querySelector() { return this.pages[0]; }, querySelectorAll() { return this.pages; } });
 
-function mount(pages = [], { delayedRef = false, readingEnd = false, parts = [] } = {}) {
+function mount(pages = [], { delayedRef = false, readingEnd = false, parts = [], desktop = false } = {}) {
   const states = [], refs = [], documentEvents = new Map();
   let effectIndex = 0, stateIndex = 0, refIndex = 0, effect, visibilityEffect, visibilityCleanup, frame, onMutation, onResize, cleanedMutations = false, cleanedResize = false;
   const events = new Map(), windowEvents = new Map(), observed = new Set();
+  class Scroller {
+    scrollTop = 300;
+    clientHeight = 800;
+    scrollHeight = 1600;
+  }
   const surface = { pages, parts, bounds: rect(0, 800), querySelectorAll(selector) { return selector.includes('data-project-reading-part') ? this.parts : this.pages; },
-    closest: () => readingEnd ? {} : null, querySelector: () => null,
+    closest: () => readingEnd ? {} : null, querySelector: () => null, contains: element => element instanceof Scroller,
     getBoundingClientRect() { return this.bounds; }, addEventListener(name, fn, opts) { events.set(name, { fn, opts }); },
     removeEventListener(name) { events.delete(name); } };
   const surfaceRef = { current: delayedRef ? null : surface };
@@ -49,17 +54,18 @@ function mount(pages = [], { delayedRef = false, readingEnd = false, parts = [] 
     ResizeObserver: class { constructor(fn) { onResize = fn; } observe(node) { observed.add(node); } unobserve(node) { observed.delete(node); } disconnect() { cleanedResize = true; } },
     requestAnimationFrame: fn => { frame = fn; return 1; }, cancelAnimationFrame: () => { frame = null; },
     window: { innerWidth: 390, innerHeight: 800, scrollY: readingEnd ? 800 : 0, addEventListener: (name, fn) => windowEvents.set(name, fn), removeEventListener: name => windowEvents.delete(name) },
-    Node: Object,
+    Node: Object, Element: Scroller,
     document: { documentElement: { scrollHeight: 1600 }, addEventListener: (name, fn) => documentEvents.set(name, fn), removeEventListener: name => documentEvents.delete(name) },
   });
   const render = (scope = 'project:images', props = {}) => { stateIndex = 0; refIndex = 0; effectIndex = 0;
-    return exports.MobileProjectPageCounter({ surfaceRef, scope, ...props }); };
+    const Counter = desktop ? exports.DesktopProjectPageCounter : exports.MobileProjectPageCounter;
+    return Counter({ surfaceRef, scope, ...props }); };
   assert.equal(render(), null);
   const cleanup = effect();
   const flush = () => { const callback = frame; frame = null; callback?.(); };
   return { surface, surfaceRef, render, flush, get position() { return states[0]?.position ?? null; }, events, observed, cleanup, refs, documentEvents,
     visibility() { visibilityCleanup?.(); visibilityCleanup = visibilityEffect(); },
-    mutate() { onMutation(); flush(); }, resize() { onResize(); flush(); }, scroll() { events.get('scroll')?.fn(); flush(); },
+    mutate() { onMutation(); flush(); }, resize() { onResize(); flush(); }, scroll(target) { events.get('scroll')?.fn({ target }); flush(); }, Scroller,
     get clean() { return cleanedMutations && cleanedResize && !frame && !events.size && !windowEvents.size; } };
 }
 
@@ -107,6 +113,36 @@ test('shows the actual most-visible page while a nested renderer scrolls', () =>
   one.bounds = rect(-600, 0); two.bounds = rect(2, 602); three.bounds = rect(604, 1204); h.scroll();
   assert.equal(h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined).props['aria-label'], 'Page 2 of 3. Show page previews');
   h.cleanup(); assert.equal(h.clean, true);
+});
+
+test('desktop reports the page in the top badge and reaches a short final page at scroll end', () => {
+  const first = page(1, 3, rect(0, 600)), second = page(2, 3, rect(602, 1202)), third = page(3, 3, rect(1204, 1450));
+  const h = mount([first, second, third], { desktop: true });
+  h.flush();
+  const assertCount = (current, total = 3) => {
+    const counter = h.render();
+    assert.equal(counter.props['data-desktop-project-page-count'], '');
+    assert.deepEqual(nodes(counter).slice(1).map(node => node.props.children.join('')), [`${current} / ${total}`, `Page ${current} of ${total}`]);
+  };
+  assertCount(1);
+  const scroller = new h.Scroller();
+  first.bounds = rect(-600, 0); second.bounds = rect(0, 600); third.bounds = rect(602, 800);
+  h.scroll(scroller); assertCount(2);
+  scroller.scrollTop = 800;
+  h.scroll(scroller); assertCount(3);
+  assert.equal(h.render('other-project'), null);
+  h.surface.pages = [page(1, 1, rect(0, 600))];
+  h.mutate(); assertCount(1, 1);
+  h.cleanup(); assert.equal(h.clean, true);
+});
+
+test('desktop equivalent columns choose the earliest page despite subpixel width differences', () => {
+  const wider = page(2, 3, rect(0, 600, 195, 390));
+  const narrower = page(1, 3, rect(0, 600, 0, 194.98));
+  const h = mount([wider, narrower], { desktop: true });
+  h.flush();
+  assert.equal(h.position.current, 1);
+  h.cleanup();
 });
 
 test('segmented reading progress follows the visible page forwards and backwards with one semantic value', () => {

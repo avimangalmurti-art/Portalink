@@ -282,6 +282,7 @@ function ProfileProjectTile({
   };
 
   return <ProjectPreviewCard active={active} onEditDescription={onEditDescription} contextHandlers={{ reads: onReads, startHere: onUseAsStartHere, thenNow: onUseInThenNow, edit: onEditProject, cover: onChangeCover, delete: onDeleteProject }} project={project} creator={creator} onOpen={onOpen} onOpenComments={onOpenComments}
+      preferCatalogueThumbnail
       sharedCoverFallback={isSharedView}
       allowPdfFallback={!isSharedView}
       allowVideoFallback={!isSharedView}

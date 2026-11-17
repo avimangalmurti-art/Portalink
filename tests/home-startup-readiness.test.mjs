@@ -22,11 +22,11 @@ function rootFor(artworks) {
     addEventListener: (name, callback) => listeners.set(name, callback), removeEventListener: name => listeners.delete(name),
     event(name) { listeners.get(name)?.(); } };
 }
-function fixture({ artworks = [], settled = true, terminalError = false, projectCount = artworks.length, documentProjects = new Set() } = {}) {
+function fixture({ artworks = [], settled = true, terminalError = false, waitForArtwork = true, projectCount = artworks.length, documentProjects = new Set() } = {}) {
   const reports = [], frames = new Map(), timers = new Map(), observers = [];
   let next = 0;
   const root = rootFor(artworks);
-  const options = { enabled: true, attempt: 0, ref: { current: root }, settled, terminalError, projectCount, documentProjects, onReady: ready => reports.push(ready) };
+  const options = { enabled: true, attempt: 0, ref: { current: root }, settled, terminalError, waitForArtwork, projectCount, documentProjects, onReady: ready => reports.push(ready) };
   const h = hookHarness(file, 'useHomeStartupReadiness', {}, {}, options, {}, {}, {
     requestAnimationFrame(callback) { frames.set(++next, callback); return next; }, cancelAnimationFrame(id) { frames.delete(id); },
     getComputedStyle: element => ({ opacity: element.opacity ?? '1' }),
@@ -52,6 +52,18 @@ test('launch waits for data/layout/notes/scroll settlement and all visible cover
   first.resolve(); await f.paint(); assert.equal(f.reports.at(-1), false);
   second.resolve(); await f.paint(); assert.equal(f.reports.at(-1), true);
   assert.equal(offscreenDecodes, 0);
+});
+
+test('desktop Home opens after feed settlement while visible artwork is still loading', async () => {
+  const image = bitmap({ complete: false });
+  const f = fixture({ settled: false, waitForArtwork: false, artworks: [artwork({ images: [image] })] });
+  f.root.querySelectorAll = () => assert.fail('Desktop Home readiness should not inspect artwork');
+  await f.paint();
+  assert.deepEqual(f.reports, [false]);
+  f.update({ settled: true });
+  await f.paint();
+  assert.deepEqual(f.reports, [false, true]);
+  assert.equal(image.complete, false);
 });
 
 test('measured source exposure and ImageMotion paint must complete before the splash handoff', async () => {

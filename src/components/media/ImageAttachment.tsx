@@ -114,7 +114,7 @@ export function ImagePage({
       </div>;
   }
   const canFocus = !isFocused && Boolean(onToggleFocus);
-  return <li ref={hostRef} data-inline-page-image={inlinePreview || undefined} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused && !inlinePreview ? '' : undefined} role={canFocus ? 'button' : undefined} tabIndex={canFocus ? 0 : undefined} aria-pressed={canFocus ? false : undefined} aria-label={!onToggleFocus ? undefined : inlinePreview ? attachment.displayName : `${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={!canFocus ? undefined : (event) => {
+  return <li ref={hostRef} data-inline-page-image={inlinePreview || undefined} data-desktop-page-cell={!isMobile && !isFocused ? "" : undefined} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused && !inlinePreview ? '' : undefined} role={canFocus ? 'button' : undefined} tabIndex={canFocus ? 0 : undefined} aria-pressed={canFocus ? false : undefined} aria-label={!onToggleFocus ? undefined : inlinePreview ? attachment.displayName : `${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={!canFocus ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
@@ -341,13 +341,14 @@ export function ImageAttachment({
   });
   const indexOf = new Map(pages.map((attachment, index) => [attachment.id, index]));
   const overviewZoom = isMobile && zoom > 1;
-  return <div ref={zoomSurfaceRef} className="premium-media-mode-enter relative h-full w-full" style={overviewZoom ? { overflowX: 'auto' } : undefined} onScroll={overviewZoom ? event => updateViewerMemory(memoryKey, { scrollLeft: event.currentTarget.scrollLeft }) : undefined}>
-      <ol ref={gridScrollRef} onScroll={isMobile ? undefined : (event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-[2px] overflow-x-hidden overflow-y-auto p-0" style={overviewZoom ? { width: `${zoom * 100}%` } : undefined}>
-      {columnPages.map((column, columnIndex) => <li key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-[2px]">
+  const orderedPageWrapper = !isMobile && !manageReadingScroll ? '' : undefined;
+  return <div ref={zoomSurfaceRef} data-ordered-page-wrapper={orderedPageWrapper} className="premium-media-mode-enter relative h-full w-full" style={overviewZoom ? { overflowX: 'auto' } : undefined} onScroll={overviewZoom ? event => updateViewerMemory(memoryKey, { scrollLeft: event.currentTarget.scrollLeft }) : undefined}>
+      <ol ref={gridScrollRef} data-ordered-page-wrapper={orderedPageWrapper} onScroll={isMobile ? undefined : (event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-[2px] overflow-x-hidden overflow-y-auto p-0" style={overviewZoom ? { width: `${zoom * 100}%` } : undefined}>
+      {columnPages.map((column, columnIndex) => <li key={columnIndex} data-ordered-page-wrapper={orderedPageWrapper} className="flex min-w-0 flex-1 flex-col gap-[2px]">
           {/* The pages themselves stay list items, so a screen reader still hears
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
-          <ol className="m-0 flex list-none flex-col gap-[2px] p-0">
+          <ol data-ordered-page-wrapper={orderedPageWrapper} className="m-0 flex list-none flex-col gap-[2px] p-0">
             {column.map((attachment) => <ImagePage isMobile={isMobile} key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={manageReadingScroll ? columnCount : 0} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}

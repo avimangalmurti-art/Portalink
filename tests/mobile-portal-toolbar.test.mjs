@@ -100,6 +100,14 @@ test('public project navigation opts into local browsing controls without owner 
     const desktop = h.render();
     assert.equal(nodes(desktop).find(node => node.type === 'h2').props.children, 'Photography');
     assert.equal(control(desktop, 'Sort projects'), undefined);
+    Object.assign(h.props, { animateTitleOnWeb: true, browsingControls: true });
+    const desktopPopup = h.render();
+    const title = nodes(desktopPopup).find(node => node.type === 'scrolling-title');
+    assert.equal(title.props.name, 'Photography');
+    assert.equal(title.props.animateOnWeb, true);
+    assert.equal(title.props.centered, true);
+    assert.equal(title.props.fadeInset, 12);
+    assert.ok(control(desktopPopup, 'Sort projects'));
   }
   finally { presentation = 'mobile'; }
 });

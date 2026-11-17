@@ -117,6 +117,7 @@ test('MOBILE grid/list changes annotate the same owner and visitor navigation wi
         assert.equal(title.props.active, true);
         assert.equal(title.props.centered, true);
         assert.equal(title.props.visibleOnly, true);
+        assert.equal(title.props.animatePosition, true);
         assert.equal(title.props.fadeInset, 8);
       } else {
         assert.equal(title.type, 'span');

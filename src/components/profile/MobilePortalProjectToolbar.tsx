@@ -12,7 +12,7 @@ export type MobileProjectSort = 'recent' | 'title' | 'saved';
 
 /** Mobile browsing controls; authoring callbacks are supplied only for the owner. */
 export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout, onLayout,
-  sort, onSort, sharedReadOnly = false, browsingControls = !sharedReadOnly, backLabel, publicProfileId, createChoices = false, createExpanded }: {
+  sort, onSort, sharedReadOnly = false, browsingControls = !sharedReadOnly, backLabel, publicProfileId, createChoices = false, createExpanded, animateTitleOnWeb = false }: {
   category: PortfolioCategory; onBack: () => void; onCreate?: () => void;
   layout: 'list' | 'grid'; onLayout: (value: 'list' | 'grid') => void;
   sort: MobileProjectSort; onSort: (value: MobileProjectSort) => void;
@@ -24,6 +24,7 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
   publicProfileId?: string;
   createChoices?: boolean;
   createExpanded?: boolean;
+  animateTitleOnWeb?: boolean;
 }) {
   const isMobile = usePresentation() === 'mobile';
   const active = useMobileScreenActive();
@@ -35,7 +36,9 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
       </button>
       {!isMobile && categoryIcon}
       <h2 title={category.label} className={isMobile ? 'flex items-center justify-center gap-2' : undefined}>
-        {isMobile ? <>{categoryIcon}<PreviewCreatorName name={category.label} active={active} centered className="block !flex-initial [font:inherit]" /></> : category.label}
+        {isMobile ? <>{categoryIcon}<PreviewCreatorName name={category.label} active={active} centered className="block !flex-initial [font:inherit]" /></>
+          : animateTitleOnWeb ? <PreviewCreatorName name={category.label} active={active} centered animateOnWeb fadeInset={12} className="block [font:inherit]" />
+          : category.label}
       </h2>
       {onCreate && <button type="button" onClick={onCreate} aria-label={createChoices ? `Add to ${category.label}` : `Add a new project to ${category.label}`}
         aria-haspopup={createChoices ? 'dialog' : undefined} aria-expanded={createChoices ? createExpanded : undefined} className="mobile-portal-index-control">

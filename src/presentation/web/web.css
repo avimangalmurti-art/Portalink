@@ -123,11 +123,11 @@
     scroll-padding-top: var(--fixed-header-scroll-padding) !important;
   }
 
-  /* Reader headers share the rail at rest. Keep matching material if content scrolls behind one. */
-  #root .codex-shell[data-presentation='web'] [data-shared-project-reader] [data-shared-navigation-header] {
+  /* Let the sidebar paint its header at rest, with a matching tint over scrolling content. */
+  #root .codex-shell[data-presentation='web'] :is([data-project-index-panel], [data-project-response-rail]) > .global-control-header {
     --fixed-header-canvas: var(--nav-button-background, var(--surface-canvas));
   }
-  #root .codex-shell[data-presentation='web'] [data-shared-project-reader] [data-shared-navigation-header][data-mobile-header-underlap='false']::before {
+  #root .codex-shell[data-presentation='web'] :is([data-project-index-panel], [data-project-response-rail]) > .global-control-header[data-mobile-header-underlap='false']::before {
     content: none !important;
   }
 
@@ -178,6 +178,14 @@
   border-radius: var(--codex-radius-panel);
   background: var(--codex-workspace-bg);
   box-shadow: var(--codex-shadow);
+}
+
+/* Keep the content width stable if a rail toggle changes vertical overflow. */
+#root .codex-shell[data-presentation='web'] .app-screen-layer > main.overflow-y-auto:has(> [data-screen-scroll='page'] > [data-profile-page]),
+#root .codex-shell[data-presentation='web'] .feed-edge-fade:has(> [data-feed-scroll-content]),
+#root .codex-shell[data-presentation='web'] [data-immersive='false'] [data-project-stage]:not([data-web-ordered-reading])
+  :is(.premium-media-mode-enter.overflow-y-auto, ol.scrollbar-overlay) {
+  scrollbar-gutter: stable;
 }
 
 /* Desktop previews unfold over the next card, without changing row geometry. */
@@ -249,13 +257,101 @@
   box-shadow: inset 0 0 8px 12px var(--portalink-splash-background);
 }
 
+#root .codex-shell[data-presentation='web'] [data-desktop-project-page-count] {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-start: 12px;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  min-width: 56px;
+  min-height: 32px;
+  padding-inline: 10px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-pop);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='web'] [data-project-work-column]:has(> [data-desktop-project-page-count]) [data-focused-page-count] {
+  display: none;
+}
+
 /* Keep the rails in place while image and document sections share one scroller. */
 #root .codex-shell[data-presentation='web'] [data-immersive='false'] [data-web-ordered-reading] {
   overflow: hidden auto;
   overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
 }
 #root .codex-shell[data-presentation='web'] [data-immersive='false'] [data-web-ordered-reading]
   :is([data-media-frame], [data-media-frame-body], [data-document-attachment], .premium-media-mode-enter, ol.scrollbar-overlay) {
   height: auto;
   overflow: visible;
+}
+
+/* Keep each attachment's reader and page identities, but lay out its overview
+   pages in the same grid as the pages from the other attachments. */
+#root .codex-shell[data-presentation='web'] [data-web-ordered-page-grid] {
+  display: grid;
+  grid-template-columns: repeat(var(--ordered-page-columns), minmax(0, 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
+  align-items: start;
+  gap: 2px;
+}
+#root .codex-shell[data-presentation='web'] [data-web-ordered-page-grid] > [data-project-reading-part]:not([hidden]),
+#root .codex-shell[data-presentation='web'] [data-web-ordered-page-grid] > [data-project-reading-part]:not([hidden])
+  :is([data-media-frame], [data-media-frame-body], [data-document-attachment], [data-ordered-page-wrapper]) {
+  display: contents;
+}
+#root .codex-shell[data-presentation='web'] [data-web-ordered-page-grid]
+  :is([data-ordered-page-notice], [data-media-frame-body] > [data-initial-page-loading], [data-document-attachment] > [role='alert']) {
+  grid-column: 1 / -1;
+}
+#root .codex-shell[data-presentation='web'] [data-web-ordered-page-grid]
+  [data-media-frame-body]:not(:has([data-ordered-page-wrapper])) {
+  display: block;
+  grid-column: 1 / -1;
+}
+#root .codex-shell[data-presentation='web'] [data-web-ordered-page-grid]
+  [data-ordered-page-wrapper] > li:has(> [data-project-page-number]) {
+  display: block;
+}
+/* The PDF page's aspect-ratio box sizes the cell. Its canvas can retain the
+   previous painted pixels while the renderer catches up to a changed width. */
+#root .codex-shell[data-presentation='web'] [data-desktop-page-packing]
+  [data-project-page-number] > canvas[data-media-page-surface] {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+}
+
+#root .codex-shell[data-presentation='web'] [data-desktop-page-packing][data-page-packing-ready] {
+  position: relative;
+  display: block;
+}
+#root .codex-shell[data-presentation='web'] [data-desktop-page-packing][data-page-packing-ready]::before {
+  content: '';
+  display: block;
+  height: var(--packed-page-height, 0px);
+}
+#root .codex-shell[data-presentation='web'] [data-desktop-page-packing][data-page-packing-ready] [data-packed-page] {
+  position: absolute;
+  inset-block-start: var(--packed-page-top, 0px);
+  inset-inline-start: var(--packed-page-left, 0px);
+  width: var(--packed-page-width);
+}
+#root .codex-shell[data-presentation='web'] [data-desktop-page-packing][data-page-packing-ready] [data-packed-page='notice'] {
+  width: 100%;
+  height: auto;
+}
+#root .codex-shell[data-presentation='web'] [data-desktop-page-packing][data-page-packing-ready]
+  [data-packed-page='cell']:has(> [data-project-page-number]) {
+  display: block;
 }

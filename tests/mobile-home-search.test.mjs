@@ -112,6 +112,8 @@ test('only startup Home waits for readiness and prioritizes its visible artwork;
   for(const presentation of ['mobile','web']){
     const h=harness(presentation,{startupPending:true,startupAttempt:3,onStartupReady(){}});
     let tree=h.render();assert.equal(h.readiness.enabled,true);assert.equal(h.readiness.attempt,3);assert.equal(h.readiness.settled,false);
+    assert.equal(h.readiness.waitForArtwork,presentation==='mobile');
+    assert.equal(h.feedOptions.at(-1).preserveSnapshotAcrossRevision,true);
     let grid=nodes(tree).find(node=>node.type===(presentation==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));
     assert.equal(grid.props.items[0].content.props.priority,false,'Visibility priority waits for the saved scroll position.');
     h.restoreScroll();tree=h.render();grid=nodes(tree).find(node=>node.type===(presentation==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));
@@ -125,7 +127,17 @@ test('only startup Home waits for readiness and prioritizes its visible artwork;
     assert.equal(nodes(tree).some(node=>node.type==='LoadingState'),false);
   }
   const city=harness('mobile',{startupPending:true,locationId:'city'});city.render();assert.equal(city.readiness.enabled,false);
+  const desktopCity=harness('web',{locationId:'city'});desktopCity.render();
+  assert.equal(desktopCity.feedOptions.at(-1).preserveSnapshotAcrossRevision,false);
   const later=harness('mobile');later.render();assert.equal(later.readiness.enabled,false);
+});
+
+test('desktop Home keeps showing projects and lets the viewer retry a failed refresh', () => {
+  const h=harness('web');h.feed.refreshError='Could not refresh Home.';
+  const tree=nodes(h.render());
+  assert.deepEqual(Array.from(tree.find(node=>node.type==='BentoFeedGrid').props.items,item=>item.key),['first','second']);
+  tree.find(node=>node.type==='button' && node.props.children==='Retry Home refresh').props.onClick();
+  assert.equal(h.reloads,1);
 });
 test('Explore retains three discovery buttons without an Actions trigger or sheet registration',()=>{const h=harness();const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.equal(nodes(tree).some(n=>n.props['data-inline-screen-actions']===''||n.type==='context-button'),false);for(const label of ['Open globe search','Search accounts','Home'])assert.ok(nodes(tree).some(n=>n.props['aria-label']===label));nodes(tree).find(n=>n.props['aria-label']==='Search accounts').props.onClick();nodes(tree).find(n=>n.props['aria-label']==='Open globe search').props.onClick();assert.equal(h.userSearchVisits,1);assert.equal(h.worldVisits,1);assert.equal(h.actions,null);assert.ok(nodes(tree).find(n=>n.props['data-home-grid']===''));});
 test('the shell suppresses Home action fallback while preserving other screens and WEB',()=>{

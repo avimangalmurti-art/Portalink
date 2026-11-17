@@ -58,6 +58,11 @@
         html:not([data-appearance]) { --shared-catalogue-canvas: #000; color: #f5f5f7; }
       }
       html[data-appearance='dark'] { --shared-catalogue-canvas: #000; color: #f5f5f7; }
+      html:root[data-web-catalogue-launch],
+      html:root[data-web-catalogue-launch] body {
+        background-color: #ffffff;
+      }
+      html[data-web-catalogue-launch] #root { visibility: hidden; }
       @media (max-width: 639px) {
         /* Keep the scroll boundary on the catalogue's canvas in embedded browsers. */
         html[data-shared-view] { overscroll-behavior-y: none; }
@@ -110,6 +115,13 @@
         const resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
         const root = document.documentElement;
         const catalogueLaunch = presentation === 'mobile' && !projectLaunch;
+        if (presentation === 'web') {
+          const path = window.location.pathname.replace(/\/$/, '');
+          const search = new URLSearchParams(window.location.search);
+          const profileLink = /^\/(?:share\/[^/]+|(?!share$|share\.html$)[a-z0-9][a-z0-9.]{2,29})$/i.test(path);
+          const portalLink = search.get('view') === 'portal' && /^\/(?:share\/[^/]+|[^/]+)\/c\/[^/]+$/i.test(path);
+          if (search.get('settings') !== '1' && (profileLink || portalLink)) root.setAttribute('data-web-catalogue-launch', '');
+        }
         if (projectLaunch) root.setAttribute('data-mobile-project-launch', '');
         if (catalogueLaunch) root.setAttribute('data-mobile-catalogue-launch', '');
         root.dataset.appearance = resolved;
@@ -121,7 +133,7 @@
         });
       })();
     </script>
-    <script defer src="/portalink-mobile-launch.js?v=110a115c" data-launch-entry="catalogue" onerror="document.documentElement.removeAttribute('data-mobile-catalogue-launch')"></script>
+    <script defer src="/portalink-mobile-launch.js?v=eedd55c6" data-launch-entry="catalogue" onerror="document.documentElement.removeAttribute('data-mobile-catalogue-launch'); document.documentElement.removeAttribute('data-web-catalogue-launch')"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -314,7 +314,7 @@ function MobileProjectLabel({ project, isActive, profileId, mobileGrid = false, 
     </span>
     <span className="mobile-project-index-copy">
       {isMobile && !mobileGrid
-        ? <PreviewCreatorName name={project.title} active={active} centered visibleOnly fadeInset={8} className={titleClassName} />
+        ? <PreviewCreatorName name={project.title} active={active} centered visibleOnly animatePosition fadeInset={8} className={titleClassName} />
         : <span className={titleClassName}>{project.title}</span>}
       {validPublished && <time className="mobile-project-index-date" dateTime={project.publishedAt}>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(validPublished)}</time>}
     </span>

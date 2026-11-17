@@ -46,6 +46,7 @@ type Props = {
   sizes?: string;
   priority?: ImagePriority;
   showCoverLoading?: boolean;
+  preferCatalogueThumbnail?: boolean;
   videoCoverAutoplay?: 'active' | 'paused';
   /** Home can wait for an actual preview before resolving hidden detail data. */
   deferDesktopDetails?: boolean;
@@ -64,7 +65,7 @@ type Props = {
 
 /** Artwork stays fixed; each presentation places the extension over the next row. */
 export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescription, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
-  label = `Open ${project.title}`, contentTypeLabel, href, onCollapse, className = '', sizes, priority = false, showCoverLoading, videoCoverAutoplay, deferDesktopDetails = false, disabled = false,
+  label = `Open ${project.title}`, contentTypeLabel, href, onCollapse, className = '', sizes, priority = false, showCoverLoading, preferCatalogueThumbnail, videoCoverAutoplay, deferDesktopDetails = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio, sharedCoverFallback = false, allowPdfFallback = true, allowVideoFallback = true }: Props) {
   const [popupOpen, setPopupOpen] = useState(false);
   const [selection, setSelection] = useState({ projectId: project.id, position: getCataloguePagePosition(project.id) });
@@ -115,7 +116,7 @@ export function ProjectPreviewCard({ active = true, contextHandlers, onEditDescr
     className: 'project-preview-artwork absolute inset-0 block h-full w-full overflow-hidden bg-[var(--surface-sunken)] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
   };
   const artwork = <span className="project-preview-image absolute inset-0 block">
-    {cover ?? <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={coverVideo?.metadata?.coverFrame ?? project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} showLoadingIndicator={showCoverLoading} allowPdfFallback={allowPdfFallback} allowVideoFallback={allowVideoFallback} autoplaySources={autoplaySources} fallbackAttachments={sharedCoverFallback ? project.attachments : undefined} />}
+    {cover ?? <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={coverVideo?.metadata?.coverFrame ?? project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} showLoadingIndicator={showCoverLoading} preferCatalogueThumbnail={preferCatalogueThumbnail && !isMobile} allowPdfFallback={allowPdfFallback} allowVideoFallback={allowVideoFallback} autoplaySources={autoplaySources} fallbackAttachments={sharedCoverFallback ? project.attachments : undefined} />}
   </span>;
   const creatorAvatar = showMobileInfo && <CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" />;
   const creatorProps = {

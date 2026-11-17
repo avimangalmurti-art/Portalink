@@ -27,9 +27,10 @@ import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSeque
 import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
 import { useNavigationOutsideTap } from '../../presentation/mobile/useNavigationOutsideTap';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
-import { MobileProjectPageCounter } from './MobileProjectPageCounter';
+import { DesktopProjectPageCounter, MobileProjectPageCounter } from './MobileProjectPageCounter';
 import { jumpToProjectPage } from './projectPageScroll';
 import { useDocumentReadingScroll } from './useDocumentReadingScroll';
+import { useDesktopPagePacking } from './useDesktopPagePacking';
 
 import type { ProjectManagement } from '../../features/projects/useProjectManagement';
 import type { PdfDocument } from './PdfPage';
@@ -132,6 +133,8 @@ export function ProjectMediaViewer({
   attachments,
   contentTypefaceStack,
   pagesPerRow = 3,
+  desktopMediaColumns,
+  resolvedDocumentPageCounts,
   onPagesPerRowChange,
   onPagesPerRowCommit,
   savingPageLayout = false,
@@ -156,16 +159,14 @@ export function ProjectMediaViewer({
 
 
 
-}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { indexOpener?: React.RefObject<HTMLButtonElement>; index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;primaryPortalId?: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];onDeleteProject?: () => void;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public catalogue reading hides engagement and creator editing. */readOnlyShare?: boolean;sharedDesktopRailStyle?: React.CSSProperties;onTimelineBack?: () => void;onClose: () => void;}) {
+}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { indexOpener?: React.RefObject<HTMLButtonElement>; index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;primaryPortalId?: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];onDeleteProject?: () => void;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** An explicit desktop density also sizes standalone media previews. */desktopMediaColumns?: number; resolvedDocumentPageCounts?: Readonly<Record<string, number>>; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public catalogue reading hides engagement and creator editing. */readOnlyShare?: boolean;sharedDesktopRailStyle?: React.CSSProperties;onTimelineBack?: () => void;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
    * changes only presentation: never page proportions, order, or source files.
    *
-   * Three across is the platform standard for a piece that genuinely has pages.
-   * A single-page piece is never laid out in columns at all — there is nothing
-   * to sit beside it, and a lone page in a third of the width would just be a
-   * small image with two empty columns next to it.
+   * Three across is the default for a piece that genuinely has pages. Standalone
+   * desktop previews open at full width until a density is explicitly chosen.
   */
   const normalizedPagesPerRow = normalizePagesPerRow(pagesPerRow);
   const viewerMemoryScope = readOnlyShare ? 'shared' : 'workspace';
@@ -417,6 +418,12 @@ export function ProjectMediaViewer({
   const hasPageLayout = orderedReading || (active?.kind === 'image'
     ? imagePages.length > 1
     : active?.kind === 'document' && documentPageCount !== 1);
+  const resolvedDocumentCount = Math.max(documentPageCount, active ? resolvedDocumentPageCounts?.[active.id] ?? 0 : 0);
+  const singleDocument = active?.kind === 'document' && (resolvedDocumentCount === 1 || (
+    resolvedDocumentCount === 0 && pageCount === 1 && attachments.filter(item => item.kind === 'document').length === 1));
+  const previewColumns = normalizePagesPerRow(desktopMediaColumns ?? 1, 1);
+  const standaloneWidth = !isMobileViewer && !isImmersive && previewColumns > 1
+    ? `clamp(min(240px, 100%), ${100 / previewColumns}%, 100%)` : undefined;
   const publishedLabel = formatPublishedDate(publishedAt);
   const densitySurfaceRef = useRef<HTMLDivElement>(null);
   const pageSurfaceRef = densitySurfaceRef;
@@ -424,6 +431,8 @@ export function ProjectMediaViewer({
   const linkedReadingPage = linkedReadingPart?.kind === 'image' ? 1
     : Number.isSafeInteger(singlePageNumber) && singlePageNumber >= 1 ? singlePageNumber : 1;
   const webOrderedReading = orderedReading && !isMobileViewer;
+  const webOrderedPageGrid = webOrderedReading && normalizedPagesPerRow > 1 && !isImmersive;
+  useDesktopPagePacking(pageSurfaceRef, webOrderedPageGrid, normalizedPagesPerRow);
   useDocumentReadingScroll(orderedReading && !isImmersive, pageSurfaceRef,
     `${viewerMemoryKey}:ordered-pages${webOrderedReading ? ':web' : ''}`,
     linkedReadingPart ? linkedReadingPage : null, linkedReadingPart?.id, webOrderedReading);
@@ -722,6 +731,10 @@ export function ProjectMediaViewer({
     imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1}
     onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange}
     pageViewToggleRequest={pageViewToggleRequest} /> : emptyMedia;
+  const desktopPreview = !isMobileViewer && active
+    ? <div data-desktop-media-preview="" className="mx-auto h-full min-w-0"
+        style={{ width: (!hasPageLayout || singleDocument) && !isSavedSinglePage ? standaloneWidth : undefined }}>{activeMedia}</div>
+    : activeMedia;
   const readingPartPreviews = isMobileViewer && orderedReading ? Object.fromEntries(attachments.map(attachment => [attachment.id, {
     sources: attachment.kind === 'image' ? [attachment.sourceUrl] : (attachment.metadata?.renderedPages ?? []).filter(page => Boolean(page.sourceUrl)).map(page => page.sourceUrl),
     document: readingDocuments?.scope === previewScope ? readingDocuments.documents[attachment.id] : undefined,
@@ -730,9 +743,10 @@ export function ProjectMediaViewer({
     const isImage = attachment.kind === 'image';
     const count = isImage ? 1 : Math.max(attachment.metadata?.pageCount ?? 0, attachment.metadata?.renderedPages?.length ?? 0);
     return <OrderedReadingPart key={attachment.id} count={count || undefined}
+      previewWidth={!webOrderedPageGrid && Math.max(count, resolvedDocumentPageCounts?.[attachment.id] ?? 0) === 1 ? standaloneWidth : undefined}
       hidden={focusedReadingPart !== null && focusedReadingPart !== attachment.id} focused={focusedReadingPart === attachment.id}
       onFocus={handleReadingPartFocus} onPreview={isMobileViewer ? handleReadingPreview : undefined} renderer={{
-        ...rendererProps(attachment), imageColumns: isImage ? 1 : isMobileViewer ? mobilePagesPerRow : normalizedPagesPerRow,
+        ...rendererProps(attachment), imageColumns: isImage || webOrderedPageGrid ? 1 : isMobileViewer ? mobilePagesPerRow : normalizedPagesPerRow,
         verticalReading: true, manageReadingScroll: false,
         memoryScope: isImage ? `${viewerMemoryScope}:part:${attachment.id}` : viewerMemoryScope,
       }} />;
@@ -745,7 +759,12 @@ export function ProjectMediaViewer({
 
       {showEngagement && isMobileViewer && !isImmersive && (orderedReading || active?.kind === 'document') && pageTarget && <MediaInteractionBar key={`${pageTarget.attachmentId}:${currentPage}`} target={pageTarget} contextOnly isOwner={ownerReader} pageCount={currentPosition?.attachmentTotal ?? contextPosition?.total ?? pageCount ?? undefined} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-web-ordered-reading={webOrderedReading ? '' : undefined} data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
+        {!isMobileViewer && screenActive && singlePanel !== 'response' && (active?.kind === 'image' || active?.kind === 'document') &&
+          <DesktopProjectPageCounter key={previewScope} surfaceRef={pageSurfaceRef} scope={previewScope} />}
+        <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-web-ordered-reading={webOrderedReading ? '' : undefined}
+          data-web-ordered-page-grid={webOrderedPageGrid ? '' : undefined} data-desktop-page-packing={webOrderedPageGrid ? '' : undefined}
+          data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId}
+          style={webOrderedPageGrid ? { ...projectContinuityStyle(projectId), '--ordered-page-columns': normalizedPagesPerRow } as React.CSSProperties : projectContinuityStyle(projectId)} className="min-h-0 flex-1">
           {orderedReading ? [...attachments].sort((first, second) => first.order - second.order).map(renderReadingPart)
             : isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
             videos={videoSequence.entries} creator={creator} activeId={`${projectId}:${active.id}`} onSelect={entry => {
@@ -758,7 +777,7 @@ export function ProjectMediaViewer({
                 state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
                 isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),
               } : undefined} onClose={onClose} />} /> : isMobileViewer && active?.kind === 'video' ? <div className="mobile-video-single"><MobileVideoFrame creator={creator} sourceTitle={projectTitle}>{activeMedia}</MobileVideoFrame></div>
-            : activeMedia}
+            : desktopPreview}
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
@@ -808,8 +827,8 @@ export function ProjectMediaViewer({
          Engagement reads the same canonical record the feed card does, so a like
          made here is already true there — no refetch, no second state. */}
       {/* The rail is the fixed side of the split, so the work absorbs the whole
-         difference between its two states. The width animates so the work is seen
-         to grow into the space rather than jumping into it. */}
+         difference between its two states. Apply the final width in one step so
+         the content is not resized on each animation frame. */}
       {/* The rail shares the work's canvas rather than sitting on a raised panel:
          it is part of the same page, and a second background only added a seam
          down the middle of one composition. The hairline carries the separation. */}
@@ -849,7 +868,7 @@ export function ProjectMediaViewer({
           </button>
           <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>
         </nav>}
-      </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ ...sharedDesktopRailStyle, width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
+      </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ ...sharedDesktopRailStyle, width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-opacity duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
             {singlePanel === 'response' && <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
               className="side-panel-header-control side-panel-header-icon" aria-label="Back" title="Back" onClick={onClose}>
@@ -874,7 +893,7 @@ export function ProjectMediaViewer({
           {showEngagement && isRailOpen && sharedInfoPanel === 'comments' && <div id="shared-project-detail-panel" className="side-panel-content-inset py-2"><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={false} /></div>}
           {isRailOpen && sharedInfoPanel === 'project' && sharedProjectInformation}
           {isRailOpen && sharedInfoPanel === 'verification' && sharedVerification}
-        </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
+        </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-opacity duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
         <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? (isOwner ? 'engagement-panel-toolbar px-2' : 'side-panel-control-row overflow-x-auto px-2') : 'justify-center px-1.5'}`}>
@@ -942,18 +961,20 @@ export function ProjectMediaViewer({
       </>}</MediaCommentsPopover>}
     </div></MobilePageContext.Provider></ProjectSharePathContext.Provider>;
 }
-function OrderedReadingPart({ renderer, count, hidden, focused, onFocus, onPreview }: {
+function OrderedReadingPart({ renderer, count, hidden, focused, onFocus, onPreview, previewWidth }: {
   renderer: React.ComponentProps<typeof AttachmentRenderer>;
   count?: number;
   hidden: boolean;
   focused: boolean;
   onFocus: (id: string, focused: boolean) => void;
   onPreview?: (id: string, document: PdfDocument | null) => void;
+  previewWidth?: string;
 }) {
   const { id, kind } = renderer.attachment;
   const reportFocus = useCallback((value: boolean) => onFocus(id, value), [id, onFocus]);
   const reportPreview = useCallback((document: PdfDocument | null) => onPreview?.(id, document), [id, onPreview]);
-  return <section data-project-reading-part={id} data-project-reading-count={count} hidden={hidden} className={focused ? 'h-full min-h-0' : undefined}>
+  return <section data-project-reading-part={id} data-project-reading-count={count} hidden={hidden} className={focused ? 'h-full min-h-0' : undefined}
+    style={previewWidth ? { width: previewWidth, marginInline: 'auto' } : undefined}>
     <AttachmentRenderer {...renderer} onFocusModeChange={reportFocus}
       onPreviewDocument={kind === 'document' && onPreview ? reportPreview : undefined} />
   </section>;

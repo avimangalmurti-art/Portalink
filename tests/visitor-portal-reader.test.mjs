@@ -123,11 +123,12 @@ test('the reader keeps the selected Portal index when the open project is featur
   assert.equal(one(tree, 'media-viewer').props.projectId, 'alpha');
 });
 
-test('WEB project index adjusts the public media layout for multi-page work without committing an owner change', () => {
+test('WEB project index adjusts the public media layout before page count resolves without committing an owner change', () => {
   const h = fixture();
   h.alpha.attachments = [{ id: 'document', kind: 'document' }];
   let tree = h.render();
-  assert.equal(one(tree, 'page-layout-control'), undefined, 'Wait for a known page total.');
+  assert.equal(one(tree, 'page-layout-control').props.value, 4);
+  assert.equal(one(tree, 'media-viewer').props.pageCount, null);
   one(tree, 'media-viewer').props.onDocumentPageCountResolved('document', 6);
   tree = h.render();
   const slider = one(one(tree, 'header'), 'page-layout-control');
@@ -147,13 +148,36 @@ test('WEB project index adjusts the public media layout for multi-page work with
 
   h.beta.pageCount = 1;
   h.state.project = h.beta;
-  assert.equal(one(h.render(), 'page-layout-control'), undefined);
+  assert.equal(one(h.render(), 'page-layout-control').props.value, 2);
   h.state.presentation = 'mobile';
   h.state.project = h.alpha;
   assert.equal(one(h.render(), 'page-layout-control'), undefined);
   assert.equal(h.render().props['data-web-reader-spacing'], undefined);
 });
 
+test('WEB single images, videos, audio and generic files open at full width and accept live density changes', () => {
+  for (const kind of ['image', 'video', 'audio', 'unknown', 'model3d', 'document']) {
+    const h = fixture();
+    h.state.project = { ...h.beta, design: undefined, pageCount: kind === 'document' ? 1 : undefined, attachments: [{ id: 'only', kind }] };
+    let tree = h.render();
+    const slider = one(tree, 'page-layout-control');
+    assert.equal(slider.props.value, 1, kind);
+    assert.equal(one(tree, 'media-viewer').props.desktopMediaColumns, undefined);
+    slider.props.onChange(2);
+    tree = h.render();
+    assert.equal(one(tree, 'page-layout-control').props.value, 2);
+    assert.equal(one(tree, 'media-viewer').props.desktopMediaColumns, 2);
+  }
+});
+
+test('mixed desktop projects start stacked and keep an authored opening density when present', () => {
+  const h = fixture();
+  const attachments = [{ id: 'image', kind: 'image' }, { id: 'pdf', kind: 'document', metadata: { pageCount: 4 } }];
+  h.state.project = { ...h.beta, attachments, design: undefined, pageCount: 4 };
+  assert.equal(one(h.render(), 'page-layout-control').props.value, 1);
+  h.state.project = { ...h.state.project, design: { pagesPerRow: 2 } };
+  assert.equal(one(h.render(), 'page-layout-control').props.value, 2);
+});
 test('shared WEB navigation colors reach the two reader rails without recoloring the media surface', () => {
   const h = fixture();
   const palette = { '--navigation-surface': '#eeeeee' };
@@ -275,7 +299,7 @@ test('WEB pending metadata never borrows prior page totals or infers them from u
     h.state.project = null; h.state.categoryId = 'work'; h.state.loading = true; h.state.pendingProjectId = 'beta';
     const tree = h.render();
     assert.equal(one(tree, 'project-index').props.activeProjectId, 'beta');
-    assert.equal(one(tree, 'page-layout-control'), undefined);
+    assert.equal(one(tree, 'page-layout-control').props.value, 2);
     assert.equal(one(tree, 'media-viewer'), undefined);
     assert.ok(one(tree, 'loading-skeleton'));
   }

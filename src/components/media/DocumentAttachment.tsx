@@ -1,5 +1,6 @@
 import {DocumentGridPreview} from './DocumentGridPreview';
 import { useDocumentReadingScroll } from './useDocumentReadingScroll';
+import { useDesktopPagePacking } from './useDesktopPagePacking';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -147,6 +148,7 @@ export function DocumentAttachment({
   const [paintedReaderPage, setPaintedReaderPage] = useState<string | null>(null);
   const attachmentRef = useRef<HTMLDivElement>(null);
   const zoomSurfaceRef = useRef<HTMLDivElement>(null);
+  const pageGridRef = useRef<HTMLOListElement>(null);
   const pendingRenderedPages = useRef(new Set<string>());
   const markRenderedPagePending = useCallback((source: string, pending: boolean) => {
     if (pending) pendingRenderedPages.current.add(source);
@@ -259,6 +261,10 @@ export function DocumentAttachment({
     onFocusModeChange?.(!readingMode && focusedPageIndex !== null);
     return () => onFocusModeChange?.(false);
   }, [focusedPageIndex, onFocusModeChange, renderedPages.length, readingMode]);
+  const columnCount = Math.min(normalizePagesPerRow(columns, 1), renderedPages.length || MAX_PAGES_PER_ROW);
+  const packDesktopPages = !isMobile && manageReadingScroll && focusedPageIndex === null
+    && renderedPages.length > 0 && !hasFailed && columnCount > 1;
+  useDesktopPagePacking(pageGridRef, packDesktopPages, columnCount);
   if (hasFailed && openPdfRanges) {
     return <div ref={attachmentRef} data-document-attachment="" data-reader-media-state="error" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col">
       <ErrorState title="This PDF could not be loaded." onRetry={() => setHasFailed(false)} />
@@ -267,15 +273,15 @@ export function DocumentAttachment({
   if ((!attachment.sourceUrl && !openPdfRanges && renderedPages.length === 0) || hasFailed) {
     return isMobile ? <div ref={attachmentRef} data-document-attachment="" data-reader-media-state="error" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col"><GenericFileCard attachment={attachment} /></div> : <GenericFileCard attachment={attachment} />;
   }
-  const columnCount = Math.min(normalizePagesPerRow(columns, 1), renderedPages.length || MAX_PAGES_PER_ROW);
   const overviewZoom = isMobile && focusedPageIndex === null && zoom > 1;
+  const orderedPageWrapper = !isMobile && !manageReadingScroll && focusedPageIndex === null ? '' : undefined;
   const displayedPages = focusedPageIndex === null
     ? renderedPages.map((page, index) => ({ page, index }))
     : renderedPages[focusedPageIndex]
       ? [{ page: renderedPages[focusedPageIndex], index: focusedPageIndex }]
       : [];
   return <div ref={attachmentRef} data-document-attachment="" data-document-reading-mode={readingMode || undefined} className="flex h-full w-full flex-col">
-      {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : isMobile ? 'document-focused' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} tabIndex={focusedPageIndex === null ? undefined : 0} onScroll={(event) => {
+      {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : isMobile ? 'document-focused' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} data-ordered-page-wrapper={orderedPageWrapper} tabIndex={focusedPageIndex === null ? undefined : 0} onScroll={(event) => {
         if (isMobile && focusedPageIndex === null) {
           updateViewerMemory(memoryKey, { scrollLeft: event.currentTarget.scrollLeft });
           return;
@@ -304,8 +310,10 @@ export function DocumentAttachment({
             </button> : null}
             <FocusedPageCounter current={focusedPageIndex + 1} total={renderedPages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
-        <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))`, ...(overviewZoom ? { width: `${zoom * 100}%`, maxWidth: 'none' } : {}) }}>
-          {displayedPages.map(({ page, index }) => <li key={isMobile && focusedPageIndex !== null ? 'focused' : page.storagePath} data-project-page-number={index + 1} data-project-continuity-page={isMobile ? page.withinDocumentIndex : undefined} data-reach-attachment={attachment.id} data-project-page-ready={isMobile && focusedPageIndex !== null ? paintedReaderPage === `${attachment.id}:${page.sourceUrl}:${index+1}` : undefined} data-project-page-total={renderedPages.length} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? readingMode ? 'Reading mode. Swipe left or right to turn the page. Pinch to zoom' : 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : isMobile ? 'Pinch to zoom in place. Double-tap to open single-page view' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
+        <ol ref={pageGridRef} aria-label={`${attachment.displayName} pages`} data-ordered-page-wrapper={orderedPageWrapper}
+          data-desktop-page-packing={packDesktopPages ? '' : undefined} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))`, ...(overviewZoom ? { width: `${zoom * 100}%`, maxWidth: 'none' } : {}) }}>
+          {displayedPages.map(({ page, index }) => <li key={isMobile && focusedPageIndex !== null ? 'focused' : page.storagePath}
+            data-desktop-page-cell={packDesktopPages || orderedPageWrapper !== undefined ? '' : undefined} data-project-page-number={index + 1} data-project-continuity-page={isMobile ? page.withinDocumentIndex : undefined} data-reach-attachment={attachment.id} data-project-page-ready={isMobile && focusedPageIndex !== null ? paintedReaderPage === `${attachment.id}:${page.sourceUrl}:${index+1}` : undefined} data-project-page-total={renderedPages.length} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? readingMode ? 'Reading mode. Swipe left or right to turn the page. Pinch to zoom' : 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : isMobile ? 'Pinch to zoom in place. Double-tap to open single-page view' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
             event.preventDefault();
             if (performance.now() - lastTouchToggleAtRef.current < 500) return;
             focusPage(index);
@@ -368,7 +376,7 @@ export function DocumentAttachment({
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}
-      {processing?.state === 'processing-failed' && <div className="flex shrink-0 items-center gap-2 border-t border-[var(--hairline)] bg-[var(--surface-raised)] px-4 py-2">
+      {processing?.state === 'processing-failed' && <div data-ordered-page-notice={orderedPageWrapper} className="flex shrink-0 items-center gap-2 border-t border-[var(--hairline)] bg-[var(--surface-raised)] px-4 py-2">
         <p role="alert" aria-live="polite" className="min-w-0 flex-1 truncate text-[12px] text-[var(--text-secondary)]">
           {processing.message ?? 'The optimized page preview could not be prepared. The original PDF is still available.'}
         </p>

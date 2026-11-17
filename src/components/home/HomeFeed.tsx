@@ -113,7 +113,7 @@ export function HomeFeed({
   const routeLocation = useLocation();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const activeHomeOpening = showMobileSearch && screenActive ? installedHomeOpening : null;
-  const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile, revalidateOnOpen: activeHomeOpening?.refresh });
+  const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile || !locationId, revalidateOnOpen: activeHomeOpening?.refresh });
   const { viewerProfileId, isAuthenticated, user } = useAuth();
   const management = useProjectManagement(isAuthenticated ? viewerProfileId : null);
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
@@ -182,6 +182,7 @@ export function HomeFeed({
   }, [startupPending, startupAttempt, locationId, retryFeed, retryLayout]);
   useHomeStartupReadiness({
     enabled: startupPending && !locationId,
+    waitForArtwork: isMobile,
     attempt: startupAttempt,
     ref: autoScrollRef,
     settled: (firstProjectHome && feed.status === 'success') || (feed.status === 'success' && layoutReady && scrollRestored && noteReadiness?.account === account && noteReadiness.attempt === startupAttempt && noteReadiness.settled),
@@ -333,6 +334,9 @@ export function HomeFeed({
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
             {density.saveError && <p role="status" className="py-2 text-[13px] text-[var(--text-secondary)]">{density.saveError} <button type="button" onClick={() => { void density.retry(); }} className="text-[var(--accent-text)] underline">Retry layout save</button></p>}
+            {!isMobile && !locationId && feed.refreshError && <p role="status" className="py-2 text-[13px] text-[var(--text-secondary)]">
+              {feed.refreshError} <button type="button" onClick={retryFeed} className="text-[var(--accent-text)] underline">Retry Home refresh</button>
+            </p>}
             {!layoutReady && (layoutFailed
               ? <ErrorState title="Your Home layout could not be loaded" description={ownerLayout.error ?? undefined} onRetry={ownerLayout.retry} />
               : !loadFailed ? <LoadingState kind="grid" columns={density.columns} label="Loading your Home layout" /> : null)}
