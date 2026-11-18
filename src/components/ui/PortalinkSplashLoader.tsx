@@ -15,7 +15,7 @@ const PRIMARY_LOAD_TIMEOUT_MS = 10_000;
 const FALLBACK_CYCLE_MS = 1500;
 
 /** Startup plays once; the mobile welcome screen loops until an action is chosen. */
-export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, timedIntro = false, inviteOpening = false, landing, welcomeMedia = false, welcomeHandoff = false }: {
+export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, timedIntro = false, inviteOpening = false, landing, welcomeMedia = false, welcomeHandoff = false, loading = false }: {
   onComplete?: () => void;
   stillOnly?: boolean;
   hidden?: boolean;
@@ -26,6 +26,8 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   welcomeMedia?: boolean;
   /** Leaving the white welcome scene for the app, including a completed sign-in. */
   welcomeHandoff?: boolean;
+  /** Keep the finished desktop opening visible while its first screen settles. */
+  loading?: boolean;
   landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onDismiss?: () => void; content?: React.ReactNode; suspendFocus?: boolean; hideMedia?: boolean };
 }) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
@@ -389,7 +391,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       aria-modal={(openingWorkspace || (landing && sceneLanding)) && !hidden ? true : undefined}
       aria-live={openingWorkspace || sceneLanding || welcomeMedia ? undefined : 'polite'}
       aria-label={welcomeMedia ? 'Hello World — Portalink' : openingWorkspace ? 'Opening Portalink' : sceneLanding ? 'Welcome to Portalink' : 'Portalink Networks is opening'}
-      aria-busy={openingWorkspace || undefined}
+      aria-busy={openingWorkspace || loading || undefined}
       aria-hidden={hidden || undefined}
       tabIndex={openingWorkspace || (landing && sceneLanding) ? -1 : undefined}
       style={hidden ? { display: 'none' } : undefined}
@@ -418,6 +420,8 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
             style={{ opacity: showVideo && !showBackup ? 1 : 0 }} />)}
         </div>
       </div>}
+      {presentation === 'web' && loading && !introPending && !sceneLanding && !openingWorkspace
+        && <span data-desktop-splash-loading="" className="premium-media-loading-mark portalink-splash-loading-mark" aria-hidden="true" />}
       {sceneLanding && <div className="mobile-share-landing-actions" aria-busy={!sceneLanding.ready}>
         {sceneLanding.content ?? <EntryChoices presentation={presentation} ready={sceneLanding.ready} onEmail={sceneLanding.onCreateAccount} onSignIn={sceneLanding.onSignIn} />}
         {!sceneLanding.ready && <span role="status" className="sr-only">Opening Portalink…</span>}

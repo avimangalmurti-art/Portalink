@@ -20,7 +20,9 @@ export function DeferredSurfaceStatus({ failed = false, onClose }: { failed?: bo
   return <ModalPortal>
     <div ref={viewportRef} className="modal-scrim fixed inset-x-0 z-[90] flex items-center justify-center bg-black/50 p-4" style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}>
       <div ref={dialogRef} tabIndex={-1} role="dialog" data-ui-surface="popup" aria-modal="true" aria-label={failed ? 'Unable to open' : 'Opening'} className="w-full max-w-[340px] rounded-[24px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-pop)] outline-none">
-        {!failed && <div aria-hidden="true" className="mb-4 grid gap-2"><span className="motion-skeleton block h-3 w-3/4 rounded-full" /><span className="motion-skeleton block h-3 w-1/2 rounded-full" /></div>}
+        {!failed && (isMobile
+          ? <div aria-hidden="true" className="mb-4 grid gap-2"><span className="motion-skeleton block h-3 w-3/4 rounded-full" /><span className="motion-skeleton block h-3 w-1/2 rounded-full" /></div>
+          : <span className="premium-media-loading-mark mb-4 block" aria-hidden="true" />)}
         <p role={failed ? 'alert' : 'status'} className="text-[14px] leading-relaxed">{failed ? 'This screen could not be opened. Check your connection and reload this page to try again.' : 'Opening…'}</p>
         <div className="mt-4 flex items-end justify-end gap-2">
           {failed && isMobile && <img src="/portalink-question-character.png" alt="" aria-hidden="true" width={64} height={72} className="mr-auto h-[72px] w-16 shrink-0 object-contain" />}

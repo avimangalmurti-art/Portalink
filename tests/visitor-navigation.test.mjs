@@ -92,14 +92,18 @@ test('shared portal shows the owner’s order on the first paint of project rows
     ];
     const browsing = { layout: 'list', sort: 'saved', onLayout() {}, onSort() {} };
     const render = () => f.PortalProjectPopup({ profile: { id: 'creator', categories: [{ id: 'work', label: 'Work' }], projects },
-      categoryId: 'work', onClose() {}, onSelect() {}, browsing, desktopBrowsing: true });
+      categoryId: 'work', onClose() {}, onSelect() {}, browsing, desktopBrowsing: true, closeOnSelect: false });
     const ids = tree => Array.from(one(tree, 'ProjectIndexList').props.projects, project => project.id);
     f.state.savedOrder = null;
     const pending = render();
     assert.equal(one(pending, 'ProjectIndexList'), undefined);
     assert.ok(nodes(pending).some(node => node.props?.['aria-label'] === 'Loading saved order'));
+    assert.equal(nodes(pending).find(node => node.props?.['data-web-launch-ready']), undefined, 'Unresolved order cannot release the desktop launch');
     f.state.savedOrder = ['hidden', 'featured', 'home', 'new'];
-    assert.deepEqual(ids(render()), ['featured', 'home', 'new']);
+    const ordered = render();
+    assert.deepEqual(ids(ordered), ['featured', 'home', 'new']);
+    const launchReady = nodes(ordered).find(node => node.props?.['data-web-launch-ready']);
+    assert.equal(launchReady?.props['data-web-launch-ready'], presentation === 'web' ? 'portal' : undefined);
     browsing.sort = 'recent';
     assert.deepEqual(ids(render()), ['new', 'featured', 'home']);
     browsing.sort = 'saved';
@@ -1265,6 +1269,19 @@ test('explicit WEB project addresses retain selection and missing-project errors
     if (projectId === 'work') assert.ok(nodes(tree).find(node => node.props?.project?.id === 'work'));
     else assert.equal(one(tree, 'RouteError').props.kind, 'not-found');
   }
+});
+
+test('WEB shared launch can hand off to terminal profile errors but never pending metadata', () => {
+  for (const status of ['loading', 'error', 'not-found']) {
+    const h = appHarness();
+    h.state.presentation = 'web';
+    h.state.query = { ...h.state.query, status, profile: null, error: status === 'error' ? 'offline' : null };
+    const tree = h.render();
+    assert.equal(one(tree, 'AppPresentation').props['data-web-launch-ready'], status === 'loading' ? undefined : 'error');
+  }
+  const mobile = appHarness();
+  mobile.state.query = { ...mobile.state.query, status: 'error', profile: null, error: 'offline' };
+  assert.equal(one(mobile.render(), 'AppPresentation').props['data-web-launch-ready'], undefined);
 });
 
 test('WEB portal navigation clears prior catalogue origin while ordinary card Back preserves its exact origin', () => {

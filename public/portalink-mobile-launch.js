@@ -60,6 +60,9 @@
   const still = '/portalink-launch-still.webp?v=0e55dfbd';
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const useVideo = webCatalogueLaunch && !reducedMotion;
+  const readyKind = new URLSearchParams(window.location.search).get('view') === 'portal'
+    && /^\/(?:share\/[^/]+|[^/]+)\/c\/[^/]+$/i.test(window.location.pathname.replace(/\/+$/, ''))
+    ? 'portal' : 'catalogue';
   const frame = document.createElement(useVideo ? 'video' : 'img');
   frame.width = 512;
   frame.height = useVideo ? 720 : 724;
@@ -70,7 +73,10 @@
   });
 
   let timeout;
+  let contentTimeout;
+  let readinessObserver;
   let finished = false;
+  let mediaComplete = false;
   let waitingForPlayback = useVideo;
   if (useVideo) {
     frame.poster = still;
@@ -83,24 +89,51 @@
     frame.alt = '';
   }
   splash.append(frame);
+  const progress = webCatalogueLaunch ? document.createElement('span') : null;
+  if (progress) {
+    progress.className = 'portalink-splash-loading-mark premium-media-loading-mark';
+    progress.setAttribute('aria-hidden', 'true');
+    progress.style.display = 'none';
+    splash.append(progress);
+  }
   document.body.append(splash);
 
   function finish() {
     if (finished) return;
     finished = true;
     window.clearTimeout(timeout);
+    window.clearTimeout(contentTimeout);
+    readinessObserver?.disconnect();
     if (useVideo) {
-      frame.removeEventListener('ended', finish);
+      frame.removeEventListener('ended', completeMedia);
       frame.removeEventListener('playing', playing);
       frame.removeEventListener('waiting', waiting);
       document.removeEventListener('visibilitychange', syncVideoVisibility);
       frame.pause();
     } else frame.removeEventListener('load', loaded);
-    frame.removeEventListener('error', finish);
+    frame.removeEventListener('error', completeMedia);
     window.removeEventListener('pagehide', finish);
     splash.remove();
     releaseCatalogueCanvas();
     window.dispatchEvent(new Event('portalink:splash-exited'));
+  }
+  function releaseWhenReady() {
+    if (!mediaComplete || finished) return;
+    if (!webCatalogueLaunch || document.querySelector(`[data-web-launch-ready="${readyKind}"], [data-web-launch-ready="error"]`)) {
+      finish();
+      return;
+    }
+    splash.setAttribute('data-web-launch-waiting', '');
+    progress.style.display = 'block';
+    // A failed application chunk must still yield to the normal loading/error UI.
+    contentTimeout ??= window.setTimeout(finish, 12000);
+  }
+  function completeMedia() {
+    if (finished || mediaComplete) return;
+    mediaComplete = true;
+    window.clearTimeout(timeout);
+    if (useVideo) frame.pause();
+    releaseWhenReady();
   }
   function loaded() {
     window.clearTimeout(timeout);
@@ -108,11 +141,11 @@
     // Let Home's compositor hide its overlay on time. On shared links, keep the
     // white canvas until the document and viewer theme can switch together.
     if (!catalogueLaunch) splash.animate?.({ opacity: [1, 0] }, { duration, easing: 'step-end', fill: 'forwards' });
-    timeout = window.setTimeout(finish, duration);
+    timeout = window.setTimeout(completeMedia, duration);
   }
   function updateVideoTimeout() {
     window.clearTimeout(timeout);
-    if (waitingForPlayback && !document.hidden) timeout = window.setTimeout(finish, 8000);
+    if (!mediaComplete && waitingForPlayback && !document.hidden) timeout = window.setTimeout(completeMedia, 8000);
   }
   function playing() {
     waitingForPlayback = false;
@@ -123,6 +156,7 @@
     updateVideoTimeout();
   }
   function syncVideoVisibility() {
+    if (mediaComplete) return;
     if (document.hidden) {
       window.clearTimeout(timeout);
       frame.pause();
@@ -131,22 +165,26 @@
     }
     updateVideoTimeout();
     frame.play()?.catch(error => {
-      if (!document.hidden && error?.name !== 'AbortError') finish();
+      if (!document.hidden && error?.name !== 'AbortError') completeMedia();
     });
   }
 
-  frame.addEventListener('error', finish, { once: true });
+  frame.addEventListener('error', completeMedia, { once: true });
   window.addEventListener('pagehide', finish, { once: true });
+  if (webCatalogueLaunch && typeof MutationObserver !== 'undefined') {
+    readinessObserver = new MutationObserver(releaseWhenReady);
+    readinessObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-web-launch-ready'] });
+  }
   if (useVideo) {
     // Only a stalled or failed video can exit early. Hidden tabs may delay autoplay.
-    frame.addEventListener('ended', finish, { once: true });
+    frame.addEventListener('ended', completeMedia, { once: true });
     frame.addEventListener('playing', playing);
     frame.addEventListener('waiting', waiting);
     document.addEventListener('visibilitychange', syncVideoVisibility);
     frame.src = '/portalink-splash-mobile.mp4?v=9c1a9457';
     syncVideoVisibility();
   } else {
-    timeout = window.setTimeout(finish, 1500);
+    timeout = window.setTimeout(completeMedia, 1500);
     frame.addEventListener('load', loaded, { once: true });
     frame.src = reducedMotion ? still : '/portalink-launch-animation.webp?v=1069a07c';
   }

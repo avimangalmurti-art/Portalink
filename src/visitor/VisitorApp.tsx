@@ -344,7 +344,9 @@ export function VisitorApp() {
     onComplete={id => { setOnboardingOpen(false); const intent = deferredIntent.current; deferredIntent.current = null;
       if (intent?.kind === 'my-profile') window.location.assign(buildPath('profile', { profileId: id })); else fulfilIntent(intent);
     }} />;
-  return <AppPresentation showFloatingActions={!settings && !projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
+  return <AppPresentation showFloatingActions={!settings && !projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio=""
+    data-web-launch-ready={presentation === 'web' && !handlePending && (handleError || invalidShared || missingSharedPortal || query.status === 'error' || query.status === 'not-found' || (query.status === 'ready' && !profile)) ? 'error' : undefined}
+    data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId && !(sharedPortalLink && catalogueReady)} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={chooseMode} desktopNavigationStyle={desktopNavigationStyle}
         useMobileHeaderOpener={catalogueReady}
