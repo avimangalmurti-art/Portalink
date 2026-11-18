@@ -1,6 +1,21 @@
 /* WEB frame: preserve the existing desktop geometry and shared appearance tokens.
    Keep every selector scoped; :where adds no specificity to the existing rules. */
 
+/* Desktop loading uses the same indicator as opening a project. */
+#root [data-presentation='web'] :is([data-loading-layout], .motion-reader-skeleton) {
+  display: grid;
+  width: 100%;
+  min-height: 200px;
+  place-items: center;
+  padding: 24px;
+}
+#root [data-presentation='web'] :is([data-loading-layout], .motion-reader-skeleton) > :is(.screen-loading-shapes, .legacy-loading-shapes, .motion-skeleton) {
+  display: none;
+}
+#root [data-presentation='web'] .loading-state-spinner {
+  display: block;
+}
+
 /* Keep each page's existing controls above the content in its own scrollport.
    Nested search, reader and message panes already have stationary headers. */
 #root .codex-shell[data-presentation='web'] [data-profile-page] > .profile-header-region {

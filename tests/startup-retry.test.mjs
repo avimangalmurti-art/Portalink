@@ -65,7 +65,7 @@ function bootstrap(presentation, authenticated = true, search = authenticated ? 
 test('restored WEB plays the opening before Home Retry and retains account and attempt readiness', () => {
  const h=bootstrap('web');let [app,presence]=h.render();const splash=presence.props.children;assert.equal(splash.props.stillOnly,false);assert.equal(app.props.homeStartupPending,true);const old=app.props;
  h.timeout();const pending=h.render();assert.equal(pending[1].props.children.key,splash.key);assert.equal(pending[3],false);
- splash.props.onComplete();const timeout=h.render();assert.equal(timeout[1].props.children,null);timeout[3].props.children.props.onRetry();[app,presence]=h.render();assert.equal(app.props.homeStartupAttempt,1);assert.equal(presence.props.children,null);
+ splash.props.onComplete();const timeout=h.render();assert.equal(timeout[1].props.children,null);timeout[3].props.children.props.onRetry();[app,presence]=h.render();assert.equal(app.props.homeStartupAttempt,1);assert.equal(presence.props.children.props.loading,true);assert.equal(presence.props.children.props.stillOnly,true);
  old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render()[0].props.homeStartupPending,true,'Old attempt cannot uncover Home');
  app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render()[0].props.homeStartupPending,false);
 });
@@ -77,6 +77,20 @@ test('restored WEB keeps playing even when Home is already ready', () => {
  [app,presence]=h.render();assert.equal(app.props.homeStartupPending,false);
  assert.equal(presence.props.children.key,splash.key);assert.equal(presence.props.children.props.stillOnly,false);
  splash.props.onComplete();assert.equal(h.render()[1].props.children,null);
+});
+
+test('completed WEB opening stays visible with a loading mark until Home content and shell settle', () => {
+ const h=bootstrap('web');let [app,presence]=h.render();const opening=presence.props.children;
+ assert.equal(opening.props.loading,false);
+ opening.props.onComplete();[app,presence]=h.render();
+ assert.equal(presence.props.children.key,opening.key);
+ assert.equal(presence.props.children.props.loading,true);
+ assert.equal(presence.props.children.props.stillOnly,false,'The completed native frame remains visible');
+ app.props.onHomeStartupReady(true);[app,presence]=h.render();
+ assert.equal(presence.props.children.props.loading,true);
+ app.props.onHomeStartupShellReady(true);[app,presence]=h.render();
+ assert.equal(app.props.homeStartupPending,false);
+ assert.equal(presence.props.children,null);
 });
 
 test('ordinary signed-out WEB keeps the intro mounted until account choices can appear', () => {

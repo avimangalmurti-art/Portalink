@@ -5389,6 +5389,16 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   animation: premium-media-shimmer var(--m-slow) var(--m-enter) infinite;
 }
 
+.portalink-splash[data-presentation='web'] > .portalink-splash-loading-mark,
+#portalink-web-launch > .portalink-splash-loading-mark {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 32px;
+  margin-inline: auto;
+  --text-secondary: #000;
+  color: #000;
+}
+
 .premium-media-loading-mark {
   position: relative;
   z-index: 1;

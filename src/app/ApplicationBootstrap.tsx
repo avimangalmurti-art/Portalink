@@ -173,6 +173,8 @@ export function ApplicationBootstrap() {
     return () => window.clearTimeout(timer);
   }, [waitingForHome, auth.isInitializing, holdLanding, auth.pendingView, homeScope, homeAttempt]);
   const showHomeRetry = waitingForHome && homeWaitExpired === homeScope && !holdLanding && !desktopIntroPending && !auth.pendingView;
+  const desktopLoading = playDesktopIntro && !hasStartupCompleted && !isRecovery && !auth.pendingView
+    && !showHomeRetry && (auth.isInitializing || waitingForHome);
   const retryHome = () => {
     // Replace the reporting identity so a late completion from an older attempt cannot win.
     setHomeReadiness(null);
@@ -235,7 +237,8 @@ export function ApplicationBootstrap() {
         // splash fade on the compositor instead of competing with globe work.
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
-        {!isSharedView && (desktopIntroPending || holdLanding || ((!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry)) ? <PortalinkSplashLoader key={playDesktopIntro ? 'portalink-desktop-splash' : holdLanding || hasPresentedLanding ? 'portalink-account-entry' : 'portalink-splash'} onComplete={completeSplash} stillOnly={startupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
+        {!isSharedView && (desktopIntroPending || desktopLoading || holdLanding || ((!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry)) ? <PortalinkSplashLoader key={playDesktopIntro ? 'portalink-desktop-splash' : holdLanding || hasPresentedLanding ? 'portalink-account-entry' : 'portalink-splash'} onComplete={completeSplash} stillOnly={(!desktopLoading && startupCompleted) || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
+          loading={desktopLoading && hasSplashCompleted}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery}
           inviteOpening={isWelcomeInvite && hasInviteLink}
           welcomeHandoff={hasPresentedLanding && !holdLanding}

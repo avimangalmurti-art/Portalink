@@ -1,8 +1,28 @@
-## 2026-11-17 — Sync published Sites 643 to GitHub
+## 2026-11-17 — Sync published Sites 644 to GitHub
 
-The `codex/sync-sites-643` branch in `logs/github-sites643-sync` starts from GitHub main `57b9031` and carries the published Sites 643 source from `2902998bcf3ba6d19b8b46e8e490d47911083e3d`. Before this receipt was added, the complete staged tree matched the published source tree `856a50bd9f889c24977a86d2393c8d3afe6d7c68`. The sync includes the preceding Sites 642 desktop performance, soundtrack and reader changes, plus the full desktop splash.
+The `codex/sync-sites-644` branch in `logs/github-sites644-sync` starts from GitHub main `b40c17cb887d236783811cc56d6a42d3ff6735bf` and carries published Sites 644 source `eacd4af8945c0a33cde989e744f7b696e204649d`. Before this receipt was added, the complete staged tree matched the published tree `ab2e94ec5fe927109070d5357fe955ed7d6181b3`. The 13 product files and six regression files implement the desktop loading handoff and standard loading indicator described below.
 
-Sites 643 is live at https://portalinknetworks.com. Real Chromium verified full playback on the signed-out desktop platform, invite, shared Catalogue and direct Portal link. All four showed the 1.466667-second clip through its final visible frame. All 120 startup regressions, six entry/build checks, typecheck and the production build passed. This task owns GitHub review, merge and postmerge checks. The PR and main checks are pending.
+Sites 644 is live at https://portalinknetworks.com. Typecheck, scoped lint, focused regressions, six build-entry checks, the production client and worker build, and both configuration bundle guards passed. Local Chromium covered 12 behavioral cases including delayed Home, Catalogue and Portal loading, fallback and mobile preservation. Live Chromium verified full splash playback on platform, invite, shared Catalogue and direct Portal entry, with zero exposed grey placeholders. All 113 live assets matched the release build. No migration is needed. This task owns the GitHub PR, merge and postmerge checks, which are pending.
+
+## 2026-11-17 — Desktop splash covers the first content load
+
+Working in `logs/desktop-splash-loading` on `codex/desktop-splash-loading`, based on GitHub main `b40c17c` (published Sites 643 product source). Desktop platform startup keeps the completed splash frame while authentication or Home's existing content and shell checks are pending. Shared Catalogue and direct Portal launches release after the full clip and a committed readiness marker, including the Portal's saved order. A standard loading mark appears on the held artwork. Shared launch has a bounded fallback to the normal loading or error UI if the application does not settle.
+
+`StateViews.tsx` and desktop CSS replace grey loading geometry with the standard icon for desktop screens. Mobile keeps the original loading geometry. The desktop deferred-dialog pending state uses the same icon. This task changes presentation and startup handoff only. The work is local, uncommitted and unpublished. No migration or deployment has been performed.
+
+Typecheck, scoped lint with zero errors and one existing warning, the configured client and worker build, both bundle guards, focused startup/visitor/loading regressions, six build-entry checks and diff checks passed. Local Chromium verified 12 behavioral cases with fixture data, including slow platform Home, slow Catalogue and Portal saved order, terminal failures, timeout/Retry, media fallback, Reduced Motion and mobile at 420 × 912. The final visual run confirmed full 1.466667-second playback, a stationary final frame and centered standard loading mark, zero exposed grey placeholders, correct content handoff, and the 12-second shared fallback. Root visually inspected the held platform/shared scenes and fallback screenshots. Receipts and screenshots are in ignored `logs/desktop-splash-loading-qa`. Live production and physical-device verification have not been performed for this unpublished change. The final launch-script hash is `c49e2dd0`.
+
+## 2026-11-17 — GitHub sync completed for Sites 643
+
+PR [178](https://github.com/avimangalmurti-art/Portalink/pull/178) merged all Sites 643 changes into GitHub main `b40c17cb887d236783811cc56d6a42d3ff6735bf`. All five PR checks passed before merge, and all six main checks passed afterward, including the existing iOS simulator build. The application and test files match this published Sites source. The isolated review checkout is `logs/github-sites643-sync` on `codex/sync-sites-643`.
+
+## 2026-11-17 — Sites 643 splash fix published and verified live
+
+Published the complete desktop splash fix at https://portalinknetworks.com as Sites 643 from `2902998bcf3ba6d19b8b46e8e490d47911083e3d`. Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_a9c817122f4481919fbcaa13e4e49b27`, deployment `appgdep_6afccb299cc48191b9658fb12934cdf8`, succeeded at 2026-11-17T21:46:26.532934+00:00. The public audience, runtime revision 2, worker and four D1 migration payloads were retained. Archive `logs/portalink-nov17-full-desktop-splash.tar.gz` has SHA-256 `7db39919eedc639f5670c1885bcf43271cbfc03b19e929ce640786cb9108aa79`. No Supabase migration was applied.
+
+Real live Chromium verified the signed-out desktop platform, invite entry, public Portalite Catalogue and exact Application - Product Design Roles Portal link. All four displayed the full 1.466667-second clip, including the final visible decoded frame at 1.433 seconds, then handed off to the correct destination. Source, data and media came from the real network. There were no uncaught runtime exceptions. Authenticated playback was covered by the earlier local fixture, with no live signed-in run. All four live public routes returned HTTP 200, and 113 live assets matched the release build by SHA-256. Receipts are ignored `logs/desktop-splash-e2e/live-verified.json` and `logs/splash643-live-assets.json`.
+
+The 120 startup regressions, six build checks, typecheck, production build and configured main/visitor bundle guards passed. The clean published source is on the Sites repository's main branch. GitHub review and integration remain separate.
 
 ## 2026-11-17 — Play the complete desktop splash
 

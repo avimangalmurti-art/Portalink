@@ -77,6 +77,7 @@ test('active MOBILE and WEB public images expose one named density control direc
   assert.equal(h.calls[0][1], false, 'A public slider never enables profile writes');
   assert.equal(h.calls[0][2], 'public-catalogue', 'The public wall uses its own density preference.');
   assert.equal(tree.props['data-public-image-catalogue'], presentation === 'mobile' ? '' : undefined, 'MOBILE flow and scroll repair retain their existing scope');
+  assert.equal(tree.props['data-web-launch-ready'], presentation === 'web' ? 'catalogue' : undefined);
  }
 });
 
@@ -120,6 +121,7 @@ test('Timeline, Portals and inactive public catalogues omit density controls on 
     const h = fixture(options), tree = h.render();
     assert.equal(densityControls(tree).length, 0, name);
     assert.equal(tree.props['data-public-image-catalogue'], undefined, name);
+    assert.equal(tree.props['data-web-launch-ready'], undefined, 'Inactive or deferred content cannot release desktop launch');
     assert.ok(h.calls.every(([, canSave]) => canSave === false), name);
   }
 });

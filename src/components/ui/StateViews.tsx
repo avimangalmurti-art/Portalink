@@ -55,10 +55,11 @@ function LoadingShapes({kind, columns = 2}: {kind: LoadingLayout; columns?: numb
  </div>;
 }
 export function LoadingSkeleton({label='Loading',kind='rows',projectId,columns}:LoadingProps) {
- if(kind==='reader')return <div role="status" aria-label={label} aria-live="polite" data-reader-frame="" data-premium-project-viewer="" data-mobile-page-reader="" className="motion-reader-skeleton"><span className="motion-skeleton motion-reader-counter"/><div className="motion-reader-page motion-skeleton" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectId ? projectContinuityStyle(projectId) : undefined}/></div>;
+ if(kind==='reader')return <div role="status" aria-label={label} aria-live="polite" data-reader-frame="" data-premium-project-viewer="" data-mobile-page-reader="" className="motion-reader-skeleton"><span className="motion-skeleton motion-reader-counter"/><div className="motion-reader-page motion-skeleton" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectId ? projectContinuityStyle(projectId) : undefined}/><span className="loading-state-spinner premium-media-loading-mark" aria-hidden="true"/></div>;
  return <div role="status" aria-label={label} aria-live="polite" data-loading-layout={kind} className={kind==='profile'||kind==='journey'?'motion-profile-skeleton':undefined}>
   <LoadingShapes kind={kind} columns={columns}/>
   <div className="legacy-loading-shapes" aria-hidden="true">{(kind==='profile'||kind==='journey')&&<div className="motion-profile-identity motion-skeleton"/>}<div className="motion-list-skeleton">{[0,1,2,3].map(i=><span key={i} className="motion-skeleton"/>)}</div></div>
+  <span className="loading-state-spinner premium-media-loading-mark" aria-hidden="true"/>
  </div>;
 }
 export function LoadingState(props:LoadingProps) {return <LoadingSkeleton {...props}/>;}

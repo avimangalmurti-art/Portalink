@@ -75,7 +75,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       priority="viewport" preferCatalogueThumbnail allowPdfFallback={false} allowVideoFallback={true} sharedCoverFallback /> }));
   return <div ref={profilePageRef} hidden={!active} aria-hidden={!active || undefined}
     style={!active ? { display: 'none' } : undefined} onClickCapture={isMobile && active ? onCaptureOpener : undefined}
-    data-web-profile-header={!isMobile ? '' : undefined} data-profile-journey={isJourney ? '' : undefined} data-public-image-catalogue={mobileImageCatalogue ? '' : undefined} data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
+    data-web-profile-header={!isMobile ? '' : undefined} data-web-launch-ready={!isMobile && active && !isJourney && !portalsView ? 'catalogue' : undefined} data-profile-journey={isJourney ? '' : undefined} data-public-image-catalogue={mobileImageCatalogue ? '' : undefined} data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
     <div data-profile-header="" className="profile-header-region contents">
       <header className="profile-compact-header" data-expanded>
         <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
@@ -120,7 +120,13 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
     <div id="profile-content" className={`min-w-0 w-full pb-4 ${contentGutter}`}>
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
-      {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}><JourneyView active={active} toolbarHost={isMobile ? timelineToolbarHost : null} profile={profile} owner={false} showPopular={false} timelineReturn={journey.restoring ? timelineReturn : undefined} onOpen={(project, portalId, timelineSource) => onOpen(portalId ?? project.categoryId, project.id, timelineSource)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
+      {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Timeline…"/>}>
+        <JourneyView active={active} toolbarHost={isMobile ? timelineToolbarHost : null} profile={profile} owner={false} showPopular={false} timelineReturn={journey.restoring ? timelineReturn : undefined} onOpen={(project, portalId, timelineSource) => onOpen(portalId ?? project.categoryId, project.id, timelineSource)} />
+        {!isMobile && active && <span hidden data-web-launch-ready="catalogue" />}
+      </Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}>
+        <ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} />
+        {!isMobile && active && <span hidden data-web-launch-ready="catalogue" />}
+      </Suspense>
         : projects.length ? <JustifiedImageWall label={`${profile.name} — profile imagery`} columns={density.columns} onColumnsChange={density.setColumns} allowLayoutControls={false} items={items} />
         : <p className="px-3 py-10 text-[var(--text-secondary)]">No published projects here yet.</p>}
     </div>

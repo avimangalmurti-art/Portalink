@@ -115,18 +115,21 @@ function staticLaunch({ pathname, search = '', mobile = true, entry = 'catalogue
   head.append(darkTheme);
   if (entry === 'home') root.setAttribute('data-installed-home-launch', '');
   let notifyCommit, shellCommitted = false;
+  const readyKinds = new Set();
   const app = { querySelector: selector => shellCommitted && selector === '.app-shell' ? {} : null };
   const documentListeners = new Map();
   const document = {
     documentElement: root, body, head, hidden: false, currentScript: { dataset: { launchEntry: entry } },
     createElement: makeElement,
     getElementById: id => id === 'root' ? app : null,
+    querySelector: selector => [...selector.matchAll(/data-web-launch-ready="([^"]+)"/g)].some(([, kind]) => readyKinds.has(kind)) ? {} : null,
     querySelectorAll: () => [theme, darkTheme],
     addEventListener: (name, fn) => documentListeners.set(name, fn),
     removeEventListener: name => documentListeners.delete(name),
   };
   const events = [];
   const listeners = new Map(), timers = new Map();
+  let timerId = 0;
   const window = {
     location: { pathname, search },
     matchMedia: query => ({ matches: query === '(max-width: 639px)' ? mobile
@@ -135,21 +138,27 @@ function staticLaunch({ pathname, search = '', mobile = true, entry = 'catalogue
     addEventListener: (name, fn) => listeners.set(name, fn),
     removeEventListener: name => listeners.delete(name),
     dispatchEvent: event => events.push(event.type),
-    setTimeout: (callback, delay) => { timers.set(1, { callback, delay }); return 1; },
+    setTimeout: (callback, delay) => { const id = ++timerId; timers.set(id, { callback, delay }); return id; },
     clearTimeout: id => timers.delete(id),
   };
   const context = vm.createContext({ document, window, Event, URLSearchParams, MutationObserver: class {
     constructor(callback) { this.callback = callback; }
-    observe(target) { assert.equal(target, app); notifyCommit = this.callback; }
+    observe(target) { assert.ok(target === app || target === body); notifyCommit = this.callback; }
     disconnect() { notifyCommit = undefined; }
   } });
   if (entry === 'catalogue') vm.runInContext(appearanceScript, context);
   vm.runInContext(launch, context);
   return {
     root, body, head, theme, darkTheme, events, listeners, timers,
-    expire: () => timers.get(1).callback(),
+    expire(delay) {
+      const entry = [...timers.entries()].find(([, timer]) => delay === undefined || timer.delay === delay);
+      assert.ok(entry, 'Expected a pending launch timer');
+      timers.delete(entry[0]);
+      entry[1].callback();
+    },
     setHidden(hidden) { document.hidden = hidden; documentListeners.get('visibilitychange')?.(); },
     commitShell() { shellCommitted = true; notifyCommit?.(); },
+    commitReady(kind = 'catalogue') { readyKinds.add(kind); notifyCommit?.(); },
   };
 }
 
@@ -204,7 +213,7 @@ test('the shared catalogue locks the white canvas and both chrome tags until the
 
 test('desktop Catalogue and exact Portal links play the full shared opening even when the app is ready', () => {
   for (const [pathname, search] of [
-    ['/portalite/', '?via=friend'], ['/share/profile', ''], ['/portalite/c/design', '?view=portal'],
+    ['/portalite/', '?via=friend'], ['/share/profile', ''], ['/portalite', '?view=portal'], ['/portalite/c/design', '?view=portal'],
     ['/share/profile/c/design/', '?view=portal'],
   ]) {
     const launch = staticLaunch({ pathname, search, mobile: false, systemDark: true });
@@ -220,6 +229,7 @@ test('desktop Catalogue and exact Portal links play the full shared opening even
     assert.equal(video.playRequested, true);
     assert.equal(video.muted, true);
     launch.commitShell();
+    launch.commitReady(search.includes('view=portal') && pathname.includes('/c/') ? 'portal' : 'catalogue');
     assert.equal(launch.body.children[0], layer);
     video.emit('playing');
     assert.equal(launch.timers.size, 0);
@@ -237,24 +247,25 @@ test('desktop splash resumes after buffering and keeps its startup fallback off 
   const launch = staticLaunch({ pathname: '/portalite/c/design', search: '?view=portal', mobile: false });
   const [layer] = launch.body.children;
   const [video] = layer.children;
-  assert.equal(launch.timers.get(1).delay, 8000);
+  assert.equal([...launch.timers.values()][0].delay, 8000);
   launch.setHidden(true);
   assert.equal(launch.timers.size, 0);
   assert.equal(video.paused, true);
   launch.setHidden(false);
-  assert.equal(launch.timers.get(1).delay, 8000);
+  assert.equal([...launch.timers.values()][0].delay, 8000);
   assert.equal(video.paused, false);
   video.emit('playing');
   video.emit('waiting');
-  assert.equal(launch.timers.get(1).delay, 8000);
+  assert.equal([...launch.timers.values()][0].delay, 8000);
   video.emit('playing');
   assert.equal(launch.timers.size, 0);
   assert.equal(launch.body.children[0], layer);
+  launch.commitReady('portal');
   video.emit('ended');
   assert.deepEqual(launch.events, ['portalink:splash-exited']);
 });
 
-test('desktop reader and Settings open directly and missing or reduced motion media releases the splash', () => {
+test('desktop reader and Settings open directly and media fallback waits for the screen or its bounded timeout', () => {
   for (const [pathname, search] of [
     ['/portalite', '?settings=1'], ['/portalite/c/design', '?view=portal&settings=1'],
     ['/portalite/c/design', ''], ['/share/profile/c/design/project', '?view=portal'],
@@ -268,15 +279,57 @@ test('desktop reader and Settings open directly and missing or reduced motion me
   const [layer] = launch.body.children;
   assert.match(layer.children[0].src, /portalink-launch-still\.webp/);
   layer.children[0].emit('error');
+  assert.equal(launch.body.children[0], layer);
+  assert.equal(layer.hasAttribute('data-web-launch-waiting'), true);
+  launch.commitReady();
   assert.equal(launch.body.children.length, 0);
   assert.equal(launch.root.hasAttribute('data-web-catalogue-launch'), false);
   assert.equal(launch.timers.size, 0);
 
   const stalled = staticLaunch({ pathname: '/portalite', mobile: false });
-  stalled.expire();
+  stalled.expire(8000);
+  assert.equal(stalled.body.children[0].hasAttribute('data-web-launch-waiting'), true);
+  stalled.expire(12000);
   assert.equal(stalled.body.children.length, 0);
   assert.equal(stalled.root.hasAttribute('data-web-catalogue-launch'), false);
   assert.deepEqual(stalled.events, ['portalink:splash-exited']);
+});
+
+test('desktop holds the final frame and standard spinner until its Catalogue content is committed', () => {
+  const launch = staticLaunch({ pathname: '/portalite', mobile: false });
+  const [layer] = launch.body.children;
+  const [video, progress] = layer.children;
+  video.emit('playing');
+  video.emit('ended');
+  assert.equal(launch.body.children[0], layer);
+  assert.equal(video.paused, true);
+  assert.equal(layer.hasAttribute('data-web-launch-waiting'), true);
+  assert.equal(progress.className, 'portalink-splash-loading-mark premium-media-loading-mark');
+  assert.equal(progress.style.display, 'block');
+  assert.equal(launch.events.length, 0);
+  launch.commitShell();
+  assert.equal(launch.body.children[0], layer, 'An empty shell is not a ready screen');
+  launch.commitReady();
+  assert.equal(launch.body.children.length, 0);
+  assert.equal(launch.timers.size, 0);
+  assert.deepEqual(launch.events, ['portalink:splash-exited']);
+});
+
+test('a direct Portal waits for its own content and terminal errors retain the complete clip', () => {
+  const portal = staticLaunch({ pathname: '/portalite/c/design', search: '?view=portal', mobile: false });
+  const [layer] = portal.body.children;
+  portal.commitReady('catalogue');
+  layer.children[0].emit('ended');
+  assert.equal(portal.body.children[0], layer, 'The background grid cannot uncover a loading Portal');
+  portal.commitReady('portal');
+  assert.equal(portal.body.children.length, 0);
+
+  const failed = staticLaunch({ pathname: '/missing', mobile: false });
+  const [errorLayer] = failed.body.children;
+  failed.commitReady('error');
+  assert.equal(failed.body.children[0], errorLayer);
+  errorLayer.children[0].emit('ended');
+  assert.equal(failed.body.children.length, 0, 'The complete clip hands off to its actionable error');
 });
 
 test('both entry documents version the shared launch script by content', () => {
@@ -320,7 +373,7 @@ function compile(path, imports, globals) {
   }
   return exports;
 }
-function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false, bootVideo = undefined, findBootVideo = undefined } = {}) {
+function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false, loading = false, bootVideo = undefined, findBootVideo = undefined } = {}) {
   const h = hooks();
   let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false, renderedMediaRef;
   const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [], modalDismissals = [], viewportCalls = [], entryViewportCalls = [];
@@ -384,7 +437,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
   const onComplete = () => completed++;
   return { ...h,
     render() {
-      const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, welcomeHandoff, hidden: surfaceHidden }));
+      const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, welcomeHandoff, loading, hidden: surfaceHidden }));
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
       const mediaContainer = React.Children.toArray(tree.props.children).find(child =>
@@ -409,6 +462,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     setHidden(value) { surfaceHidden = value; },
     setStillOnly(value) { stillOnly = value; },
     setHandoff(value) { welcomeHandoff = value; },
+    setLoading(value) { loading = value; },
     setLanding(value) { landing = value; },
     timer(delay) { const entry = [...h.timers.entries()].find(([, timer]) => timer.delay === delay); assert.ok(entry, `missing timer ${delay}`); h.timers.delete(entry[0]); entry[1].fn(); },
     listeners, docListeners, windowListeners, frames, modalCalls, modalDismissals, viewportCalls, entryViewportCalls,
@@ -438,6 +492,24 @@ test('both startup layouts have inline artwork immediately and request only the 
     assert.equal([...h.timers.values()].some(timer=>timer.delay===100 || timer.delay===600),false);
     assert.equal(h.completed,0);h.unmount();assert.equal(h.timers.size,0);
   }
+});
+
+test('desktop loading keeps the completed native frame and shows the standard mark without replay',()=>{
+ const h=loader({presentation:'web'});h.render();h.start();h.paint();
+ h.video.currentTime=h.video.duration;h.emit('ended');h.setLoading(true);
+ const plays=h.plays;const scene=h.render();h.render();
+ const mark=React.Children.toArray(scene.tree.props.children).find(child=>child?.props?.['data-desktop-splash-loading']!==undefined);
+ assert.ok(mark);
+ assert.match(mark.props.className,/premium-media-loading-mark/);
+ assert.equal(scene.tree.props['aria-busy'],true);
+ assert.equal(h.video.currentTime,h.video.duration);
+ assert.equal(h.plays,plays);
+ assert.equal(h.completed,1);
+ h.gesture();h.hide();h.foreground();h.render();
+ assert.equal(h.plays,plays);
+ assert.equal(h.video.currentTime,h.video.duration);
+ const mobile=loader({presentation:'mobile',loading:true});const phone=mobile.render();
+ assert.equal(React.Children.toArray(phone.tree.props.children).some(child=>child?.props?.['data-desktop-splash-loading']!==undefined),false);
 });
 
 test('partial buffering starts immediately and completes only after the painted clip naturally ends',()=>{
@@ -951,7 +1023,7 @@ test('desktop startup waits for restoration and the full opening; navigation and
     assert.equal(presence.props.children.key, intro.key, 'readiness cannot replace the playing intro');
     assert.equal(presence.props.children.props.stillOnly, false);
     intro.props.onComplete();
-  } else assert.equal(presence.props.children, null);
+  } else assert.equal(presence.props.children.props.loading, true);
   render(); [app, presence] = render();
   assert.equal(app.type, 'app'); assert.equal(presence.props.children, null);
   location.pathname = '/messages'; [app, presence] = render();
@@ -1257,8 +1329,10 @@ test('WEB opening Home retains feed and shell readiness after the film finishes'
  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation:'web',homeReady:false});h.auth.isInitializing=false;
  const splash=h.render();assert.equal(splash.type,'splash');assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,true);
  h.app.props.onHomeStartupShellReady(true);assert.equal(h.render().key,splash.key);assert.equal(h.app.props.homeStartupPending,true);
- splash.props.onComplete();assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);
- h.app.props.onHomeStartupReady(false);assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);
+ splash.props.onComplete();assert.equal(h.render().props.loading,true);assert.equal(h.app.props.homeStartupPending,true);
+ assert.equal(h.render().key,splash.key);
+ assert.equal(h.render().props.stillOnly,false);
+ h.app.props.onHomeStartupReady(false);assert.equal(h.render().props.loading,true);assert.equal(h.app.props.homeStartupPending,true);
  h.app.props.onHomeStartupReady(true);h.render();assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,false);
  h.location.pathname='/messages';assert.equal(h.render(),null);
 });
@@ -1283,7 +1357,7 @@ test('an opening WEB visit retains Home readiness and retry ownership after rota
   const initial=h.render();h.setPresentation('mobile');h.auth.isInitializing=false;
   const rotated=h.render();assert.equal(rotated.key,initial.key);assert.equal(rotated.props.onComplete,initial.props.onComplete);
   rotated.props.onComplete();
-  assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupPending,true);assert.equal(h.homeTimerCount,1);
+  assert.equal(h.render().key,initial.key);assert.equal(h.render().props.loading,true);assert.equal(h.app.props.homeStartupPending,true);assert.equal(h.homeTimerCount,1);
   h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
@@ -1308,10 +1382,10 @@ test('WEB Home timeout retains Retry and rejects stale account or startup-attemp
  const old=h.app.props;
  h.timer();const opening=h.render();assert.equal(opening.type,'splash');assert.equal(h.homeError,false);
  opening.props.onComplete();assert.equal(h.render(),null);assert.equal(h.homeError.props.children.type,'home-error');
- h.homeError.props.children.props.onRetry();assert.equal(h.render(),null);assert.equal(h.app.props.homeStartupAttempt,1);
- old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render(),null);
+ h.homeError.props.children.props.onRetry();assert.equal(h.render().props.loading,true);assert.equal(h.render().props.stillOnly,true);assert.equal(h.app.props.homeStartupAttempt,1);
+ old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render().props.loading,true);
  const retry=h.app.props;h.auth.user={id:'different'};h.auth.session={user:h.auth.user};h.render();
- retry.onHomeStartupReady(true);retry.onHomeStartupShellReady(true);assert.equal(h.render(),null);
+ retry.onHomeStartupReady(true);retry.onHomeStartupShellReady(true);assert.equal(h.render().props.loading,true);
  h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
