@@ -252,7 +252,11 @@ export function ApplicationBootstrap() {
             onForgotPassword: () => startAccount('forgotPassword'),
           } : undefined} /> : null}
       </AnimatePresence>
-      {(isSharedView || timedIntroEnded) && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><LoadingState label={isSharedView ? 'Opening shared content…' : 'Opening Portalink…'} /></div>}
+      {(isSharedView || timedIntroEnded) && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]">
+        {presentation === 'mobile' && !isSharedView
+          ? <div role="status" aria-live="polite" aria-label="Opening Portalink…"><span className="premium-media-loading-mark block" aria-hidden="true" /></div>
+          : <LoadingState label={isSharedView ? 'Opening shared content…' : 'Opening Portalink…'} />}
+      </div>}
       {showHomeRetry && <div data-home-startup-retry="" data-presentation={presentation} className="portalink-startup-wait fixed inset-0 z-[1000] grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><ErrorState title="Home could not finish loading" description="Check your connection and try again." onRetry={retryHome} /></div>}
       {canReopenHome && !plainHome && foregroundOpening !== null && foregroundOpening.from === locationKey && <Navigate replace to={routes.home.path} />}
     </>;

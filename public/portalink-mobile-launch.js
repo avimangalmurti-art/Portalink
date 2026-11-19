@@ -88,7 +88,31 @@
   } else {
     frame.alt = '';
   }
-  splash.append(frame);
+  if (webCatalogueLaunch) {
+    // Match the platform opening: clip the actual media bounds and cover tiny
+    // decoded/composited perimeter seams before the app stylesheet arrives.
+    const viewport = document.createElement('div');
+    viewport.setAttribute('data-web-splash-frame', '');
+    viewport.setAttribute('aria-hidden', 'true');
+    Object.assign(viewport.style, {
+      position: 'relative', width: 'min(100vw, 407px)', maxWidth: '70.7182dvh',
+      aspectRatio: useVideo ? '512 / 720' : '512 / 724',
+      overflow: 'hidden', background: '#ffffff', colorScheme: 'light',
+    });
+    Object.assign(frame.style, {
+      position: 'absolute', inset: '0', width: '100%', maxWidth: 'none', height: '100%',
+      objectFit: 'fill', border: '0', outline: '0', boxShadow: 'none', pointerEvents: 'none',
+      clipPath: 'inset(2px)',
+    });
+    const edge = document.createElement('span');
+    edge.setAttribute('data-web-splash-edge', '');
+    Object.assign(edge.style, {
+      position: 'absolute', inset: '0', zIndex: '1', pointerEvents: 'none',
+      boxShadow: 'inset 0 0 3px 4px #ffffff',
+    });
+    viewport.append(frame, edge);
+    splash.append(viewport);
+  } else splash.append(frame);
   const progress = webCatalogueLaunch ? document.createElement('span') : null;
   if (progress) {
     progress.className = 'portalink-splash-loading-mark premium-media-loading-mark';
