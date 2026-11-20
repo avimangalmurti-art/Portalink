@@ -78,6 +78,13 @@
 [data-presentation='web'].portal-project-popup-layer > .shared-portal-popup > nav {
   padding: 0 12px 12px;
 }
+[data-presentation='web'].portal-project-popup-layer > .shared-portal-popup > nav[data-project-index-list] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+[data-presentation='web'].portal-project-popup-layer > .shared-portal-popup > nav[data-project-index-list]::-webkit-scrollbar {
+  display: none;
+}
 
 /* Explicit desktop browsing for a public portal chooser. */
 [data-presentation='web'].portal-project-popup-layer [data-web-portal-browsing] .mobile-portal-index-preferences { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 12px; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
