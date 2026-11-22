@@ -1,0 +1,205 @@
+/* Codex's quiet chrome, adapted to the existing phone geometry. Safe areas,
+   dock visibility, sheet gestures and content/reader layout remain unchanged. */
+#root .codex-shell[data-presentation='mobile'][data-presentation] {
+  --navigation-surface: var(--ds-navigation-surface);
+  --navigation-foreground: var(--ds-navigation-foreground);
+  --navigation-border: var(--ds-navigation-border);
+  --navigation-blur: none;
+  --navigation-shadow: none;
+  --interface-glass-opacity: 100%;
+  --fixed-header-opacity: 100%;
+}
+
+/* Existing named shapes use important declarations in this layer, so the
+   mobile dock participates there instead of fighting the shared cascade. */
+@layer portalink-interface-shapes {
+  #root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-navigation-dock {
+    border-radius: 12px !important;
+  }
+  #root .codex-shell[data-presentation='mobile'][data-presentation] :is(
+    .mobile-dock-destination, .mobile-context-group,
+    .mobile-home-header-button, .mobile-pill-header-left > button,
+    .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back),
+    .settings-back
+  ) {
+    border-radius: 8px !important;
+  }
+}
+
+/* Preserve the established dock footprint and compensated 44px hit regions. */
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-navigation-dock {
+  border: 1px solid var(--ds-navigation-border) !important;
+  padding: calc(var(--mobile-control-inset) - 1px);
+  border-radius: 12px !important;
+  background: var(--ds-navigation-surface) !important;
+  color: var(--ds-navigation-foreground);
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-dock-destination {
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--ds-navigation-muted) !important;
+  box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-dock-destination[aria-current='page'] {
+  background: var(--ds-navigation-selected) !important;
+  color: var(--ds-navigation-selected-foreground) !important;
+  box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-dock-destination:not(:disabled):active {
+  background: var(--ds-navigation-pressed) !important;
+  color: var(--ds-navigation-pressed-foreground) !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  #root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-dock-destination:not(:disabled):hover {
+    background: var(--ds-navigation-hover) !important;
+    color: var(--ds-navigation-hover-foreground) !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Main-screen chrome uses the same quiet, rectangular controls as desktop.
+   No width, height, inset or positioning is changed by this finish. */
+#root .codex-shell[data-presentation='mobile'][data-presentation] :is(
+  .mobile-home-header-button,
+  .mobile-pill-header-left > button,
+  .mobile-pill-header-tabs > button,
+  .mobile-pill-header-right button:not(.mobile-context-button),
+  .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back, .studio-text-control, .studio-drafts-control),
+  .settings-back
+) {
+  border-radius: 8px !important;
+  border-color: var(--ds-border);
+  background: transparent;
+  color: var(--ds-foreground);
+  box-shadow: none;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] :is(
+  .mobile-home-header-button,
+  .mobile-pill-header-tabs > button
+):is([aria-current='page'], [aria-pressed='true'], [data-selected='true']) {
+  background: var(--ds-selected) !important;
+  color: var(--ds-foreground) !important;
+  border-color: var(--ds-border);
+  box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-pill-header {
+  background: var(--ds-canvas);
+  border-bottom-color: var(--ds-border);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-pill-header-tabs > button {
+  font-weight: 500;
+  color: var(--ds-muted);
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) {
+  font-weight: 500;
+  text-decoration: none;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] :is(
+  .mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot
+) button.mobile-context-button[aria-haspopup='dialog'] {
+  border-radius: 8px !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+/* These headers already manage their own stationary foreground and scroll
+   underlap. Only replace their translucent paint; retain that geometry. */
+@layer portalink-header-material {
+  #root .codex-shell[data-presentation='mobile'][data-presentation] :is(
+    .profile-header-region, .mobile-home-search-header,
+    [data-mobile-inbox] [data-inbox-controls], .studio-mobile-shell-header,
+    .mobile-context-sheet > header
+  )[data-mobile-header-underlap]::before {
+    inset: 0 !important;
+    background: var(--ds-canvas) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+  #root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-context-sheet > header[data-mobile-header-underlap]::before {
+    background: var(--ds-panel) !important;
+  }
+}
+
+/* Sheet presentation remains phone-native: the same drag area, scroll body,
+   expansion bounds and safe bottom inset, with a solid neutral panel. */
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-context-sheet {
+  background: var(--ds-panel) !important;
+  color: var(--ds-foreground);
+  border-color: var(--ds-border) !important;
+  border-radius: 16px 16px 0 0 !important;
+  box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] [data-presentation='mobile'].mobile-context-scrim {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] [data-presentation='mobile'].mobile-context-scrim::after {
+  background: var(--ds-panel);
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-context-heading h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-context-heading p {
+  color: var(--ds-muted);
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] :is(
+  .mobile-context-heading > button, .mobile-context-primary button
+) {
+  border-radius: 8px;
+  background: var(--ds-sidebar);
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-context-group {
+  border-radius: 8px !important;
+  background: var(--ds-sidebar);
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-context-group > button:not([data-destructive]) {
+  color: var(--ds-foreground);
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-context-sheet button:not(.mobile-context-resize):active {
+  background: var(--ds-hover);
+}
+
+/* Settings keeps its existing drill-down flow and readable phone row density. */
+#root .codex-shell[data-presentation='mobile'][data-presentation] .settings-page {
+  background: var(--ds-canvas);
+  color: var(--ds-foreground);
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .settings-page-header {
+  background: var(--ds-canvas);
+  border-bottom-color: var(--ds-border);
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .settings-page-header h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .settings-section {
+  border-radius: 12px;
+  border-color: var(--ds-border);
+  background: var(--ds-panel);
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .settings-section-title {
+  font-weight: 500;
+}
+#root .codex-shell[data-presentation='mobile'][data-presentation] .settings-section-subtitle {
+  color: var(--ds-muted);
+}
+
+/* Keep an explicit selected edge when a stronger contrast preference is set. */
+#root .codex-shell[data-presentation='mobile'][data-presentation].high-contrast .mobile-dock-destination[aria-current='page'] {
+  box-shadow: inset 0 0 0 1px currentColor !important;
+}
+@media (prefers-contrast: more) {
+  #root .codex-shell[data-presentation='mobile'][data-presentation] .mobile-dock-destination[aria-current='page'] {
+    box-shadow: inset 0 0 0 1px currentColor !important;
+  }
+}

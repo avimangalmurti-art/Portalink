@@ -16,7 +16,7 @@ import { getCategoryIcon } from './profile/categoryIcons';
 import type { CategoryManagement } from '../features/profile/useCategoryManagement';
 import { applyPortalOrder, portalChildren, portalRootId } from '../features/profile/portalHierarchy';
 import type { CategoryDeletionCapability } from '../types/domain';
-import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, ChartNoAxesColumnIcon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, SearchIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, UserSearchIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, WarehouseIcon } from 'lucide-react';
+import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, ChartNoAxesColumnIcon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, SearchIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, UserSearchIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, ShapesIcon } from 'lucide-react';
 import { PortalRingIcon } from './PortalRingIcon';
 import { NewCategoryDialog } from './profile/NewCategoryDialog';
 import { CategoryOptionsMenu } from './profile/CategoryOptionsMenu';
@@ -105,11 +105,6 @@ type SidebarProps = {
   onCategorySelect: (categoryId: string) => void;
   isOwnerMode: boolean;
 };
-const primaryNav: NavItem[] = [{
-  label: 'Today',
-  displayLabel: 'Home',
-  icon: SearchIcon
-}];
 const libraryItems = [{
   label: 'Recently Added',
   icon: Clock3Icon
@@ -142,60 +137,25 @@ function NavRow({
     </button>;
 }
 function NavTile({
-  label,
-  icon: Icon,
-  isActive,
-  activeClassName,
-  onSelect,
-  href,
-  ariaLabel,
-  title,
-  isProfileTile = false,
-  disabled = false
-
-
-
-
-
-
-
-
-
-
-
-}: {label: string;icon: InterfaceIconSource;isActive: boolean;activeClassName: string;onSelect?: () => void;href?: string;ariaLabel?: string;title?: string;isProfileTile?: boolean;disabled?: boolean;}) {
-  // The destination name remains available to assistive technology and as a
-  // native tooltip, while the four-button panel itself stays icon-only.
-  const className = `ps-nav-item nav-button sidebar-primary-control shape-compact mx-auto flex items-center justify-center text-center transition-colors focus:outline-none ${isActive ? `${activeClassName} font-semibold` : 'font-medium'}`;
-  if (href && !disabled) {
-    return <Link to={href} aria-label={ariaLabel ?? label} title={title ?? ariaLabel ?? label} aria-current={isActive ? 'page' : undefined} data-profile-tile={isProfileTile ? '' : undefined} className={className}>
-        <InterfaceIcon icon={Icon} weight="medium" />
-      </Link>;
-  }
-  return <button type="button" disabled={disabled} onClick={disabled ? undefined : onSelect} aria-label={ariaLabel ?? label} title={title ?? ariaLabel ?? label} aria-current={!disabled && isActive ? 'page' : undefined} data-profile-tile={isProfileTile ? '' : undefined} className={className}>
-      <InterfaceIcon icon={Icon} weight="medium" />
-    </button>;
+  label, icon: Icon, isActive, onSelect, href, ariaLabel, title, disabled = false, compact = false,
+}: { label: string; icon: InterfaceIconSource; isActive: boolean; onSelect?: () => void; href?: string; ariaLabel?: string; title?: string; disabled?: boolean; compact?: boolean; }) {
+  const className = `desktop-navigation-item nav-button ${compact ? 'desktop-navigation-icon sidebar-rail-slot' : 'desktop-navigation-row'} ${isActive ? 'font-semibold' : 'font-medium'}`;
+  const content = <><InterfaceIcon icon={Icon} size="sm" weight="medium" />{!compact && <span className="desktop-navigation-label">{label}</span>}</>;
+  const attributes = { className, 'aria-label': ariaLabel ?? `Open ${label}`, title: title ?? label, 'aria-current': !disabled && isActive ? 'page' as const : undefined };
+  return href && !disabled
+    ? <Link {...attributes} to={href}>{content}</Link>
+    : <button {...attributes} type="button" disabled={disabled} onClick={disabled ? undefined : onSelect}>{content}</button>;
 }
 
-/** A visible Portal destination marker, reserved until its route is designed. */
-function PortalNetworkTile() {
-  return <button type="button" disabled aria-label="Portals unavailable" title="Portals is not available yet" className="ps-nav-item nav-button sidebar-primary-control reserved-network-control shape-compact mx-auto flex items-center justify-center focus:outline-none">
-      <InterfaceIcon icon={PortalRingIcon} weight="medium" />
-    </button>;
-}
-
-/** Personal destinations keep their routes and selected states in either rail. */
-function PersonalNavigationTile({ destination, collapsed = false, active }: {destination: 'notifications' | 'insights' | 'studio' | 'portalSearch';collapsed?: boolean;active: boolean;}) {
+function PersonalNavigationTile({ destination, collapsed = false, active }: { destination: 'notifications' | 'insights' | 'studio' | 'portalSearch'; collapsed?: boolean; active: boolean; }) {
   const label = destination === 'notifications' ? 'Activity' : destination === 'insights' ? 'Insights' : destination === 'studio' ? 'Studio' : 'Portal search';
-  const Icon = destination === 'notifications' ? BellIcon : destination === 'insights' ? ChartNoAxesColumnIcon : destination === 'studio' ? WarehouseIcon : PortalRingIcon;
-  const href = destination === 'portalSearch' ? '/portal-search' : buildPath(destination);
-  if (!collapsed) return <NavTile label={label} icon={Icon} isActive={active} activeClassName="" href={href} ariaLabel={`Open ${label}`} title={label} />;
-  return <Link to={href} aria-label={`Open ${label}`} title={label} aria-current={active ? 'page' : undefined} className={`sidebar-rail-slot nav-button shape-compact flex shrink-0 items-center justify-center transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${active ? 'bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}><InterfaceIcon icon={Icon} size="sm" weight="medium" /></Link>;
+  const Icon = destination === 'notifications' ? BellIcon : destination === 'insights' ? ChartNoAxesColumnIcon : destination === 'studio' ? ShapesIcon : PortalRingIcon;
+  return <NavTile label={label} icon={Icon} isActive={active} href={buildPath(destination)} compact={collapsed} />;
 }
 
 function SettingsTrigger({ collapsed, onOpen }: { collapsed: boolean; onOpen: () => void }) {
-  return <button type="button" onClick={onOpen} aria-label="Open settings" title="Settings" className={`nav-button ${collapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control mx-auto'} shape-compact flex shrink-0 items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
-    <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
+  return <button type="button" onClick={onOpen} aria-label="Open settings" title="Settings" className={`desktop-navigation-item nav-button ${collapsed ? 'desktop-navigation-icon sidebar-rail-slot' : 'desktop-navigation-row'}`}>
+    <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />{!collapsed && <span className="desktop-navigation-label">Settings</span>}
   </button>;
 }
 function CategoryRowContent({
@@ -399,6 +359,9 @@ export function Sidebar({
   accentColor,
   onControlCenterOpen,
   isAuthenticated,
+  isAuthActionPending,
+  accountName,
+  accountAvatar,
   onSignIn,
   onPortalinkOpen,
   addCategoryRequest,
@@ -432,7 +395,7 @@ export function Sidebar({
   const mainSidebarWidth = useResizablePanelWidth({
     id: 'main-navigation',
     defaultWidth: panelLayoutDefaults.navigation,
-    minWidth: 184,
+    minWidth: 260,
     maxWidth: 360,
     viewportReserve: 340
   });
@@ -622,112 +585,44 @@ export function Sidebar({
   function handleProfileOpen() {
     onProfileOpen();
   }
-  /* One system panel control in both states, matching the project and engagement
-     sidebars instead of giving the main sidebar a separate globe metaphor. */
-  const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" data-ui-shape="icon" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] ease-[var(--m-enter)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
-      <InterfaceIcon icon={isSidebarCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
-    </button>;
   if (isMobile) return <MobileNavigation onMessages={fromDock=>onMessagesOpen(undefined,fromDock)}
     onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} />;
+
+  const mainDestinations = (compact: boolean) => <>
+    <NavTile label="Explore" icon={SearchIcon} isActive={activeTarget === 'home'} onSelect={() => handleNavigate('Today')} compact={compact} />
+    <NavTile label="Messages" icon={MessageCircleIcon} isActive={activeTarget === 'messages'} onSelect={() => onMessagesOpen()} compact={compact} ariaLabel="Open messages" />
+    {isAuthenticated ? <PersonalNavigationTile destination="portalSearch" collapsed={compact} active={isPortalSearchActive} /> : <NavTile label="Portal search" icon={PortalRingIcon} isActive={false} disabled compact={compact} ariaLabel="Portals unavailable" title="Portals is not available yet" />}
+    {isAuthenticated ? <PersonalNavigationTile destination="studio" collapsed={compact} active={isStudioActive} /> : <NavTile label="Studio" icon={ShapesIcon} isActive={false} disabled compact={compact} ariaLabel="Studio unavailable" title="Studio is not available yet" />}
+    <NavTile label="Profile" icon={CircleUserRoundIcon} isActive={activeTarget === 'profile'} onSelect={handleProfileOpen} href={profileHref} compact={compact} ariaLabel="Open your profile" />
+  </>;
+  const workspaceDestinations = (compact: boolean) => <>
+    <NavTile label="Saved" icon={BookmarkIcon} isActive={isSavedActive} href={buildPath('saved')} compact={compact} />
+    {isAuthenticated && <><PersonalNavigationTile destination="insights" collapsed={compact} active={isInsightsActive} /><PersonalNavigationTile destination="notifications" collapsed={compact} active={isActivityActive} /></>}
+  </>;
+  const themeLabel = theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance';
   return <>
-      {/* Collapsed, the rail is the whole width: the aside's own side padding was
-         insetting the surface by 10px on each side while the divider sat inside
-         it, so the region the eye reads as the sidebar ended before the marks'
-         centre line and every glyph looked pushed right. With that padding gone
-         the surface spans the full rail and its centre is the sidebar's. Each
-         responsive width now follows Apple Notes-style three-pane proportions,
-         leaving room for full labels while keeping the content dominant. */}
-      <aside data-saved-change-scope="" data-resizable-panel="" style={isSidebarCollapsed ? undefined : { width: `${mainSidebarWidth.width}px` }} className={`sidebar-starfield relative h-full shrink-0 ${isSidebarCollapsed ? 'w-[48px] py-0 sm:w-[52px]' : 'p-0'}`} aria-label="Portalink navigation">
-        {/* Flat application region: one hairline divider, no floating card.
-           It sits above the starfield layers behind it. */}
-        {/* Collapsed, the surface carries no side padding: a 40px rail tile does
-           not fit inside a padded 52px column, and the overflow was pushing every
-           mark off the rail's axis. With the padding gone the tile centres in the
-           column, which is the sidebar's own centre. */}
-        <div data-material="navigation" className={`ps-panel sidebar-surface relative z-10 flex h-full min-h-0 flex-col overflow-hidden border-r pb-2 ${isSidebarCollapsed ? 'px-0' : 'side-panel-content-inset'}`}>
-          {/* Collapsed, the rail owns the rhythm: brand, then destinations, all
-             on one axis with one gap. Expanded, this is the header row. */}
-          <div className={`global-control-header shrink-0 ${isSidebarCollapsed ? 'sidebar-rail sidebar-rail-brand justify-center' : 'justify-between gap-1.5'}`}>
-            {isSidebarCollapsed && sidebarToggle}
-            {!isSidebarCollapsed && <span className="cdx-dense-label min-w-0 flex-1 px-1 text-[12px] font-semibold text-[var(--text-primary)]">Portalink Networks</span>}
-            {!isSidebarCollapsed && <div className="side-panel-control-row ml-auto min-w-0 shrink">
-              {/* A spinning record marks the live session the viewer has joined. */}
-              {liveShow && <button type="button" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`} title={`Live — ${liveShow}`} data-static-icon="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center focus:outline-none">
-                  <Disc3Icon data-keep-color="" className="h-4 w-4" aria-hidden="true" style={{
-                color: 'var(--live-accent)'
-              }} />
-                </button>}
-            </div>}
-            {/* Last in the row, matching the project sidebar's panel-close control. */}
-            {!isSidebarCollapsed && sidebarToggle}
+      <aside data-saved-change-scope="" data-resizable-panel="" data-desktop-navigation="" data-collapsed={isSidebarCollapsed ? 'true' : 'false'} style={{ width: isSidebarCollapsed ? '52px' : `${mainSidebarWidth.width}px` }} className="desktop-navigation relative h-full shrink-0" aria-label="Portalink navigation">
+        <div className="desktop-navigation-rail" aria-label="Application rail">
+          <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" className="desktop-navigation-brand desktop-navigation-icon" title="Portalink">
+            <InterfaceIcon icon={isSidebarCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
+          </button>
+          {isSidebarCollapsed && <nav className="desktop-navigation-rail-destinations scrollbar-hidden" aria-label="Compact main destinations">{mainDestinations(true)}{workspaceDestinations(true)}</nav>}
+          <div className="desktop-navigation-rail-shortcuts">
+            <NavTile label="World view" icon={SatelliteDishIcon} isActive={activeTarget === 'portalink'} onSelect={onPortalinkOpen} compact ariaLabel="Open Portalink world view" />
+            <NavTile label="Search accounts" icon={UserSearchIcon} isActive={activeTarget === 'search'} onSelect={onSearchOpen} compact ariaLabel="Search accounts" />
+            {liveShow && <button type="button" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`} title={`Live — ${liveShow}`} data-static-icon="" className="desktop-navigation-icon"><Disc3Icon data-keep-color="" className="h-4 w-4" aria-hidden="true" style={{ color: 'var(--live-accent)' }} /></button>}
           </div>
-
-          {/* The live indicator joins the same rail so it inherits the rhythm
-             instead of carrying its own margin. */}
-          {liveShow && isSidebarCollapsed && <div className="sidebar-rail shrink-0">
-              <button type="button" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`} title={`Live — ${liveShow}`} data-static-icon="" className="sidebar-rail-slot shape-compact focus:outline-none">
-                <Disc3Icon data-keep-color="" className="h-4 w-4" aria-hidden="true" style={{
-              color: 'var(--live-accent)'
-            }} />
-              </button>
-            </div>}
-
-          {isSidebarCollapsed ? <>
-              {/* One stacked group on one axis: identical squares, one shared
-               gap, no per-item margins or padding. */}
-              <nav className="scrollbar-hidden sidebar-rail sidebar-group min-h-0 flex-1 overflow-y-auto" aria-label="Compact main destinations">
-                {isAuthenticated ? <PersonalNavigationTile destination="insights" collapsed active={isInsightsActive} /> : <button type="button" disabled aria-label="Portals unavailable" title="Portals is not available yet" className="nav-button reserved-network-control shape-compact sidebar-rail-slot focus:outline-none">
-                  <InterfaceIcon icon={PortalRingIcon} weight="medium" />
-                </button>}
-                <Link to={buildPath('saved')} aria-label="Open Saved" title="Saved" aria-current={isSavedActive ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot flex items-center justify-center transition-colors focus:outline-none">
-                  <InterfaceIcon icon={BookmarkIcon} weight="medium" />
-                </Link>
-                <button type="button" onClick={onPortalinkOpen} aria-label="Open Portalink world view" aria-current={activeTarget === 'portalink' ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
-                  <InterfaceIcon icon={SatelliteDishIcon} weight="medium" />
-                </button>
-                {primaryNav.map((item) => {
-              const Icon = item.icon;
-              return <button key={item.label} type="button" onClick={() => handleNavigate(item.label)} aria-label={`Open ${item.displayLabel}`} title={item.displayLabel} aria-current={activeTarget === 'home' ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none"><InterfaceIcon icon={Icon} weight="medium" /></button>;
-            })}
-                {isAuthenticated ? <PersonalNavigationTile destination="portalSearch" collapsed active={isPortalSearchActive} /> : <button type="button" disabled aria-label="Studio unavailable" title="Studio is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
-                  <InterfaceIcon icon={WarehouseIcon} weight="medium" />
-                </button>}
-                <button type="button" onClick={onSearchOpen} aria-label="Search accounts" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
-                  <InterfaceIcon icon={UserSearchIcon} weight="medium" />
-                </button>
-                <button type="button" onClick={() => onMessagesOpen()} aria-label="Open messages" aria-current={activeTarget === 'messages' ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none" data-profile-tile="">
-                  <InterfaceIcon icon={MessageCircleIcon} weight="medium" />
-                </button>
-                {profileHref ? <Link to={profileHref} aria-label="Open your profile" title="Profile" aria-current={activeTarget === 'profile' ? 'page' : undefined} data-profile-tile="" className="nav-button shape-compact sidebar-rail-slot flex items-center justify-center transition-colors focus:outline-none">
-                    <InterfaceIcon icon={CircleUserRoundIcon} weight="medium" />
-                  </Link> : <button type="button" onClick={handleProfileOpen} aria-label="Open your profile" title="Profile" aria-current={activeTarget === 'profile' ? 'page' : undefined} data-profile-tile="" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
-                    <InterfaceIcon icon={CircleUserRoundIcon} weight="medium" />
-                  </button>}
-              </nav>
-            </> : <>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Navigation and work">
-            <nav className="ps-nav-grid side-panel-control-stack shrink-0" aria-label="Main destinations">
-              <div className="sidebar-network-grid w-full">
-                <div role="group" aria-label="Main navigation row one" className="contents">
-                  {isAuthenticated ? <PersonalNavigationTile destination="insights" active={isInsightsActive} /> : <PortalNetworkTile />}
-                  <NavTile label="Saved" icon={BookmarkIcon} isActive={isSavedActive} activeClassName="" ariaLabel="Open Saved" title="Saved" href={buildPath('saved')} />
-                  <NavTile label="Portalink connection" icon={SatelliteDishIcon} isActive={activeTarget === 'portalink'} activeClassName="" onSelect={onPortalinkOpen} ariaLabel="Open Portalink world view" />
-                  {primaryNav.map((item) => <NavTile key={item.label} label={item.displayLabel} icon={item.icon} isActive={activeTarget === 'home'} activeClassName="" onSelect={() => handleNavigate(item.label)} ariaLabel={`Open ${item.displayLabel}`} />)}
-                </div>
-                <div role="group" aria-label="Main navigation row two" className="contents">
-                  {isAuthenticated ? <PersonalNavigationTile destination="portalSearch" active={isPortalSearchActive} /> : <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />}
-                  <NavTile label="Search" icon={UserSearchIcon} isActive={activeTarget === 'search'} activeClassName="" ariaLabel="Search accounts" onSelect={onSearchOpen} />
-                  <NavTile label="Messages" icon={MessageCircleIcon} isActive={activeTarget === 'messages'} activeClassName="" onSelect={() => onMessagesOpen()} ariaLabel="Open messages" isProfileTile />
-                  <NavTile label="Profile" icon={CircleUserRoundIcon} isActive={activeTarget === 'profile'} activeClassName="" onSelect={handleProfileOpen} href={profileHref} ariaLabel="Open your profile" isProfileTile />
-                </div>
-              </div>
-            </nav>
-
-            {/* Major separation: primary navigation → portfolio context. The
-                 section label needs air on both sides to read as a section
-                 rather than as another navigation item. */}
-            {/* No confirmed profile means no portfolio: the section is absent
-                 rather than carrying a heading with nothing truthful behind it. */}
+          <div className="desktop-navigation-rail-footer">
+            <SettingsTrigger collapsed onOpen={onControlCenterOpen} />
+            <NavTile label={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} icon={theme === 'dark' ? SunIcon : MoonIcon} isActive={false} onSelect={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} compact ariaLabel={themeLabel} />
+            {isSidebarCollapsed && !isAuthenticated && <NavTile label="Sign in" icon={DoorOpenIcon} isActive={false} disabled={isAuthActionPending} onSelect={onSignIn} compact ariaLabel="Sign in" />}
+          </div>
+        </div>
+        {!isSidebarCollapsed && <div data-material="navigation" className="ps-panel sidebar-surface desktop-navigation-panel">
+          <header className="desktop-navigation-heading"><span className="desktop-navigation-wordmark">Portalink</span><span className="desktop-navigation-company">Networks</span></header>
+          <div className="desktop-navigation-content" aria-label="Navigation and work">
+            <nav className="desktop-navigation-group" aria-label="Main destinations">{mainDestinations(false)}</nav>
+            <section className="desktop-navigation-group" aria-labelledby="desktop-workspace-heading"><h2 id="desktop-workspace-heading" className="desktop-navigation-section-label">Workspace</h2><nav aria-label="Workspace destinations">{workspaceDestinations(false)}</nav></section>
             {viewedProfile && <div className="flex min-h-0 flex-col">
               {/* The heading names whose portals are being browsed. Ownership is
                    resolved from the authenticated viewer upstream, so "My" can
@@ -797,34 +692,14 @@ export function Sidebar({
               </SidebarSection>
             </div>}
           </div>
-
-          </>}
-
-          {/* Studio and Activity share the footer between Settings and Appearance
-              in either rail size. */}
-          <div className={`sidebar-account-footer mt-auto shrink-0 border-t border-[var(--hairline)] ${isSidebarCollapsed ? 'sidebar-rail' : 'pt-2'}`}>
-            {isSidebarCollapsed ? <>
-              <SettingsTrigger collapsed onOpen={onControlCenterOpen} />
-              {isAuthenticated && <>
-                <PersonalNavigationTile destination="studio" collapsed active={isStudioActive} />
-                <PersonalNavigationTile destination="notifications" collapsed active={isActivityActive} />
-              </>}
-              <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
-              </button>
-            </> : <div className="sidebar-network-grid h-12 w-full min-w-0 items-center">
-                <SettingsTrigger collapsed={false} onOpen={onControlCenterOpen} />
-                {isAuthenticated && <>
-                  <PersonalNavigationTile destination="studio" active={isStudioActive} />
-                  <PersonalNavigationTile destination="notifications" active={isActivityActive} />
-                </>}
-                <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
-                </button>
-              </div>}
+          <div className="sidebar-account-footer desktop-navigation-account-footer">
+            <button type="button" className="desktop-navigation-account" disabled={isAuthActionPending} onClick={isAuthenticated ? handleProfileOpen : onSignIn} aria-label={isAuthenticated ? 'Open account profile' : 'Sign in to Portalink'}>
+              <span className="desktop-navigation-avatar" aria-hidden="true">{isAuthenticated && accountAvatar ? <img src={accountAvatar} alt="" /> : <InterfaceIcon icon={CircleUserRoundIcon} size="sm" />}</span>
+              <span className="desktop-navigation-account-copy"><span>{isAuthenticated ? accountName || 'Your account' : 'Portalink account'}</span><span className="desktop-navigation-account-detail">{isAuthenticated ? 'Personal workspace' : 'Sign in to continue'}</span></span>
+            </button>
           </div>
-        </div>
-        {!isSidebarCollapsed && <ResizablePanelHandle side="right" value={mainSidebarWidth.width} min={184} max={360} onResize={mainSidebarWidth.updateWidth} onResizeEnd={mainSidebarWidth.commitWidth} onReset={mainSidebarWidth.resetWidth} label="Resize main navigation. Double-click to restore the default width." />}
+        </div>}
+        {!isSidebarCollapsed && <ResizablePanelHandle side="right" value={mainSidebarWidth.width} min={260} max={360} onResize={mainSidebarWidth.updateWidth} onResizeEnd={mainSidebarWidth.commitWidth} onReset={mainSidebarWidth.resetWidth} label="Resize main navigation. Double-click to restore the default width." />}
       </aside>
       {isAddingPortal && isOwnerMode && <NewCategoryDialog itemName="portal" onCancel={() => setIsAddingPortal(false)} onCreate={(label, iconName) => {
         void addCategory(label, iconName);

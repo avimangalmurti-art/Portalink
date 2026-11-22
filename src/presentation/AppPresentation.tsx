@@ -22,6 +22,9 @@ import './reduced-translucency.css';
 import './mobile/shapes.css';
 import './mobile/selection.css';
 import './mobile/reader-scroll-controls.css';
+import './design-system.css';
+import './web/desktop-navigation.css';
+import './mobile/mobile-design-system.css';
 
 /** One presentation choice also covers the shell's appearance state. */
 export function AppPresentationProvider({ children }: { children: React.ReactNode }) {

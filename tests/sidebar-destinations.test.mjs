@@ -67,83 +67,92 @@ const main = (tree, collapsed) => nodes(tree).find(node => node.type === 'nav' &
 const footer = tree => nodes(tree).find(node => node.props.className?.split(' ').includes('sidebar-account-footer'));
 const named = (tree, name) => controls(tree).find(node => label(node) === name);
 
-test('authenticated WEB destinations place Insights first and Portal search fifth in expanded and collapsed navigation', () => {
-  for (const collapsed of [false, true]) {
-    const tree = harness({ collapsed }).render(), nav = main(tree, collapsed), items = controls(nav);
-    assert.deepEqual(items.map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Portal search', 'Search accounts', 'Open messages', 'Open your profile']);
-    assert.equal(items[0].type, 'a'); assert.equal(items[0].props.href, '/insights'); assert.equal(items[0].props.title, 'Insights');
-    assert.equal(items[4].type, 'a'); assert.equal(items[4].props.href, '/portal-search'); assert.equal(items[4].props.title, 'Portal search');
-    assert.ok(nodes(items[4]).some(node => node.type === 'interface-icon' && node.props.icon === 'portal-ring-icon'));
-    assert.equal(items[4].props.onClick, undefined, 'Portal search retains native Router link activation');
-    assert.equal(items[1].props.href, '/saved'); assert.equal(items[7].props.href, '/p/owner');
-    assert.equal(items.some(node => node.props.disabled), false, 'Both former inactive slots now hold usable links');
-    assert.ok(items.every(node => node.props['aria-current'] === undefined));
-    if (!collapsed) {
-      const rows = nodes(nav).filter(node => node.props.role === 'group');
-      assert.deepEqual(rows.map(row => controls(row).map(label)), [items.slice(0, 4).map(label), items.slice(4).map(label)]);
-    }
-    assert.equal(controls(tree).filter(node => label(node) === 'Open Insights').length, 1);
-    assert.equal(controls(tree).filter(node => label(node) === 'Open Portal search').length, 1);
-    assert.equal(controls(tree).filter(node => label(node) === 'Open Activity').length, 1);
+test('WEB navigation uses a labelled five-destination main group and separate workspace group', () => {
+  const tree = harness().render();
+  assert.deepEqual(controls(main(tree, false)).map(label), ['Open Explore', 'Open messages', 'Open Portal search', 'Open Studio', 'Open your profile']);
+  const workspace = nodes(tree).find(node => node.type === 'nav' && label(node) === 'Workspace destinations');
+  assert.deepEqual(controls(workspace).map(label), ['Open Saved', 'Open Insights', 'Open Activity']);
+  for (const item of [...controls(main(tree, false)), ...controls(workspace)]) {
+    assert.ok(nodes(item).some(node => node.props.className === 'desktop-navigation-label'), `${label(item)} has a visible label`);
   }
+  const navigation = nodes(tree).find(node => node.props['data-desktop-navigation'] !== undefined);
+  assert.equal(navigation.props['data-collapsed'], 'false');
+  assert.equal(navigation.props.style.width, '330px');
+  assert.ok(nodes(tree).some(node => node.type === 'resize-handle'));
+  assert.equal(nodes(tree).some(node => node.props.className?.includes('sidebar-network-grid')), false);
 });
 
-test('personal links retain their own active flags and canonical routes in both WEB rail sizes', () => {
-  for (const collapsed of [false, true]) for (const [flag, selected, path] of [
-    ['isInsightsActive', 'Open Insights', '/insights'], ['isPortalSearchActive', 'Open Portal search', '/portal-search'],
+test('collapsed WEB navigation retains every main and workspace destination in the compact rail', () => {
+  const tree = harness({ collapsed: true }).render();
+  assert.deepEqual(controls(main(tree, true)).map(label), ['Open Explore', 'Open messages', 'Open Portal search', 'Open Studio', 'Open your profile', 'Open Saved', 'Open Insights', 'Open Activity']);
+  assert.ok(controls(main(tree, true)).every(node => node.props.className.includes('desktop-navigation-icon')));
+  const navigation = nodes(tree).find(node => node.props['data-desktop-navigation'] !== undefined);
+  assert.equal(navigation.props.style.width, '52px');
+  assert.equal(nodes(tree).some(node => node.type === 'resize-handle'), false);
+});
+
+test('personal WEB links preserve canonical routes, native activation and their own selection flags', () => {
+  for (const collapsed of [false, true]) for (const [flag, selected, href, icon] of [
+    ['isInsightsActive', 'Open Insights', '/insights', icons.ChartNoAxesColumnIcon],
+    ['isPortalSearchActive', 'Open Portal search', '/portal-search', 'portal-ring-icon'],
+    ['isStudioActive', 'Open Studio', '/studio', icons.ShapesIcon],
+    ['isActivityActive', 'Open Activity', '/notifications', icons.BellIcon],
+    ['isSavedActive', 'Open Saved', '/saved', icons.BookmarkIcon],
   ]) {
     const tree = harness({ collapsed }).render({ [flag]: true });
-    const selectedItems = controls(main(tree, collapsed)).filter(node => node.props['aria-current'] === 'page');
+    const selectedItems = controls(tree).filter(node => node.props['aria-current'] === 'page');
     assert.deepEqual(selectedItems.map(label), [selected]);
-    assert.equal(selectedItems[0].props.href, path);
-    assert.match(selectedItems[0].props.className, collapsed ? /surface-selected/ : /font-semibold/,
-      'Each existing tile variant retains its selected presentation');
-    assert.ok(controls(footer(tree)).every(node => node.props['aria-current'] === undefined), 'Footer destinations never inherit unrelated route selection');
+    assert.equal(selectedItems[0].type, 'a');
+    assert.equal(selectedItems[0].props.href, href);
+    assert.equal(selectedItems[0].props.onClick, undefined);
+    assert.ok(nodes(selectedItems[0]).some(node => node.type === 'interface-icon' && node.props.icon === icon));
+    assert.equal(controls(tree).filter(node => label(node) === selected).length, 1);
   }
 });
 
-test('authenticated WEB footer places Activity after Studio while preserving Settings and Appearance order', () => {
+test('WEB rail preserves Settings, Appearance, World and account search callbacks', () => {
   for (const collapsed of [false, true]) for (const theme of ['light', 'dark']) {
-    const h = harness({ collapsed, theme }), tree = h.render(), items = controls(footer(tree));
-    assert.deepEqual(items.map(label), ['Open settings', 'Open Studio', 'Open Activity', `Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`]);
-    for (const [index, href, title, icon] of [[1, '/studio', 'Studio', icons.WarehouseIcon], [2, '/notifications', 'Activity', icons.BellIcon]]) {
-      const destination = items[index];
-      assert.equal(destination.type, 'a'); assert.equal(destination.props.disabled, undefined);
-      assert.equal(destination.props.href, href); assert.equal(destination.props.title, title);
-      assert.equal(destination.props.onClick, undefined, 'Router links keep native activation and modified-click behavior');
-      assert.equal(destination.props['aria-current'], undefined);
-      assert.match(destination.props.className, collapsed ? /sidebar-rail-slot/ : /sidebar-primary-control/);
-      assert.ok(nodes(destination).some(node => node.type === 'interface-icon' && node.props.icon === icon));
-    }
-    items[0].props.onClick(); items[3].props.onClick();
-    assert.deepEqual(h.calls, ['settings', ['theme', theme === 'light' ? 'dark' : 'light']]);
+    const h = harness({ collapsed, theme }), tree = h.render();
+    const themeLabel = `Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`;
+    for (const target of ['Open settings', themeLabel, 'Open Portalink world view', 'Search accounts']) named(tree, target).props.onClick();
+    assert.deepEqual(h.calls, ['settings', ['theme', theme === 'light' ? 'dark' : 'light'], 'world', 'search']);
+    assert.equal(named(tree, 'Open your profile').props.href, '/p/owner');
   }
 });
 
-test('signed-out WEB preserves upper inactive Portals and Studio without exposing personal destination links or footer markers', () => {
+test('signed-out WEB retains disabled personal placeholders and does not expose authenticated destinations', () => {
   for (const collapsed of [false, true]) {
     const h = harness({ collapsed, authenticated: false }), tree = h.render({ isInsightsActive: true, isActivityActive: true, isStudioActive: true, isPortalSearchActive: true });
-    const items = controls(main(tree, collapsed));
-    assert.deepEqual(items.map(label), ['Portals unavailable', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Studio unavailable', 'Search accounts', 'Open messages', 'Open your profile']);
-    assert.equal(items[0].props.disabled, true); assert.equal(items[4].props.disabled, true);
-    assert.equal(items[0].props.onClick, undefined); assert.equal(items[4].props.onClick, undefined);
-    assert.equal(named(tree, 'Open Insights'), undefined); assert.equal(named(tree, 'Open Activity'), undefined);
-    assert.equal(named(tree, 'Open Studio'), undefined); assert.equal(named(tree, 'Open Portal search'), undefined);
-    assert.deepEqual(controls(footer(tree)).map(label), ['Open settings', 'Switch to dark appearance']);
-    assert.equal(controls(tree).filter(node => label(node) === 'Portals unavailable').length, 1);
-    assert.equal(controls(tree).filter(node => label(node) === 'Studio unavailable').length, 1);
+    for (const unavailable of ['Portals unavailable', 'Studio unavailable']) {
+      const item = named(tree, unavailable);
+      assert.equal(item.props.disabled, true);
+      assert.equal(item.props.onClick, undefined);
+      assert.equal(item.props['aria-current'], undefined);
+    }
+    for (const personal of ['Open Insights', 'Open Activity', 'Open Studio', 'Open Portal search']) assert.equal(named(tree, personal), undefined);
+    assert.equal(named(tree, 'Open Saved').props.href, '/saved');
+    named(tree, collapsed ? 'Sign in' : 'Sign in to Portalink').props.onClick();
+    assert.deepEqual(h.calls, ['signIn']);
   }
 });
 
-test('the WEB swap preserves collapse and existing Home, world, search, messages and profile behavior', () => {
+test('WEB hierarchy preserves collapse and existing Explore, Messages and Profile behavior', () => {
   const h = harness(), props = { profileHref: undefined };
   let tree = h.render(props);
   named(tree, 'Collapse sidebar').props.onClick(); tree = h.render(props);
   assert.ok(main(tree, true));
   named(tree, 'Expand sidebar').props.onClick(); tree = h.render(props);
   assert.ok(main(tree, false));
-  for (const target of ['Open Home', 'Open Portalink world view', 'Search accounts', 'Open messages', 'Open your profile']) named(tree, target).props.onClick();
-  assert.deepEqual(h.calls, [['collapsed', true], ['collapsed', false], ['navigate', 'Today'], 'world', 'search', ['messages'], 'profile']);
+  for (const target of ['Open Explore', 'Open messages', 'Open your profile', 'Open account profile']) named(tree, target).props.onClick();
+  assert.deepEqual(h.calls, [['collapsed', true], ['collapsed', false], ['navigate', 'Today'], ['messages'], 'profile', 'profile']);
+});
+
+test('expanded WEB account footer reflects the actual account identity', () => {
+  const tree = harness().render({ accountName: 'Example account', accountAvatar: '/account-avatar.jpg' });
+  const account = named(tree, 'Open account profile');
+  assert.ok(nodes(account).some(node => node.type === 'img' && node.props.src === '/account-avatar.jpg'));
+  assert.ok(nodes(account).some(node => node.type === 'span' && node.props.children === 'Example account'));
+  assert.equal(named(footer(tree), 'Open account profile').props.onClick, account.props.onClick);
 });
 
 test('MOBILE renders its actual five-destination dock without WEB personal links or footer controls', () => {
@@ -179,37 +188,5 @@ test('MOBILE portal-search location selects only its center link and keeps nativ
     assert.equal(named(tree, 'Explore').props['aria-current'], undefined);
     assert.deepEqual(h.calls, [], 'Portal search must not fall back to a profile action');
     assert.equal(footer(tree), undefined);
-  }
-});
-
-test('Portal search works without a profile href while WEB destinations remain unchanged', () => {
-  const mobile = harness({ presentation: 'mobile' });
-  const tree = mobile.render({ profileHref: undefined });
-  assert.equal(named(tree, 'Portal search').props['aria-current'], undefined);
-  assert.equal(named(tree, 'Portal search').props.href, '/portal-search');
-  assert.equal(named(tree, 'Portal search').props.onClick, undefined);
-  assert.equal(named(tree, 'Profile').type, 'button');
-  assert.deepEqual(mobile.calls, []);
-  for (const collapsed of [true, false]) {
-    const web = harness({ presentation: 'web', collapsed });
-    const webTree = web.render();
-    assert.deepEqual(controls(main(webTree, collapsed)).map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Portal search', 'Search accounts', 'Open messages', 'Open your profile']);
-    assert.deepEqual(controls(footer(webTree)).map(label), ['Open settings', 'Open Studio', 'Open Activity', 'Switch to dark appearance']);
-    assert.deepEqual(web.calls, []);
-  }
-});
-
-
-test('WEB footer destinations use only their own active flags in either sidebar size', () => {
-  for (const collapsed of [false, true]) for (const [flag, selected, href] of [
-    ['isStudioActive', 'Open Studio', '/studio'], ['isActivityActive', 'Open Activity', '/notifications'],
-  ]) {
-    const tree = harness({ collapsed }).render({ [flag]: true });
-    const selectedItems = controls(footer(tree)).filter(node => node.props['aria-current'] === 'page');
-    assert.deepEqual(selectedItems.map(label), [selected]);
-    assert.equal(selectedItems[0].props.href, href);
-    assert.match(selectedItems[0].props.className, collapsed ? /surface-selected/ : /font-semibold/);
-    assert.ok(controls(main(tree, collapsed)).every(node => node.props['aria-current'] === undefined), 'Footer routes cannot select a main destination');
-    assert.equal(controls(tree).filter(node => label(node) === selected).length, 1);
   }
 });

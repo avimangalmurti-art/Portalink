@@ -97,7 +97,7 @@ export function TypographyInspector({
 
       {/* Portaled above the work so neither the open nor collapsed sidebar can
          constrain its width, stacking order, or visible bounds. */}
-      {isOpen && createPortal(<div ref={popoverRef} tabIndex={-1} data-presentation={presentation} data-typography-popover="" role="dialog" aria-label="Typography" style={popoverPosition ?? {
+      {isOpen && createPortal(<div ref={popoverRef} tabIndex={-1} data-presentation={presentation} data-themed-portal="" data-typography-popover="" role="dialog" aria-label="Typography" style={popoverPosition ?? {
       left: 0,
       top: 0,
       visibility: 'hidden'
@@ -117,7 +117,7 @@ export function TypographyInspector({
                 </ul>
               </section>)}
           </div>
-        </div>, document.body)}
+        </div>, document.querySelector('.app-shell') ?? document.body)}
     </div>;
 }
 function TypefaceOption({

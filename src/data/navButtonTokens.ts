@@ -276,7 +276,25 @@ export function resolveNavButtonTokens(appearance: NavAppearance, accent: string
     rgbHex(mixRgb([255, 255, 255], hexRgb(navigationRest), 0.92)),
   ];
   const navigationSelectedInk = navigationAccent(accent, [...restingBounds, navigationSelected], tokens.text);
+  // The Codex interface uses a quiet, opaque neutral shell. Explicit saved
+  // greys still control navigation and controls; the standard grey uses the
+  // shared reference palette rather than the old black/white glass material.
+  const customGray = Boolean(systemGrayId && systemGrayId !== 'gray6');
+  const selectedInk = controlInk(navigationSelected, highContrast);
+  const selectedNeutralInk = navigationContrast(navigationSelected, selectedInk) >= 4.5
+    ? selectedInk : controlInk(navigationSelected, true);
   return {
+    '--ds-navigation-surface': customGray ? navigationRest : 'var(--ds-sidebar)',
+    '--ds-navigation-foreground': customGray ? tokens.text : 'var(--ds-foreground)',
+    '--ds-navigation-muted': customGray ? tokens.text : 'var(--ds-muted)',
+    '--ds-navigation-hover': customGray ? navigationHover : 'var(--ds-hover)',
+    '--ds-navigation-hover-foreground': customGray ? hoverText : 'var(--ds-foreground)',
+    '--ds-navigation-pressed': customGray ? navigationPressed : 'var(--ds-pressed)',
+    '--ds-navigation-pressed-foreground': customGray ? pressedText : 'var(--ds-foreground)',
+    '--ds-navigation-selected': customGray ? navigationSelected : 'var(--ds-selected)',
+    '--ds-navigation-selected-foreground': customGray ? selectedNeutralInk : 'var(--ds-foreground)',
+    '--ds-navigation-border': customGray ? tokens.border : 'var(--ds-border)',
+    '--ds-control-surface': customGray ? navigationRest : 'var(--ds-control)',
     // Dedicated navigation material. Legacy --nav-button values stay intact;
     // neutral controls share the solid selected fill and its readable ink.
     '--navigation-surface': material(navigationRest),
