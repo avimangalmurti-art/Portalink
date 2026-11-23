@@ -5,17 +5,19 @@ import type { ContextAction, ContextActions } from '../../presentation/mobile/co
 import { positionAnchoredMenu } from '../../utils/anchoredMenu';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { ModalPortal } from '../ui/ModalPortal';
+import './profile-header.css';
 
 type Props = {
   id: string;
   model: ContextActions;
+  compact?: boolean;
   triggerRef: RefObject<HTMLButtonElement>;
   menuRef: RefObject<HTMLDivElement>;
   onClose: () => void;
   onAction: (action: ContextAction) => unknown;
 };
 
-export function ProfileActionsMenu({ id, model, triggerRef, menuRef, onClose, onAction }: Props) {
+export function ProfileActionsMenu({ id, model, compact, triggerRef, menuRef, onClose, onAction }: Props) {
   const [position, setPosition] = useState<ReturnType<typeof positionAnchoredMenu> | null>(null);
   const copy = useCatalogueCopyFeedback();
 
@@ -55,7 +57,7 @@ export function ProfileActionsMenu({ id, model, triggerRef, menuRef, onClose, on
 
   return <ModalPortal>
     <div id={id} ref={menuRef} role="menu" aria-label={model.title} tabIndex={-1}
-      className="profile-actions-menu" style={position ?? { visibility: 'hidden' }}>
+      className="profile-actions-menu" data-compact={compact || undefined} style={position ?? { visibility: 'hidden' }}>
       {[model.primary, ...model.groups].filter(group => group.length > 0).map(group =>
         <div key={group[0].id} role="group">
           {group.map(action => {

@@ -51,6 +51,9 @@
   color: var(--text-primary);
   box-shadow: var(--shadow-pop);
 }
+.codex-shell[data-presentation='web'] .profile-actions-menu[data-compact] {
+  width: 180px;
+}
 .profile-actions-menu > [role='group'] + [role='group'] {
   margin-top: 4px;
   border-top: 1px solid var(--hairline);

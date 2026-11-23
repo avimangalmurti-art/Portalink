@@ -1093,7 +1093,7 @@ test('desktop density sizes standalone media without narrowing a multi-page imag
   assert.equal(nodes(grid).find(node => node.type === AttachmentRenderer).props.imageColumns, 2);
 });
 
-test('project workspace handles mobile projects, nested Portals and Back', async () => {
+test('project workspace handles mobile projects, nested Portals and Back', async t => {
   const compile = (path, require) => {
     const exports = {};
     vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
@@ -1106,7 +1106,7 @@ test('project workspace handles mobile projects, nested Portals and Back', async
   };
   const geometry = compile('../src/utils/projectPanelLayout.ts', () => ({}));
   const hierarchy = compile('../src/features/profile/portalHierarchy.ts', () => ({}));
-  const addChoices = 'add-portal-choices', subPortalEditor = 'sub-portal-editor', childList = 'child-portals';
+  const addChoices = 'add-portal-choices', desktopAddMenu = 'desktop-add-menu', subPortalEditor = 'sub-portal-editor', childList = 'child-portals';
   const { MobilePortalProjectToolbar } = compile('../src/components/profile/MobilePortalProjectToolbar.tsx', name => {
     if (name === 'react') return React;
     if (name.endsWith('/pageLayout')) return { MIN_PAGES_PER_ROW: 1, MAX_PAGES_PER_ROW: 6 };
@@ -1130,7 +1130,7 @@ test('project workspace handles mobile projects, nested Portals and Back', async
       if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
       return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }];
     },
-    useMemo: fn => fn(), useCallback: fn => fn, useRef: current => ({ current }),
+    useId: () => 'portal-add-menu-test', useMemo: fn => fn(), useCallback: fn => fn, useRef: current => ({ current }),
     useEffect(fn, deps) {
       const i = effectCursor++;
       if (!effects[i] || deps.some((value, j) => !Object.is(value, effects[i][j]))) pendingEffects.push(fn);
@@ -1140,6 +1140,8 @@ test('project workspace handles mobile projects, nested Portals and Back', async
     if (name.endsWith('/projectPortals')) return compile('../src/features/projects/projectPortals.ts', () => ({}));
     if (name.endsWith('/portalHierarchy')) return hierarchy;
     if (name.endsWith('/MobileActionSheet')) return { MobileActionSheet: addChoices };
+    if (name.endsWith('/ProfileActionsMenu')) return { ProfileActionsMenu: desktopAddMenu };
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/NewCategoryDialog')) return { NewCategoryDialog: subPortalEditor };
     if (name.endsWith('/PortalChildren')) return { PortalChildren: childList };
     if (name.endsWith('/ExportSheet')) return {ExportSheet:'export-sheet'};
@@ -1493,6 +1495,46 @@ test('project workspace handles mobile projects, nested Portals and Back', async
     assert.equal(nodes(tree).find(node => node.props.type === 'search').props.value, query);
     assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), expected);
   }
+
+  await t.test('desktop Add opens an anchored menu with the permitted portal actions', async () => {
+    const owner = { ...portalProps, activeProjectId: 'work', isIndexCollapsed: false };
+    const addButton = tree => button(tree, 'Add to Portal');
+    const addMenu = tree => nodes(tree).find(node => node.type === desktopAddMenu);
+    const previousCount = creations.length;
+    const openMenu = () => {
+      const trigger = addButton(render(owner));
+      assert.equal(trigger.props['aria-haspopup'], 'menu');
+      assert.equal(trigger.props['aria-expanded'], false);
+      trigger.props.onClick();
+      const opened = render(owner);
+      const menu = addMenu(opened);
+      assert.ok(menu);
+      assert.equal(addButton(opened).props['aria-controls'], menu.props.id);
+      assert.equal(addButton(opened).props['aria-expanded'], true);
+      assert.equal(addButton(opened).ref, menu.props.triggerRef);
+      assert.equal(nodes(opened).some(node => node.type === addChoices), false);
+      return menu;
+    };
+    openMenu();
+    addButton(render(owner)).props.onClick();
+    assert.equal(addMenu(render(owner)), undefined);
+    const menu = openMenu();
+    const choices = menu.props.model.groups[0];
+    assert.deepEqual(Array.from(choices, action => action.label), ['New project', 'New sub-portal']);
+    menu.props.onAction(choices[0]);
+    assert.equal(addMenu(render(owner)), undefined);
+    const reopened = openMenu();
+    reopened.props.onAction(reopened.props.model.groups[0][1]);
+    const editing = render(owner);
+    assert.equal(addMenu(editing), undefined);
+    await nodes(editing).find(node => node.type === subPortalEditor).props.onCreate('Print', 'shapes');
+    assert.deepEqual(creations.slice(previousCount), ['project', ['Print', 'shapes', 'portal']]);
+    assert.equal(addButton(render({ ...owner, viewerRole: 'visitor' })), undefined);
+    const direct = button(render({ ...owner, categoryManagement: undefined }), 'Add a new project to Portal');
+    assert.equal(direct.props['aria-haspopup'], undefined);
+    direct.props.onClick();
+    assert.equal(creations.at(-1), 'project');
+  });
 });
 
 test('direct public-project Back remains public; existing browser history takes priority', () => {

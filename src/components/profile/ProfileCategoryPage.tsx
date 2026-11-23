@@ -1,10 +1,10 @@
 import { RouteError } from '../ui/RouteError';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
-import { contextActions } from '../../presentation/mobile/contextActions';
+import { contextActions, type ContextAction, type ContextActions } from '../../presentation/mobile/contextActions';
 import { SavedChangeNotice } from '../ui/SavedChangeNotice';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { MobileProjectGestureHint } from '../../presentation/mobile/MobileProjectGestureHint';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, FolderPlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SquareIcon } from 'lucide-react';
 // Canonical domain models, not the seed module's parallel copies.
 import type { Profile, PortfolioCategory as ProfileCategory, Project } from '../../types/domain';
@@ -13,6 +13,8 @@ import { MobilePortalProjectToolbar, type MobileProjectSort } from './MobilePort
 import { PortalChildren } from './PortalChildren';
 import { NewCategoryDialog } from './NewCategoryDialog';
 import { CategoryOptionsMenu } from './CategoryOptionsMenu';
+import { ProfileActionsMenu } from './ProfileActionsMenu';
+import { useMenuFocus } from '../../hooks/useMenuFocus';
 import { MobileActionSheet } from '../messages/MobileActionSheet';
 import { PortalLinkCopyButton } from './PortalLinkCopyButton';
 import { sortPortalProjects } from './portalProjectBrowsing';
@@ -117,6 +119,9 @@ export function ProfileCategoryPage({
   const isReaderLoading = !isMobile && readerLoading;
   const mobileIndexOnly = isMobile && activeProjectId === null;
   const [createMenuScope, setCreateMenuScope] = useState<string | null>(null);
+  const createTriggerRef = useRef<HTMLButtonElement>(null);
+  const createMenuRef = useRef<HTMLDivElement>(null);
+  const createMenuId = useId();
   const [subPortalEditor, setSubPortalEditor] = useState<{ parentId: string; rename?: ProfileCategory } | null>(null);
   const [mobilePanel, setMobilePanel] = useState<ProjectPanel | null>(null);
   useEffect(() => { setMobilePanel(null); }, [category.id, isMobile]);
@@ -467,6 +472,28 @@ export function ProfileCategoryPage({
   const editor = authoring && subPortalEditor?.parentId === category.id ? subPortalEditor : null;
   const closePortalEditor = () => { setSubPortalEditor(null); authoring?.dismissFailure(); };
   const openPortalCreateMenu = () => setCreateMenuScope(category.id);
+  const closePortalCreateMenu = useCallback(() => setCreateMenuScope(null), []);
+  const desktopCreateMenuOpen = !isMobile && !isIndexCollapsed && createMenuOpen;
+  const createMenuFocus = useMenuFocus({
+    open: desktopCreateMenuOpen, menuRef: createMenuRef, triggerRef: createTriggerRef,
+    onOpen: openPortalCreateMenu, onClose: closePortalCreateMenu,
+  });
+  useEffect(() => {
+    if (!isMobile && isIndexCollapsed) closePortalCreateMenu();
+  }, [isMobile, isIndexCollapsed, closePortalCreateMenu]);
+  const createMenuModel: ContextActions | null = createMenuOpen && authoring ? {
+    title: `Add to ${category.label}`, primary: [], groups: [[
+      ...(onCreateProject ? [{ id: 'project', label: 'New project', icon: FilePlusIcon, run: onCreateProject }] : []),
+      { id: 'sub-portal', label: 'New sub-portal', icon: FolderPlusIcon, run: () => {
+        authoring.dismissFailure();
+        setSubPortalEditor({ parentId: category.id });
+      } },
+    ]],
+  } : null;
+  const runCreateAction = (action: ContextAction) => {
+    closePortalCreateMenu();
+    return action.run();
+  };
   const createAction = authoring ? openPortalCreateMenu : onCreateProject;
   const renderChildActions = authoring && portalAppearance ? (child: ProfileCategory) => <CategoryOptionsMenu
     {...portalAppearance} category={child} mobile={isMobile} isHidden={authoring.arrangement?.hiddenCategoryIds.includes(child.id)}
@@ -528,9 +555,10 @@ export function ProfileCategoryPage({
               {sharedReadOnly && <button data-shared-viewer-control="fullscreen" data-borderless-control="" type="button" onClick={() => void toggleProjectFullscreen()} aria-label={isProjectFullscreen ? 'Exit fullscreen presentation' : 'Open fullscreen presentation'} aria-pressed={isProjectFullscreen} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                   <InterfaceIcon icon={isProjectFullscreen ? Minimize2Icon : Maximize2Icon} weight="medium" />
                 </button>}
-              {showsOwnerTools && createAction && <button data-ui-shape="icon" data-control-size="sm" type="button" onClick={createAction}
+              {showsOwnerTools && createAction && <button ref={createTriggerRef} data-ui-shape="icon" data-control-size="sm" type="button"
+                onClick={desktopCreateMenuOpen ? closePortalCreateMenu : createAction} onKeyDown={authoring ? createMenuFocus.onTriggerKeyDown : undefined}
                 aria-label={authoring ? `Add to ${category.label}` : `Add a new project to ${category.label}`} title={authoring ? `Add to ${category.label}` : 'New project'}
-                aria-haspopup={authoring ? 'dialog' : undefined} aria-expanded={authoring ? createMenuOpen : undefined} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                aria-haspopup={authoring ? 'menu' : undefined} aria-controls={desktopCreateMenuOpen ? createMenuId : undefined} aria-expanded={authoring ? desktopCreateMenuOpen : undefined} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={authoring ? PlusIcon : FilePlusIcon} size="lg" />
                 </button>}
             </div>
@@ -632,13 +660,9 @@ export function ProfileCategoryPage({
       </div>;
 
   return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-web-reader-spacing={!isMobile && !sharedReadOnly ? '' : undefined} data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
-      {createMenuOpen && authoring && <MobileActionSheet model={{ title: `Add to ${category.label}`, primary: [], groups: [[
-        ...(onCreateProject ? [{ id: 'project', label: 'New project', icon: FilePlusIcon, run: onCreateProject }] : []),
-        { id: 'sub-portal', label: 'New sub-portal', icon: FolderPlusIcon, run: () => {
-          authoring.dismissFailure();
-          setSubPortalEditor({ parentId: category.id });
-        } },
-      ]] }} onClose={() => setCreateMenuScope(null)} onAction={action => { setCreateMenuScope(null); return action.run(); }} />}
+      {isMobile && createMenuModel && <MobileActionSheet model={createMenuModel} onClose={closePortalCreateMenu} onAction={runCreateAction} />}
+      {desktopCreateMenuOpen && createMenuModel && <ProfileActionsMenu compact id={createMenuId} model={createMenuModel}
+        triggerRef={createTriggerRef} menuRef={createMenuRef} onClose={closePortalCreateMenu} onAction={runCreateAction} />}
       {editor && authoring && <NewCategoryDialog key={editor.rename?.id ?? category.id} itemName="sub-portal"
         renameOnly={Boolean(editor.rename)} initialLabel={editor.rename?.label} isSaving={portalEditBlocked}
         error={authoring.failure?.kind === (editor.rename ? 'rename' : 'create') ? authoring.failure.message : null}
