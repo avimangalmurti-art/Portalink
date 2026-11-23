@@ -43,7 +43,7 @@ test('finite interface motion is capped at 260ms and interface opacity fades at 
 test('authored durations use shared motion tokens or the established component timings',()=>{
  const files=cssFiles('src'),definitions=[];
  const componentTimings=new Map([
-  ['src/presentation/motion/motion.css',['120ms','180ms','260ms','600ms','1400ms']],
+  ['src/presentation/motion/motion.css',['120ms','180ms','260ms','600ms','1400ms','3200ms']],
   ['src/components/auth/professional-entry.css',['160ms']],
   ['src/components/messages/mobile-message-actions.css',['130ms']],
   ['src/presentation/mobile/reader-scroll-controls.css',['0s','0s']],

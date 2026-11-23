@@ -5387,7 +5387,7 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
     transparent 64%
   );
   transform: translateX(-100%);
-  animation: premium-media-shimmer var(--m-slow) var(--m-enter) infinite;
+  animation: premium-media-shimmer var(--m-page-shimmer) linear infinite;
 }
 
 .portalink-splash[data-presentation='web'] > .portalink-splash-loading-mark,
@@ -5431,13 +5431,9 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   [data-interface-icon-frame]:has(> svg.lucide-loader-circle),
   [data-interface-icon-frame][data-icon-effect='rotate'][data-icon-effect-active]:has(> svg.lucide-loader-circle) { animation: none; }
 }
+.app-viewport--reduce-motion .premium-media-placeholder::after,
 .app-viewport--reduce-motion .premium-media-loading-mark,
 .app-viewport--reduce-motion svg.lucide-loader-circle { animation: none !important; }
-
-/* Loading loops have their own mobile pace; content readiness stays immediate. */
-[data-presentation='mobile'] .premium-media-placeholder::after {
-  animation-duration: var(--m-loading-cycle);
-}
 
 [data-presentation='mobile'] .premium-media-loading-mark {
   animation-duration: var(--m-loading-spin);
