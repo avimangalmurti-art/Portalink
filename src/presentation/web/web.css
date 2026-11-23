@@ -26,6 +26,11 @@
     color var(--m-fast) var(--m-enter);
 }
 
+/* Portal search uses the viewer's accent for the center of its ring. */
+#root .codex-shell[data-presentation='web'] .sidebar-surface a.nav-button .portal-ring-dot {
+  fill: var(--accent-primary) !important;
+}
+
 /* The tools sit inside the saved sidebar width. The compact sidebar keeps
    its existing footer, and only the portal list scrolls beside the tools. */
 #root .codex-shell[data-presentation='web'] .sidebar-surface:has(> .sidebar-tools-rail) {
