@@ -26,6 +26,40 @@
     color var(--m-fast) var(--m-enter);
 }
 
+/* The tools sit inside the saved sidebar width. The compact sidebar keeps
+   its existing footer, and only the portal list scrolls beside the tools. */
+#root .codex-shell[data-presentation='web'] .sidebar-surface:has(> .sidebar-tools-rail) {
+  --sidebar-tools-width: 48px;
+  padding-inline-start: calc(var(--sidebar-tools-width) + var(--side-panel-content-inset));
+}
+#root .codex-shell[data-presentation='web'] .sidebar-tools-rail {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cdx-dense-gap);
+  width: var(--sidebar-tools-width);
+  padding-block: calc(var(--codex-workspace-inset) + var(--codex-workspace-border-width)) 8px;
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--navigation-border);
+  background: color-mix(in srgb, var(--navigation-surface) 96%, var(--navigation-foreground));
+  scrollbar-width: thin;
+}
+#root .codex-shell[data-presentation='web'] .sidebar-tools-rail > :is(a, button) {
+  flex: none;
+  max-inline-size: var(--sidebar-primary-control);
+}
+#root .codex-shell[data-presentation='web'] .sidebar-tools-rail > [data-system-color] {
+  margin-block-start: auto;
+}
+/* At the narrowest saved width, keep the four destinations inside their
+   grid cells. The toolbar's existing target height still applies. */
+#root .codex-shell[data-presentation='web'] .sidebar-surface:has(> .sidebar-tools-rail) .sidebar-network-grid .sidebar-primary-control {
+  min-width: min(100%, var(--ui-navigation-target)) !important;
+}
+
 /* A Settings row picks up a light wash of the user's hover colour. */
 @media (hover: hover) and (pointer: fine) and (prefers-contrast: no-preference) {
   #root .codex-shell[data-presentation='web']:not(.high-contrast) .settings-section-trigger {
