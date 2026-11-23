@@ -70,12 +70,26 @@
   min-width: min(100%, var(--ui-navigation-target)) !important;
 }
 
-/* A Settings row picks up a light wash of the user's hover colour. */
-@media (hover: hover) and (pointer: fine) and (prefers-contrast: no-preference) {
-  #root .codex-shell[data-presentation='web']:not(.high-contrast) .settings-section-trigger {
-    --control-hover-surface: color-mix(in srgb, var(--nav-button-background-hover) 50%, var(--surface-raised));
-    --control-hover-text: var(--text-primary);
+/* Paint hover on the whole disclosure so its heading and open body stay together. */
+@media (hover: hover) and (pointer: fine) {
+  #root .codex-shell[data-presentation='web'] :is([data-settings-dropdown], [data-appearance-dropdown]) {
     transition: background-color var(--m-fast) var(--m-enter);
+  }
+  #root .codex-shell[data-presentation='web'] :is([data-settings-dropdown], [data-appearance-dropdown]):hover {
+    background-color: var(--settings-section-hover, var(--control-hover-surface));
+  }
+  #root .codex-shell[data-presentation='web'] :is([data-settings-dropdown], [data-appearance-dropdown]):has(> h2 > button:active, > button[aria-expanded]:active) {
+    background-color: var(--control-pressed-surface);
+  }
+  #root .codex-shell[data-presentation='web'] :is(.settings-section-trigger, [data-appearance-dropdown] > button) {
+    --control-hover-surface: transparent;
+    --control-pressed-surface: transparent;
+    --control-hover-text: var(--text-primary);
+  }
+}
+@media (prefers-contrast: no-preference) {
+  #root .codex-shell[data-presentation='web']:not(.high-contrast) .settings-page {
+    --settings-section-hover: color-mix(in srgb, var(--nav-button-background-hover) 50%, var(--surface-raised));
   }
 }
 
