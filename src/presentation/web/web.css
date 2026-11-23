@@ -46,7 +46,12 @@
   align-items: center;
   gap: var(--cdx-dense-gap);
   width: var(--sidebar-tools-width);
-  padding-block: calc(var(--codex-workspace-inset) + var(--codex-workspace-border-width)) 8px;
+  /* Center the first tool on the adjacent header row. */
+  padding-block-start: calc(
+    var(--codex-workspace-inset) + var(--codex-workspace-border-width)
+    + (var(--side-panel-header-height) - var(--sidebar-primary-control)) / 2
+  );
+  padding-block-end: 8px;
   overflow-y: auto;
   border-inline-end: 1px solid var(--navigation-border);
   background: color-mix(in srgb, var(--navigation-surface) 96%, var(--navigation-foreground));

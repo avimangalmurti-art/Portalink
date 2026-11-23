@@ -921,6 +921,7 @@ body {
   --rail-footer-inset: 0.5rem;
   --side-panel-row-height: var(--cdx-dense-row-md);
   --side-panel-row-gap: var(--cdx-dense-gap);
+  --side-panel-header-height: 64px;
   --side-panel-header-control: var(--cdx-header-control);
   --side-panel-compact-control: var(--sidebar-primary-control);
   --side-panel-content-inset: 0.5rem;
@@ -2332,8 +2333,8 @@ button[data-portalink-tile],
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  height: 64px;
-  min-height: 64px;
+  height: var(--side-panel-header-height);
+  min-height: var(--side-panel-header-height);
   border-bottom: 0;
   gap: var(--side-panel-row-gap);
 }
