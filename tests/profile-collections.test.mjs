@@ -21,6 +21,12 @@ const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: 
 const portalHierarchy = compile('../src/features/profile/portalHierarchy.ts', () => ({}));
 const linkHelpers = compile('../src/features/profile/profileLinks.ts', () => ({profileLinkIconNames:['globe','instagram','soundcloud']}));
 const placeholder = new Proxy({}, { get: (_, key) => key });
+const { PlatformGrid } = compile('../src/components/profile/PlatformGrid.tsx', name => {
+  if (name === 'react') return React;
+  if (name.endsWith('/profileLinks')) return linkHelpers;
+  if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => 'globe-icon' };
+  return placeholder;
+});
 const contextActions = compile('../src/presentation/mobile/contextActions.ts', () => placeholder);
 function nodes(tree, includeHidden = false) {
   if (!tree || typeof tree !== 'object' || (!includeHidden && (tree.props?.hidden || tree.props?.style?.display === 'none'))) return [];
@@ -837,14 +843,21 @@ test('mobile profile keeps links and visitor controls visible without duplicate 
   }
 });
 
-test('desktop profile offers the audio player with editing restricted to its owner', () => {
+test('desktop profiles keep the audio slot and show Message only when viewing someone else', () => {
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
-    const collaboration = () => {};
-    const h = profileHarness('', { presentation: 'web', viewerRole, props: { onCollaboration: collaboration } });
+    let messages = 0;
+    const h = profileHarness('', { presentation: 'web', viewerRole, props: { onMessage: () => messages++ } });
     const grid = nodes(h.render()).find(node => node.type === 'PlatformGrid');
-    assert.equal(grid.props.profileAudio.profileId, 'owner');
-    assert.equal(grid.props.profileAudio.editable, viewerRole === 'owner');
-    assert.equal(grid.props.onCollaboration, collaboration);
+    const controls = nodes(PlatformGrid(grid.props));
+    const audio = controls.find(node => node.props?.profileId === 'owner');
+    assert.ok(audio);
+    assert.equal(audio.props.editable, viewerRole === 'owner');
+    const buttons = controls.filter(node => node.type === 'button');
+    assert.deepEqual(buttons.map(button => button.props['aria-label']), viewerRole === 'owner' ? ['Bio'] : ['Bio', 'Message']);
+    if (viewerRole !== 'owner') {
+      buttons[1].props.onClick();
+      assert.equal(messages, 1);
+    }
   }
 });
 
@@ -853,7 +866,7 @@ test('mobile other-creator profiles omit options and hold actions while preservi
     const calls = [];
     const follow = { isFollowing: false, isRequested: false, isResolving: false, isPending: false, resolveError: null, mutationError: null, onToggle: () => calls.push('follow') };
     const h = profileHarness('', { presentation: 'mobile', viewerRole, props: {
-      follow, onBack: () => calls.push('back'), onSignInRequest: () => calls.push('sign-in'), onCollaboration: () => calls.push('collaboration'), onMessage: () => calls.push('message'),
+      follow, onBack: () => calls.push('back'), onSignInRequest: () => calls.push('sign-in'), onMessage: () => calls.push('message'),
     } });
     let tree = h.render();
     assert.equal(h.mobileActions, null); assert.equal(h.mobilePressModel, null);
@@ -864,7 +877,7 @@ test('mobile other-creator profiles omit options and hold actions while preservi
     assert.ok(bookmark); assert.equal(bookmark.props.profileId, 'owner');
     assert.equal(bookmark.props.registerScreenActions, false, 'Direct bookmark access cannot register a replacement mobile sheet');
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
-    assert.equal(grid.props.onCollaboration, undefined, 'The waveform replaces the old mobile collaboration route');
+    assert.equal(nodes(PlatformGrid(grid.props)).some(node => node.props?.['aria-label'] === 'Collaboration'), false);
     grid.props.onMessage(); grid.props.onOpenBio();
     tree = h.render();
     const bio = nodes(tree).find(node => node.type === 'ProfileBioSheet');
@@ -983,7 +996,7 @@ test('profile copy normalizes a supplied preview-host URL without losing public 
 test('mobile owner header keeps Bio and links while Edit and Share work through the action popup', () => {
   const calls = [];
   const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects, props: {
-    onEditProfile: () => calls.push('edit'), onCollaboration: () => calls.push('collaboration'),
+    onEditProfile: () => calls.push('edit'),
     onOpenActivity: () => calls.push('activity'), onAddCategory: () => calls.push('add'),
     shareUrl: 'https://example.com/share/owner', onBeforeShare: async () => calls.push('prepare-share'),
   } });
@@ -1305,35 +1318,23 @@ test('mobile Bio is available to owners, visitors and guests, with no links and 
 
 test('profile links place Bio before external links without changing their destinations', () => {
   let opened = 0;
-  const { PlatformGrid } = compile('../src/components/profile/PlatformGrid.tsx', name => {
-    if (name === 'react') return React;
-    if (name.endsWith('/profileLinks')) return linkHelpers;
-    if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => 'globe-icon' };
-    return placeholder;
-  });
   const props = { profileName: 'Creator', links: linkHelpers.resolveProfileLinks([{ label: 'Website', href: 'https://example.com' }], {}) };
   const grid = PlatformGrid({ ...props, onOpenBio: () => opened++ });
   const tiles = React.Children.toArray(grid.props.children);
   assert.equal(tiles[0].props.children.props['aria-label'], 'Bio');
   tiles[0].props.children.props.onClick();
   assert.equal(opened, 1);
-  assert.equal(tiles[3].props.children.props.href, 'https://example.com');
-  assert.equal(tiles[3].props.children.props.target, '_blank');
-  assert.equal(nodes(PlatformGrid(props)).filter(node => node.type === 'button' && node.props.disabled).length, 3);
+  assert.equal(tiles[2].props.children.props.href, 'https://example.com');
+  assert.equal(tiles[2].props.children.props.target, '_blank');
+  assert.equal(nodes(PlatformGrid(props)).filter(node => node.type === 'button' && node.props.disabled).length, 2);
 });
 
 test('shared profile links hide platform actions even when handlers exist, retaining Bio and external links', () => {
-  const { PlatformGrid } = compile('../src/components/profile/PlatformGrid.tsx', name => {
-    if (name === 'react') return React;
-    if (name.endsWith('/profileLinks')) return linkHelpers;
-    if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => 'globe-icon' };
-    return placeholder;
-  });
   const calls = [];
   const links = linkHelpers.resolveProfileLinks([{ label: 'Website', href: 'https://example.com' }], {});
   const props = { profileName: 'Creator', links, onOpenBio: () => calls.push('bio'),
-    onCollaboration: () => calls.push('collaboration'), onMessage: () => calls.push('message') };
-  for (const handlers of [props, { ...props, onCollaboration: undefined, onMessage: undefined }]) {
+    onMessage: () => calls.push('message') };
+  for (const handlers of [props, { ...props, onMessage: undefined }]) {
     const tree = PlatformGrid({ ...handlers, isSharedView: true });
     const actions = nodes(tree).filter(node => node.type === 'button');
     assert.deepEqual(actions.map(node => node.props['aria-label']), ['Bio']);
@@ -1341,9 +1342,9 @@ test('shared profile links hide platform actions even when handlers exist, retai
     assert.equal(nodes(tree).find(node => node.type === 'a').props.href, 'https://example.com');
   }
   const internal = nodes(PlatformGrid(props)).filter(node => node.type === 'button');
-  assert.deepEqual(internal.map(node => node.props['aria-label']), ['Bio', 'Collaboration', 'Message']);
-  internal[1].props.onClick(); internal[2].props.onClick();
-  assert.deepEqual(calls, ['bio', 'bio', 'collaboration', 'message']);
+  assert.deepEqual(internal.map(node => node.props['aria-label']), ['Bio', 'Message']);
+  internal[1].props.onClick();
+  assert.deepEqual(calls, ['bio', 'bio', 'message']);
   assert.deepEqual(Array.from(links.slice(0,3), link => link.action), ['bio','collaboration','message']);
 });
 

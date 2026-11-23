@@ -123,7 +123,6 @@ type UserProfilePageProps = {
   onPublishProject?: () => void;
   onAddJourneyProject?: (year?: number) => void;
   /** Existing Messages entry point, with its normal account gate. */
-  onCollaboration?: () => void;
   onMessage?: () => void;
   /** Stable read-only URL intended for people who do not have an account. */
   shareUrl?: string;
@@ -419,7 +418,6 @@ export function UserProfilePage({
   onEditProfile,
   onPublishProject,
   onAddJourneyProject,
-  onCollaboration,
   onMessage,
   shareUrl,
   onBeforeShare,
@@ -528,8 +526,8 @@ export function UserProfilePage({
   const showsSignInToFollow = !isJourney && !isSharedView && needsAccount(viewerRole);
   const displayName = profile.name;
   const profileLinks = useMemo(() => resolveProfileLinks(profile.links, profile.socialLinks)
-    .filter(link => !(isMobile && showsOwnerTools && link.action === 'message')),
-  [profile.links, profile.socialLinks, isMobile, showsOwnerTools]);
+    .filter(link => !(showsOwnerTools && link.action === 'message')),
+  [profile.links, profile.socialLinks, showsOwnerTools]);
 
   // Read straight off the record, so the figure states how much work exists
   // rather than how many tiles happen to be rendered below it.
@@ -889,7 +887,7 @@ export function UserProfilePage({
                 </div>}
             </div>}
           {!isJourney && <div data-mobile-profile-links="" className={webVisitorHeader ? 'min-w-0 flex-[1_1_176px]' : 'w-full min-w-0 basis-full'}>
-            <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onCollaboration={isMobile ? undefined : onCollaboration} onMessage={onMessage}
+            <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onMessage={onMessage}
               profileAudio={{ profileId: profile.id, accountId: auth.user?.id ?? null, profileAvatar: profile.avatar, editable: showsOwnerTools, active: screenActive && !mobileProjectSelected && !nestedMobileContent }} />
           </div>}
           {/* Owner actions use the same popup on desktop and mobile. */}

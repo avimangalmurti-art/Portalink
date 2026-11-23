@@ -1556,7 +1556,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         // feed. Navigate directly so the Portal index opens alongside the chosen
         // project; discovery-only return state would intentionally collapse it.
         nav.project(viewedProfile.id, categoryId, projectId, false, options);
-      }} onAddJourneyProject={isOwnerMode ? year => { setJourneyMadeIn(year ? `${year}-01` : ''); requestGlobalPublish(); } : undefined} onPublishProject={isOwnerMode ? requestGlobalPublish : undefined} onEditProfile={isOwnerMode ? nav.profileEditor : undefined} onCollaboration={() => presentation === 'mobile' ? nav.collaboration(viewedProfile.id, isSharedRoute) : openMessages(auth.viewerProfileId === viewedProfile.id ? undefined : viewedProfile.id)} onMessage={() => openMessages(auth.viewerProfileId === viewedProfile.id ? undefined : viewedProfile.id)} onAddCategory={isOwnerMode ? (label, iconName) => setAddCategoryRequest((request) => ({
+      }} onAddJourneyProject={isOwnerMode ? year => { setJourneyMadeIn(year ? `${year}-01` : ''); requestGlobalPublish(); } : undefined} onPublishProject={isOwnerMode ? requestGlobalPublish : undefined} onEditProfile={isOwnerMode ? nav.profileEditor : undefined} onMessage={() => openMessages(auth.viewerProfileId === viewedProfile.id ? undefined : viewedProfile.id)} onAddCategory={isOwnerMode ? (label, iconName) => setAddCategoryRequest((request) => ({
         nonce: (request?.nonce ?? 0) + 1,
         label,
         iconName

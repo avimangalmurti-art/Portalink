@@ -188,18 +188,11 @@ function evaluate(expression, values) {
 }
 const initializer = name => findNode(node => ts.isVariableDeclaration(node) && node.name.getText(parsed) === name).initializer.getText(parsed);
 
-test('mobile Collaboration has its own destination while Message and WEB keep their existing action', () => {
-  const callback = name => findNode(node => ts.isJsxAttribute(node) && node.name.getText(parsed) === name).initializer.expression.getText(parsed);
-  for (const presentation of ['mobile', 'web']) for (const isSharedRoute of [false, true]) {
-    const calls = [];
-    const values = { presentation, isSharedRoute, viewedProfile: { id: 'creator' }, auth: { viewerProfileId: 'viewer' },
-      nav: { collaboration: (...args) => calls.push(['collaboration', ...args]) }, openMessages: id => calls.push(['messages', id]) };
-    evaluate(callback('onCollaboration'), values)();
-    assert.deepEqual(calls, presentation === 'mobile' ? [['collaboration', 'creator', isSharedRoute]] : [['messages', 'creator']]);
-    calls.length = 0;
-    evaluate(callback('onMessage'), values)();
-    assert.deepEqual(calls, [['messages', 'creator']]);
-  }
+test('the profile Message action opens a conversation with the viewed creator', () => {
+  const callback = findNode(node => ts.isJsxAttribute(node) && node.name.getText(parsed) === 'onMessage').initializer.expression.getText(parsed);
+  const recipients = [];
+  evaluate(callback, { viewedProfile: { id: 'creator' }, auth: { viewerProfileId: 'viewer' }, openMessages: id => recipients.push(id) })();
+  assert.deepEqual(recipients, ['creator']);
 });
 
 test('collaboration resolves the routed creator through the existing profile access boundary', () => {
