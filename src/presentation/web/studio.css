@@ -1,0 +1,142 @@
+/* Studio uses the same reading width, heading scale and card surfaces as Settings. */
+#root .codex-shell[data-presentation='web'] .studio-citation-shell {
+  --studio-web-gutter: clamp(16px, 2vw, 28px);
+  --studio-web-width: 920px;
+  --surface-control: var(--control-rest-surface);
+  --ui-action-radius: 8px;
+  --ui-field-radius: 8px;
+  min-width: 0;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+
+#root .codex-shell[data-presentation='web'] .studio-citation-pills {
+  position: relative;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px var(--studio-web-gutter);
+  border-bottom: 1px solid var(--hairline);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-pills > button {
+  --ui-control-radius: 8px;
+  flex: none;
+  min-height: 32px;
+  padding: 5px 12px;
+  font-size: 14px;
+  line-height: 20px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-pills > button[aria-pressed='true'] {
+  font-weight: 600;
+}
+
+#root .codex-shell[data-presentation='web'] .studio-citation-shell > .studio-overview {
+  box-sizing: border-box;
+  gap: 10px;
+  grid-template-columns: minmax(0, var(--studio-web-width));
+  padding: 20px var(--studio-web-gutter) 32px;
+}
+#root .codex-shell[data-presentation='web'] .studio-overview > h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -.025em;
+}
+#root .codex-shell[data-presentation='web'] .studio-overview > section {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  overflow-wrap: anywhere;
+}
+#root .codex-shell[data-presentation='web'] .studio-overview h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 21px;
+  font-weight: 600;
+}
+#root .codex-shell[data-presentation='web'] .studio-overview p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+#root .codex-shell[data-presentation='web'] .studio-overview-export {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-empty-state {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  min-height: 200px;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-leading);
+}
+#root .codex-shell[data-presentation='web'] .studio-empty-state p {
+  max-width: 46ch;
+  margin: 0;
+}
+#root .codex-shell[data-presentation='web'] .studio-empty-state .studio-empty-title {
+  color: var(--text-primary);
+  font-size: var(--type-title-2-size);
+  line-height: var(--type-title-2-leading);
+  font-weight: 500;
+}
+
+/* Citation and export sheets portal into the app shell. Style the dialog only
+   while Studio is the active screen, including during its close animation. */
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) .citation-backdrop {
+  align-items: center;
+  padding: 16px;
+  background: var(--scrim);
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) .citation-backdrop > .cite-sheet {
+  --surface-control: var(--control-rest-surface);
+  --ui-action-radius: 8px;
+  --ui-field-radius: 8px;
+  width: min(100%, 520px);
+  max-height: calc(100dvh - 32px);
+  padding: var(--ui-surface-inset);
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--codex-shadow-dialog);
+  overscroll-behavior: contain;
+  animation-name: m-fade-in;
+  animation-duration: var(--m-fast);
+}
+/* Registered sheets normally attach to the viewport with square bottom corners. */
+@layer portalink-interface-shapes {
+  #root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) .citation-backdrop > .cite-sheet {
+    border-radius: var(--ui-popup-radius, 24px) !important;
+  }
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) .cite-sheet[data-motion-closing] {
+  animation-name: m-fade-out;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) .reference-sheet[aria-labelledby='export-heading'] > p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) .reference-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) .export-feedback:empty {
+  display: none;
+}
