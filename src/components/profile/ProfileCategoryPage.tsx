@@ -479,6 +479,7 @@ export function ProfileCategoryPage({
   /> : undefined;
   const returnToSource = isMobile ? onReturnToDiscovery : onReturnToTimeline ?? onReturnToDiscovery;
   const returnToSourceLabel = !isMobile && onReturnToTimeline ? 'Back to Timeline' : 'Back to home';
+  const showPageLayoutSlider = !sharedReadOnly && activeProject !== null && !isReaderLoading;
   const projectIndexPanel = <div ref={projectIndexRef} data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent ${isMobile ? 'transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)]' : ''} ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
         {/* A collapsed document rail keeps its expander in the global header.
            The open rail puts its complete toolbar there instead of reserving an
@@ -517,10 +518,8 @@ export function ProfileCategoryPage({
               </> : <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                 {mobileProjectView ? <InterfaceIcon icon={PanelLeftCloseIcon} weight="medium" mirroredInRtl /> : <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
               </button>}
-              {/* Page totals belong in project information, not the toolbar.
-                 Keep the remaining controls aligned with the adjacent rails. */}
-              {!mobileIndexOnly && <span aria-hidden="true" className="min-w-0 flex-1" />}
-              {!sharedReadOnly && activeProject && !isReaderLoading && <ProjectPagesPerRowControl value={pageLayoutDraft}
+              {!mobileIndexOnly && (isMobile || !showPageLayoutSlider) && <span aria-hidden="true" className="min-w-0 flex-1" />}
+              {showPageLayoutSlider && <ProjectPagesPerRowControl value={pageLayoutDraft}
                 onChange={setPageLayoutDraft} onCommit={showsOwnerTools ? commitPageLayout : undefined}
                 saving={showsOwnerTools && typography.savingProjectId === activeProject?.id} />}
               {sharedReadOnly && activePageCount !== null && activePageCount > 1 && <button data-shared-viewer-control="overview" data-borderless-control="" type="button" onClick={togglePageView} aria-label={isPageFocused ? 'Open page overview' : 'Return to selected page'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">

@@ -10,6 +10,10 @@
 #root .codex-shell[data-presentation='web'] [data-web-reader-spacing] [data-project-index-toolbar] {
   gap: 6px;
 }
+#root .codex-shell[data-presentation='web'] [data-project-presentation] [data-project-index-toolbar] > label:has(> [data-pages-per-row-slider]) {
+  min-width: 0;
+  max-width: none;
+}
 #root .codex-shell[data-presentation='web'] [data-web-reader-spacing] [data-viewer-page-layout] [data-pages-per-row-label] {
   color: var(--mac-label-primary, var(--text-primary));
 }
