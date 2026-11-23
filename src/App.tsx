@@ -1514,6 +1514,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         setDiscoveryReturn(null);
         nav.to(target, false, viewTransition);
       } : undefined} portalAppearance={{ accentColor: interfaceAccentColor, theme: interfaceTheme }} onChangeCategoryIcon={isOwnerMode ? setIconPickerCategoryId : undefined} /> : null;
+  const webPortalScope = categoryPage && !routeStateView && !iconPickerCategoryId
+    ? JSON.stringify([auth.user?.id ?? null, viewedProfileId, isSharedRoute]) : undefined;
   const mobileWallScrollKey = `mobile-profile-wall:${auth.user?.id ?? 'guest'}:${viewedProfile?.id}:${isSharedRoute}`;
   const revealPublishedProjectId = presentation === 'mobile' && isOwnerMode && route.kind === 'profile' && screenNavigationType === 'PUSH'
     && typeof navigationState?.revealPublishedProjectId === 'string' ? navigationState.revealPublishedProjectId : undefined;
@@ -1654,7 +1656,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
           <button type="button" onClick={requestGlobalPublish} className="font-semibold text-[var(--accent-text)]">Try again</button>
           <button type="button" onClick={() => setGlobalCreateError(null)} aria-label="Dismiss"><InterfaceIcon icon={XIcon} size="lg" /></button>
         </div>}
-        <AppScreenLayers navigation={{location: screenLocation, navigationType: screenNavigationType, scope: `${auth.isAuthenticated ? auth.user?.id : 'guest'}:${isSharedRoute}`}} screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId
+        <AppScreenLayers navigation={{location: screenLocation, navigationType: screenNavigationType, scope: `${auth.isAuthenticated ? auth.user?.id : 'guest'}:${isSharedRoute}`}} screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} webPortalScope={webPortalScope} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId
           ? (presentation === 'mobile' ? <ProjectOpeningLoader /> : <LoadingSkeleton kind="reader" projectId={projectNavigation.resolution.projectId} label="Opening project"/>)
           : screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
       </div>
