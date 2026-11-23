@@ -69,15 +69,16 @@ export function MediaInteractionBar({
   const counter = !isMobileFocused && placement === 'focused' && pageCount && pageCount > 1
     ? `${target.pageIndex + 1} / ${pageCount}` : null;
   const counterWidth = counter ? Math.min(Math.max(48, counter.length * 7 + 20), Math.max(0, (hostWidth - 24) * 0.4)) : 0;
+  const reservedWidth = counter ? counterWidth + 8 : 0;
   const pageInset = placement === 'focused' ? 8 : 4;
   const layout = isMobileFocused ? mobileFocusedMediaToolbarLayout(hostWidth)
-    : mediaToolbarLayout(pageWidth, hostWidth, pageInset, counts, counter ? counterWidth + 8 : 0);
-  const actionColumns = isMobileFocused || !isOwner ? 4 : 3;
-  const minimumWidth = isMobileFocused ? 196 : actionColumns * 44;
-  // A dense desktop overview can be narrower than its buttons and their gaps.
-  const paddingAndGaps = (12 + (actionColumns - 1) * 4) * layout.unit;
-  const compactDesktopPage = !isMobile && placement === 'page' &&
-    Math.min(pageWidth, hostWidth) - pageInset * 2 < minimumWidth + paddingAndGaps;
+    : mediaToolbarLayout(pageWidth, hostWidth, pageInset, counts, reservedWidth);
+  // The desktop row includes every toggle, followed by Comments, Cite and Share.
+  const actionColumns = isMobile && placement === 'page' && isOwner ? 3 : ACTIONS.length + 3;
+  const desktopPaddingAndGaps = isMobile ? 0 : (12 + (actionColumns - 1) * 4) * layout.unit;
+  const minimumWidth = isMobileFocused ? 196 : actionColumns * 44 + desktopPaddingAndGaps;
+  const compactDesktopPage = !isMobile &&
+    Math.min(pageWidth, hostWidth - reservedWidth) - pageInset * 2 < minimumWidth;
 
   useEffect(() => {
     setCommentsOpen(false);

@@ -456,6 +456,18 @@ test('the actual mobile Comments header uses animated dismissal while its parent
   assert.equal(descendants(env.render()).find(node => node.type === 'textarea').props.value, 'Keep this unposted draft');
 });
 
+test('desktop page and focused toolbars allocate a column for every owner and visitor action', () => {
+  for (const placement of ['page', 'focused']) {
+    for (const isOwner of [true, false]) {
+      const env = interactionBarHarness('web');
+      const toolbar = descendants(env.render({ placement, isOwner })).find(node => node.props.role === 'group');
+      const actions = descendants(toolbar).filter(node => node.type === 'button');
+      assert.deepEqual(actions.map(node => node.props['aria-label']), ['Save: Page 1', 'Show comments for Page 1', 'Cite this page', 'Share Page 1']);
+      assert.ok(toolbar.props.style.gridTemplateColumns.startsWith(`repeat(${actions.length},`));
+    }
+  }
+});
+
 test('focused mobile owner and visitor actions all fit the same four-column row', () => {
   for (const isOwner of [true, false]) {
     const env = interactionBarHarness('mobile');
