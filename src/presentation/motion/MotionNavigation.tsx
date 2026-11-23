@@ -48,12 +48,16 @@ function RoutedMotionNavigation({children}:{children:React.ReactNode}){
    if(destination.pathname===current.pathname&&destination.hash===(current.hash??'')&&
     (settingsPath==='/settings'||settingsPath==='/appearance'||from.get('settings')==='1'&&to.get('settings')==='1')&&
     ['section','panel','security'].some(key=>from.getAll(key).join('\0')!==to.getAll(key).join('\0')))return true;
-   const portal=(path:string)=>{
-    const match=/^(\/(?:(?:p|share)\/[^/]+|[^/]+)\/c\/[^/]+)\/[^/]+\/?$/.exec(path);
-    return match&&(path.startsWith('/p/')||path.startsWith('/share/')||handleFromPath(path))?match[1]:null;
+   const portalLocation = (path: string) => {
+    const match = /^(\/(?:(?:p|share)\/[^/]+|[^/]+))\/c\/([^/]+)(?:\/([^/]+))?\/?$/.exec(path);
+    if (!match) return null;
+    const [, catalogue, portal, project] = match;
+    if (!catalogue.startsWith('/p/') && !catalogue.startsWith('/share/') && !handleFromPath(path)) return null;
+    return { catalogue, portal, project };
    };
-   const scope=portal(current.pathname);
-   return scope!==null&&scope===portal(destination.pathname);
+   const origin = portalLocation(current.pathname), target = portalLocation(destination.pathname);
+   if (!origin || !target || origin.catalogue !== target.catalogue) return false;
+   return origin.portal !== target.portal || Boolean(origin.project && target.project);
   }
   function mode(to:Parameters<typeof original.push>[0]):NavigationMotion{const destination=new URL(original.createHref(to),window.location.href);if(dock.current){dock.current=false;return 'dock';}return destination.pathname===latest.current.pathname&&new URLSearchParams(destination.search).has('collection')?'tabs':'push';}
   return {...original,push:(...args:Parameters<typeof original.push>)=>{

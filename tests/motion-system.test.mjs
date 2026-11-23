@@ -169,6 +169,20 @@ test('WEB same-portal project selection updates the route immediately and preser
  }
 });
 
+test('WEB switches between portals in a catalogue without starting a router animation', () => {
+ for (const root of ['/p/creator', '/share/creator', '/avima.work']) {
+  for (const action of ['push', 'replace']) {
+   const h = profileNavigation(`${root}/c/a/project-a`);
+   const destinations = ['/c/b', '/c/c', '/c/d/project-d', '/c/e/project-e'].map(path => root + path);
+   for (const to of destinations) h.navigator[action](to);
+   assert.deepEqual(h.modes, []);
+   assert.equal(h.interruptions, destinations.length);
+   assert.deepEqual(h.calls, destinations.map(to => [action, to]));
+   assert.equal(h.location.pathname, destinations.at(-1));
+  }
+ }
+});
+
 test('WEB Settings disclosures update inline while MOBILE retains section navigation motion',()=>{
  for(const root of ['/settings','/settings/','/appearance','/appearance/','/share/creator?settings=1','/avima.work?settings=1'])for(const action of ['push','replace']){
   const separator=root.includes('?')?'&':'?';
@@ -184,15 +198,15 @@ test('WEB Settings disclosures update inline while MOBILE retains section naviga
  }
 });
 
-test('first reader entry, cross-portal destinations, MOBILE and external URLs keep their existing navigation',()=>{
+test('first reader entry, cross-catalogue destinations, MOBILE and external URLs keep their existing navigation',()=>{
  for(const [from,to,presentation] of [
   ['/p/creator/c/portal','/p/creator/c/portal/one','web'],
-  ['/p/creator/c/portal/one','/p/creator/c/other/two','web'],
   ['/p/creator/c/portal/one','/p/other/c/portal/two','web'],
   ['/p/creator/c/portal/one','/share/creator/c/portal/two','web'],
   ['/search/c/portal/one','/search/c/portal/two','web'],
   ['/p/creator/c/portal/one','https://external.test/p/creator/c/portal/two','web'],
   ['/p/creator/c/portal/one','/p/creator/c/portal/two','mobile'],
+  ['/p/creator/c/portal/one','/p/creator/c/other','mobile'],
   ['/share/creator/c/portal/one','/share/creator/c/portal/two','mobile'],
   ['/share/creator','/share/creator?settings=1&section=appearance','web'],
   ['/share/creator?settings=1&section=appearance','/share/creator','web'],
