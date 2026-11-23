@@ -1,11 +1,12 @@
 import { useSheetMotion } from '../../presentation/motion/useSheetMotion';
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { CheckIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { ModalPortal } from '../ui/ModalPortal';
 import { usePresentation } from '../../presentation/usePresentation';
+import { useCatalogueCopyFeedback } from '../../features/sharing/useCatalogueCopyFeedback';
 import type { ContextActions, ContextAction } from '../../presentation/mobile/contextActions';
 
 /** Shared message/context sheet: one viewport, focus, scrim and swipe lifecycle. */
@@ -16,15 +17,7 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   const [dragY,setDragY]=useState(0);
   const [dragging,setDragging]=useState(false);
   const [interacted,setInteracted]=useState(false);
-  const [copyState, setCopyState] = useState<'idle' | 'pending' | 'copied'>('idle');
-  const [copyError, setCopyError] = useState('');
-  const copyAttempt = useRef(0), copyPending = useRef(false);
-  const copyResetTimer = useRef<number | null>(null);
-  useEffect(() => () => {
-    copyAttempt.current++;
-    copyPending.current = false;
-    if (copyResetTimer.current !== null) { window.clearTimeout(copyResetTimer.current); copyResetTimer.current = null; }
-  }, []);
+  const { state: copyState, error: copyError, run: copyCatalogueLink } = useCatalogueCopyFeedback();
   const dialogRef = useRef<HTMLDivElement>(null), viewportRef = useDialogViewport(), titleId = useId();
   const ownerProfile = layout === 'actions' && model.kind === 'profile' && Boolean(model.viewer?.owner);
   const canResize = mobile || (!onboardingFiles && !ownerProfile);
@@ -38,29 +31,7 @@ export function MobileActionSheet({ model, onClose, onAction, beforeActions, chi
   const inlineCopy = (action: ContextAction) => showsInlineCopy && action.id === 'copy';
   const activate = async (action: ContextAction, viewport?: HTMLElement | null) => {
     if (!inlineCopy(action)) { motion.close(() => onAction(action), viewport); return; }
-    if (copyPending.current) return;
-    copyPending.current = true;
-    const attempt = ++copyAttempt.current;
-    if (copyResetTimer.current !== null) { window.clearTimeout(copyResetTimer.current); copyResetTimer.current = null; }
-    setCopyError('');
-    setCopyState('pending');
-    try {
-      const copied = await onAction(action);
-      if (copyAttempt.current !== attempt) return;
-      if (copied !== true) { setCopyState('idle'); return; }
-      setCopyState('copied');
-      copyResetTimer.current = window.setTimeout(() => {
-        copyResetTimer.current = null;
-        if (copyAttempt.current === attempt) setCopyState('idle');
-      }, 2000);
-    } catch (error) {
-      if (copyAttempt.current === attempt) {
-        setCopyState('idle');
-        setCopyError(error instanceof Error ? error.message : 'Could not copy the link. Please try again.');
-      }
-    } finally {
-      if (copyAttempt.current === attempt) copyPending.current = false;
-    }
+    await copyCatalogueLink(() => onAction(action));
   };
   const actionIcon = (action: ContextAction) => inlineCopy(action) && copyState === 'copied'
     ? <InterfaceIcon icon={CheckIcon} keepColor style={{ color: 'var(--status-success)' }} />

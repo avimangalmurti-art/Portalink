@@ -109,6 +109,7 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0,layout,mod
  }};
  const {MobileActionSheet}=compile('../src/components/messages/MobileActionSheet.tsx',{
   react,
+  '../../features/sharing/useCatalogueCopyFeedback':compile('../src/features/sharing/useCatalogueCopyFeedback.ts',{react},{window:{setTimeout:setTimer,clearTimeout:clearTimer}}),
   '../../presentation/usePresentation':{usePresentation:()=> presentation},
   '../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close(after,scope){motions.push({immediate:typeof after==='function',scope});if(after)after();else onClose();}})},
   '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:viewport})},
