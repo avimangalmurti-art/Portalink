@@ -32,8 +32,8 @@ export function CityContentPage({
         </button></ScreenBack>
         <h1 className="min-w-0 truncate text-small font-bold text-[var(--text-primary)]" title={placeLabel(city)}>{placeLabel(city)}</h1>
       </div>
-      {/* MOBILE uses document scrolling; WEB keeps its contained feed. */}
-      <div data-city-feed="" className="min-h-0 flex-1 overflow-y-auto">
+      {/* HomeFeed owns desktop scrolling. Mobile uses the document. */}
+      <div data-city-feed="" className="min-h-0 flex-1 overflow-hidden">
         <HomeFeed
           key={city.id}
           isSidebarCollapsed={false}
