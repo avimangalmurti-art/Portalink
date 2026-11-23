@@ -381,7 +381,7 @@ test('scrolling tracks the anchor and unmount removes viewport and document list
   assert.equal(env.observers[0].observed.length, 0);
 });
 
-function interactionBarHarness(mode, guest = false) {
+function interactionBarHarness(mode, guest = false, pageWidth = 390) {
   const states = [];
   let cursor = 0, retries = 0, dismissals = 0; const gates = [];
   const activity = {
@@ -427,7 +427,7 @@ function interactionBarHarness(mode, guest = false) {
       mobileFocusedMediaToolbarLayout: () => ({ width: 200, unit: 40, slots: [1, 1, 1, 1, 1] }),
     },
     '../../presentation/usePresentation': { usePresentation: () => mode },
-    './useMediaPageSize': { useMediaPageSize: () => ({ ref: { current: null }, pageWidth: 390, hostWidth: 390, isVisible: true }) },
+    './useMediaPageSize': { useMediaPageSize: () => ({ ref: { current: null }, pageWidth, hostWidth: pageWidth, isVisible: true }) },
     './MediaCommentsPopover': { MediaCommentsPopover: popover },
   }, {window:{location:{pathname:'/share/creator/c/portal/project',search:'?page=2'}}});
   const render = (changes = {}) => {
@@ -466,6 +466,17 @@ test('desktop page and focused toolbars allocate a column for every owner and vi
       assert.ok(toolbar.props.style.gridTemplateColumns.startsWith(`repeat(${actions.length},`));
     }
   }
+});
+
+test('a dense desktop row uses the available hit area and leaves space for a focused page counter', () => {
+  const env = interactionBarHarness('web', false, 172);
+  const overview = descendants(env.render({ isOwner: true })).find(node => node.props.role === 'group');
+  assert.equal(overview.props.style.minWidth, 172 - 2 * 4);
+
+  const focused = descendants(env.render({ isOwner: true, placement: 'focused', pageCount: 7 }));
+  const toolbar = focused.find(node => node.props.role === 'group');
+  const counter = focused.find(node => 'data-media-page-count' in node.props);
+  assert.equal(toolbar.props.style.minWidth + 8 + counter.props.style.width, 172 - 2 * 8);
 });
 
 test('focused mobile owner and visitor actions all fit the same four-column row', () => {

@@ -75,10 +75,10 @@ export function MediaInteractionBar({
     : mediaToolbarLayout(pageWidth, hostWidth, pageInset, counts, reservedWidth);
   // The desktop row includes every toggle, followed by Comments, Cite and Share.
   const actionColumns = isMobile && placement === 'page' && isOwner ? 3 : ACTIONS.length + 3;
-  const desktopPaddingAndGaps = isMobile ? 0 : (12 + (actionColumns - 1) * 4) * layout.unit;
-  const minimumWidth = isMobileFocused ? 196 : actionColumns * 44 + desktopPaddingAndGaps;
-  const compactDesktopPage = !isMobile &&
-    Math.min(pageWidth, hostWidth - reservedWidth) - pageInset * 2 < minimumWidth;
+  const paddingAndGaps = (12 + (actionColumns - 1) * 4) * layout.unit;
+  const availableWidth = Math.max(0, Math.min(pageWidth, hostWidth - reservedWidth) - pageInset * 2);
+  const desktopMinimum = Math.min(availableWidth, actionColumns * 44 + paddingAndGaps);
+  const minimumWidth = isMobile ? (isMobileFocused ? 196 : actionColumns * 44) : desktopMinimum;
 
   useEffect(() => {
     setCommentsOpen(false);
@@ -181,8 +181,8 @@ export function MediaInteractionBar({
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
-      gridTemplateColumns: `repeat(${actionColumns}, minmax(${compactDesktopPage ? '0px' : '44px'}, 1fr))`,
-      minWidth: compactDesktopPage ? 0 : minimumWidth
+      gridTemplateColumns: `repeat(${actionColumns}, minmax(${isMobile ? '44px' : '0px'}, 1fr))`,
+      minWidth: minimumWidth
     } as React.CSSProperties}>
       {ACTIONS.map(({ kind, label, icon: Icon }, index) => {
         const engaged = activity.record.engaged[kind];
