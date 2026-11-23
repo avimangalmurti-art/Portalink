@@ -1,6 +1,40 @@
 /* WEB frame: preserve the existing desktop geometry and shared appearance tokens.
    Keep every selector scoped; :where adds no specificity to the existing rules. */
 
+/* A neutral frame surrounds the light workspace and its white content cards. */
+#root .codex-shell.theme-light[data-presentation='web'] {
+  --codex-shell-bg: #f3f3f3;
+  --codex-sidebar-bg: var(--codex-shell-bg);
+  --codex-workspace-bg: #fafafa;
+}
+
+/* Codex charcoal surfaces for WEB dark appearance; keep saved navigation colours. */
+#root .codex-shell.theme-dark[data-presentation='web'] {
+  --codex-shell-bg: #181818;
+  --codex-sidebar-bg: #181818;
+  --codex-workspace-bg: #181818;
+  --codex-panel-bg: #1e1e1e;
+  --surface-raised: #1e1e1e;
+  --surface-overlay: #1e1e1e;
+  --surface-inset: #262626;
+}
+
+/* Give sidebar hover and selection the same quick colour fade. */
+#root .codex-shell[data-presentation='web'] .sidebar-surface {
+  --navigation-control-transition:
+    background-color var(--m-fast) var(--m-enter),
+    color var(--m-fast) var(--m-enter);
+}
+
+/* A Settings row picks up a light wash of the user's hover colour. */
+@media (hover: hover) and (pointer: fine) and (prefers-contrast: no-preference) {
+  #root .codex-shell[data-presentation='web']:not(.high-contrast) .settings-section-trigger {
+    --control-hover-surface: color-mix(in srgb, var(--nav-button-background-hover) 50%, var(--surface-raised));
+    --control-hover-text: var(--text-primary);
+    transition: background-color var(--m-fast) var(--m-enter);
+  }
+}
+
 /* Desktop loading uses the same indicator as opening a project. */
 #root [data-presentation='web'] :is([data-loading-layout], .motion-reader-skeleton) {
   display: grid;
