@@ -111,6 +111,15 @@
   isolation: isolate;
 }
 
+/* Keep the recipient search below the Messages toolbar while the directory scrolls. */
+#root .codex-shell[data-presentation='web'] [data-messages-page]:has([data-recipient-appearance='default']) {
+  display: grid;
+  grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
+}
+#root .codex-shell[data-presentation='web'] [data-messages-body] [data-recipient-appearance='default'] section:first-of-type > h3 {
+  padding-top: 0;
+}
+
 /* PDF loaders fill the reserved page instead of becoming a strip above it. */
 #root .codex-shell[data-presentation='web'] [data-project-page-number] > .premium-media-placeholder.absolute {
   position: absolute;
