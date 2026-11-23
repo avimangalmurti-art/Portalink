@@ -5,7 +5,6 @@ import { placeLabel, type DirectoryPlace } from '../data/locationDirectory';
 import { HomeFeed } from './home/HomeFeed';
 import type { Id, ProjectLocation } from '../types/domain';
 import { InterfaceIcon } from './ui/InterfaceIcon';
-import { usePresentation } from '../presentation/usePresentation';
 type CityContentPageProps = {
   city: DirectoryPlace;
   onBack: () => void;
@@ -22,14 +21,14 @@ export function CityContentPage({
   onOpenCreator,
   onWarmCreator
 }: CityContentPageProps) {
-  const isMobile = usePresentation() === 'mobile';
   // A Portalink network page, so the stars are drawn here rather than by the feed
   // it hosts — the same feed on Home carries no sky of its own.
   return <div data-city-page="" className="portalink-stars relative flex h-full w-full flex-col bg-[var(--surface-canvas)]">
       <div data-city-header="" data-mobile-safe-header="" className="ps-panel-toolbar global-control-header side-panel-content-inset shrink-0">
-        <ScreenBack><button data-ui-control={isMobile ? 'icon' : undefined} data-ui-shape={isMobile ? 'icon' : undefined} data-control-size={isMobile ? 'md' : undefined} data-control-variant={isMobile ? 'ghost' : undefined} type="button" onClick={onBack} aria-label="Back to World" className={`side-panel-primary-control side-panel-control-row px-3 text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isMobile ? 'mobile-city-back' : ''}`}>
+        <ScreenBack><button type="button" onClick={onBack} aria-label="Back to World"
+          data-ui-control="icon" data-ui-shape="icon" data-control-size="md" data-control-variant="ghost"
+          className="mobile-city-back side-panel-primary-control side-panel-control-row text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
-          {!isMobile && 'Back to World'}
         </button></ScreenBack>
         <h1 className="min-w-0 truncate text-small font-bold text-[var(--text-primary)]" title={placeLabel(city)}>{placeLabel(city)}</h1>
       </div>

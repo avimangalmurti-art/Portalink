@@ -104,7 +104,11 @@
   flex-shrink: 0;
   isolation: isolate;
 }
-#root .codex-shell[data-presentation='web'] :is(.settings-page > .settings-page-header, [data-feed-scroll-content] [data-web-gallery-controls]) {
+/* The city gallery's layout slider scrolls with the artwork in its own row. */
+#root .codex-shell[data-presentation='web'] :is(
+  .settings-page > .settings-page-header,
+  [data-feed-scroll-content]:not(:where([data-city-feed] *)) [data-web-gallery-controls]
+) {
   position: sticky;
   top: 0;
   z-index: 30;
