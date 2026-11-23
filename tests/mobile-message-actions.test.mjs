@@ -60,7 +60,7 @@ function listHarness(presentation = 'mobile', overrides = {}, runEffects = false
     onRetry: async id => { calls.push(['retry', id]); return true; },
     onEdit: async (id, body) => { calls.push(['edit', id, body]); return true; },
     onDelete: async id => { calls.push(['delete', id]); return true; },
-    onReact: async (id, emoji) => { calls.push(['react', id, emoji]); return true; }, ...overrides };
+    onReact: async (id, emoji, selected) => { calls.push(['react', id, emoji, selected]); return true; }, ...overrides };
   const api = compile('../src/components/MessagesPage.tsx', {
     react: state.react,
     '../presentation/usePresentation': { usePresentation: () => presentation },
@@ -106,9 +106,9 @@ test('MOBILE opens contextual message options and uses existing reaction, edit a
   assert.equal(h.button('Edit message'), undefined);
   trigger.props.onClick();
   assert.equal(h.sheet().props.message.id, 'message-1');
-  h.sheet().props.onReact('👏');
+  h.sheet().props.onReact('👏', true);
   assert.equal(h.sheet(), undefined);
-  assert.deepEqual(h.calls, [['react', 'message-1', '👏']]);
+  assert.deepEqual(h.calls, [['react', 'message-1', '👏', true]]);
 
   h.button('Message options').props.onClick(); h.sheet().props.onEdit();
   assert.equal(h.sheet(), undefined);
@@ -140,11 +140,14 @@ test('MOBILE shows reaction icons without counts while WEB keeps its count', () 
   assert.equal(love.props.children.props.fill, 'currentColor');
   assert.equal(React.Children.count(love.props.children), 1);
   love.props.onClick();
-  assert.deepEqual(mobile.calls, [['react', 'message-1', '❤']]);
+  assert.deepEqual(mobile.calls, [['react', 'message-1', '❤', false]]);
 
   const desktop = listHarness('web');
   const desktopLove = desktop.button('Love: 2. Selected');
   assert.equal(React.Children.toArray(desktopLove.props.children.props.children).join(''), '❤ 2');
+  desktopLove.props.onClick();
+  desktop.button('React 👏').props.onClick();
+  assert.deepEqual(desktop.calls, [['react', 'message-1', '❤', false], ['react', 'message-1', '👏', true]]);
 });
 
 test('MOBILE permissions, pending state and removed or local messages keep their interaction restrictions', () => {
@@ -252,7 +255,7 @@ test('MOBILE hands focus from the sheet to Unsend Cancel and restores its enable
 function sheetHarness(isMine = true) {
   const state = stateReact(), calls = []; let escape;
   const props = { message: ownMessage, isMine, pending: false, anchor: null,
-    onClose: () => calls.push('close'), onReact: emoji => calls.push(['react', emoji]), onEdit: () => calls.push('edit'), onRequestUnsend: () => calls.push('confirm-unsend') };
+    onClose: () => calls.push('close'), onReact: (emoji, selected) => calls.push(['react', emoji, selected]), onEdit: () => calls.push('edit'), onRequestUnsend: () => calls.push('confirm-unsend') };
   const contextModule = compile('../src/presentation/mobile/contextActions.ts', {});
   const api = compile('../src/components/messages/MobileMessageActions.tsx', {
     react: { ...state.react, useLayoutEffect() {} },
@@ -281,7 +284,8 @@ test('the anchored options support focus dismissal and editing for the sender', 
   assert.deepEqual(React.Children.toArray(stack.props.children).slice(0, 3).map(node => node.props.className), [
     'mobile-message-context-reactions', 'mobile-message-context-bubble', 'mobile-message-context-actions',
   ]);
-  reactions[0].props.onClick(); assert.deepEqual(h.calls.at(-1), ['react', '❤']);
+  reactions[0].props.onClick(); assert.deepEqual(h.calls.at(-1), ['react', '❤', false]);
+  reactions[1].props.onClick(); assert.deepEqual(h.calls.at(-1), ['react', '👏', true]);
   h.escape(); assert.equal(h.calls.at(-1), 'close');
   const overlay = nodes(tree).find(node => node.props['data-message-context'] !== undefined);
   let blockedClicks = 0;

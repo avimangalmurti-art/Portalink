@@ -1,6 +1,7 @@
 import { messageReactionOption } from './messages/messageReactionIcons';
 import { useUnderHeaderScroll } from '../presentation/mobile/useUnderHeaderScroll';
 import { MessageBody } from './messages/MessageBody';
+import { messageInboxPreviewText } from '../features/messages/sharedContentPreview';
 import { ConfirmationDialog } from './ui/ConfirmationDialog';
 import { MobileContextButton, useMobileScreenActions, useMobileHold } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
@@ -418,9 +419,9 @@ export function MessagesPage({
     onRetry: retryMessage,
     onEdit: messaging.editMessage,
     onDelete: messaging.deleteMessage,
-    onReact: messaging.toggleReaction,
+    onReact: messaging.setReaction,
   }), [messaging.messages, auth.viewerProfileId, isMessageRequest, conversation?.participant.isDeleted, conversation?.participantReadAt,
-    messaging.pendingMessageId, messaging.isReactionPending, retryMessage, messaging.editMessage, messaging.deleteMessage, messaging.toggleReaction]);
+    messaging.pendingMessageId, messaging.isReactionPending, retryMessage, messaging.editMessage, messaging.deleteMessage, messaging.setReaction]);
   // Draft typing leaves the desktop thread element intact. Message changes and
   // pending actions replace it, while the mobile path keeps its current render.
   const desktopMessages = useMemo(() => <MessageList key={activeId} {...messageListProps} />, [activeId, messageListProps]);
@@ -522,7 +523,7 @@ export function MessagesPage({
                             {conversation.lastMessageAt ? <time dateTime={conversation.lastMessageAt} className="shrink-0 text-[11px] text-[var(--text-tertiary)]">{messageTime(conversation.lastMessageAt)}</time> : null}
                           </span>
                           <span className={`mt-0.5 flex items-center gap-2 text-[12px] ${conversation.isUnread ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-                          <span className="min-w-0 flex-1 truncate">{conversation.lastMessage ?? 'No messages yet'}</span>
+                            <span className="min-w-0 flex-1 truncate">{conversation.lastMessage == null ? 'No messages yet' : messageInboxPreviewText(conversation.lastMessage, window.location.origin)}</span>
                             {conversation.status === 'request' ? <span className="shrink-0 rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent-text)]">{conversation.requestedByViewer ? 'Pending' : 'Request'}</span> : null}
                             {conversation.isMuted ? <InterfaceIcon icon={VolumeXIcon} className="shrink-0 text-[var(--text-tertiary)]" /> : null}
                             {conversation.isUnread ? <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--social-unread)]"><span className="sr-only">Unread</span></span> : null}
@@ -654,10 +655,9 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
   onRetry: (id: Id) => Promise<boolean>;
   onEdit: (id: Id, body: string) => Promise<boolean>;
   onDelete: (id: Id) => Promise<boolean>;
-  onReact: (id: Id, emoji: string) => Promise<boolean>;
+  onReact: (id: Id, emoji: string, selected: boolean) => Promise<boolean>;
 }) {
   const isMobile = usePresentation() === 'mobile';
-  const MessageText = isMobile ? 'div' : 'p';
   const [editingId, setEditingId] = useState<Id | null>(null);
   const [editBody, setEditBody] = useState('');
   const [deleteId, setDeleteId] = useState<Id | null>(null);
@@ -748,7 +748,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                         <button type="submit" disabled={!canSaveEdit} className="text-[12px] font-semibold underline disabled:opacity-50">Save</button>
                       </div>
                     </>}
-                  </form> : <MessageText data-message-body={isMobile ? '' : undefined} className="whitespace-pre-wrap break-words text-[16px] leading-6"><MessageBody body={message.body} previewLinks={isMobile} /></MessageText>}
+                  </form> : <div data-message-body={isMobile ? '' : undefined} className="whitespace-pre-wrap break-words text-[16px] leading-6"><MessageBody body={message.body} /></div>}
                 {message.attachments?.length ? <ul className="mt-2 grid gap-2">
                     {message.attachments.map((attachment) => <li key={attachment.id}><MessageAttachmentView attachment={attachment} /></li>)}
                   </ul> : null}
@@ -764,7 +764,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                       const option = messageReactionOption(reaction.emoji);
                       const label = isMobile ? option.label
                         : `${option.label}: ${reaction.count}${reaction.isMine ? '. Selected' : ''}`;
-                      return <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={isPending} onClick={() => void onReact(message.id, reaction.emoji)}
+                      return <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={isPending} onClick={() => void onReact(message.id, reaction.emoji, !reaction.isMine)}
                         data-ui-shape={isMobile ? 'icon' : undefined}
                         className={isMobile ? 'inline-flex items-center justify-center min-h-[44px] min-w-[44px]'
                           : `rounded-full px-2 py-0.5 text-[12px] ring-1 ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`}
@@ -774,7 +774,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                       </button>;
                     })}
                     {isMobile ? <button type="button" aria-label="Message options" aria-haspopup="dialog" aria-expanded={actionsId === message.id} disabled={isPending || editingId === message.id || deleteId === message.id} onClick={event => openActions(message.id, event.currentTarget)} className="sr-only focus:not-sr-only focus:absolute focus:right-0 focus:bottom-0 focus:h-11 focus:w-11 focus:rounded-full focus:bg-[var(--surface-raised)] focus:text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-current"><InterfaceIcon icon={MoreHorizontalIcon} /></button> : <>
-                      {(canInteract ? ['❤', '👏', '✨'] as const : []).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={isPending} onClick={() => void onReact(message.id, emoji)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70">{emoji}</button>)}
+                      {(canInteract ? ['❤', '👏', '✨'] as const : []).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={isPending} onClick={() => void onReact(message.id, emoji, true)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70">{emoji}</button>)}
                       {isMine ? <><button data-ui-shape="icon" data-control-size="sm" type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setEditingId(message.id); setEditBody(message.body); }} disabled={isPending || editingId === message.id || deleteId === message.id} aria-label="Edit message" title="Edit message" className="shape-compact ml-auto flex items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={PencilIcon} size="md" /></button><button data-ui-shape="icon" data-control-size="sm" type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setDeleteId(message.id); }} disabled={isPending || editingId === message.id || deleteId === message.id} aria-label="Unsend message" title="Unsend message" className="shape-compact flex items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={Trash2Icon} size="md" /></button></> : null}
                     </>}
                   </div> : null}
@@ -784,7 +784,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
           </React.Fragment>;
       })}
     </ol>
-    {actionMessage ? <MobileMessageActions key={actionMessage.id} message={actionMessage} isMine={actionMessage.senderProfileId !== null && actionMessage.senderProfileId === viewerProfileId} pending={isMessagePending(actionMessage.id)} anchor={actionTriggerRef.current?.closest<HTMLElement>('[data-message-bubble]') ?? null} onClose={closeActions} onReact={(emoji) => { closeActions(); void onReact(actionMessage.id, emoji); }} onEdit={() => { closeActions(); setEditingId(actionMessage.id); setEditBody(actionMessage.body); }} onRequestUnsend={() => { closeActions(); setDeleteId(actionMessage.id); }} /> : null}
+    {actionMessage ? <MobileMessageActions key={actionMessage.id} message={actionMessage} isMine={actionMessage.senderProfileId !== null && actionMessage.senderProfileId === viewerProfileId} pending={isMessagePending(actionMessage.id)} anchor={actionTriggerRef.current?.closest<HTMLElement>('[data-message-bubble]') ?? null} onClose={closeActions} onReact={(emoji, selected) => { closeActions(); void onReact(actionMessage.id, emoji, selected); }} onEdit={() => { closeActions(); setEditingId(actionMessage.id); setEditBody(actionMessage.body); }} onRequestUnsend={() => { closeActions(); setDeleteId(actionMessage.id); }} /> : null}
     </>;
 }
 

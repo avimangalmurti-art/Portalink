@@ -470,7 +470,7 @@ export function useMessaging({
     } finally { if (activeRef.current?.id === conversationId) setPendingMessageId(null); }
   }, [messaging, placeMessage]);
 
-  const toggleReaction = useCallback(async (messageId: Id, emoji: string) => {
+  const setReaction = useCallback(async (messageId: Id, emoji: string, selected: boolean) => {
     const conversationId = activeRef.current?.id;
     if (!conversationId || activeRef.current?.status === 'request' || messageId.startsWith('local-')) return false;
     const ownerGeneration = threadScope.current.ownerGeneration;
@@ -480,7 +480,7 @@ export function useMessaging({
     setPendingReactions(new Map(requests));
     setError(null);
     try {
-      const reactions = await messaging.toggleReaction(messageId, emoji);
+      const reactions = await messaging.setReaction(messageId, emoji, selected);
       if (!mounted.current || threadScope.current.ownerGeneration !== ownerGeneration) return false;
       placeMessage(conversationId, (current) => current.map((message) => message.id === messageId ? { ...message, reactions } : message));
       return true;
@@ -833,7 +833,7 @@ export function useMessaging({
     broadcastTyping,
     editMessage,
     deleteMessage,
-    toggleReaction,
+    setReaction,
     searchConversations,
     markVisibleMessagesRead: () => {
       const id = activeRef.current?.id;

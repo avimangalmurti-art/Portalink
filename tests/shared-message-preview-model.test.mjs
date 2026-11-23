@@ -6,7 +6,7 @@ const PUBLIC_ORIGIN = 'https://portalinknetworks.com';
 const legacy = 'https://portalinknetworksinc.avimangalmurti566055.chatgpt.site';
 const local = 'http://localhost:5173';
 const shareModel = sourceModule('src/features/sharing/shareModel.ts');
-const { parseSharedContentLink: parse, resolveSharedContentPreview: resolve } = sourceModule('src/features/messages/sharedContentPreview.ts', {
+const { parseSharedContentLink: parse, resolveSharedContentPreview: resolve, messageInboxPreviewText } = sourceModule('src/features/messages/sharedContentPreview.ts', {
   '../projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
   '../citations/publicOrigin': { PUBLIC_ORIGIN },
   '../sharing/shareModel': shareModel,
@@ -40,13 +40,47 @@ test('parser trusts only same-origin, production and the exact legacy host, reta
   }
 });
 
-test('parser supports current p paths, valid public handles and plain project shares only', () => {
+test('parser supports current project routes, creator shares and valid public handles', () => {
   const target = parse(`${PUBLIC_ORIGIN}/p/creator/c/portal/project/`, local);
   assert.equal(target.profileId, 'creator'); assert.equal(target.attachmentId, null); assert.equal(target.pageNumber, null);
   const handle = parse(`${PUBLIC_ORIGIN}/creator.work/c/portal/project?via=friend`, local);
   assert.equal(handle.profileId, null); assert.equal(handle.handle, 'creator.work');
-  for (const path of ['/share/creator', '/share/creator/c/portal', '/p/creator', '/messages/c/portal/project',
+  assert.equal(parse(PUBLIC_ORIGIN + '/share/creator', local).profileId, 'creator');
+  assert.equal(parse(PUBLIC_ORIGIN + '/creator.work', local).handle, 'creator.work');
+  for (const path of ['/share/creator/c/portal', '/p/creator', '/share/creator?page=2', '/creator.work?media=video', '/messages/c/portal/project',
     '/invalid_handle/c/portal/project', '/share/creator/c/portal/project/extra']) assert.equal(parse(PUBLIC_ORIGIN + path, local), null, path);
+});
+
+test('creator shares read the same public profile as their destination and reject private or missing creators', async () => {
+  const f = fixture();
+  let profile = { id: 'creator', name: 'Current Creator', avatar: 'current.png', handle: '@creator' };
+  const fallback = [];
+  f.services.profiles.getSharedProfile = async id => { assert.equal(id, 'creator'); return profile; };
+  f.services.profiles.getProfile = async id => { fallback.push(id); return profile; };
+  for (const path of ['/share/creator', '/creator.work']) {
+    const preview = await resolve(readTarget(PUBLIC_ORIGIN + path), f.services);
+    assert.equal(preview.kind, 'creator'); assert.equal(preview.title, profile.name); assert.equal(preview.source, profile.avatar);
+  }
+  const target = readTarget(PUBLIC_ORIGIN + '/share/creator');
+  profile = { ...profile, avatar: '' };
+  assert.equal((await resolve(target, f.services)).source, null);
+  profile = { ...profile, isPrivate: true };
+  await assert.rejects(resolve(target, f.services), /unavailable/);
+  profile = { ...profile, isPrivate: false, id: 'another-creator' };
+  await assert.rejects(resolve(target, f.services), /unavailable/);
+  f.services.profiles.getSharedProfile = async () => { throw new Error('Profile inaccessible'); };
+  await assert.rejects(resolve(target, f.services), /Profile inaccessible/);
+  assert.deepEqual(fallback, []);
+});
+
+test('inbox summaries use generated share titles or content labels and preserve ordinary message text', () => {
+  const creator = PUBLIC_ORIGIN + '/share/creator', project = PUBLIC_ORIGIN + plain, page = pageUrl();
+  for (const [body, expected] of [[project, 'Shared project'], [creator, 'Shared creator'], [page, 'Shared page 6'],
+    [`Saved work\n${project}`, 'Saved work'], [`Page 6\n${page}`, 'Page 6'],
+    [`${page}\n${creator}`, 'Shared 2 items'], [`Projects from Portalink\n${creator}\n${project}`, 'Projects from Portalink'],
+    ['https://outside.test', 'https://outside.test'], ['Hello there', 'Hello there']]) {
+    assert.equal(messageInboxPreviewText(body, local), expected);
+  }
 });
 
 test('deceptive hosts, credentials, foreign URLs and encoded path separators cannot trigger content reads', () => {
@@ -120,6 +154,14 @@ test('exact PDF bitmap remains available even if the original is unavailable', a
   assert.equal(result.source, 'https://media.test/page-6.webp'); assert.equal(result.kind, 'image');
 });
 
+test('an unrendered multipart PDF page retains the authorized range reader without opening it during resolution', async () => {
+  const openPdfRanges = () => { throw new Error('Only the visible renderer should request bytes'); };
+  const f = fixture([document({ sourceUrl: null, metadata: { pageCount: 8 }, openPdfRanges })]);
+  const result = await resolve(readTarget(), f.services);
+  assert.equal(result.kind, 'document'); assert.equal(result.source, null);
+  assert.equal(result.openPdfRanges, openPdfRanges); assert.equal(result.pageNumber, 6);
+});
+
 test('image shares follow stable attachment identity and sorted image ordinal, allowing earlier page=1 links', async () => {
   const images = [{ id: 'last-image', kind: 'image', sourceUrl: 'six.webp', order: 9, metadata: { aspectRatio: 1.4 } },
     ...Array.from({ length: 5 }, (_, index) => ({ id: `image-${index}`, kind: 'image', sourceUrl: `${index}.webp`, order: index }))];
@@ -135,7 +177,8 @@ test('image shares follow stable attachment identity and sorted image ordinal, a
 
 test('project/category/profile mismatches cannot show unrelated authorized content', async () => {
   for (const mutate of [f => { f.view.project.id = 'different-project'; }, f => { f.view.project.categoryId = 'different-portal'; },
-    f => { f.view.creator.id = 'different-creator'; }]) {
+    f => { f.view.creator.id = 'different-creator'; }, f => { f.view.creator.isPrivate = true; },
+    f => { f.view.project.isPubliclyVisible = false; }]) {
     const f = fixture(); mutate(f); await assert.rejects(resolve(readTarget(), f.services), /unavailable/);
   }
 });

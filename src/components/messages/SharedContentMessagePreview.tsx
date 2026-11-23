@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useServices } from '../../contexts/ServicesContext';
+import { CreatorAvatar } from '../profile/CreatorAvatar';
 import { coverThumbnailSources } from '../../features/media/coverThumbnailSources';
 import { resolveSharedContentPreview } from '../../features/messages/sharedContentPreview';
 import type { SharedContentPreview, SharedContentTarget } from '../../features/messages/sharedContentPreview';
@@ -9,7 +10,7 @@ import './shared-content-message-preview.css';
 
 type PdfPreview = typeof import('../media/PdfPage').PdfPage;
 
-/** Only current-recipient project reads can supply artwork for a stored share. */
+/** Resolve the shared item with the current recipient's access. */
 export function SharedContentMessagePreview({ target, standalonePage = false }: { target: SharedContentTarget; standalonePage?: boolean }) {
   const auth = useAuth();
   const services = useServices();
@@ -47,7 +48,7 @@ export function SharedContentMessagePreview({ target, standalonePage = false }: 
       // Catch a disconnected/stale chunk here too, without crashing the thread
       // or caching a rejected React.lazy type that Retry could never recover.
       const PdfPage = preview.kind === 'document' ? (await import('../media/PdfPage')).PdfPage : undefined;
-      if (!cancelled && currentScope.current === scope) setSnapshot({ scope, preview, PdfPage, failed: !preview.source && !preview.thumbnail });
+      if (!cancelled && currentScope.current === scope) setSnapshot({ scope, preview, PdfPage, failed: false });
     }).catch(() => {
       if (!cancelled && currentScope.current === scope) setSnapshot({ scope, preview: null, failed: true });
     });
@@ -59,9 +60,10 @@ export function SharedContentMessagePreview({ target, standalonePage = false }: 
   const PdfPage = current?.PdfPage;
   const thumbnail = preview?.kind === 'cover' ? coverThumbnailSources(preview.thumbnail) : null;
   const source = thumbnail?.src ?? preview?.source;
-  const label = preview ? [preview.title, preview.pageLabel].filter(Boolean).join(' · ') : target.pageNumber ? `Shared page ${target.pageNumber}` : 'Shared project';
+  const label = preview ? [preview.title, preview.pageLabel].filter(Boolean).join(' · ') : target.projectId === null ? 'Shared creator' : target.pageNumber ? `Shared page ${target.pageNumber}` : 'Shared project';
   const failed = current?.failed ?? false;
-  const pageArtwork = standalonePage && preview?.kind !== 'cover' && Boolean(source) && !failed;
+  const hasArtwork = Boolean(source || preview?.openPdfRanges);
+  const pageArtwork = standalonePage && hasArtwork && !failed;
   const pageImage = pageArtwork && preview?.kind === 'image';
   const fail = () => {
     if (currentScope.current === scope) setSnapshot(previous => previous?.scope === scope ? { ...previous, failed: true } : previous);
@@ -69,13 +71,19 @@ export function SharedContentMessagePreview({ target, standalonePage = false }: 
 
   return <div ref={hostRef} className="shared-content-message-preview" data-shared-content-preview="" data-shared-page-only={pageArtwork ? '' : undefined}>
     <Link ref={linkRef} data-preview-open="" to={target.to} aria-label={`Open ${label}`} className="shared-content-message-preview-link">
-      <div className="shared-content-message-preview-frame" data-shared-page-image={pageImage ? '' : undefined}
-        style={pageImage && preview.aspectRatio ? { '--shared-page-ratio': preview.aspectRatio } as React.CSSProperties : undefined}>
-        {failed ? <span>Preview unavailable</span> : !preview ? <span role="status">Loading preview…</span> : preview.kind === 'document' && source && PdfPage ?
-          <PdfPage key={`${attempt}:${source}`} source={source} pageNumber={preview.pageNumber} strictPageNumber usePageAspectRatio={pageArtwork} label={label} onRenderFailure={fail} />
-          : source ? <img key={`${attempt}:${source}`} src={source} srcSet={thumbnail?.srcSet} sizes="280px" alt={label} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={fail} /> : <span>Preview unavailable</span>}
-      </div>
-      {!pageArtwork && <span className="shared-content-message-preview-caption">{label}</span>}
+      {preview?.kind === 'creator' ? <div className="shared-content-message-preview-creator">
+        <CreatorAvatar name={preview.title} avatar={preview.source} />
+        <div><strong>{preview.title}</strong>{preview.pageLabel && <span>{preview.pageLabel}</span>}</div>
+      </div> : <>
+        {(failed || !preview || hasArtwork) && <div className="shared-content-message-preview-frame" data-shared-page-image={pageImage ? '' : undefined}
+          style={pageImage && preview.aspectRatio ? { '--shared-page-ratio': preview.aspectRatio } as React.CSSProperties : undefined}>
+          {failed ? <span>Preview unavailable</span> : !preview ? <span role="status">Loading preview…</span> : preview.kind === 'document' && PdfPage ?
+            <PdfPage key={`${attempt}:${target.to}`} source={preview.source} openPdfRanges={preview.openPdfRanges}
+              pageNumber={preview.pageNumber} strictPageNumber usePageAspectRatio={pageArtwork} label={label} onRenderFailure={fail} />
+            : source && <img key={`${attempt}:${source}`} src={source} srcSet={thumbnail?.srcSet} sizes="280px" alt={label} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={fail} />}
+        </div>}
+        {!pageArtwork && <span className="shared-content-message-preview-caption">{label}</span>}
+      </>}
     </Link>
     {failed ? <button type="button" className="shared-content-message-preview-retry" onClick={() => { linkRef.current?.focus({ preventScroll: true }); setSnapshot(null); setAttempt(value => value + 1); }}>Retry preview</button> : null}
   </div>;
