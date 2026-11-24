@@ -20,7 +20,7 @@ import { MobilePageContext } from '../../features/media-interactions/MobilePageC
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import type { PagePosition } from './MobileProjectPageCounter';
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, ChevronLeftIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
+import { UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BoxIcon, ChevronLeftIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { PortalRingIcon } from '../PortalRingIcon';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
@@ -69,39 +69,6 @@ const FILE_KIND_LABELS: Record<MediaKind, string> = {
   unknown: 'File',
 };
 const GENERATED_FILE_NAME = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}(?:\.[a-z0-9]+)?$/i;
-
-const SAMPLE_VERIFICATION_SIGNALS = [
-  {
-    key: 'original',
-    label: 'Original signals',
-    value: 72,
-    color: '#0a84ff'
-  },
-  {
-    key: 'cited',
-    label: 'Cited material',
-    value: 18,
-    color: '#bf5af2'
-  },
-  {
-    key: 'ai-like',
-    label: 'AI-like signals',
-    value: 7,
-    color: '#ff9f0a'
-  },
-  {
-    key: 'uncertain',
-    label: 'Uncertain',
-    value: 3,
-    color: '#8e8e93'
-  }
-] as const;
-
-const SAMPLE_CHECKER_EVIDENCE = [
-  { provider: 'LumenProof AI', result: 'Low AI-pattern risk' },
-  { provider: 'SourceTrace', result: 'References matched' },
-  { provider: 'PatternLens', result: '3% uncertain' }
-] as const;
 
 function formatPublishedDate(value?: string): string | null {
   if (!value) return null;
@@ -194,12 +161,11 @@ export function ProjectMediaViewer({
   const [focusedReadingPart, setFocusedReadingPart] = useState<string | null>(null);
   const focusedReadingPartRef = useRef<string | null>(null);
   const [areControlsVisible, setAreControlsVisible] = useState(true);
-  const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'comments' | 'verification'>('project');
   const controlsTimerRef = useRef<number | null>(null);
   const viewerRootRef = useRef<HTMLDivElement>(null);
   const isMobileViewer = Boolean(mobileNavigation);
   const screenActive = useMobileScreenActive();
-  const [mobilePopup, setMobilePopup] = useState<'description' | 'comments' | 'verification' | 'engagement' | null>(null);
+  const [mobilePopup, setMobilePopup] = useState<'description' | 'comments' | 'engagement' | null>(null);
   const [mobileEngagementOpen, setMobileEngagementOpen] = useState(false);
   const mobileEngagementRef = useRef<HTMLElement>(null);
   const mobileEngagementToggleRef = useRef<HTMLButtonElement>(null);
@@ -211,16 +177,12 @@ export function ProjectMediaViewer({
   const popupAnchorRef = useRef<HTMLDivElement>(null);
   const descriptionTriggerRef = useRef<HTMLButtonElement>(null);
   const commentsTriggerRef = useRef<HTMLButtonElement>(null);
-  const verificationTriggerRef = useRef<HTMLButtonElement>(null);
   const feedbackTriggerRef = useRef<HTMLButtonElement>(null);
   const closeMobilePopup = useCallback(() => setMobilePopup(null), []);
   useEffect(() => {
     setMobilePopup(null);
     setMobileEngagementOpen(false);
   }, [projectId, isMobileViewer, mobileNavigation?.isIndexOpen, isImmersive]);
-  useEffect(() => {
-    setSharedInfoPanel('project');
-  }, [projectId]);
   useEffect(() => {
     if (deepLinkedAttachmentId && attachments.some((attachment) => attachment.id === deepLinkedAttachmentId)) {
       setActiveId(deepLinkedAttachmentId);
@@ -650,71 +612,6 @@ export function ProjectMediaViewer({
             </div>
             {sharedProjectMetadata}
           </div>;
-  const sharedVerification = <section id="shared-project-detail-panel" data-ai-verification-visualization="" aria-label="AI verification services" className="side-panel-content-inset flex flex-col gap-4 py-2">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">AI verification</h3>
-                  <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">Evidence signals and creator disclosures.</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-[var(--surface-sunken)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Sample</span>
-              </div>
-
-              <div>
-                <div className="mb-2.5 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] text-[var(--text-tertiary)]">Verification strength</p>
-                    <p className="mt-0.5 text-[13px] font-semibold text-[var(--text-primary)]">High agreement</p>
-                  </div>
-                  <p className="text-right text-[10px] leading-snug text-[var(--text-tertiary)]">3 checks<br />completed</p>
-                </div>
-                <div role="img" aria-label={SAMPLE_VERIFICATION_SIGNALS.map((signal) => `${signal.label} ${signal.value} percent`).join(', ')} className="flex h-5 w-full gap-[2px] overflow-hidden rounded-[7px] bg-[var(--surface-sunken)]">
-                  {SAMPLE_VERIFICATION_SIGNALS.map((signal) => <span key={signal.key} aria-hidden="true" style={{ width: `${signal.value}%`, backgroundColor: signal.color }} />)}
-                </div>
-                <dl aria-label="Verification signal legend" className="mt-3 grid gap-2">
-                  {SAMPLE_VERIFICATION_SIGNALS.map((signal) => <div key={signal.key} className="grid grid-cols-[8px_minmax(0,1fr)_auto] items-center gap-2 text-[10px] leading-none">
-                      <span aria-hidden="true" style={{ backgroundColor: signal.color }} className="h-2 w-2 rounded-full" />
-                      <dt className="min-w-0 text-[var(--text-secondary)]">{signal.label}</dt>
-                      <dd className="font-semibold tabular-nums text-[var(--text-primary)]">{signal.value}%</dd>
-                    </div>)}
-                </dl>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-[10px] bg-[var(--surface-sunken)] px-3 py-2.5">
-                  <p className="text-[9px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Coverage</p>
-                  <p className="mt-1 text-[11px] font-semibold text-[var(--text-primary)]">{pageCount !== null ? `${pageCount} of ${pageCount} pages` : `${attachments.length} files`}</p>
-                </div>
-                <div className="rounded-[10px] bg-[var(--surface-sunken)] px-3 py-2.5">
-                  <p className="text-[9px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Agreement</p>
-                  <p className="mt-1 text-[11px] font-semibold text-[var(--text-primary)]">3 of 3 checks</p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-[11px] font-semibold text-[var(--text-primary)]">Checker evidence</h4>
-                <div className="mt-2 divide-y divide-[var(--hairline)] border-y border-[var(--hairline)]">
-                  {SAMPLE_CHECKER_EVIDENCE.map((checker) => <div key={checker.provider} className="flex items-center gap-2.5 py-2.5">
-                      <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
-                        <InterfaceIcon icon={BadgeCheckIcon} size="sm" weight="medium" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[10px] font-semibold text-[var(--text-primary)]">{checker.provider}</span>
-                        <span className="mt-0.5 block text-[9px] text-[var(--text-tertiary)]">{checker.result}</span>
-                      </span>
-                    </div>)}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-[11px] font-semibold text-[var(--text-primary)]">Creator-declared AI tools</h4>
-                <div className="mt-2 rounded-[10px] bg-[var(--surface-sunken)] px-3 py-2.5">
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">No tools declared</p>
-                  <p className="mt-1 text-[9px] leading-relaxed text-[var(--text-tertiary)]">Tool names appear here only when supplied by the creator. Checkers do not guess the product used.</p>
-                </div>
-              </div>
-
-              <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
-            </section>;
   const rendererProps = (attachment: ProjectAttachment): React.ComponentProps<typeof AttachmentRenderer> => ({
     projectId, projectTitle, attachment, artwork, onClose, onDocumentPageCountResolved,
     processing: {
@@ -846,9 +743,6 @@ export function ProjectMediaViewer({
           {showEngagement && <button ref={commentsTriggerRef} type="button" aria-label="Show comments" aria-haspopup="dialog" aria-expanded={mobilePopup === 'comments'} aria-controls="mobile-project-popup" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} className="mobile-project-popup-trigger">
             <InterfaceIcon icon={MessageCircleIcon} size="lg" weight="regular" keepColor stroke="var(--project-control-foreground, currentColor)" />
           </button>}
-          {readOnlyShare && <button ref={verificationTriggerRef} type="button" aria-label="Show AI verification services" aria-haspopup="dialog" aria-expanded={mobilePopup === 'verification'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('verification')} className="mobile-project-popup-trigger text-[var(--text-secondary)]">
-            <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
-          </button>}
         </div>
         {showEngagement && <div data-project-rail-actions="" className="flex justify-center">
           <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant="viewer" isShared={isProjectShared} onShare={() => void shareProject()} />
@@ -868,7 +762,7 @@ export function ProjectMediaViewer({
           </button>
           <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>
         </nav>}
-      </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ ...sharedDesktopRailStyle, width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-opacity duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
+      </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ ...sharedDesktopRailStyle, width: `${responseRailWidth.width}px` }} aria-label={`Project details for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-opacity duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
             {singlePanel === 'response' && <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
               className="side-panel-header-control side-panel-header-icon" aria-label="Back" title="Back" onClick={onClose}>
@@ -877,22 +771,11 @@ export function ProjectMediaViewer({
             <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
             </button>
-            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('project')} aria-label="Show project information" aria-pressed={sharedInfoPanel === 'project'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'project' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
-                <InterfaceIcon icon={InfoIcon} size="lg" />
-              </button>}
-            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('verification')} aria-label="Show AI verification services" aria-pressed={sharedInfoPanel === 'verification'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'verification' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
-                <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
-              </button>}
+            {isRailOpen && <span aria-hidden="true" className="side-panel-header-icon flex shrink-0 items-center justify-center text-[var(--text-primary)]">
+              <InterfaceIcon icon={InfoIcon} size="lg" />
+            </span>}
           </div>
-          {showEngagement && <div data-project-rail-actions="" className="flex justify-center p-2">
-            <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant={isRailOpen ? 'inline' : 'rail'} isShared={isProjectShared} onShare={() => void shareProject()} />
-          </div>}
-          {showEngagement && isRailOpen && <button type="button" onClick={() => setSharedInfoPanel(sharedInfoPanel === 'comments' ? 'project' : 'comments')} aria-pressed={sharedInfoPanel === 'comments'} aria-controls="shared-project-detail-panel" className="side-panel-content-inset min-h-11 text-left text-[13px] font-semibold text-[var(--text-primary)]">
-            {sharedInfoPanel === 'comments' ? 'Show project information' : 'Show comments'}
-          </button>}
-          {showEngagement && isRailOpen && sharedInfoPanel === 'comments' && <div id="shared-project-detail-panel" className="side-panel-content-inset py-2"><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={false} /></div>}
-          {isRailOpen && sharedInfoPanel === 'project' && sharedProjectInformation}
-          {isRailOpen && sharedInfoPanel === 'verification' && sharedVerification}
+          {isRailOpen && sharedProjectInformation}
         </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-opacity duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
@@ -947,16 +830,13 @@ export function ProjectMediaViewer({
         {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
       {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <FollowContentInfoPopup key={projectId} projectId={projectId} title={projectTitle} description={projectSummary} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} engagement={engagement} showEngagement={showEngagement} onRequireAccount={showEngagement ? requireSharedAccount : undefined} onComments={showEngagement ? () => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); } : undefined} optionsContent={ownerReader && (descriptionEditor || onDeleteProject || portalProject) ? <ProjectPopupOwnerActions onEditTitle={descriptionEditor ? () => descriptionEditor.open(projectId) : undefined} portalProject={portalProject} onDelete={onDeleteProject} onClose={closeMobilePopup} /> : undefined} onClose={closeMobilePopup} />}
-      {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup} mobileMotion={mobilePopup === 'comments'}>{dismiss => <>
+      {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : 'Engagement update'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : feedbackTriggerRef} onClose={closeMobilePopup} mobileMotion={mobilePopup === 'comments'}>{dismiss => <>
         <header data-comments-header="" className="flex items-center justify-between gap-3">
-          <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
+          <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : 'Engagement update'}</h3>
           <button type="button" data-comments-close="" data-ui-shape="icon" aria-label="Close project popup" onClick={dismiss}><InterfaceIcon icon={XIcon} size="md" weight="medium" /></button>
         </header>
         <div data-mobile-project-popup-content="" className="min-h-0 overflow-y-auto overscroll-contain">
-          {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>
-            : mobilePopup === 'verification' ? sharedVerification
-            : readOnlyShare ? sharedProjectInformation
-            : <FormattedText style={{ fontFamily: contentTypefaceStack }} className="project-description-text text-[16px] leading-relaxed text-[var(--text-primary)]" text={projectSummary || 'This project has no description.'} />}
+          {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>}
         </div>
       </>}</MediaCommentsPopover>}
     </div></MobilePageContext.Provider></ProjectSharePathContext.Provider>;

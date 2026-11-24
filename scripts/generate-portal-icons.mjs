@@ -13,6 +13,8 @@ const folder = new URL('dist/esm/icons/', pkg);
 const names = [], symbols = [];
 const escape = value => String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 for (const file of (await readdir(folder)).filter(file => file.endsWith('.js')).sort()) {
+  // The retired verification glyph is excluded from both public icon pickers.
+  if (file === 'book-user.js') continue;
   const source = await readFile(new URL(file, folder), 'utf8');
   // Alias modules re-export another icon and should not duplicate the catalog.
   if (!source.includes('const __iconNode =')) continue;
