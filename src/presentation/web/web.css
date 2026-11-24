@@ -387,6 +387,10 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+#root .codex-shell[data-presentation='web'] [data-immersive='true'] [data-desktop-project-page-count] {
+  inset-inline-start: auto;
+  inset-inline-end: max(12px, env(safe-area-inset-right, 0px));
+}
 #root .codex-shell[data-presentation='web'] [data-project-work-column]:has(> [data-desktop-project-page-count]) [data-focused-page-count] {
   display: none;
 }
