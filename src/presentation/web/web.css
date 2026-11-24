@@ -108,6 +108,31 @@
   display: block;
 }
 
+/* A route fallback can be the screen's only content, including during access checks. */
+#root [data-presentation='web'] [data-screen-scroll]:is(
+  :has(> :is([data-loading-layout], .motion-reader-skeleton)),
+  :has(> [data-route-state] > :is([data-loading-layout], .motion-reader-skeleton):only-child)
+) {
+  display: grid;
+  place-items: center;
+}
+
+/* Home and city feeds can show a weekly card or other content alongside a load. */
+#root [data-presentation='web'] [data-feed-scroll-content]:has(> section:only-child > .sr-only + [data-loading-layout]:last-child) {
+  display: grid;
+  align-items: center;
+  height: 100%;
+  padding-block: 0;
+}
+
+/* Fill the scrollport's content box so fixed header space stays available. */
+#root [data-presentation='web'] :is(.public-portal-search-scroll, .studio-workbench-scroll, [data-studio-scroll], [data-fixed-header-content]) > [data-loading-layout]:only-child,
+#root [data-presentation='web'] .account-search-results > [data-loading-layout]:has(+ .account-search-list:empty) {
+  height: 100%;
+  min-height: 0;
+  margin-inline: auto;
+}
+
 /* Keep each page's existing controls above the content in its own scrollport.
    Nested search, reader and message panes already have stationary headers. */
 #root .codex-shell[data-presentation='web'] [data-profile-page] > .profile-header-region {
