@@ -29,8 +29,8 @@ const ProfileBioSheet = lazy(() => import('../features/profile/ProfileBioSheet')
 const ProfileCollectionGrid = lazy(() => import('../components/profile/ProfileCollectionGrid').then(module => ({ default: module.ProfileCollectionGrid })));
 
 /** Read-only composition of the same identity, artwork, density and preview UI. */
-export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboration, onMessage, onBack, active = true, onCaptureOpener, appearanceControls, onOpenPortals, timelineReturn, onLeaveTimeline }: {
-  profile: Profile; categoryId: string | null; onOpen: (categoryId: string, projectId: string, timelineSource?: TimelineProjectSource) => void; onCollaboration: () => void; onMessage: () => void; onBack?: () => void;
+export function VisitorProfileGrid({ profile, categoryId, onOpen, onMessage, onBack, active = true, onCaptureOpener, appearanceControls, onOpenPortals, timelineReturn, onLeaveTimeline }: {
+  profile: Profile; categoryId: string | null; onOpen: (categoryId: string, projectId: string, timelineSource?: TimelineProjectSource) => void; onMessage: () => void; onBack?: () => void;
   timelineReturn?: TimelineReturn;
   onLeaveTimeline?: () => void;
   active?: boolean; onCaptureOpener?: React.MouseEventHandler<HTMLDivElement>;
@@ -109,7 +109,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       </header>
       {!isJourney && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
-          <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} isSharedView onOpenBio={() => setBioOpen(true)} onCollaboration={onCollaboration}
+          <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} isSharedView onOpenBio={() => setBioOpen(true)}
             onMessage={onMessage} profileAudio={{ profileId: profile.id, accountId: auth.user?.id ?? null, profileAvatar: profile.avatar, editable: false, active: active && !auth.isInitializing && !categoryId && !portalsView }} /></div>
         </div>
       </header>}

@@ -108,7 +108,7 @@ test('installed Home leaves the document intro in charge while authentication re
   const h = fixture({ installed: true, installedHomeIntro: true });
   h.render();
   assert.equal(h.splash, null, 'The legacy video must not replace the document intro');
-  assert.equal(h.waiting.props.children.props.label, 'Opening Portalink…');
+  assert.equal(h.waiting.props.children.props['aria-label'], 'Opening Portalink…');
   assert.ok(h.trace.some(([action]) => action === 'remove-preboot'));
   h.auth.isInitializing = false;
   h.rerender();
@@ -294,8 +294,8 @@ test('bootstrap passes only MOBILE presentation to install capture, including la
 test('a skipped MOBILE intro stays complete when session revalidation temporarily returns to initializing', () => {
   const h = fixture({ initializing: false, savedPath: null }); h.render(); h.settle(); assert.equal(h.splash, null);
   h.auth.isInitializing = true; h.rerender(); h.settle();
-  assert.equal(h.app, null); assert.equal(h.splash, null); assert.equal(h.waiting.props.children.type, 'loading');
-  assert.equal(h.waiting.props.children.props.label, 'Opening Portalink…'); h.dispose();
+  assert.equal(h.app, null); assert.equal(h.splash, null); assert.equal(h.waiting.props.children.props.role, 'status');
+  assert.equal(h.waiting.props.children.props['aria-label'], 'Opening Portalink…'); h.dispose();
 });
 
 test('MOBILE and WEB root visitors receive account-only company entry after any opening clip', () => {

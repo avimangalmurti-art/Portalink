@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, LayoutGridIcon, ListIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
+import { CatalogueRowName } from './PreviewCreatorName';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
@@ -99,7 +100,7 @@ export function SharedProfileSidebar({
                     <InterfaceIcon icon={Icon} weight="medium" />
                   </span>
                   {!isCollapsed ? <>
-                    <span className="cdx-dense-label min-w-0 flex-1 truncate py-0.5" title={category.label}>{category.label}</span>
+                    <CatalogueRowName name={category.label} className="cdx-dense-label min-w-0 flex-1 truncate py-0.5" />
                     <span className="flex w-6 shrink-0 items-center justify-center" aria-hidden="true" />
                   </> : null}
                 </button>

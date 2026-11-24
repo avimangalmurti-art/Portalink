@@ -1,6 +1,98 @@
 /* WEB frame: preserve the existing desktop geometry and shared appearance tokens.
    Keep every selector scoped; :where adds no specificity to the existing rules. */
 
+/* A neutral frame surrounds the light workspace and its white content cards. */
+#root .codex-shell.theme-light[data-presentation='web'] {
+  --codex-shell-bg: #f3f3f3;
+  --codex-sidebar-bg: var(--codex-shell-bg);
+  --codex-workspace-bg: #fafafa;
+}
+
+/* Codex charcoal surfaces for WEB dark appearance; keep saved navigation colours. */
+#root .codex-shell.theme-dark[data-presentation='web'] {
+  --codex-shell-bg: #181818;
+  --codex-sidebar-bg: #181818;
+  --codex-workspace-bg: #181818;
+  --codex-panel-bg: #1e1e1e;
+  --surface-raised: #1e1e1e;
+  --surface-overlay: #1e1e1e;
+  --surface-inset: #262626;
+}
+
+/* Give sidebar hover and selection the same quick colour fade. */
+#root .codex-shell[data-presentation='web'] .sidebar-surface {
+  --navigation-control-transition:
+    background-color var(--m-fast) var(--m-enter),
+    color var(--m-fast) var(--m-enter);
+}
+
+/* Portal search uses the viewer's accent for the center of its ring. */
+#root .codex-shell[data-presentation='web'] .sidebar-surface a.nav-button .portal-ring-dot {
+  fill: var(--accent-primary) !important;
+}
+
+/* The tools sit inside the saved sidebar width. The compact sidebar keeps
+   its existing footer, and only the portal list scrolls beside the tools. */
+#root .codex-shell[data-presentation='web'] .sidebar-surface:has(> .sidebar-tools-rail) {
+  --sidebar-tools-width: 48px;
+  padding-inline-start: calc(var(--sidebar-tools-width) + var(--side-panel-content-inset));
+}
+#root .codex-shell[data-presentation='web'] .sidebar-tools-rail {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cdx-dense-gap);
+  width: var(--sidebar-tools-width);
+  /* Center the first tool on the adjacent header row. */
+  padding-block-start: calc(
+    var(--codex-workspace-inset) + var(--codex-workspace-border-width)
+    + (var(--side-panel-header-height) - var(--sidebar-primary-control)) / 2
+  );
+  padding-block-end: 8px;
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--navigation-border);
+  background: color-mix(in srgb, var(--navigation-surface) 96%, var(--navigation-foreground));
+  scrollbar-width: thin;
+}
+#root .codex-shell[data-presentation='web'] .sidebar-tools-rail > :is(a, button) {
+  flex: none;
+  max-inline-size: var(--sidebar-primary-control);
+}
+#root .codex-shell[data-presentation='web'] .sidebar-tools-rail > [data-system-color] {
+  margin-block-start: auto;
+}
+/* At the narrowest saved width, keep the four destinations inside their
+   grid cells. The toolbar's existing target height still applies. */
+#root .codex-shell[data-presentation='web'] .sidebar-surface:has(> .sidebar-tools-rail) .sidebar-network-grid .sidebar-primary-control {
+  min-width: min(100%, var(--ui-navigation-target)) !important;
+}
+
+/* Paint hover on the whole disclosure so its heading and open body stay together. */
+@media (hover: hover) and (pointer: fine) {
+  #root .codex-shell[data-presentation='web'] :is([data-settings-dropdown], [data-appearance-dropdown]) {
+    transition: background-color var(--m-fast) var(--m-enter);
+  }
+  #root .codex-shell[data-presentation='web'] :is([data-settings-dropdown], [data-appearance-dropdown]):hover {
+    background-color: var(--settings-section-hover, var(--control-hover-surface));
+  }
+  #root .codex-shell[data-presentation='web'] :is([data-settings-dropdown], [data-appearance-dropdown]):has(> h2 > button:active, > button[aria-expanded]:active) {
+    background-color: var(--control-pressed-surface);
+  }
+  #root .codex-shell[data-presentation='web'] :is(.settings-section-trigger, [data-appearance-dropdown] > button) {
+    --control-hover-surface: transparent;
+    --control-pressed-surface: transparent;
+    --control-hover-text: var(--text-primary);
+  }
+}
+@media (prefers-contrast: no-preference) {
+  #root .codex-shell[data-presentation='web']:not(.high-contrast) .settings-page {
+    --settings-section-hover: color-mix(in srgb, var(--nav-button-background-hover) 50%, var(--surface-raised));
+  }
+}
+
 /* Desktop loading uses the same indicator as opening a project. */
 #root [data-presentation='web'] :is([data-loading-layout], .motion-reader-skeleton) {
   display: grid;
@@ -16,6 +108,31 @@
   display: block;
 }
 
+/* A route fallback can be the screen's only content, including during access checks. */
+#root [data-presentation='web'] [data-screen-scroll]:is(
+  :has(> :is([data-loading-layout], .motion-reader-skeleton)),
+  :has(> [data-route-state] > :is([data-loading-layout], .motion-reader-skeleton):only-child)
+) {
+  display: grid;
+  place-items: center;
+}
+
+/* Home and city feeds can show a weekly card or other content alongside a load. */
+#root [data-presentation='web'] [data-feed-scroll-content]:has(> section:only-child > .sr-only + [data-loading-layout]:last-child) {
+  display: grid;
+  align-items: center;
+  height: 100%;
+  padding-block: 0;
+}
+
+/* Fill the scrollport's content box so fixed header space stays available. */
+#root [data-presentation='web'] :is(.public-portal-search-scroll, .studio-workbench-scroll, [data-studio-scroll], [data-fixed-header-content]) > [data-loading-layout]:only-child,
+#root [data-presentation='web'] .account-search-results > [data-loading-layout]:has(+ .account-search-list:empty) {
+  height: 100%;
+  min-height: 0;
+  margin-inline: auto;
+}
+
 /* Keep each page's existing controls above the content in its own scrollport.
    Nested search, reader and message panes already have stationary headers. */
 #root .codex-shell[data-presentation='web'] [data-profile-page] > .profile-header-region {
@@ -26,11 +143,24 @@
   flex-shrink: 0;
   isolation: isolate;
 }
-#root .codex-shell[data-presentation='web'] :is(.settings-page > .settings-page-header, [data-feed-scroll-content] [data-web-gallery-controls]) {
+/* The city gallery's layout slider scrolls with the artwork in its own row. */
+#root .codex-shell[data-presentation='web'] :is(
+  .settings-page > .settings-page-header,
+  [data-feed-scroll-content]:not(:where([data-city-feed] *)) [data-web-gallery-controls]
+) {
   position: sticky;
   top: 0;
   z-index: 30;
   isolation: isolate;
+}
+
+/* Keep the recipient search below the Messages toolbar while the directory scrolls. */
+#root .codex-shell[data-presentation='web'] [data-messages-page]:has([data-recipient-appearance='default']) {
+  display: grid;
+  grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
+}
+#root .codex-shell[data-presentation='web'] [data-messages-body] [data-recipient-appearance='default'] section:first-of-type > h3 {
+  padding-top: 0;
 }
 
 /* PDF loaders fill the reserved page instead of becoming a strip above it. */
@@ -97,16 +227,6 @@
   height: 1px;
   background: linear-gradient(var(--hairline), var(--hairline)), var(--surface-canvas);
   pointer-events: none;
-}
-
-/* Activated Studio tabs use the shared control palette in either appearance. */
-#root .codex-shell[data-presentation='web'] .studio-citation-pills > button {
-  background: var(--control-rest-surface, var(--surface-sunken));
-  color: var(--control-text, var(--text-primary));
-}
-#root .codex-shell[data-presentation='web'] .studio-citation-pills > button[aria-pressed='true'] {
-  background: var(--control-selected-surface, var(--surface-selected));
-  color: var(--control-selected-text, var(--text-primary));
 }
 
 /* The sidebar's destination buttons stay below its company header. Only the
@@ -292,6 +412,10 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+#root .codex-shell[data-presentation='web'] [data-immersive='true'] [data-desktop-project-page-count] {
+  inset-inline-start: auto;
+  inset-inline-end: max(12px, env(safe-area-inset-right, 0px));
+}
 #root .codex-shell[data-presentation='web'] [data-project-work-column]:has(> [data-desktop-project-page-count]) [data-focused-page-count] {
   display: none;
 }
@@ -369,4 +493,15 @@
 #root .codex-shell[data-presentation='web'] [data-desktop-page-packing][data-page-packing-ready]
   [data-packed-page='cell']:has(> [data-project-page-number]) {
   display: block;
+}
+
+[data-presentation='web'] [data-catalogue-row-name] > [data-name-animating] {
+  mask-image: linear-gradient(to right, transparent, black var(--portal-title-fade),
+    black calc(100% - var(--portal-title-fade)), transparent);
+}
+
+[data-presentation='web'] [data-catalogue-row-name] > [data-preview-creator-name]:not([data-name-animating]) > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

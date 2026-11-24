@@ -66,18 +66,15 @@ export function MediaInteractionBar({
   const commentsId = useId();
   const closeComments = useCallback(() => setCommentsOpen(false), []);
   const counts = [...ACTIONS.map(({ kind }) => displayCount(activity.record.counts[kind])), displayCount(activity.record.comments.length)];
-  const counter = !isMobileFocused && placement === 'focused' && pageCount && pageCount > 1
-    ? `${target.pageIndex + 1} / ${pageCount}` : null;
-  const counterWidth = counter ? Math.min(Math.max(48, counter.length * 7 + 20), Math.max(0, (hostWidth - 24) * 0.4)) : 0;
   const pageInset = placement === 'focused' ? 8 : 4;
   const layout = isMobileFocused ? mobileFocusedMediaToolbarLayout(hostWidth)
-    : mediaToolbarLayout(pageWidth, hostWidth, pageInset, counts, counter ? counterWidth + 8 : 0);
-  const actionColumns = isMobileFocused || !isOwner ? 4 : 3;
-  const minimumWidth = isMobileFocused ? 196 : actionColumns * 44;
-  // A dense desktop overview can be narrower than its buttons and their gaps.
+    : mediaToolbarLayout(pageWidth, hostWidth, pageInset, counts);
+  // The desktop row includes every toggle, followed by Comments, Cite and Share.
+  const actionColumns = isMobile && placement === 'page' && isOwner ? 3 : ACTIONS.length + 3;
   const paddingAndGaps = (12 + (actionColumns - 1) * 4) * layout.unit;
-  const compactDesktopPage = !isMobile && placement === 'page' &&
-    Math.min(pageWidth, hostWidth) - pageInset * 2 < minimumWidth + paddingAndGaps;
+  const availableWidth = Math.max(0, Math.min(pageWidth, hostWidth) - pageInset * 2);
+  const desktopMinimum = Math.min(availableWidth, actionColumns * 44 + paddingAndGaps);
+  const minimumWidth = isMobile ? (isMobileFocused ? 196 : actionColumns * 44) : desktopMinimum;
 
   useEffect(() => {
     setCommentsOpen(false);
@@ -180,8 +177,8 @@ export function MediaInteractionBar({
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
-      gridTemplateColumns: `repeat(${actionColumns}, minmax(${compactDesktopPage ? '0px' : '44px'}, 1fr))`,
-      minWidth: compactDesktopPage ? 0 : minimumWidth
+      gridTemplateColumns: `repeat(${actionColumns}, minmax(${isMobile ? '44px' : '0px'}, 1fr))`,
+      minWidth: minimumWidth
     } as React.CSSProperties}>
       {ACTIONS.map(({ kind, label, icon: Icon }, index) => {
         const engaged = activity.record.engaged[kind];
@@ -235,7 +232,6 @@ export function MediaInteractionBar({
     </div>
 
     {citationStatus&&<span role="status">{citationStatus}</span>}
-    {counter ? <span data-media-page-count="" aria-label={`Page ${target.pageIndex + 1} of ${pageCount}`} className="premium-viewer-page-counter premium-viewer-page-counter--inline pointer-events-none shrink-0 rounded-full px-2 py-1 text-center text-[12px] font-medium tabular-nums text-white" style={{ width: counterWidth }}>{counter}</span> : null}
     </div>
 
     {activity.failure && activity.isResolvingEngagement && !commentsOpen ? <button

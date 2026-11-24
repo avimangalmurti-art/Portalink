@@ -1,0 +1,167 @@
+/* Research collections share Studio's desktop header, scroller and row system.
+   These rules add only their own grouping and citation form presentation. */
+#root .codex-shell[data-presentation='web'] .references-web-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#root .codex-shell[data-presentation='web'] .references-web-toolbar > .studio-search {
+  flex: 1;
+  min-width: 0;
+}
+#root .codex-shell[data-presentation='web'] .references-web-toolbar > .references-tab-heading {
+  flex: none;
+  margin: 0;
+}
+#root .codex-shell[data-presentation='web'] .references-tab-heading > button,
+#root .codex-shell[data-presentation='web'] .references-tab > .studio-content > button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--control-border, var(--hairline));
+  border-radius: 8px;
+  background: var(--control-rest-surface);
+  color: var(--control-text);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+#root .codex-shell[data-presentation='web'] .references-project-group {
+  margin: 0 0 24px;
+}
+#root .codex-shell[data-presentation='web'] .references-project-group > h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+#root .codex-shell[data-presentation='web'] :is(
+  .references-project-group > ul,
+  .studio-citations-list > .studio-content > section > ul
+) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+#root .codex-shell[data-presentation='web'] :is(
+  .references-project-group > ul,
+  .studio-citations-list > .studio-content > section > ul
+) > li:last-child {
+  border-bottom: 0;
+}
+#root .codex-shell[data-presentation='web'] :is(
+  .references-tab, .studio-citations-list
+) > .studio-content > p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+/* ModalPortal keeps these forms under the themed application root. Limit the
+   finish to an active Studio screen; shared project-reader dialogs stay scoped
+   to their own presentation. The desktop frame is defined in studio.css. */
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+  .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+) {
+  gap: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+  .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+) > header {
+  gap: 16px;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+  .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+) > header > h2 {
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+  .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+) :is(label, .cite-format) {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+  .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+) :is(input, textarea, select) {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 9px 12px;
+  border: 1px solid var(--hairline-strong, var(--hairline));
+  border-radius: 8px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+  .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+) button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--control-border, var(--hairline));
+  border-radius: 8px;
+  background: var(--control-rest-surface);
+  color: var(--control-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+  .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+) > header > button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+  .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+) :is(.reference-preview, .cite-source-summary) {
+  padding: 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) .cite-attach {
+  border-top-color: var(--hairline);
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) .cite-preview {
+  min-height: 130px;
+}
+#root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+  .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+) button:disabled {
+  cursor: default;
+  opacity: .5;
+}
+@media (hover: hover) and (pointer: fine) {
+  #root .codex-shell[data-presentation='web'] .references-tab-heading > button:not(:disabled):hover,
+  #root .codex-shell[data-presentation='web']:has(.app-screen-layer.screen-active .studio-citation-shell) :is(
+    .reference-sheet[aria-labelledby='reference-heading'], .cite-source-sheet
+  ) button:not(:disabled):hover {
+    background: var(--control-hover-surface);
+    color: var(--control-hover-text);
+  }
+}

@@ -6,11 +6,14 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 
-function harness() {
+function harness({ catalogueRow = false } = {}) {
   const refs = [], animations = [], observers = [], intersections = [];
-  let cursor = 0, effect, cleanup, previousDeps, presentation = 'mobile', reducedMotion = false;
+  let cursor = 0, effect, cleanup, previousDeps, presentation = 'mobile', reducedMotion = false, active = false;
+  const button = new EventTarget();
+  button.matches = () => false;
   const attributes = new Set();
   const viewport = { clientWidth: 100,
+    closest: selector => selector === 'button' ? button : null,
     toggleAttribute(name, enabled) { if (enabled) attributes.add(name); else attributes.delete(name); },
     setAttribute(name) { attributes.add(name); },
     removeAttribute(name) { attributes.delete(name); },
@@ -23,6 +26,7 @@ function harness() {
   } };
   const react = { ...React,
     useRef() { const i = cursor++; return refs[i] ??= { current: null }; },
+    useState() { return [active, value => { active = value; }]; },
     useLayoutEffect(callback, deps) {
       if (!previousDeps || deps.some((dep, i) => dep !== previousDeps[i])) effect = callback;
       previousDeps = deps;
@@ -32,12 +36,12 @@ function harness() {
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/profile/PreviewCreatorName.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, require(name) {
-      if(name.endsWith('/motion/motion')) return motionFixture;
+    if (name.endsWith('/motion/motion')) return { ...motionFixture, reducedMotion: () => reducedMotion };
     if (name === 'react') return react;
     if (name === 'framer-motion') return { useReducedMotion: () => reducedMotion };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     throw Error(name);
-  }, ResizeObserver: class {
+  }, window: { matchMedia: () => ({ matches: true }) }, ResizeObserver: class {
     targets = []; disconnected = false;
     constructor(callback) { this.callback = callback; observers.push(this); }
     observe(target) { this.targets.push(target); }
@@ -48,11 +52,14 @@ function harness() {
     observe(target) { this.targets.push(target); }
     disconnect() { this.disconnected = true; }
   } });
-  return { viewport, text, animations, observers, intersections,
+  return { viewport, text, button, animations, observers, intersections,
     render(props = {}) {
       cursor = 0;
-      const tree = exports.PreviewCreatorName({ name: 'Portalink Networks Inc.', active: true, ...props });
-      refs[0].current = viewport; refs[1].current = text;
+      const tree = catalogueRow
+        ? exports.CatalogueRowName({ name: 'Portalink Networks Inc.', ...props })
+        : exports.PreviewCreatorName({ name: 'Portalink Networks Inc.', active: true, ...props });
+      refs[0].current = viewport;
+      if (!catalogueRow) refs[1].current = text;
       if (effect) { cleanup?.(); cleanup = effect(); effect = undefined; }
       return tree;
     },
@@ -61,6 +68,41 @@ function harness() {
     unmount() { cleanup?.(); },
   };
 }
+
+test('desktop catalogue rows reveal on pointer hover or keyboard focus and restore their ellipsis on exit', () => {
+  const h = harness({ catalogueRow: true });
+  h.setPresentation('web');
+  const label = () => h.render().props.children;
+  assert.equal(label(), 'Portalink Networks Inc.');
+  const enter = pointerType => h.button.dispatchEvent(Object.assign(new Event('pointerenter'), { pointerType }));
+  enter('touch');
+  assert.equal(label(), 'Portalink Networks Inc.');
+  enter('mouse');
+  const reveal = label().props;
+  assert.equal(reveal.name, 'Portalink Networks Inc.');
+  assert.ok(reveal.centered && reveal.animateOnWeb && reveal.fadeInset > 0);
+  h.button.matches = selector => selector === ':focus-visible';
+  h.button.dispatchEvent(new Event('focus'));
+  h.button.dispatchEvent(new Event('pointerleave'));
+  assert.equal(label().props.name, reveal.name);
+  h.button.dispatchEvent(new Event('blur'));
+  assert.equal(label(), reveal.name);
+  h.button.dispatchEvent(new Event('focus'));
+  assert.equal(label().props.name, reveal.name);
+});
+
+test('mobile and reduced-motion catalogue rows keep a static, fully named label', () => {
+  const h = harness({ catalogueRow: true });
+  for (const presentation of ['mobile', 'web']) {
+    h.setPresentation(presentation);
+    h.setReducedMotion(presentation === 'web');
+    h.render();
+    h.button.dispatchEvent(Object.assign(new Event('pointerenter'), { pointerType: 'mouse' }));
+    const { title, children } = h.render().props;
+    assert.equal(children, 'Portalink Networks Inc.');
+    assert.equal(title, children);
+  }
+});
 
 test('overflow starts revealing immediately and stops exactly at the end of the creator name', () => {
   const h = harness();

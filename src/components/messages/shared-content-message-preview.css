@@ -15,5 +15,8 @@
 }
 .shared-content-message-preview-frame > .pdf-page-viewport { width: 100%; height: 100%; }
 .shared-content-message-preview-caption { display: block; padding-top: 6px; font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.shared-content-message-preview-creator { display: flex; align-items: center; gap: 10px; padding-block: 4px; }
+.shared-content-message-preview-creator > div { min-width: 0; overflow-wrap: anywhere; }
+.shared-content-message-preview-creator > div > span { display: block; font-size: 13px; opacity: .8; }
 .shared-content-message-preview-retry { min-height: 44px; padding: 8px 0; font-size: 14px; text-decoration: underline; }
 .shared-content-message-preview-link:focus-visible, .shared-content-message-preview-retry:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }

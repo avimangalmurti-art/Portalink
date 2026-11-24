@@ -1,3 +1,7 @@
+@import '../../presentation/web/studio.css';
+@import './studio-collections-web.css';
+@import '../references/studio-research-web.css';
+
 .studio-workbench{height:100%;display:flex;flex-direction:column;min-height:0;padding:0;color:var(--text-primary);background:var(--surface-canvas)}
 .studio-workbench-header{padding:24px 20px 16px;flex:none}.studio-workbench-header h1{font-size:26px;font-weight:650;margin:0}.studio-workbench-header p{font-size:14px;color:var(--text-secondary);margin:4px 0 0}
 .studio-workbench-scroll{overflow:auto;overscroll-behavior:contain;padding:0 20px calc(104px + env(safe-area-inset-bottom));min-height:0}.studio-workbench-scroll section{margin-bottom:28px}.studio-workbench h2{font-size:16px;font-weight:600;margin:0 0 12px}

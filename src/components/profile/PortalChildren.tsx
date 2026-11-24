@@ -4,6 +4,7 @@ import type { PortfolioCategory } from '../../types/domain';
 import { portalChildren } from '../../features/profile/portalHierarchy';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { getCategoryIcon } from './categoryIcons';
+import { CatalogueRowName } from './PreviewCreatorName';
 
 export function PortalChildren({ categories, parent, onSelect, renderActions }: {
   categories: PortfolioCategory[];
@@ -24,7 +25,7 @@ export function PortalChildren({ categories, parent, onSelect, renderActions }: 
             className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-full px-3 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             onClick={() => onSelect(child.id)}>
             <InterfaceIcon icon={getCategoryIcon(child.iconName)} size="sm" />
-            <span className="min-w-0 flex-1 truncate">{child.label}</span>
+            <CatalogueRowName name={child.label} className="min-w-0 flex-1 truncate" />
             <InterfaceIcon icon={ChevronRightIcon} mirroredInRtl size="sm" />
           </button>
           {actions && <div className="relative flex min-w-10 items-center self-stretch">{actions}</div>}

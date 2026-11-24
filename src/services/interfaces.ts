@@ -511,7 +511,7 @@ export interface MessagingService {
   sendMessage(conversationId: Id, body: string, attachments?: File[]): Promise<DirectMessage>;
   editMessage(messageId: Id, body: string): Promise<DirectMessage>;
   deleteMessage(messageId: Id): Promise<void>;
-  toggleReaction(messageId: Id, emoji: string): Promise<MessageReaction[]>;
+  setReaction(messageId: Id, emoji: string, selected: boolean): Promise<MessageReaction[]>;
   /** Marks only messages through the supplied server-authored timestamp as read. */
   markConversationRead(conversationId: Id, throughCreatedAt: string): Promise<void>;
   /** Supabase Realtime when available; callers retain a refresh fallback. */

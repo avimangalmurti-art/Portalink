@@ -921,6 +921,7 @@ body {
   --rail-footer-inset: 0.5rem;
   --side-panel-row-height: var(--cdx-dense-row-md);
   --side-panel-row-gap: var(--cdx-dense-gap);
+  --side-panel-header-height: 64px;
   --side-panel-header-control: var(--cdx-header-control);
   --side-panel-compact-control: var(--sidebar-primary-control);
   --side-panel-content-inset: 0.5rem;
@@ -2332,8 +2333,8 @@ button[data-portalink-tile],
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  height: 64px;
-  min-height: 64px;
+  height: var(--side-panel-header-height);
+  min-height: var(--side-panel-header-height);
   border-bottom: 0;
   gap: var(--side-panel-row-gap);
 }
@@ -5261,10 +5262,6 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   transform: translateY(-50%);
 }
 
-.premium-viewer-page-counter--inline {
-  max-width: none;
-}
-
 .premium-viewer-page-control:hover:not(:disabled),
 .premium-viewer-exit-control:hover:not(:disabled) {
   background: rgba(34, 34, 38, var(--interface-glass-alpha, 0.82));
@@ -5386,7 +5383,7 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
     transparent 64%
   );
   transform: translateX(-100%);
-  animation: premium-media-shimmer var(--m-slow) var(--m-enter) infinite;
+  animation: premium-media-shimmer var(--m-page-shimmer) linear infinite;
 }
 
 .portalink-splash[data-presentation='web'] > .portalink-splash-loading-mark,
@@ -5430,13 +5427,9 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   [data-interface-icon-frame]:has(> svg.lucide-loader-circle),
   [data-interface-icon-frame][data-icon-effect='rotate'][data-icon-effect-active]:has(> svg.lucide-loader-circle) { animation: none; }
 }
+.app-viewport--reduce-motion .premium-media-placeholder::after,
 .app-viewport--reduce-motion .premium-media-loading-mark,
 .app-viewport--reduce-motion svg.lucide-loader-circle { animation: none !important; }
-
-/* Loading loops have their own mobile pace; content readiness stays immediate. */
-[data-presentation='mobile'] .premium-media-placeholder::after {
-  animation-duration: var(--m-loading-cycle);
-}
 
 [data-presentation='mobile'] .premium-media-loading-mark {
   animation-duration: var(--m-loading-spin);

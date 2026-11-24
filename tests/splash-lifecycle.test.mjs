@@ -95,7 +95,7 @@ function staticLaunch({ pathname, search = '', mobile = true, entry = 'catalogue
       getAttribute: name => attributes.get(name) ?? null,
       setAttribute: (name, value) => attributes.set(name, value),
       removeAttribute: name => attributes.delete(name),
-      append(child) { this.children.push(child); child.parent = this; },
+      append(...children) { for (const child of children) { this.children.push(child); child.parent = this; } },
       prepend(child) { this.children.unshift(child); child.parent = this; },
       remove() { if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this); },
       addEventListener(name, handler) { handlers.set(name, handler); },
@@ -185,6 +185,8 @@ test('catalogue and installed Home keep their branded launch and desktop project
     const { root, body } = staticLaunch(options);
     assert.equal(root.hasAttribute('data-mobile-project-launch'), false);
     assert.equal(body.children[0]?.getAttribute('aria-label'), 'Opening Portalink');
+    assert.equal(body.children[0].children.length, 1);
+    assert.equal(body.children[0].children[0].tag, 'img', 'Mobile keeps its existing direct image');
     assert.match(body.children[0].children[0].src, /portalink-launch-animation\.webp/);
     assert.equal(body.children[0].style.backgroundColor, options.entry === 'home' ? '#fdffff' : '#ffffff');
   }
@@ -211,6 +213,37 @@ test('the shared catalogue locks the white canvas and both chrome tags until the
   }
 });
 
+test('desktop shared media covers its decoded edge while preserving the supplied video and still ratios', () => {
+  for (const [pathname, search] of [['/portalite', ''], ['/portalite/c/design', '?view=portal']]) {
+    for (const reducedMotion of [false, true]) {
+      const launch = staticLaunch({ pathname, search, mobile: false, systemDark: true, reducedMotion });
+      const [layer] = launch.body.children;
+      const [host, progress] = layer.children;
+      assert.equal(host.tag, 'div');
+      assert.equal(host.hasAttribute('data-web-splash-frame'), true);
+      assert.equal(host.style.overflow, 'hidden');
+      assert.equal(host.style.colorScheme, 'light');
+      assert.equal(host.getAttribute('aria-hidden'), 'true');
+      assert.equal(host.style.width, 'min(100vw, 407px)');assert.equal(host.style.maxWidth, '70.7182dvh');
+      assert.equal(host.style.aspectRatio, reducedMotion ? '512 / 724' : '512 / 720');
+      const [media, edge] = host.children;
+      assert.equal(media.tag, reducedMotion ? 'img' : 'video');
+      assert.equal(media.width, 512);assert.equal(media.height, reducedMotion ? 724 : 720);
+      assert.equal(media.style.width, '100%');assert.equal(media.style.height, '100%');
+      assert.equal(media.style.objectFit, 'fill');
+      assert.equal(media.style.clipPath, 'inset(2px)', 'Exclude the composited perimeter without scaling the artwork');
+      assert.equal(edge.tag, 'span');
+      assert.equal(edge.hasAttribute('data-web-splash-edge'), true);
+      assert.equal(edge.style.position, 'absolute');assert.equal(edge.style.inset, '0');
+      assert.equal(edge.style.pointerEvents, 'none');
+      assert.equal(edge.style.boxShadow, 'inset 0 0 3px 4px #ffffff');
+      assert.equal(progress.className, 'portalink-splash-loading-mark premium-media-loading-mark');
+      assert.equal(progress.style.display, 'none', 'The edge treatment does not introduce a pending mark before media finishes');
+      assert.equal(layer.style.backgroundColor, '#ffffff');
+    }
+  }
+});
+
 test('desktop Catalogue and exact Portal links play the full shared opening even when the app is ready', () => {
   for (const [pathname, search] of [
     ['/portalite/', '?via=friend'], ['/share/profile', ''], ['/portalite', '?view=portal'], ['/portalite/c/design', '?view=portal'],
@@ -222,7 +255,7 @@ test('desktop Catalogue and exact Portal links play the full shared opening even
     const [layer] = launch.body.children;
     assert.equal(layer.getAttribute('aria-label'), 'Opening Portalink');
     assert.equal(layer.hasAttribute('data-web-catalogue-splash'), true);
-    const [video] = layer.children;
+    const [video] = layer.children[0].children;
     assert.equal(video.tag, 'video');
     assert.match(video.src, /portalink-splash-mobile\.mp4/);
     assert.match(video.poster, /portalink-launch-still\.webp/);
@@ -246,7 +279,7 @@ test('desktop Catalogue and exact Portal links play the full shared opening even
 test('desktop splash resumes after buffering and keeps its startup fallback off in a hidden tab', () => {
   const launch = staticLaunch({ pathname: '/portalite/c/design', search: '?view=portal', mobile: false });
   const [layer] = launch.body.children;
-  const [video] = layer.children;
+  const [video] = layer.children[0].children;
   assert.equal([...launch.timers.values()][0].delay, 8000);
   launch.setHidden(true);
   assert.equal(launch.timers.size, 0);
@@ -277,8 +310,9 @@ test('desktop reader and Settings open directly and media fallback waits for the
   }
   const launch = staticLaunch({ pathname: '/portalite', mobile: false, reducedMotion: true });
   const [layer] = launch.body.children;
-  assert.match(layer.children[0].src, /portalink-launch-still\.webp/);
-  layer.children[0].emit('error');
+  const [image] = layer.children[0].children;
+  assert.match(image.src, /portalink-launch-still\.webp/);
+  image.emit('error');
   assert.equal(launch.body.children[0], layer);
   assert.equal(layer.hasAttribute('data-web-launch-waiting'), true);
   launch.commitReady();
@@ -298,7 +332,8 @@ test('desktop reader and Settings open directly and media fallback waits for the
 test('desktop holds the final frame and standard spinner until its Catalogue content is committed', () => {
   const launch = staticLaunch({ pathname: '/portalite', mobile: false });
   const [layer] = launch.body.children;
-  const [video, progress] = layer.children;
+  const [host, progress] = layer.children;
+  const [video] = host.children;
   video.emit('playing');
   video.emit('ended');
   assert.equal(launch.body.children[0], layer);
@@ -319,7 +354,7 @@ test('a direct Portal waits for its own content and terminal errors retain the c
   const portal = staticLaunch({ pathname: '/portalite/c/design', search: '?view=portal', mobile: false });
   const [layer] = portal.body.children;
   portal.commitReady('catalogue');
-  layer.children[0].emit('ended');
+  layer.children[0].children[0].emit('ended');
   assert.equal(portal.body.children[0], layer, 'The background grid cannot uncover a loading Portal');
   portal.commitReady('portal');
   assert.equal(portal.body.children.length, 0);
@@ -328,7 +363,7 @@ test('a direct Portal waits for its own content and terminal errors retain the c
   const [errorLayer] = failed.body.children;
   failed.commitReady('error');
   assert.equal(failed.body.children[0], errorLayer);
-  errorLayer.children[0].emit('ended');
+  errorLayer.children[0].children[0].emit('ended');
   assert.equal(failed.body.children.length, 0, 'The complete clip hands off to its actionable error');
 });
 
@@ -1259,6 +1294,23 @@ test('restored MOBILE sessions open directly and restored WEB sessions finish th
  }
 });
 
+test('main MOBILE session wait shows the standard accessible indicator until authentication settles', () => {
+  const h=sharedBootstrap({path:'/messages',search:'',authenticated:true});
+  const splash=h.render();splash.props.onComplete();assert.equal(h.render(),null);
+  const status=h.waiting.props.children;
+  assert.equal(h.app,null);
+  assert.equal(status.type,'div');assert.equal(status.props.role,'status');
+  assert.equal(status.props['aria-live'],'polite');assert.equal(status.props['aria-label'],'Opening Portalink…');
+  assert.equal(status.props.children.type,'span');
+  assert.equal(status.props.children.props.className,'premium-media-loading-mark block');
+  assert.equal(status.props.children.props['aria-hidden'],'true');
+  h.setPresentation('web');h.render();
+  assert.equal(h.waiting.props.children.type,'loading','Desktop retains its existing pending view');
+  h.setPresentation('mobile');h.render();assert.equal(h.waiting.props.children.type,'div');
+  h.auth.isInitializing=false;assert.equal(h.render(),null);assert.equal(h.waiting,false);
+  assert.equal(h.app.type,'app');assert.equal(h.requested.length,0);
+});
+
 test('late MOBILE session restoration keeps the completed intro host then enters signed-in Home without welcome or replay', () => {
   const h=sharedBootstrap({path:'/',search:'',homeReady:false});
   const initial=h.render();initial.props.onComplete();
@@ -1271,7 +1323,7 @@ test('late MOBILE session restoration keeps the completed intro host then enters
   assert.equal(h.render(),null);assert.equal(h.waiting,false);
   assert.equal(h.requested.length,0);assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
   h.auth.isInitializing=true;assert.equal(h.render(),null);assert.equal(h.app,null);
-  assert.equal(h.waiting.props.children.props.label,'Opening Portalink…');
+  assert.equal(h.waiting.props.children.props['aria-label'],'Opening Portalink…');
   h.auth.isInitializing=false;assert.equal(h.render(),null);assert.equal(h.app.type,'app');
 });
 
@@ -1309,7 +1361,7 @@ test('ordinary MOBILE visitors see Hello World and account entry before successf
     h.authenticate();h.render();assert.equal(h.render(),null);h.render();assert.equal(h.render(),null);
     h.location.pathname='/messages';assert.equal(h.render(),null);
     h.auth.isInitializing=true;assert.equal(h.render(),null);assert.equal(h.app,null);
-    assert.equal(h.waiting.props.children.props.label,'Opening Portalink…');
+    assert.equal(h.waiting.props.children.props['aria-label'],'Opening Portalink…');
     h.auth.isInitializing=false;assert.equal(h.render(),null);assert.equal(h.app.type,'app');
     h.location.pathname='/';assert.equal(h.render(),null);assert.equal(h.homeTimerCount,0);
   }
@@ -1348,7 +1400,7 @@ test('returning MOBILE sessions enter unready Home immediately without a startup
   assert.equal(h.render(),null);assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
   h.setPresentation('web');assert.equal(h.render(),null);h.setPresentation('mobile');assert.equal(h.render(),null);
   h.auth.isInitializing=true;assert.equal(h.render(),null);assert.equal(h.app,null);
-  assert.equal(h.waiting.props.children.props.label,'Opening Portalink…');
+  assert.equal(h.waiting.props.children.props['aria-label'],'Opening Portalink…');
   h.auth.isInitializing=false;assert.equal(h.render(),null);assert.equal(h.app.type,'app');
 });
 

@@ -17,7 +17,7 @@ import { ProjectCover } from '../media/ProjectCover';
 import { getProjectCoverPreview } from '../../utils/projectPresentation';
 import { videoSources } from '../../features/media/videoPlayback';
 import { useInlineProjectContent } from '../../features/profile/useInlineProjectContent';
-import { PreviewCreatorName } from './PreviewCreatorName';
+import { CatalogueRowName, PreviewCreatorName } from './PreviewCreatorName';
 const ProjectExportSheet=lazy(()=>import('../../features/references/ExportSheet').then(module=>({default:module.ExportSheet})));
 const MobileReorderList = lazy(() => import('../../presentation/mobile/MobileReorderList').then(module => ({ default: module.MobileReorderList }))) as unknown as typeof MobileReorderListType;
 type ProjectIndexListProps = {
@@ -346,7 +346,7 @@ function ProjectLink({
       <button data-preview-open="" type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
         {isMobile || previewLabel ? <MobileProjectLabel project={project} isActive={isActive} profileId={profileId} sharedReadOnly={sharedReadOnly} mobileGrid={mobileGrid} /> : <span data-font-preview="" style={{
         fontFamily: typefaceStack
-      }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>}
+      }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}><CatalogueRowName name={project.title} className="block" /></span>}
       </button>
     </div>;
 }
@@ -422,7 +422,7 @@ function ProjectRow({
         <button {...reorderActivator} data-preview-open="" type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] py-1 pl-1.5 ${isMobile ? 'pr-14' : 'pr-10'} text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
           {isMobile ? <MobileProjectLabel project={project} isActive={isActive} profileId={profileId} mobileGrid={mobileGrid} /> : <span data-font-preview="" style={{
           fontFamily: typefaceStack
-        }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>}
+        }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}><CatalogueRowName name={project.title} className="block" /></span>}
         </button>
 
         {/* Matches the portal-row control: hidden until hover/focus, round hit

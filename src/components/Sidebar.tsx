@@ -13,6 +13,7 @@ import type { NavigationDestination } from './navigation';
 // mock service; production-facing components read the real contract.
 import type { Profile, PortfolioCategory as ProfileCategory } from '../types/domain';
 import { getCategoryIcon } from './profile/categoryIcons';
+import { CatalogueRowName } from './profile/PreviewCreatorName';
 import type { CategoryManagement } from '../features/profile/useCategoryManagement';
 import { applyPortalOrder, portalChildren, portalRootId } from '../features/profile/portalHierarchy';
 import type { CategoryDeletionCapability } from '../types/domain';
@@ -272,7 +273,7 @@ function CategoryRowContent({
           setDraftLabel(category.label);
           onRenameCancel?.();
         }
-      }} aria-label={`Rename ${category.label}`} maxLength={60} className="text-control min-w-0 flex-1 px-1.5 py-1 text-small font-medium text-[var(--text-primary)]" /> : <span className="cdx-dense-label min-w-0 flex-1 py-0.5" title={category.label}>{category.label}</span>}
+      }} aria-label={`Rename ${category.label}`} maxLength={60} className="text-control min-w-0 flex-1 px-1.5 py-1 text-small font-medium text-[var(--text-primary)]" /> : <CatalogueRowName name={category.label} className="cdx-dense-label min-w-0 flex-1 py-0.5" />}
         <span className="flex w-6 shrink-0 items-center justify-center" aria-hidden="true">
           {isBusy && <Loader2Icon className="h-3.5 w-3.5 animate-spin text-[var(--text-tertiary)]" />}
         </span>
@@ -629,6 +630,19 @@ export function Sidebar({
     </button>;
   if (isMobile) return <MobileNavigation onMessages={fromDock=>onMessagesOpen(undefined,fromDock)}
     onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} />;
+  const workspaceTools = <>
+    <SettingsTrigger collapsed={isSidebarCollapsed} onOpen={onControlCenterOpen} />
+    {isAuthenticated && <>
+      <PersonalNavigationTile destination="studio" collapsed={isSidebarCollapsed} active={isStudioActive} />
+      <PersonalNavigationTile destination="notifications" collapsed={isSidebarCollapsed} active={isActivityActive} />
+    </>}
+    <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+      aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'}
+      title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color=""
+      className={`nav-button ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control'} shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+      <InterfaceIcon icon={theme === 'dark' ? SunIcon : MoonIcon} size="sm" weight="medium" />
+    </button>
+  </>;
   return <>
       {/* Collapsed, the rail is the whole width: the aside's own side padding was
          insetting the surface by 10px on each side while the divider sat inside
@@ -645,6 +659,7 @@ export function Sidebar({
            mark off the rail's axis. With the padding gone the tile centres in the
            column, which is the sidebar's own centre. */}
         <div data-material="navigation" className={`ps-panel sidebar-surface relative z-10 flex h-full min-h-0 flex-col overflow-hidden border-r pb-2 ${isSidebarCollapsed ? 'px-0' : 'side-panel-content-inset'}`}>
+          {!isSidebarCollapsed && <nav className="sidebar-tools-rail" aria-label="Workspace tools">{workspaceTools}</nav>}
           {/* Collapsed, the rail owns the rhythm: brand, then destinations, all
              on one axis with one gap. Expanded, this is the header row. */}
           <div className={`global-control-header shrink-0 ${isSidebarCollapsed ? 'sidebar-rail sidebar-rail-brand justify-center' : 'justify-between gap-1.5'}`}>
@@ -800,29 +815,7 @@ export function Sidebar({
 
           </>}
 
-          {/* Studio and Activity share the footer between Settings and Appearance
-              in either rail size. */}
-          <div className={`sidebar-account-footer mt-auto shrink-0 border-t border-[var(--hairline)] ${isSidebarCollapsed ? 'sidebar-rail' : 'pt-2'}`}>
-            {isSidebarCollapsed ? <>
-              <SettingsTrigger collapsed onOpen={onControlCenterOpen} />
-              {isAuthenticated && <>
-                <PersonalNavigationTile destination="studio" collapsed active={isStudioActive} />
-                <PersonalNavigationTile destination="notifications" collapsed active={isActivityActive} />
-              </>}
-              <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
-              </button>
-            </> : <div className="sidebar-network-grid h-12 w-full min-w-0 items-center">
-                <SettingsTrigger collapsed={false} onOpen={onControlCenterOpen} />
-                {isAuthenticated && <>
-                  <PersonalNavigationTile destination="studio" active={isStudioActive} />
-                  <PersonalNavigationTile destination="notifications" active={isActivityActive} />
-                </>}
-                <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
-                </button>
-              </div>}
-          </div>
+          {isSidebarCollapsed && <div className="sidebar-account-footer sidebar-rail mt-auto shrink-0 border-t border-[var(--hairline)]">{workspaceTools}</div>}
         </div>
         {!isSidebarCollapsed && <ResizablePanelHandle side="right" value={mainSidebarWidth.width} min={184} max={360} onResize={mainSidebarWidth.updateWidth} onResizeEnd={mainSidebarWidth.commitWidth} onReset={mainSidebarWidth.resetWidth} label="Resize main navigation. Double-click to restore the default width." />}
       </aside>

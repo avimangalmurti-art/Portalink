@@ -1656,7 +1656,7 @@ export const mockMessagingService: MessagingService = {
   async deleteMessage() {
     return resolve(undefined);
   },
-  async toggleReaction() {
+  async setReaction() {
     return resolve([]);
   },
   async markConversationRead() {

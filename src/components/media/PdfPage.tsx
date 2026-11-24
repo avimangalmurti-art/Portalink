@@ -3,6 +3,8 @@ import { FileTextIcon } from 'lucide-react';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import './pdf-page.css';
 import { markRumPdf, rumViewToken } from '../../features/performance/rum';
+import type { ProjectAttachment } from '../../types/domain';
+import { pdfRangeOptions } from './pdfRangeTransport';
 
 export type PdfJs = typeof import('pdfjs-dist');
 export type PdfLoadingTask = ReturnType<PdfJs['getDocument']>;
@@ -42,7 +44,8 @@ export function pdfSourceOptions(source: string, previewOnly = false) {
 }
 
 type PdfPageProps = {
-  source: string;
+  source: string | null;
+  openPdfRanges?: ProjectAttachment['openPdfRanges'];
   onRenderFailure?: () => void;
   label: string;
   pageNumber?: number;
@@ -62,7 +65,7 @@ type PdfPageProps = {
  * grid does not download every document just to prepare off-screen covers.
  */
 export function PdfPage({
-  source, onRenderFailure,
+  source, openPdfRanges, onRenderFailure,
   showLoadingIndicator = false,
   usePageAspectRatio = false,
   label,
@@ -99,7 +102,7 @@ export function PdfPage({
   }, []);
 
   useEffect(() => {
-    if (!shouldRender || !source) {
+    if (!shouldRender || (!source && !openPdfRanges)) {
       return undefined;
     }
 
@@ -113,8 +116,15 @@ export function PdfPage({
       if (cancelled) {
         return;
       }
-      loadingTask = pdfjs.getDocument(pdfSourceOptions(source, true));
+      const ranges = openPdfRanges ? await openPdfRanges() : null;
+      if (cancelled) return;
+      const options = ranges ? pdfRangeOptions(pdfjs, ranges, () => {
+        if (!cancelled) setStatus('failed');
+      }) : source ? pdfSourceOptions(source, true) : null;
+      if (!options) throw new Error('This PDF does not have a readable source.');
+      loadingTask = pdfjs.getDocument(options);
       const document = await loadingTask.promise;
+      if (cancelled) return;
       onPageCountChange?.(document.numPages);
       // Explicit message pages must never silently display a different page.
       if (strictPageNumber && (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > document.numPages)) {
@@ -134,7 +144,7 @@ export function PdfPage({
       cancelled = true;
       void loadingTask?.destroy();
     };
-  }, [onPageCountChange, pageNumber, shouldRender, source, strictPageNumber]);
+  }, [onPageCountChange, openPdfRanges, pageNumber, shouldRender, source, strictPageNumber]);
 
   useEffect(() => {
     if (!shouldRender) {

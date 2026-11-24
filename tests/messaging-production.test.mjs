@@ -89,13 +89,14 @@ test('an unavailable sending RPC fails closed without inserting a message direct
   assert.equal(inserts, 0);
 });
 
-test('concurrent reaction adds leave one reaction per profile and toggling off preserves the other participant', async () => {
+test('reaction adds and removals are idempotent across concurrent requests and refresh retries', async () => {
   const calls = [];
   const other = { message_id: 'message', profile_id: 'other', emoji: '❤' };
   const own = { message_id: 'message', profile_id: 'viewer', emoji: '❤' };
   const ownApplause = { ...own, emoji: '👏' };
   const anotherMessage = { ...own, message_id: 'another' };
   let rows = [other, ownApplause, anotherMessage];
+  let failNextRefresh = false;
   const addReaction = (row, ignoreDuplicates) => {
     if (rows.some(existing => Object.keys(own).every(key => existing[key] === row[key]))) {
       return { error: ignoreDuplicates ? null : { code: '23505', message: 'duplicate reaction' } };
@@ -116,11 +117,6 @@ test('concurrent reaction adds leave one reaction per profile and toggling off p
       const query = {
         select() { return query; },
         eq(key, value) { filters[key] = value; return query; },
-        async maybeSingle() {
-          calls.push('read');
-          return { data: rows.find(matches) ?? null };
-        },
-        async insert(row) { return addReaction(row, false); },
         async upsert(row, options) {
           assert.deepEqual({ ...row }, own);
           assert.deepEqual({ ...options }, { onConflict: 'message_id,profile_id,emoji', ignoreDuplicates: true });
@@ -129,7 +125,13 @@ test('concurrent reaction adds leave one reaction per profile and toggling off p
         },
         delete() { deleting = true; return query; },
         then(resolve) {
-          if (!deleting) return resolve({ data: rows.filter(matches) });
+          if (!deleting) {
+            if (failNextRefresh) {
+              failNextRefresh = false;
+              return resolve({ error: { message: 'Read failed' } });
+            }
+            return resolve({ data: rows.filter(matches) });
+          }
           calls.push('delete');
           assert.deepEqual(filters, own);
           rows = rows.filter(row => !matches(row));
@@ -141,15 +143,20 @@ test('concurrent reaction adds leave one reaction per profile and toggling off p
   };
   const { supabaseMessagingService } = compile('../src/services/supabase/messagingService.ts', () => ({ requireSupabase: () => client }));
   const results = await Promise.all([
-    supabaseMessagingService.toggleReaction('message', '❤'),
-    supabaseMessagingService.toggleReaction('message', '❤'),
+    supabaseMessagingService.setReaction('message', '❤', true),
+    supabaseMessagingService.setReaction('message', '❤', true),
   ]);
-  assert.deepEqual(calls, ['read', 'read', 'upsert', 'upsert']);
+  assert.deepEqual(calls, ['upsert', 'upsert']);
   for (const result of results) assert.deepEqual({ ...result.find(reaction => reaction.emoji === '❤') }, { emoji: '❤', count: 2, isMine: true });
   assert.equal(rows.length, 4);
 
-  const afterRemoval = await supabaseMessagingService.toggleReaction('message', '❤');
-  assert.deepEqual(calls.slice(-2), ['read', 'delete']);
+  const staleAdd = await supabaseMessagingService.setReaction('message', '❤', true);
+  assert.deepEqual({ ...staleAdd.find(reaction => reaction.emoji === '❤') }, { emoji: '❤', count: 2, isMine: true });
+
+  failNextRefresh = true;
+  await assert.rejects(supabaseMessagingService.setReaction('message', '❤', false), /Reactions could not be refreshed/);
+  const afterRemoval = await supabaseMessagingService.setReaction('message', '❤', false);
+  assert.deepEqual(calls.slice(-2), ['delete', 'delete']);
   assert.deepEqual(Array.from(afterRemoval, reaction => ({ ...reaction })), [
     { emoji: '❤', count: 1, isMine: false },
     { emoji: '👏', count: 1, isMine: true },

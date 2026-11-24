@@ -154,7 +154,13 @@ test('presentation scope accepts an explicitly scoped descendant without accepti
 
 test('every platform CSS selector is scoped, including nested rules and selector lists', () => {
   for (const mode of ['web', 'mobile']) {
-    const root = postcss.parse(read(`../src/presentation/${mode}/${mode}.css`));
+    const files = [`../src/presentation/${mode}/${mode}.css`];
+    if (mode === 'web') files.push(
+      '../src/presentation/web/studio.css',
+      '../src/features/studio/studio-collections-web.css',
+      '../src/features/references/studio-research-web.css',
+    );
+    const root = postcss.parse(files.map(file => read(file)).join('\n'));
     let rules = 0;
     const unscoped = [];
     const animationNames = new Set();

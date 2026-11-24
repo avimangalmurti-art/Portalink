@@ -28,8 +28,8 @@ function harness(initialPresentation = 'mobile') {
     } };
     return { MobileBackScope: 'back-scope' };
   } });
-  return { calls, resize: value => { presentation = value; }, render: (screenKey, mobileProfileKey, skipLayerTransition = false) => exports.AppScreenLayers({
-    screenKey, mobileProfileKey, snapshot: { content: React.createElement('profile'), mainClassName: 'screen', ariaLabel: 'Profile' },
+  return { calls, resize: value => { presentation = value; }, render: (screenKey, mobileProfileKey, skipLayerTransition = false, webPortalScope) => exports.AppScreenLayers({
+    screenKey, mobileProfileKey, webPortalScope, snapshot: { content: React.createElement('profile'), mainClassName: 'screen', ariaLabel: 'Profile' },
     reduceMotion: false, skipLayerTransition, mainContentRef: { current: null }, onScroll() {},
   }) };
 }
@@ -77,6 +77,39 @@ test('WEB preserves destination transitions and resizing alone does not remount 
   assert.equal(h.calls[6].key, 'category-creator-b');
 });
 
+test('desktop portal switches skip the page animation within the same catalogue', () => {
+  const h = harness('web');
+  const open = (screenKey, scope) => {
+    h.render(screenKey, undefined, false, scope);
+    return h.calls.at(-1);
+  };
+  open('profile-owner');
+  const first = open('category-owner-a', 'account:owner');
+  assert.equal(first.skip, false, 'Entering the catalogue still uses the normal transition');
+  const second = open('category-owner-b', 'account:owner');
+  assert.equal(second.skip, true);
+  assert.notEqual(first.key, second.key, 'Each portal gets its own local controls and editor state');
+  assert.equal(open('category-owner-b', 'account:owner').key, second.key, 'Selecting a project keeps the current portal mounted');
+  assert.equal(open('category-owner-a', 'account:owner').skip, true, 'Returning to the previous portal is also immediate');
+  assert.equal(open('category-other-a', 'account:other').skip, false);
+  assert.equal(open('category-other-b', 'new-account:other').skip, false);
+  assert.equal(open('messages').skip, false);
+  assert.equal(open('category-other-a', 'new-account:other').skip, false);
+});
+
+test('desktop portal motion does not override mobile navigation after resizing', () => {
+  const h = harness('web');
+  h.render('category-owner-a', 'mobile-owner', false, 'account:owner');
+  h.render('category-owner-b', 'mobile-owner', false, 'account:owner');
+  const desktopKey = h.calls.at(-1).key;
+  h.resize('mobile');
+  h.render('category-owner-b', 'mobile-owner', false, 'account:owner');
+  assert.equal(h.calls.at(-1).key, desktopKey, 'Resizing preserves the mounted project');
+  h.render('category-owner-c', 'mobile-owner', false, 'account:owner');
+  assert.equal(h.calls.at(-1).key, desktopKey, 'Mobile continues in its existing profile workspace');
+  assert.equal(h.calls.at(-1).skip, false);
+});
+
 const appSource = ts.createSourceFile('App.tsx', readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 function appInitializer(name) {
   let result;
@@ -88,7 +121,7 @@ function appInitializer(name) {
   assert.ok(result, `Expected App rendering boundary ${name}`);
   return ts.transpileModule(`result = (${result});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React } }).outputText;
 }
-const appBoundaries = ['isCollaborationOpen', 'isOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'isTimelineReader', 'mobileProfileKey'];
+const appBoundaries = ['isCollaborationOpen', 'isOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'isTimelineReader', 'mobileProfileKey', 'webPortalScope'];
 const appExpressions = Object.fromEntries(appBoundaries.map(name => [name, appInitializer(name)]));
 function profileRender(overrides = {}) {
   const profile = { id: 'owner', name: 'Owner', projectGridColumns: 2, categories: [{ id: 'portal' }] };
@@ -111,6 +144,21 @@ function profileRender(overrides = {}) {
   }
   return context;
 }
+
+test('portal motion scope follows the visible catalogue, viewer and access mode', () => {
+  const category = { presentation: 'web', route: { kind: 'category' }, categoryPage: React.createElement('portal-index'), activeCategoryId: 'a' };
+  const scope = profileRender(category).webPortalScope;
+  assert.ok(scope);
+  assert.equal(profileRender({ ...category, route: { kind: 'project' }, activeCategoryId: 'b' }).webPortalScope, scope);
+  for (const change of [
+    { viewedProfileId: 'another-creator' },
+    { auth: { user: { id: 'another-account' } } },
+    { isSharedRoute: true, route: { kind: 'sharedCategory' } },
+  ]) assert.notEqual(profileRender({ ...category, ...change }).webPortalScope, scope);
+  assert.equal(profileRender().webPortalScope, undefined);
+  assert.equal(profileRender({ ...category, iconPickerCategoryId: 'a' }).webPortalScope, undefined);
+  assert.equal(profileRender({ ...category, isProfileAccessDenied: true }).webPortalScope, undefined);
+});
 
 for (const presentation of ['mobile', 'web']) test(`saving density keeps the existing ${presentation} owner profile layer through its background refresh`, () => {
   const layers = harness(presentation);

@@ -193,6 +193,8 @@ function timelineActionsHarness(presentation, viewerRole = 'visitor', followStat
   let cursor = 0, params = new URLSearchParams(), profileModel, bookmarkModel, pressModel;
   const react = { ...React,
     lazy: loader => loader.toString().includes('JourneyView') ? 'JourneyView' : 'dialog',
+    useId: () => 'profile-actions-menu-test',
+    useCallback: callback => callback,
     useState(initial) { const index = cursor++; slots[index] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[index].value, value => { slots[index].value = typeof value === 'function' ? value(slots[index].value) : value; }]; },
     useRef(initial) { return slots[cursor++] ??= { current: initial }; },
     useMemo: factory => factory(), useEffect() {},

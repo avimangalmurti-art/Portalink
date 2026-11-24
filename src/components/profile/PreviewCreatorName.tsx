@@ -1,7 +1,45 @@
-import { motionMs, motionEase } from '../../presentation/motion/motion';
-import React, { useLayoutEffect, useRef } from 'react';
+import { motionMs, motionEase, reducedMotion } from '../../presentation/motion/motion';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { usePresentation } from '../../presentation/usePresentation';
+
+/** The row keeps focus and its hit area while only the name moves. */
+export function CatalogueRowName({ name, className = '' }: { name: string; className?: string }) {
+  const desktop = usePresentation() === 'web';
+  const prefersReducedMotion = useReducedMotion();
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const [active, setActive] = useState(false);
+
+  useLayoutEffect(() => {
+    const button = labelRef.current?.closest('button');
+    if (!desktop || prefersReducedMotion || !button) return;
+
+    let hovering = window.matchMedia('(any-hover: hover)').matches && button.matches(':hover');
+    let focused = button.matches(':focus-visible');
+    const sync = () => setActive((hovering || focused) && !reducedMotion());
+    const enter = (event: PointerEvent) => { hovering = event.pointerType !== 'touch'; sync(); };
+    const leave = () => { hovering = false; sync(); };
+    const focus = () => { focused = button.matches(':focus-visible'); sync(); };
+    const blur = () => { focused = false; sync(); };
+    button.addEventListener('pointerenter', enter);
+    button.addEventListener('pointerleave', leave);
+    button.addEventListener('focus', focus);
+    button.addEventListener('blur', blur);
+    sync();
+    return () => {
+      button.removeEventListener('pointerenter', enter);
+      button.removeEventListener('pointerleave', leave);
+      button.removeEventListener('focus', focus);
+      button.removeEventListener('blur', blur);
+    };
+  }, [desktop, prefersReducedMotion]);
+
+  return <span ref={labelRef} title={name} data-catalogue-row-name={desktop ? '' : undefined} className={`min-w-0 truncate ${className}`}>
+    {desktop && active && !prefersReducedMotion
+      ? <PreviewCreatorName name={name} active centered animateOnWeb animatePosition fadeInset={8} className="block" />
+      : name}
+  </span>;
+}
 
 /** Reveal the hidden end of a label without moving adjacent controls. */
 export function PreviewCreatorName({ name, active, centered = false, visibleOnly = false, fadeInset = 0, animateOnWeb = false, animatePosition = false, className = 'text-[11px] font-semibold' }: {

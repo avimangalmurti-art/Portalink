@@ -69,8 +69,9 @@ test('World and resolved city Back lead to Home and World in both presentations'
     const city = await h.renderSearch({ ...h.browseProps, view: 'location', locationId: 'oakland' });
     const { CityContentPage } = h.load('src/components/CityContentPage.tsx');
     const back = nodes(CityContentPage(city.props)).find(node => node.props['aria-label'] === 'Back to World');
-    assert.equal(back.props['data-ui-shape'], presentation === 'mobile' ? 'icon' : undefined);
-    assert.equal(back.props['data-ui-control'], presentation === 'mobile' ? 'icon' : undefined);
+    assert.equal(back.props['data-ui-shape'], 'icon');
+    assert.equal(back.props['data-ui-control'], 'icon');
+    assert.equal(React.Children.only(back.props.children).props.icon, 'ArrowLeftIcon');
     back.props.onClick();
     world.props.onBack();
     assert.deepEqual(h.visits, ['/portalink/oakland', '/portalink', '/']);

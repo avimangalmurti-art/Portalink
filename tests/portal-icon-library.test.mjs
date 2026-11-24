@@ -45,6 +45,15 @@ test('every library icon has a local symbol and searchable readable name', () =>
   assert.equal(icons.searchPortalIcons('xyz-no-such-icon').length, 0);
 });
 
+test('the retired book-user glyph is absent from both pickers and old portal IDs render the fallback', () => {
+  const name = 'lucide:book-user';
+  assert.ok(!icons.searchPortalIcons('book user').includes(name));
+  assert.ok(!icons.profileLinkIconNames.includes(name));
+  assert.equal(icons.getCategoryIcon(name), require('lucide-react').ShapesIcon);
+  const svg = readFileSync(new URL(`../public${catalog.sprite.split('?')[0]}`, import.meta.url), 'utf8');
+  assert.doesNotMatch(svg, /<symbol id="book-user"/);
+});
+
 function harness(selected = 'shapes', { presentation = 'web', scrollRoot = null, observerAvailable = true } = {}) {
   const slots = [], effects = [], refs = [], observers = [];
   let cursor = 0, dirty = false, stateUpdates = 0;

@@ -20,8 +20,6 @@
 .public-portal-pagination { display: block; width: fit-content; margin: 16px auto 0; text-align: center; }
 #root .codex-shell[data-presentation='web'] [data-public-portal-search] .profile-collection-grid {
   grid-template-columns: repeat(var(--portal-search-columns, 6), minmax(0, 1fr));
-  max-width: 960px;
-  margin-inline: auto;
   gap: 12px;
 }
 #root .codex-shell[data-presentation='web'] [data-public-portal-search] .public-portal-search-header {

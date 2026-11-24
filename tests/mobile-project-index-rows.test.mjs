@@ -9,6 +9,7 @@ const MobileReorderList = () => null;
 const ProjectCover = () => null;
 const ReorderGroup = () => null;
 const PreviewCreatorName = () => null;
+const CatalogueRowName = () => null;
 function nodes(node) {
   if (!React.isValidElement(node)) return [];
   if (node.type?.name === 'ProjectIndexCover') return [node, ...nodes(node.type(node.props))];
@@ -30,7 +31,7 @@ function harness({ presentation = 'mobile', isOwner = false, active = true, mobi
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => active };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
-    if (name.endsWith('/PreviewCreatorName')) return { PreviewCreatorName };
+    if (name.endsWith('/PreviewCreatorName')) return { CatalogueRowName, PreviewCreatorName };
     if (name.endsWith('/ProjectCover')) return { ProjectCover };
     if (name.endsWith('/videoPlayback')) return { videoSources: attachment => [attachment.metadata?.playbackVideo?.sourceUrl, attachment.sourceUrl].filter(Boolean) };
     if (name.endsWith('/useInlineProjectContent')) return { useInlineProjectContent: options => {
@@ -168,6 +169,7 @@ test('WEB keeps its existing title-only project typography and does not receive 
     assert.equal(nodes(h.renderedRow).some(node => node.type === ProjectCover || node.type === 'time'), false);
     const title = nodes(h.renderedRow).find(node => node.props['data-font-preview'] !== undefined);
     assert.equal(title.props.style.fontFamily, 'Custom Project Typeface');
-    assert.equal(title.props.children, h.project.title);
+    assert.equal(title.props.children.type, CatalogueRowName);
+    assert.equal(title.props.children.props.name, h.project.title);
   }
 });

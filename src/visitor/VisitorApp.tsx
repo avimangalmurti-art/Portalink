@@ -368,8 +368,7 @@ export function VisitorApp() {
                       onOpenPortals={event => {
                         event.currentTarget.focus({ preventScroll: true });
                         setPortalNavigationRequest({ scope: catalogueScope });
-                      }}
-                      onCollaboration={() => { if (catalogue.profile) navigate(buildPath('sharedCollaboration', { profileId: catalogue.profile.id })); }} />
+                      }} />
                   </Suspense>
                 </DeferredSurfaceBoundary>}
                 <DeferredSurfaceBoundary active onClose={back} resetKey={location.pathname}>
@@ -389,8 +388,7 @@ export function VisitorApp() {
                       : missingSharedPortal || (presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId)) ? <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
                       : webCategoryRoute ? webCategoryReady && !firstCategoryProjectId ? <VisitorProjectPage key={`${profile.id}/${categoryId}`} profile={profile} project={null} categoryId={categoryId ?? undefined} onBack={back} desktopNavigationStyle={desktopNavigationStyle}
                         onBackToProfile={back} onOpenChild={openPortalFromReader} onSelect={id => { if (categoryId) openProject(categoryId, id); }} /> : pending
-                      : presentation === 'mobile' ? null : <VisitorProfileGrid key={`${profile.id}/${sharedPortalLink ? '' : categoryId ?? ''}`} profile={profile} categoryId={sharedPortalLink ? null : categoryId} timelineReturn={timelineReturn} onLeaveTimeline={forgetTimeline} appearanceControls={catalogueAppearanceControls} onOpen={openProject} onBack={back} onMessage={openMessages}
-                        onCollaboration={openMessages} />}
+                      : presentation === 'mobile' ? null : <VisitorProfileGrid key={`${profile.id}/${sharedPortalLink ? '' : categoryId ?? ''}`} profile={profile} categoryId={sharedPortalLink ? null : categoryId} timelineReturn={timelineReturn} onLeaveTimeline={forgetTimeline} appearanceControls={catalogueAppearanceControls} onOpen={openProject} onBack={back} onMessage={openMessages} />}
                   </Suspense>
                 </DeferredSurfaceBoundary>
               </div>

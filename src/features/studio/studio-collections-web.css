@@ -1,0 +1,316 @@
+/* Studio collections use the WEB frame while retaining the shared collection DOM. */
+#root .codex-shell[data-presentation='web'] .studio-citation-shell > .mobile-studio {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  min-width: 0;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-header, .studio-workbench-header) {
+  flex: none;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--studio-web-width, 920px) + 2 * var(--studio-web-gutter, 20px));
+  padding: 20px var(--studio-web-gutter, 20px) 16px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-bookmarks-navigation, .studio-drafts-heading) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 16px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-bookmarks-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-drafts-heading > .studio-drafts-control {
+  margin-inline-start: auto;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-heading {
+  min-width: 0;
+  margin-bottom: 16px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-title, .studio-drafts-title, .studio-workbench-header h1) {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-status, .studio-workbench-header > p) {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-bookmarks-back, .studio-drafts-back, .studio-text-control, .studio-drafts-control, .mobile-context-button) {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--control-border, var(--hairline));
+  background: var(--control-rest-surface, var(--surface-sunken));
+  color: var(--control-text, var(--text-primary));
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 500;
+  transition: background-color var(--m-fast) var(--m-enter), color var(--m-fast) var(--m-enter);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .mobile-context-button {
+  width: 36px;
+  padding: 0;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-text-control, .studio-drafts-control)[aria-pressed='true'] {
+  background: var(--control-selected-surface) !important;
+  color: var(--control-selected-text) !important;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-search input {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 0;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.4;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-search input:is(:focus, :focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-search:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-content, .studio-workbench-scroll) {
+  box-sizing: border-box;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: 0 var(--studio-web-gutter, 20px) 24px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-content, .studio-workbench-scroll) > * {
+  max-width: var(--studio-web-width);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-list > [data-studio-row]:last-child {
+  border-bottom: 0;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell [data-studio-row-surface] {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell [data-studio-row-surface] > button:not([data-studio-row-control]) {
+  --control-hover-surface: var(--surface-hover);
+  --control-hover-text: var(--text-primary);
+  --control-pressed-surface: var(--surface-pressed);
+  --control-pressed-text: var(--text-primary);
+  border-radius: 0 !important;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell [data-studio-row][data-selected='true'] [data-studio-row-surface] {
+  background: color-mix(in srgb, var(--surface-raised) 90%, var(--text-primary));
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell [data-studio-row-surface] > button[aria-pressed='true'] {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-row-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-bookmark-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-bookmark-tabs > button {
+  min-height: 36px;
+  padding: 6px 14px;
+  background: var(--control-rest-surface);
+  color: var(--control-text);
+  font-size: 14px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-bookmark-tabs > button[aria-pressed='true'] {
+  background: var(--control-selected-surface) !important;
+  color: var(--control-selected-text) !important;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-drafts-list {
+  gap: 10px;
+  margin: 0;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-drafts-list li > button {
+  --control-hover-surface: var(--surface-hover);
+  --control-hover-text: var(--text-primary);
+  --control-pressed-surface: var(--surface-pressed);
+  --control-pressed-text: var(--text-primary);
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  min-height: 80px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-draft-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-draft-copy strong {
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-draft-check {
+  display: grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 5px;
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-drafts-list [data-selected='true'] > button {
+  background: color-mix(in srgb, var(--surface-raised) 90%, var(--text-primary)) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--hairline-strong);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-selection-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-selection-summary > button {
+  min-height: 36px;
+  padding: 6px 10px;
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-selection-toolbar {
+  --ui-capsule-radius: 0px;
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 12px var(--studio-web-gutter, 20px);
+  border-top: 1px solid var(--hairline);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-bulk-actions {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-selection-toolbar > button, .studio-bulk-actions > button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--control-border, var(--hairline));
+  border-radius: var(--ui-action-radius);
+  background: var(--control-rest-surface);
+  color: var(--control-text);
+  font-size: 13px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-draft-toolbar > button {
+  --control-hover-surface: var(--status-danger-hover);
+  --control-hover-text: var(--status-danger-foreground);
+  --control-pressed-surface: var(--status-danger-pressed, var(--status-danger-hover));
+  --control-pressed-text: var(--status-danger-foreground);
+  background: var(--status-danger);
+  color: var(--status-danger-foreground);
+  margin-inline-start: auto;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-selection-hint, .studio-feedback:not([role='alert']), .studio-load-more) {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell .studio-load-more {
+  margin-block: 20px;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+#root .codex-shell[data-presentation='web'] .studio-citation-shell :is(button, input, select):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+/* ModalPortal keeps Studio actions beside the screen, inside the WEB theme host. */
+#root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-context-kind='studio'] {
+  background: var(--surface-raised) !important;
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='web'] .mobile-context-sheet[data-context-kind='studio'] :is(.mobile-context-primary > button, .mobile-context-group) {
+  --surface-sunken: var(--control-rest-surface);
+  color: var(--control-text);
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell[data-presentation='web'] .studio-citation-shell :is(.studio-bookmarks-back, .studio-drafts-back, .studio-text-control, .studio-drafts-control, .mobile-context-button) {
+    transition: none;
+  }
+}

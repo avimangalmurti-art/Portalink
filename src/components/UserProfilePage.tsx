@@ -19,14 +19,14 @@ import { DeferredSurfaceOwnerContext } from './ui/DeferredSurfaceOwner';
 import { PortfolioLiveCard } from '../features/publishing/PortfolioLiveCard';
 import { useMobileScreenActions, useMobileContextPress } from '../presentation/mobile/MobileContextActions';
 import { contextActions, type ContextAction } from '../presentation/mobile/contextActions';
-import { MobileActionSheet } from './messages/MobileActionSheet';
+import { ProfileActionsMenu } from './profile/ProfileActionsMenu';
 import { useServices } from '../contexts/ServicesContext';
 import type { TimelinePair } from '../services/interfaces';
 import { portfolioPath } from '../features/sharing/shareModel';
 import { copyPublicLink } from '../utils/copyPublicLink';
 import { useMenuFocus } from '../hooks/useMenuFocus';
 import { SavedChangeNotice } from './ui/SavedChangeNotice';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { usePresentation } from '../presentation/usePresentation';
 import { useMobilePortalPopupSize } from '../presentation/mobile/useMobilePortalPopupSize';
@@ -123,7 +123,6 @@ type UserProfilePageProps = {
   onPublishProject?: () => void;
   onAddJourneyProject?: (year?: number) => void;
   /** Existing Messages entry point, with its normal account gate. */
-  onCollaboration?: () => void;
   onMessage?: () => void;
   /** Stable read-only URL intended for people who do not have an account. */
   shareUrl?: string;
@@ -419,7 +418,6 @@ export function UserProfilePage({
   onEditProfile,
   onPublishProject,
   onAddJourneyProject,
-  onCollaboration,
   onMessage,
   shareUrl,
   onBeforeShare,
@@ -505,21 +503,31 @@ export function UserProfilePage({
   const usesWebProfileActions = !isMobile && showsOwnerTools && !isSharedView;
   const [webProfileActionsOpen, setWebProfileActionsOpen] = useState(false);
   const [webProfileActionError, setWebProfileActionError] = useState('');
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileOptionsRef = useRef<HTMLButtonElement>(null);
+  const profileMenuId = useId();
+  const profileMenuOpen = usesWebProfileActions && webProfileHeader && screenActive && webProfileActionsOpen;
+  const closeProfileMenu = useCallback(() => setWebProfileActionsOpen(false), []);
+  const openProfileMenu = () => { setWebProfileActionError(''); setWebProfileActionsOpen(true); };
+  const profileMenuFocus = useMenuFocus({
+    open: profileMenuOpen, triggerRef: profileOptionsRef, menuRef: profileMenuRef,
+    onOpen: openProfileMenu, onClose: closeProfileMenu,
+  });
   const profileActionScope = `${profile.id}:${isMobile}:${showsOwnerTools}`;
   const profileActionScopeRef = useRef(profileActionScope);
   profileActionScopeRef.current = profileActionScope;
   const isMobileToolsOpen = isMobile || webProfileHeader || usesWebProfileActions || webToolsOpen;
   const [isBioOpen, setIsBioOpen] = useState(false);
   useEffect(() => { setIsMobileToolsOpen(false); setIsBioOpen(false); }, [profile.id]);
-  useEffect(() => { setWebProfileActionsOpen(false); setWebProfileActionError(''); }, [profile.id, isMobile, showsOwnerTools]);
+  useEffect(() => { setWebProfileActionsOpen(false); setWebProfileActionError(''); }, [profile.id, isMobile, showsOwnerTools, webProfileHeader, screenActive]);
   // A creator does not follow themselves, and a guest is told an account is
   // needed rather than shown a control that quietly fails.
   const showsFollow = !isJourney && !isSharedView && viewerRole === 'visitor';
   const showsSignInToFollow = !isJourney && !isSharedView && needsAccount(viewerRole);
   const displayName = profile.name;
   const profileLinks = useMemo(() => resolveProfileLinks(profile.links, profile.socialLinks)
-    .filter(link => !(isMobile && showsOwnerTools && link.action === 'message')),
-  [profile.links, profile.socialLinks, isMobile, showsOwnerTools]);
+    .filter(link => !(showsOwnerTools && link.action === 'message')),
+  [profile.links, profile.socialLinks, showsOwnerTools]);
 
   // Read straight off the record, so the figure states how much work exists
   // rather than how many tiles happen to be rendered below it.
@@ -615,7 +623,7 @@ export function UserProfilePage({
       await action.run();
       return profileActionScopeRef.current === profileActionScope;
     }
-    // Release the sheet's focus trap before opening an editor or native share.
+    // Dismiss the menu before transferring focus to an editor or share dialog.
     flushSync(() => { setWebProfileActionsOpen(false); setWebProfileActionError(''); });
     if (!action) return;
     const failed = (error: unknown) => {
@@ -805,7 +813,8 @@ export function UserProfilePage({
   // the display-contents wrapper preserves the desktop document flow.
   if (mobileShareOpen && !profile.isPrivate) return <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closeShare }}><Suspense fallback={<PortfolioShareLoading profile={profile} counts={{followers, following}} onClose={closeShare}/>}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense></DeferredSurfaceOwnerContext.Provider>;
   return <div ref={profilePageRef} data-web-profile-header={webProfileHeader ? '' : undefined} data-mobile-catalogue-spacing={mobileCatalogueSpacing ? '' : undefined} data-profile-reordering={isMobile && isReorderingProjects ? "" : undefined} data-profile-journey={isJourney ? '' : undefined} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
-      {usesWebProfileActions && webProfileActionsOpen && <MobileActionSheet model={profileActions} onClose={() => setWebProfileActionsOpen(false)} onAction={runWebProfileAction} />}
+      {profileMenuOpen && <ProfileActionsMenu key={profile.id} id={profileMenuId} menuRef={profileMenuRef} triggerRef={profileOptionsRef}
+        model={profileActions} onClose={closeProfileMenu} onAction={runWebProfileAction} />}
       {usesWebProfileActions && webProfileActionError && <p role="alert" className="px-3 py-2 text-sm text-[var(--text-secondary)]">{webProfileActionError}</p>}
       {canDismissMobileProfile && <ScreenBack action={dismissProfile}><span /></ScreenBack>}
       {startHereSelection && <DeferredSurfaceOwnerContext.Provider value={{ active: true, onClose: closeStartHere }}><Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense></DeferredSurfaceOwnerContext.Provider>}
@@ -824,7 +833,15 @@ export function UserProfilePage({
         : isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <Button variant="secondary" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</Button>
           <Button variant="primary" isLoading={projectOrder.isSaving} onClick={() => { void finishReordering(); }}>{projectOrder.isSaving ? 'Saving…' : 'Done'}</Button>
-        </div> : !isMobile && (!isJourney || showsOwnerTools) && <button type="button" className="profile-header-options" aria-label="Profile options" aria-haspopup={usesWebProfileActions ? 'dialog' : undefined} aria-expanded={usesWebProfileActions ? webProfileActionsOpen : isMobileToolsOpen} aria-controls={usesWebProfileActions ? undefined : 'profile-navigation-tools'} onClick={() => { if (usesWebProfileActions) { setWebProfileActionError(''); setWebProfileActionsOpen(true); } else setIsMobileToolsOpen(open => !open); }}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
+        </div> : !isMobile && (!isJourney || showsOwnerTools) && <button type="button" ref={profileOptionsRef} className="profile-header-options" aria-label="Profile options"
+          aria-haspopup={usesWebProfileActions ? 'menu' : undefined} aria-expanded={usesWebProfileActions ? profileMenuOpen : isMobileToolsOpen}
+          aria-controls={usesWebProfileActions ? (profileMenuOpen ? profileMenuId : undefined) : 'profile-navigation-tools'}
+          onKeyDown={usesWebProfileActions ? profileMenuFocus.onTriggerKeyDown : undefined}
+          onClick={() => {
+            if (!usesWebProfileActions) setIsMobileToolsOpen(open => !open);
+            else if (profileMenuOpen) closeProfileMenu();
+            else openProfileMenu();
+          }}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {showsFollow && isMobile && !isMobileToolsOpen && follow?.mutationError && <p role="alert" className="px-2 py-2 text-sm text-[var(--status-danger)]">{follow.mutationError}{follow.onRetry && <button type="button" onClick={follow.onRetry} className="ml-2 underline">Try again</button>}</p>}
@@ -870,7 +887,7 @@ export function UserProfilePage({
                 </div>}
             </div>}
           {!isJourney && <div data-mobile-profile-links="" className={webVisitorHeader ? 'min-w-0 flex-[1_1_176px]' : 'w-full min-w-0 basis-full'}>
-            <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onCollaboration={isMobile ? undefined : onCollaboration} onMessage={onMessage}
+            <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onMessage={onMessage}
               profileAudio={{ profileId: profile.id, accountId: auth.user?.id ?? null, profileAvatar: profile.avatar, editable: showsOwnerTools, active: screenActive && !mobileProjectSelected && !nestedMobileContent }} />
           </div>}
           {/* Owner actions use the same popup on desktop and mobile. */}

@@ -28,6 +28,11 @@ function nodes(node) {
 }
 const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
+function assertNoAiVerification(tree) {
+  assert.equal(button(tree, 'Show AI verification services'), undefined);
+  assert.equal(withProp(tree, 'data-ai-verification-visualization'), undefined);
+  assert.equal(nodes(tree).some(node => node.type === MediaCommentsPopover && node.props.label === 'AI verification'), false);
+}
 
 function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video', search = '', hash = '', lifecycle = false, openingStage = null, sourceTransform = source => source } = {}) {
   engagement = { isPending: () => false, isEngaged: () => false, canEngage: true, isResolving: false, ...engagement };
@@ -242,7 +247,8 @@ test('shared project details retain disclosure and content without a layout resi
   const h = harness({ mobile: false, readOnlyShare: true, mediaKind: 'document' });
   const tree = h.render({ isRailOpen: true, attachments: [h.attachments[0]] });
   assert.ok(button(tree, 'Hide project details'));
-  assert.ok(button(tree, 'Show project information'));
+  const rail = withProp(tree, 'data-project-response-rail');
+  assert.ok(nodes(rail).some(node => node.props.children === 'No project description has been added.'));
   assert.ok(nodes(tree).find(node => node.type === AttachmentRenderer));
   assert.equal(nodes(tree).some(node => node.props.label === 'Resize project details. Double-click to restore the default width.'), false);
 });
@@ -723,15 +729,6 @@ test('mobile engagement failures keep the recovery popup accessible', () => {
   assert.ok(nodes(tree).some(node => node.type === EngagementFeedback));
 });
 
-test('mobile verification retains its immediate sheet dismissal instead of opting into comments motion', () => {
-  const h = harness({ readOnlyShare: true });
-  button(h.render(), 'Show AI verification services').props.onClick();
-  const tree = h.render(), sheet = nodes(tree).find(node => node.type === MediaCommentsPopover);
-  assert.equal(sheet.props.label, 'AI verification'); assert.equal(sheet.props.mobileMotion, false);
-  button(tree, 'Close project popup').props.onClick();
-  assert.equal(nodes(h.render()).some(node => node.type === MediaCommentsPopover), false);
-});
-
 test('the mobile action opens project information without changing WEB rail preferences', () => {
   for (const readOnlyShare of [false,true]) {
     const h=harness({readOnlyShare});
@@ -793,6 +790,7 @@ test('shared readers hide project and media engagement for signed-in and guest v
       onDeleteProject() { assert.fail('Public readers cannot delete'); } };
     let tree = h.render(props);
     const media = nodes(tree).find(node => node.type === AttachmentRenderer);
+    assertNoAiVerification(tree);
     assert.equal(media.props.showMediaInteractions, false, `${mobile ? 'MOBILE' : 'WEB'} ${mediaKind} hides per-media engagement`);
     assert.equal(media.props.isOwner, false);
     assert.equal(media.props.memoryScope, 'shared');
@@ -854,18 +852,24 @@ test('shared MOBILE information remains readable and dismissible without engagem
   }
 });
 
-test('shared WEB retains project information and verification with its engagement controls removed', () => {
+test('shared WEB opens and closes the creator’s project details for signed-in and guest visitors', () => {
   for (const signedIn of [true, false]) {
     const h = harness({ mobile: false, signedIn, readOnlyShare: true });
-    let tree = h.render({ isRailOpen: true });
-    button(tree, 'Show project information').props.onClick();
-    tree = h.render({ isRailOpen: true });
-    assert.equal(button(tree, 'Show project information').props['aria-pressed'], true);
-    button(tree, 'Show AI verification services').props.onClick();
-    tree = h.render({ isRailOpen: true });
-    assert.equal(button(tree, 'Show AI verification services').props['aria-pressed'], true);
+    const info = { projectTitle: 'Paper Pens', projectSummary: 'Folded from one sheet of paper.' };
+    let tree = h.render(info);
+    button(tree, 'Show project details').props.onClick();
+    tree = h.render(info);
+    const details = withProp(tree, 'data-project-response-rail');
+    assert.match(details.props['aria-label'], /Paper Pens/);
+    assert.doesNotMatch(details.props['aria-label'], /verification/i);
+    assert.ok(nodes(details).some(node => node.type === 'h3' && node.props.children === info.projectTitle));
+    assert.ok(nodes(details).some(node => node.props.text === info.projectSummary));
+    assertNoAiVerification(tree);
     assert.equal(nodes(tree).some(node => node.type === EngagementBar || node.type === CommentThreadView), false);
-    assert.ok(button(tree, 'Hide project details'));
+    button(tree, 'Hide project details').props.onClick();
+    const collapsed = h.render(info);
+    assert.ok(button(collapsed, 'Show project details'));
+    assert.equal(nodes(collapsed).some(node => node.props.text === info.projectSummary), false);
   }
 });
 
@@ -874,6 +878,7 @@ test('ordinary readers retain project engagement, information actions and media 
     const h = harness({ mobile, mediaKind });
     const props = { attachments: [h.attachments[0]], isRailOpen: true };
     let tree = h.render(props);
+    assertNoAiVerification(tree);
     assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.showMediaInteractions, true);
     assert.ok(nodes(tree).some(node => node.type === EngagementBar));
     assert.ok(h.serviceIds.every(id => id === 'project'));
@@ -1093,7 +1098,7 @@ test('desktop density sizes standalone media without narrowing a multi-page imag
   assert.equal(nodes(grid).find(node => node.type === AttachmentRenderer).props.imageColumns, 2);
 });
 
-test('project workspace handles mobile projects, nested Portals and Back', async () => {
+test('project workspace handles mobile projects, nested Portals and Back', async t => {
   const compile = (path, require) => {
     const exports = {};
     vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
@@ -1106,7 +1111,7 @@ test('project workspace handles mobile projects, nested Portals and Back', async
   };
   const geometry = compile('../src/utils/projectPanelLayout.ts', () => ({}));
   const hierarchy = compile('../src/features/profile/portalHierarchy.ts', () => ({}));
-  const addChoices = 'add-portal-choices', subPortalEditor = 'sub-portal-editor', childList = 'child-portals';
+  const addChoices = 'add-portal-choices', desktopAddMenu = 'desktop-add-menu', subPortalEditor = 'sub-portal-editor', childList = 'child-portals';
   const { MobilePortalProjectToolbar } = compile('../src/components/profile/MobilePortalProjectToolbar.tsx', name => {
     if (name === 'react') return React;
     if (name.endsWith('/pageLayout')) return { MIN_PAGES_PER_ROW: 1, MAX_PAGES_PER_ROW: 6 };
@@ -1130,7 +1135,7 @@ test('project workspace handles mobile projects, nested Portals and Back', async
       if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
       return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }];
     },
-    useMemo: fn => fn(), useCallback: fn => fn, useRef: current => ({ current }),
+    useId: () => 'portal-add-menu-test', useMemo: fn => fn(), useCallback: fn => fn, useRef: current => ({ current }),
     useEffect(fn, deps) {
       const i = effectCursor++;
       if (!effects[i] || deps.some((value, j) => !Object.is(value, effects[i][j]))) pendingEffects.push(fn);
@@ -1140,6 +1145,8 @@ test('project workspace handles mobile projects, nested Portals and Back', async
     if (name.endsWith('/projectPortals')) return compile('../src/features/projects/projectPortals.ts', () => ({}));
     if (name.endsWith('/portalHierarchy')) return hierarchy;
     if (name.endsWith('/MobileActionSheet')) return { MobileActionSheet: addChoices };
+    if (name.endsWith('/ProfileActionsMenu')) return { ProfileActionsMenu: desktopAddMenu };
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/NewCategoryDialog')) return { NewCategoryDialog: subPortalEditor };
     if (name.endsWith('/PortalChildren')) return { PortalChildren: childList };
     if (name.endsWith('/ExportSheet')) return {ExportSheet:'export-sheet'};
@@ -1493,6 +1500,46 @@ test('project workspace handles mobile projects, nested Portals and Back', async
     assert.equal(nodes(tree).find(node => node.props.type === 'search').props.value, query);
     assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), expected);
   }
+
+  await t.test('desktop Add opens an anchored menu with the permitted portal actions', async () => {
+    const owner = { ...portalProps, activeProjectId: 'work', isIndexCollapsed: false };
+    const addButton = tree => button(tree, 'Add to Portal');
+    const addMenu = tree => nodes(tree).find(node => node.type === desktopAddMenu);
+    const previousCount = creations.length;
+    const openMenu = () => {
+      const trigger = addButton(render(owner));
+      assert.equal(trigger.props['aria-haspopup'], 'menu');
+      assert.equal(trigger.props['aria-expanded'], false);
+      trigger.props.onClick();
+      const opened = render(owner);
+      const menu = addMenu(opened);
+      assert.ok(menu);
+      assert.equal(addButton(opened).props['aria-controls'], menu.props.id);
+      assert.equal(addButton(opened).props['aria-expanded'], true);
+      assert.equal(addButton(opened).ref, menu.props.triggerRef);
+      assert.equal(nodes(opened).some(node => node.type === addChoices), false);
+      return menu;
+    };
+    openMenu();
+    addButton(render(owner)).props.onClick();
+    assert.equal(addMenu(render(owner)), undefined);
+    const menu = openMenu();
+    const choices = menu.props.model.groups[0];
+    assert.deepEqual(Array.from(choices, action => action.label), ['New project', 'New sub-portal']);
+    menu.props.onAction(choices[0]);
+    assert.equal(addMenu(render(owner)), undefined);
+    const reopened = openMenu();
+    reopened.props.onAction(reopened.props.model.groups[0][1]);
+    const editing = render(owner);
+    assert.equal(addMenu(editing), undefined);
+    await nodes(editing).find(node => node.type === subPortalEditor).props.onCreate('Print', 'shapes');
+    assert.deepEqual(creations.slice(previousCount), ['project', ['Print', 'shapes', 'portal']]);
+    assert.equal(addButton(render({ ...owner, viewerRole: 'visitor' })), undefined);
+    const direct = button(render({ ...owner, categoryManagement: undefined }), 'Add a new project to Portal');
+    assert.equal(direct.props['aria-haspopup'], undefined);
+    direct.props.onClick();
+    assert.equal(creations.at(-1), 'project');
+  });
 });
 
 test('direct public-project Back remains public; existing browser history takes priority', () => {
