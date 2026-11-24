@@ -78,7 +78,7 @@ test('public navigation starts expanded at the compact standard width with the c
   assert.equal(toggle(tree).props['aria-label'], 'Collapse navigation');
   assert.equal(home(tree).props.to, '/share/creator');
   assert.ok(nodes(home(tree)).some((node) => node.props?.children === 'Creator Name'));
-  assert.equal(portals(tree).length, 2);
+  assert.deepEqual(portals(tree).map(row => nodes(row).find(node => node.type === 'CatalogueRowName')?.props.name), ['Photography', 'Typography']);
   assert.doesNotMatch(nodes(tree).find(node => node.props?.id === 'shared-profile-portals').props.className, /\bsidebar-scroll-fade\b/);
 });
 
@@ -112,7 +112,7 @@ test('collapse keeps all creator portal icons named, clickable and selected with
     assert.equal(rows[index].props['aria-label'], label);
     assert.equal(rows[index].props.title, label);
     assert.ok(nodes(rows[index]).some((node) => node.props?.icon === `portal-icon-${icon}`));
-    assert.ok(!nodes(rows[index]).some((node) => node.props?.children === label));
+    assert.ok(!nodes(rows[index]).some((node) => node.type === 'CatalogueRowName'));
     rows[index].props.onClick();
   }
   assert.deepEqual(h.calls, ['photos', 'type']);

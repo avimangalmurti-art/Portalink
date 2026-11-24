@@ -13,6 +13,7 @@ import type { NavigationDestination } from './navigation';
 // mock service; production-facing components read the real contract.
 import type { Profile, PortfolioCategory as ProfileCategory } from '../types/domain';
 import { getCategoryIcon } from './profile/categoryIcons';
+import { CatalogueRowName } from './profile/PreviewCreatorName';
 import type { CategoryManagement } from '../features/profile/useCategoryManagement';
 import { applyPortalOrder, portalChildren, portalRootId } from '../features/profile/portalHierarchy';
 import type { CategoryDeletionCapability } from '../types/domain';
@@ -272,7 +273,7 @@ function CategoryRowContent({
           setDraftLabel(category.label);
           onRenameCancel?.();
         }
-      }} aria-label={`Rename ${category.label}`} maxLength={60} className="text-control min-w-0 flex-1 px-1.5 py-1 text-small font-medium text-[var(--text-primary)]" /> : <span className="cdx-dense-label min-w-0 flex-1 py-0.5" title={category.label}>{category.label}</span>}
+      }} aria-label={`Rename ${category.label}`} maxLength={60} className="text-control min-w-0 flex-1 px-1.5 py-1 text-small font-medium text-[var(--text-primary)]" /> : <CatalogueRowName name={category.label} className="cdx-dense-label min-w-0 flex-1 py-0.5" />}
         <span className="flex w-6 shrink-0 items-center justify-center" aria-hidden="true">
           {isBusy && <Loader2Icon className="h-3.5 w-3.5 animate-spin text-[var(--text-tertiary)]" />}
         </span>

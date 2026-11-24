@@ -494,3 +494,14 @@
   [data-packed-page='cell']:has(> [data-project-page-number]) {
   display: block;
 }
+
+[data-catalogue-row-name] > [data-name-animating] {
+  mask-image: linear-gradient(to right, transparent, black var(--portal-title-fade),
+    black calc(100% - var(--portal-title-fade)), transparent);
+}
+
+[data-catalogue-row-name] > [data-preview-creator-name]:not([data-name-animating]) > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

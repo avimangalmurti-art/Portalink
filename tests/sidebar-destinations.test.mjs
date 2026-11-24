@@ -33,6 +33,7 @@ function harness({ collapsed = false, authenticated = true, presentation = 'web'
     '../hooks/useCompactNavigation': { useCompactNavigation: (value, change) => ({ collapsed: value, toggle: () => change(!value), closeCompact() {} }) },
     '../app/routes': routes,
     './profile/categoryIcons': { getCategoryIcon: () => 'category-icon' },
+    './profile/PreviewCreatorName': { CatalogueRowName: 'catalogue-row-name' },
     './PortalRingIcon': { PortalRingIcon: 'portal-ring-icon' },
     './profile/NewCategoryDialog': { NewCategoryDialog: 'new-category-dialog' },
     './profile/CategoryOptionsMenu': { CategoryOptionsMenu: 'category-options-menu' },
