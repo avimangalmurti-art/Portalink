@@ -468,15 +468,15 @@ test('desktop page and focused toolbars allocate a column for every owner and vi
   }
 });
 
-test('a dense desktop row uses the available hit area and leaves space for a focused page counter', () => {
+test('dense desktop actions use the available width without repeating the focused page count', () => {
   const env = interactionBarHarness('web', false, 172);
   const overview = descendants(env.render({ isOwner: true })).find(node => node.props.role === 'group');
   assert.equal(overview.props.style.minWidth, 172 - 2 * 4);
 
   const focused = descendants(env.render({ isOwner: true, placement: 'focused', pageCount: 7 }));
   const toolbar = focused.find(node => node.props.role === 'group');
-  const counter = focused.find(node => 'data-media-page-count' in node.props);
-  assert.equal(toolbar.props.style.minWidth + 8 + counter.props.style.width, 172 - 2 * 8);
+  assert.equal(focused.some(node => node.props['aria-label'] === 'Page 1 of 7' || node.props.children === '1 / 7'), false);
+  assert.equal(toolbar.props.style.minWidth, 172 - 2 * 8);
 });
 
 test('focused mobile owner and visitor actions all fit the same four-column row', () => {

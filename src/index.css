@@ -5262,10 +5262,6 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   transform: translateY(-50%);
 }
 
-.premium-viewer-page-counter--inline {
-  max-width: none;
-}
-
 .premium-viewer-page-control:hover:not(:disabled),
 .premium-viewer-exit-control:hover:not(:disabled) {
   background: rgba(34, 34, 38, var(--interface-glass-alpha, 0.82));
