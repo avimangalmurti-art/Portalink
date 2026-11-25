@@ -43,6 +43,7 @@ type SidebarProps = {
    * from, plus the two openers below.
    */
   onControlCenterOpen: () => void;
+  onUploadProject: () => void;
   /** The account menu reflects the actual session rather than a fixed label. */
   isAuthenticated: boolean;
   isAuthActionPending: boolean;
@@ -399,6 +400,7 @@ export function Sidebar({
   isPortalinkActive,
   accentColor,
   onControlCenterOpen,
+  onUploadProject,
   isAuthenticated,
   onSignIn,
   onPortalinkOpen,
@@ -635,6 +637,9 @@ export function Sidebar({
     {isAuthenticated && <>
       <PersonalNavigationTile destination="studio" collapsed={isSidebarCollapsed} active={isStudioActive} />
       <PersonalNavigationTile destination="notifications" collapsed={isSidebarCollapsed} active={isActivityActive} />
+      {!isSidebarCollapsed && <button type="button" onClick={onUploadProject} aria-label="Upload project" title="Upload project" className="nav-button sidebar-primary-control shape-compact flex shrink-0 items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
+      </button>}
     </>}
     <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
       aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'}
@@ -664,7 +669,7 @@ export function Sidebar({
              on one axis with one gap. Expanded, this is the header row. */}
           <div className={`global-control-header shrink-0 ${isSidebarCollapsed ? 'sidebar-rail sidebar-rail-brand justify-center' : 'justify-between gap-1.5'}`}>
             {isSidebarCollapsed && sidebarToggle}
-            {!isSidebarCollapsed && <span className="cdx-dense-label min-w-0 flex-1 px-1 text-[12px] font-semibold text-[var(--text-primary)]">Portalink Networks</span>}
+            {!isSidebarCollapsed && <span className="cdx-dense-label min-w-0 flex-1 pl-2 pr-1 text-[12px] font-semibold text-[var(--text-primary)]">Portalink Networks</span>}
             {!isSidebarCollapsed && <div className="side-panel-control-row ml-auto min-w-0 shrink">
               {/* A spinning record marks the live session the viewer has joined. */}
               {liveShow && <button type="button" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`} title={`Live — ${liveShow}`} data-static-icon="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center focus:outline-none">
