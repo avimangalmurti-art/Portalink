@@ -55,6 +55,32 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
  function requestClose(){if(saveSetup())onClose();}
  const mobileAuthoring=presentation==='mobile';
  const viewport=useDialogViewport(!showNewPortal,mobileAuthoring),panel=useRef<HTMLElement>(null),flight=useRef(false),active=useRef(true);
+ useEffect(() => {
+  const page = panel.current;
+  if (mobileAuthoring || showNewPortal || !page) return;
+  const header = page.querySelector('header');
+  const form = page.querySelector('form');
+  const footer = page.querySelector('footer');
+  const note = form?.querySelector('textarea');
+  if (!header || !form || !footer || !note) return;
+
+  // Center the resting form. Extra note lines extend downward from that origin.
+  const height = (element: Element) => element.getBoundingClientRect().height;
+  const centerForm = () => {
+   const extraNoteHeight = Math.max(0, height(note) - parseFloat(getComputedStyle(note).minHeight));
+   const restingHeight = height(header) + height(form) + height(footer) - extraNoteHeight;
+   const style = getComputedStyle(page);
+   const availableHeight = page.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+   page.style.setProperty('--project-setup-top-space', `${Math.max(0, (availableHeight - restingHeight) / 2)}px`);
+  };
+  centerForm();
+  const observer = new ResizeObserver(centerForm);
+  for (const element of [page, header, form, footer, note]) observer.observe(element);
+  return () => {
+   observer.disconnect();
+   page.style.removeProperty('--project-setup-top-space');
+  };
+ }, [mobileAuthoring, showNewPortal]);
  function closePortalChoices(){setShowPortals(false);portalsButton.current?.focus({preventScroll:true});}
  function openNewPortal(){
   if(flight.current)return;
@@ -144,7 +170,7 @@ export function ProjectSetupScreen({categories,initialCategoryId,accountId,profi
      <button type="button" ref={newPortalButton} className="project-setup-add-portal" aria-label="Create a Portal" aria-haspopup="dialog" disabled={busy} onClick={openNewPortal}><PlusIcon size={18} aria-hidden="true"/></button>
     </div>}
     <label className="project-setup-description"><span>Note <span className="project-setup-optional">(optional)</span></span><textarea data-ui-shape="composer" value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Capture a thought…" rows={2} disabled={busy}/>
-     {mobileAuthoring&&<span className="project-setup-note-measure" aria-hidden="true">{summary}{summary.endsWith('\n')?'\u200b':null}</span>}
+     <span className="project-setup-note-measure" aria-hidden="true">{summary}{summary.endsWith('\n')?'\u200b':null}</span>
     </label>
    </div>
    {error&&<p role="alert">{projectMessage(error)}</p>}

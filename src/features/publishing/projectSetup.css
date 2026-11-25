@@ -184,8 +184,8 @@
   color:var(--text-primary);
 }
 .project-setup-optional { font-weight:400; color:var(--text-secondary); }
-.project-setup-description textarea { min-height:80px; resize:vertical; }
-.project-setup-screen[data-presentation='mobile'] .project-setup-description textarea {
+.project-setup-screen .project-setup-description textarea {
+  min-height:80px;
   box-sizing:border-box;
   field-sizing:content;
   resize:none;
@@ -194,18 +194,18 @@
 .project-setup-page .project-setup-note-measure { display:none; }
 @supports not (field-sizing:content) {
   /* Match the textarea's wrapping and let the form scroll around the full note. */
-  .project-setup-screen[data-presentation='mobile'] .project-setup-description { grid-template-columns:minmax(0,1fr); }
-  .project-setup-screen[data-presentation='mobile'] .project-setup-description > :is(textarea,.project-setup-note-measure) {
+  .project-setup-screen .project-setup-description { grid-template-columns:minmax(0,1fr); }
+  .project-setup-screen .project-setup-description > :is(textarea,.project-setup-note-measure) {
     grid-area:2 / 1;
     white-space:pre-wrap;
     overflow-wrap:break-word;
   }
-  .project-setup-screen[data-presentation='mobile'] .project-setup-note-measure {
+  .project-setup-screen .project-setup-description .project-setup-note-measure {
     display:block;
     box-sizing:border-box;
-    font-size:max(16px,1rem);
     visibility:hidden;
   }
+  .project-setup-screen[data-presentation='mobile'] .project-setup-note-measure { font-size:max(16px,1rem); }
 }
 .project-setup-page>footer { flex:none; padding:12px 32px 24px; }
 .project-setup-hint {
@@ -294,3 +294,24 @@
   .project-setup-page>footer { padding-block:10px 16px; }
 }
 @media (max-width:374px) { .project-setup-page form,.project-setup-page>footer { padding-inline:24px; } }
+
+/* Center the desktop form as one column, including its title and action. */
+.app-shell .project-setup-screen[data-presentation='web'] > .project-setup-page {
+  --fixed-header-canvas:var(--surface-raised);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable both-edges;
+}
+.project-setup-screen[data-presentation='web'] .project-setup-page > header {
+  margin-block-start:var(--project-setup-top-space,auto);
+  padding-inline:32px;
+}
+.project-setup-screen[data-presentation='web'] .project-setup-page > form {
+  flex:none;
+  overflow:visible;
+  padding-block-end:0;
+}
+.project-setup-screen[data-presentation='web'] .project-setup-page > footer {
+  margin-block-end:auto;
+  padding-block:16px 12px;
+}
