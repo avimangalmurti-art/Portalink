@@ -34,5 +34,5 @@ test('worker routes /privacy-policy before share resolution and settings links t
   assert.ok(worker.indexOf('privacyPolicyResponse(request)') > 0);
   assert.ok(worker.indexOf('privacyPolicyResponse(request)') < worker.indexOf('isPublicSharePath(url.pathname)'));
   const settings = readFileSync(new URL('../src/components/ControlCenterPage.tsx', import.meta.url), 'utf8');
-  assert.match(settings, /window\.location\.assign\('\/privacy-policy'\)/);
+  assert.equal(settings.match(/window\.location\.assign\('\/privacy-policy'\)/g)?.length, 2, 'signed-in About and the mobile shared About screen both link the policy');
 });

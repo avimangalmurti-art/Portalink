@@ -153,6 +153,7 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
     </header>
     <div className="settings-page-sections">
       <ProfessionalEntry embedded ready={!auth.isInitializing} onSignIn={() => auth.requestAuth('signIn')} onCreate={() => auth.requestAuth('signUp')} />
+      <Button variant="secondary" onClick={() => window.location.assign('/privacy-policy')}><span className="settings-action-label">Privacy policy</span></Button>
     </div>
   </div>;
 
