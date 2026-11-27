@@ -138,7 +138,7 @@ test('legacy browser aliases and UUIDs return the visitor guard without a fragme
     './server/publicOriginRedirect': publicRedirectFixture,
     './features/sharing/shareModel': model,
     './server/shareAddress': address,
-    './server/citation': { citationLicenseResponse: () => null },
+    './server/privacyPolicy': { privacyPolicyResponse: () => null }, './server/citation': { citationLicenseResponse: () => null },
     './server/publicMedia': { isPublicMediaRoute: () => false },
     './server/sharedPreview': { prefersHtml: () => true },
   });

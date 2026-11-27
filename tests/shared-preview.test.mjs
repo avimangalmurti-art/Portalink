@@ -101,7 +101,7 @@ function setup() {
   const preview = compile('../src/server/sharedPreview.ts', {'../features/sharing/shareModel':model,'../features/media/publicMediaUrl':media,'../services/supabase/coverThumbnailReads':reads});
   const reachCore=compile('../src/features/reads/readSignal.ts');
   const reach=compile('../src/server/projectReach.ts', {'../features/reads/readSignal':reachCore});
-  const worker = compile('../src/sites-worker.ts', { './server/referenceResolver':{},'./server/portfolioExport':{},'./server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach':reach, './server/sharedPreview': preview, './features/sharing/shareModel':model, './server/shareAddress':{resolveShareRequest:async()=>({}),injectShareResolution:html=>html},
+  const worker = compile('../src/sites-worker.ts', { './server/referenceResolver':{},'./server/portfolioExport':{},'./server/privacyPolicy': { privacyPolicyResponse: () => null }, './server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach':reach, './server/sharedPreview': preview, './features/sharing/shareModel':model, './server/shareAddress':{resolveShareRequest:async()=>({}),injectShareResolution:html=>html},
     './server/publicMedia': { isPublicMediaRoute: () => false }, './server/rum': {}, './server/rumOwner': {},
   }).default;
   const html = () => shell.replace('</head>', state.extraHead + '</head>').replace('</body>', state.extraBody + '</body>');

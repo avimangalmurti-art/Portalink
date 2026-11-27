@@ -1,6 +1,6 @@
 import { plainFormattedText } from '../../components/text/textFormatting';
 /** Public address grammar is shared by client, router and worker. */
-export const RESERVED_HANDLES = new Set('share cite licenses p studio messages settings search portalink api media feed discover profile item portals insights appearance saved notifications assets icons startup c collaboration activity edit home index.html share.html favicon.ico og.png image.png image-dark.png site.webmanifest robots.txt sitemap.xml manifest.json sw.js portalink-welcome-loop.webp portalink-splash-mobile.mp4'.split(' '));
+export const RESERVED_HANDLES = new Set('share cite licenses privacy p studio messages settings search portalink api media feed discover profile item portals insights appearance saved notifications assets icons startup c collaboration activity edit home index.html share.html favicon.ico og.png image.png image-dark.png site.webmanifest robots.txt sitemap.xml manifest.json sw.js portalink-welcome-loop.webp portalink-splash-mobile.mp4'.split(' '));
 export function normalizePublicHandle(value: string): string { return value.trim().replace(/^@/, '').toLowerCase(); }
 export function validHandle(value: string): boolean { return /^[a-z0-9][a-z0-9.]{2,29}$/.test(value) && !RESERVED_HANDLES.has(value); }
 export function handleFromPath(path: string): string | null {
