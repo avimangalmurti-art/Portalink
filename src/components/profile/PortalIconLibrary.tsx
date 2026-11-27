@@ -20,6 +20,7 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
   searchQuery?: string;
 }) {
   const isMobile = usePresentation() === 'mobile';
+  const tileShape = compact ? 'shape-squircle-compact' : isMobile ? 'shape-squircle' : 'shape-container';
   const moreRef = useRef<HTMLDivElement>(null);
   const [localQuery, setLocalQuery] = useState('');
   const query = searchQuery ?? localQuery;
@@ -80,7 +81,7 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
           aria-busy={pending || undefined} disabled={disabled}
           tabIndex={compact ? (name === tabStop ? 0 : -1) : undefined}
           onClick={() => onSelect(name)}
-          className={`relative flex aspect-square min-h-11 w-full items-center justify-center border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed ${compact ? 'shape-squircle-compact' : 'shape-container'} ${chosen ? selectedStyle : 'border-[var(--hairline)] bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'} ${disabled && !pending ? 'opacity-45' : ''}`}>
+          className={`relative flex aspect-square min-h-11 w-full items-center justify-center border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed ${tileShape} ${chosen ? selectedStyle : 'border-[var(--hairline)] bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'} ${disabled && !pending ? 'opacity-45' : ''}`}>
           <InterfaceIcon icon={pending ? Loader2Icon : Icon} size={compact ? 'lg' : 'xl'} keepColor className={pending ? 'animate-spin motion-reduce:animate-none' : undefined} />
           {chosen && !compact && !pending && <InterfaceIcon icon={CheckIcon} size="sm" keepColor className="absolute right-1 top-1" />}
         </button>;

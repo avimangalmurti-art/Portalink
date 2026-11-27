@@ -10,7 +10,7 @@ import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { usePublishProject } from './usePublishProject';
 import { TITLE_MAX_LENGTH } from './validation';
 import { usePresentation } from '../../presentation/usePresentation';
-import { MobilePublishFlow, type MobilePublishStep } from './MobilePublishFlow';
+import { MobilePublishFlow } from './MobilePublishFlow';
 import type { ProjectDraft, PublishResult } from '../../types/publishing';
 
 /**
@@ -23,7 +23,7 @@ import type { ProjectDraft, PublishResult } from '../../types/publishing';
 type PublishProjectDialogProps = {
   initialMetadata?: {title:string;summary:string};
   resumeDraft?: ProjectDraft;
-  firstProject?: { madeIn?: string; name: string; categories: string[] };
+  firstProject?: { madeIn?: string };
   isOpen: boolean;
   profileId: string | null;
   categoryId: string | null;
@@ -58,7 +58,6 @@ export function PublishProjectDialog({
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const closeFlight = useRef(false);
-  const [mobileEditingStep, setMobileEditingStep] = useState<MobilePublishStep>('files');
   const {
     step,
     state,
@@ -70,7 +69,6 @@ export function PublishProjectDialog({
   useEffect(() => {
     if (!isOpen) {
       setIsConfirmingDiscard(false);
-      setMobileEditingStep('files');
       announcedProjectRef.current = null;
     }
   }, [isOpen]);
@@ -203,7 +201,7 @@ export function PublishProjectDialog({
               {removingLocalCopy && <Button type="button" variant="secondary" size="lg" onClick={()=>setIsConfirmingDiscard(true)}>Remove saved copy</Button>}
             </div> : (!publishFlow.draft && !firstProject) || publishFlow.restoringDraft ? <div className="project-form-content scrollbar-slim">
               <LoadingState label="Starting a draft" />
-            </div> : guided ? <MobilePublishFlow onboarding={onboarding} closing={isClosing} detailsFirst={Boolean(initialMetadata) || Boolean(isMobile && resumeDraft && metadata.title.trim())} flow={publishFlow} editingStep={guided ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={guided ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
+            </div> : guided ? <MobilePublishFlow onboarding={onboarding} closing={isClosing} detailsFirst={Boolean(initialMetadata) || Boolean(isMobile && resumeDraft && metadata.title.trim())} flow={publishFlow} editingStep={isEditingDetails ? 'details' : 'files'} onEditingStepChange={publishFlow.setFirstProjectStage} firstProject={Boolean(firstProject)} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
           event.preventDefault();
           if (publishFlow.canPublish && !publishFlow.isSavingDraft) {
             void publishFlow.publish.run();

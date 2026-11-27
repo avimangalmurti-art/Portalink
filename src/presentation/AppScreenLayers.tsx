@@ -16,11 +16,12 @@ type RouteContext = { location: Location; navigationType: NavigationType };
 type ScreenSnapshot = { mainClassName: string; ariaLabel: string; content: React.ReactNode; routeContext?: RouteContext };
 type Navigation = RouteContext & { scope: string };
 
-/** Mobile profile destinations update one workspace instead of replacing its header. */
-export function AppScreenLayers({ screenKey, mobileProfileKey, snapshot, reduceMotion, skipLayerTransition, mainContentRef, onScroll, navigation }: {
+/** Coordinates route layers for desktop workspaces and the mobile navigation stack. */
+export function AppScreenLayers({ screenKey, mobileProfileKey, webPortalScope, snapshot, reduceMotion, skipLayerTransition, mainContentRef, onScroll, navigation }: {
   screenKey: string;
   navigation?: Navigation;
   mobileProfileKey?: string;
+  webPortalScope?: string;
   snapshot: ScreenSnapshot;
   reduceMotion: boolean;
   skipLayerTransition: boolean;
@@ -30,8 +31,12 @@ export function AppScreenLayers({ screenKey, mobileProfileKey, snapshot, reduceM
   const presentation = usePresentation();
   useLayoutEffect(() => { if (typeof document === 'undefined') return; if (document.documentElement.dataset.mobilePullDismiss === 'committing') finishPullDismiss(); delete document.documentElement.dataset.mobileStackNavigation; }, [navigation?.location.key]);
   const navigationMark = useSyncExternalStore(subscribeMobileScreenNavigation, getMobileScreenNavigationMark, getServerMobileScreenNavigationMark);
-  const identity = useRef({ screenKey, mobileProfileKey, layerKey: presentation === 'mobile' && mobileProfileKey ? mobileProfileKey : screenKey });
-  if (identity.current.screenKey !== screenKey || identity.current.mobileProfileKey !== mobileProfileKey) {
+  const identity = useRef({
+    screenKey, mobileProfileKey, webPortalScope,
+    instantPortalSwitch: false,
+    layerKey: presentation === 'mobile' && mobileProfileKey ? mobileProfileKey : screenKey,
+  });
+  if (identity.current.screenKey !== screenKey || identity.current.mobileProfileKey !== mobileProfileKey || identity.current.webPortalScope !== webPortalScope) {
     // A marked move keeps the leaving workspace mounted for one transition so the
     // two screens can travel together. Unmarked mobile navigation still retains
     // the layer, so an expired or absent mark falls back to existing behavior.
@@ -44,12 +49,16 @@ export function AppScreenLayers({ screenKey, mobileProfileKey, snapshot, reduceM
     identity.current = {
       screenKey,
       mobileProfileKey,
+      webPortalScope,
+      // Reset portal-local editors and filters, but show the new desktop portal immediately.
+      instantPortalSwitch: presentation === 'web' && webPortalScope !== undefined && identity.current.webPortalScope === webPortalScope,
       layerKey: sameMobileProfile ? identity.current.layerKey : nextKey,
     };
   }
   // Resizing alone never replaces a mounted workspace or its unsaved state.
   const activeKey = identity.current.layerKey;
-  const layers = useScreenTransition(activeKey, { ...snapshot, routeContext: navigation }, reduceMotion, skipLayerTransition, presentation === 'mobile' && navigation ? { entryKey: navigation.location.key, action: navigation.navigationType, scope: navigation.scope, reset: typeof document !== 'undefined' && document.documentElement.dataset.mobileStackNavigation === 'dock' } : undefined, navigation?.scope);
+  const skipMotion = skipLayerTransition || (presentation === 'web' && identity.current.instantPortalSwitch);
+  const layers = useScreenTransition(activeKey, { ...snapshot, routeContext: navigation }, reduceMotion, skipMotion, presentation === 'mobile' && navigation ? { entryKey: navigation.location.key, action: navigation.navigationType, scope: navigation.scope, reset: typeof document !== 'undefined' && document.documentElement.dataset.mobileStackNavigation === 'dock' } : undefined, navigation?.scope);
   return <>{layers.map(layer => <ScreenLayer key={layer.id} layer={layer} active={!layer.retained && layer.screenKey === activeKey} mobile={presentation === 'mobile'} navigation={navigation} mainContentRef={mainContentRef} onScroll={onScroll} />)}</>;
 }
 

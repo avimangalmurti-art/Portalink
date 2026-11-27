@@ -81,22 +81,23 @@ function componentHarness(file, name, initialProps, dependencies = {}, globals =
   };
 }
 
-function pdfFixture({ pageNumber = 3, strictPageNumber, count = 2, usePageAspectRatio = false } = {}) {
+function pdfFixture({ pageNumber = 3, strictPageNumber, count = 2, usePageAspectRatio = false, openPdfRanges } = {}) {
   const requests = [], failed = [], counts = [], tasks = [];
   const page = { getViewport: ({ scale }) => ({ width: 600 * scale, height: 900 * scale }),
     render: () => ({ promise: Promise.resolve(), cancel() {} }) };
   const document = { numPages: count, async getPage(number) { requests.push(number); return page; } };
-  const pdfjs = { getDocument() {
-    const task = { promise: Promise.resolve(document), destroyed: 0, async destroy() { this.destroyed++; } };
+  const pdfjs = { getDocument(options) {
+    const task = { options, promise: Promise.resolve(document), destroyed: 0, async destroy() { this.destroyed++; } };
     tasks.push(task); return task;
   } };
   const h = componentHarness('src/components/media/PdfPage.tsx', 'PdfPage', {
-    source: 'https://storage.test/permission-checked.pdf', label: 'Shared page', pageNumber, usePageAspectRatio,
+    source: openPdfRanges ? null : 'https://storage.test/permission-checked.pdf', openPdfRanges, label: 'Shared page', pageNumber, usePageAspectRatio,
     ...(strictPageNumber === undefined ? {} : { strictPageNumber }),
     onRenderFailure: () => failed.push('failed'), onPageCountChange: value => counts.push(value),
   }, {
     'lucide-react': { FileTextIcon: 'file-icon' }, 'pdfjs-dist/build/pdf.worker.min.mjs?url': 'worker-url',
     './pdf-page.css': {}, '../../features/performance/rum': { markRumPdf() {}, rumViewToken: () => 1 },
+    './pdfRangeTransport': { pdfRangeOptions: (_pdfjs, ranges, fail) => ({ ranges, fail }) },
   }, { __pdfjs: pdfjs, window: { devicePixelRatio: 1, addEventListener() {}, removeEventListener() {}, setTimeout, clearTimeout } },
   '\nloadPdfJs = async () => __pdfjs;');
   return Object.assign(h, { requests, failed, counts, tasks });
@@ -126,6 +127,7 @@ function previewFixture({ observe = false, holdChunks = false, standalonePage = 
     'react-router-dom': { Link: 'internal-link' },
     '../../contexts/AuthContext': { useAuth: () => auth },
     '../../contexts/ServicesContext': { useServices: () => services },
+    '../profile/CreatorAvatar': { CreatorAvatar: 'creator-avatar' },
     '../../features/media/coverThumbnailSources': { coverThumbnailSources: thumbnail => thumbnail ? { src: thumbnail.src, srcSet: thumbnail.srcSet } : null },
     '../../features/messages/sharedContentPreview': { resolveSharedContentPreview(destination, currentServices) {
       const pending = deferred(); requests.push({ ...pending, target: destination, services: currentServices }); return pending.promise;
@@ -301,26 +303,35 @@ test('an unmounted preview ignores a pending PDF renderer download and does not 
   assert.equal(h.writesAfterUnmount, 0);
 });
 
-test('WEB MessageBody default keeps canonical text links without constructing or resolving previews', async () => {
-  let parses = 0;
+test('threads render projects and saved creators as content on every presentation, while preserving author text', async () => {
+  const origin = 'https://portalinknetworks.com';
+  const model = sourceModule('src/features/messages/sharedContentPreview.ts', {
+    '../citations/publicOrigin': { PUBLIC_ORIGIN: origin },
+    '../sharing/shareModel': sourceModule('src/features/sharing/shareModel.ts'),
+    '../projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
+  });
   const h = componentHarness('src/components/messages/MessageBody.tsx', 'MessageBody', {
-    body: 'Page 6\nhttps://portalinknetworks.com/share/creator/c/portal/project?media=pdf%2Fsource&page=6',
+    body: 'Look at these\n' + origin + '/share/creator/c/portal/project\n' + origin + '/share/creator\nhttps://example.com/article',
   }, {
     'react-router-dom': { Link: 'internal-link' },
     '../../features/citations/publicOrigin': { PUBLIC_ORIGIN: 'https://portalinknetworks.com' },
     '../../features/sharing/shareModel': { isPublicSharePath: path => path.startsWith('/share/') },
-    '../../features/messages/sharedContentPreview': { parseSharedContentLink() { parses++; throw new Error('WEB must not resolve a preview'); } },
+    '../../features/messages/sharedContentPreview': model,
     './SharedContentMessagePreview': { SharedContentMessagePreview: 'metadata-preview' },
   }, { window: { location: { origin: 'https://portalinknetworks.com' } } });
-  await h.flush(); assert.equal(parses, 0);
-  assert.equal(nodes(h.tree).some(node => node.type === 'metadata-preview'), false);
-  assert.equal(nodes(h.tree).find(node => node.type === 'internal-link')?.props.to, target().to.split('#')[0]);
-  assert.ok(text(h.tree).includes('https://portalinknetworks.com/share/creator/c/portal/project')); h.dispose();
+  await h.flush();
+  const previews = nodes(h.tree).filter(node => node.type === 'metadata-preview');
+  assert.deepEqual(previews.map(node => node.props.target.to), ['/share/creator/c/portal/project', '/share/creator']);
+  assert.match(text(h.tree), /Look at these/);
+  assert.match(text(h.tree), /https:\/\/example.com\/article/);
+  assert.equal(text(h.tree).includes(origin), false);
+  h.dispose();
 });
 
-test('MOBILE only treats a standalone page share or its generated label as an image-only message', async () => {
+test('both presentations treat only a standalone page share or its generated label as an image-only message', async () => {
   const origin = 'https://portalinknetworks.com';
   const { isGeneratedPageShareLabel } = sourceModule('src/features/messages/sharedContentPreview.ts', {
+    '../projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
     '../citations/publicOrigin': { PUBLIC_ORIGIN: origin },
     '../sharing/shareModel': sourceModule('src/features/sharing/shareModel.ts'),
   });
@@ -328,7 +339,7 @@ test('MOBILE only treats a standalone page share or its generated label as an im
   const pageUrl = origin + pageTarget.to;
   const projectUrl = pageUrl.split('?')[0];
   const h = componentHarness('src/components/messages/MessageBody.tsx', 'MessageBody', {
-    body: pageUrl, previewLinks: true,
+    body: pageUrl,
   }, {
     'react-router-dom': { Link: 'internal-link' },
     '../../features/citations/publicOrigin': { PUBLIC_ORIGIN: origin },
@@ -337,18 +348,43 @@ test('MOBILE only treats a standalone page share or its generated label as an im
     './SharedContentMessagePreview': { SharedContentMessagePreview: 'metadata-preview' },
   }, { window: { location: { origin } } });
   for (const body of [pageUrl, `Page 6\n${pageUrl}`]) {
-    const tree = h.render({ body, previewLinks: true });
+    const tree = h.render({ body });
     assert.equal(nodes(tree).find(node => node.type === 'metadata-preview')?.props.standalonePage, true);
     assert.equal(text(tree), '');
   }
   for (const body of [`Page 6 ${pageUrl}`, `Page 7\n${pageUrl}`, `Check this out\n${pageUrl}`, `${pageUrl}\nWhat do you think?`, `${pageUrl} ${pageUrl}`, projectUrl]) {
-    const tree = h.render({ body, previewLinks: true });
+    const tree = h.render({ body });
     const previews = nodes(tree).filter(node => node.type === 'metadata-preview');
     assert.ok(previews.length > 0);
     assert.ok(previews.every(node => !node.props.standalonePage));
     assert.equal(text(tree), body.replaceAll(pageUrl, '').replaceAll(projectUrl, ''));
   }
   h.dispose();
+});
+
+test('multipart previews render exactly the requested page, dispose on removal and skip cancelled range opens', async () => {
+  const reader = { length: 1024 };
+  const h = pdfFixture({ pageNumber: 4, count: 8, strictPageNumber: true, openPdfRanges: async () => reader });
+  await h.flush(); assert.deepEqual(h.requests, [4]);
+  assert.equal(h.tasks[0].options.ranges, reader);
+  h.tasks[0].options.fail(new Error('Range unavailable')); await h.flush(); assert.equal(h.failed.length, 1);
+  h.dispose(); assert.equal(h.tasks[0].destroyed, 1);
+  const pending = deferred();
+  const cancelled = pdfFixture({ openPdfRanges: () => pending.promise });
+  await cancelled.flush(); cancelled.dispose(); pending.resolve(reader); await cancelled.flush();
+  assert.equal(cancelled.tasks.length, 0); assert.equal(cancelled.writesAfterUnmount, 0);
+});
+
+test('a shared creator card uses their current name, handle and avatar fallback', async () => {
+  const h = previewFixture(); await h.flush();
+  h.update({ target: { ...target(), to: '/share/creator', projectId: null, attachmentId: null, pageNumber: null } });
+  h.commit(); await h.flush();
+  h.requests.at(-1).resolve({ kind: 'creator', title: 'Current creator', pageLabel: '@creator', source: null }); await h.flush();
+  const avatar = nodes(h.tree).find(node => node.type === 'creator-avatar');
+  assert.equal(avatar.props.name, 'Current creator'); assert.equal(avatar.props.avatar, null);
+  assert.match(text(h.tree), /Current creator/); assert.match(text(h.tree), /@creator/);
+  assert.equal(nodes(h.tree).find(node => node.type === 'internal-link').props.to, '/share/creator');
+  assert.equal(text(h.tree).includes('Preview unavailable'), false); h.dispose();
 });
 
 test('strict shared PDF page rendering refuses unavailable page instead of showing another page', async () => {

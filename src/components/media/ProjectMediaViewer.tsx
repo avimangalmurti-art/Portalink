@@ -11,23 +11,26 @@ import { useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
+import { suspendProfileAudioForVideo } from '../../features/profile/profileAudioPlayback';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import { copyPublicLink } from '../../utils/copyPublicLink';
+import { ProjectSharePathContext } from '../../features/media-interactions/ProjectSharePathContext';
 import { MobilePageContext } from '../../features/media-interactions/MobilePageContext';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import type { PagePosition } from './MobileProjectPageCounter';
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, ChevronLeftIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
+import { UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BoxIcon, ChevronLeftIcon, FileIcon, FileTextIcon, ImageIcon, InfoIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { PortalRingIcon } from '../PortalRingIcon';
 import { AttachmentRenderer } from './AttachmentRenderer';
-import { ImagePage } from './ImageAttachment';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
 import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
 import { useNavigationOutsideTap } from '../../presentation/mobile/useNavigationOutsideTap';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
-import { MobileProjectPageCounter } from './MobileProjectPageCounter';
+import { DesktopProjectPageCounter, MobileProjectPageCounter } from './MobileProjectPageCounter';
 import { jumpToProjectPage } from './projectPageScroll';
 import { useDocumentReadingScroll } from './useDocumentReadingScroll';
+import { useDesktopPagePacking } from './useDesktopPagePacking';
 
 import type { ProjectManagement } from '../../features/projects/useProjectManagement';
 import type { PdfDocument } from './PdfPage';
@@ -41,6 +44,7 @@ import { useProjectComments } from '../../features/comments/useProjectComments';
 import type { MediaKind, ProjectAttachment, ProjectCredit } from '../../types/domain';
 import type { LucideIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { ProjectOpeningLoader } from '../ui/StateViews';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { pinchDistance, pinchSteps } from '../../utils/pinchGesture';
 import { beginContentPinch, touchMidpoint, type ContentPinchMotion } from './contentPinchMotion';
@@ -56,39 +60,15 @@ const KIND_ICONS: Record<MediaKind, LucideIcon> = {
   model3d: BoxIcon,
   unknown: FileIcon
 };
-
-const SAMPLE_VERIFICATION_SIGNALS = [
-  {
-    key: 'original',
-    label: 'Original signals',
-    value: 72,
-    color: '#0a84ff'
-  },
-  {
-    key: 'cited',
-    label: 'Cited material',
-    value: 18,
-    color: '#bf5af2'
-  },
-  {
-    key: 'ai-like',
-    label: 'AI-like signals',
-    value: 7,
-    color: '#ff9f0a'
-  },
-  {
-    key: 'uncertain',
-    label: 'Uncertain',
-    value: 3,
-    color: '#8e8e93'
-  }
-] as const;
-
-const SAMPLE_CHECKER_EVIDENCE = [
-  { provider: 'LumenProof AI', result: 'Low AI-pattern risk' },
-  { provider: 'SourceTrace', result: 'References matched' },
-  { provider: 'PatternLens', result: '3% uncertain' }
-] as const;
+const FILE_KIND_LABELS: Record<MediaKind, string> = {
+  image: 'Image',
+  video: 'Video',
+  audio: 'Audio',
+  document: 'Document',
+  model3d: '3D model',
+  unknown: 'File',
+};
+const GENERATED_FILE_NAME = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}(?:\.[a-z0-9]+)?$/i;
 
 function formatPublishedDate(value?: string): string | null {
   if (!value) return null;
@@ -110,6 +90,7 @@ export function ProjectMediaViewer({
   videoSequence,
   creator,
   projectId,
+  primaryPortalId,
   projectTitle,
   projectSummary,
   descriptionEditor, onDeleteProject,
@@ -119,6 +100,8 @@ export function ProjectMediaViewer({
   attachments,
   contentTypefaceStack,
   pagesPerRow = 3,
+  desktopMediaColumns,
+  resolvedDocumentPageCounts,
   onPagesPerRowChange,
   onPagesPerRowCommit,
   savingPageLayout = false,
@@ -131,7 +114,8 @@ export function ProjectMediaViewer({
   isOwner = false,
   readOnlyShare = false,
   sharedDesktopRailStyle,
-  onClose
+  onClose,
+  onTimelineBack
 
 
 
@@ -142,16 +126,14 @@ export function ProjectMediaViewer({
 
 
 
-}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { indexOpener?: React.RefObject<HTMLButtonElement>; index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];onDeleteProject?: () => void;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public catalogue reading hides engagement and creator editing. */readOnlyShare?: boolean;sharedDesktopRailStyle?: React.CSSProperties;onClose: () => void;}) {
+}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { indexOpener?: React.RefObject<HTMLButtonElement>; index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;primaryPortalId?: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];onDeleteProject?: () => void;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** An explicit desktop density also sizes standalone media previews. */desktopMediaColumns?: number; resolvedDocumentPageCounts?: Readonly<Record<string, number>>; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public catalogue reading hides engagement and creator editing. */readOnlyShare?: boolean;sharedDesktopRailStyle?: React.CSSProperties;onTimelineBack?: () => void;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
    * changes only presentation: never page proportions, order, or source files.
    *
-   * Three across is the platform standard for a piece that genuinely has pages.
-   * A single-page piece is never laid out in columns at all — there is nothing
-   * to sit beside it, and a lone page in a third of the width would just be a
-   * small image with two empty columns next to it.
+   * Three across is the default for a piece that genuinely has pages. Standalone
+   * desktop previews open at full width until a density is explicitly chosen.
   */
   const normalizedPagesPerRow = normalizePagesPerRow(pagesPerRow);
   const viewerMemoryScope = readOnlyShare ? 'shared' : 'workspace';
@@ -176,12 +158,14 @@ export function ProjectMediaViewer({
   const railContentId = useId();
   const [isProjectShared, setIsProjectShared] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
+  const [focusedReadingPart, setFocusedReadingPart] = useState<string | null>(null);
+  const focusedReadingPartRef = useRef<string | null>(null);
   const [areControlsVisible, setAreControlsVisible] = useState(true);
-  const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'comments' | 'verification'>('project');
   const controlsTimerRef = useRef<number | null>(null);
   const viewerRootRef = useRef<HTMLDivElement>(null);
   const isMobileViewer = Boolean(mobileNavigation);
-  const [mobilePopup, setMobilePopup] = useState<'description' | 'comments' | 'verification' | 'engagement' | null>(null);
+  const screenActive = useMobileScreenActive();
+  const [mobilePopup, setMobilePopup] = useState<'description' | 'comments' | 'engagement' | null>(null);
   const [mobileEngagementOpen, setMobileEngagementOpen] = useState(false);
   const mobileEngagementRef = useRef<HTMLElement>(null);
   const mobileEngagementToggleRef = useRef<HTMLButtonElement>(null);
@@ -193,16 +177,12 @@ export function ProjectMediaViewer({
   const popupAnchorRef = useRef<HTMLDivElement>(null);
   const descriptionTriggerRef = useRef<HTMLButtonElement>(null);
   const commentsTriggerRef = useRef<HTMLButtonElement>(null);
-  const verificationTriggerRef = useRef<HTMLButtonElement>(null);
   const feedbackTriggerRef = useRef<HTMLButtonElement>(null);
   const closeMobilePopup = useCallback(() => setMobilePopup(null), []);
   useEffect(() => {
     setMobilePopup(null);
     setMobileEngagementOpen(false);
   }, [projectId, isMobileViewer, mobileNavigation?.isIndexOpen, isImmersive]);
-  useEffect(() => {
-    setSharedInfoPanel('project');
-  }, [projectId]);
   useEffect(() => {
     if (deepLinkedAttachmentId && attachments.some((attachment) => attachment.id === deepLinkedAttachmentId)) {
       setActiveId(deepLinkedAttachmentId);
@@ -263,27 +243,44 @@ export function ProjectMediaViewer({
     }
   }, [mobilePopup, engagement.resolveError, engagement.failure]);
   const sendContent = useInternalContentShare();
-  const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/') + window.location.search + window.location.hash, PUBLIC_ORIGIN).href;
+  const { pathname, search, hash } = window.location;
+  const sharePath = primaryPortalId
+    ? pathname.replace(/(\/c\/)[^/]+(\/([^/]+)\/?$)/, (match, prefix, suffix, id) =>
+      id === encodeURIComponent(projectId) ? prefix + encodeURIComponent(primaryPortalId) + suffix : match)
+    : pathname;
+  const publicUrl = new URL(sharePath.replace(/^\/p\//, '/share/') + search + hash, PUBLIC_ORIGIN).href;
   const shareProject = () => sendContent({title:projectTitle,url:publicUrl,onSent:()=>setIsProjectShared(true)});
   const selected = attachments.find((item) => item.id === activeId) ?? attachments[0];
   const singlePageNumber = Number(mediaQuery?.get('page'));
-  const isSavedSinglePage = mediaQuery?.get('view') === 'page' && deepLinkedAttachmentId === selected?.id
-    && Number.isInteger(singlePageNumber) && singlePageNumber >= 1;
+  const explicitPageLink = mediaQuery?.get('view') === 'page' && Number.isSafeInteger(singlePageNumber) && singlePageNumber >= 1
+    && attachments.some(attachment => attachment.id === deepLinkedAttachmentId);
+  const isSavedSinglePage = explicitPageLink && deepLinkedAttachmentId === selected?.id;
   const imagePages = attachments.filter((item) => item.kind === 'image');
-  // In the mobile overview the artwork introduces the PDF in the same scroll.
-  // Explicit image and focused page links retain their attachment target.
-  const coveredDocument = isMobileViewer && !isSavedSinglePage && imagePages.length > 0
-    && imagePages.length === attachments.length - 1
-    && !imagePages.some((item) => item.id === deepLinkedAttachmentId)
-    ? attachments.find((item) => item.kind === 'document' && !item.isCover)
-    : undefined;
-  const active = coveredDocument ?? selected;
+  const orderedReading = !explicitPageLink && attachments.length > 1
+    && attachments.some(attachment => attachment.kind === 'document')
+    && attachments.every(attachment => attachment.kind === 'image' || attachment.kind === 'document');
+  const active = (orderedReading ? attachments.find(attachment => attachment.kind === 'document') : undefined) ?? selected;
+  const videoOpen = screenActive && active?.kind === 'video';
+  useLayoutEffect(() => {
+    if (videoOpen) return suspendProfileAudioForVideo();
+  }, [videoOpen]);
   // Reset before the attachment's passive effect restores its focused page.
   // A passive reset here could overwrite that report and expose both toolbars.
   useLayoutEffect(() => {
     setIsImmersive(false);
+    focusedReadingPartRef.current = null;
+    setFocusedReadingPart(null);
     onPageFocusModeChange?.(false);
-  }, [active?.id, viewerMemoryKey, onPageFocusModeChange]);
+  }, [active?.id, viewerMemoryKey, onPageFocusModeChange, orderedReading]);
+  const handleReadingPartFocus = useCallback((id: string, focused: boolean) => {
+    const previous = focusedReadingPartRef.current;
+    if (focused ? previous === id : previous !== id) return;
+    const next = focused ? id : null;
+    focusedReadingPartRef.current = next;
+    setFocusedReadingPart(next);
+    setIsImmersive(focused);
+    onPageFocusModeChange?.(focused);
+  }, [onPageFocusModeChange]);
   const handlePageFocusModeChange = useCallback((focused: boolean) => {
     setIsImmersive(focused);
     onPageFocusModeChange?.(focused);
@@ -304,7 +301,7 @@ export function ProjectMediaViewer({
   const isDocumentReading = isMobileViewer && !isSavedSinglePage && active?.kind === 'document';
   const isVerticalReading = isMobileViewer && !isSavedSinglePage && (active?.kind === 'document' || active?.kind === 'image');
   const isReadingHeader = isDocumentReading || (readOnlyShare && isVerticalReading);
-  const previewScope = `${projectId}:${active?.id ?? ''}`;
+  const previewScope = orderedReading ? `${projectId}:ordered-pages` : `${projectId}:${active?.id ?? ''}`;
   // Remember each reader's explicit choice for this work and file.
   const densityMemoryKey = `${viewerMemoryKey}:density:${active?.kind === 'image' ? 'images' : active?.id ?? ''}`;
   const [mobileDensity, setMobileDensity] = useState<{ scope: string; value: number } | null>(null);
@@ -316,9 +313,11 @@ export function ProjectMediaViewer({
     onPagesPerRowChange?.(next);
   };
   const [contextPosition, setContextPosition] = useState<PagePosition | null>(null);
-  const currentPage = contextPosition?.scope === previewScope && contextPosition.ready !== false ? contextPosition.current - 1 : null;
-  const pageAttachment = active?.kind === 'image' && currentPage !== null ? imagePages[currentPage] : active;
-  const pageTarget = currentPage !== null && pageAttachment ? { projectId, attachmentId: pageAttachment.id, pageIndex: currentPage, label: `Page ${currentPage + 1}`, shared: readOnlyShare } : null;
+  const currentPosition = contextPosition?.scope === previewScope && contextPosition.ready !== false ? contextPosition : null;
+  const currentPage = currentPosition ? (currentPosition.attachmentPage ?? currentPosition.current) - 1 : null;
+  const pageAttachment = orderedReading ? attachments.find(attachment => attachment.id === currentPosition?.attachmentId)
+    : active?.kind === 'image' && currentPage !== null ? imagePages[currentPage] : active;
+  const pageTarget = currentPage !== null && pageAttachment ? { projectId, attachmentId: pageAttachment.id, pageIndex: currentPage, label: `Page ${currentPosition?.current}`, shared: readOnlyShare } : null;
   const journeyNavigate = useNavigate(), journeyAuth = useAuth();
   const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => { closeMobilePopup(); journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp'); } : undefined;
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
@@ -330,6 +329,9 @@ export function ProjectMediaViewer({
   useEffect(()=>{setExportOpen(false);setOwnCopyStatus('');},[projectId,journeyAuth.user?.id]);
   const ownerReader = isOwner && !readOnlyShare;
   const creatorProfileId = creator?.id;
+  const portalProject = ownerReader && creatorProfileId && creatorProfileId === journeyAuth.viewerProfileId
+    ? { id: projectId, title: projectTitle, profileId: creatorProfileId }
+    : undefined;
   const projectActionModel = contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
     list: ownerReader ? mobileNavigation?.onOpenIndex : undefined,
     projectInfo: ownerReader ? () => setMobilePopup('description') : undefined,
@@ -340,7 +342,7 @@ export function ProjectMediaViewer({
     startHere: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?startHere=${encodeURIComponent(projectId)}`) : undefined,
     thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
     saveProject: showEngagement && !engagement.isResolving && !engagement.isPending('save') && !engagement.resolveError ? () => engagement.toggle('save') : undefined,
-    ...(isOwner&&!readOnlyShare&&!isImmersive&&active?.kind==='image'&&pageAttachment&&currentPage!==null&&journeyAuth.viewerProfileId?{copyCitation:async()=>{const scope=copyScope.current;try{const module=await import('../../features/references/ownCitation');const text=await module.ownPageCitation(journeyAuth.viewerProfileId!,projectId,pageAttachment.id,currentPage);if(copyScope.current!==scope)return;await navigator.clipboard.writeText(text);setOwnCopyStatus('Citation copied.');}catch(caught){if(copyScope.current===scope)setOwnCopyStatus(caught instanceof Error?caught.message:'Citation could not be copied.');}}}:{}),
+    ...(isOwner&&!readOnlyShare&&!isImmersive&&pageAttachment?.kind==='image'&&currentPage!==null&&journeyAuth.viewerProfileId?{copyCitation:async()=>{const scope=copyScope.current;try{const module=await import('../../features/references/ownCitation');const text=await module.ownPageCitation(journeyAuth.viewerProfileId!,projectId,pageAttachment.id,currentPage);if(copyScope.current!==scope)return;await navigator.clipboard.writeText(text);setOwnCopyStatus('Citation copied.');}catch(caught){if(copyScope.current===scope)setOwnCopyStatus(caught instanceof Error?caught.message:'Citation could not be copied.');}}}:{}),
     export: creator?.id ? ()=>setExportOpen(true) : undefined,
     share: shareProject, copy: () => copyPublicLink(publicUrl),
   }, labels: { list: 'Open portal', projectInfo: 'Project information', saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
@@ -348,6 +350,14 @@ export function ProjectMediaViewer({
   const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
   const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
     setPreviewPdf({ scope: previewScope, document });
+  }, [previewScope]);
+  const [readingDocuments, setReadingDocuments] = useState<{ scope: string; documents: Record<string, PdfDocument | null> } | null>(null);
+  const handleReadingPreview = useCallback((id: string, document: PdfDocument | null) => {
+    setReadingDocuments(previous => {
+      const documents = previous?.scope === previewScope ? previous.documents : {};
+      if ((documents[id] ?? null) === document) return previous;
+      return { scope: previewScope, documents: { ...documents, [id]: document } };
+    });
   }, [previewScope]);
   const pagePreviewSources = active?.kind === 'image' ? imagePages.map(page => page.sourceUrl)
     : (active?.metadata?.renderedPages ?? []).filter(page => Boolean(page.sourceUrl)).map(page => page.sourceUrl);
@@ -367,20 +377,65 @@ export function ProjectMediaViewer({
   const documentPageCount = active?.kind === 'document'
     ? Math.max(active.metadata?.renderedPages?.length ?? 0, active.metadata?.pageCount ?? 0)
     : 0;
-  const hasPageLayout = active?.kind === 'image'
+  const hasPageLayout = orderedReading || (active?.kind === 'image'
     ? imagePages.length > 1
-    : active?.kind === 'document' && documentPageCount !== 1;
+    : active?.kind === 'document' && documentPageCount !== 1);
+  const resolvedDocumentCount = Math.max(documentPageCount, active ? resolvedDocumentPageCounts?.[active.id] ?? 0 : 0);
+  const singleDocument = active?.kind === 'document' && (resolvedDocumentCount === 1 || (
+    resolvedDocumentCount === 0 && pageCount === 1 && attachments.filter(item => item.kind === 'document').length === 1));
+  const previewColumns = normalizePagesPerRow(desktopMediaColumns ?? 1, 1);
+  const standaloneWidth = !isMobileViewer && !isImmersive && previewColumns > 1
+    ? `clamp(min(240px, 100%), ${100 / previewColumns}%, 100%)` : undefined;
   const publishedLabel = formatPublishedDate(publishedAt);
   const densitySurfaceRef = useRef<HTMLDivElement>(null);
-  const coveredDocumentRef = useRef<HTMLDivElement>(null);
-  const pageSurfaceRef = coveredDocument ? coveredDocumentRef : densitySurfaceRef;
-  const hasDocumentPageLink = deepLinkedAttachmentId === coveredDocument?.id
-    && Number.isInteger(singlePageNumber) && singlePageNumber >= 1;
-  const stageOwnsReadingScroll = Boolean(coveredDocument) && !hasDocumentPageLink;
-  // Start remembering the complete flow as soon as the cover mounts, so a
-  // PDF that finishes loading later cannot reset an in-progress scroll.
-  useDocumentReadingScroll(stageOwnsReadingScroll && !isImmersive, densitySurfaceRef,
-    `${viewerMemoryKey}:cover-pdf:${coveredDocument?.id ?? ''}`);
+  const pageSurfaceRef = densitySurfaceRef;
+  const linkedReadingPart = orderedReading ? attachments.find(attachment => attachment.id === deepLinkedAttachmentId) : undefined;
+  const linkedReadingPage = linkedReadingPart?.kind === 'image' ? 1
+    : Number.isSafeInteger(singlePageNumber) && singlePageNumber >= 1 ? singlePageNumber : 1;
+  const webOrderedReading = orderedReading && !isMobileViewer;
+  const webOrderedPageGrid = webOrderedReading && normalizedPagesPerRow > 1 && !isImmersive;
+  useDesktopPagePacking(pageSurfaceRef, webOrderedPageGrid, normalizedPagesPerRow);
+  useDocumentReadingScroll(orderedReading && !isImmersive, pageSurfaceRef,
+    `${viewerMemoryKey}:ordered-pages${webOrderedReading ? ':web' : ''}`,
+    linkedReadingPart ? linkedReadingPage : null, linkedReadingPart?.id, webOrderedReading);
+  const [openedReader, setOpenedReader] = useState<string | null>(null);
+  const opening = isMobileViewer && screenActive && !mobileNavigation?.isIndexOpen && Boolean(active) && openedReader !== viewerMemoryKey;
+  useLayoutEffect(() => { setOpenedReader(null); }, [viewerMemoryKey]);
+  useLayoutEffect(() => {
+    const stage = pageSurfaceRef.current;
+    if (!opening || !stage) return;
+
+    // Keep the stage mounted so visible pages can render and restored scroll
+    // positions can settle beneath the single project loader.
+    let frame: number | null = null;
+    const check = () => {
+      frame = null;
+      const media = stage.querySelectorAll<HTMLElement>('[data-project-page-ready="true"], [data-reader-media-state]');
+      const firstVisible = Array.from(media).find(element => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.right > 0 && bounds.left < window.innerWidth &&
+          bounds.bottom > 0 && bounds.top < window.innerHeight && bounds.width > 0 && bounds.height > 0;
+      });
+      if (firstVisible ? firstVisible.dataset.readerMediaState !== 'pending' : !stage.querySelector('[data-reader-media-state="pending"]')) {
+        setOpenedReader(viewerMemoryKey);
+      }
+    };
+    const schedule = () => {
+      if (frame === null) frame = requestAnimationFrame(check);
+    };
+    const observer = new MutationObserver(schedule);
+    observer.observe(stage, { childList: true, subtree: true, attributes: true,
+      attributeFilter: ['data-project-page-ready', 'data-reader-media-state', 'hidden'] });
+    window.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener('resize', schedule);
+    schedule();
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('scroll', schedule, true);
+      window.removeEventListener('resize', schedule);
+    };
+  }, [opening, pageSurfaceRef, viewerMemoryKey]);
   const backSwipe = useProjectBackSwipe(densitySurfaceRef, {
     enabled: isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && !mobilePopup && active?.kind !== 'model3d',
     scope: `${projectId}:${active?.id ?? ''}`,
@@ -557,119 +612,69 @@ export function ProjectMediaViewer({
             </div>
             {sharedProjectMetadata}
           </div>;
-  const sharedVerification = <section id="shared-project-detail-panel" data-ai-verification-visualization="" aria-label="AI verification services" className="side-panel-content-inset flex flex-col gap-4 py-2">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">AI verification</h3>
-                  <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">Evidence signals and creator disclosures.</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-[var(--surface-sunken)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Sample</span>
-              </div>
-
-              <div>
-                <div className="mb-2.5 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] text-[var(--text-tertiary)]">Verification strength</p>
-                    <p className="mt-0.5 text-[13px] font-semibold text-[var(--text-primary)]">High agreement</p>
-                  </div>
-                  <p className="text-right text-[10px] leading-snug text-[var(--text-tertiary)]">3 checks<br />completed</p>
-                </div>
-                <div role="img" aria-label={SAMPLE_VERIFICATION_SIGNALS.map((signal) => `${signal.label} ${signal.value} percent`).join(', ')} className="flex h-5 w-full gap-[2px] overflow-hidden rounded-[7px] bg-[var(--surface-sunken)]">
-                  {SAMPLE_VERIFICATION_SIGNALS.map((signal) => <span key={signal.key} aria-hidden="true" style={{ width: `${signal.value}%`, backgroundColor: signal.color }} />)}
-                </div>
-                <dl aria-label="Verification signal legend" className="mt-3 grid gap-2">
-                  {SAMPLE_VERIFICATION_SIGNALS.map((signal) => <div key={signal.key} className="grid grid-cols-[8px_minmax(0,1fr)_auto] items-center gap-2 text-[10px] leading-none">
-                      <span aria-hidden="true" style={{ backgroundColor: signal.color }} className="h-2 w-2 rounded-full" />
-                      <dt className="min-w-0 text-[var(--text-secondary)]">{signal.label}</dt>
-                      <dd className="font-semibold tabular-nums text-[var(--text-primary)]">{signal.value}%</dd>
-                    </div>)}
-                </dl>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-[10px] bg-[var(--surface-sunken)] px-3 py-2.5">
-                  <p className="text-[9px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Coverage</p>
-                  <p className="mt-1 text-[11px] font-semibold text-[var(--text-primary)]">{pageCount !== null ? `${pageCount} of ${pageCount} pages` : `${attachments.length} files`}</p>
-                </div>
-                <div className="rounded-[10px] bg-[var(--surface-sunken)] px-3 py-2.5">
-                  <p className="text-[9px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Agreement</p>
-                  <p className="mt-1 text-[11px] font-semibold text-[var(--text-primary)]">3 of 3 checks</p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-[11px] font-semibold text-[var(--text-primary)]">Checker evidence</h4>
-                <div className="mt-2 divide-y divide-[var(--hairline)] border-y border-[var(--hairline)]">
-                  {SAMPLE_CHECKER_EVIDENCE.map((checker) => <div key={checker.provider} className="flex items-center gap-2.5 py-2.5">
-                      <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
-                        <InterfaceIcon icon={BadgeCheckIcon} size="sm" weight="medium" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[10px] font-semibold text-[var(--text-primary)]">{checker.provider}</span>
-                        <span className="mt-0.5 block text-[9px] text-[var(--text-tertiary)]">{checker.result}</span>
-                      </span>
-                    </div>)}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-[11px] font-semibold text-[var(--text-primary)]">Creator-declared AI tools</h4>
-                <div className="mt-2 rounded-[10px] bg-[var(--surface-sunken)] px-3 py-2.5">
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">No tools declared</p>
-                  <p className="mt-1 text-[9px] leading-relaxed text-[var(--text-tertiary)]">Tool names appear here only when supplied by the creator. Checkers do not guess the product used.</p>
-                </div>
-              </div>
-
-              <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
-            </section>;
-  const activeMedia = active ? <AttachmentRenderer verticalReading={isVerticalReading} manageReadingScroll={!stageOwnsReadingScroll} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
-          state: processing.resolveState(active),
-          message: processing.resolveMessage(active),
-          canRetry: processing.canRetry(active),
-          isRetrying: processing.retrying.includes(active.id),
-          onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={showEngagement} isOwner={isOwner && !readOnlyShare} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia;
-  const cover = imagePages.find((image) => image.isCover) ?? imagePages[0];
-  const documentIndex = coveredDocument ? attachments.indexOf(coveredDocument) : -1;
-  const beforeDocument = coveredDocument
-    ? [cover, ...attachments.slice(0, documentIndex).filter((image) => image !== cover)]
-    : [];
-  const afterDocument = coveredDocument
-    ? attachments.slice(documentIndex + 1).filter((image) => image !== cover)
-    : [];
-  const renderReadingImages = (images: ProjectAttachment[]) => images.length > 0 && (
-    <ol data-project-cover-images="" hidden={isImmersive} className="m-0 list-none p-0">
-      {images.map((image) => {
-        const pageNumber = imagePages.indexOf(image) + 1;
-        return <ImagePage key={image.id} projectId={projectId} attachment={image}
-          pageNumber={pageNumber} pageCount={imagePages.length}
-          priorityCount={image === cover ? pageNumber : 0} isMobile showMediaInteractions={false} />;
-      })}
-    </ol>
-  );
-  return <MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
+  const rendererProps = (attachment: ProjectAttachment): React.ComponentProps<typeof AttachmentRenderer> => ({
+    projectId, projectTitle, attachment, artwork, onClose, onDocumentPageCountResolved,
+    processing: {
+      state: processing.resolveState(attachment),
+      message: processing.resolveMessage(attachment),
+      canRetry: processing.canRetry(attachment),
+      isRetrying: processing.retrying.includes(attachment.id),
+      onRetry: () => void processing.retry(attachment.id),
+    },
+    controlsVisible: areControlsVisible, showMediaInteractions: showEngagement, isOwner: ownerReader,
+    memoryScope: viewerMemoryScope, usePdfRanges: isMobileViewer && readOnlyShare, mobileProjectReader: isMobileViewer,
+  });
+  const activeMedia = active ? <AttachmentRenderer {...rendererProps(active)} videoActive={screenActive} verticalReading={isVerticalReading}
+    imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1}
+    onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange}
+    pageViewToggleRequest={pageViewToggleRequest} /> : emptyMedia;
+  const desktopPreview = !isMobileViewer && active
+    ? <div data-desktop-media-preview="" className="mx-auto h-full min-w-0"
+        style={{ width: (!hasPageLayout || singleDocument) && !isSavedSinglePage ? standaloneWidth : undefined }}>{activeMedia}</div>
+    : activeMedia;
+  const readingPartPreviews = isMobileViewer && orderedReading ? Object.fromEntries(attachments.map(attachment => [attachment.id, {
+    sources: attachment.kind === 'image' ? [attachment.sourceUrl] : (attachment.metadata?.renderedPages ?? []).filter(page => Boolean(page.sourceUrl)).map(page => page.sourceUrl),
+    document: readingDocuments?.scope === previewScope ? readingDocuments.documents[attachment.id] : undefined,
+  }])) : undefined;
+  const renderReadingPart = (attachment: ProjectAttachment) => {
+    const isImage = attachment.kind === 'image';
+    const count = isImage ? 1 : Math.max(attachment.metadata?.pageCount ?? 0, attachment.metadata?.renderedPages?.length ?? 0);
+    return <OrderedReadingPart key={attachment.id} count={count || undefined}
+      previewWidth={!webOrderedPageGrid && Math.max(count, resolvedDocumentPageCounts?.[attachment.id] ?? 0) === 1 ? standaloneWidth : undefined}
+      hidden={focusedReadingPart !== null && focusedReadingPart !== attachment.id} focused={focusedReadingPart === attachment.id}
+      onFocus={handleReadingPartFocus} onPreview={isMobileViewer ? handleReadingPreview : undefined} renderer={{
+        ...rendererProps(attachment), imageColumns: isImage || webOrderedPageGrid ? 1 : isMobileViewer ? mobilePagesPerRow : normalizedPagesPerRow,
+        verticalReading: true, manageReadingScroll: false,
+        memoryScope: isImage ? `${viewerMemoryScope}:part:${attachment.id}` : viewerMemoryScope,
+      }} />;
+  };
+  return <ProjectSharePathContext.Provider value={sharePath}><MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-project-opening={opening || undefined} aria-busy={opening || undefined} data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
-      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} showProgress={isReadingHeader && !isImmersive} segmentedProgress={!readOnlyShare} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(pageSurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={pageSurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
+      {opening && <ProjectOpeningLoader />}
+      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} showProgress={isReadingHeader && !isImmersive} segmentedProgress={!readOnlyShare} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(pageSurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={pageSurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} readingPartPreviews={readingPartPreviews} />}
 
-      {showEngagement && isMobileViewer && !isImmersive && active?.kind === 'document' && pageTarget && <MediaInteractionBar key={`${previewScope}:${currentPage}`} target={pageTarget} contextOnly isOwner={isOwner && !readOnlyShare} pageCount={contextPosition?.total ?? pageCount ?? undefined} />}
+      {showEngagement && isMobileViewer && !isImmersive && (orderedReading || active?.kind === 'document') && pageTarget && <MediaInteractionBar key={`${pageTarget.attachmentId}:${currentPage}`} target={pageTarget} contextOnly isOwner={ownerReader} pageCount={currentPosition?.attachmentTotal ?? contextPosition?.total ?? pageCount ?? undefined} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
-          {renderReadingImages(beforeDocument)}
-          {isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
+        {!isMobileViewer && screenActive && singlePanel !== 'response' && (active?.kind === 'image' || active?.kind === 'document') &&
+          <DesktopProjectPageCounter key={previewScope} surfaceRef={pageSurfaceRef} scope={previewScope} />}
+        <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-web-ordered-reading={webOrderedReading ? '' : undefined}
+          data-web-ordered-page-grid={webOrderedPageGrid ? '' : undefined} data-desktop-page-packing={webOrderedPageGrid ? '' : undefined}
+          data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId}
+          style={webOrderedPageGrid ? { ...projectContinuityStyle(projectId), '--ordered-page-columns': normalizedPagesPerRow } as React.CSSProperties : projectContinuityStyle(projectId)} className="min-h-0 flex-1">
+          {orderedReading ? [...attachments].sort((first, second) => first.order - second.order).map(renderReadingPart)
+            : isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
             videos={videoSequence.entries} creator={creator} activeId={`${projectId}:${active.id}`} onSelect={entry => {
               updateViewerMemory(`${viewerMemoryScope}:project:${entry.projectId}`, { activeAttachmentId: entry.attachment.id });
               if (entry.projectId === projectId) setActiveId(entry.attachment.id);
               else videoSequence.onSelectProject(entry.projectId);
             }} renderVideo={(entry, playing) => <AttachmentRenderer key={`${entry.projectId}:${entry.attachment.id}`} projectId={entry.projectId} projectTitle={entry.projectTitle}
-              attachment={entry.attachment} videoActive={playing} showMediaInteractions={showEngagement} isOwner={isOwner && !readOnlyShare && entry.projectId === projectId}
+              attachment={entry.attachment} videoActive={screenActive && playing} mobileProjectReader={playing} showMediaInteractions={showEngagement} isOwner={isOwner && !readOnlyShare && entry.projectId === projectId}
               processing={entry.projectId === projectId ? {
                 state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
                 isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),
               } : undefined} onClose={onClose} />} /> : isMobileViewer && active?.kind === 'video' ? <div className="mobile-video-single"><MobileVideoFrame creator={creator} sourceTitle={projectTitle}>{activeMedia}</MobileVideoFrame></div>
-            : coveredDocument ? <div ref={coveredDocumentRef} className={isImmersive ? 'h-full min-h-0' : undefined}>{activeMedia}</div>
-            : activeMedia}
-          {renderReadingImages(afterDocument)}
+            : desktopPreview}
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
@@ -687,18 +692,27 @@ export function ProjectMediaViewer({
         {/* Images collapse to a single entry, because they are now read as pages
            of one piece — listing each of them here would offer a way to step
            through something that is already continuous. */}
-        {!coveredDocument && switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="side-panel-control-row side-panel-content-inset shrink-0 overflow-x-auto border-t border-[var(--hairline)] py-2">
+        {!orderedReading && switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="side-panel-control-row side-panel-content-inset shrink-0 overflow-x-auto border-t border-[var(--hairline)] py-2">
           {switchable.map((attachment) => {
           const Icon = KIND_ICONS[attachment.kind];
+          let label = attachment.displayName;
+          if (isMobileViewer && GENERATED_FILE_NAME.test(label)) {
+            const sameKind = switchable.filter(file => file.kind === attachment.kind);
+            label = FILE_KIND_LABELS[attachment.kind];
+            if (sameKind.length > 1) label += ` ${sameKind.indexOf(attachment) + 1}`;
+          }
+          const accessibleLabel = label === attachment.displayName
+            ? `${attachment.displayName}, ${attachment.typeLabel}`
+            : `${label}, ${attachment.displayName}`;
           // Any image being shown means the whole image sequence is being shown,
           // so its single entry is the current one.
           const isActive = attachment.id === active?.id || attachment.kind === 'image' && active?.kind === 'image';
-          return <button key={attachment.id} type="button" onClick={() => {
+          return <button key={attachment.id} type="button" data-ui-shape={isMobileViewer ? 'capsule' : undefined} title={isMobileViewer ? attachment.displayName : undefined} onClick={() => {
             setActiveId(attachment.id);
             updateViewerMemory(viewerMemoryKey, { activeAttachmentId: attachment.id });
-          }} aria-current={isActive ? 'true' : undefined} aria-label={`${attachment.displayName}, ${attachment.typeLabel}`} className={`side-panel-primary-control side-panel-control-row max-w-[220px] px-2.5 text-[13px] transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
+          }} aria-current={isActive ? 'true' : undefined} aria-label={accessibleLabel} className={`side-panel-primary-control side-panel-control-row max-w-[220px] px-2.5 text-[13px] transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
                 <InterfaceIcon icon={Icon} size="sm" weight="medium" />
-                <span className="min-w-0 truncate">{attachment.displayName}</span>
+                <span className="min-w-0 truncate">{label}</span>
               </button>;
         })}
         </nav>}
@@ -710,8 +724,8 @@ export function ProjectMediaViewer({
          Engagement reads the same canonical record the feed card does, so a like
          made here is already true there — no refetch, no second state. */}
       {/* The rail is the fixed side of the split, so the work absorbs the whole
-         difference between its two states. The width animates so the work is seen
-         to grow into the space rather than jumping into it. */}
+         difference between its two states. Apply the final width in one step so
+         the content is not resized on each animation frame. */}
       {/* The rail shares the work's canvas rather than sitting on a raised panel:
          it is part of the same page, and a second background only added a seam
          down the middle of one composition. The hairline carries the separation. */}
@@ -729,9 +743,6 @@ export function ProjectMediaViewer({
           {showEngagement && <button ref={commentsTriggerRef} type="button" aria-label="Show comments" aria-haspopup="dialog" aria-expanded={mobilePopup === 'comments'} aria-controls="mobile-project-popup" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} className="mobile-project-popup-trigger">
             <InterfaceIcon icon={MessageCircleIcon} size="lg" weight="regular" keepColor stroke="var(--project-control-foreground, currentColor)" />
           </button>}
-          {readOnlyShare && <button ref={verificationTriggerRef} type="button" aria-label="Show AI verification services" aria-haspopup="dialog" aria-expanded={mobilePopup === 'verification'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('verification')} className="mobile-project-popup-trigger text-[var(--text-secondary)]">
-            <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
-          </button>}
         </div>
         {showEngagement && <div data-project-rail-actions="" className="flex justify-center">
           <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant="viewer" isShared={isProjectShared} onShare={() => void shareProject()} />
@@ -746,11 +757,12 @@ export function ProjectMediaViewer({
           <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={PortalRingIcon} size="lg" /></button>
 
           <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={readOnlyShare ? 'Show project information' : mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={readOnlyShare ? mobilePopup === 'description' : mobileEngagementOpen} aria-controls={readOnlyShare ? 'mobile-project-popup' : 'mobile-project-engagement-actions'} onClick={() => setMobilePopup('description')}>
-          <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
-        </button>
+            {mobileEngagementOpen ? <InterfaceIcon icon={XIcon} size="lg" weight="regular" />
+              : <span className="reader-info-glyph" aria-hidden="true">i</span>}
+          </button>
           <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>
         </nav>}
-      </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ ...sharedDesktopRailStyle, width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
+      </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ ...sharedDesktopRailStyle, width: `${responseRailWidth.width}px` }} aria-label={`Project details for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-opacity duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
             {singlePanel === 'response' && <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
               className="side-panel-header-control side-panel-header-icon" aria-label="Back" title="Back" onClick={onClose}>
@@ -759,26 +771,19 @@ export function ProjectMediaViewer({
             <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
             </button>
-            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('project')} aria-label="Show project information" aria-pressed={sharedInfoPanel === 'project'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'project' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
-                <InterfaceIcon icon={InfoIcon} size="lg" />
-              </button>}
-            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('verification')} aria-label="Show AI verification services" aria-pressed={sharedInfoPanel === 'verification'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'verification' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
-                <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
-              </button>}
+            {isRailOpen && <span aria-hidden="true" className="side-panel-header-icon flex shrink-0 items-center justify-center text-[var(--text-primary)]">
+              <InterfaceIcon icon={InfoIcon} size="lg" />
+            </span>}
           </div>
-          {showEngagement && <div data-project-rail-actions="" className="flex justify-center p-2">
-            <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant={isRailOpen ? 'inline' : 'rail'} isShared={isProjectShared} onShare={() => void shareProject()} />
-          </div>}
-          {showEngagement && isRailOpen && <button type="button" onClick={() => setSharedInfoPanel(sharedInfoPanel === 'comments' ? 'project' : 'comments')} aria-pressed={sharedInfoPanel === 'comments'} aria-controls="shared-project-detail-panel" className="side-panel-content-inset min-h-11 text-left text-[13px] font-semibold text-[var(--text-primary)]">
-            {sharedInfoPanel === 'comments' ? 'Show project information' : 'Show comments'}
-          </button>}
-          {showEngagement && isRailOpen && sharedInfoPanel === 'comments' && <div id="shared-project-detail-panel" className="side-panel-content-inset py-2"><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={false} /></div>}
-          {isRailOpen && sharedInfoPanel === 'project' && sharedProjectInformation}
-          {isRailOpen && sharedInfoPanel === 'verification' && sharedVerification}
-        </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
+          {isRailOpen && sharedProjectInformation}
+        </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-opacity duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none flex-none border-l border-t-0`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
         <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? (isOwner ? 'engagement-panel-toolbar px-2' : 'side-panel-control-row overflow-x-auto px-2') : 'justify-center px-1.5'}`}>
+          {singlePanel === 'response' && onTimelineBack && <button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"
+            className="side-panel-header-control side-panel-header-icon" aria-label="Back to Timeline" title="Back to Timeline" onClick={onTimelineBack}>
+            <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
+          </button>}
           <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide engagement and comments' : 'Show engagement and comments'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
           </button>
@@ -824,18 +829,33 @@ export function ProjectMediaViewer({
           </div>}
         {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
-      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <FollowContentInfoPopup key={projectId} projectId={projectId} title={projectTitle} description={projectSummary} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} engagement={engagement} showEngagement={showEngagement} onRequireAccount={showEngagement ? requireSharedAccount : undefined} onComments={showEngagement ? () => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); } : undefined} optionsContent={ownerReader && (descriptionEditor || onDeleteProject) ? <ProjectPopupOwnerActions onEditTitle={descriptionEditor ? () => descriptionEditor.open(projectId) : undefined} onDelete={onDeleteProject} onClose={closeMobilePopup} /> : undefined} onClose={closeMobilePopup} />}
-      {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup} mobileMotion={mobilePopup === 'comments'}>{dismiss => <>
+      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <FollowContentInfoPopup key={projectId} projectId={projectId} title={projectTitle} description={projectSummary} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} engagement={engagement} showEngagement={showEngagement} onRequireAccount={showEngagement ? requireSharedAccount : undefined} onComments={showEngagement ? () => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); } : undefined} optionsContent={ownerReader && (descriptionEditor || onDeleteProject || portalProject) ? <ProjectPopupOwnerActions onEditTitle={descriptionEditor ? () => descriptionEditor.open(projectId) : undefined} portalProject={portalProject} onDelete={onDeleteProject} onClose={closeMobilePopup} /> : undefined} onClose={closeMobilePopup} />}
+      {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : 'Engagement update'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : feedbackTriggerRef} onClose={closeMobilePopup} mobileMotion={mobilePopup === 'comments'}>{dismiss => <>
         <header data-comments-header="" className="flex items-center justify-between gap-3">
-          <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
+          <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : 'Engagement update'}</h3>
           <button type="button" data-comments-close="" data-ui-shape="icon" aria-label="Close project popup" onClick={dismiss}><InterfaceIcon icon={XIcon} size="md" weight="medium" /></button>
         </header>
         <div data-mobile-project-popup-content="" className="min-h-0 overflow-y-auto overscroll-contain">
-          {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>
-            : mobilePopup === 'verification' ? sharedVerification
-            : readOnlyShare ? sharedProjectInformation
-            : <FormattedText style={{ fontFamily: contentTypefaceStack }} className="project-description-text text-[16px] leading-relaxed text-[var(--text-primary)]" text={projectSummary || 'This project has no description.'} />}
+          {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>}
         </div>
       </>}</MediaCommentsPopover>}
-    </div></MobilePageContext.Provider>;
+    </div></MobilePageContext.Provider></ProjectSharePathContext.Provider>;
+}
+function OrderedReadingPart({ renderer, count, hidden, focused, onFocus, onPreview, previewWidth }: {
+  renderer: React.ComponentProps<typeof AttachmentRenderer>;
+  count?: number;
+  hidden: boolean;
+  focused: boolean;
+  onFocus: (id: string, focused: boolean) => void;
+  onPreview?: (id: string, document: PdfDocument | null) => void;
+  previewWidth?: string;
+}) {
+  const { id, kind } = renderer.attachment;
+  const reportFocus = useCallback((value: boolean) => onFocus(id, value), [id, onFocus]);
+  const reportPreview = useCallback((document: PdfDocument | null) => onPreview?.(id, document), [id, onPreview]);
+  return <section data-project-reading-part={id} data-project-reading-count={count} hidden={hidden} className={focused ? 'h-full min-h-0' : undefined}
+    style={previewWidth ? { width: previewWidth, marginInline: 'auto' } : undefined}>
+    <AttachmentRenderer {...renderer} onFocusModeChange={reportFocus}
+      onPreviewDocument={kind === 'document' && onPreview ? reportPreview : undefined} />
+  </section>;
 }

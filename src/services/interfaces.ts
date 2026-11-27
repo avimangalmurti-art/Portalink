@@ -14,7 +14,7 @@ import type {ReferencesService} from '../features/references/useReferences';
  *  - Services never touch React state or the DOM.
  */
 
-import type { CategoryDeletionCapability, CreateCategoryInput, FeedCreator, FollowRequest, FollowState, Id, LiveCapability, LiveSession, Notification, PortfolioArrangement, PortfolioCategory, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, UpdateProfileInput } from '../types/domain';
+import type { CategoryDeletionCapability, CreateCategoryInput, FeedCreator, FollowRequest, FollowState, Id, LiveCapability, LiveSession, Notification, PortfolioArrangement, PortfolioCategory, Profile, Project, ProjectArrangement, ProjectDesign, ProjectPortalMemberships, ProjectView, UpdateProfileInput } from '../types/domain';
 import type { AssetProcessingStatus, DeleteProjectResult, DraftMetadata, ProcessingCapability, ProjectDraft, PublishProjectInput, PublishResult, StartUploadInput, UpdateProjectInput, UpdateProjectResult, UploadCapability, UploadOperation, UploadOutcome } from '../types/publishing';
 import type { EngagementKind, EngagementMutation, ProjectEngagement } from '../types/engagement';
 import type { Comment, ProjectComments } from '../types/comments';
@@ -25,6 +25,8 @@ import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscov
 import type { PublicPortalPage } from '../types/portals';
 import type { ConversationPage, ConversationSummary, DirectMessage, MessageCursor, MessagePage, MessageParticipant, MessageReaction, MessagingPreferences } from '../types/messages';
 import type { SaveInsights } from '../types/creatorSaves';
+import type { TimelinePairFraming } from '../types/domain';
+export type { TimelinePairFraming } from '../types/domain';
 
 /**
  * Authentication. The dependency direction is
@@ -128,10 +130,14 @@ export interface AuthService {
  * in a parallel onboarding layer, so onboarding and later profile editing share
  * one model, one validation vocabulary, and one service boundary.
  */
-export type TimelinePair = { id: string; then: string; now: string };
+export type TimelinePair = { id: string; then: string; now: string } & TimelinePairFraming;
 export interface ProfileService {
   listTimelinePairs?(profileId: Id): Promise<TimelinePair[]>;
+  listTimelinePairOrder?(profileId: Id): Promise<string[]>;
+  reorderTimelinePairs?(profileId: Id, pairIds: string[]): Promise<void>;
   addTimelinePair?(profileId: Id, thenId: Id, nowId: Id): Promise<void>;
+  updateTimelinePair?(profileId: Id, pairId: Id, thenId: Id, nowId: Id,
+    expected?: Pick<TimelinePair, 'then' | 'now'> & TimelinePairFraming, framing?: TimelinePairFraming): Promise<void>;
   removeTimelinePair?(profileId: Id, pairId: Id): Promise<void>;
   /**
    * Rejects when the id names no profile. Absence must be an error rather than a
@@ -192,6 +198,11 @@ export interface ProjectService {
    */
   listProjectViews(projectIds: Id[]): Promise<ProjectView[]>;
   listProjects(profileId: Id, categoryId?: Id): Promise<Project[]>;
+  /** Whether the deployed database supports additional Portal placements. */
+  isPortalMembershipAvailable?(): Promise<boolean>;
+  /** Owner-only. Extra placements are replaced atomically. */
+  getPortalMemberships?(projectId: Id): Promise<ProjectPortalMemberships>;
+  setPortalMemberships?(projectId: Id, additionalPortalIds: Id[]): Promise<Id[]>;
   /* ── Project design settings ─────────────────────────────────────────── */
   /**
    * The presentation settings a project carries. Typography is a property of the
@@ -500,7 +511,7 @@ export interface MessagingService {
   sendMessage(conversationId: Id, body: string, attachments?: File[]): Promise<DirectMessage>;
   editMessage(messageId: Id, body: string): Promise<DirectMessage>;
   deleteMessage(messageId: Id): Promise<void>;
-  toggleReaction(messageId: Id, emoji: string): Promise<MessageReaction[]>;
+  setReaction(messageId: Id, emoji: string, selected: boolean): Promise<MessageReaction[]>;
   /** Marks only messages through the supplied server-authored timestamp as read. */
   markConversationRead(conversationId: Id, throughCreatedAt: string): Promise<void>;
   /** Supabase Realtime when available; callers retain a refresh fallback. */

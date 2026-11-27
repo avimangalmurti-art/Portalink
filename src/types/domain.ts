@@ -10,6 +10,7 @@
 
 import type { AssetProcessingState } from './publishing';
 import type { ProjectRelevance } from './discovery';
+import type { ImagePosition } from './imageCrop';
 export type Id = string;
 
 /* ── People ─────────────────────────────────────────────────────────────── */
@@ -42,6 +43,8 @@ export type PublicAppearance = {
   mode: 'light' | 'dark' | 'auto';
 };
 
+export type TimelinePairFraming = { thenCover?: ImagePosition | null; nowCover?: ImagePosition | null };
+
 /** A creator's public identity plus the portfolio structure they own. */
 export type PublicCitationEvent = {
  id:string; direction:"incoming"|"outgoing"; item_id:string; label:string;
@@ -62,7 +65,7 @@ export type Profile = {
   showJourney?: boolean;
   showOutgoingCitations?: boolean;
   showIncomingCitations?: boolean;
-  thenNow?: { then: Id; now: Id } | null;
+  thenNow?: ({ then: Id; now: Id } & TimelinePairFraming) | null;
   id: Id;
   name: string;
   handle: string;
@@ -109,6 +112,7 @@ export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'lo
 export type CategoryFormat = 'grid' | 'gallery' | 'story' | 'feed' | 'video' | 'audio' | 'data';
 export type PortfolioCategory = {
   id: Id;
+  parentId?: Id;
   label: string;
   iconName: string;
   format: CategoryFormat;
@@ -125,6 +129,7 @@ export type PortfolioArrangement = {
 /** What a new category needs. Everything else is the implementation's business. */
 export type CreateCategoryInput = {
   label: string;
+  parentId?: Id;
   format?: CategoryFormat;
   iconName?: string;
   blurb?: string;
@@ -145,7 +150,7 @@ export type CategoryDeletionCapability = {
   removes: readonly string[];
   /** Why it cannot be done, when `isAvailable` is false. */
   reason?: string;
-  /** Projects still filed under this category. Zero means it is safe to remove. */
+  /** Projects still filed under this category. Check isAvailable before deleting. */
   blockingProjectCount: number;
 };
 export type CategoryMutationErrorCode = 'label_required' | 'label_too_long' | 'duplicate_label' | 'not_found' | 'category_not_empty' | 'deletion_unavailable' | 'unknown';
@@ -201,6 +206,12 @@ export type ProjectCoverFrame = {
   crop?: import('./imageCrop').RelativeImageCrop;
 };
 
+/** Reads a PDF byte interval with an exclusive end offset. */
+export type PdfRangeSource = {
+  length: number;
+  read: (begin: number, end: number, signal: AbortSignal) => Promise<Uint8Array<ArrayBuffer>>;
+};
+
 /**
  * One file inside a project.
  *
@@ -220,6 +231,8 @@ export type ProjectAttachment = {
   /** Human-readable type, e.g. "PDF", "3D model". */
   typeLabel: string;
   sourceUrl: string | null;
+  /** Opens a fresh, authorized reader for a PDF stored in parts. */
+  openPdfRanges?: () => Promise<PdfRangeSource>;
   storagePath: string | null;
   status: AssetProcessingState;
   isCover: boolean;
@@ -305,6 +318,8 @@ export type Project = {
   creationDetails?: ProjectCreationDetails;
   id: Id;
   categoryId: Id;
+  /** Additional placements of this project. The primary Portal owns its canonical link. */
+  additionalPortalIds?: Id[];
   title: string;
   summary: string;
   /** Canonical publication time, used for recency without inventing an age. */
@@ -352,8 +367,15 @@ export type Project = {
   sessionOnly?: boolean;
 };
 
+export type ProjectPortalMemberships = {
+  primaryPortalId: Id;
+  selectedPortalIds: Id[];
+  portals: PortfolioCategory[];
+};
+
 /** Owner-only per-project arrangement inside a category. */
 export type ProjectArrangement = {
+  supportsFeaturedOrder?: boolean;
   projectOrder: Id[];
   hiddenProjectIds: Id[];
   /**
@@ -504,12 +526,6 @@ export type Location = {
   /** Real stored coordinates, used to orient the city's globe. */
   latitude: number;
   longitude: number;
-  /**
-   * Location identity accent, resolved from the id via `getCityAccentToken`.
-   * Identity only — never status. Optional so a location without a mapping
-   * renders on the neutral fallback token.
-   */
-  accentToken?: string;
 };
 
 /* ── Commerce ───────────────────────────────────────────────────────────── */

@@ -921,6 +921,7 @@ body {
   --rail-footer-inset: 0.5rem;
   --side-panel-row-height: var(--cdx-dense-row-md);
   --side-panel-row-gap: var(--cdx-dense-gap);
+  --side-panel-header-height: 64px;
   --side-panel-header-control: var(--cdx-header-control);
   --side-panel-compact-control: var(--sidebar-primary-control);
   --side-panel-content-inset: 0.5rem;
@@ -1618,18 +1619,6 @@ button[data-portalink-tile],
   /* Live connection status on Portalink's own dark canvas. Status only — never
      used as an accent or an identity colour. */
   --portalink-status-live: #2BFF6A;
-  /* Location identity accents. A city resolves to one of these through the
-     stable mapping in data/cityAccents.ts; the planet component only ever reads
-     --city-accent / -soft / -strong. Deliberately separate from success,
-     warning, danger, and focus, which never carry location identity. */
-  --location-accent-1: #FFA426;
-  --location-accent-2: #17D4A0;
-  --location-accent-3: #4C8DFF;
-  --location-accent-4: #FF5C5C;
-  --location-accent-5: #E6D22A;
-  --location-accent-6: #A66BFF;
-  --location-accent-7: #22C7E8;
-  --location-accent-8: #FF5FB0;
   /* Geographic marker grammar. Semantic purpose only — no token here names a
      city, a coordinate, or a screen position. Background geography stays quiet
      and neutral; only a navigable city may resolve a location accent. */
@@ -2344,8 +2333,8 @@ button[data-portalink-tile],
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  height: 64px;
-  min-height: 64px;
+  height: var(--side-panel-header-height);
+  min-height: var(--side-panel-header-height);
   border-bottom: 0;
   gap: var(--side-panel-row-gap);
 }
@@ -5153,6 +5142,13 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   background-color: transparent !important;
 }
 
+/* Only the end of the continuous reader needs clearance for floating controls. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view]))
+  [data-project-stage] > [data-project-reading-part]:not(:last-child)
+  :is(.premium-media-mode-enter.overflow-y-auto, ol.scrollbar-overlay) {
+  padding-bottom: 0;
+}
+
 [data-premium-project-viewer] [data-project-response-rail] {
   background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent) !important;
   border-color: transparent !important;
@@ -5264,10 +5260,6 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
 [data-premium-project-viewer] .premium-viewer-page-control,
 [data-premium-project-viewer] .premium-viewer-page-control:active {
   transform: translateY(-50%);
-}
-
-.premium-viewer-page-counter--inline {
-  max-width: none;
 }
 
 .premium-viewer-page-control:hover:not(:disabled),
@@ -5391,7 +5383,17 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
     transparent 64%
   );
   transform: translateX(-100%);
-  animation: premium-media-shimmer var(--m-slow) var(--m-enter) infinite;
+  animation: premium-media-shimmer var(--m-page-shimmer) linear infinite;
+}
+
+.portalink-splash[data-presentation='web'] > .portalink-splash-loading-mark,
+#portalink-web-launch > .portalink-splash-loading-mark {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 32px;
+  margin-inline: auto;
+  --text-secondary: #000;
+  color: #000;
 }
 
 .premium-media-loading-mark {
@@ -5408,7 +5410,7 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
 
 /* All pending glyphs share one alpha mask; their existing host owns placement,
    dimensions and accessible status. Retain the ring if masking is unavailable. */
-:root { --loading-indicator-mask: url('./assets/loading-spokes.svg'); }
+:root { --loading-indicator-mask: url('/loading-spokes.svg'); }
 @supports ((mask-image: none) or (-webkit-mask-image: none)) {
   .premium-media-loading-mark,
   svg.lucide-loader-circle {
@@ -5425,13 +5427,9 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   [data-interface-icon-frame]:has(> svg.lucide-loader-circle),
   [data-interface-icon-frame][data-icon-effect='rotate'][data-icon-effect-active]:has(> svg.lucide-loader-circle) { animation: none; }
 }
+.app-viewport--reduce-motion .premium-media-placeholder::after,
 .app-viewport--reduce-motion .premium-media-loading-mark,
 .app-viewport--reduce-motion svg.lucide-loader-circle { animation: none !important; }
-
-/* Loading loops have their own mobile pace; content readiness stays immediate. */
-[data-presentation='mobile'] .premium-media-placeholder::after {
-  animation-duration: var(--m-loading-cycle);
-}
 
 [data-presentation='mobile'] .premium-media-loading-mark {
   animation-duration: var(--m-loading-spin);
@@ -5588,9 +5586,10 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   box-shadow: none !important;
 }
 
-/* Profile previews paint the frost separately from the dialog on both screen
-   sizes. The inline desktop welcome preview keeps its own dialog material. */
+/* Profile previews and the desktop soundtrack share one frost behind the
+   interactive dialog. The inline welcome preview keeps its dialog material. */
 :is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-backdrop],
+#root > .app-shell > [data-profile-audio-backdrop],
 :is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-scrim][data-presentation='web']:not([data-avatar-preview-backdrop] + *) {
   background-color: rgba(0, 0, 0, 0.46) !important;
   background-image: linear-gradient(135deg, rgb(255 255 255 / 10%), transparent 45%, rgb(0 0 0 / 8%)) !important;
@@ -5598,12 +5597,15 @@ html[data-project-continuity][data-project-continuity-mobile]::view-transition-n
   backdrop-filter: var(--material-blur-regular, blur(24px) saturate(125%)) !important;
 }
 
-:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-backdrop] {
+:is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-backdrop],
+#root > .app-shell > [data-profile-audio-backdrop] {
   position: fixed;
   inset: 0;
   z-index: 1000;
   pointer-events: none;
 }
+/* Keep the soundtrack backdrop directly below its chrome and controls. */
+#root > .app-shell > [data-profile-audio-backdrop] { z-index: 10009; }
 :is(#root > .app-shell, [data-profile-avatar-host]) > [data-avatar-preview-backdrop] + [data-avatar-preview-scrim] {
   background: transparent !important;
   -webkit-backdrop-filter: none !important;

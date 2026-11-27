@@ -1,7 +1,8 @@
 import { requireSupabase } from './client';
 import { cachedMediaSource, signedMediaUrls } from './mediaUrlCache';
-import { MANIFEST_SUFFIX, multipartSpec, partPath, readMultipartSpec } from '../../../public/portalink-media-core.js';
+import { MANIFEST_SUFFIX, mediaResponse, multipartSpec, partPath, readMultipartSpec } from '../../../public/portalink-media-core.js';
 import type { MultipartSpec } from '../../../public/portalink-media-core.js';
+import type { PdfRangeSource } from '../../types/domain';
 
 export { MANIFEST_SUFFIX, multipartSpec, partPath, readMultipartSpec };
 export type { MultipartSpec };
@@ -36,19 +37,45 @@ export async function multipartSource(path: string, spec: MultipartSpec, fileNam
   return cachedMediaSource(JSON.stringify([path, spec, fileName, mimeType]), () => createMultipartSource(path, spec, fileName, mimeType), 5 * 3600_000);
 }
 
-async function createMultipartSource(path: string, spec: MultipartSpec, fileName: string, mimeType: string): Promise<string> {
+async function signMultipartParts(path: string, spec: MultipartSpec): Promise<string[]> {
   const paths = Array.from({ length: spec.partCount }, (_, index) => partPath(path, index));
-  // Signing uses shared bounded batches and can run while the service worker
-  // becomes ready. Both must finish before registering the virtual source.
-  const [, signed] = await Promise.all([
-    ensureMultipartReader(),
-    signedMediaUrls(BUCKET, paths, 5 * 3600_000),
-  ]);
-  const urls = paths.map(item => {
+  const signed = await signedMediaUrls(BUCKET, paths, 5 * 3600_000);
+  return paths.map(item => {
     const address = signed.get(item);
     if (!address) throw new Error('Some parts of this file are unavailable. Refresh the project and try again.');
     return address;
   });
+}
+
+/** Read the same signed parts when an embedded browser cannot serve a virtual URL. */
+export function multipartPdfRangeReader(path: string, spec: MultipartSpec, fileName: string): () => Promise<PdfRangeSource> {
+  return async () => {
+    const urls = await signMultipartParts(path, spec);
+    return {
+      length: spec.sizeBytes,
+      async read(begin, end, signal) {
+        signal.throwIfAborted();
+        if (!Number.isSafeInteger(begin) || !Number.isSafeInteger(end) || begin < 0 || end <= begin || end > spec.sizeBytes) {
+          throw new Error('The PDF requested an invalid byte range.');
+        }
+        const request = new Request(urls[0], {
+          headers: { Range: `bytes=${begin}-${end - 1}` },
+          signal,
+        });
+        const response = await mediaResponse(request, { ...spec, urls, fileName, mimeType: 'application/pdf' });
+        if (response.status !== 206) throw new Error('This part of the PDF could not be loaded.');
+        const data = new Uint8Array(await response.arrayBuffer());
+        signal.throwIfAborted();
+        if (data.byteLength !== end - begin) throw new Error('The PDF returned an incomplete byte range.');
+        return data;
+      },
+    };
+  };
+}
+
+async function createMultipartSource(path: string, spec: MultipartSpec, fileName: string, mimeType: string): Promise<string> {
+  // Sign the parts while the service worker becomes ready.
+  const [, urls] = await Promise.all([ensureMultipartReader(), signMultipartParts(path, spec)]);
   const id = crypto.randomUUID();
   await new Promise<void>((resolve, reject) => {
     const channel = new MessageChannel();

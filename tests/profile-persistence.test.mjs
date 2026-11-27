@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
+import { sourceModule } from './helpers/source-module.mjs';
 
 // Execute the production read/write methods against an isolated PostgREST
 // model, including its important zero-row UPDATE semantics. No real accounts.
@@ -21,25 +22,27 @@ const gridDensity = {};
 vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/utils/projectGridDensity.ts', import.meta.url), 'utf8'), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText, { exports: gridDensity });
-function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message: 'RPC not installed' } }, journeyReadError = null } = {}) {
+function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message: 'RPC not installed' } }, portalArrangement, journeyReadError = null } = {}) {
   const db = {
     profiles: [{id:'owner',account_id:'account',name:'Original',handle:'owner',headline:'Bio',location:'City',links:[],social_links:{},is_private:false}],
     portfolio_categories: ['one','two'].map((id,position)=>({id,profile_id:'owner',label:id,position,icon_name:'FolderIcon',is_hidden:false})),
+    portal_hierarchy: [],
     projects: ['a','b','c'].map((id,i)=>({id,profile_id:'owner',category_id:i===1?'two':'one',position:i,published_at:`2026-09-${20-i}`,is_hidden:false,is_pinned:false,design:{typefaceId:'default'}})),
     project_attachments: [],
     profile_journey_pairs: [],
   };
   let denied=false,failId=null,viewer='account';
   const writes=[], rpcCalls=[], tableCalls=[];
-  const client={rpc:async(name,params)=>{rpcCalls.push({name,params:plain(params)});return rpcResult;},auth:{getSession:async()=>({data:{session:viewer?{user:{id:viewer}}:null}})},from(table){
+  const client={rpc:async(name,params)=>{rpcCalls.push({name,params:plain(params)});return name === 'get_portal_project_arrangement' && portalArrangement ? portalArrangement : rpcResult;},auth:{getSession:async()=>({data:{session:viewer?{user:{id:viewer}}:null}})},from(table){
     tableCalls.push(table);
-    const filters=[],orders=[];let patch=null,singular=false,returning=false;
+    const filters=[],orders=[];let patch=null,singular=false,returning=false,range;
     const query={
       select(){if(patch)returning=true;return query;},
       update(value){patch=value;return query;},
       eq(key,value){filters.push(row=>row[key]===value);return query;},
       in(key,values){filters.push(row=>values.includes(row[key]));return query;},
       order(key,options={}){orders.push([key,options.ascending!==false]);return query;},
+      range(start,end){range=[start,end+1];return query;},
       single(){singular=true;return query;},maybeSingle(){singular=true;return query;},
       then(resolve,reject){
         if(table==='profile_journey_pairs' && journeyReadError)return Promise.resolve({data:null,error:journeyReadError}).then(resolve,reject);
@@ -52,6 +55,7 @@ function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message:
           if(!returning)return Promise.resolve({data:null,error:null}).then(resolve,reject);
         }
         for(const [key,ascending] of [...orders].reverse()) rows.sort((a,b)=>(a[key]<b[key]?-1:a[key]>b[key]?1:0)*(ascending?1:-1));
+        if(range)rows=rows.slice(...range);
         const error=singular&&rows.length!==1?{code:'PGRST116',message:'Expected one updated row; received zero'}:null;
         return Promise.resolve({data:error?null:plain(singular?rows[0]:rows),error}).then(resolve,reject);
       },
@@ -60,12 +64,14 @@ function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message:
   class ServiceError extends Error {constructor(code,message){super(message);this.code=code;}}
   const creation = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/services/supabase/projectCreationDetails.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:creation,crypto,require:name=>name==='./client'?{requireSupabase:()=>client}:{}});
+  const portalHierarchy = sourceModule('src/services/supabase/portalHierarchy.ts', { './client': { requireSupabase: () => client } });
   const exports={};
   vm.runInNewContext(ts.transpileModule(`${readProfile}\nconst supabaseProfileService={${methods('supabaseProfileService',['getProfile','getProjectGridLayout','updateProjectGridLayout','updateProfile','getPortfolioArrangement','savePortfolioArrangement','renameCategory','setCategoryIcon'])}};\nconst supabaseProjectService={${methods('supabaseProjectService',['saveProfileProjectOrder','getProjectArrangement','saveProjectArrangement','updateProjectDesign'])}};\nexports.profiles=supabaseProfileService;exports.projects=supabaseProjectService;`,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{
-    exports,...gridDensity,...journey,...creation,...employer,requireSupabase:()=>client,ProfileServiceError:ServiceError,CategoryMutationError:ServiceError,ProjectMutationError:ServiceError,
+    exports,...gridDensity,...journey,...creation,...employer,...portalHierarchy,requireSupabase:()=>client,ProfileServiceError:ServiceError,CategoryMutationError:ServiceError,ProjectMutationError:ServiceError,
     throwProfileError:error=>{throw new Error(error.message);},normalizePublicAppearance:value=>value??null,normalizeHandle:value=>value.replace(/^@/,''),
     uploadAvatar:async()=>'/test-avatar.png',deriveInitials:()=>'',asStats:()=>[],asStringRecord:value=>value??{},asLinks:value=>value??[],
     hydrateProjects:async rows=>new Map(rows.map(row=>[row.id,{id:row.id,categoryId:row.category_id}])),
+    readFeaturedPortals:async()=>new Map(),
     removeProfilePublicCovers:async()=>{},
     typefaces:[{id:'default'}],MIN_PAGES_PER_ROW:1,MAX_PAGES_PER_ROW:13,
   });
@@ -158,6 +164,26 @@ test('profile order survives reload and a portal reorder preserves other portals
   assert.deepEqual(plain((await h.profiles.getProfile('owner')).projects.map(p=>p.id)),['a','b','c']);
   const saved=await h.projects.getProjectArrangement('owner','one');
   assert.deepEqual(plain(saved),{projectOrder:['a','c'],hiddenProjectIds:['c'],pinnedProjectIds:['a']});
+});
+
+test('featured Portal order reads and saves all placements without direct row writes', async () => {
+  const portalArrangement = { data: [
+    { project_id: 'b', is_hidden: false, is_pinned: false },
+    { project_id: 'a', is_hidden: false, is_pinned: true },
+    { project_id: 'c', is_hidden: true, is_pinned: false },
+  ], error: null };
+  const h = fixture({ portalArrangement, rpcResult: { data: null, error: null } });
+  const arrangement = await h.projects.getProjectArrangement('owner', 'one');
+  assert.deepEqual(plain(arrangement), { supportsFeaturedOrder: true, projectOrder: ['b', 'a', 'c'], hiddenProjectIds: ['c'], pinnedProjectIds: ['a'] });
+  await h.projects.saveProjectArrangement('owner', 'one', { ...arrangement, projectOrder: ['a', 'b', 'c'] });
+  assert.deepEqual(h.rpcCalls, [
+    { name: 'get_portal_project_arrangement', params: { p_profile_id: 'owner', p_category_id: 'one' } },
+    { name: 'save_portal_project_arrangement', params: { p_profile_id: 'owner', p_category_id: 'one', p_project_order: ['a', 'b', 'c'], p_hidden_project_ids: ['c'], p_pinned_project_ids: ['a'] } },
+  ]);
+  assert.deepEqual(h.tableCalls, []);
+  const stale = fixture({ portalArrangement });
+  await assert.rejects(stale.projects.saveProjectArrangement('owner', 'one', arrangement), /RPC not installed/);
+  assert.deepEqual(stale.tableCalls, []);
 });
 
 test('portal order, visibility, icon and title survive reopening',async()=>{

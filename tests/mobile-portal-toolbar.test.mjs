@@ -20,6 +20,7 @@ const { MobilePortalProjectToolbar } = compile('../src/components/profile/Mobile
   if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
   if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => true };
   if (name.endsWith('/PreviewCreatorName')) return { PreviewCreatorName: 'scrolling-title' };
+  if (name.endsWith('/PortalLinkCopyButton')) return { PortalLinkCopyButton: 'copy-portal-link' };
   if (name.endsWith('/categoryIcons')) return { getCategoryIcon: icon => { assert.equal(icon, 'camera'); return Camera; } };
   return new Proxy({}, { get: () => () => null });
 });
@@ -99,6 +100,14 @@ test('public project navigation opts into local browsing controls without owner 
     const desktop = h.render();
     assert.equal(nodes(desktop).find(node => node.type === 'h2').props.children, 'Photography');
     assert.equal(control(desktop, 'Sort projects'), undefined);
+    Object.assign(h.props, { animateTitleOnWeb: true, browsingControls: true });
+    const desktopPopup = h.render();
+    const title = nodes(desktopPopup).find(node => node.type === 'scrolling-title');
+    assert.equal(title.props.name, 'Photography');
+    assert.equal(title.props.animateOnWeb, true);
+    assert.equal(title.props.centered, true);
+    assert.equal(title.props.fadeInset, 12);
+    assert.ok(control(desktopPopup, 'Sort projects'));
   }
   finally { presentation = 'mobile'; }
 });
@@ -110,4 +119,41 @@ test('a Timeline portal popup announces its own return destination while retaini
   assert.equal(control(tree, 'Back to profile'), undefined);
   control(tree, 'Back to Timeline').props.onClick();
   assert.deepEqual(h.calls, [['back']]);
+});
+
+test('the owner’s copy action appears between sort and layout for a shareable Portal', () => {
+  const h = harness();
+  h.props.category.id = 'photos';
+  assert.equal(nodes(h.render()).some(node => node.type === 'copy-portal-link'), false);
+  h.props.publicProfileId = 'creator';
+  const items = nodes(h.render());
+  const copyAt = items.findIndex(node => node.type === 'copy-portal-link');
+  assert.ok(copyAt > items.indexOf(items.find(node => node.props['aria-label'] === 'Sort projects')));
+  assert.ok(copyAt < items.indexOf(items.find(node => node.props['aria-label'] === 'Show project grid')));
+  assert.deepEqual(items[copyAt].props, { profileId: 'creator', categoryId: 'photos' });
+});
+
+test('Copy Portal only shows mobile text for confirmation or retry', () => {
+  const LinkIcon = () => null;
+  const CheckIcon = () => null;
+  let result = null;
+  const { PortalLinkCopyButton } = compile('../src/components/profile/PortalLinkCopyButton.tsx', name => {
+    if (name === 'react') return { ...React, useState: initial => [initial === null ? result : initial, () => {}], useEffect: () => {} };
+    if (name === 'lucide-react') return { CheckIcon, LinkIcon };
+    if (name.endsWith('/Button')) return { Button: 'copy-button' };
+    return {};
+  });
+  const button = compact => nodes(PortalLinkCopyButton({ profileId: 'creator', categoryId: 'photos', compact }))
+    .find(node => node.type === 'copy-button').props;
+  assert.deepEqual(React.Children.toArray(button(false).children), []);
+  assert.equal(button(false).icon, LinkIcon);
+  assert.equal(button(false)['aria-label'], 'Copy Portal');
+  result = 'copied';
+  assert.equal(button(false).children, 'Copied');
+  assert.equal(button(false).icon, CheckIcon);
+  assert.equal(button(false).style['--ui-control-text'], 'var(--status-success)');
+  assert.deepEqual(React.Children.toArray(button(true).children), []);
+  result = 'error';
+  assert.equal(button(false).children, 'Try again');
+  assert.deepEqual(React.Children.toArray(button(true).children), []);
 });

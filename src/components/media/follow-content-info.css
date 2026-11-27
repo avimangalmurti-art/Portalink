@@ -27,9 +27,38 @@
 }
 [data-follow-info-layer] .project-popup-creator { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 0; margin: 0; border: 0; font-weight: 600; text-align: left; }
 [data-follow-info-layer] .project-popup-creator > span { overflow-wrap: anywhere; }
+[data-follow-info-layer] .follow-info-header-actions {
+  display: flex; align-items: center; gap: 4px; flex: none;
+  margin-inline-start: auto; margin-inline-end: -8px;
+}
 [data-follow-info-layer] .follow-info-options { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
+[data-follow-info-layer] .follow-info-minimize {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 50%; background: transparent;
+}
+[data-follow-info-layer] .follow-info-minimize > span {
+  width: 22px; height: 22px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--status-danger, #b42318);
+}
+[data-follow-info-layer] .follow-info-minimize > span::after {
+  content: ''; width: 10px; height: 2px; border-radius: 1px; background: white;
+}
+[data-follow-info-layer][data-mobile-info] .follow-info-overlay { padding-block-start: calc(env(safe-area-inset-top, 0px) + 28px); }
+[data-follow-info-layer][data-mobile-info] .follow-info-panel { position: relative; }
+[data-follow-info-layer][data-mobile-info] .follow-info-minimize {
+  position: absolute; z-index: 2;
+  inset-block-start: -22px; inset-inline-end: -10px;
+}
+[data-follow-info-layer][data-mobile-info] .follow-info-minimize > span { width: 38px; height: 38px; }
+[data-follow-info-layer][data-mobile-info] .follow-info-minimize > span::after { width: 14px; }
 [data-follow-info-layer] h2 { flex: none; margin: 0; font-size: 26px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; max-height: 25dvh; overflow-y: auto; }
 [data-follow-info-layer] .follow-info-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 16px; line-height: 1.6; }
+[data-follow-info-layer][data-mobile-info] .follow-info-description {
+  /* Move the scroll edge into the card inset so overlay scrollbars clear the text. */
+  --description-scroll-gutter: 14px;
+  margin-inline-end: calc(0px - var(--description-scroll-gutter));
+  padding-inline-end: var(--description-scroll-gutter);
+}
 [data-follow-info-layer] .follow-info-description p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 [data-follow-info-layer] .follow-info-engagement { flex: none; border-top: 1px solid var(--hairline-strong); padding-top: 16px; }
 [data-follow-info-layer] .follow-info-engagement [role='group'] { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
@@ -64,7 +93,7 @@ body:has([data-follow-info-layer]:not([data-closing])) #root .codex-shell[data-p
 
 /* Cover-page owner commands retain their existing callbacks in the shared card. */
 [data-follow-info-layer] .follow-info-header {position:relative;}
-[data-follow-info-layer] .follow-info-owner-menu {position:absolute;top:52px;right:0;z-index:1;min-width:180px;max-width:100%;padding:8px;border-radius:16px;background:var(--surface-raised);border:1px solid var(--hairline-strong);box-shadow:0 8px 24px #0005;}
+[data-follow-info-layer] .follow-info-owner-menu {position:absolute;top:calc(100% + 4px);right:0;z-index:1;min-width:180px;max-width:100%;padding:8px;border-radius:16px;background:var(--surface-raised);border:1px solid var(--hairline-strong);box-shadow:0 8px 24px #0005;}
 [data-follow-info-layer] .follow-info-owner-menu > .project-popup-owner-actions {
   display: flex;
   flex-direction: column;

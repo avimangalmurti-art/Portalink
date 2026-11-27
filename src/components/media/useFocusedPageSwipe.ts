@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties, type PointerEvent } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties, type PointerEvent } from 'react';
 import { usePresentation } from '../../presentation/usePresentation';
 
 /** Fitted MOBILE pages swipe sideways to turn and down to exit; zoomed pages pan. */
@@ -11,12 +11,34 @@ export function useFocusedPageSwipe({ active, zoom, onMove, onExit, readingMode 
 }) {
   const isMobile = usePresentation() === 'mobile';
   const startRef = useRef<{ id: number; x: number; y: number; axis?: 'x' | 'y' } | null>(null);
+  const multitouchRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!isMobile || !active) return;
+    const trackTouches = (event: TouchEvent) => {
+      if (event.touches.length >= 2) {
+        // A second finger can land outside the reader, and the first pointer
+        // can release before the native pinch commits its zoom.
+        startRef.current = null;
+        multitouchRef.current = true;
+      } else if (event.touches.length === 0) {
+        multitouchRef.current = false;
+      }
+    };
+    const events = ['touchstart', 'touchmove', 'touchend', 'touchcancel'] as const;
+    for (const type of events) document.addEventListener(type, trackTouches, { capture: true, passive: true });
+    return () => {
+      for (const type of events) document.removeEventListener(type, trackTouches, true);
+      startRef.current = null;
+      multitouchRef.current = false;
+    };
+  }, [active, isMobile]);
+
   const onPointerDown = (event: PointerEvent<HTMLElement>) => {
     startRef.current = null;
     if (!active || event.pointerType !== 'touch' || zoom > 1.01) return;
     if (isMobile) {
       const target = event.target;
-      if (!event.isPrimary || !(target instanceof Element) ||
+      if (multitouchRef.current || !event.isPrimary || !(target instanceof Element) ||
         target.closest('button, a, input, textarea, select, [contenteditable="true"], [data-media-interaction], [role="dialog"], [role="menu"]')) return;
       const bounds = event.currentTarget.getBoundingClientRect();
       // Leave the phone's edge navigation gesture available.

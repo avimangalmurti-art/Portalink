@@ -1,3 +1,40 @@
+## Rebuilding the Supabase schema from Git
+
+The numbered migrations include eight previously applied SQL files that were stored under `supabase/pending/`. Each move preserves the original SQL, including its historical comments. The September files follow the recorded application order. Journey creates `profiles.show_journey` and `profiles.then_now` before the citation and Then/Now migrations use them.
+
+| Version | Previously applied change |
+| --- | --- |
+| `202609300001` | Cover thumbnail schema |
+| `202609300002` | Public cover bucket |
+| `202609300003` | Share cover capability |
+| `202609300004` | Profile handle addresses |
+| `202609300005` | Profile Journey |
+| `202609300006` | Profile employer fields |
+| `202610120003` | External references |
+| `202611120001` | Profile audio tracks |
+
+These versions place historically applied SQL in fresh replay order. The earlier manual application receipts establish schema changes separately from the production migration ledger. A hosted reconciliation requires a comparison of that ledger and schema before planning a push or history repair. See the [local rebuild instructions](development-workflow.md#rebuild-the-database-locally).
+
+## Applied — Project order within a Portal (2026-11-14)
+
+The approved SQL was reviewed as `20261115004426_portal_project_arrangement.sql` and recorded by production Supabase as [`20261115014245_portal_project_arrangement.sql`](../supabase/migrations/20261115014245_portal_project_arrangement.sql). The repository uses the hosted version. The SQL in Git matches the production ledger byte for byte (SHA256 `8d97ad14c9593f82198c5e1072886c8d1666a8c9d93b142063fda370f46d7533`).
+
+Production checks confirmed row-level security, visibility-scoped reads, authenticated execution of the owner-checked save RPC, and denial of direct browser writes. Local database tests covered mixed and featured-only Portals, cross-Portal independence, and rollback. Sites 639 is the associated frontend release.
+
+## Applied — Projects in multiple Portals (2026-11-13)
+
+The reviewed SQL, originally named `20261114003337_project_portal_features.sql`, was applied separately with production approval. Supabase recorded it as [`20261114013655_project_portal_features.sql`](../supabase/migrations/20261114013655_project_portal_features.sql). The ledger's 4,625 bytes match the checked-in file (MD5 `a8a41f4cd4fb459a3ec605ea519ea6be`, SHA256 `c84000f92709401da5346166a0cce9f0b638ab96331df663dc0be07367a3f4c1`). Only the filename changed.
+
+Production checks confirmed row-level security, visibility-scoped reads, the composite key and both cascading foreign keys, and the authenticated save function with no direct browser writes to the table. Fresh local PostgreSQL and PGlite rebuilds verified atomic edits and owner enforcement. Earlier migration history was not changed.
+
+## Applied — Then/Now editing and order (2026-11-13)
+
+Supabase recorded the [editing migration](../supabase/migrations/20261113193355_profile_timeline_pair_edit.sql) as `20261113193355` and the [order migration](../supabase/migrations/20261113194228_profile_timeline_pair_order.sql) as `20261113194228`. The checked-in files match the SQL recorded in production byte for byte. Their original comments are preserved for that reason. The [production release record](production-release.md) identifies the published source and rollback version.
+
+The editing transaction grants owner updates of the two project ID columns for visible projects on the same profile. Its SHA256 is `dd95bc0d1f45199302d5f838f3930d60c23de26ca363ca15f97a738fe2ba3161`. The order transaction adds a position table, owner-only transactional save, visibility-scoped reads, and saved and legacy pair cleanup. Its SHA256 is `d6ada131c6a653beaa379d3013eb5573ab9e17df473105db49e5ae2f5ccd7a54`.
+
+Postflight confirmed the live edit policy and column grants, order row-level security and its three policies, the RPC grants for authenticated users only, and the enabled legacy cleanup trigger. Disposable PostgreSQL tests verified identity preservation, ownership, public visibility, rollback on invalid IDs, order replacement, and cleanup. A separately approved rollback-only production test also passed edit, delete, reorder, and full fixture cleanup assertions.
+
 ## Pending review — retire new repost writes (2026-11-03)
 
 `supabase/pending/retire_reposts.sql` is **unapplied**. The requested repost removal is implemented locally in both presentations, project/page action boundaries, activity routes, discovery signals and the existing Sites worker. The pending SQL adds one invoker trigger to reject new or retargeted project repost rows while preserving historical rows, tables, policies, grants and supported interactions. It does not delete data, alter the legacy summary RPC contract, or modify migration history.
@@ -14,15 +51,9 @@ User explicitly approved this one additive migration and publication. Applied th
 
 Isolated PGlite tests verify both the original restriction and repeated forward application, owner1/public reads, denied non-owner writes, invalid0/14/NULL rejection, and retained rows/defaults/order/policies/grants/RLS. Actual production account-layout saves were not exercised. Database application and website/source publication are separate states; see the current handoff for the release receipt.
 
-## Pending review — external references (2026-10-12)
+## Applied — external references (2026-10-12)
 
-`supabase/pending/external_references.sql` is **unapplied**. It adds the requested
-separate reference table, project/date index, owner CRUD and existing-project
-visibility reads, with server-stamped immutable creation dates. Disposable
-PGlite ownership/public/private-role checks pass. It does not write citations or
-notifications. Apply only this file after explicit approval; no migration ledger
-repair or unrelated migration execution is authorized. See
-[the task review package](references-and-exports.md).
+The approved [external references SQL](../supabase/migrations/202610120003_external_references.sql) was applied through the hosted SQL Editor on October 12. It adds the separate reference table, project/date index, owner CRUD and visibility-scoped reads. See [the application and verification record](references-and-exports.md).
 
 ## September 30, 2026 — Sites279 live; edge cache verified
 

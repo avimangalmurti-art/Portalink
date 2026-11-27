@@ -102,7 +102,7 @@ export function containModalFocus(dialog: HTMLElement, onEscape: () => void, pre
       // An expanded combobox consumes the first Escape to close its results.
       if (event.target instanceof HTMLElement && event.target.closest('[role="combobox"][aria-expanded="true"]')) return;
       // Let the active sortable's document listener cancel before dismissing its dialog.
-      const sorting = event.target instanceof HTMLElement && event.target.closest('[data-mobile-reorder-activator][aria-pressed="true"]');
+      const sorting = event.target instanceof HTMLElement && event.target.closest('[data-mobile-reorder-row][data-dragging="true"]');
       if (sorting && dialog.contains(sorting)) return;
       event.preventDefault();
       event.stopPropagation();

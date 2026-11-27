@@ -136,7 +136,7 @@
   inset-inline-start: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   min-width: 24px;
   min-height: 24px;
   padding-inline: 5px;
@@ -146,19 +146,43 @@
   color: var(--text-primary);
   font-size: 12px;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-file-grid] .mobile-file-grid-options {
+  --ui-control-rest-surface: var(--surface-raised);
+  --ui-control-rest-text: var(--text-primary);
   position: absolute;
-  inset-block-end: 4px;
-  inset-inline-end: 4px;
+  inset-block-end: 0;
+  inset-inline-end: 0;
   display: grid;
-  width: 44px;
-  height: 44px;
+  place-items: end;
+  padding-block: 0 6px;
+  padding-inline: 0 6px;
+  border: 0 !important;
+  background: transparent !important;
+}
+/* Keep the shared icon control's full touch area and paint only the inner circle. */
+.mobile-file-grid-options-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
   place-items: center;
   border: 1px solid var(--hairline);
-  border-radius: var(--ui-icon-radius, 50%);
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  padding: 0;
+  border-radius: var(--ui-icon-radius);
+  background: var(--ui-control-surface);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-file-grid] .mobile-file-grid-options:focus-visible {
+  outline: none !important;
+}
+.mobile-file-grid-options:focus-visible .mobile-file-grid-options-icon {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.mobile-file-options-menu[data-presentation='mobile'][role='menu'] {
+  padding: 8px;
+  box-shadow: var(--shadow-pop);
+}
+.mobile-file-options-menu[data-presentation='mobile'] > [role='menuitem'] {
+  min-height: 44px;
 }

@@ -5,11 +5,6 @@ import React from 'react';
 import postcss from 'postcss';
 import {sourceModule} from './helpers/source-module.mjs';
 const cssFiles=dir=>readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?cssFiles(dir+'/'+e.name):e.name.endsWith('.css')?[dir+'/'+e.name]:[]);
-const welcomeArtwork = new Map([
- ['.catalog-world-idea-link', 'catalog-world-connect .7s ease-out both'],
- ['.catalog-world-idea-ring', 'catalog-world-ripple 1.4s ease-out both'],
-]);
-const welcomeActionSelector = ".catalog-welcome[data-instant='false'] .catalog-welcome-action[data-ready='true']";
 test('finite interface motion is capped at 260ms and interface opacity fades at 180ms',()=>{
  const sheets=cssFiles('src').map(file=>({file,root:postcss.parse(readFileSync(file,'utf8'))}));
  const keyframes=new Map(),tokens={fast:120,base:180,slow:260};
@@ -24,12 +19,10 @@ test('finite interface motion is capped at 260ms and interface opacity fades at 
   const declarations=rule.nodes.filter(node=>node.type==='decl'),lookup=property=>declarations.findLast(node=>node.prop===property)?.value;
   for(const declaration of declarations.filter(node=>node.prop==='animation'))for(const value of postcss.list.comma(declaration.value)){
    if(value==='none'||/\binfinite\b/.test(value))continue;
-   if(file==='src/components/auth/catalog-welcome.css'&&welcomeArtwork.get(rule.selector)===value)continue;
    const name=[...keyframes.keys()].find(name=>new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(value));
    assert.ok(name,`${file}: ${value}`);const duration=milliseconds(value);
    assert.ok(duration<=260,`${file}: ${name} exceeds screen motion cap`);
-   const welcomeReveal=file==='src/components/auth/catalog-welcome.css'&&rule.selector===welcomeActionSelector&&name==='catalog-welcome-action-arrive';
-   if(keyframes.get(name).opacity&&!welcomeReveal)assert.ok(duration<=180,`${file}: ${name} exceeds fade cap`);
+   if(keyframes.get(name).opacity)assert.ok(duration<=180,`${file}: ${name} exceeds fade cap`);
   }
   const names=lookup('animation-name'),duration=lookup('animation-duration');
   if(names&&names!=='none'&&duration&&lookup('animation-iteration-count')!=='infinite')for(const name of postcss.list.comma(names)){
@@ -50,8 +43,7 @@ test('finite interface motion is capped at 260ms and interface opacity fades at 
 test('authored durations use shared motion tokens or the established component timings',()=>{
  const files=cssFiles('src'),definitions=[];
  const componentTimings=new Map([
-  ['src/presentation/motion/motion.css',['120ms','180ms','260ms','600ms','1400ms']],
-  ['src/components/auth/catalog-welcome.css',['0ms','0ms','.7s','1.4s']],
+  ['src/presentation/motion/motion.css',['120ms','180ms','260ms','600ms','1400ms','3200ms']],
   ['src/components/auth/professional-entry.css',['160ms']],
   ['src/components/messages/mobile-message-actions.css',['130ms']],
   ['src/presentation/mobile/reader-scroll-controls.css',['0s','0s']],
@@ -78,8 +70,8 @@ test('dock and push invoke the native API once, commit synchronously and finish 
 });
 test('nested tab routing cannot start a second transition',()=>{const r=runtime();r.api.motionUpdate(()=>r.api.motionUpdate(r.update,'tabs'),'tabs');assert.equal(r.native,1);assert.equal(r.updates,1);});
 test('reduced motion performs the navigation with no native animation or duration',()=>{const r=runtime(true);r.api.motionUpdate(r.update,'push');assert.equal(r.native,0);assert.equal(r.updates,1);assert.equal(r.api.motionMs('slow'),0);});
-test('reader skeleton reserves the reader frame without any spinner',()=>{
- const {LoadingSkeleton}=sourceModule('src/components/ui/StateViews.tsx',{react:React,'lucide-react':{},'./Button':{},'./InterfaceIcon':{},'../../utils/projectContinuity':{projectContinuityStyle:()=>({viewTransitionName:'portalink-project'})}});
+test('reader loading reserves the media frame and continuity surface',()=>{
+ const {LoadingSkeleton}=sourceModule('src/components/ui/StateViews.tsx',{react:React,'react-dom':{},'lucide-react':{},'./Button':{},'./InterfaceIcon':{},'../../presentation/mobile/MobileBackNavigation':{},'../../utils/projectContinuity':{projectContinuityStyle:()=>({viewTransitionName:'portalink-project'})}});
  const tree=LoadingSkeleton({kind:'reader',projectId:'work',label:'Opening'});assert.equal(tree.props['data-reader-frame'],'');assert.equal(tree.props['data-premium-project-viewer'],'');assert.equal(tree.props.role,'status');
  const text=readFileSync('src/components/media/AttachmentRenderer.tsx','utf8');assert.match(text,/LoadingSkeleton kind="reader"/);assert.doesNotMatch(text,/LoadingState/);
 });
@@ -177,6 +169,20 @@ test('WEB same-portal project selection updates the route immediately and preser
  }
 });
 
+test('WEB switches between portals in a catalogue without starting a router animation', () => {
+ for (const root of ['/p/creator', '/share/creator', '/avima.work']) {
+  for (const action of ['push', 'replace']) {
+   const h = profileNavigation(`${root}/c/a/project-a`);
+   const destinations = ['/c/b', '/c/c', '/c/d/project-d', '/c/e/project-e'].map(path => root + path);
+   for (const to of destinations) h.navigator[action](to);
+   assert.deepEqual(h.modes, []);
+   assert.equal(h.interruptions, destinations.length);
+   assert.deepEqual(h.calls, destinations.map(to => [action, to]));
+   assert.equal(h.location.pathname, destinations.at(-1));
+  }
+ }
+});
+
 test('WEB Settings disclosures update inline while MOBILE retains section navigation motion',()=>{
  for(const root of ['/settings','/settings/','/appearance','/appearance/','/share/creator?settings=1','/avima.work?settings=1'])for(const action of ['push','replace']){
   const separator=root.includes('?')?'&':'?';
@@ -192,15 +198,15 @@ test('WEB Settings disclosures update inline while MOBILE retains section naviga
  }
 });
 
-test('first reader entry, cross-portal destinations, MOBILE and external URLs keep their existing navigation',()=>{
+test('first reader entry, cross-catalogue destinations, MOBILE and external URLs keep their existing navigation',()=>{
  for(const [from,to,presentation] of [
   ['/p/creator/c/portal','/p/creator/c/portal/one','web'],
-  ['/p/creator/c/portal/one','/p/creator/c/other/two','web'],
   ['/p/creator/c/portal/one','/p/other/c/portal/two','web'],
   ['/p/creator/c/portal/one','/share/creator/c/portal/two','web'],
   ['/search/c/portal/one','/search/c/portal/two','web'],
   ['/p/creator/c/portal/one','https://external.test/p/creator/c/portal/two','web'],
   ['/p/creator/c/portal/one','/p/creator/c/portal/two','mobile'],
+  ['/p/creator/c/portal/one','/p/creator/c/other','mobile'],
   ['/share/creator/c/portal/one','/share/creator/c/portal/two','mobile'],
   ['/share/creator','/share/creator?settings=1&section=appearance','web'],
   ['/share/creator?settings=1&section=appearance','/share/creator','web'],

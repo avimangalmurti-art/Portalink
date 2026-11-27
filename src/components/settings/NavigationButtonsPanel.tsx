@@ -11,6 +11,7 @@ import { resetResizablePanelLayout } from '../ui/ResizablePanelHandle';
 
 type NavigationButtonsPanelProps = {
   inline?: boolean;
+  sharedReadOnly?: boolean;
   selectedSection?: AppearanceSection | null;
   onSectionOpen?: (section: AppearanceSection) => void;
   theme: AppearanceTheme;
@@ -46,6 +47,7 @@ function swatchSurface(color: string): React.CSSProperties {
 
 export function NavigationButtonsPanel({
   inline = false,
+  sharedReadOnly = false,
   selectedSection = null,
   onSectionOpen,
   theme,
@@ -168,7 +170,8 @@ export function NavigationButtonsPanel({
               <div
                 role="radiogroup" onKeyDown={handleRadioGroupKeyDown}
                 aria-label="Interface appearance"
-                className="side-panel-control-row w-full rounded-[10px] bg-[var(--surface-sunken)] p-1.5"
+                data-ui-shape={sharedReadOnly ? 'capsule' : undefined}
+                className="settings-appearance-mode-options side-panel-control-row w-full rounded-[10px] bg-[var(--surface-sunken)] p-1.5"
                 style={{ transition }}
               >
                 {appearanceOptions.map((option) => {
@@ -179,6 +182,7 @@ export function NavigationButtonsPanel({
                       type="button"
                       role="radio"
                       data-ui-control="button" data-control-size="md" data-control-variant="ghost"
+                      data-ui-shape={sharedReadOnly ? 'action' : undefined}
                       aria-checked={isSelected} tabIndex={isSelected ? 0 : -1}
                       onClick={() => onAppearanceModeChange(option.mode)}
                       className="side-panel-primary-control side-panel-control-row flex-1 justify-center border text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"

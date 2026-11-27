@@ -9,7 +9,7 @@ function load(path, imports = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText, { exports, Error, require(name) {
+  }).outputText, { exports, Error, URLSearchParams, require(name) {
     if (!(name in imports)) throw new Error(`Missing import: ${name}`);
     return imports[name];
   } });
@@ -26,7 +26,15 @@ const newProject = { ...oldProject, id: 'new', title: 'New work', publishedAt: '
 const creator = { id: 'creator', name: 'Ava', handle: '@ava', headline: 'Designer', projects: [oldProject, newProject], categories: [{ id: 'cat', label: 'Architecture' }] };
 const notification = { id: 'note', body: 'A reply to Red buildings', timestamp: '2026-02-02T00:00:00Z', targetPath: '/messages?conversation=one', isUnread: true, kind: 'reply' };
 const target = { projectId: 'old', attachmentId: 'cover', pageIndex: 0, savedAt: '2026-03-01T00:00:00Z' };
-const pageEntry = { target, presentation: null };
+const bookmarkedProject = {
+  ...oldProject,
+  attachments: [{ id: 'cover', kind: 'document', sourceUrl: 'fixture.pdf', metadata: { pageCount: 2 } }],
+};
+const bookmarkedView = { project: bookmarkedProject, creator };
+const { savedPagePresentation } = load('../src/features/library/savedPages.ts', {
+  '../../app/routes': routes, '../media-interactions/mediaInteractionRequest': {},
+});
+const pageEntry = { target, presentation: savedPagePresentation(target, bookmarkedView) };
 
 test('Studio sorts own published work by publication time and keeps collection identities distinct', () => {
   const own = model.publishedStudioRows(creator);
@@ -36,7 +44,7 @@ test('Studio sorts own published work by publication time and keeps collection i
   assert.notEqual(saved.id, own[1].id);
   assert.equal(saved.date, oldProject.publishedAt);
   assert.equal(model.savedCreatorStudioRows([{ id: creator.id, profile: creator }])[0].date, undefined);
-  assert.equal(model.savedPageStudioRows([pageEntry])[0].date, undefined);
+  assert.equal(model.savedPageStudioRows([pageEntry])[0].date, oldProject.publishedAt);
   assert.equal(model.publishedStudioRows({...creator,projects:[{...oldProject,madeOn:'2025-10-06'}]})[0].date,'2025-10-06');
 });
 test('Published rows display made-on dates without changing publication ordering; bookmarks retain made-on dates',()=>{
@@ -81,8 +89,8 @@ test('legacy All locations and invalid categories fall back to Bookmarks while r
   for (const category of model.STUDIO_CATEGORIES) assert.equal(model.studioCategory(category), category);
 });
 
-test('Studio actions never promise unsupported draft/unread or unavailable bookmark navigation', () => {
-  assert.deepEqual(Array.from(model.studioRowActions(model.savedPageStudioRows([pageEntry])[0])), ['unsave']);
+test('Studio actions retain available page navigation and avoid unsupported draft/unread actions', () => {
+  assert.deepEqual(Array.from(model.studioRowActions(model.savedPageStudioRows([pageEntry])[0])), ['open', 'share', 'copy-link', 'unsave']);
   assert.deepEqual(Array.from(model.studioRowActions(model.savedCreatorStudioRows([{ id: 'gone', profile: null }])[0])), ['unsave']);
   const activity = model.activityStudioRows([notification])[0];
   assert.deepEqual(Array.from(model.studioRowActions(activity)), ['open', 'mark-read', 'delete']);
@@ -92,24 +100,70 @@ test('Studio actions never promise unsupported draft/unread or unavailable bookm
   assert.ok(model.studioRowActions(model.publishedStudioRows(creator)[0]).includes('edit'));
 });
 
-test('shared page loader deduplicates canonical reads, preserves unavailable entries, and propagates real failures', async () => {
+function savedPagesQueries(mediaInteractionRequest) {
+  const savedPages = load('../src/features/library/savedPages.ts', {
+    '../../app/routes': routes, '../media-interactions/mediaInteractionRequest': { mediaInteractionRequest },
+  });
+  return load('../src/features/library/collectionQueries.ts', {
+    '../../types/profile': {}, './savedPages': savedPages,
+  });
+}
+
+test('shared page loader hides inaccessible projects and unresolved attachments without changing stored bookmarks', async () => {
   const absent = { ...target, projectId: 'gone' };
-  const queries = load('../src/features/library/collectionQueries.ts', {
-    '../../types/profile': {},
-    './savedPages': {
-      listSavedPages: async () => ({ items: [target, { ...target, pageIndex: 1 }, absent], nextCursor: 'next' }),
-      savedPagePresentation: (_target, view) => view ?? null,
-    },
+  const removedAttachment = { ...target, attachmentId: 'removed' };
+  const outOfRange = { ...target, pageIndex: 2 };
+  const secondPage = { ...target, pageIndex: 1 };
+  const stored = [target, removedAttachment, absent, outOfRange, secondPage];
+  const writes = [];
+  const queries = savedPagesQueries(async (path, init, requireAccount) => {
+    assert.equal(path, '/api/media-interactions/saved');
+    assert.equal(requireAccount, true);
+    if (init?.method) writes.push(init.method);
+    return { items: stored, nextCursor: 'next' };
   });
   const requested = [];
-  const batch = await queries.loadSavedPageBatch({ getProjectView: async id => {
+  const projects = { async getProjectView(id) {
     requested.push(id);
     if (id === 'gone') throw { code: 'not_found' };
-    return { project: oldProject, creator };
-  } }, null);
-  assert.deepEqual(requested, ['old', 'gone']); assert.equal(batch.nextCursor, 'next');
-  assert.equal(batch.items.length, 3); assert.equal(batch.items[2].presentation, null);
-  await assert.rejects(queries.loadSavedPageBatch({ getProjectView: async () => { throw Error('offline'); } }, null), /offline/);
+    return bookmarkedView;
+  } };
+  const batch = await queries.loadSavedPageBatch(projects, null);
+  assert.deepEqual(requested, ['old', 'gone']);
+  assert.equal(batch.nextCursor, 'next');
+  assert.deepEqual(Array.from(batch.items, item => item.target), [target, secondPage]);
+  assert.deepEqual(Array.from(batch.items, item => item.presentation.label), ['Page 1', 'Page 2']);
+  assert.deepEqual(Array.from(model.savedPageStudioRows(batch.items), row => row.title), ['Old work', 'Old work']);
+  assert.deepEqual(writes, []);
+  assert.deepEqual(stored, [target, removedAttachment, absent, outOfRange, secondPage]);
+});
+
+test('a batch containing only unavailable pages preserves its cursor and can recover on a later read', async () => {
+  const cursors = [];
+  const queries = savedPagesQueries(async path => {
+    cursors.push(new URL(path, 'https://portalink.example').searchParams.get('cursor'));
+    return { items: [target], nextCursor: 'next' };
+  });
+  let accessible = false;
+  const projects = { async getProjectView() {
+    if (!accessible) throw { code: 'not_found' };
+    return bookmarkedView;
+  } };
+  const unavailable = await queries.loadSavedPageBatch(projects, 'current');
+  assert.equal(unavailable.items.length, 0);
+  assert.equal(unavailable.nextCursor, 'next');
+  accessible = true;
+  const recovered = await queries.loadSavedPageBatch(projects, 'current');
+  assert.deepEqual(Array.from(recovered.items, item => item.target), [target]);
+  assert.equal(recovered.nextCursor, 'next');
+  assert.deepEqual(cursors, ['current', 'current']);
+});
+
+test('shared saved pages surface a real project lookup error rather than hiding the failing project', async () => {
+  const failure = Error('offline');
+  const queries = savedPagesQueries(async () => ({ items: [target], nextCursor: 'next' }));
+  await assert.rejects(queries.loadSavedPageBatch({ getProjectView: async () => { throw failure; } }, null),
+    error => error === failure);
 });
 
 test('shared creator loader only treats canonical not-found as unavailable', async () => {
@@ -306,7 +360,8 @@ test('MOBILE Activity reports confirmed refresh results and rejects stale accoun
 
 test('Studio saved-page pagination retains prior rows, deduplicates targets, and preserves a failed cursor for retry', async () => {
   let fail = true;
-  const nextEntry = { target: { ...target, pageIndex: 1 }, presentation: null };
+  const nextTarget = { ...target, pageIndex: 1 };
+  const nextEntry = { target: nextTarget, presentation: savedPagePresentation(nextTarget, bookmarkedView) };
   const cursors = [];
   const { hook } = studioHarness({ tab: 'pages', more: async cursor => { cursors.push(cursor); if (fail) throw Error('offline'); return { items: [pageEntry, nextEntry], nextCursor: null }; } });
   await hook.flush(); assert.equal(hook.value.updatedAt, 200); assert.equal(hook.value.hasMore, true);

@@ -109,12 +109,12 @@ export function ImagePage({
     return () => window.clearTimeout(timeout);
   }, [attempt, shouldRender, status]);
   if (!attachment.sourceUrl) {
-    return <div className="flex items-center justify-center p-8">
+    return <div data-reader-media-state="error" className="flex items-center justify-center p-8">
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
   const canFocus = !isFocused && Boolean(onToggleFocus);
-  return <li ref={hostRef} data-inline-page-image={inlinePreview || undefined} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused && !inlinePreview ? '' : undefined} role={canFocus ? 'button' : undefined} tabIndex={canFocus ? 0 : undefined} aria-pressed={canFocus ? false : undefined} aria-label={!onToggleFocus ? undefined : inlinePreview ? attachment.displayName : `${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={!canFocus ? undefined : (event) => {
+  return <li ref={hostRef} data-inline-page-image={inlinePreview || undefined} data-desktop-page-cell={!isMobile && !isFocused ? "" : undefined} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused && !inlinePreview ? '' : undefined} role={canFocus ? 'button' : undefined} tabIndex={canFocus ? 0 : undefined} aria-pressed={canFocus ? false : undefined} aria-label={!onToggleFocus ? undefined : inlinePreview ? attachment.displayName : `${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => { if (isMobile && status !== 'ready') return; updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }); }} onDoubleClick={!canFocus ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
@@ -142,12 +142,12 @@ export function ImagePage({
   }} className={`${isFocused ? 'flex h-full min-h-0 w-full items-start justify-start overflow-auto overscroll-contain' : 'block touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
     aspectRatio: `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}`
   } : undefined}>
-      {!shouldRender ? <div data-page-loading="" style={loadingStyle} className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
+      {!shouldRender ? <div data-page-loading="" data-reader-media-state="pending" style={loadingStyle} className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
       {shouldRender ? <>
-      {status === 'loading' && <div data-page-loading="" data-initial-page-loading={pageNumber === 1 ? '' : undefined} style={loadingStyle} role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
+      {status === 'loading' && <div data-page-loading="" data-reader-media-state="pending" data-initial-page-loading={pageNumber === 1 ? '' : undefined} style={loadingStyle} role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
           <span className="premium-media-loading-mark" aria-hidden="true" />
         </div>}
-      {status === 'error' ? <div onPointerUp={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} style={loadingStyle} data-page-loading="" className="flex min-h-[240px] w-full items-center justify-center p-5">
+      {status === 'error' ? <div onPointerUp={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} style={loadingStyle} data-page-loading="" data-reader-media-state="error" className="flex min-h-[240px] w-full items-center justify-center p-5">
           <ErrorState title="This image could not be displayed" description="Check your connection, then try loading this image again." onRetry={inlinePreview ? undefined : () => {
         cancelRecovery();
         retry();
@@ -186,7 +186,8 @@ export function ImageAttachment({
   isOwner = false,
   memoryScope = 'workspace',
   pageViewToggleRequest = 0,
-  verticalReading = false
+  verticalReading = false,
+  manageReadingScroll = true
 
 
 
@@ -195,7 +196,7 @@ export function ImageAttachment({
 
 
 
-}: {projectId: string; verticalReading?: boolean; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
+}: {projectId: string; verticalReading?: boolean; manageReadingScroll?: boolean; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
    * How many pages sit side by side. Presentation only — it changes how much
    * width a page is given, never the page's own proportions or its order.
    */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;isOwner?: boolean;memoryScope?: string;pageViewToggleRequest?: number;}) {
@@ -260,10 +261,11 @@ export function ImageAttachment({
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPage !== null,
+    entryReady: pages.length > 0,
     onEnter: (pageNumber, nextZoom) => {
       const page = pages[pageNumber - 1];
       if (!page) return;
-      updateViewerMemory(`${memoryKey}:${page.id}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
+      if (nextZoom !== undefined) updateViewerMemory(`${memoryKey}:${page.id}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
       focusPage(page.id);
     },
     onExit: exitFocus,
@@ -281,7 +283,7 @@ export function ImageAttachment({
     if (focusedPage) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPage]);
 
-  useDocumentReadingScroll(isMobile && !focusedPage, gridScrollRef, memoryKey, verticalReading && linkedImageId ? pages.findIndex(page => page.id === linkedImageId) + 1 : null);
+  useDocumentReadingScroll(manageReadingScroll && isMobile && !focusedPage, gridScrollRef, memoryKey, verticalReading && linkedImageId ? pages.findIndex(page => page.id === linkedImageId) + 1 : null);
   useLayoutEffect(() => {
     if (isMobile || focusedPage) return;
     const element = gridScrollRef.current;
@@ -338,14 +340,16 @@ export function ImageAttachment({
     columnPages[index % columnCount].push(attachment);
   });
   const indexOf = new Map(pages.map((attachment, index) => [attachment.id, index]));
-  return <div ref={zoomSurfaceRef} className="premium-media-mode-enter relative h-full w-full">
-      <ol ref={gridScrollRef} onScroll={(event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-[2px] overflow-x-hidden overflow-y-auto p-0">
-      {columnPages.map((column, columnIndex) => <li key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-[2px]">
+  const overviewZoom = isMobile && zoom > 1;
+  const orderedPageWrapper = !isMobile && !manageReadingScroll ? '' : undefined;
+  return <div ref={zoomSurfaceRef} data-ordered-page-wrapper={orderedPageWrapper} className="premium-media-mode-enter relative h-full w-full" style={overviewZoom ? { overflowX: 'auto' } : undefined} onScroll={overviewZoom ? event => updateViewerMemory(memoryKey, { scrollLeft: event.currentTarget.scrollLeft }) : undefined}>
+      <ol ref={gridScrollRef} data-ordered-page-wrapper={orderedPageWrapper} onScroll={isMobile ? undefined : (event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-[2px] overflow-x-hidden overflow-y-auto p-0" style={overviewZoom ? { width: `${zoom * 100}%` } : undefined}>
+      {columnPages.map((column, columnIndex) => <li key={columnIndex} data-ordered-page-wrapper={orderedPageWrapper} className="flex min-w-0 flex-1 flex-col gap-[2px]">
           {/* The pages themselves stay list items, so a screen reader still hears
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
-          <ol className="m-0 flex list-none flex-col gap-[2px] p-0">
-            {column.map((attachment) => <ImagePage isMobile={isMobile} key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
+          <ol data-ordered-page-wrapper={orderedPageWrapper} className="m-0 flex list-none flex-col gap-[2px] p-0">
+            {column.map((attachment) => <ImagePage isMobile={isMobile} key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={manageReadingScroll ? columnCount : 0} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}
       </ol>

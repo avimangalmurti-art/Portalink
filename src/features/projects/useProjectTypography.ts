@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import type { Id, ProjectDesign } from '../../types/domain';
-import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from './pageLayout';
+import { normalizePagesPerRow } from './pageLayout';
 
 /**
  * The project-typography boundary.
@@ -23,7 +23,7 @@ export type ProjectTypographyState = {
   /** The project's confirmed face, or the face a save is optimistically showing. */
   resolveTypefaceId: (projectId: Id | null) => string;
   /** The viewer's initial page density saved with the project. */
-  resolvePagesPerRow: (projectId: Id | null, fallback?: number) => number;
+  resolvePagesPerRow: (projectId: Id | null) => number | undefined;
   /** The project a save is currently in flight for. */
   savingProjectId: Id | null;
   saveError: string | null;
@@ -94,12 +94,7 @@ export function useProjectTypography(projectIds: Id[]): ProjectTypographyState {
     }
     return designs[projectId]?.typefaceId ?? DEFAULT_TYPEFACE_ID;
   }, [designs]);
-  const resolvePagesPerRow = useCallback((projectId: Id | null, fallback = DEFAULT_PAGES_PER_ROW) => {
-    if (!projectId) {
-      return fallback;
-    }
-    return designs[projectId]?.pagesPerRow ?? fallback;
-  }, [designs]);
+  const resolvePagesPerRow = useCallback((projectId: Id | null) => projectId ? designs[projectId]?.pagesPerRow : undefined, [designs]);
   const setTypeface = useCallback(async (projectId: Id, typefaceId: string) => {
     if (isSavingRef.current) {
       return false;

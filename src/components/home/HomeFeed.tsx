@@ -59,6 +59,7 @@ type HomeFeedProps = {
 };
 
 const FEED_SCROLL_PREFIX = 'portalink.feedScroll.';
+const HOME_PAGE_PREFETCH_MARGIN = '0px 0px 800px 0px';
 
 function readFeedScroll(key: string): number {
   try {
@@ -112,7 +113,7 @@ export function HomeFeed({
   const routeLocation = useLocation();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const activeHomeOpening = showMobileSearch && screenActive ? installedHomeOpening : null;
-  const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile, revalidateOnOpen: activeHomeOpening?.refresh });
+  const feed = useFeed(locationId, { preserveSnapshotAcrossRevision: isMobile || !locationId, revalidateOnOpen: activeHomeOpening?.refresh });
   const { viewerProfileId, isAuthenticated, user } = useAuth();
   const management = useProjectManagement(isAuthenticated ? viewerProfileId : null);
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
@@ -121,6 +122,7 @@ export function HomeFeed({
   const layoutFailed = !layoutReady && (ownerLayout.status === 'error' || ownerLayout.status === 'ready');
   const loadFailed = layoutFailed || feed.status === 'error';
   const autoScrollRef = useRef<HTMLDivElement>(null);
+  const nextPageRef = useRef<HTMLDivElement>(null);
   const [hasReloaded, setHasReloaded] = useState(false);
   const [locationGridWidth, setLocationGridWidth] = useState(0);
   const [locationGridChoice, setLocationGridChoice] = useState<number | null>(null);
@@ -166,6 +168,11 @@ export function HomeFeed({
     accountId: isAuthenticated ? user?.id ?? null : null, path: feedPath, host: autoScrollRef, projectIds, ready: feed.status === 'success' && layoutReady, saveReady: scrollRestored,
     failed: Boolean(feed.error || feed.refreshError || feed.loadMoreError), busy: feed.isLoadingMore || feed.isRefreshing, nextCursor: feed.nextCursor, loadMore: requestMore });
   const firstProjectHome = isMobile && Boolean(firstProjectAction) && projects.length === 0;
+  const mobilePageError = feed.loadMoreError ?? feed.refreshError;
+  const canPrefetchPage = showMobileSearch && screenActive && layoutReady && scrollRestored
+    && !startupPending && !coldResume.restoring && feed.status === 'success' && !firstProjectHome
+    && !mobilePageError && !feed.isLoadingMore && !feed.isRefreshing && !feed.isSavingHomeMode;
+  const nextCursor = feed.nextCursor;
   const retryLayout = ownerLayout.retry;
   useEffect(() => {
     if (startupPending && !locationId && previousStartupAttempt.current !== startupAttempt) {
@@ -175,6 +182,7 @@ export function HomeFeed({
   }, [startupPending, startupAttempt, locationId, retryFeed, retryLayout]);
   useHomeStartupReadiness({
     enabled: startupPending && !locationId,
+    waitForArtwork: isMobile,
     attempt: startupAttempt,
     ref: autoScrollRef,
     settled: (firstProjectHome && feed.status === 'success') || (feed.status === 'success' && layoutReady && scrollRestored && noteReadiness?.account === account && noteReadiness.attempt === startupAttempt && noteReadiness.settled),
@@ -194,6 +202,7 @@ export function HomeFeed({
       onWarmCreator={onWarmCreator}
       priority={startupPending && !locationId ? scrollRestored ? 'viewport' : false : index < 2}
       showCoverLoading={isMobile && !locationId}
+      videoCoverAutoplay={isMobile && !locationId ? (screenActive ? 'active' : 'paused') : undefined}
       deferDesktopDetails={!isMobile && !locationId}
     />,
   }));
@@ -277,6 +286,28 @@ export function HomeFeed({
   const pullEnabled = showMobileSearch && screenActive && !(firstProjectAction && projects.length === 0);
   const refreshMotion = useHomeRefreshMotion({ enabled: pullEnabled, refreshing: feed.isRefreshing, scope: recoveryIdentity });
   const pullLabel=useHomePullRefresh(autoScrollRef,pullEnabled,feed.isRefreshing||feed.status==='loading',refreshHome,refreshMotion.onPull);
+
+  useLayoutEffect(() => {
+    const marker = nextPageRef.current;
+    if (!canPrefetchPage || !nextCursor || !marker) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      requestMore();
+      return;
+    }
+    let observing = true;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!observing || !entry?.isIntersecting) return;
+      observing = false;
+      observer.disconnect();
+      requestMore();
+    }, { rootMargin: HOME_PAGE_PREFETCH_MARGIN });
+    observer.observe(marker);
+    return () => {
+      observing = false;
+      observer.disconnect();
+    };
+  }, [canPrefetchPage, nextCursor, requestMore]);
+
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
       {showMobileSearch && <span ref={refreshMotion.indicatorRef} data-home-pull-feedback="" data-active={pullEnabled && Boolean(pullLabel || feed.isRefreshing) ? 'true' : undefined} aria-hidden="true" className="home-pull-indicator">
@@ -303,6 +334,9 @@ export function HomeFeed({
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
             {density.saveError && <p role="status" className="py-2 text-[13px] text-[var(--text-secondary)]">{density.saveError} <button type="button" onClick={() => { void density.retry(); }} className="text-[var(--accent-text)] underline">Retry layout save</button></p>}
+            {!isMobile && !locationId && feed.refreshError && <p role="status" className="py-2 text-[13px] text-[var(--text-secondary)]">
+              {feed.refreshError} <button type="button" onClick={retryFeed} className="text-[var(--accent-text)] underline">Retry Home refresh</button>
+            </p>}
             {!layoutReady && (layoutFailed
               ? <ErrorState title="Your Home layout could not be loaded" description={ownerLayout.error ?? undefined} onRetry={ownerLayout.retry} />
               : !loadFailed ? <LoadingState kind="grid" columns={density.columns} label="Loading your Home layout" /> : null)}
@@ -351,7 +385,17 @@ export function HomeFeed({
                 /></div>
               : <BentoFeedGrid key={viewerProfileId ?? 'guest'} items={cells} columns={locationId ? undefined : density.columns} onColumnsChange={locationId ? undefined : density.setColumns} />
               : null}
-            {feed.nextCursor && <div className="flex flex-col items-center gap-2 py-5">
+            {showMobileSearch ? <>
+              {nextCursor && <div ref={nextPageRef} aria-hidden="true" className="h-px" />}
+              {feed.isLoadingMore && <div role="status" aria-label="Loading more projects" className="flex h-11 items-center justify-center">
+                <span className="premium-media-loading-mark" aria-hidden="true" />
+              </div>}
+              {nextCursor && mobilePageError && !feed.isLoadingMore && !feed.isRefreshing && <div className="flex flex-col items-center gap-2 py-5">
+                <p role="status" className="text-[13px] text-[var(--text-secondary)]">{mobilePageError}</p>
+                <button type="button" data-ui-control="button" data-control-variant="secondary" data-control-size="md"
+                  onClick={feed.loadMoreError ? loadMoreFeed : retryFeed}>Try again</button>
+              </div>}
+            </> : nextCursor && <div className="flex flex-col items-center gap-2 py-5">
               {feed.loadMoreError && <p role="status" className="text-[13px] text-[var(--text-secondary)]">{feed.loadMoreError}</p>}
               <button type="button" className="min-h-11 rounded-full border border-[var(--border-subtle)] px-6 py-2 text-[var(--text-primary)] disabled:opacity-50"
                 disabled={feed.isLoadingMore || feed.isRefreshing} aria-busy={feed.isLoadingMore} onClick={loadMoreFeed}>

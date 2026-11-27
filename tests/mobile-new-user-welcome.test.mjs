@@ -67,6 +67,8 @@ function harness(presentation = 'mobile') {
   const names = (...items) => Object.fromEntries(items.map(name => [name, name]));
   react.useLayoutEffect = react.useEffect;
   const { VisitorApp } = sourceModule('src/visitor/VisitorApp.tsx', {
+    '../features/journey/desktopTimelineReturn': sourceModule('src/features/journey/desktopTimelineReturn.ts', { react }),
+    '../features/projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
     '../features/profile/cataloguePageNavigation': { withCataloguePageTarget: href => href, captureCatalogueReaderOrigin: () => null, restoreCatalogueReaderOrigin: () => () => {} },
     './useMobileProjectReturn': { useMobileProjectReturn: () => ({ close: () => false, open: () => {}, captureOpener: () => {} }) },
     react, 'react-router-dom': { useLocation: () => location, useNavigate: () => navigate },
@@ -77,6 +79,7 @@ function harness(presentation = 'mobile') {
     '../utils/projectContinuity': { beginProjectContinuity() {} },
     '../components/ui/RouteError': { ...names('RouteError'), routeErrorKind: () => 'network' },
     './mobile/SharedPortalPopup': names('SharedPortalPopup'),
+    '../components/profile/PortalProjectPopup': names('PortalProjectPopup'),
     '../features/sharing/shareModel': shareModel,
     '../features/sharing/sharedSettings': sharedSettings,
     './useHandleRoute': { useHandleRoute: route => ({ route, pending: false, error: '' }) },
@@ -88,6 +91,8 @@ function harness(presentation = 'mobile') {
     '../features/profile/useSharedProfileQuery': { useSharedProfileQuery: () => ({ status: 'ready',
       profile: { id: profileId, name: 'Creator', categories: [], projects: [] }, error: null }) },
     '../contexts/AuthContext': { useAuth: () => state.auth },
+    '../components/profile/usePrepareProfileAudio': { usePrepareProfileAudio() {} },
+    '../features/profile/profileAudioPlayback': { clearProfileAudioForProfile() {} },
     '../hooks/useDeviceAppearance': { useDeviceAppearance: () => appearance },
     '../utils/accentTokens': { resolveAccentTokens: () => ({}) },
     '../utils/macTokens': { resolveMacTokens: () => ({}) },

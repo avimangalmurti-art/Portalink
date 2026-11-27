@@ -268,6 +268,19 @@ test('viewport opener disappears while navigation is open and returns after outs
   h.unmount();
 });
 
+test('the catalogue header can replace the floating opener without disabling the drawer', () => {
+  const h = harness();
+  h.setProps({ hideFloatingOpener: true });
+  const closed = h.render();
+  assert.equal(opener(closed), undefined);
+  assert.ok(nodes(closed).some(node => node.props.className === 'mobile-shared-drawer-edge'));
+  h.setProps({ openRequest: {} });
+  assert.equal(h.render().props['data-visible'], true);
+  h.outsideBinding.close();
+  assert.equal(opener(h.finish()), undefined);
+  h.unmount();
+});
+
 test('reader and settings entries have no sidebar opener or opening gesture', () => {
   const h = harness({enabled:false});
   assert.equal(opener(h.render()), undefined);

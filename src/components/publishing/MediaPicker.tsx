@@ -153,7 +153,7 @@ export function MediaPicker({
         <h3 id={filesLabelId} className="text-[13px] font-semibold text-[var(--text-primary)]">{showReorderGrid ? `${items.length} ${items.length === 1 ? 'file' : 'files'} selected` : 'Project files'}</h3>
         <div className="flex items-center gap-1" data-onboarding-files-header-actions={onboardingFiles || undefined}>
           {items.length > 0 && <Button variant="secondary" size="sm" disabled={isLocked || media.isFull} onClick={() => addRef.current?.click()}><InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />Add</Button>}
-          <ProjectFilesMenu triggerRef={fileOptionsRef} hasFiles={items.length > 0} locked={isLocked} showsRequirements={showsFormats} onRequirements={() => setShowsFormats((open) => !open)} onRemoveAll={() => setIsRemovingAll(true)} onboardingFiles={onboardingFiles} presentation={presentation}/>
+          <ProjectFilesMenu triggerRef={fileOptionsRef} hasFiles={items.length > 0} locked={isLocked} showsRequirements={showsFormats} onRequirements={() => setShowsFormats((open) => !open)} onRemoveAll={() => setIsRemovingAll(true)} onboardingFiles={onboardingFiles} reorderGrid={showReorderGrid} presentation={presentation}/>
         </div>
       </div>
       {showReorderGrid && items.length > 1 && <p className="mobile-file-grid-hint">Hold and drag to reorder.</p>}
@@ -392,25 +392,30 @@ function AssetRow({
     return () => document.removeEventListener('mousedown', close);
   }, [isMenuOpen]);
   const optionsLabel = `Options for ${asset.displayTitle}`;
+  const isGridTile = Boolean(gridActivator);
+  const usesMenuShapes = onboardingFiles || isGridTile;
   const options = <>
-    <button ref={triggerRef} type="button" disabled={disabled} data-ui-shape={onboardingFiles ? 'icon' : undefined} data-control-size={onboardingFiles ? 'sm' : undefined}
+    <button ref={triggerRef} type="button" disabled={disabled} data-ui-control={isGridTile ? 'icon' : undefined} data-control-variant={isGridTile ? 'secondary' : undefined}
+      data-ui-shape={onboardingFiles && !isGridTile ? 'icon' : undefined} data-control-size={usesMenuShapes ? 'sm' : undefined}
       onClick={() => setIsMenuOpen(open => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={optionsLabel}
-      className={gridActivator ? 'mobile-file-grid-options' : 'flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none'}>
-      <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
+      className={isGridTile ? 'mobile-file-grid-options' : 'flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none'}>
+      {isGridTile
+        ? <span className="mobile-file-grid-options-icon"><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></span>
+        : <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />}
     </button>
     {isMenuOpen && <ModalPortal><div ref={menuRef} tabIndex={-1} role="menu" aria-label={optionsLabel} data-onboarding-files-manager={onboardingFiles || undefined}
-      data-presentation={onboardingFiles ? presentation : undefined} data-ui-shape={onboardingFiles ? 'popup' : undefined} style={menuPosition ?? { visibility: 'hidden' }}
-      className="fixed z-[100] w-[184px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] py-1 shadow-[0_12px_28px_rgba(15,23,42,0.2)] outline-none">
-      {gridActivator && index > 0 && <MenuAction label="Move earlier" onboardingFiles={onboardingFiles} onSelect={() => { onReorder(index, index - 1); setIsMenuOpen(false); }} />}
-      {gridActivator && index < total - 1 && <MenuAction label="Move later" onboardingFiles={onboardingFiles} onSelect={() => { onReorder(index, index + 1); setIsMenuOpen(false); }} />}
-      {coverEligible && !asset.isCover && <MenuAction label="Set as cover" onboardingFiles={onboardingFiles} onSelect={() => { onSetCover(); setIsMenuOpen(false); }} />}
-      <MenuAction label="Rename" onboardingFiles={onboardingFiles} onSelect={() => {
+      data-presentation={usesMenuShapes ? presentation : undefined} data-ui-shape={usesMenuShapes ? 'popup' : undefined} style={menuPosition ?? { visibility: 'hidden' }}
+      className={`fixed z-[100] w-[184px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] py-1 shadow-[0_12px_28px_rgba(15,23,42,0.2)] outline-none ${isGridTile ? 'mobile-file-options-menu' : ''}`}>
+      {isGridTile && index > 0 && <MenuAction label="Move earlier" useRowShape={usesMenuShapes} onSelect={() => { onReorder(index, index - 1); setIsMenuOpen(false); }} />}
+      {isGridTile && index < total - 1 && <MenuAction label="Move later" useRowShape={usesMenuShapes} onSelect={() => { onReorder(index, index + 1); setIsMenuOpen(false); }} />}
+      {coverEligible && !asset.isCover && <MenuAction label="Set as cover" useRowShape={usesMenuShapes} onSelect={() => { onSetCover(); setIsMenuOpen(false); }} />}
+      <MenuAction label="Rename" useRowShape={usesMenuShapes} onSelect={() => {
         setIsMenuOpen(false);
         const next = window.prompt('Display title', asset.displayTitle);
         if (next !== null) onRename(next);
       }} />
-      <MenuAction label="Replace" onboardingFiles={onboardingFiles} onSelect={() => { setIsMenuOpen(false); onReplace(); }} />
-      <MenuAction label="Remove" onboardingFiles={onboardingFiles} onSelect={() => { setIsMenuOpen(false); onRemove(); }} />
+      <MenuAction label="Replace" useRowShape={usesMenuShapes} onSelect={() => { setIsMenuOpen(false); onReplace(); }} />
+      <MenuAction label="Remove" useRowShape={usesMenuShapes} onSelect={() => { setIsMenuOpen(false); onRemove(); }} />
     </div></ModalPortal>}
   </>;
 
@@ -418,7 +423,7 @@ function AssetRow({
     <button {...gridActivator} type="button" className="mobile-file-grid-preview" disabled={disabled || total < 2}
       aria-label={`${index + 1} of ${total}: ${asset.displayTitle}`}>
       {asset.previewUrl && asset.family === 'image' ? <ResponsiveImage src={asset.previewUrl} decorative /> : <Icon aria-hidden="true" size={28} />}
-      <span className="mobile-file-grid-position" aria-hidden="true"><GripVerticalIcon size={14} />{index + 1}</span>
+      <span className="mobile-file-grid-position" aria-hidden="true"><InterfaceIcon icon={GripVerticalIcon} size="xs" weight="medium" />{index + 1}</span>
     </button>
     {options}
   </div>;
@@ -488,12 +493,9 @@ function AssetRow({
 function MenuAction({
   label,
   onSelect,
-  onboardingFiles = false
-
-
-
-}: {label: string;onSelect: () => void;onboardingFiles?: boolean;}) {
-  return <button type="button" role="menuitem" data-ui-shape={onboardingFiles ? 'row' : undefined} onClick={onSelect} className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
+  useRowShape
+}: {label: string;onSelect: () => void;useRowShape: boolean;}) {
+  return <button type="button" role="menuitem" data-ui-shape={useRowShape ? 'row' : undefined} onClick={onSelect} className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
       {label}
     </button>;
 }

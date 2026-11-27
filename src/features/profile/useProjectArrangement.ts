@@ -30,6 +30,7 @@ export type ProjectArrangementState = {
   hiddenIds: Id[];
   /** Work the owner has fixed to the top of the index. */
   pinnedIds: Id[];
+  supportsFeaturedOrder: boolean;
   isLoading: boolean;
   /** The arrangement could not be read. The index is offered unarranged. */
   loadError: string | null;
@@ -144,6 +145,7 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
   const order = arrangement?.projectOrder ?? [];
   const hiddenIds = arrangement?.hiddenProjectIds ?? [];
   const pinnedIds = arrangement?.pinnedProjectIds ?? [];
+  const supportsFeaturedOrder = loadedScope === scope && arrangement?.supportsFeaturedOrder === true;
 
   const reorder = useCallback((projectIds: Id[]) => {
     if (!isOwner) {
@@ -151,6 +153,7 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     }
     const previous = arrangement;
     void save({
+      ...previous,
       projectOrder: projectIds,
       hiddenProjectIds: previous?.hiddenProjectIds ?? [],
       pinnedProjectIds: previous?.pinnedProjectIds ?? []
@@ -165,6 +168,7 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     const currentHidden = previous?.hiddenProjectIds ?? [];
     const isHiding = !currentHidden.includes(projectId);
     void save({
+      ...previous,
       // The order is written alongside, because hiding a row changes where the
       // remaining rows sit and the arrangement must record what the owner sees.
       projectOrder: previous?.projectOrder ?? [],
@@ -183,6 +187,7 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     const currentPinned = previous?.pinnedProjectIds ?? [];
     const isPinning = !currentPinned.includes(projectId);
     void save({
+      ...previous,
       projectOrder: previous?.projectOrder ?? [],
       // Pinning brings work back into view, for the same reason.
       hiddenProjectIds: isPinning ? (previous?.hiddenProjectIds ?? []).filter((id) => id !== projectId) : previous?.hiddenProjectIds ?? [],
@@ -221,6 +226,7 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     order,
     hiddenIds,
     pinnedIds,
+    supportsFeaturedOrder,
     isLoading,
     loadError,
     reload: load,
@@ -236,5 +242,5 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     togglePinned,
     arrange
     // eslint-disable-next-line react-hooks/exhaustive-deps -- order/hiddenIds are derived arrays.
-  }), [history, order.join(','), hiddenIds.join(','), pinnedIds.join(','), isLoading, loadError, load, isSaving, saveError, retrySave, reorder, toggleHidden, togglePinned, arrange]);
+  }), [history, order.join(','), hiddenIds.join(','), pinnedIds.join(','), supportsFeaturedOrder, isLoading, loadError, load, isSaving, saveError, retrySave, reorder, toggleHidden, togglePinned, arrange]);
 }

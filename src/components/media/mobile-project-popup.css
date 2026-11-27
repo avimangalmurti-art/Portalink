@@ -1,4 +1,35 @@
 /* Mobile project information and portal lists share a viewport-centered frame. */
+[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > button {
+  /* Measure the cover from the card's content width. Its extra height takes
+     space from the old action footer while the card keeps its footprint. */
+  container-type: inline-size;
+}
+.mobile-project-index-artwork {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+[data-presentation='mobile'] .mobile-portal-index-heading [data-preview-creator-name][data-name-overflow],
+[data-presentation='mobile'] [data-mobile-project-layout='list'] .mobile-project-index-copy [data-preview-creator-name][data-name-animating],
+.portal-project-popup-layer[data-presentation='web'] [data-web-portal-browsing] .mobile-portal-index-heading [data-preview-creator-name][data-name-overflow] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--portal-title-fade, 12px), #000 calc(100% - var(--portal-title-fade, 12px)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--portal-title-fade, 12px), #000 calc(100% - var(--portal-title-fade, 12px)), transparent);
+}
+[data-presentation='mobile'] [data-mobile-project-layout='list'] .mobile-project-index-copy [data-preview-creator-name]:not([data-name-animating], [data-name-reduced-motion]) > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='list'] .mobile-project-index-title[data-name-reduced-motion] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] [data-project-row-actions] > [data-row-menu] {
+  background: var(--project-control-surface, var(--surface-raised));
+  color: var(--project-control-foreground, var(--text-primary));
+}
+
 [data-presentation='mobile'] [data-project-description-overlay][data-centered-project] {
   display: flex; align-items: center; justify-content: center;
   padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
@@ -98,6 +129,27 @@
 #root .codex-shell[data-presentation='mobile'] :is(.portal-project-popup-layer > .shared-portal-popup, .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel]) [data-project-index-list] .project-index-row {
  outline: 1px solid var(--content-preview-edge-color, transparent);
  outline-offset: -1px;
+}
+
+/* Hold the project button itself, including its artwork and moving title. */
+#root .codex-shell[data-presentation='mobile'] .project-index-row > [data-mobile-reorder-activator] > :is(.mobile-project-index-cover, .mobile-project-index-copy) {
+ pointer-events: none;
+}
+
+/* Draw the lift outline above the card's own fill. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout] [data-mobile-reorder-row][data-dragging]::before {
+ content: '';
+ position: absolute;
+ inset: 0;
+ z-index: 1;
+ border: 2px solid var(--accent-primary);
+ border-radius: inherit;
+ pointer-events: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout] [data-mobile-reorder-row][data-dragging] .project-index-row {
+ background: transparent !important;
+ outline: none !important;
 }
 
 [data-presentation='mobile'] [data-centered-project] [data-engagement-action] { min-height: 64px; color: var(--text-primary); background: var(--surface-sunken); border-radius: 12px; }

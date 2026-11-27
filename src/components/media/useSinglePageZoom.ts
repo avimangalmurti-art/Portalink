@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { usePresentation } from '../../presentation/usePresentation';
 import { beginContentPinch, touchMidpoint, type ContentPinchMotion } from './contentPinchMotion';
-import { installPageZoomEntry } from './pageZoomEntry';
+import { installOverviewPageTaps, installPageZoomEntry } from './pageZoomEntry';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -40,13 +40,14 @@ export function useSinglePageZoom({
 }: {
   surfaceRef: RefObject<HTMLElement | null>;
   active: boolean;
-  onEnter?: (pageNumber: number, zoom: number) => void;
+  onEnter?: (pageNumber: number, zoom?: number) => void;
   entryReady?: boolean;
   stayFocused?: boolean;
   onExit: () => void;
   memoryKey?: string;
 }) {
   const isMobile = usePresentation() === 'mobile';
+  const mobileOverview = isMobile && !active;
   const initialZoom = memoryKey ? readViewerMemory(memoryKey).zoom ?? MIN_ZOOM : MIN_ZOOM;
   const [zoom, setZoomState] = useState(() => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, initialZoom)));
   const zoomRef = useRef(MIN_ZOOM);
@@ -63,14 +64,17 @@ export function useSinglePageZoom({
   useEffect(() => {
     const surface = surfaceRef.current;
     if (active || !entryReady || !surface || !onEnterRef.current) return;
+    if (mobileOverview) return installOverviewPageTaps(surface, page => onEnterRef.current?.(page));
     return installPageZoomEntry(surface, (page, nextZoom) => onEnterRef.current?.(page, nextZoom));
-  }, [active, entryReady, memoryKey, surfaceRef]);
+  }, [active, entryReady, memoryKey, mobileOverview, surfaceRef]);
 
   const setZoom = useCallback((next: number, clientX?: number, clientY?: number) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
     const surface = surfaceRef.current;
     const scrollElement = surface?.querySelector<HTMLElement>('[data-focused-page-scroll]') ?? surface;
-    if (scrollElement && Math.abs(clamped - zoomRef.current) > 0.0001) {
+    if (settlingMotionRef.current) {
+      pendingAnchorRef.current = null; // The pinch focal point owns this commit.
+    } else if (scrollElement && Math.abs(clamped - zoomRef.current) > 0.0001) {
       const bounds = scrollElement.getBoundingClientRect();
       const viewportX = Math.min(scrollElement.clientWidth, Math.max(0, clientX === undefined ? scrollElement.clientWidth / 2 : clientX - bounds.left));
       const viewportY = Math.min(scrollElement.clientHeight, Math.max(0, clientY === undefined ? scrollElement.clientHeight / 2 : clientY - bounds.top));
@@ -96,30 +100,35 @@ export function useSinglePageZoom({
       return;
     }
     const anchor = pendingAnchorRef.current;
-    if (!anchor || !anchor.element.isConnected) return;
+    if (!anchor || !anchor.element.isConnected) {
+      if (mobileOverview && entryReady && memoryKey && surfaceRef.current) {
+        surfaceRef.current.scrollLeft = readViewerMemory(memoryKey).scrollLeft ?? 0;
+      }
+      return;
+    }
     pendingAnchorRef.current = null;
     const widthRatio = anchor.element.scrollWidth / anchor.scrollWidth;
     const heightRatio = anchor.element.scrollHeight / anchor.scrollHeight;
     anchor.element.scrollLeft = anchor.contentX * widthRatio - anchor.viewportX;
     anchor.element.scrollTop = anchor.contentY * heightRatio - anchor.viewportY;
-  }, [zoom]);
+  }, [zoom, mobileOverview, entryReady, memoryKey, surfaceRef]);
 
   useEffect(() => {
     pinchStartRef.current?.motion?.cancel();
     settlingMotionRef.current?.cancel();
     settlingMotionRef.current = null;
-    const remembered = active && memoryKey ? readViewerMemory(memoryKey).zoom ?? MIN_ZOOM : MIN_ZOOM;
+    const remembered = (active || mobileOverview) && memoryKey ? readViewerMemory(memoryKey).zoom ?? MIN_ZOOM : MIN_ZOOM;
     const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, remembered));
     zoomRef.current = next;
     setZoomState(next);
     exitPullRef.current = 0;
     pinchStartRef.current = null;
     pendingAnchorRef.current = null;
-  }, [active, memoryKey]);
+  }, [active, memoryKey, mobileOverview]);
 
   useEffect(() => {
     const surface = surfaceRef.current;
-    if (!active || !entryReady || !surface) {
+    if ((!active && !mobileOverview) || !entryReady || !surface) {
       return undefined;
     }
 
@@ -130,7 +139,7 @@ export function useSinglePageZoom({
       if (memoryKey) updateViewerMemory(memoryKey, { zoom: MIN_ZOOM });
       exitPullRef.current = 0;
       pinchStartRef.current = null;
-      if (!stayFocused) onExitRef.current();
+      if (active && !stayFocused) onExitRef.current();
     };
     const distanceBetween = (first: Touch, second: Touch) => Math.hypot(
       second.clientX - first.clientX,
@@ -146,7 +155,7 @@ export function useSinglePageZoom({
       const isZoomGesture = event.ctrlKey || event.metaKey;
       if (!isZoomGesture) {
         exitPullRef.current = 0;
-        if (!stayFocused && zoomRef.current <= MIN_ZOOM + 0.005) exit();
+        if (active && !stayFocused && zoomRef.current <= MIN_ZOOM + 0.005) exit();
         return;
       }
 
@@ -181,9 +190,11 @@ export function useSinglePageZoom({
       if (event.touches.length !== 2) return;
       const distance = distanceBetween(event.touches[0], event.touches[1]);
       if (distance <= 0) return;
+      const motion = isMobile ? beginContentPinch(surface, touchMidpoint(event.touches), active ? 'page' : 'overview') : null;
+      if (mobileOverview && !motion) return;
       pinchStartRef.current = {
         distance, zoom: zoomRef.current, next: zoomRef.current,
-        motion: isMobile ? beginContentPinch(surface, touchMidpoint(event.touches), true) : null
+        motion
       };
     };
     const handleTouchMove = (event: TouchEvent) => {
@@ -198,7 +209,7 @@ export function useSinglePageZoom({
         start.motion.update(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, requestedZoom)) / start.zoom, touchMidpoint(event.touches));
         return;
       }
-      if (start.zoom <= MIN_ZOOM && requestedZoom < PINCH_EXIT_THRESHOLD) {
+      if (active && start.zoom <= MIN_ZOOM && requestedZoom < PINCH_EXIT_THRESHOLD) {
         exit();
         return;
       }
@@ -212,14 +223,13 @@ export function useSinglePageZoom({
       pinchStartRef.current = null;
       if (!start?.motion) return;
       if (event.type === 'touchcancel') { start.motion.settle(false); return; }
-      if (start.zoom <= MIN_ZOOM && start.next < PINCH_EXIT_THRESHOLD) {
+      if (active && start.zoom <= MIN_ZOOM && start.next < PINCH_EXIT_THRESHOLD) {
         start.motion.cancel(); exit(); return;
       }
       const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, start.next));
       if (Math.abs(next - zoomRef.current) < 0.0001) { start.motion.settle(); return; }
       settlingMotionRef.current = start.motion;
       setZoom(next);
-      pendingAnchorRef.current = null; // The media's focal point owns this commit.
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') exit();
@@ -230,7 +240,7 @@ export function useSinglePageZoom({
     surface.addEventListener('touchmove', handleTouchMove, { passive: false });
     surface.addEventListener('touchend', handleTouchEnd, { passive: true });
     surface.addEventListener('touchcancel', handleTouchEnd, { passive: true });
-    document.addEventListener('keydown', handleKeyDown);
+    if (active) document.addEventListener('keydown', handleKeyDown);
     return () => {
       pinchStartRef.current?.motion?.cancel();
       pinchStartRef.current = null;
@@ -241,9 +251,9 @@ export function useSinglePageZoom({
       surface.removeEventListener('touchmove', handleTouchMove);
       surface.removeEventListener('touchend', handleTouchEnd);
       surface.removeEventListener('touchcancel', handleTouchEnd);
-      document.removeEventListener('keydown', handleKeyDown);
+      if (active) document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [active, entryReady, memoryKey, setZoom, surfaceRef, isMobile, stayFocused]);
+  }, [active, entryReady, memoryKey, setZoom, surfaceRef, isMobile, mobileOverview, stayFocused]);
 
   return zoom;
 }

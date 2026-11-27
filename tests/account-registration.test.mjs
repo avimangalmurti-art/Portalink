@@ -15,8 +15,6 @@ function execute(code, imports = {}, globals = {}) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
-    if (name.endsWith('/CatalogWelcome') && !(name in imports)) return { CatalogWelcome: 'catalog-welcome' };
-    if (name.endsWith('/catalogWelcomeState') && !(name in imports)) return { hasEnteredCatalogWelcome: () => true, canOfferCatalogWelcome: () => false };
 
       if(name==='../../utils/profileHandle')return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
       if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>defaultProfileServices};
@@ -51,6 +49,7 @@ test('landing signup preserves a destination once, cancellation clears it and or
   const hooks = hookRuntime();
   const {AuthProvider} = load('src/contexts/AuthContext.tsx', {
     react: hooks.react, './ServicesContext': {useServices: () => ({auth:{getSession:async()=>null,onAuthStateChange:()=>()=>{}}})}, '../types/auth': authTypes,
+    '../features/profile/profileAudioPlayback': { setProfileAudioAccount() {} },
     '../utils/passwordRecoveryReturn': {isPasswordRecoveryReturn: () => false, clearPasswordRecoveryReturn() {}},
   }, {window:{location:{href:'http://example.test'}},document:{activeElement:null},HTMLElement:class{}});
   const render = () => hooks.render(() => AuthProvider({children:null})).props.value;
@@ -454,6 +453,7 @@ test('profile linking and refresh cannot commit a stale account into the provide
   const auth = { onAuthStateChange(fn) {onEvent = fn; return () => {};}, getSession: async () => current, attachProfile: () => new Promise(resolve => {resolveLink = resolve;}) };
   const {AuthProvider} = load('src/contexts/AuthContext.tsx', {
     react: hooks.react, './ServicesContext': {useServices: () => ({auth})}, '../types/auth': authTypes,
+    '../features/profile/profileAudioPlayback': { setProfileAudioAccount() {} },
     '../utils/passwordRecoveryReturn': {isPasswordRecoveryReturn: () => false, clearPasswordRecoveryReturn() {}},
   }, {window: {location: {href: 'http://example.test'}}});
   const render = () => hooks.render(() => AuthProvider({children: null})).props.value;

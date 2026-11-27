@@ -30,14 +30,14 @@
   /* Fields with a painted wrapper retain their square inner input. Native
      range/checkbox/radio/switch geometry is deliberately outside this list. */
   [data-presentation='mobile'] :is(
-    .text-control-shell, .studio-search, .explore-categories-search,
+    .text-control-shell, .studio-search,
     .location-search, .project-citation-fields input, .project-citation-fields select,
     .cite-sheet input, .cite-format select, .cite-preview,
     input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'],
       [type='file'], [type='hidden']), textarea, select,
     [contenteditable='true'], [contenteditable='plaintext-only']
   ):not(:is(.text-control-shell input, .studio-search input,
-    .explore-categories-search input, .location-search input,
+    .location-search input,
     [data-message-composer], [data-mobile-navigation-layer] *)) {
     border-radius: var(--mobile-component-radius) !important;
   }
@@ -51,7 +51,7 @@
     .inset-row-group:not(:where([data-mobile-contact-group], [data-messages-page] ul:has(> li > .message-contact-row))), .mobile-portal-item,
     .portfolio-live-card, .portfolio-share-preview, .portfolio-share-cover,
     .first-project-empty-tile, .first-project-home, .creator-insights-callout, .reads-weekly,
-    .explore-category-card, .cite-source-summary, .citation-row img,
+    .cite-source-summary, .citation-row img,
     [data-inline-screen-actions], .mobile-context-slot,
     [role='menu'], [data-message-bubble], [data-message-introduction='invitation'],
     [data-message-bubble] video, [data-message-bubble] a,
@@ -78,8 +78,6 @@
 
   /* These visible backgrounds are pseudo-elements, not the hit-target box. */
   [data-presentation='mobile'] .journey-order button::before,
-  [data-presentation='mobile'] .explore-category-art::before,
-  [data-presentation='mobile'] .explore-category-art::after,
   [data-presentation='mobile'] [data-message-composer]::before {
     border-radius: var(--mobile-component-radius) !important;
   }

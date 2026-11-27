@@ -3,13 +3,17 @@ import { XIcon } from 'lucide-react';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { ModalPortal } from '../ui/ModalPortal';
-import { ImageRepositioner, type ImageRepositionerProps } from './ImageRepositioner';
+import { ImageRepositioner, type ImageRepositionerProps, type ImageRepositionSave } from './ImageRepositioner';
 import { ErrorState, LoadingState } from '../ui/StateViews';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { usePresentation } from '../../presentation/usePresentation';
 import '../publishing/project-dialog.css';
 
-export function ImageRepositionDialog({ title, onClose, controls, preparing = false, preparationError, onRetryPreparation, mobileAuthoring = false, ...props }: Omit<ImageRepositionerProps, 'startEditing' | 'onCancel' | 'pinchToZoom'> & { title: string; onClose: () => void; controls?: ReactNode; preparing?: boolean; preparationError?: string | null; onRetryPreparation?: () => void; mobileAuthoring?: boolean }) {
+type ImageRepositionDialogProps = Omit<ImageRepositionerProps, keyof ImageRepositionSave | 'startEditing' | 'onCancel' | 'pinchToZoom'>
+  & ImageRepositionSave
+  & { title: string; onClose: () => void; controls?: ReactNode; preparing?: boolean; preparationError?: string | null; onRetryPreparation?: () => void; mobileAuthoring?: boolean };
+
+export function ImageRepositionDialog({ title, onClose, controls, preparing = false, preparationError, onRetryPreparation, mobileAuthoring = false, ...props }: ImageRepositionDialogProps) {
   const isMobile = usePresentation() === 'mobile' && mobileAuthoring;
   const ref = useRef<HTMLDivElement>(null);
   const overlayRef = useDialogViewport();
@@ -26,7 +30,7 @@ export function ImageRepositionDialog({ title, onClose, controls, preparing = fa
       </header>
       <div className="image-reposition-body">{preparing ? preparationError ? <ErrorState title="The preview could not be prepared" description={preparationError} onRetry={onRetryPreparation} /> : <LoadingState label="Preparing project preview…" /> : <>
         {controls ? <fieldset disabled={saving} className="m-0 min-w-0 border-0 p-0">{controls}</fieldset> : null}
-        <ImageRepositioner {...props} pinchToZoom={isMobile} instructions={isMobile ? 'Drag to reposition. Pinch or use the slider to zoom.' : props.instructions} saveLabel={isMobile ? 'Save cover' : props.saveLabel} startEditing onCancel={requestClose} onSavingChange={(value) => { savingRef.current = value; setSaving(value); props.onSavingChange?.(value); }} />
+        <ImageRepositioner {...props} pinchToZoom={isMobile} instructions={isMobile ? 'Drag to reposition. Pinch or use the slider to zoom.' : props.instructions} saveLabel={props.saveLabel ?? (isMobile ? 'Save cover' : undefined)} startEditing onCancel={requestClose} onSavingChange={(value) => { savingRef.current = value; setSaving(value); props.onSavingChange?.(value); }} />
       </>}</div>
     </div>
   </div></ModalPortal>;

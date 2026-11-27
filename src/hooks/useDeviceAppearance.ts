@@ -19,7 +19,8 @@ export function useDeviceAppearance(presentation: Presentation, scope: Appearanc
         for (const target of ['web', 'mobile'] as const) {
           if (key !== null && key !== interfaceAppearanceKey(target, scope)) continue;
           const updated = value ?? readInterfaceAppearance(target, scope);
-          if ((Object.keys(updated) as Array<keyof InterfaceAppearance>).every(name => updated[name] === previous[target][name])) continue;
+          const current = previous[target];
+          if ((Object.keys({ ...current, ...updated }) as Array<keyof InterfaceAppearance>).every(name => updated[name] === current[name])) continue;
           next = { ...next, [target]: updated };
         }
         return next;

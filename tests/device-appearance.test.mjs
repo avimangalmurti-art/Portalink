@@ -26,14 +26,14 @@ test('public mobile appearance previews and persists without rewriting platform 
   assert.equal(returning.render('mobile').theme, 'dark');
 });
 
-test('public mobile arrives translucent and respects a saved public accessibility choice', () => {
+test('public mobile starts with standard contrast and translucency and persists visitor choices', () => {
   const platformKey = 'portalinknetworks.interfaceAppearance.mobile';
   const publicKey = 'portalinknetworks.publicAppearance.mobile';
   const storage = new Map([[platformKey, JSON.stringify({ reduceTranslucency: true, highContrast: true })]]);
   const firstVisit = harness({ storage, namespace: 'public' });
   assert.equal(firstVisit.render('mobile').reduceTranslucency, false);
-  assert.equal(firstVisit.render('mobile').highContrast, true);
-  firstVisit.render('mobile').chooseAppearance({ reduceTranslucency: true });
+  assert.equal(firstVisit.render('mobile').highContrast, false);
+  firstVisit.render('mobile').chooseAppearance({ reduceTranslucency: true, highContrast: true });
   assert.equal(firstVisit.render('mobile').reduceTranslucency, true);
   assert.equal(JSON.parse(storage.get(publicKey)).reduceTranslucency, true);
   assert.equal(JSON.parse(storage.get(platformKey)).reduceTranslucency, true);
@@ -41,6 +41,7 @@ test('public mobile arrives translucent and respects a saved public accessibilit
 
   const returning = harness({ storage, namespace: 'public' });
   assert.equal(returning.render('mobile').reduceTranslucency, true);
+  assert.equal(returning.render('mobile').highContrast, true);
   returning.dispose();
 });
 const scopedKey = scope => `portalinknetworks.interfaceAppearance.${scope}`;
@@ -277,7 +278,12 @@ test('preboot chooses the same platform record and preserves legacy fallback for
   for (const width of [390, 430, 639, 640, 1280]) {
     const scope = width <= 639 ? 'mobile' : 'web';
     const storage = new Map([[DEVICE_KEY, 'dark'], [scopedKey('web'), '{"mode":"light"}'], [scopedKey('mobile'), '{"mode":"dark"}']]);
-    const root = { dataset: {}, style: {}, toggleAttribute() {} };
+    const attributes = new Set();
+    const root = {
+      dataset: {}, style: {},
+      hasAttribute: name => attributes.has(name),
+      toggleAttribute: (name, force) => force ? attributes.add(name) : attributes.delete(name),
+    };
     const window = { navigator: {}, location: { pathname: '/' }, localStorage: { getItem: key => storage.get(key) ?? null }, matchMedia: query => ({ matches: query.includes('639') && width <= 639 }) };
     const run = () => vm.runInNewContext(bootstrap, { URLSearchParams, window, document: { documentElement: root, querySelectorAll: () => [] } });
     run(); assert.equal(root.dataset.appearance, scope === 'web' ? 'light' : 'dark');
@@ -289,6 +295,38 @@ test('preboot chooses the same platform record and preserves legacy fallback for
     storage.set(scopedKey(scope), JSON.stringify({ mode: scope === 'web' ? 'light' : 'dark' }));
     storage.set('portalink.publicTheme.creator.web', 'dark'); storage.set('portalink.publicTheme.creator.mobile', 'light');
     run(); assert.equal(root.dataset.appearance, scope === 'web' ? 'light' : 'dark');
+  }
+});
+
+test('shared catalogue preboot matches the platform mode and system color on either presentation', () => {
+  const bootstrap = [...read('../share.html').matchAll(/<script>\s*([\s\S]*?)<\/script>/g)]
+    .find(([, code]) => code.includes('data-portalink-theme-original'))[1];
+  for (const [width, scope] of [[639, 'mobile'], [640, 'web']]) {
+    for (const [mode, dark, expected] of [['light', true, 'light'], ['dark', false, 'dark'], ['auto', true, 'dark'], ['auto', false, 'light'], [null, false, 'dark']]) {
+      const storage = new Map([
+        [DEVICE_KEY, 'dark'],
+        [scopedKey(scope), mode ? JSON.stringify({ mode }) : '{broken'],
+        [scopedKey(scope === 'mobile' ? 'web' : 'mobile'), JSON.stringify({ mode: expected === 'dark' ? 'light' : 'dark' })],
+        ['portalinknetworks.publicAppearance.mobile', JSON.stringify({ mode: expected === 'dark' ? 'light' : 'dark' })],
+      ]);
+      const flags = new Set();
+      const root = { dataset: {}, style: {}, setAttribute: name => flags.add(name) };
+      const meta = new Map([['content', '#123456']]);
+      const window = {
+        location: { pathname: '/portalite' },
+        localStorage: { getItem: key => storage.get(key) ?? null },
+        matchMedia: query => ({ matches: query.includes('639') ? width <= 639 : dark }),
+      };
+      const document = { documentElement: root, querySelectorAll: () => [{ getAttribute: key => meta.get(key), setAttribute: (key, value) => meta.set(key, value) }] };
+      vm.runInNewContext(bootstrap, { window, document, URLSearchParams });
+      const platform = harness({ dark, storage });
+      assert.equal(root.dataset.appearance, expected);
+      assert.equal(root.style.colorScheme, platform.render(scope).theme);
+      assert.equal(flags.has('data-mobile-catalogue-launch'), scope === 'mobile');
+      assert.equal(flags.has('data-web-catalogue-launch'), scope === 'web');
+      assert.equal(meta.get('content'), scope === 'mobile' || expected === 'light' ? '#ffffff' : '#000000');
+      platform.dispose();
+    }
   }
 });
 

@@ -86,7 +86,7 @@ export function DocumentGridPreview({source, width, height, label, onReady, pres
   });
   return () => {disposed=true;controller.abort(); job.cancel();};
  }, [near,source,ratio,revision,presentedPages,pageNumber]);
- return <div ref={host} data-document-grid-preview="" className="relative w-full bg-white" style={{aspectRatio:ratio}}>
+ return <div ref={host} data-document-grid-preview="" data-reader-media-state={failed ? 'error' : painted ? undefined : 'pending'} className="relative w-full bg-white" style={{aspectRatio:ratio}}>
   <canvas ref={canvas} data-media-page-surface="" data-mobile-media-reveal={painted && revealPaint ? '' : undefined} role="img" aria-label={label} className={`block h-full w-full ${painted?'opacity-100':'opacity-0'}`}/>
   {!painted && !failed && <span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true"><span className="premium-media-loading-mark"/></span>}
   {failed && <span className="sr-only">Page image unavailable</span>}

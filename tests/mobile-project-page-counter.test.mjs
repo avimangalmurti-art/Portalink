@@ -7,19 +7,27 @@ import ts from 'typescript';
 import { sourceModule } from './helpers/source-module.mjs';
 
 const pageLayout = sourceModule('src/features/projects/pageLayout.ts', {});
+const pageScroll = sourceModule('src/components/media/projectPageScroll.ts', {});
 const nodes = node => React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 const control = (tree, label) => nodes(tree).find(node => node.props['aria-label'] === label);
 
 const rect = (top, bottom, left = 0, right = 390) => ({ top, bottom, left, right });
 const page = (number, total, bounds) => ({ dataset: { projectPageNumber: `${number}`, projectPageTotal: `${total}` },
   bounds, getBoundingClientRect() { return this.bounds; } });
+const part = (id, count, pages = []) => ({ dataset: { projectReadingPart: id, projectReadingCount: count }, pages,
+  querySelector() { return this.pages[0]; }, querySelectorAll() { return this.pages; } });
 
-function mount(pages = [], { delayedRef = false, readingEnd = false } = {}) {
+function mount(pages = [], { delayedRef = false, readingEnd = false, parts = [], desktop = false } = {}) {
   const states = [], refs = [], documentEvents = new Map();
   let effectIndex = 0, stateIndex = 0, refIndex = 0, effect, visibilityEffect, visibilityCleanup, frame, onMutation, onResize, cleanedMutations = false, cleanedResize = false;
   const events = new Map(), windowEvents = new Map(), observed = new Set();
-  const surface = { pages, bounds: rect(0, 800), querySelectorAll() { return this.pages; },
-    closest: () => readingEnd ? {} : null, querySelector: () => null,
+  class Scroller {
+    scrollTop = 300;
+    clientHeight = 800;
+    scrollHeight = 1600;
+  }
+  const surface = { pages, parts, bounds: rect(0, 800), querySelectorAll(selector) { return selector.includes('data-project-reading-part') ? this.parts : this.pages; },
+    closest: () => readingEnd ? {} : null, querySelector: () => null, contains: element => element instanceof Scroller,
     getBoundingClientRect() { return this.bounds; }, addEventListener(name, fn, opts) { events.set(name, { fn, opts }); },
     removeEventListener(name) { events.delete(name); } };
   const surfaceRef = { current: delayedRef ? null : surface };
@@ -39,25 +47,62 @@ function mount(pages = [], { delayedRef = false, readingEnd = false } = {}) {
       if (name === 'lucide-react') return { Grid2X2Icon: () => null };
       if (name === '../ui/InterfaceIcon') return { InterfaceIcon: () => null };
       if (name === './MobilePageThumbnails') return { MobilePageThumbnails: () => null };
+      if (name === './projectPageScroll') return pageScroll;
       throw new Error(name);
     },
     MutationObserver: class { constructor(fn) { onMutation = fn; } observe() {} disconnect() { cleanedMutations = true; } },
     ResizeObserver: class { constructor(fn) { onResize = fn; } observe(node) { observed.add(node); } unobserve(node) { observed.delete(node); } disconnect() { cleanedResize = true; } },
     requestAnimationFrame: fn => { frame = fn; return 1; }, cancelAnimationFrame: () => { frame = null; },
     window: { innerWidth: 390, innerHeight: 800, scrollY: readingEnd ? 800 : 0, addEventListener: (name, fn) => windowEvents.set(name, fn), removeEventListener: name => windowEvents.delete(name) },
-    Node: Object,
+    Node: Object, Element: Scroller,
     document: { documentElement: { scrollHeight: 1600 }, addEventListener: (name, fn) => documentEvents.set(name, fn), removeEventListener: name => documentEvents.delete(name) },
   });
   const render = (scope = 'project:images', props = {}) => { stateIndex = 0; refIndex = 0; effectIndex = 0;
-    return exports.MobileProjectPageCounter({ surfaceRef, scope, ...props }); };
+    const Counter = desktop ? exports.DesktopProjectPageCounter : exports.MobileProjectPageCounter;
+    return Counter({ surfaceRef, scope, ...props }); };
   assert.equal(render(), null);
   const cleanup = effect();
   const flush = () => { const callback = frame; frame = null; callback?.(); };
-  return { surface, surfaceRef, render, flush, get position() {return states[0];}, events, observed, cleanup, refs, documentEvents,
+  return { surface, surfaceRef, render, flush, get position() { return states[0]?.position ?? null; }, events, observed, cleanup, refs, documentEvents,
     visibility() { visibilityCleanup?.(); visibilityCleanup = visibilityEffect(); },
-    mutate() { onMutation(); flush(); }, resize() { onResize(); flush(); }, scroll() { events.get('scroll')?.fn(); flush(); },
+    mutate() { onMutation(); flush(); }, resize() { onResize(); flush(); }, scroll(target) { events.get('scroll')?.fn({ target }); flush(); }, Scroller,
     get clean() { return cleanedMutations && cleanedResize && !frame && !events.size && !windowEvents.size; } };
 }
+
+test('ordered sections wait for PDF totals and report global and attachment-local positions', () => {
+  const cover = part('cover', '1', [page(1, 1, rect(0, 600))]);
+  const report = part('report', undefined);
+  const appendix = part('appendix', '1', [page(1, 1, rect(1900, 2100))]);
+  const h = mount([], { parts: [cover, report, appendix] }); h.flush();
+  assert.equal(h.render(), null, 'an unresolved PDF must not produce a false total');
+  report.pages = [page(1, 3, rect(620, 1200)), page(2, 3, rect(1200, 1750))]; h.mutate();
+  assert.equal(h.position.current, 1);
+  assert.equal(h.position.total, 5);
+  assert.equal(h.position.attachmentId, 'cover');
+  cover.pages[0].bounds = rect(-1200, -600);
+  report.pages[0].bounds = rect(-580, 0);
+  report.pages[1].bounds = rect(0, 550);
+  h.scroll();
+  assert.deepEqual(JSON.parse(JSON.stringify(h.position)), { scope: 'project:images', current: 3, total: 5,
+    ready: true, attachmentId: 'report', attachmentPage: 2, attachmentTotal: 3 });
+  const props = { readingMode: true, onSelectPage: number => selected.push(number) };
+  const selected = [];
+  const counter = control(h.render(undefined, props), 'Page 3 of 5. Show page previews');
+  counter.props.onClick();
+  const tree = h.render(undefined, props);
+  const thumbnails = nodes(tree).find(node => node.props.total === 5 && node.props.current === 3);
+  assert.deepEqual(JSON.parse(JSON.stringify(thumbnails.props.readingParts)), [
+    { attachmentId: 'cover', firstPage: 1, count: 1 }, { attachmentId: 'report', firstPage: 2, count: 3 },
+    { attachmentId: 'appendix', firstPage: 5, count: 1 },
+  ]);
+  control(tree, 'Next page').props.onClick();
+  assert.deepEqual(selected, [4]);
+  report.pages[1].bounds = rect(-550, 0);
+  appendix.pages[0].bounds = rect(10, 210); h.scroll();
+  assert.equal(h.position.current, 5);
+  assert.equal(h.position.attachmentPage, 1);
+  h.cleanup();
+});
 
 test('shows the actual most-visible page while a nested renderer scrolls', () => {
   const one = page(1, 3, rect(0, 600)), two = page(2, 3, rect(602, 1202)), three = page(3, 3, rect(1204, 1804));
@@ -68,6 +113,36 @@ test('shows the actual most-visible page while a nested renderer scrolls', () =>
   one.bounds = rect(-600, 0); two.bounds = rect(2, 602); three.bounds = rect(604, 1204); h.scroll();
   assert.equal(h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined).props['aria-label'], 'Page 2 of 3. Show page previews');
   h.cleanup(); assert.equal(h.clean, true);
+});
+
+test('desktop reports the page in the top badge and reaches a short final page at scroll end', () => {
+  const first = page(1, 3, rect(0, 600)), second = page(2, 3, rect(602, 1202)), third = page(3, 3, rect(1204, 1450));
+  const h = mount([first, second, third], { desktop: true });
+  h.flush();
+  const assertCount = (current, total = 3) => {
+    const counter = h.render();
+    assert.equal(counter.props['data-desktop-project-page-count'], '');
+    assert.deepEqual(nodes(counter).slice(1).map(node => node.props.children.join('')), [`${current} / ${total}`, `Page ${current} of ${total}`]);
+  };
+  assertCount(1);
+  const scroller = new h.Scroller();
+  first.bounds = rect(-600, 0); second.bounds = rect(0, 600); third.bounds = rect(602, 800);
+  h.scroll(scroller); assertCount(2);
+  scroller.scrollTop = 800;
+  h.scroll(scroller); assertCount(3);
+  assert.equal(h.render('other-project'), null);
+  h.surface.pages = [page(1, 1, rect(0, 600))];
+  h.mutate(); assertCount(1, 1);
+  h.cleanup(); assert.equal(h.clean, true);
+});
+
+test('desktop equivalent columns choose the earliest page despite subpixel width differences', () => {
+  const wider = page(2, 3, rect(0, 600, 195, 390));
+  const narrower = page(1, 3, rect(0, 600, 0, 194.98));
+  const h = mount([wider, narrower], { desktop: true });
+  h.flush();
+  assert.equal(h.position.current, 1);
+  h.cleanup();
 });
 
 test('segmented reading progress follows the visible page forwards and backwards with one semantic value', () => {
@@ -202,16 +277,23 @@ test('reader density pill preserves limits, draft and commit events, save blocki
   let tree = h.render(undefined, props);
   assert.equal(tree.props['data-page-density-enabled'], true);
   const slider = control(tree, 'Pages per row');
+  const controls = nodes(tree).filter(node => node.type === 'input' || node.type === 'button');
+  assert.deepEqual(controls.map(node => node.props['aria-label']), [
+    'Pages per row', 'Previous page', 'Page 2 of 12. Show page previews', 'Next page'
+  ]);
   assert.equal(slider.props.type, 'range');
   assert.equal(slider.props.min, pageLayout.MIN_PAGES_PER_ROW);
   assert.equal(slider.props.max, pageLayout.MAX_PAGES_PER_ROW);
   assert.equal(slider.props.step, 1);
   assert.equal(slider.props.value, 1);
   assert.equal(slider.props['aria-valuetext'], '1 page per row');
+  const rowLabel = tree => nodes(tree).find(node => 'data-pages-per-row-label' in node.props);
+  assert.equal(rowLabel(tree).props.children, '1 per row');
   slider.props.onChange({ currentTarget: { value: '3' } });
   assert.deepEqual(calls, [], 'dragging updates only the slider, not the PDF layout');
   tree = h.render(undefined, props);
   assert.equal(control(tree, 'Pages per row').props.value, 3);
+  assert.equal(rowLabel(tree).props.children, '3 per row');
   for (const event of ['onPointerUp', 'onKeyUp', 'onBlur']) slider.props[event]({ currentTarget: { value: '3' } });
   assert.deepEqual(calls, [['change', 3], ['commit', 3], ['change', 3], ['commit', 3], ['change', 3], ['commit', 3]]);
   density.value = 3; density.saving = true;
@@ -219,7 +301,9 @@ test('reader density pill preserves limits, draft and commit events, save blocki
   assert.equal(control(tree, 'Pages per row').props.disabled, true);
   assert.equal(control(tree, 'Pages per row').props['aria-valuetext'], '3 pages per row');
   density.value = 6;
-  assert.equal(control(h.render(undefined, props), 'Pages per row').props.value, 6, 'a later pinch/parent density change is not masked by an old slider draft');
+  tree = h.render(undefined, props);
+  assert.equal(control(tree, 'Pages per row').props.value, 6, 'a later pinch/parent density change is not masked by an old slider draft');
+  assert.equal(rowLabel(tree).props.children, '6 per row');
   density.value = 3;
   const counter = nodes(tree).find(node => 'data-mobile-project-page-count' in node.props);
   assert.equal(counter.props['aria-label'], 'Page 2 of 12. Show page previews');

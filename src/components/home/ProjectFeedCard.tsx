@@ -11,10 +11,11 @@ type ProjectFeedCardProps = {
   onWarmCreator?: (creatorId: Id) => void;
   priority?: ImagePriority;
   showCoverLoading?: boolean;
+  videoCoverAutoplay?: 'active' | 'paused';
   deferDesktopDetails?: boolean;
   management?: ProjectManagement;
 };
-export function ProjectFeedCard({ view: { project, creator }, onOpenProject, onOpenCreator, onWarmCreator, priority = false, showCoverLoading, deferDesktopDetails, management }: ProjectFeedCardProps) {
+export function ProjectFeedCard({ view: { project, creator }, onOpenProject, onOpenCreator, onWarmCreator, priority = false, showCoverLoading, videoCoverAutoplay, deferDesktopDetails, management }: ProjectFeedCardProps) {
   const types = [...new Set(project.attachments?.map(asset => ({ image: 'Image', video: 'Video', audio: 'Audio', document: asset.typeLabel || 'Document', model3d: '3D model', unknown: asset.typeLabel || 'File' })[asset.kind]).filter(Boolean) ?? [])];
   const contentTypeLabel = types.length > 1 ? 'Mixed media' : types[0] ?? (project.coverKind === 'document' ? 'PDF' : project.coverKind === 'video' ? 'Video' : 'Image');
   const openProject = () => onOpenProject(project.id, { profileId: creator.id, categoryId: project.categoryId });
@@ -26,6 +27,6 @@ export function ProjectFeedCard({ view: { project, creator }, onOpenProject, onO
       delete: () => management.deletion.request(project.id),
     } : undefined}
     onOpenCreator={() => onOpenCreator(creator.id)} onWarmCreator={() => onWarmCreator?.(creator.id)}
-    label={`Open ${project.title} by ${creator.name}`} priority={priority} showCoverLoading={showCoverLoading} deferDesktopDetails={deferDesktopDetails}
+    label={`Open ${project.title} by ${creator.name}`} priority={priority} showCoverLoading={showCoverLoading} videoCoverAutoplay={videoCoverAutoplay} deferDesktopDetails={deferDesktopDetails}
     sizes="(min-width: 1420px) 25vw, (min-width: 940px) 33vw, (min-width: 620px) 40vw, 92vw" />;
 }

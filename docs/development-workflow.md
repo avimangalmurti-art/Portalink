@@ -192,6 +192,27 @@ output integrity, visibility, and owner retries. Other isolated checks include
 None establishes which migrations were applied to production. Do not substitute
 `db push`, `db reset`, or `migration repair` for these tests.
 
+### Rebuild the database locally
+
+The replay test starts a new disposable PostgreSQL database with fixtures for
+Supabase Auth, Storage, and Realtime. It reads every numbered SQL file from
+`supabase/migrations/` in filename order and executes it unchanged. With
+`PGLITE_MODULE_PATH` set as above, run:
+
+```powershell
+node.exe --test tests/supabase-rebuild-db.test.mjs
+```
+
+For the full provider stack, use a disposable local Supabase project with a
+running container runtime. With Supabase CLI v3, start it with `supabase start`
+and run `supabase db reset --no-seed` from the checkout. The reset replaces the
+local database. Portalink's SQL relies on the provider-managed Auth, Storage and
+Realtime schemas that the local stack creates first. See [Supabase local development](https://supabase.com/docs/guides/local-development/cli/getting-started).
+
+This workflow rebuilds schema. Recover data separately from backups. The
+[migration register](migration-status.md) tracks hosted application evidence,
+and the Sites worker has its own D1 history.
+
 ### Python worker checks
 
 Use a dedicated local Python environment and the relevant existing requirements
@@ -229,9 +250,8 @@ checkpoint pushes also do not match the push trigger. The recovery branch has
 no root workflow files and must never be opened as a PR.
 The September 29 source adds the full Node/database suite on Windows and Linux
 and video-worker tests with FFmpeg, alongside typecheck, lint, build and PDF tests.
-PGlite 0.5.8 installs into an isolated CI tools directory, not application
-dependencies. These new jobs await their first remote CI run. See the
-[release plan](trust-and-activation-release.md) for local results.
+CI installs PGlite 0.5.8 into an isolated tools directory. The
+[production release record](production-release.md) records passing Quality runs.
 
 Keep `autosave/**` excluded from all application workflows and future Sites,
 worker, EAS, signing, and app-store release pipelines, including manual and

@@ -11,19 +11,25 @@ const tick = async () => { for (let index = 0; index < 30; index++) await Promis
 function signingFixture() {
   let account = 'owner', onAuthChange, maximum = 0;
   const calls = [], active = new Set();
+  const request = (bucket, paths, options) => {
+    const gate = deferred(), call = { bucket, paths: [...paths], options, gate };
+    calls.push(call); active.add(call); maximum = Math.max(maximum, active.size);
+    return gate.promise.finally(() => active.delete(call));
+  };
   const client = {
     auth: {
       getSession: async () => ({ data: { session: account ? { user: { id: account } } : null }, error: null }),
       onAuthStateChange(callback) { onAuthChange = callback; return { data: { subscription: { unsubscribe() {} } } }; },
     },
-    storage: { from: () => ({ createSignedUrls(paths) {
-      const gate = deferred(), call = { paths: [...paths], gate };
-      calls.push(call); active.add(call); maximum = Math.max(maximum, active.size);
-      return gate.promise.finally(() => active.delete(call));
-    } }) },
+    storage: { from: bucket => ({
+      createSignedUrls: paths => request(bucket, paths),
+      createSignedUrl: (path, _expiry, options) => request(bucket, [path], options),
+    }) },
   };
   const media = sourceModule('src/services/supabase/mediaUrlCache.ts', { './client': { requireSupabase: () => client } });
-  const finish = call => call.gate.resolve({ data: call.paths.map(path => ({ path, signedUrl: `signed/${path}` })), error: null });
+  const finish = call => call.gate.resolve({ data: call.options
+    ? { signedUrl: `thumb/${call.options.transform.width}/${call.paths[0]}` }
+    : call.paths.map(path => ({ path, signedUrl: `signed/${path}` })), error: null });
   return { ...media, calls, active, finish, get maximum() { return maximum; },
     change(next) { account = next; onAuthChange('SIGNED_IN', next ? { user: { id: next } } : null); } };
 }
@@ -65,15 +71,59 @@ test('account changes reject old queued signing before it starts and allow fresh
   assert.equal((await fresh).get('old-0'), 'signed/old-0');
 });
 
+test('desktop catalogue thumbnails accept only signed images on the configured project-media endpoint', () => {
+  const { signedProjectImagePath } = signingFixture();
+  const origin = 'https://app.supabase.co';
+  const endpoint = `${origin}/storage/v1/object/sign/project-media`;
+  assert.equal(signedProjectImagePath(`${endpoint}/a/cover%20photo.png?token=valid`, origin), 'a/cover photo.png');
+  assert.equal(signedProjectImagePath(`${endpoint}/a/cover.png`, origin), null);
+  assert.equal(signedProjectImagePath(`${endpoint}/a%2fb.png?token=valid`, origin), null);
+  assert.equal(signedProjectImagePath(`${endpoint}/a%252fb.png?token=valid`, origin), null);
+  assert.equal(signedProjectImagePath(`${endpoint}/a%3fb.png?token=valid`, origin), null);
+  assert.equal(signedProjectImagePath(`${endpoint}/a/b.png?token=valid`, 'https://other.supabase.co'), null);
+  assert.equal(signedProjectImagePath(`${endpoint.replace('project-media', 'avatars')}/a/b.png?token=valid`, origin), null);
+});
+
+test('thumbnail signing deduplicates by size, respects the shared signing cap and skips abandoned work', async () => {
+  const h = signingFixture();
+  let needed = true;
+  const original = h.signedMediaUrls('project-media', Array.from({ length: 301 }, (_, index) => `cover-${index}`));
+  const abandoned = h.signedProjectImageThumbnail('abandoned.png', 200, () => needed);
+  const thumb = h.signedProjectImageThumbnail('cover.png', 400, () => true);
+  const duplicate = h.signedProjectImageThumbnail('cover.png', 400, () => true);
+  await tick();
+  assert.equal(h.calls.length, 4);
+  needed = false;
+  for (const call of [...h.active]) h.finish(call);
+  await original;
+  assert.equal(await abandoned, null);
+  await tick();
+  assert.equal(h.calls.length, 5);
+  const cover = h.calls[4];
+  assert.equal(cover.bucket, 'project-media');
+  assert.equal(cover.options.transform.resize, 'contain');
+  h.finish(cover);
+  assert.equal(await thumb, 'thumb/400/cover.png');
+  assert.equal(await duplicate, 'thumb/400/cover.png');
+  assert.equal(h.maximum, 4);
+  h.change('new-owner');
+  const newAccount = h.signedProjectImageThumbnail('cover.png', 400, () => true);
+  await tick();
+  assert.equal(h.calls.length, 6);
+  h.finish(h.calls[5]);
+  assert.equal(await newAccount, 'thumb/400/cover.png');
+});
+
 function multipartFixture() {
   const reader = deferred(), signing = deferred(), calls = [], registrations = [];
   const source = ts.createSourceFile('multipartMedia.ts', readFileSync(new URL('../src/services/supabase/multipartMedia.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-  const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'createMultipartSource');
+  const declarations = source.statements.filter(node => ts.isFunctionDeclaration(node)
+    && ['createMultipartSource', 'signMultipartParts'].includes(node.name?.text));
   const exports = {};
   class Channel {
     constructor() { this.port1 = { onmessage: null, close() {} }; this.port2 = { peer: this.port1 }; }
   }
-  vm.runInNewContext(ts.transpileModule(`${fn.getText(source)}\nexports.create=createMultipartSource;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, {
+  vm.runInNewContext(ts.transpileModule(`${declarations.map(node => node.getText(source)).join('\n')}\nexports.create=createMultipartSource;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, {
     exports, BUCKET: 'project-media', ensureMultipartReader: () => reader.promise,
     signedMediaUrls: (bucket, paths, minimumLifetime) => { calls.push({ bucket, paths, minimumLifetime }); return signing.promise; },
     partPath: (path, index) => `${path}.parts/${index}`,

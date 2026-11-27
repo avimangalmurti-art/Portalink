@@ -1,6 +1,6 @@
 {
   "version": "0.522.0",
-  "sprite": "/icons/lucide-0.522.0.svg?v=ccab9727b810",
+  "sprite": "/icons/lucide-0.522.0.svg?v=4c839b7e8582",
   "names": [
     "a-arrow-down",
     "a-arrow-up",
@@ -208,7 +208,6 @@
     "book-type",
     "book-up-2",
     "book-up",
-    "book-user",
     "book-x",
     "book",
     "bookmark-check",

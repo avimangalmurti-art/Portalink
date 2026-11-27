@@ -3,6 +3,7 @@ import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData, useProfileQuery, type ProfileQuery } from '../../contexts/ProfileDataContext';
 import type { ProjectView } from '../../types/domain';
 import { usePresentation } from '../../presentation/usePresentation';
+import { projectBelongsToPortal } from '../projects/projectPortals';
 
 /** Overview navigation never prepares media belonging to unopened projects. */
 export function useProfileProjectQuery(profileId: string | null, projectId: string | null, categoryId: string | null): ProfileQuery {
@@ -12,12 +13,14 @@ export function useProfileProjectQuery(profileId: string | null, projectId: stri
   const cache = useMemo(() => ({ scope, revision, projects, views: new Map<string, ProjectView>(), pending: new Map<string, Promise<ProjectView>>() }), [scope, revision, projects]);
   const key = `${profileId ?? ''}/${categoryId ?? ''}/${projectId ?? ''}`;
   const isMobile = usePresentation() === 'mobile';
-  const selected = overview.profile?.id === profileId ? overview.profile.projects.find(project => project.id === projectId && project.categoryId === categoryId) : undefined;
+  const selected = overview.profile?.id === profileId && overview.profile.categories.some(category => category.id === categoryId)
+    ? overview.profile.projects.find(project => project.id === projectId && projectBelongsToPortal(project, categoryId)) : undefined;
   const fullProfile = profileId ? peekProfile(profileId, 'full') : null;
   const cachedView = cache.views.get(key);
   const prepared = useMemo(() => {
     if (cachedView) return cachedView;
-    const project = selected && fullProfile?.id === profileId ? fullProfile.projects.find(candidate => candidate.id === projectId && candidate.categoryId === categoryId) : undefined;
+    const project = selected && fullProfile?.id === profileId
+      ? fullProfile.projects.find(candidate => candidate.id === projectId && projectBelongsToPortal(candidate, categoryId)) : undefined;
     return project && fullProfile ? { creator: fullProfile, project } : undefined;
   }, [cachedView, selected, fullProfile, profileId, projectId, categoryId]);
   // The existing cross-project mobile video sequence fills in after the selected reader is ready.
@@ -40,7 +43,7 @@ export function useProfileProjectQuery(profileId: string | null, projectId: stri
     setFailure(null);
     if (!cache.pending.has(key)) {
       const request = projects.getProjectView(projectId).then(view => {
-        if (view.creator.id !== profileId || view.project.id !== projectId || view.project.categoryId !== categoryId) throw new Error('That project could not be found.');
+        if (view.creator.id !== profileId || view.project.id !== projectId || !projectBelongsToPortal(view.project, categoryId)) throw new Error('That project could not be found.');
         if (current.current.cache !== cache) return view;
         const oldest = cache.views.keys().next().value;
         if (cache.views.size >= 16 && oldest !== undefined) cache.views.delete(oldest);

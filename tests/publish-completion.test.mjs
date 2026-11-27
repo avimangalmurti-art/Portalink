@@ -121,10 +121,11 @@ test('actual MOBILE parent titles follow Files, Details and Review including res
   [{hasCommittedProject:true,firstProjectStage:'files'},'Review project','files'],
   [{hasCommittedProject:true,firstProjectStage:'details',state:'failed'},'Review project','details'],
  ]){
-  const tree=h.render(flow,{firstProject:{madeIn:'2026-05',name:'Mira',categories:['Work']}});
+  const tree=h.render(flow,{firstProject:{madeIn:'2026-05'}});
   assert.equal(tree.type,'ProjectFormScreen');assert.equal(tree.props.title,expected);
   assert.equal(tree.props.titleId,'publish-dialog-title');
   const guided=nodes(tree).find(node=>node.type==='MobilePublishFlow');
+  assert.equal(guided.props.firstProject,true);
   assert.equal(guided.props.editingStep,editingStep);
   assert.equal(guided.props.flow.hasCommittedProject,flow.hasCommittedProject);
  }
@@ -137,9 +138,9 @@ test('WEB parent keeps New project or its existing made-in year title across all
  for(const flow of [{firstProjectStage:'files'},{firstProjectStage:'details'},{step:'preview'},{hasCommittedProject:true,step:'metadata'}]){
   const normal=harness('web').render(flow);
   assert.equal(normal.type,'ProjectFormDialog');assert.equal(normal.props.title,'New project');
-  const dated=harness('web').render({...flow,metadata:{title:'Work',summary:'',creationDetails:{madeIn:'2024-07'}}},{firstProject:{madeIn:'2026-05',name:'Mira',categories:['Work']}});
+  const dated=harness('web').render({...flow,metadata:{title:'Work',summary:'',creationDetails:{madeIn:'2024-07'}}},{firstProject:{madeIn:'2026-05'}});
   assert.equal(dated.props.title,'Add work from 2024');
-  const fallback=harness('web').render(flow,{firstProject:{madeIn:'2026-05',name:'Mira',categories:['Work']}});
+  const fallback=harness('web').render(flow,{firstProject:{madeIn:'2026-05'}});
   assert.equal(fallback.props.title,'Add work from 2026');
  }
 });
@@ -266,20 +267,20 @@ test('a later publication can announce and prototype results retain their warnin
 });
 
 test('first-project dashed-tile reentry resumes the saved Details step instead of resetting to Files', () => {
-  const tree = harness('mobile').render({firstProjectStage:'details',metadata:{title:'Saved title',summary:'',creationDetails:{madeIn:'2024-05',field:'Design',answers:{what:'Saved answer',did:'',learned:''}}}, media:{items:[{id:'saved-file'}]}}, {firstProject:{name:'Mira',categories:['Work']}});
+  const tree = harness('mobile').render({firstProjectStage:'details',metadata:{title:'Saved title',summary:'',creationDetails:{madeIn:'2024-05',field:'Design',answers:{what:'Saved answer',did:'',learned:''}}}, media:{items:[{id:'saved-file'}]}}, {firstProject:{}});
   const guided=nodes(tree).find(node=>node.type==='MobilePublishFlow');
   assert.equal(guided.props.editingStep,'details');assert.equal(guided.props.flow.metadata.creationDetails.answers.what,'Saved answer');assert.equal(guided.props.flow.media.items[0].id,'saved-file');
 });
 test('first-project close waits for discard cleanup and retains the draft on failure', async () => {
   let closed=0;
-  const tree=harness('mobile').render({discard:async()=>false}, {firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
+  const tree=harness('mobile').render({discard:async()=>false}, {firstProject:{},onClose:()=>closed++});
   await tree.props.onClose();assert.equal(closed,0);
 });
 
 
 test('first-project recovery retains safe close and locked fields after switching to WEB', async () => {
   let saved=0,closed=0;
-  const tree=harness('web').render({hasCommittedProject:true,saveLocalDraft:async()=>{saved++;},discard:async()=>assert.fail('A committed project must preserve its recovery checkpoint'),canPublish:true,media:{items:[{}]}},{firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
+  const tree=harness('web').render({hasCommittedProject:true,saveLocalDraft:async()=>{saved++;},discard:async()=>assert.fail('A committed project must preserve its recovery checkpoint'),canPublish:true,media:{items:[{}]}},{firstProject:{},onClose:()=>closed++});
   await tree.props.onClose();assert.equal(saved,1);assert.equal(closed,1);
   const guided = nodes(tree).find(node => node.type === 'MobilePublishFlow');
   assert.equal(guided.props.flow.hasCommittedProject, true);

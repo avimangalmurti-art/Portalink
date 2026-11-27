@@ -1,10 +1,12 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { PdfDocument } from './PdfPage';
 
-import { jumpToProjectPage } from './projectPageScroll';
+import { jumpToProjectPage, type ProjectReadingPart } from './projectPageScroll';
 
-function PageThumbnail({ number, source, pdfDocument }: {
-  number: number; source?: string | null; pdfDocument: PdfDocument | null;
+export type ReadingPartPreviews = Readonly<Record<string, { sources: readonly (string | null | undefined)[]; document?: PdfDocument | null }>>;
+
+function PageThumbnail({ number, documentPage = number, source, pdfDocument }: {
+  number: number; documentPage?: number; source?: string | null; pdfDocument: PdfDocument | null;
 }) {
   const hostRef = useRef<HTMLSpanElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -28,7 +30,7 @@ function PageThumbnail({ number, source, pdfDocument }: {
     const timeout = window.setTimeout(() => { cancelled = true; task?.cancel(); setStatus('failed'); }, 20_000);
     void (async () => {
       // The viewer owns this document. Never open/destroy another PDF per thumbnail.
-      const page = await pdfDocument.getPage(number);
+      const page = await pdfDocument.getPage(documentPage);
       const canvas = canvasRef.current;
       if (cancelled || !canvas) return;
       const native = page.getViewport({ scale: 1 });
@@ -42,7 +44,7 @@ function PageThumbnail({ number, source, pdfDocument }: {
       if (!cancelled) { window.clearTimeout(timeout); setStatus('failed'); }
     });
     return () => { cancelled = true; window.clearTimeout(timeout); task?.cancel(); };
-  }, [nearby, number, pdfDocument, source]);
+  }, [nearby, documentPage, pdfDocument, source]);
 
   return <span ref={hostRef} className="mobile-page-thumbnail-art" aria-hidden="true" data-preview-state={status}>
     {nearby && source ? <img src={source} alt="" decoding="async" onLoad={() => setStatus('ready')} onError={() => setStatus('failed')} />
@@ -51,10 +53,12 @@ function PageThumbnail({ number, source, pdfDocument }: {
   </span>;
 }
 
-export function MobilePageThumbnails({ id, current, total, surfaceRef, previewSources, pdfDocument, onSelectPage }: {
+export function MobilePageThumbnails({ id, current, total, surfaceRef, previewSources, pdfDocument, readingParts, readingPartPreviews, onSelectPage }: {
   onSelectPage?: (page: number) => void;
   id: string; current: number; total: number; surfaceRef: React.RefObject<HTMLDivElement>;
   previewSources: readonly (string | null | undefined)[]; pdfDocument: PdfDocument | null;
+  readingParts?: readonly ProjectReadingPart[];
+  readingPartPreviews?: ReadingPartPreviews;
 }) {
   const listRef = useRef<HTMLElement>(null);
   // Start at the current page, but don't fight the user's scrolling afterward.
@@ -66,11 +70,18 @@ export function MobilePageThumbnails({ id, current, total, surfaceRef, previewSo
     selected.focus({ preventScroll: true });
   }, []);
   return <nav id={id} ref={listRef} data-mobile-page-thumbnails="" data-ui-shape="popup" className="mobile-page-thumbnails" aria-label="Project pages">
-    {Array.from({ length: total }, (_, index) => <button key={index + 1} type="button"
-      aria-label={`Go to page ${index + 1}`} aria-current={current === index + 1 ? 'page' : undefined}
-      onClick={() => onSelectPage ? onSelectPage(index + 1) : jumpToProjectPage(surfaceRef.current, index + 1)} className="mobile-page-thumbnail">
-      <PageThumbnail number={index + 1} source={previewSources[index]} pdfDocument={pdfDocument} />
-      <span className="mobile-page-thumbnail-number" aria-hidden="true">{index + 1}</span>
-    </button>)}
+    {Array.from({ length: total }, (_, index) => {
+      const number = index + 1;
+      const part = readingParts?.find(({ firstPage, count }) => number >= firstPage && number < firstPage + count);
+      const documentPage = part ? number - part.firstPage + 1 : number;
+      const preview = part ? readingPartPreviews?.[part.attachmentId] : undefined;
+      return <button key={part ? `${part.attachmentId}:${documentPage}` : number} type="button"
+        aria-label={`Go to page ${number}`} aria-current={current === number ? 'page' : undefined}
+        onClick={() => onSelectPage ? onSelectPage(number) : jumpToProjectPage(surfaceRef.current, number)} className="mobile-page-thumbnail">
+        <PageThumbnail number={number} documentPage={documentPage} source={part ? preview?.sources[documentPage - 1] : previewSources[index]}
+          pdfDocument={part ? preview?.document ?? null : pdfDocument} />
+        <span className="mobile-page-thumbnail-number" aria-hidden="true">{number}</span>
+      </button>;
+    })}
   </nav>;
 }

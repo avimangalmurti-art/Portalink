@@ -99,7 +99,7 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
-  const [inviteStatus, setInviteStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [inviteStatus, setInviteStatus] = useState('');
 
   function openAccountRoute(destination: 'messages' | 'notifications') {
     const path = buildPath(destination);
@@ -110,25 +110,32 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
     nav.to(path);
   }
 
+  const inviteData = {
+    title: 'Portalink Networks',
+    text: 'Join me on the Portalink Network.',
+    url: new URL(`${buildPath('home')}?welcome=1`, PUBLIC_ORIGIN).toString(),
+  };
+  const showInviteShare = isMobile || (typeof navigator !== 'undefined' && typeof navigator.share === 'function' &&
+    (typeof navigator.canShare !== 'function' || navigator.canShare(inviteData)));
+
   async function inviteFriend() {
-    const inviteUrl = new URL(`${buildPath('home')}?welcome=1`, PUBLIC_ORIGIN).toString();
-    setInviteStatus('idle');
-    if (navigator.share) {
+    setInviteStatus('');
+    if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: 'Portalink Networks', text: 'Join me on the Portalink Network.', url: inviteUrl });
+        await navigator.share(inviteData);
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
       }
     }
-    await copyInvite(false);
+    if (isMobile) await copyInvite(false);
+    else setInviteStatus('Sharing is unavailable. Use Copy invite link.');
   }
 
   async function copyInvite(resetStatus = true) {
-    const inviteUrl = new URL(`${buildPath('home')}?welcome=1`, PUBLIC_ORIGIN).toString();
-    if (resetStatus) setInviteStatus('idle');
-    try { await navigator.clipboard.writeText(inviteUrl); setInviteStatus('copied'); }
-    catch { setInviteStatus('failed'); }
+    if (resetStatus) setInviteStatus('');
+    try { await navigator.clipboard.writeText(inviteData.url); setInviteStatus('Invite link copied.'); }
+    catch { setInviteStatus(isMobile ? 'Unable to share the invite link. Please try again.' : 'Unable to copy the invite link. Please try again.'); }
   }
 
   async function handleSignOut() {
@@ -185,9 +192,9 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
         }} /></div>}
       </SettingsSection>}
       <SettingsSection active={activeSection} inline={!isMobile} onOpen={openSection} id="invite" title="Invite a friend" subtitle="Share Portalink with others">
-        <Button variant="secondary" onClick={() => void inviteFriend()}><span className="settings-action-label">Share invite link</span></Button>
+        {showInviteShare && <Button variant="secondary" onClick={() => void inviteFriend()}><span className="settings-action-label">Share invite link</span></Button>}
         <Button variant="secondary" onClick={() => void copyInvite()}><span className="settings-action-label">Copy invite link</span></Button>
-        {inviteStatus !== 'idle' && <p role="status">{inviteStatus === 'copied' ? 'Invite link copied.' : 'Unable to share the invite link. Please try again.'}</p>}
+        {inviteStatus && <p role="status">{inviteStatus}</p>}
       </SettingsSection>
       {!sharedReadOnly && <SettingsSection active={activeSection} inline={!isMobile} onOpen={openSection} id="privacy" title="Privacy" subtitle="Data, permissions, visibility">
         <p>Manage your account visibility in Edit profile and who can message you in Message settings.</p>

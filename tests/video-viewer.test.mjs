@@ -40,7 +40,8 @@ test('legacy videos are normalized on read without mutating stored file data', (
   assert.equal(assets.resolveStoredMediaKind('unknown', 'layout.psd', 'image/vnd.adobe.photoshop'), 'unknown');
   assert.equal(assets.resolveStoredMediaKind('unknown', 'file', 'video/quicktime'), 'video');
   const source = readFileSync(new URL('../src/services/supabase/contentReaders.ts', import.meta.url), 'utf8');
-  assert.match(source, /kind: playback \? 'video' : resolveStoredMediaKind\(/);
+  assert.match(source, /const kind = playback \? 'video' : resolveStoredMediaKind\(/);
+  assert.match(source, /const attachment: ProjectAttachment = \{\s*id: row\.id,\s*kind,/);
 });
 
 const VideoAttachmentPlaceholder = () => null, ProcessingNotice = () => null;

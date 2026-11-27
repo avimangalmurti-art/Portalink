@@ -1,32 +1,34 @@
 import type { Services } from '../../services/interfaces';
-import type { ProjectCoverThumbnail } from '../../types/domain';
+import type { ProjectAttachment, ProjectCoverThumbnail } from '../../types/domain';
 import { PUBLIC_ORIGIN } from '../citations/publicOrigin';
 import { handleFromPath } from '../sharing/shareModel';
+import { projectBelongsToPortal } from '../projects/projectPortals';
 
 export type SharedContentTarget = {
   to: string;
-  projectId: string;
-  categoryId: string;
   profileId: string | null;
   handle: string | null;
-  attachmentId: string | null;
-  pageNumber: number | null;
-};
+} & (
+  | { projectId: string; categoryId: string; attachmentId: string | null; pageNumber: number | null }
+  | { projectId: null; categoryId: null; attachmentId: null; pageNumber: null }
+);
 
 export type SharedContentPreview = {
   title: string;
   pageLabel: string | null;
   source: string | null;
-  kind: 'image' | 'document' | 'cover';
+  kind: 'image' | 'document' | 'cover' | 'creator';
   pageNumber: number;
   aspectRatio?: number;
   thumbnail?: ProjectCoverThumbnail;
   previewSource?: string;
+  openPdfRanges?: ProjectAttachment['openPdfRanges'];
 };
 
 const LEGACY_ORIGIN = 'https://portalinknetworksinc.avimangalmurti566055.chatgpt.site';
 const ID = '[a-z0-9_-]{1,128}';
 const PROJECT_PATH = new RegExp(`^/(?:p|share)/(${ID})/c/(${ID})/(${ID})/?$`, 'i');
+const CREATOR_PATH = new RegExp(`^/share/(${ID})/?$`, 'i');
 const HANDLE_PROJECT_PATH = new RegExp(`^/[^/]+/c/(${ID})/(${ID})/?$`, 'i');
 
 function hasControlCharacter(value: string): boolean {
@@ -49,9 +51,15 @@ export function parseSharedContentLink(text: string, origin: string): SharedCont
     const handledProject = handle ? HANDLE_PROJECT_PATH.exec(url.pathname) : null;
     const categoryId = project?.[2] ?? handledProject?.[1];
     const projectId = project?.[3] ?? handledProject?.[2];
-    if (!categoryId || !projectId) return null;
     const mediaValues = url.searchParams.getAll('media');
     const pageValues = url.searchParams.getAll('page');
+    if (!categoryId || !projectId) {
+      const creator = CREATOR_PATH.exec(url.pathname);
+      const creatorHandle = handle && url.pathname.replace(/\/$/, '').toLowerCase() === '/' + handle ? handle : null;
+      if ((!creator && !creatorHandle) || mediaValues.length || pageValues.length) return null;
+      return { to: url.pathname + url.search + url.hash, projectId: null, categoryId: null,
+        profileId: creator?.[1] ?? null, handle: creatorHandle, attachmentId: null, pageNumber: null };
+    }
     if (mediaValues.length > 1 || pageValues.length > 1 || (pageValues.length && !mediaValues.length)) return null;
     const attachmentId = mediaValues[0] ?? null;
     if (attachmentId !== null && (!attachmentId || attachmentId.length > 4096 || hasControlCharacter(attachmentId))) return null;
@@ -88,6 +96,22 @@ export function messageOptionsPreviewText(body: string, origin: string): string 
   return removedShare ? parts.join('').trim() : body;
 }
 
+/** The inbox shows a sender's caption or a short description of the shared item. */
+export function messageInboxPreviewText(body: string, origin: string): string {
+  const lines = body.trim().split(/\r?\n/);
+  const targets = lines.map(line => parseSharedContentLink(line.trim(), origin));
+  const firstShare = targets.findIndex(Boolean);
+  if (firstShare < 0 || targets.slice(firstShare).some(target => !target)) return body;
+  const caption = lines.slice(0, firstShare).join('\n').trim();
+  if (caption) return caption;
+  if (targets.length > 1) return `Shared ${targets.length} items`;
+  const target = targets[0];
+  if (!target) return body;
+  if (!target.projectId) return 'Shared creator';
+  if (target.attachmentId) return `Shared page ${target.pageNumber ?? 1}`;
+  return 'Shared project';
+}
+
 function unavailable(): never { throw new Error('This shared content is unavailable.'); }
 function validRatio(value: number | undefined): number | undefined {
   return value && Number.isFinite(value) && value > 0 ? value : undefined;
@@ -103,9 +127,17 @@ export async function resolveSharedContentPreview(
     ? (await services.profiles.resolvePublicHandle?.(target.handle))?.profileId
     : target.profileId;
   if (!profileId) return unavailable();
+  if (target.projectId === null) {
+    const profile = services.profiles.getSharedProfile
+      ? await services.profiles.getSharedProfile(profileId)
+      : await services.profiles.getProfile(profileId);
+    if (profile.id !== profileId || profile.isPrivate) return unavailable();
+    return { kind: 'creator', title: profile.name, pageLabel: profile.handle || null, source: profile.avatar || null, pageNumber: 1 };
+  }
   const view = await services.projects.getProjectView(target.projectId);
   const { project, creator } = view;
-  if (project.id !== target.projectId || project.categoryId !== target.categoryId || creator.id !== profileId) return unavailable();
+  if (project.id !== target.projectId || !projectBelongsToPortal(project, target.categoryId) || creator.id !== profileId) return unavailable();
+  if (!target.to.startsWith('/p/') && (creator.isPrivate || project.isPubliclyVisible === false)) return unavailable();
   const attachments = [...(project.attachments ?? [])].sort((left, right) => left.order - right.order);
   if (target.attachmentId !== null) {
     const attachment = attachments.find(item => item.id === target.attachmentId);
@@ -126,11 +158,11 @@ export async function resolveSharedContentPreview(
       page.attachmentId === attachment.id && page.withinDocumentIndex === pageNumber && page.sourceUrl);
     if (rendered?.sourceUrl) return { title: project.title, pageLabel: `Page ${pageNumber}`, source: rendered.sourceUrl,
       kind: 'image', pageNumber, aspectRatio: validRatio(rendered.aspectRatio) };
-    if (!attachment.sourceUrl) return unavailable();
+    if (!attachment.sourceUrl && !attachment.openPdfRanges) return unavailable();
     // The caller must use strict PDF-page rendering: an invalid page must fail,
     // rather than being clamped to another page by a cover renderer.
     return { title: project.title, pageLabel: `Page ${pageNumber}`, source: attachment.sourceUrl,
-      kind: 'document', pageNumber, aspectRatio: validRatio(attachment.metadata?.aspectRatio) };
+      kind: 'document', pageNumber, aspectRatio: validRatio(attachment.metadata?.aspectRatio), openPdfRanges: attachment.openPdfRanges };
   }
   if (target.pageNumber !== null) return unavailable();
   const pageNumber = project.coverPageNumber ?? 1;

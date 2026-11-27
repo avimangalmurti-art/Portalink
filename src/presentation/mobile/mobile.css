@@ -1298,38 +1298,51 @@
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .side-panel-navigation-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row {
+  container-type: inline-size;
+  --project-grid-cover-top: 8px;
+  --project-grid-cover-inset: var(--cdx-dense-inline-padding);
+  --project-grid-cover-height: calc(100cqi + 36px);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > button {
   flex-direction: column;
   align-items: stretch;
-  padding: 10px 10px 48px;
+  padding: var(--project-grid-cover-top) 6px 12px;
   gap: var(--project-card-media-gap, 8px);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-cover {
   flex: none;
   width: 100%;
-  height: auto;
-  aspect-ratio: 1;
+  height: var(--project-grid-cover-height);
+  aspect-ratio: auto;
 }
 
 /* Reserve the metadata track even when no publication date exists. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-copy {
   display: grid;
   font-size: 14px;
-  grid-template-rows: minmax(2.6em, auto) 1.2em;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(2.6em, auto) minmax(1.2em, auto);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-date {
+  font-size: clamp(11px, 3vw, 12px);
 }
 /* Reserve two title lines so short and wrapped titles share a date baseline. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-title {
   min-height: 2.6em;
+  overflow-wrap: anywhere;
 }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] [data-project-row-actions] {
-  top: auto;
-  bottom: var(--project-card-action-inset, 4px);
-  right: var(--project-card-action-inset, 4px);
+  /* The menu is a sibling of the cover button, so its query width includes the button's padding. */
+  top: calc(var(--project-grid-cover-top) + var(--project-grid-cover-height) - 2 * var(--project-grid-cover-inset) - 44px);
+  bottom: auto;
+  right: var(--project-grid-cover-inset);
   width: 44px;
   height: 44px;
 }
@@ -1457,10 +1470,6 @@
   padding-bottom: var(--mobile-content-safe-bottom);
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] {
-  padding-bottom: max(8px, var(--mobile-content-safe-bottom));
-}
-
 #root .codex-shell[data-presentation='mobile'] [data-shared-account-footer] {
   padding-bottom: max(8px, var(--safe-area-bottom));
 }
@@ -1579,10 +1588,6 @@
 }
 [data-presentation='mobile'] .project-description-grabber span { width: 36px; height: 5px; border-radius: 99px; background: var(--text-tertiary); opacity: 0.6; }
 [data-presentation='mobile'] .project-description-heading { position: relative; z-index: 1; display: flex; align-items: center; flex: none; gap: 4px; padding: 0 12px 10px 20px; background: transparent; }
-/* The Mission sheet header shares the sheet's raised surface tint. */
-#root .codex-shell[data-presentation='mobile'] .mobile-project-description-sheet[data-ui-surface='sheet'] > .project-description-heading {
-  --fixed-header-canvas: var(--surface-raised);
-}
 [data-presentation='mobile'] .project-description-heading h2 { flex: 1; min-width: 0; margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; }
 [data-presentation='mobile'] .project-description-heading > button,
 [data-presentation='mobile'] .project-description-menu > button { flex: none; width: 44px; height: 44px; margin: 0; padding: 0; display: grid; place-items: center; line-height: 1; border-radius: 50%; }
@@ -1596,7 +1601,6 @@
 /* Videos form a continuous vertical sequence; other media keep their readers. */
 [data-presentation='mobile'] :is(.mobile-video-single, .mobile-video-sequence) {
   --video-column-inset: 12px;
-  padding-block: calc(var(--mobile-content-safe-top, 0px) + 68px) calc(var(--mobile-content-safe-bottom, 0px) + 76px);
 }
 [data-presentation='mobile'] .mobile-video-single { height: 100%; min-height: 0; }
 [data-presentation='mobile'] .mobile-video-frame {
@@ -2184,7 +2188,7 @@
   max-width: 100%;
   margin: 0;
   padding: 0;
-  gap: 12px;
+  --journey-toggle-gap: 4px;
   border-radius: 0;
   background: transparent;
 }
@@ -2208,13 +2212,13 @@
   position: absolute;
   inset: -7px 0;
 }
-#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true'] {
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button:is([aria-pressed='true'], [aria-expanded='true']) {
   background: transparent !important;
   color: var(--text-primary) !important;
   font-weight: 600;
   box-shadow: none;
 }
-#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true']::after {
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button:is([aria-pressed='true'], [aria-expanded='true'])::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -2326,19 +2330,6 @@
   background: var(--surface-raised);
   overflow-wrap: anywhere;
   box-shadow: var(--shadow-pop);
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions {
-  display: grid;
-  flex: 0 0 auto;
-  min-width: 54px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions > button {
-  min-height: 44px;
-  padding-inline: 4px;
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-profile-hold-reorder] [data-preview-open] {
@@ -2497,10 +2488,6 @@
   padding-inline: calc(7px + .125em);
   color: var(--text-tertiary);
 }
-#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded] .profile-summary-counts > .profile-count-separator {
-  flex-grow: 1;
-}
-
 #root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded]:has(.profile-summary-counts) .profile-identity-main {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
@@ -2527,7 +2514,7 @@
   grid-column: 1 / -1;
   grid-row: 3;
   flex-wrap: nowrap;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-inline-end: 0;
   overflow-x: auto;
 }
@@ -3242,14 +3229,14 @@
   background: transparent;
   color: var(--text-secondary);
 }
-/* Activity selection stays in one aligned row with reachable read/delete actions. */
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-summary {
   gap: var(--mobile-control-group-gap);
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-summary button {
   padding-inline: 12px;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar {
+/* Selection actions share the dock's width and stay in one row. */
+#root .codex-shell[data-presentation='mobile'] .mobile-studio .studio-selection-toolbar[data-studio-selection-dock] {
   --text-secondary: var(--text-primary);
   box-sizing: border-box;
   inset-inline-start: max(var(--mobile-navigation-inset-start), (100% - var(--mobile-control-group-width)) / 2);
@@ -3265,12 +3252,12 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-toolbar > button {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio .studio-selection-toolbar[data-studio-selection-dock] > button {
   width: var(--mobile-control-target);
   height: var(--mobile-control-target);
   padding: 0;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock] .studio-bulk-actions {
   flex-flow: row nowrap;
   align-items: center;
   justify-content: center;
@@ -3279,7 +3266,7 @@
   gap: 4px;
   overflow: visible;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions button {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock] .studio-bulk-actions button {
   flex: 1 1 0;
   min-width: 0;
   height: var(--mobile-control-target);
@@ -3290,11 +3277,14 @@
   line-height: 18px;
   white-space: normal;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-bulk-actions button > span {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock] .studio-bulk-actions button > span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-studio[data-studio-activity] .studio-selection-hint {
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock='bookmarks'] .studio-bulk-actions button {
+  flex-basis: auto;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio [data-studio-selection-dock] .studio-selection-hint {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3435,57 +3425,6 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   height: auto;
   min-height: 0;
   aspect-ratio: var(--page-loading-ratio, 8.5 / 11);
-}
-
-/* The opening loader fills the phone, not just the future page rectangle.
-   Keep the page's layout reservation; paint below the fixed controls. Once any
-   page is ready, later lazy pages and retries must never cover readable work.
-   Its single indicator replaces the page glyph only while this mask is active. */
-#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view])) .premium-media-loading-mark {
-  visibility: hidden;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::before {
-  --opening-loader-fill: color-mix(in srgb, var(--surface-sunken) 86%, var(--surface-raised));
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  /* Material tokens may be translucent; composite onto the canvas so the
-     original page placeholder cannot show through as a second rectangle. */
-  background: linear-gradient(var(--opening-loader-fill), var(--opening-loader-fill)), var(--surface-canvas);
-}
-
-#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::after {
-  content: '';
-  position: fixed;
-  top: calc(50dvh - 9px);
-  left: calc(50% - 9px);
-  z-index: 2;
-  width: 18px;
-  height: 18px;
-  border: 2px solid color-mix(in srgb, var(--text-secondary) 26%, transparent);
-  border-top-color: var(--text-secondary);
-  border-radius: 50%;
-  pointer-events: none;
-  animation: premium-media-spin var(--m-loading-spin) linear infinite;
-}
-
-@supports ((mask-image: none) or (-webkit-mask-image: none)) {
-  #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::after {
-    border: 0;
-    border-radius: 0;
-    background: var(--text-secondary);
-    -webkit-mask: var(--loading-indicator-mask) center / contain no-repeat;
-    mask: var(--loading-indicator-mask) center / contain no-repeat;
-    forced-color-adjust: none;
-    animation: premium-media-spin var(--m-loading-spin) steps(8) infinite;
-  }
-}
-:where([data-presentation='mobile']) .app-viewport--reduce-motion [data-mobile-page-reader]::after { animation: none !important; }
-
-@media (prefers-reduced-motion: reduce) {
-  #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]::after { animation: none; }
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-project-stage] {
@@ -3674,12 +3613,6 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 #root .codex-shell[data-presentation='mobile'] [data-document-reading-view] .premium-focused-media { margin-block: 0; }
 
 /* The per-project density setting lives beside Back and the page counter. */
-#root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator][data-page-density-enabled] {
-  --mobile-density-width: clamp(100px, 28vw, 124px);
-}
-#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] {
-  right: calc(var(--mobile-navigation-inset-end) + var(--mobile-density-width) + var(--mobile-control-group-gap));
-}
 #root .codex-shell[data-presentation='mobile'] [data-page-density-enabled] > .mobile-project-page-counter {
   font-size: 13px;
   gap: 4px;
@@ -3691,7 +3624,6 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   position: fixed;
   z-index: 45;
   top: calc(var(--mobile-control-edge) + var(--mobile-content-safe-top));
-  right: var(--mobile-navigation-inset-end);
   width: var(--mobile-density-width);
   height: var(--mobile-control-size);
   border: 0;
@@ -3702,12 +3634,6 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   -webkit-backdrop-filter: var(--project-control-blur);
   backdrop-filter: var(--project-control-blur);
   pointer-events: auto;
-}
-#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > .mobile-project-density {
-  position: absolute;
-  top: 0;
-  left: calc(100% + var(--mobile-control-group-gap));
-  right: auto;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-project-density input {
   position: absolute;
@@ -4592,9 +4518,50 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 [data-presentation='mobile'] .mobile-project-editor-screen > header { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; padding-bottom: 16px; }
 [data-presentation='mobile'] .mobile-project-editor-screen > header button { width: 44px; height: 44px; display: grid; place-items: center; }
 [data-presentation='mobile'] .mobile-project-editor-screen h1 { text-align: center; font-size: 20px; font-weight: 600; }
-[data-presentation='mobile'] .project-editor-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 4px; }
-[data-presentation='mobile'] .project-editor-sections button { min-height: 44px; border-radius: 14px; background: var(--surface-sunken); font-weight: 600; }
-[data-presentation='mobile'] .project-editor-sections button[aria-pressed='true'] { background: var(--control-rest-surface); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+[data-presentation='mobile'] .project-editor-sections { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.45fr); gap: 8px; margin-bottom: 4px; }
+[data-presentation='mobile'] .project-editor-sections > [data-ui-control] {
+  min-width: 0;
+  height: 48px;
+  padding-inline: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+[data-presentation='mobile'] .project-editor-date {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-content: center;
+  justify-items: center;
+  gap: 1px;
+}
+[data-presentation='mobile'] .project-editor-date time {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+[data-presentation='mobile'] .project-editor-date:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+[data-presentation='mobile'] .project-editor-date > input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+[data-presentation='mobile'] .project-editor-date > input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  cursor: pointer;
+}
 [data-presentation='mobile'] .mobile-project-editor-screen [hidden] { display: none !important; }
 [data-presentation='mobile'] .mobile-project-editor-screen #project-summary { min-height: 240px; }
 
@@ -5822,21 +5789,17 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
   max-height: calc(100% - max(24px, env(safe-area-inset-top, 0px)) - 24px) !important;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portals-list {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
   padding: 12px; border-radius: 0; background: transparent;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item {
-  display: flex; align-items: flex-start; min-width: 0; border: 1px solid var(--hairline);
+  display: flex; align-items: stretch; min-width: 0; border: 1px solid var(--hairline);
   border-radius: 16px; background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item::before { content: none; }
-#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row {
-  flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px;
-  min-height: 150px; width: 100%; padding: 20px 10px 16px 16px;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-label { flex: none; font-size: 14px; line-height: 1.4; }
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > :last-child { display: none; }
 
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item:has(> .mobile-portal-rename) { grid-column: 1 / -1; }
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-rename { flex-wrap: wrap; padding: 12px; }
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-rename input { flex: 1 1 100%; }
 
@@ -5856,13 +5819,13 @@ html:has(.codex-shell[data-presentation='mobile'] :is([role='dialog'], [role='al
 #root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within .location-search-results { position:relative; top:auto; min-height:0; flex:1; display:flex; flex-direction:column; }
 #root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within .location-search-results ul { max-height:none; min-height:0; overflow-y:auto; flex:1; }
 
-/* Card artwork owns the space; labels wrap only between complete words. */
+/* Fit the icon and label beneath the card's options button. */
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item {position:relative;padding-inline-end:0;}
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-options {position:absolute;top:4px;inset-inline-end:4px;z-index:2;}
-#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row {display:grid;grid-template-rows:minmax(96px,1fr) auto;justify-items:center;align-items:center;gap:12px;width:100%;min-height:212px;padding:36px 10px 16px;text-align:center;}
-#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child {width:clamp(72px,20vw,104px);height:clamp(72px,20vw,104px);min-width:0;min-height:0;}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row {display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(56px,1fr) auto;justify-items:center;align-items:center;gap:8px;width:100%;min-height:148px;padding:44px 6px 12px;text-align:center;}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child {width:min(100%,clamp(42px,14vw,72px));height:auto;aspect-ratio:1;min-width:0;min-height:0;}
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > [data-interface-icon-frame]:first-child > svg {width:100%;height:100%;}
-#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-label {width:100%;min-width:0;text-align:center;white-space:normal;word-break:normal;overflow-wrap:normal;hyphens:none;line-height:1.4;}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-label {width:100%;min-width:0;text-align:center;white-space:normal;overflow-wrap:anywhere;font-size:clamp(12px,3.5vw,14px);line-height:1.4;}
 
 /* The Portals popup owns the foreground actions while it is open. */
 #root .codex-shell[data-presentation='mobile']:has(.mobile-profile-portal-overlay > .mobile-portals-page) .mobile-context-floating {display:none;}
@@ -6143,23 +6106,10 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   margin-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
   z-index: 60;
   display: flex;
-  flex-direction: row-reverse;
   justify-content: space-between;
   align-items: center;
   height: 56px;
   background: var(--surface-canvas);
-  font-size: 16px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions > button {
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: 12px;
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-}
-#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions > button:first-child {
-  background: var(--accent-primary);
-  color: var(--accent-foreground);
 }
 #root .codex-shell[data-presentation='mobile']:has(.app-screen-layer.screen-active [data-profile-reordering]) .mobile-context-floating {
   display: none;
@@ -6442,9 +6392,66 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   padding-bottom: 0; scroll-padding-block: 16px; overflow-x: hidden;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-form-details { flex: none; gap: 20px; }
-#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-access { display: flex; align-items: center; gap: 12px; }
-#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-access select { min-height: 44px; padding-inline: 12px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-access { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-access select {
+  box-sizing: border-box;
+  min-height: 44px;
+  min-width: 0;
+  max-width: 100%;
+  padding-inline: 14px;
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
 #root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen #project-summary { min-height: 200px; font-size: 16px; line-height: 1.5; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-main-details {
+  flex: 1 0 auto;
+}
+#root .codex-shell[data-presentation='mobile'] .project-editor-main-details .project-editor-access-footer {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding-block: 12px 16px;
+  border-top: 1px solid var(--hairline);
+}
+[data-presentation='mobile'] .project-editor-access-footer p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+[data-presentation='mobile'] .project-editor-main-details .profile-field-autogrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+#root .codex-shell[data-presentation='mobile'] .project-editor-main-details :is(#project-summary, .profile-field-autogrow-measure) {
+  box-sizing: border-box;
+  grid-area: 1 / 1;
+  min-height: 100px;
+  height: auto;
+  max-height: none;
+  padding: 12px;
+  border-width: 1px;
+  font: inherit;
+  font-size: max(16px, 1rem);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+#root .codex-shell[data-presentation='mobile'] .project-editor-main-details #project-summary {
+  field-sizing: content;
+  display: block;
+  overflow: hidden;
+}
+[data-presentation='mobile'] .project-editor-main-details .profile-field-autogrow-measure {
+  border-style: solid;
+  border-color: transparent;
+  visibility: hidden;
+}
+@supports (field-sizing: content) {
+  [data-presentation='mobile'] .project-editor-main-details .profile-field-autogrow-measure { display: none; }
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-form-media--edit { flex: none; }
 #root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-form-media--edit > .project-media-list { max-height: none; overflow: visible; }
 #root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-file-grid {
   display: grid;
@@ -6497,33 +6504,77 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   pointer-events: none;
 }
 [data-presentation='mobile'] .project-editor-file-position {
+  flex: none;
   margin: 0;
   color: var(--text-secondary);
   text-align: center;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
-[data-presentation='mobile'] .project-editor-file-actions {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  justify-items: center;
-  gap: 2px;
-}
-[data-presentation='mobile'] .project-editor-file-actions > button {
-  display: grid;
-  place-items: center;
+[data-presentation='mobile'] .project-editor-file-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
   min-width: 0;
-  width: min(100%, 44px);
-  min-height: 44px;
-  padding: 0;
+}
+[data-presentation='mobile'] .project-editor-file-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-presentation='mobile'] .project-editor-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
 }
 [data-presentation='mobile'] .project-editor-file-tools {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
 }
-[data-presentation='mobile'] .project-editor-file-tools > button { min-width: 0; min-height: 44px; }
+[data-presentation='mobile'] .project-editor-file-tools > h3 { font-size: 16px; font-weight: 600; }
+[data-presentation='mobile'] .project-editor-cover-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--ui-row-radius);
+  background: var(--surface-sunken);
+}
+[data-presentation='mobile'] .project-editor-cover-thumb {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  width: 76px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--ui-row-radius);
+  background: var(--surface-raised);
+}
+[data-presentation='mobile'] .project-editor-cover-thumb > :is(img, video, .pdf-page-viewport) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+[data-presentation='mobile'] .project-editor-cover-copy { min-width: 0; }
+[data-presentation='mobile'] .project-editor-cover-copy > h4 { font-size: 14px; font-weight: 600; }
+[data-presentation='mobile'] .project-editor-cover-copy > p {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-presentation='mobile'] .project-editor-cover-actions { margin-top: 6px; }
+[data-presentation='mobile'] .project-editor-cover-actions > button { flex-grow: 1; }
 #root .codex-shell[data-presentation='mobile'] .mobile-project-editor-screen :is(input, textarea, select) { font-size: 16px; }
 
 /* File management keeps the shared sheet material and its full-height list. */
@@ -6585,11 +6636,11 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog > header h2 { grid-column: 2; grid-row: 1; text-align: center; font-size: var(--ui-surface-title-size, 20px); line-height: 1.35; font-weight: 600; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-dialog > header button { grid-column: 1; grid-row: 1; width: 44px; height: 44px; min-height: 44px; border-radius: 50% !important; border: 1px solid var(--hairline) !important; background: var(--surface-sunken) !important; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-body { padding: var(--ui-surface-gap, 16px) var(--ui-surface-inset, 20px) 0; gap: var(--ui-surface-gap, 16px); }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-body select { min-height: 44px; max-width: 65%; font-size: 14px; border-radius: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-body select { min-height: 44px; max-width: 65%; padding-inline: 14px; font-size: 16px; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner { flex: 1 0 auto; min-height: 420px; gap: 16px; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-reposition-stage { flex: 1 0 240px; min-height: 220px; padding: 12px; border: 1px solid var(--hairline); border-radius: var(--ui-popup-radius, 24px); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner input[type='range'] { min-height: 44px; }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner button { min-height: 44px; min-width: 44px; border-radius: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner button { min-height: 44px; min-width: 44px; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child { padding-top: 12px; border-top: 1px solid var(--hairline); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child { flex-wrap: nowrap; gap: 12px; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-upload-surface='cover'] .image-repositioner > div:last-child > button { min-height: 48px; font-size: 16px; }

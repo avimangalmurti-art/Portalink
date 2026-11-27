@@ -10,8 +10,9 @@ const pageLayout = sourceModule('src/features/projects/pageLayout.ts', {});
 const portalBrowsing = sourceModule('src/components/profile/portalProjectBrowsing.ts');
 
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
-const ImagePage = () => null;
 const MobileProjectPageCounter = () => null;
+const DesktopProjectPageCounter = () => null;
+const ProjectOpeningLoader = () => null;
 const FollowContentInfoPopup = () => null;
 const MobileVideoSequence = () => null;
 const MobileVideoFrame = () => null;
@@ -27,11 +28,27 @@ function nodes(node) {
 }
 const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
+function assertNoAiVerification(tree) {
+  assert.equal(button(tree, 'Show AI verification services'), undefined);
+  assert.equal(withProp(tree, 'data-ai-verification-visualization'), undefined);
+  assert.equal(nodes(tree).some(node => node.type === MediaCommentsPopover && node.props.label === 'AI verification'), false);
+}
 
-function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video', search = '', hash = '', lifecycle = false, sourceTransform = source => source } = {}) {
+function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video', search = '', hash = '', lifecycle = false, openingStage = null, sourceTransform = source => source } = {}) {
   engagement = { isPending: () => false, isEngaged: () => false, canEngage: true, isResolving: false, ...engagement };
   const slots = []; let cursor = 0, panel = null, dirty = false, lastOverrides = {}, childEffect = null;
   const pending = { layout: [], passive: [] };
+  const frames = new Map();
+  let nextFrame = 0, reportMutation;
+  const openingBrowser = openingStage ? {
+    requestAnimationFrame(callback) { frames.set(++nextFrame, callback); return nextFrame; },
+    cancelAnimationFrame(id) { frames.delete(id); },
+    MutationObserver: class {
+      constructor(callback) { this.callback = callback; }
+      observe() { reportMutation = this.callback; }
+      disconnect() { reportMutation = undefined; }
+    },
+  } : {};
   const sameDeps = (previous, next) => previous && next && previous.length === next.length && next.every((value, index) => Object.is(previous[index], value));
   const schedule = (phase, effect, deps) => {
     if (!lifecycle) return;
@@ -40,9 +57,10 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     slot.deps = deps;
     pending[phase].push(() => { slot.cleanup?.(); slot.cleanup = effect(); });
   };
-  const serviceIds = [], gates = [];
+  const serviceIds = [], gates = [], audioInterruptions = [];
+  let screenActive = true;
   const viewerMemory = new Map(), memoryWrites = [];
-  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [], sharedTargets = [], copies = [];
+  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [], sharedTargets = [], copies = [], readingScroll = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
   const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
   const react = { ...React,
@@ -68,7 +86,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   const exports = {};
   vm.runInNewContext(ts.transpileModule(sourceTransform(readFileSync(new URL('../src/components/media/ProjectMediaViewer.tsx', import.meta.url), 'utf8')), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, URL, URLSearchParams, window: { setTimeout: () => 1, clearTimeout() {}, location: {pathname:readOnlyShare?'/share/creator/c/portal/project':'/p/creator/c/portal/project',origin:'https://portalink.test',href:'https://portalink.test/p/creator/c/portal/project'+search+hash,search,hash} }, require(name) {
+  }).outputText, { exports, URL, URLSearchParams, ...openingBrowser, window: { innerWidth: 420, innerHeight: 912, addEventListener() {}, removeEventListener() {}, setTimeout: () => 1, clearTimeout() {}, location: {pathname:readOnlyShare?'/share/creator/c/portal/project':'/p/creator/c/portal/project',origin:'https://portalink.test',href:'https://portalink.test/p/creator/c/portal/project'+search+hash,search,hash} }, require(name) {
     if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
     if (name.endsWith('/InternalContentShare')) return { useInternalContentShare: () => target => sharedTargets.push(target) };
     if (name.endsWith('/copyPublicLink')) return { copyPublicLink: async value => copies.push(value) };
@@ -79,14 +97,21 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name === 'react-router-dom') return { useNavigate: () => path => navigationCalls.push(path) };
     if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isAuthenticated: signedIn, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}), isInitializing: false, viewerProfileId: null }) };
+    if (name.endsWith('/ProjectSharePathContext')) return { ProjectSharePathContext: { Provider: 'project-share-path' } };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions(model, priority, onOpen) { screenActions.push({model,priority,onOpen}); } };
+    if (name.endsWith('/MobileBackNavigation')) return { useMobileScreenActive: () => screenActive };
+    if (name.endsWith('/profileAudioPlayback')) return { suspendProfileAudioForVideo: () => {
+      audioInterruptions.push('video opened');
+      return () => { audioInterruptions.push('video left'); };
+    } };
     if (name.endsWith('/MediaInteractionBar')) return { MediaInteractionBar: 'media-interaction-bar' };
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
-    if (name.endsWith('/ImageAttachment')) return { ImagePage };
+    if (name.endsWith('/StateViews')) return { ProjectOpeningLoader };
+    if (name.endsWith('/useDocumentReadingScroll')) return { useDocumentReadingScroll: (...args) => readingScroll.push(args) };
     if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
     if (name.endsWith('/MobileVideoFrame')) return { MobileVideoFrame };
-    if (name.endsWith('/MobileProjectPageCounter')) return { MobileProjectPageCounter };
+    if (name.endsWith('/MobileProjectPageCounter')) return { DesktopProjectPageCounter, MobileProjectPageCounter };
     if (name.endsWith('/EngagementBar')) return { EngagementBar, EngagementFeedback };
     if (name.endsWith('/CommentThreadView')) return { CommentThreadView };
     if (name.endsWith('/FollowContentInfoPopup')) return { FollowContentInfoPopup };
@@ -114,7 +139,13 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; },
+  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, readingScroll, onBack, audioInterruptions, openIndex() { panel = 'index'; }, setScreenActive(active) { screenActive = active; },
+    inspectOpeningFrame() {
+      reportMutation?.();
+      const callbacks = [...frames.values()];
+      frames.clear();
+      callbacks.forEach(callback => callback());
+    },
     // Model React's commit order without mounting media or invoking backend APIs:
     // parent layout effects, child focus-report passive effect, parent passive effects.
     // The callback comes from the actual AttachmentRenderer element, as it does
@@ -125,15 +156,18 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
       for (let commits = 0; commits < 12; commits++) {
         dirty = false;
         tree = this.render(overrides);
+        if (openingStage) withProp(tree, 'data-project-stage').ref.current = openingStage;
         pending.layout.splice(0).forEach(run => run());
         const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
-        const callback = focused === null ? null : renderer?.props.onFocusModeChange;
+        const part = nodes(tree).find(node => node.props.renderer?.attachment.kind === 'document')?.props;
+        const callback = focused === null ? null : renderer?.props.onFocusModeChange ?? part?.onFocus;
         // Keep the focused page object stable across scope changes: the real
         // child's effect re-runs only if focus or its reporting callback changes.
         if (childEffect?.callback !== callback || childEffect?.focused !== focused) {
-          childEffect?.callback?.(false);
-          childEffect = callback ? { callback, focused } : null;
-          callback?.(focused);
+          childEffect?.report(false);
+          const report = part && !renderer ? value => callback?.(part.renderer.attachment.id, value) : value => callback?.(value);
+          childEffect = callback ? { callback, focused, report } : null;
+          report(focused);
         }
         pending.passive.splice(0).forEach(run => run());
         if (!dirty) return tree;
@@ -153,15 +187,39 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   } };
 }
 
+test('project audio interruption belongs to the active video, including on shared catalogues', () => {
+  for (const readOnlyShare of [true, false]) {
+    const h = harness({ lifecycle: true, mediaKind: 'image', readOnlyShare });
+    const attachments = [...h.attachments, { id: 'video', kind: 'video', displayName: 'Clip', typeLabel: 'Video' }];
+    let tree = h.commitFocusedPage(null, { attachments });
+    assert.deepEqual(h.audioInterruptions, []);
+    button(tree, 'Clip, Video').props.onClick();
+    tree = h.commitFocusedPage(null);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.videoActive, true);
+    assert.deepEqual(h.audioInterruptions, ['video opened']);
+    h.setScreenActive(false);
+    tree = h.commitFocusedPage(null);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.videoActive, false);
+    assert.deepEqual(h.audioInterruptions, ['video opened', 'video left']);
+    h.setScreenActive(true);
+    tree = h.commitFocusedPage(null);
+    button(tree, 'first, Video').props.onClick();
+    h.commitFocusedPage(null);
+    assert.deepEqual(h.audioInterruptions, ['video opened', 'video left', 'video opened', 'video left']);
+  }
+});
+
 test('project sharing and copying use the official public destination with the current page state', async () => {
   for (const mobile of [true, false]) for (const readOnlyShare of [true, false]) {
     const h = harness({ mobile, readOnlyShare, search: '?media=first&page=2&view=page&via=friend', hash: '#references' });
-    h.render();
+    const tree = h.render({ primaryPortalId: 'original' });
     const model = h.screenActions.at(-1).model;
     const actions = [...model.primary, ...model.groups.flat()];
     actions.find(action => action.id === 'share').run();
     await actions.find(action => action.id === 'copy').run();
-    const expected = 'https://portalinknetworks.com/share/creator/c/portal/project?media=first&page=2&view=page&via=friend#references';
+    const expected = 'https://portalinknetworks.com/share/creator/c/original/project?media=first&page=2&view=page&via=friend#references';
+    assert.equal(nodes(tree).find(node => node.type === 'project-share-path').props.value,
+      (readOnlyShare ? '/share' : '/p') + '/creator/c/original/project');
     assert.equal(h.sharedTargets[0].url, expected);
     assert.deepEqual(h.copies, [expected]);
     assert.equal(h.sharedTargets[0].title, 'Work');
@@ -187,9 +245,10 @@ test('project overview attaches mobile swipe Back to the work stage and uses nav
 
 test('shared project details retain disclosure and content without a layout resize handle', () => {
   const h = harness({ mobile: false, readOnlyShare: true, mediaKind: 'document' });
-  const tree = h.render({ isRailOpen: true });
+  const tree = h.render({ isRailOpen: true, attachments: [h.attachments[0]] });
   assert.ok(button(tree, 'Hide project details'));
-  assert.ok(button(tree, 'Show project information'));
+  const rail = withProp(tree, 'data-project-response-rail');
+  assert.ok(nodes(rail).some(node => node.props.children === 'No project description has been added.'));
   assert.ok(nodes(tree).find(node => node.type === AttachmentRenderer));
   assert.equal(nodes(tree).some(node => node.props.label === 'Resize project details. Double-click to restore the default width.'), false);
 });
@@ -279,7 +338,7 @@ test('video metadata and sequences leave WEB and non-video mobile attachments in
       { projectId: 'project', attachment: { id: 'video-one', kind: 'video' } },
       { projectId: 'other', attachment: { id: 'video-two', kind: 'video' } },
     ], onSelectProject() { assert.fail('Unrelated viewers must not navigate through videos'); } };
-    const tree = h.render({ videoSequence, creator: { name: 'Source creator', avatar: 'creator.jpg' } });
+    const tree = h.render({ attachments: [h.attachments[0]], videoSequence, creator: { name: 'Source creator', avatar: 'creator.jpg' } });
     assert.equal(nodes(tree).some(node => node.type === MobileVideoSequence), false);
     assert.equal(nodes(tree).some(node => node.type === MobileVideoFrame), false);
     assert.equal(nodes(tree).some(node => node.props.className === 'mobile-video-single'), false);
@@ -382,6 +441,8 @@ test('leaving MOBILE image focus restores normal controls and switching attachme
   }
 });
 
+const readingParts = tree => nodes(withProp(tree, 'data-project-stage')).filter(node => node.props.renderer).map(node => node.props);
+
 test('MOBILE opens the cover and PDF in one vertical reader on both project routes', () => {
   for (const readOnlyShare of [false, true]) {
     const h = harness({ lifecycle: true, mediaKind: 'image', readOnlyShare });
@@ -390,18 +451,17 @@ test('MOBILE opens the cover and PDF in one vertical reader on both project rout
     h.viewerMemory.set(`${scope}:project:project`, { activeAttachmentId: cover.id });
     const tree = h.commitFocusedPage(false, { attachments: [cover, pdf] });
     const stage = withProp(tree, 'data-project-stage');
-    const [image, document] = nodes(stage).filter(node => node.type === ImagePage || node.type === AttachmentRenderer);
-    assert.equal(image.props.attachment, cover);
-    assert.equal(document.props.attachment, pdf);
-    assert.equal(document.props.verticalReading, true);
-    assert.equal(document.props.manageReadingScroll, false, 'The stage owns overview scroll before the PDF loads');
+    const [image, document] = readingParts(tree);
+    assert.equal(image.renderer.attachment, cover);
+    assert.equal(document.renderer.attachment, pdf);
+    assert.equal(h.readingScroll.at(-1)[0], true, 'The stage owns overview scroll before the PDF loads');
     assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
     const counter = nodes(tree).find(node => node.type === MobileProjectPageCounter);
-    assert.notEqual(counter.props.surfaceRef, stage.ref, 'The PDF navigator excludes the cover from PDF page numbering');
-    assert.equal(counter.props.scope, `project:${pdf.id}`);
+    assert.equal(counter.props.surfaceRef, stage.ref, 'One page navigator includes the cover and PDF');
+    assert.equal(counter.props.scope, 'project:ordered-pages');
     const focused = h.commitFocusedPage(true);
-    assert.equal(withProp(focused, 'data-project-cover-images').props.hidden, true);
-    assert.equal(withProp(h.commitFocusedPage(false), 'data-project-cover-images').props.hidden, false);
+    assert.equal(readingParts(focused)[0].hidden, true);
+    assert.equal(readingParts(h.commitFocusedPage(false))[0].hidden, false);
   }
 });
 
@@ -412,40 +472,182 @@ function mixedCoverPdf([cover, pdf]) {
   ];
 }
 
-test('MOBILE continuous reading keeps appendix images below the PDF and respects a PDF cover', () => {
-  const h = harness({ mediaKind: 'image' });
-  const [cover, pdf] = mixedCoverPdf(h.attachments);
-  const appendix = { ...cover, id: 'appendix', isCover: false };
-  const tree = h.render({ attachments: [cover, pdf, appendix] });
-  const stage = withProp(tree, 'data-project-stage');
-  assert.deepEqual(nodes(stage).filter(node => node.type === ImagePage || node.type === AttachmentRenderer)
-    .map(node => node.props.attachment.id), [cover.id, pdf.id, appendix.id]);
-  const pdfCover = h.render({ attachments: [{ ...pdf, isCover: true }, { ...cover, isCover: false }] });
-  assert.equal(withProp(pdfCover, 'data-project-cover-images'), undefined);
+function openingMedia(state, top = 0, height = 400) {
+  return {
+    dataset: { readerMediaState: state },
+    getBoundingClientRect: () => ({ top, bottom: top + height, left: 0, right: 420, width: 420, height }),
+  };
+}
+
+test('MOBILE ordered projects reveal after the first visible page and keep later pages loading in place', () => {
+  let media = [openingMedia('pending'), openingMedia(undefined, 400)];
+  const openingStage = {
+    querySelectorAll: () => media,
+    querySelector: () => media.find(node => node.dataset.readerMediaState === 'pending'),
+  };
+  const h = harness({ lifecycle: true, mediaKind: 'image', readOnlyShare: true, openingStage });
+  const tree = h.commitFocusedPage(null, { attachments: mixedCoverPdf(h.attachments) });
+  assert.equal(nodes(tree).filter(node => node.type === ProjectOpeningLoader).length, 1);
+  assert.equal(withProp(tree, 'data-project-opening').props['aria-busy'], true);
+  assert.equal(readingParts(tree).length, 2, 'All ordered parts can load beneath the one indicator');
+  h.inspectOpeningFrame();
+  assert.equal(withProp(h.commitFocusedPage(null), 'data-project-opening').props['data-project-opening'], true,
+    'A second page painting first cannot reveal the pending first page');
+
+  media = [openingMedia(undefined), openingMedia('pending', 400)];
+  h.inspectOpeningFrame();
+  const loaded = h.commitFocusedPage(null);
+  assert.equal(withProp(loaded, 'data-project-opening').props['aria-busy'], undefined);
+  assert.equal(nodes(loaded).some(node => node.type === ProjectOpeningLoader), false);
+
+  media = [openingMedia('pending')];
+  h.inspectOpeningFrame();
+  assert.equal(withProp(h.commitFocusedPage(true), 'data-project-opening').props['data-project-opening'], undefined,
+    'Lazy pages or a page-focus change do not restore the opening overlay');
 });
 
-test('WEB file switching and explicit MOBILE page links keep their own attachment target', () => {
-  for (const [mobile, search, active] of [
-    [false, '', 'first'],
-    [true, '?media=first&page=1', 'first'],
-    [true, '?media=second&page=1&view=page', 'second'],
-  ]) {
-    const h = harness({ mobile, search, mediaKind: 'image' });
-    const tree = h.render({ attachments: mixedCoverPdf(h.attachments) });
-    assert.equal(withProp(tree, 'data-project-cover-images'), undefined);
-    assert.ok(withProp(tree, 'data-project-file-strip'));
-    const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
-    assert.equal(renderer.props.attachment.id, active);
-    assert.equal(renderer.props.verticalReading, mobile && active === 'first');
-  }
-  const linked = harness({ mediaKind: 'image', search: '?media=second&page=2' });
-  const tree = linked.render({ attachments: mixedCoverPdf(linked.attachments) });
-  assert.ok(withProp(tree, 'data-project-cover-images'));
+test('MOBILE retained reader waits for its new project and reveals the visible retry surface on failure', () => {
+  let media = [openingMedia(undefined)];
+  const openingStage = {
+    querySelectorAll: () => media,
+    querySelector: () => media.find(node => node.dataset.readerMediaState === 'pending'),
+  };
+  const h = harness({ lifecycle: true, mediaKind: 'image', openingStage, search: '?media=first&page=2&view=page' });
+  h.commitFocusedPage(true);
+  h.inspectOpeningFrame();
+  assert.equal(withProp(h.commitFocusedPage(true), 'data-project-opening').props['data-project-opening'], undefined,
+    'Already painted deep-linked content releases the opening loader');
+
+  media = [openingMedia(undefined, -400), openingMedia('pending')];
+  assert.equal(withProp(h.commitFocusedPage(true, { projectId: 'another-project' }), 'data-project-opening').props['data-project-opening'], true);
+  h.inspectOpeningFrame();
+  assert.equal(withProp(h.commitFocusedPage(true), 'data-project-opening').props['data-project-opening'], true,
+    'A previously painted page outside the viewport cannot reveal a pending focused page');
+
+  media = [openingMedia('error'), openingMedia('pending', 400)];
+  h.inspectOpeningFrame();
+  assert.equal(withProp(h.commitFocusedPage(true), 'data-project-opening').props['data-project-opening'], undefined,
+    'A visible retry must remain reachable even while later pages are still pending');
+});
+
+test('MOBILE continuous reading follows stored order across PDF covers, appendix images and additional PDFs', () => {
+  const h = harness({ mediaKind: 'image' });
+  const [cover, pdf] = mixedCoverPdf(h.attachments);
+  const appendix = { ...cover, id: 'appendix', isCover: false, order: 2 };
+  const supplementary = { ...pdf, id: 'supplementary', order: 3 };
+  const tree = h.render({ attachments: [supplementary, { ...cover, isCover: false, order: 1 }, { ...pdf, isCover: true, order: 0 }, appendix] });
+  assert.deepEqual(readingParts(tree).map(part => part.renderer.attachment.id), [pdf.id, cover.id, appendix.id, supplementary.id]);
   assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
-  const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
-  assert.equal(renderer.props.attachment.id, 'second');
-  assert.equal(renderer.props.verticalReading, true);
-  assert.equal(renderer.props.manageReadingScroll, true, 'The document still restores the exact linked PDF page');
+});
+
+test('WEB platform and shared readers place images and PDF pages in one grid while retaining attachment order', () => {
+  for (const readOnlyShare of [false, true]) {
+    const h = harness({ lifecycle: true, mobile: false, mediaKind: 'image', readOnlyShare });
+    const [cover, pdf] = mixedCoverPdf(h.attachments);
+    const attachments = [{ ...pdf, order: 1 }, { ...cover, order: 0 }, { ...pdf, id: 'report-two', order: 2 }];
+    const stacked = h.commitFocusedPage(false, { attachments, pagesPerRow: 1 });
+    assert.equal(withProp(stacked, 'data-project-stage').props['data-web-ordered-page-grid'], undefined);
+    const tree = h.commitFocusedPage(false, { attachments, pagesPerRow: 4 });
+    const parts = readingParts(tree);
+    assert.deepEqual(parts.map(({ renderer }) => renderer.attachment.id), ['first', 'second', 'report-two']);
+    assert.deepEqual(parts.map(({ renderer }) => renderer.imageColumns), [1, 1, 1]);
+    assert.equal(withProp(tree, 'data-project-stage').props['data-web-ordered-page-grid'], '');
+    assert.equal(withProp(tree, 'data-project-stage').props.style['--ordered-page-columns'], 4);
+    assert.ok(parts.every(({ renderer }) => renderer.manageReadingScroll === false));
+    assert.ok(withProp(tree, 'data-web-ordered-reading'));
+    assert.ok(withProp(tree, 'data-project-response-rail'));
+    assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
+    assert.equal(nodes(tree).some(node => node.type === MobileProjectPageCounter), false);
+    assert.equal(nodes(withProp(tree, 'data-project-work-column')).filter(node => node.type === DesktopProjectPageCounter).length, 1);
+    assert.equal(h.readingScroll.at(-1)[5], true);
+    const focused = h.commitFocusedPage(true);
+    assert.equal(readingParts(focused)[0].hidden, true);
+    assert.equal(withProp(focused, 'data-project-stage').props['data-web-ordered-page-grid'], undefined);
+    assert.equal(readingParts(h.commitFocusedPage(false))[0].hidden, false);
+  }
+});
+
+test('explicit page links and non-document media keep file switching on MOBILE and WEB', () => {
+  for (const mobile of [true, false]) {
+    for (const [search, otherKind, active] of [
+      ['?media=second&page=1&view=page', 'image', 'second'],
+      ['', 'video', 'first'],
+    ]) {
+      const h = harness({ mobile, search, mediaKind: 'image' });
+      const [cover, pdf] = mixedCoverPdf(h.attachments);
+      const tree = h.render({ attachments: [{ ...cover, kind: otherKind }, pdf] });
+      assert.equal(readingParts(tree).length, 0);
+      assert.ok(withProp(tree, 'data-project-file-strip'));
+      const renderer = nodes(tree).find(node => node.type === AttachmentRenderer);
+      assert.equal(renderer.props.attachment.id, active);
+      assert.equal(renderer.props.verticalReading, false);
+    }
+    for (const [id, page] of [['first', 1], ['second', 2]]) {
+      const linked = harness({ mobile, mediaKind: 'image', search: `?media=${id}&page=${page}` });
+      const tree = linked.render({ attachments: mixedCoverPdf(linked.attachments) });
+      assert.deepEqual(readingParts(tree).map(part => part.renderer.attachment.id), ['first', 'second']);
+      assert.equal(withProp(tree, 'data-project-file-strip'), undefined);
+      assert.deepEqual(linked.readingScroll.at(-1).slice(3), [page, id, !mobile]);
+    }
+  }
+});
+
+test('the mobile project switcher keeps both file choices compact and updates the active media', () => {
+  const videoName = 'AC8FE756-0043-4BA1-9DAD-30240645F713.mov';
+  const imageName = '8536649A-B758-47D2-9F9F-87995A39B562.png';
+  const attachments = [
+    { id: 'clip', kind: 'video', displayName: videoName, typeLabel: 'Video', order: 0 },
+    { id: 'artwork', kind: 'image', displayName: imageName, typeLabel: 'Image', order: 1 },
+  ];
+  for (const mobile of [true, false]) for (const readOnlyShare of [true, false]) {
+    const h = harness({ lifecycle: true, mobile, readOnlyShare });
+    const readSwitcher = tree => {
+      const strip = withProp(tree, 'data-project-file-strip');
+      assert.ok(strip);
+      assert.equal(strip.props['aria-label'], 'Work files');
+      return nodes(strip).filter(node => node.type === 'button').map(choice => ({
+        choice,
+        current: choice.props['aria-current'],
+        shape: choice.props['data-ui-shape'],
+        accessibleName: choice.props['aria-label'],
+        label: nodes(choice).find(node => node.type === 'span').props.children,
+      }));
+    };
+    let tree = h.commitFocusedPage(null, { attachments });
+    let files = readSwitcher(tree);
+    assert.deepEqual(files.map(file => file.shape), Array(2).fill(mobile ? 'capsule' : undefined));
+    assert.deepEqual(files.map(file => file.label), mobile ? ['Video', 'Image'] : [videoName, imageName]);
+    assert.deepEqual(files.map(file => file.accessibleName), mobile
+      ? [`Video, ${videoName}`, `Image, ${imageName}`]
+      : [`${videoName}, Video`, `${imageName}, Image`]);
+    assert.deepEqual(files.map(file => file.current), ['true', undefined]);
+    files[1].choice.props.onClick();
+    tree = h.commitFocusedPage(null);
+    files = readSwitcher(tree);
+    assert.deepEqual(files.map(file => file.current), [undefined, 'true']);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment.id, 'artwork');
+    assert.equal(h.memoryWrites.at(-1)[1], 'artwork');
+    files[0].choice.props.onClick();
+    tree = h.commitFocusedPage(null);
+    assert.deepEqual(readSwitcher(tree).map(file => file.current), ['true', undefined]);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment.id, 'clip');
+  }
+});
+
+test('the mobile project switcher preserves named files and distinguishes multiple unnamed files of the same type', () => {
+  const h = harness({ mobile: true });
+  const attachments = [
+    { id: 'clip-1', kind: 'video', displayName: 'AC8FE756-0043-4BA1-9DAD-30240645F713.mov', typeLabel: 'Video', order: 0 },
+    { id: 'clip-2', kind: 'video', displayName: '626C652E-544B-42CF-8B48-4217A3EDB14D.mp4', typeLabel: 'Video', order: 1 },
+    { id: 'artwork', kind: 'image', displayName: 'Storyboard.jpg', typeLabel: 'Image', order: 2 },
+  ];
+  const strip = withProp(h.render({ attachments }), 'data-project-file-strip');
+  assert.ok(strip);
+  const choices = nodes(strip).filter(node => node.type === 'button');
+  assert.deepEqual(choices.map(choice => nodes(choice).find(node => node.type === 'span').props.children), ['Video 1', 'Video 2', 'Storyboard.jpg']);
+  assert.deepEqual(choices.map(choice => choice.props['aria-label']), [
+    `Video 1, ${attachments[0].displayName}`, `Video 2, ${attachments[1].displayName}`, 'Storyboard.jpg, Image',
+  ]);
 });
 
 test('WEB focus lifecycle retains its existing rail without MOBILE controls', () => {
@@ -527,22 +729,12 @@ test('mobile engagement failures keep the recovery popup accessible', () => {
   assert.ok(nodes(tree).some(node => node.type === EngagementFeedback));
 });
 
-test('mobile verification retains its immediate sheet dismissal instead of opting into comments motion', () => {
-  const h = harness({ readOnlyShare: true });
-  button(h.render(), 'Show AI verification services').props.onClick();
-  const tree = h.render(), sheet = nodes(tree).find(node => node.type === MediaCommentsPopover);
-  assert.equal(sheet.props.label, 'AI verification'); assert.equal(sheet.props.mobileMotion, false);
-  button(tree, 'Close project popup').props.onClick();
-  assert.equal(nodes(h.render()).some(node => node.type === MediaCommentsPopover), false);
-});
-
 test('the mobile action opens project information without changing WEB rail preferences', () => {
   for (const readOnlyShare of [false,true]) {
     const h=harness({readOnlyShare});
     const props={onRailOpenChange:()=>assert.fail('Information must not resize the WEB rail')};
     const opening = h.render(props);
-    if (readOnlyShare) h.screenActions.at(-1).onOpen();
-    else button(opening,'Show project engagement').props.onClick();
+    button(opening, readOnlyShare ? 'Show project information' : 'Show project engagement').props.onClick();
     const tree=h.render(props),sheet=nodes(tree).find(node=>node.type===FollowContentInfoPopup);
     assert.equal(sheet.props.projectId,'project');
     assert.equal(sheet.props.showEngagement,!readOnlyShare);
@@ -594,10 +786,11 @@ test('empty mobile projects keep their project-list access; WEB keeps its existi
 test('shared readers hide project and media engagement for signed-in and guest visitors on MOBILE and WEB', () => {
   for (const mobile of [true, false]) for (const signedIn of [true, false]) for (const mediaKind of ['document', 'image', 'video']) {
     const h = harness({ mobile, signedIn, mediaKind, readOnlyShare: true });
-    const props = { isRailOpen: true, isOwner: true, descriptionEditor: { open() { assert.fail('Public readers cannot edit'); } },
+    const props = { attachments: [h.attachments[0]], isRailOpen: true, isOwner: true, descriptionEditor: { open() { assert.fail('Public readers cannot edit'); } },
       onDeleteProject() { assert.fail('Public readers cannot delete'); } };
     let tree = h.render(props);
     const media = nodes(tree).find(node => node.type === AttachmentRenderer);
+    assertNoAiVerification(tree);
     assert.equal(media.props.showMediaInteractions, false, `${mobile ? 'MOBILE' : 'WEB'} ${mediaKind} hides per-media engagement`);
     assert.equal(media.props.isOwner, false);
     assert.equal(media.props.memoryScope, 'shared');
@@ -659,25 +852,33 @@ test('shared MOBILE information remains readable and dismissible without engagem
   }
 });
 
-test('shared WEB retains project information and verification with its engagement controls removed', () => {
+test('shared WEB opens and closes the creator’s project details for signed-in and guest visitors', () => {
   for (const signedIn of [true, false]) {
     const h = harness({ mobile: false, signedIn, readOnlyShare: true });
-    let tree = h.render({ isRailOpen: true });
-    button(tree, 'Show project information').props.onClick();
-    tree = h.render({ isRailOpen: true });
-    assert.equal(button(tree, 'Show project information').props['aria-pressed'], true);
-    button(tree, 'Show AI verification services').props.onClick();
-    tree = h.render({ isRailOpen: true });
-    assert.equal(button(tree, 'Show AI verification services').props['aria-pressed'], true);
+    const info = { projectTitle: 'Paper Pens', projectSummary: 'Folded from one sheet of paper.' };
+    let tree = h.render(info);
+    button(tree, 'Show project details').props.onClick();
+    tree = h.render(info);
+    const details = withProp(tree, 'data-project-response-rail');
+    assert.match(details.props['aria-label'], /Paper Pens/);
+    assert.doesNotMatch(details.props['aria-label'], /verification/i);
+    assert.ok(nodes(details).some(node => node.type === 'h3' && node.props.children === info.projectTitle));
+    assert.ok(nodes(details).some(node => node.props.text === info.projectSummary));
+    assertNoAiVerification(tree);
     assert.equal(nodes(tree).some(node => node.type === EngagementBar || node.type === CommentThreadView), false);
-    assert.ok(button(tree, 'Hide project details'));
+    button(tree, 'Hide project details').props.onClick();
+    const collapsed = h.render(info);
+    assert.ok(button(collapsed, 'Show project details'));
+    assert.equal(nodes(collapsed).some(node => node.props.text === info.projectSummary), false);
   }
 });
 
 test('ordinary readers retain project engagement, information actions and media interactions', () => {
   for (const mobile of [true, false]) for (const mediaKind of ['document', 'image', 'video']) {
     const h = harness({ mobile, mediaKind });
-    let tree = h.render({ isRailOpen: true });
+    const props = { attachments: [h.attachments[0]], isRailOpen: true };
+    let tree = h.render(props);
+    assertNoAiVerification(tree);
     assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.showMediaInteractions, true);
     assert.ok(nodes(tree).some(node => node.type === EngagementBar));
     assert.ok(h.serviceIds.every(id => id === 'project'));
@@ -688,11 +889,11 @@ test('ordinary readers retain project engagement, information actions and media 
       if (mediaKind === 'document') {
         const counter = nodes(tree).find(node => node.type === MobileProjectPageCounter);
         counter.props.onPositionChange({ scope: counter.props.scope, current: 2, total: 4, ready: true });
-        tree = h.render({ isRailOpen: true });
+        tree = h.render(props);
         assert.ok(nodes(tree).some(node => node.type === 'media-interaction-bar'), 'Ordinary document pages retain their interaction bar');
       }
       h.screenActions.at(-1).onOpen();
-      const info = nodes(h.render({ isRailOpen: true })).find(node => node.type === FollowContentInfoPopup);
+      const info = nodes(h.render(props)).find(node => node.type === FollowContentInfoPopup);
       assert.equal(info.props.showEngagement, true);
       assert.equal(typeof info.props.onComments, 'function');
     }
@@ -767,6 +968,7 @@ test('mobile page previews use image order, available rendered pages, or the loa
   const preview = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
   assert.deepEqual(Array.from(preview(images.render()).props.previewSources), ['image-1', 'image-2']);
   const documents = harness({ mediaKind: 'document' });
+  documents.attachments.splice(1);
   documents.attachments[0].metadata = { renderedPages: [{ sourceUrl: 'page-1' }, {}, { sourceUrl: 'page-2' }] };
   assert.deepEqual(Array.from(preview(documents.render()).props.previewSources), ['page-1', 'page-2']);
   const pdf = { numPages: 30 };
@@ -780,6 +982,7 @@ test('mobile page previews use image order, available rendered pages, or the loa
 test('segmented document progress is enabled only for platform mobile readers', () => {
   const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
   const platform = harness({ mediaKind: 'document' });
+  platform.attachments.splice(1);
   const platformCounter = counter(platform.render());
   assert.equal(platformCounter.props.readingMode, true);
   assert.equal(platformCounter.props.segmentedProgress, true);
@@ -796,7 +999,7 @@ test('mobile density changes document and image columns immediately without wait
   for (const mediaKind of ['document', 'image']) {
     const h = harness({ mediaKind }), drafts = [], commits = [];
     const props = { pagesPerRow: 7, onPagesPerRowChange: value => drafts.push(value), onPagesPerRowCommit: value => commits.push(value) };
-    const media = tree => nodes(tree).find(node => node.type === AttachmentRenderer);
+    const media = tree => nodes(tree).find(node => node.type === AttachmentRenderer) ?? { props: readingParts(tree)[0].renderer };
     const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
     let tree = h.render(props);
     assert.equal(media(tree).props.imageColumns, 1, 'each newly opened mobile project starts at full width');
@@ -826,6 +1029,7 @@ test('mobile density changes document and image columns immediately without wait
 
 test('mobile density is scoped to the open project and attachment and member changes stay local', () => {
   const h = harness({ mediaKind: 'document' }), drafts = [];
+  h.attachments.push({ id: 'audio', kind: 'audio', displayName: 'Audio' });
   const props = { pagesPerRow: 5, onPagesPerRowChange: value => drafts.push(value) };
   const media = tree => nodes(tree).find(node => node.type === AttachmentRenderer);
   const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
@@ -855,14 +1059,23 @@ test('public readers retain a density slider; WEB, non-page media and callback-f
   for (const mediaKind of ['image', 'document']) {
     const shared = harness({ mediaKind, readOnlyShare: true }).render(callbacks);
     assert.equal(nodes(shared).find(node => node.type === MobileProjectPageCounter).props.density.value, 1);
-    assert.equal(nodes(shared).find(node => node.type === AttachmentRenderer).props.imageColumns, 1);
+    assert.equal((nodes(shared).find(node => node.type === AttachmentRenderer)?.props ?? readingParts(shared)[0].renderer).imageColumns, 1);
     const web = harness({ mobile: false, mediaKind }).render(callbacks);
     assert.equal(nodes(web).some(node => node.type === MobileProjectPageCounter), false);
-    assert.equal(nodes(web).find(node => node.type === AttachmentRenderer).props.imageColumns, 7);
+    const webRenderers = readingParts(web).map(({ renderer }) => renderer);
+    if (!webRenderers.length) webRenderers.push(nodes(web).find(node => node.type === AttachmentRenderer).props);
+    if (mediaKind === 'document') {
+      assert.equal(withProp(web, 'data-project-stage').props.style['--ordered-page-columns'], 7);
+      assert.ok(webRenderers.every(renderer => renderer.imageColumns === 1), 'The shared packing surface owns desktop PDF columns');
+    } else {
+      assert.ok(webRenderers.every(renderer => renderer.imageColumns === 7));
+    }
   }
   for (const mediaKind of ['video', 'audio', 'model3d']) {
     const tree = harness({ mediaKind }).render(callbacks);
     assert.equal(nodes(tree).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
+    const web = harness({ mediaKind, mobile: false }).render(callbacks);
+    assert.equal(nodes(web).some(node => node.type === DesktopProjectPageCounter), false);
   }
   const noCallbacks = harness({ mediaKind: 'document' }).render();
   assert.equal(nodes(noCallbacks).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
@@ -871,7 +1084,21 @@ test('public readers retain a density slider; WEB, non-page media and callback-f
   assert.equal(nodes(single.render(callbacks)).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
 });
 
-test('project workspace combines only resolved mobile projects and uses the existing Back callback', () => {
+test('desktop density sizes standalone media without narrowing a multi-page image grid', () => {
+  for (const mediaKind of ['image', 'document', 'video', 'audio', 'model3d', 'unknown']) {
+    const h = harness({ mobile: false, mediaKind });
+    h.attachments.splice(1);
+    let tree = h.render({ pageCount: 1, pagesPerRow: 1 });
+    assert.equal(withProp(tree, 'data-desktop-media-preview').props.style.width, undefined);
+    tree = h.render({ pageCount: 1, pagesPerRow: 2, desktopMediaColumns: 2 });
+    assert.match(withProp(tree, 'data-desktop-media-preview').props.style.width, /50%/);
+  }
+  const grid = harness({ mobile: false, mediaKind: 'image' }).render({ pagesPerRow: 2, desktopMediaColumns: 2 });
+  assert.equal(withProp(grid, 'data-desktop-media-preview').props.style.width, undefined);
+  assert.equal(nodes(grid).find(node => node.type === AttachmentRenderer).props.imageColumns, 2);
+});
+
+test('project workspace handles mobile projects, nested Portals and Back', async t => {
   const compile = (path, require) => {
     const exports = {};
     vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
@@ -883,6 +1110,8 @@ test('project workspace combines only resolved mobile projects and uses the exis
     return exports;
   };
   const geometry = compile('../src/utils/projectPanelLayout.ts', () => ({}));
+  const hierarchy = compile('../src/features/profile/portalHierarchy.ts', () => ({}));
+  const addChoices = 'add-portal-choices', desktopAddMenu = 'desktop-add-menu', subPortalEditor = 'sub-portal-editor', childList = 'child-portals';
   const { MobilePortalProjectToolbar } = compile('../src/components/profile/MobilePortalProjectToolbar.tsx', name => {
     if (name === 'react') return React;
     if (name.endsWith('/pageLayout')) return { MIN_PAGES_PER_ROW: 1, MAX_PAGES_PER_ROW: 6 };
@@ -900,18 +1129,26 @@ test('project workspace combines only resolved mobile projects and uses the exis
   const IndexPortal = () => null;
   const PageDensity = () => null;
   let arrangementRead = {}, typographyRead = {};
+  const reorderWrites = [];
   const react = { ...React, useState(initial) {
       const i = cursor++;
       if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
       return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }];
     },
-    useMemo: fn => fn(), useCallback: fn => fn, useRef: current => ({ current }),
+    useId: () => 'portal-add-menu-test', useMemo: fn => fn(), useCallback: fn => fn, useRef: current => ({ current }),
     useEffect(fn, deps) {
       const i = effectCursor++;
       if (!effects[i] || deps.some((value, j) => !Object.is(value, effects[i][j]))) pendingEffects.push(fn);
       effects[i] = deps;
     } };
   const { ProfileCategoryPage } = compile('../src/components/profile/ProfileCategoryPage.tsx', name => {
+    if (name.endsWith('/projectPortals')) return compile('../src/features/projects/projectPortals.ts', () => ({}));
+    if (name.endsWith('/portalHierarchy')) return hierarchy;
+    if (name.endsWith('/MobileActionSheet')) return { MobileActionSheet: addChoices };
+    if (name.endsWith('/ProfileActionsMenu')) return { ProfileActionsMenu: desktopAddMenu };
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/NewCategoryDialog')) return { NewCategoryDialog: subPortalEditor };
+    if (name.endsWith('/PortalChildren')) return { PortalChildren: childList };
     if (name.endsWith('/ExportSheet')) return {ExportSheet:'export-sheet'};
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
@@ -931,17 +1168,24 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/MobilePortalProjectToolbar')) return { MobilePortalProjectToolbar };
     if (name.endsWith('/portalProjectBrowsing')) return portalBrowsing;
     if (name.endsWith('/viewer')) return { canAuthor: role => role === 'owner' };
-    if (name.endsWith('/useProjectArrangement')) return { useProjectArrangement: () => ({ arrange: projects => Object.freeze(projects), pinnedIds: [], hiddenIds: [], isLoading: false, isSaving: false, ...arrangementRead }) };
+    if (name.endsWith('/useProjectArrangement')) return { useProjectArrangement: () => ({
+      arrange(projects) {
+        const order = reorderWrites.at(-1);
+        return Object.freeze(order ? order.map(id => projects.find(project => project.id === id)).filter(Boolean) : projects);
+      },
+      reorder: ids => reorderWrites.push(Array.from(ids)),
+      pinnedIds: [], hiddenIds: [], isLoading: false, isSaving: false, ...arrangementRead,
+    }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ deletion: { projectId: null }, editor: {} }) };
-    if (name.endsWith('/useProjectTypography')) return { useProjectTypography: () => ({ resolveTypefaceId: () => null, resolvePagesPerRow: () => 3, ...typographyRead }) };
+    if (name.endsWith('/useProjectTypography')) return { useProjectTypography: () => ({ resolveTypefaceId: () => null, resolvePagesPerRow: () => undefined, ...typographyRead }) };
     if (name.endsWith('/typefaces')) return { getTypefaceStack: () => 'sans-serif' };
     if (name.endsWith('/projectAttachments')) return { resolveProjectAttachments: project => project.attachments ?? [] };
-    if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value };
+    if (name.endsWith('/pageLayout')) return pageLayout;
     if (name.endsWith('/useAssetProcessing')) return { useAssetProcessing: () => ({ statuses: {} }) };
     if (name.endsWith('/panelLayoutDefaults')) return { panelLayoutDefaults: {} };
     return new Proxy({}, { get: () => () => null });
   });
-  const props = { profile: { id: 'owner', name: 'Viewed creator', avatar: 'viewed-creator-avatar.jpg', projects: Object.freeze([
+  const props = { profile: { id: 'owner', name: 'Viewed creator', avatar: 'viewed-creator-avatar.jpg', categories: [{ id: 'portal' }], projects: Object.freeze([
       { id: 'work', categoryId: 'portal', title: 'Alpha', summary: 'Earlier project', publishedAt: '2026-09-10T12:00:00Z', pageCount: 2,
         attachments: [{ id: 'work-image', kind: 'image' }, { id: 'work-video', kind: 'video' }] },
       { id: 'second', categoryId: 'portal', title: 'Zulu', summary: 'Needle in the newer project', publishedAt: '2026-09-14T12:00:00Z', pageCount: 2,
@@ -1010,15 +1254,18 @@ test('project workspace combines only resolved mobile projects and uses the exis
   const index = () => nodes(currentList()).find(node => node.type === Index).props;
   const toolbarProps = () => nodes(currentList()).find(node => node.type === MobilePortalProjectToolbar).props;
   assert.deepEqual(Array.from(index().projects, project => project.id), ['second', 'work']);
-  assert.equal(index().mobileReorderDisabled, true, 'Recent sorting must not overwrite saved order');
+  assert.equal(index().isOwner, false, 'Visitors receive a read-only project list');
+  index().onReorder([...index().projects].reverse());
+  assert.deepEqual(reorderWrites, [], 'Visitors cannot write a project arrangement');
+  tree = render(props);
+  assert.equal(toolbarProps().sort, 'recent');
   assert.equal(button(toolbar(projectList), 'Add a new project to Portal'), undefined, 'Visitors never receive authoring controls');
   assert.equal(nodes(toolbar(projectList)).some(node => node.props.type === 'range'), false);
   toolbarProps().onSort('title'); tree = render(props);
   assert.deepEqual(Array.from(index().projects, project => project.id), ['work', 'second']);
-  assert.equal(index().mobileReorderDisabled, true);
+  assert.equal(index().isOwner, false);
   toolbarProps().onSort('saved'); tree = render(props);
   assert.deepEqual(Array.from(index().projects, project => project.id), ['work', 'second']);
-  assert.equal(index().mobileReorderDisabled, false);
   assert.equal(nodes(toolbar(currentList())).find(node => node.props.type === 'search'), undefined);
   toolbarProps().onLayout('grid'); tree = render(props);
   assert.equal(index().mobileLayout, 'grid');
@@ -1056,7 +1303,60 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(selections.length, beforeOpeningPortal, 'Opening a MOBILE portal must wait for a project choice');
   assert.ok(nodes(tree).find(node => node.type === IndexPortal));
   assert.equal(nodes(tree).find(node => node.type === Viewer), undefined);
-  assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), ['work', 'second']);
+  assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), ['second', 'work'], 'Reopening as a visitor starts in Recent order');
+  const child = { id: 'child', parentId: 'portal', label: 'Child', iconName: 'camera' };
+  const creations = [], openedChildren = [];
+  const portalProps = { ...props, activeProjectId: null, viewerRole: 'owner',
+    profile: { ...props.profile, categories: [...props.profile.categories, child] },
+    onCreateProject: () => creations.push('project'),
+    onSelectSubPortal: id => openedChildren.push(id),
+    categoryManagement: { dismissFailure() {}, async createCategory(...args) { creations.push(args); return child; } },
+  };
+  render(portalProps);
+  tree = render(portalProps);
+  const portalIndex = () => nodes(tree).find(node => node.type === Index).props;
+  const portalToolbar = () => nodes(tree).find(node => node.type === MobilePortalProjectToolbar).props;
+  assert.deepEqual(Array.from(portalIndex().projects, project => project.id), ['work', 'second'], 'Owners open the popup in Saved order');
+  for (const [sort, before, after] of [
+    ['recent', ['second', 'work'], ['work', 'second']],
+    ['title', ['work', 'second'], ['second', 'work']],
+  ]) {
+    portalToolbar().onSort(sort);
+    tree = render(portalProps);
+    assert.equal(portalToolbar().sort, sort);
+    assert.equal(portalIndex().mobileReorderDisabled, false);
+    assert.deepEqual(Array.from(portalIndex().projects, project => project.id), before);
+    portalIndex().onReorder([...portalIndex().projects].reverse());
+    tree = render(portalProps);
+    assert.deepEqual(reorderWrites.at(-1), after);
+    assert.equal(portalToolbar().sort, 'saved');
+    assert.deepEqual(Array.from(portalIndex().projects, project => project.id), after);
+  }
+  assert.equal(reorderWrites.length, 2);
+  tree = render({ ...portalProps, sharedReadOnly: true });
+  assert.equal(portalIndex().mobileReorderDisabled, true);
+  portalIndex().onReorder([...portalIndex().projects].reverse());
+  assert.equal(reorderWrites.length, 2, 'A shared Portal prevents reordering even if the viewer owns its projects');
+  reorderWrites.length = 0;
+  render(portalProps);
+  tree = render(portalProps);
+  nodes(tree).find(node => node.type === childList).props.onSelect(child.id);
+  assert.deepEqual(openedChildren, [child.id]);
+  button(toolbar(tree), 'Add to Portal').props.onClick();
+  let chooser = nodes(render(portalProps)).find(node => node.type === addChoices);
+  assert.deepEqual(Array.from(chooser.props.model.groups[0], action => action.label), ['New project', 'New sub-portal']);
+  chooser.props.onAction(chooser.props.model.groups[0][0]);
+  assert.deepEqual(creations, ['project']);
+  assert.equal(nodes(render(portalProps)).some(node => node.type === addChoices), false);
+  button(toolbar(render(portalProps)), 'Add to Portal').props.onClick();
+  chooser = nodes(render(portalProps)).find(node => node.type === addChoices);
+  chooser.props.onAction(chooser.props.model.groups[0][1]);
+  const editor = nodes(render(portalProps)).find(node => node.type === subPortalEditor);
+  assert.equal(editor.props.itemName, 'sub-portal');
+  await editor.props.onCreate('Drafts', 'shapes');
+  assert.deepEqual(creations, ['project', ['Drafts', 'shapes', 'portal']]);
+  assert.equal(nodes(render(portalProps)).some(node => node.type === subPortalEditor), false);
+  assert.equal(button(toolbar(render({ ...portalProps, viewerRole: 'visitor' })), 'Add to Portal'), undefined);
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
     for (const sharedReadOnly of [false, true]) {
       tree = render({ ...props, activeProjectId: null, viewerRole, sharedReadOnly,
@@ -1129,7 +1429,6 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(toolbar(tree), undefined, 'WEB keeps its existing toolbar');
   const webIndex = nodes(tree).find(node => node.type === Index).props;
   assert.deepEqual(Array.from(webIndex.projects, project => project.id), ['work', 'second']);
-  assert.equal(webIndex.mobileReorderFromMenu, false);
   assert.equal(webIndex.mobileReorderDisabled, false);
   const webProps = { ...props, isIndexCollapsed: false };
   const slider = () => nodes(tree).find(node => node.type === PageDensity);
@@ -1151,10 +1450,15 @@ test('project workspace combines only resolved mobile projects and uses the exis
   tree = render({ ...webProps, sharedReadOnly: true });
   assert.equal(slider(), undefined, 'The public reader owns its own slider');
   typographyRead = {};
-  tree = render({ ...webProps, profile: { ...props.profile, projects: [
+  const singlePageProps = { ...webProps, profile: { ...props.profile, projects: [
     { ...props.profile.projects[0], pageCount: 1 }, props.profile.projects[1],
-  ] } });
-  assert.equal(slider(), undefined, 'Single-page work has no row density control');
+  ] } };
+  tree = render(singlePageProps);
+  tree = render(singlePageProps);
+  assert.equal(slider().props.value, 1, 'Single-page work starts at full width');
+  slider().props.onChange(2);
+  tree = render(singlePageProps);
+  assert.equal(viewer().props.desktopMediaColumns, 2);
 
   currentRoute = { kind: 'category', profileId: 'owner', categoryId: 'portal' };
   tree = render({ ...props, activeProjectId: null, isIndexCollapsed: false });
@@ -1196,6 +1500,46 @@ test('project workspace combines only resolved mobile projects and uses the exis
     assert.equal(nodes(tree).find(node => node.props.type === 'search').props.value, query);
     assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), expected);
   }
+
+  await t.test('desktop Add opens an anchored menu with the permitted portal actions', async () => {
+    const owner = { ...portalProps, activeProjectId: 'work', isIndexCollapsed: false };
+    const addButton = tree => button(tree, 'Add to Portal');
+    const addMenu = tree => nodes(tree).find(node => node.type === desktopAddMenu);
+    const previousCount = creations.length;
+    const openMenu = () => {
+      const trigger = addButton(render(owner));
+      assert.equal(trigger.props['aria-haspopup'], 'menu');
+      assert.equal(trigger.props['aria-expanded'], false);
+      trigger.props.onClick();
+      const opened = render(owner);
+      const menu = addMenu(opened);
+      assert.ok(menu);
+      assert.equal(addButton(opened).props['aria-controls'], menu.props.id);
+      assert.equal(addButton(opened).props['aria-expanded'], true);
+      assert.equal(addButton(opened).ref, menu.props.triggerRef);
+      assert.equal(nodes(opened).some(node => node.type === addChoices), false);
+      return menu;
+    };
+    openMenu();
+    addButton(render(owner)).props.onClick();
+    assert.equal(addMenu(render(owner)), undefined);
+    const menu = openMenu();
+    const choices = menu.props.model.groups[0];
+    assert.deepEqual(Array.from(choices, action => action.label), ['New project', 'New sub-portal']);
+    menu.props.onAction(choices[0]);
+    assert.equal(addMenu(render(owner)), undefined);
+    const reopened = openMenu();
+    reopened.props.onAction(reopened.props.model.groups[0][1]);
+    const editing = render(owner);
+    assert.equal(addMenu(editing), undefined);
+    await nodes(editing).find(node => node.type === subPortalEditor).props.onCreate('Print', 'shapes');
+    assert.deepEqual(creations.slice(previousCount), ['project', ['Print', 'shapes', 'portal']]);
+    assert.equal(addButton(render({ ...owner, viewerRole: 'visitor' })), undefined);
+    const direct = button(render({ ...owner, categoryManagement: undefined }), 'Add a new project to Portal');
+    assert.equal(direct.props['aria-haspopup'], undefined);
+    direct.props.onClick();
+    assert.equal(creations.at(-1), 'project');
+  });
 });
 
 test('direct public-project Back remains public; existing browser history takes priority', () => {
@@ -1204,7 +1548,7 @@ test('direct public-project Back remains public; existing browser history takes 
   for (const idx of [0, 2]) {
     const calls = [];
     const back = vm.runInNewContext(`(${fn})`, { window: { history: { state: { idx } } },
-      isSharedRoute: true, viewedProfileId: 'creator', isOwnerMode: false,
+      isSharedRoute: true, viewedProfileId: 'creator', isOwnerMode: false, activeCategory: null,
       nav: { back: () => calls.push('back'), to: (...args) => calls.push(args) },
       buildPath: (kind, values) => `${kind}/${values?.profileId ?? ''}` });
     back();
@@ -1220,7 +1564,7 @@ test('Back to portals targets the viewed creator collection rather than previous
     [false, true, 'portals/'], [false, false, 'profile/creator?view=portals'], [true, false, 'sharedProfile/creator'],
   ]) {
     const calls = [];
-    const go = vm.runInNewContext(`(${fn})`, { presentation: 'mobile', activeCategoryId: 'art', returnToMobilePortalCollection: () => false,
+    const go = vm.runInNewContext(`(${fn})`, { presentation: 'mobile', activeCategoryId: 'art', activeCategory: null, returnToMobilePortalCollection: () => false,
       isSharedRoute, isOwnerMode, viewedProfileId: 'creator',
       nav: { to: (...args) => calls.push(args), back: () => assert.fail('Must not revisit a project') },
       buildPath: (kind, values) => `${kind}/${values?.profileId ?? ''}` });
@@ -1265,6 +1609,9 @@ test('mobile content bar retains portal, information and creator navigation for 
     assert.equal(controls[0].props['aria-label'], 'Open portal');
     assert.equal(controls.length, 3);
     assert.equal(controls[1].props['aria-label'], readOnlyShare ? 'Show project information' : 'Show project engagement');
+    assert.equal(controls[1].props.children.props.className, 'reader-info-glyph');
+    assert.equal(controls[1].props.children.props.children, 'i');
+    assert.equal(controls[1].props.children.props['aria-hidden'], 'true');
     assert.equal(controls[2].props['aria-label'], 'View Creator profile');
     controls[0].props.onClick();
     assert.equal(withProp(h.render(), 'data-mobile-combined-rail').props['data-mobile-combined-rail'], '');

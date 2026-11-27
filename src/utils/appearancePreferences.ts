@@ -152,6 +152,7 @@ export function writeReduceTranslucency(enabled: boolean): void {
 export type InterfaceAppearance = {
   mode: StoredAppearanceMode;
   accentColor: string;
+  publicAccentColor?: string;
   systemGray: string;
   highContrast: boolean;
   reduceTranslucency: boolean;
@@ -167,7 +168,9 @@ export function interfaceAppearanceKey(presentation: Presentation, scope: Appear
 export function readInterfaceAppearance(presentation: Presentation, scope: AppearanceScope = 'platform'): InterfaceAppearance {
   const fallback: InterfaceAppearance = scope === 'public' && presentation === 'mobile' ? {
     ...readInterfaceAppearance(presentation),
-    // Public mobile starts translucent until the visitor makes their own choice.
+    publicAccentColor: undefined,
+    // Public mobile starts with standard contrast and translucency.
+    highContrast: false,
     reduceTranslucency: false,
   } : {
     mode: readDeviceAppearanceMode(),
@@ -182,6 +185,7 @@ export function readInterfaceAppearance(presentation: Presentation, scope: Appea
     return {
       mode: ['light', 'dark', 'auto'].includes(value.mode) ? value.mode : fallback.mode,
       accentColor: typeof value.accentColor === 'string' && /^#[\da-f]{6}$/i.test(value.accentColor) ? value.accentColor : fallback.accentColor,
+      publicAccentColor: typeof value.publicAccentColor === 'string' && /^#[\da-f]{6}$/i.test(value.publicAccentColor) ? value.publicAccentColor : undefined,
       systemGray: typeof value.systemGray === 'string' && /^gray(?:[2-6])?$/.test(value.systemGray) ? value.systemGray : fallback.systemGray,
       highContrast: typeof value.highContrast === 'boolean' ? value.highContrast : fallback.highContrast,
       reduceTranslucency: typeof value.reduceTranslucency === 'boolean' ? value.reduceTranslucency : fallback.reduceTranslucency,

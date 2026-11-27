@@ -15,6 +15,7 @@ function compile(path, require) {
 }
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
 const layoutDefaults = compile('../src/utils/panelLayoutDefaults.ts', () => ({}));
+const portalHierarchy = compile('../src/features/profile/portalHierarchy.ts', () => ({}));
 
 // Render the real component and exercise its handlers without creating users,
 // changing live data, or requiring a browser. Only hooks and external UI are stubbed.
@@ -35,6 +36,8 @@ function harness(initialPresentation = 'web') {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/useMobilePortalScrollFade')) return { useMobilePortalScrollFade: () => () => {} };
+    if (name.endsWith('/portalHierarchy')) return portalHierarchy;
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button' };
     if (name === 'react') return react;
     if (name === '../../app/routes') return routes;
@@ -75,7 +78,8 @@ test('public navigation starts expanded at the compact standard width with the c
   assert.equal(toggle(tree).props['aria-label'], 'Collapse navigation');
   assert.equal(home(tree).props.to, '/share/creator');
   assert.ok(nodes(home(tree)).some((node) => node.props?.children === 'Creator Name'));
-  assert.equal(portals(tree).length, 2);
+  assert.deepEqual(portals(tree).map(row => nodes(row).find(node => node.type === 'CatalogueRowName')?.props.name), ['Photography', 'Typography']);
+  assert.doesNotMatch(nodes(tree).find(node => node.props?.id === 'shared-profile-portals').props.className, /\bsidebar-scroll-fade\b/);
 });
 
 test('viewer navigation tokens reach the expanded and collapsed WEB rail only', () => {
@@ -108,7 +112,7 @@ test('collapse keeps all creator portal icons named, clickable and selected with
     assert.equal(rows[index].props['aria-label'], label);
     assert.equal(rows[index].props.title, label);
     assert.ok(nodes(rows[index]).some((node) => node.props?.icon === `portal-icon-${icon}`));
-    assert.ok(!nodes(rows[index]).some((node) => node.props?.children === label));
+    assert.ok(!nodes(rows[index]).some((node) => node.type === 'CatalogueRowName'));
     rows[index].props.onClick();
   }
   assert.deepEqual(h.calls, ['photos', 'type']);
@@ -188,6 +192,9 @@ test('MOBILE restores the creator drawer and preserves WEB collapse preference',
   const drawer = tree.props.children(() => closed++);
   assert.equal(home(drawer), undefined);
   assert.equal(portals(drawer).length, 2);
+  const scroller = nodes(drawer).find(node => node.type === 'nav');
+  assert.match(scroller.props.className, /\bsidebar-scroll-fade\b/);
+  assert.equal(typeof scroller.ref, 'function');
   portals(drawer)[0].props.onClick();
   assert.equal(closed, 1);
   assert.deepEqual(h.calls, ['photos']);
@@ -207,6 +214,21 @@ test('MOBILE public portals switch list/cards without owner tools and retain vis
  assert.ok(nodes(view).some(n=>n.props?.['aria-label']==='Open settings'));
  nodes(view).find(n=>n.props?.['aria-label']==='Show portals as list').props.onClick();
  assert.equal(h.render().props.children(close).props['data-portals-layout'],'list');
+});
+
+test('MOBILE shared Portals puts Settings and Appearance beside the layout control as icon buttons', () => {
+  const h = harness('mobile');
+  const drawer = h.render().props.children(() => h.calls.push('close'));
+  const header = nodes(drawer).find(node => node.type === 'header');
+  const actions = nodes(header).filter(node => node.type === 'button');
+  assert.deepEqual(actions.map(node => node.props['aria-label']), [
+    'Go back', 'Open settings', 'Switch shared Portalink to dark mode', 'Show portals as cards',
+  ]);
+  assert.ok(actions.every(node => node.props.children.type === 'InterfaceIcon'));
+  assert.ok(!nodes(drawer).some(node => node.type === 'footer'));
+  actions[2].props.onClick();
+  actions[1].props.onClick();
+  assert.deepEqual(h.calls, ['dark', 'close', 'settings']);
 });
 
 test('MOBILE forwards portal Back requests to the existing drawer while retaining its grid preference', () => {

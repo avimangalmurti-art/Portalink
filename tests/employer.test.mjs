@@ -53,7 +53,7 @@ test('actual profile writer rejects absent employer columns without fallback wri
  await assert.rejects(exports.service.updateProfile('owner',{portfolioHeadline:'a'.repeat(81)}),/80/);assert.equal(calls.length,3);
 });
 test('pending schema gates contact at rest, pins only own visible work, and atomically replaces the public bundle',()=>{
- const sql=read('supabase/pending/profile_employer.sql');
+ const sql=read('supabase/migrations/202609300006_profile_employer.sql');
  for(const pattern of [/portfolio_headline text/,/contact_email_public boolean not null default false/,/contact_email is not null/,/else null end/,/on delete set null/,/p.profile_id=new.id and not p.is_hidden and not c.is_hidden for share/,/create or replace function public.shared_profile_bundle/,/'allow_pdf_download',coalesce/,/security invoker/])assert.match(sql,pattern);
  assert.doesNotMatch(sql.replace(/^--.*$/gm,''),/auth\.users|add column.*headline.*80/);
 });

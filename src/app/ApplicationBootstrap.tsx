@@ -45,7 +45,7 @@ function readSharedViewerProfileId(): string | null {
 /**
  * Restore the session alongside startup. Returning MOBILE accounts enter as
  * soon as authentication is ready; signed-out visitors see account choices.
- * WEB keeps its existing Home readiness checks without a required intro.
+ * WEB waits for the Home feed and shell without holding either for artwork.
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
@@ -112,21 +112,30 @@ export function ApplicationBootstrap() {
     && !isAuthCallback && !isRecovery && pathname === '/' ? '/' : null);
   const [hasLeftLanding, setHasLeftLanding] = useState(false);
   const [hasPresentedLanding, setHasPresentedLanding] = useState(false);
+  // The installed Home intro starts in the document, independently of auth.
+  const [hasInstalledHomeIntro] = useState(() => Boolean(installedMobile && plainHome
+    && document.documentElement?.hasAttribute('data-installed-home-launch')));
   const [hasStartupCompleted, setHasStartupCompleted] = useState(isSharedView);
-  const [hasSplashCompleted, setHasSplashCompleted] = useState(false);
+  const [hasSplashCompleted, setHasSplashCompleted] = useState(hasInstalledHomeIntro);
+  const [playDesktopIntro] = useState(() => openingPresentation === 'web'
+    && !isSharedView && !isPublicSettings && !isAuthCallback && !oauthFailed && !isRecovery);
+  const desktopIntroPending = playDesktopIntro && !hasSplashCompleted && !isRecovery;
   const completeSplash = useCallback(() => setHasSplashCompleted(true), []);
-  // Restored accounts on either presentation return directly to their work.
-  const returningAccountReady = auth.isAuthenticated && !auth.isInitializing && !resumeBlocked && !hasPresentedLanding;
+  useEffect(() => {
+    if (hasInstalledHomeIntro) document.getElementById('portalink-preboot')?.remove();
+  }, [hasInstalledHomeIntro]);
+  // Restored desktop accounts can prepare their work beneath the whole opening.
+  const returningAccountReady = auth.isAuthenticated && !auth.isInitializing && !resumeBlocked && !hasPresentedLanding && !desktopIntroPending;
   const startupCompleted = hasStartupCompleted || returningAccountReady;
   useEffect(() => {
-    if (!returningAccountReady) return;
+    if (!returningAccountReady || playDesktopIntro) return;
     setHasSplashCompleted(true);
     const video = document.getElementById('portalink-preboot-video') as HTMLVideoElement | null;
     video?.dispatchEvent(new Event('portalink:splash-adopt'));
     video?.pause();
     document.getElementById('portalink-preboot')?.remove();
     window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
-  }, [returningAccountReady]);
+  }, [returningAccountReady, playDesktopIntro]);
   const routeSharedProfileId = sharedProfileIdFromPath(pathname);
   const sessionSharedProfileId = isWelcomeInvite ? null : readSharedViewerProfileId();
   // A newly opened public URL is authoritative, even after visiting another creator.
@@ -134,6 +143,9 @@ export function ApplicationBootstrap() {
   // Account entry also covers direct/legacy URLs and a session that signs out
   // after the initial welcome has completed. No ordinary guest screen exists.
   const holdLanding = Boolean(!isSharedView && !isPublicSettings && !isAuthCallback && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
+  // Session restoration can finish mid-clip. Keep the same splash mounted and
+  // reveal the account screen after desktop playback reports completion.
+  const showAccountEntry = holdLanding && !desktopIntroPending;
   const [homeAttempt, setHomeAttempt] = useState(0);
   const homeScope = useMemo(() => ({ session: auth.session, account: auth.user?.id ?? null, attempt: homeAttempt }), [auth.session, auth.user?.id, homeAttempt]);
   const currentHomeScope = useRef(homeScope);
@@ -160,7 +172,9 @@ export function ApplicationBootstrap() {
     }, HOME_STARTUP_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, [waitingForHome, auth.isInitializing, holdLanding, auth.pendingView, homeScope, homeAttempt]);
-  const showHomeRetry = waitingForHome && homeWaitExpired === homeScope && !holdLanding && !auth.pendingView;
+  const showHomeRetry = waitingForHome && homeWaitExpired === homeScope && !holdLanding && !desktopIntroPending && !auth.pendingView;
+  const desktopLoading = playDesktopIntro && !hasStartupCompleted && !isRecovery && !auth.pendingView
+    && !showHomeRetry && (auth.isInitializing || waitingForHome);
   const retryHome = () => {
     // Replace the reporting identity so a late completion from an older attempt cannot win.
     setHomeReadiness(null);
@@ -178,8 +192,8 @@ export function ApplicationBootstrap() {
   }, [isSharedView]);
 
   useEffect(() => {
-    if (holdLanding) setHasPresentedLanding(true);
-  }, [holdLanding]);
+    if (showAccountEntry) setHasPresentedLanding(true);
+  }, [showAccountEntry]);
 
   useEffect(() => {
     if (auth.isAuthenticated || isRecovery) setHasLeftLanding(true);
@@ -209,7 +223,7 @@ export function ApplicationBootstrap() {
     }
   }, [auth.isAuthenticated, auth.isInitializing, isWelcomeInvite, routeSharedProfileId, sessionSharedProfileId]);
 
-  const timedIntroEnded = openingPresentation === 'mobile' && (hasSplashCompleted || returningAccountReady) && (!landingPath || hasLeftLanding) && !holdLanding && !isRecovery && !waitingForHome;
+  const timedIntroEnded = openingPresentation === 'mobile' && (hasSplashCompleted || returningAccountReady) && (hasInstalledHomeIntro || !landingPath || hasLeftLanding) && !holdLanding && !isRecovery && !waitingForHome;
   // Keep speculative screen warming out of the opening clip. MOBILE readiness
   // reports may arrive underneath it, but cannot extend the video handoff.
   const appStartupPending = waitingForHome || (openingPresentation === 'mobile' && !hasSplashCompleted && !startupCompleted);
@@ -223,12 +237,13 @@ export function ApplicationBootstrap() {
         // splash fade on the compositor instead of competing with globe work.
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
-        {!isSharedView && (holdLanding || ((!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry)) ? <PortalinkSplashLoader key={holdLanding || hasPresentedLanding ? 'portalink-account-entry' : 'portalink-splash'} onComplete={completeSplash} stillOnly={startupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
+        {!isSharedView && (desktopIntroPending || desktopLoading || holdLanding || ((!startupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry)) ? <PortalinkSplashLoader key={playDesktopIntro ? 'portalink-desktop-splash' : holdLanding || hasPresentedLanding ? 'portalink-account-entry' : 'portalink-splash'} onComplete={completeSplash} stillOnly={(!desktopLoading && startupCompleted) || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
+          loading={desktopLoading && hasSplashCompleted}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery}
           inviteOpening={isWelcomeInvite && hasInviteLink}
           welcomeHandoff={hasPresentedLanding && !holdLanding}
-          hidden={Boolean((!auth.isAuthenticated && auth.pendingView) || isRecovery)}
-          landing={holdLanding ? {
+          hidden={Boolean((!auth.isAuthenticated && auth.pendingView && !desktopIntroPending) || isRecovery)}
+          landing={showAccountEntry ? {
             ready: !auth.isInitializing,
             hideMedia: true,
             content: <PresentationContext.Provider value={presentation}><ProfessionalEntry ready={!auth.isInitializing} onCreate={() => startAccount('signUp')} onSignIn={() => startAccount('signIn')} /></PresentationContext.Provider>,
@@ -237,7 +252,11 @@ export function ApplicationBootstrap() {
             onForgotPassword: () => startAccount('forgotPassword'),
           } : undefined} /> : null}
       </AnimatePresence>
-      {(isSharedView || timedIntroEnded) && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><LoadingState label={isSharedView ? 'Opening shared content…' : 'Opening Portalink…'} /></div>}
+      {(isSharedView || timedIntroEnded) && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]">
+        {presentation === 'mobile' && !isSharedView
+          ? <div role="status" aria-live="polite" aria-label="Opening Portalink…"><span className="premium-media-loading-mark block" aria-hidden="true" /></div>
+          : <LoadingState label={isSharedView ? 'Opening shared content…' : 'Opening Portalink…'} />}
+      </div>}
       {showHomeRetry && <div data-home-startup-retry="" data-presentation={presentation} className="portalink-startup-wait fixed inset-0 z-[1000] grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><ErrorState title="Home could not finish loading" description="Check your connection and try again." onRetry={retryHome} /></div>}
       {canReopenHome && !plainHome && foregroundOpening !== null && foregroundOpening.from === locationKey && <Navigate replace to={routes.home.path} />}
     </>;

@@ -3,12 +3,77 @@ import { beginContentPinch, touchMidpoint, type ContentPinchMotion } from './con
 type Point = { x: number; y: number };
 const clampZoom = (zoom: number) => Math.min(4, Math.max(1, zoom));
 const distance = (touches: TouchList) => Math.hypot(touches[1].clientX - touches[0].clientX, touches[1].clientY - touches[0].clientY);
+const isControl = (target: EventTarget | null) => Boolean((target as HTMLElement | null)?.closest?.('button, a, input, textarea, select, [contenteditable="true"]'));
+
+/** Only two stationary, single-finger taps on the same overview page open it. */
+export function installOverviewPageTaps(surface: HTMLElement, onOpen: (pageNumber: number) => void) {
+  const owner = surface.ownerDocument;
+  let contact: { id: number; page: number; x: number; y: number; time: number } | null = null;
+  let previous: { page: number; x: number; y: number; time: number } | null = null;
+  let lastTouch = -Infinity;
+  const reset = () => { contact = previous = null; };
+  const interrupt = (event: TouchEvent) => { if (event.touches.length > 1) reset(); };
+  const pageOf = (event: MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (isControl(target)) return NaN;
+    return Number(target?.closest?.<HTMLElement>('[data-project-page-number]')?.dataset.projectPageNumber);
+  };
+  const down = (event: PointerEvent) => {
+    if (event.pointerType !== 'touch') { lastTouch = -Infinity; reset(); return; }
+    lastTouch = performance.now();
+    const page = pageOf(event);
+    if (!event.isPrimary || !Number.isInteger(page) || page < 1) { reset(); return; }
+    contact = { id: event.pointerId, page, x: event.clientX, y: event.clientY, time: lastTouch };
+  };
+  const moved = (event: PointerEvent) => contact && contact.id === event.pointerId &&
+    Math.hypot(event.clientX - contact.x, event.clientY - contact.y) > 10;
+  const move = (event: PointerEvent) => { if (moved(event)) reset(); };
+  const up = (event: PointerEvent) => {
+    if (event.pointerType !== 'touch') return;
+    const page = pageOf(event);
+    if (!Number.isInteger(page) || page < 1) { reset(); return; }
+    // Own page taps here so the individual tiles cannot count a pinch release.
+    event.stopPropagation();
+    const now = performance.now();
+    lastTouch = now;
+    if (!contact || contact.id !== event.pointerId || contact.page !== page || moved(event) || now - contact.time >= 320) { reset(); return; }
+    contact = null;
+    const tap = { page, x: event.clientX, y: event.clientY, time: now };
+    if (previous?.page === page && now - previous.time < 320 && Math.hypot(tap.x - previous.x, tap.y - previous.y) < 24) {
+      previous = null;
+      event.preventDefault();
+      onOpen(page);
+      return;
+    }
+    previous = tap;
+  };
+  const doubleClick = (event: MouseEvent) => {
+    if (!Number.isInteger(pageOf(event)) || performance.now() - lastTouch >= 500) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  surface.addEventListener('pointerdown', down, true);
+  surface.addEventListener('pointermove', move, true);
+  surface.addEventListener('pointerup', up, true);
+  surface.addEventListener('pointercancel', reset, true);
+  surface.addEventListener('dblclick', doubleClick, true);
+  owner.addEventListener('touchstart', interrupt, { capture: true, passive: true });
+  owner.addEventListener('touchmove', interrupt, { capture: true, passive: true });
+  return () => {
+    surface.removeEventListener('pointerdown', down, true);
+    surface.removeEventListener('pointermove', move, true);
+    surface.removeEventListener('pointerup', up, true);
+    surface.removeEventListener('pointercancel', reset, true);
+    surface.removeEventListener('dblclick', doubleClick, true);
+    owner.removeEventListener('touchstart', interrupt, true);
+    owner.removeEventListener('touchmove', interrupt, true);
+  };
+}
 
 /** Enter from the page being enlarged, independently of an editable grid layout. */
 export function installPageZoomEntry(surface: HTMLElement, onEnter: (pageNumber: number, zoom: number) => void) {
   let gesture: { page: number; origin: Point; distance: number; ratio: number; direction: 'pending' | 'enter' | 'density'; motion: ContentPinchMotion | null } | null = null;
   let entering = false;
-  const isControl = (target: EventTarget | null) => Boolean((target as HTMLElement | null)?.closest?.('button, a, input, textarea, select, [contenteditable="true"]'));
   const pageAt = (point: Point) => {
     const viewport = surface.getBoundingClientRect();
     let nearest: number | null = null, nearestDistance = Infinity;

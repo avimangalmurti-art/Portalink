@@ -58,6 +58,7 @@ function fixture({ presentation = 'mobile', project: nextProject = {}, ...props 
     './ProjectPageBrowsingContext': { useInlineProjectPages: () => false },
     '../../features/profile/cataloguePagePosition': { getCataloguePagePosition: () => undefined, rememberCataloguePagePosition() {} },
     '../../features/profile/cataloguePageNavigation': { withCataloguePageTarget: href => href },
+    '../../features/media/videoPlayback': { videoSources: () => [] },
     '../../features/profile/useInlineProjectContent': { useInlineProjectContent: ({ project }) => ({ project, metadataComplete: false }) },
     './inlineProjectPageModel': { normalizeInlineProjectPosition: (_, position) => position, inlinePositionMatches: (left, right) => left === right },
     '../media/MobileProjectPopup': { MobileProjectPopup: 'project-popup' },

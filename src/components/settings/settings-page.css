@@ -16,6 +16,12 @@
 .settings-section-content .nav-settings-panel { border: 0; padding: 0; background: transparent; }
 .settings-section-content .nav-settings-panel > :is(h2, p) { display: none; }
 .settings-section-content .nav-settings-panel > div { margin-top: 0; }
+#root .codex-shell[data-public-portfolio] .settings-appearance-mode-options {
+  background: var(--control-rest-surface);
+}
+#root .codex-shell[data-public-portfolio] .settings-appearance-mode-options > [data-ui-control='button'] {
+  --ui-control-rest-text: var(--control-text);
+}
 .settings-text-action { color: var(--accent-text); }
 .settings-page :is(button, select):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .settings-back:hover, .settings-section-trigger:hover { background: var(--surface-hover); }

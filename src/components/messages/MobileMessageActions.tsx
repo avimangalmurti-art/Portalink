@@ -18,7 +18,7 @@ type MobileMessageActionsProps = {
   pending: boolean;
   anchor: HTMLElement | null;
   onClose: () => void;
-  onReact: (emoji: string) => void;
+  onReact: (emoji: string, selected: boolean) => void;
   onEdit: () => void;
   onRequestUnsend: () => void;
 };
@@ -105,7 +105,7 @@ export function MobileMessageActions({ message, isMine, pending, anchor, onClose
           {MESSAGE_REACTION_OPTIONS.map((option, index) => {
             const reaction = message.reactions?.find(item => item.emoji === option.value);
             const countId = reaction?.count ? `${reactionCountPrefix}-${index}` : undefined;
-            return <button key={option.value} type="button" disabled={pending} aria-label={`${reaction?.isMine ? 'Remove' : 'React with'} ${option.label}`} aria-describedby={countId} aria-pressed={reaction?.isMine ?? false} onClick={() => { close(); onReact(option.value); }}>
+            return <button key={option.value} type="button" disabled={pending} aria-label={`${reaction?.isMine ? 'Remove' : 'React with'} ${option.label}`} aria-describedby={countId} aria-pressed={reaction?.isMine ?? false} onClick={() => { close(); onReact(option.value, !reaction?.isMine); }}>
               <InterfaceIcon icon={option.icon} size="lg" />
               {countId && <span id={countId}>{reaction?.count}</span>}
             </button>;

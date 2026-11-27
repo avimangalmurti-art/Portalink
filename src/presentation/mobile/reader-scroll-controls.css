@@ -1,8 +1,96 @@
 /* Shared by the separate platform and public entries; only MOBILE changes. */
+html:has(#root .codex-shell[data-presentation='mobile'] [data-project-opening-loader]) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-opening-loader] {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: #000;
+  color-scheme: dark;
+  touch-action: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-opening-loader] > .premium-media-loading-mark {
+  --text-secondary: #f5f5f7;
+}
+
+#root .codex-shell[data-presentation='mobile']:has(.app-viewport--reduce-motion) [data-project-opening-loader] > .premium-media-loading-mark {
+  animation: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-opening='true'] [data-project-stage] .premium-media-loading-mark {
+  visibility: hidden;
+  animation-play-state: paused;
+}
+
+/* Video creator rows start below Back with the standard control gap. */
+[data-presentation='mobile'] :is(.mobile-video-single, .mobile-video-sequence) {
+  padding-block: calc(var(--reader-controls-top) + var(--mobile-control-size) + var(--mobile-control-group-gap))
+    calc(var(--mobile-content-safe-bottom, 0px) + 76px);
+}
+
+/* Keep dock clearance outside the file capsule so only the controls are painted. */
+#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] {
+  position: sticky;
+  bottom: max(8px, var(--mobile-content-safe-bottom, 0px));
+  z-index: 1;
+  align-self: center;
+  inline-size: max-content;
+  max-inline-size: calc(100% - 2 * var(--mobile-control-edge, 16px));
+  margin-block: 4px max(8px, var(--mobile-content-safe-bottom, 0px));
+  gap: 4px;
+  padding: 3px;
+  border-width: 1px;
+  border-radius: var(--ui-capsule-radius);
+  scrollbar-width: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] > button {
+  flex: 0 0 auto;
+  max-inline-size: min(12rem, 40vw);
+  gap: 6px;
+  font-weight: 500;
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] > button [data-interface-icon-frame] {
+  flex-shrink: 0;
+  --interface-icon-size: 18px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])):has([data-project-file-strip]) {
+  min-height: var(--mobile-viewport-height, 100dvh);
+}
+#root .codex-shell[data-presentation='mobile'] [data-immersive='true'] [data-project-file-strip] {
+  margin-block: 0;
+  border-width: 0;
+}
+
+/* The in-flow capsule already keeps the video clear of the floating dock. */
+[data-presentation='mobile'] [data-immersive='false'] [data-project-work-column]:has(> [data-project-file-strip]) > [data-project-stage]
+  :is(.mobile-video-single, .mobile-video-sequence) {
+  padding-bottom: var(--mobile-control-group-gap, 8px);
+}
+
 /* Contain reader-button feedback without clipping engagement above the rail. */
 #root .codex-shell[data-presentation='mobile'] .mobile-content-action-bar {
   border-radius: var(--ui-capsule-radius);
   overflow: hidden;
+}
+
+#root .codex-shell .mobile-content-action-bar .reader-info-glyph {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace !important;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
 }
 
 /* Return with the main dock's quick fade, retaining the existing hide motion. */
@@ -33,6 +121,51 @@
   transition: var(--navigation-control-transition);
 }
 
+/* Keep the slider immediately after Back in both reader presentations. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator][data-page-density-enabled] {
+  --mobile-density-width: clamp(100px, 28vw, 124px);
+  --reader-after-back: calc(var(--mobile-navigation-inset-start) + var(--mobile-control-size) + var(--mobile-control-group-gap));
+  --reader-density-slot: calc(var(--mobile-density-width) + var(--mobile-control-group-gap));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator][data-page-density-enabled][data-document-reader-header] {
+  left: calc(var(--reader-after-back) + var(--reader-density-slot));
+  right: var(--mobile-navigation-inset-end);
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] > .mobile-project-density {
+  position: absolute;
+  top: 0;
+  right: calc(100% + var(--mobile-control-group-gap));
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled]:not([data-document-reader-header]) > .mobile-project-density {
+  left: var(--reader-after-back);
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled]:not([data-document-reader-header]) > .mobile-project-page-counter {
+  left: calc(var(--reader-after-back) + var(--reader-density-slot));
+  max-width: calc(100vw - var(--reader-after-back) - var(--reader-density-slot) - var(--mobile-navigation-inset-end));
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density > [data-pages-per-row-slider] {
+  top: calc(50% - 6px);
+}
+[data-presentation='mobile'] .mobile-project-density > [data-pages-per-row-label] {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 6px;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+/* Progress and the open page list keep their original screen anchors. */
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] > :is(.mobile-reader-progress, progress) {
+  left: calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap) - var(--reader-density-slot));
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] .mobile-page-thumbnails {
+  left: calc(0px - var(--reader-density-slot));
+}
+
 /* Scrolling lends Back's slot to the current page, without moving artwork or
    the header's progress/density controls. Idle restores the exact rest layout. */
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back:not(.mobile-project-portal-preview) {
@@ -60,7 +193,7 @@
   --reader-counter-leading-space: 46px; /* One existing 44px arrow and its 2px gap. */
 }
 #root .codex-shell[data-presentation='mobile'][data-project-scrolling] .mobile-project-page-counter[data-mobile-project-page-count] {
-  transform: translateX(calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap) - var(--reader-counter-leading-space, 0px)));
+  transform: translateX(calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap) - var(--reader-counter-leading-space, 0px) - var(--reader-density-slot, 0px)));
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: auto !important;

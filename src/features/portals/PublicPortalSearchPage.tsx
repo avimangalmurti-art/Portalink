@@ -152,8 +152,10 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
                       event.preventDefault();
                       setWebSelection({ scope: webPopupScope, portal });
                     } : undefined}>
-                    {backdropAvatar && <ResponsiveImage key={backdropAvatar} src={backdropAvatar} decorative className="public-portal-avatar-backdrop"
-                      onLoad={({ currentTarget }) => { currentTarget.dataset.portalAvatarReady = ''; }} />}
+                    {backdropAvatar && <span className="public-portal-avatar-crop" aria-hidden="true">
+                      <ResponsiveImage key={backdropAvatar} src={backdropAvatar} decorative className="public-portal-avatar-backdrop"
+                        onLoad={({ currentTarget }) => { currentTarget.dataset.portalAvatarReady = ''; }} />
+                    </span>}
                     <span className="public-portal-mark" aria-hidden="true">
                       <span className="public-portal-glyph">
                         <InterfaceIcon icon={getCategoryIcon(portal.iconName ?? '')} size="xl" keepColor style={{ color: portal.creator.accentColor || 'var(--text-secondary)' }} />
@@ -179,7 +181,7 @@ export function PublicPortalSearchPage({ onBack }: { onBack: () => void }) {
       setWebSelection(current => current === webSelection ? null : current);
     }} onSelect={(profileId, categoryId, projectId) => {
       const current = currentPopup.current;
-      if (!current.enabled || current.scope !== webPopupScope || current.selection !== webSelection || profileId !== selectedPortal.profileId || categoryId !== selectedPortal.id) return;
+      if (!current.enabled || current.scope !== webPopupScope || current.selection !== webSelection || profileId !== selectedPortal.profileId) return;
       setWebSelection(null);
       navigate(buildPath('project', { profileId, categoryId, projectId }));
     }} />}

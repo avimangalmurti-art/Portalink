@@ -3,7 +3,7 @@ import React from 'react';
 import test from 'node:test';
 import { sourceModule } from './helpers/source-module.mjs';
 
-function bootstrap(presentation, authenticated = true) {
+function bootstrap(presentation, authenticated = true, search = authenticated ? '' : '?welcome=1') {
   const slots = [], timers = new Map();
   let cursor = 0, effects = [], timer = 0;
   const react = {
@@ -33,9 +33,9 @@ function bootstrap(presentation, authenticated = true) {
     requestAuth(view) { requested.push(view); auth.pendingView = view; } };
   const { ApplicationBootstrap } = sourceModule('src/app/ApplicationBootstrap.tsx', {
     react, 'framer-motion': { AnimatePresence: 'presence' },
-    'react-router-dom': { Navigate: 'navigate', matchPath: () => null, useLocation: () => ({ pathname: '/', search: authenticated ? '' : '?welcome=1', hash: '' }) },
+    'react-router-dom': { Navigate: 'navigate', matchPath: () => null, useLocation: () => ({ pathname: '/', search, hash: '' }) },
     '../App': { App: 'app' }, '../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'splash' },
-    '../components/auth/ProfessionalEntry': { ProfessionalEntry: 'professional-entry' }, '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': { hasEnteredCatalogWelcome: () => true },
+    '../components/auth/ProfessionalEntry': { ProfessionalEntry: 'professional-entry' },
     '../components/ui/StateViews': { ErrorState: 'error', LoadingState: 'loading' },
     '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes: { sharedCollaboration: {}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {}, controlCenter: { path: '/settings' } }, buildPath: () => '/share' },
@@ -62,24 +62,52 @@ function bootstrap(presentation, authenticated = true) {
   };
 }
 
-test('restored WEB skips startup media while Home Retry retains account and attempt readiness', () => {
- const h=bootstrap('web');let [app,presence]=h.render();assert.equal(presence.props.children,null);assert.equal(app.props.homeStartupPending,true);const old=app.props;
- h.timeout();const timeout=h.render();assert.equal(timeout[1].props.children,null);timeout[3].props.children.props.onRetry();[app,presence]=h.render();assert.equal(app.props.homeStartupAttempt,1);assert.equal(presence.props.children,null);
+test('restored WEB plays the opening before Home Retry and retains account and attempt readiness', () => {
+ const h=bootstrap('web');let [app,presence]=h.render();const splash=presence.props.children;assert.equal(splash.props.stillOnly,false);assert.equal(app.props.homeStartupPending,true);const old=app.props;
+ h.timeout();const pending=h.render();assert.equal(pending[1].props.children.key,splash.key);assert.equal(pending[3],false);
+ splash.props.onComplete();const timeout=h.render();assert.equal(timeout[1].props.children,null);timeout[3].props.children.props.onRetry();[app,presence]=h.render();assert.equal(app.props.homeStartupAttempt,1);assert.equal(presence.props.children.props.loading,true);assert.equal(presence.props.children.props.stillOnly,true);
  old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render()[0].props.homeStartupPending,true,'Old attempt cannot uncover Home');
  app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render()[0].props.homeStartupPending,false);
 });
 
-test('restored WEB retains its loading state without requiring an introductory animation', () => {
+test('restored WEB keeps playing even when Home is already ready', () => {
  const h=bootstrap('web');let [app,presence]=h.render();
- for(let i=0;i<3;i++){[app,presence]=h.render();assert.equal(presence.props.children,null);assert.equal(app.props.homeStartupAttempt,0);assert.equal(app.props.homeStartupPending,true);}
- app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render()[0].props.homeStartupPending,false);
+ const splash=presence.props.children;
+ app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);
+ [app,presence]=h.render();assert.equal(app.props.homeStartupPending,false);
+ assert.equal(presence.props.children.key,splash.key);assert.equal(presence.props.children.props.stillOnly,false);
+ splash.props.onComplete();assert.equal(h.render()[1].props.children,null);
+});
+
+test('completed WEB opening stays visible with a loading mark until Home content and shell settle', () => {
+ const h=bootstrap('web');let [app,presence]=h.render();const opening=presence.props.children;
+ assert.equal(opening.props.loading,false);
+ opening.props.onComplete();[app,presence]=h.render();
+ assert.equal(presence.props.children.key,opening.key);
+ assert.equal(presence.props.children.props.loading,true);
+ assert.equal(presence.props.children.props.stillOnly,false,'The completed native frame remains visible');
+ app.props.onHomeStartupReady(true);[app,presence]=h.render();
+ assert.equal(presence.props.children.props.loading,true);
+ app.props.onHomeStartupShellReady(true);[app,presence]=h.render();
+ assert.equal(app.props.homeStartupPending,false);
+ assert.equal(presence.props.children,null);
+});
+
+test('ordinary signed-out WEB keeps the intro mounted until account choices can appear', () => {
+ const h=bootstrap('web',false,'');const splash=h.render()[1].props.children;
+ assert.equal(splash.props.landing,undefined);
+ assert.equal(splash.props.stillOnly,false);
+ splash.props.onComplete();const accountEntry=h.render()[1].props.children;
+ assert.equal(accountEntry.key,splash.key);
+ assert.equal(accountEntry.props.landing.ready,true);
 });
 
 test('welcome sign-in enters MOBILE immediately and preserves the WEB Home-readiness handoff', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = bootstrap(presentation, false);
     let [app, presence] = h.render();
-    assert.ok(presence.props.children.props.landing);
+    if (presentation === 'web') assert.equal(presence.props.children.props.landing, undefined);
+    else assert.ok(presence.props.children.props.landing);
     presence.props.children.props.onComplete();
     [app, presence] = h.render();
     assert.equal(presence.props.children.props.stillOnly, false);

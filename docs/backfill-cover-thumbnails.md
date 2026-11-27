@@ -79,13 +79,13 @@ These are local fixture results, not hosted data or performance measurements.
 
 ## Preconditions for an explicitly approved live run
 
-The separately reviewed [schema and private-storage policy](../supabase/pending/cover_thumbnail_schema.sql)
+The separately reviewed [schema and private-storage policy](../supabase/migrations/202609300001_cover_thumbnail_schema.sql)
 must be applied first. The CLI checks for `projects.cover_thumbnail` before doing
 work and stops without uploads if it is unavailable. Persistence uses only
 `set_project_cover_thumbnail(p_project_id, p_expected_revision, p_manifest)`;
 the script never applies SQL, creates a bucket or updates a project directly.
 
-If the separately reviewed [public bucket bundle](../supabase/pending/project_covers_public_bucket.sql)
+If the separately reviewed [public bucket bundle](../supabase/migrations/202609300002_project_covers_public_bucket.sql)
 has been applied, the existing public `project-covers` bucket is preferred.
 Otherwise the existing private `project-media` bucket is used. The public bundle
 must include the upload visibility locks and hide/delete guards, including their

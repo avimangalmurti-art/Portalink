@@ -489,6 +489,25 @@ test('multipart read failures honor fail-fast and metadata changes prevent uploa
 const testEnvironment = { SUPABASE_URL: 'https://fixture.supabase.co', SUPABASE_ANON_KEY: 'fixture-anonymous-key', SUPABASE_SERVICE_ROLE_KEY: 'fixture-service-key' };
 const storageJson = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
+test('backfill lists and rechecks public work through its primary Portal', async () => {
+  const project = row();
+  const queries = [];
+  const adapter = await createSupabaseAdapter(testEnvironment, { fetch: async (url, options) => {
+    const address = new URL(url);
+    assert.equal(address.pathname, '/rest/v1/projects');
+    assert.equal(options.method, 'GET');
+    assert.match(address.searchParams.get('select'), /portfolio_categories!projects_category_id_fkey!inner\(id,profile_id,is_hidden\)/);
+    assert.equal(address.searchParams.get('portfolio_categories.is_hidden'), 'eq.false');
+    queries.push(address.searchParams);
+    return storageJson([project]);
+  } });
+  const projects = [];
+  for await (const listed of adapter.projects()) projects.push(listed);
+  assert.deepEqual(projects, [project]);
+  assert.deepEqual(await adapter.currentProject(project.id), project);
+  assert.equal(queries[1].get('id'), `eq.${project.id}`);
+});
+
 test('installed Storage SDK lists the exact thumbnail directory and matches exact object names', async () => {
   const calls = [], pages = [[], [{ id: 'one', name: '1200.webp' }], [{ id: null, name: '200.webp' }], [{ id: 'one', name: '200.webp' }]];
   const adapter = await createSupabaseAdapter(testEnvironment, { fetch: async (url, options) => {

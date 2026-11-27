@@ -10,7 +10,7 @@ import { MANIFEST_SUFFIX, partPath, readMultipartSpec } from '../public/portalin
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const SOURCE_LIMIT = 256 * 1024 * 1024;
 const DEFAULT_FIXTURE = fileURLToPath(new URL('../tests/fixtures/cover-thumbnails/fixture.json', import.meta.url));
-const SELECT = 'id,profile_id,category_id,revision,is_hidden,cover_thumbnail,profiles!projects_profile_id_fkey!inner(id,is_private),portfolio_categories!inner(id,profile_id,is_hidden),project_attachments(id,project_id,kind,storage_path,position,is_cover,size_bytes,mime_type,metadata)';
+const SELECT = 'id,profile_id,category_id,revision,is_hidden,cover_thumbnail,profiles!projects_profile_id_fkey!inner(id,is_private),portfolio_categories!projects_category_id_fkey!inner(id,profile_id,is_hidden),project_attachments(id,project_id,kind,storage_path,position,is_cover,size_bytes,mime_type,metadata)';
 
 class BackfillError extends Error {
   constructor(code, message) { super(message); this.code = code; }

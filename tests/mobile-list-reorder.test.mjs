@@ -5,7 +5,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
-import { arrayMove } from '@dnd-kit/sortable';
+import { arrayMove, rectSortingStrategy } from '@dnd-kit/sortable';
 import { TouchSensor as InstalledTouchSensor } from '@dnd-kit/core';
 
 function compile(path, require, globals = {}) {
@@ -28,10 +28,10 @@ function harness() {
       KeyboardCode: { Space: 'Space', Esc: 'Escape', Enter: 'Enter' },
       useSensor: (sensor, options) => ({ sensor, options }), useSensors: (...sensors) => sensors,
       closestCenter: args => args.droppableContainers.map(container => ({ id: container.id })) };
-    if (name === '@dnd-kit/sortable') return { SortableContext, arrayMove, sortableKeyboardCoordinates,
+    if (name === '@dnd-kit/sortable') return { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates,
       verticalListSortingStrategy() {}, useSortable: ({ disabled }) => ({
         attributes: { tabIndex: 0, role: 'button' },
-        listeners: disabled ? {} : { onTouchStart: activateTouch, onMouseDown: activateMouse, onKeyDown: activateKeyboard },
+        listeners: disabled.draggable ? {} : { onTouchStart: activateTouch, onMouseDown: activateMouse, onKeyDown: activateKeyboard },
         setNodeRef() {}, setActivatorNodeRef() {}, transform: null, transition: 'transform 200ms', isDragging: dragging,
       }) };
     if (name === '@dnd-kit/utilities') return { CSS: { Transform: { toString: () => undefined } } };
@@ -79,6 +79,26 @@ test('collision candidates stay within visibility groups', () => {
   const tree = harness().render();
   const result = tree.props.collisionDetection({ active: { id: 'a' }, droppableContainers: [{ id: 'a' }, { id: 'b' }, { id: 'hidden' }] });
   assert.deepEqual(Array.from(result, item => item.id), ['a', 'b']);
+});
+
+test('a disabled file stays put during a grid drag and cannot receive the drop', () => {
+  const h = harness();
+  h.props.items = ['a', 'pdf', 'b'].map(id => ({ id }));
+  h.props.groupForItem = () => 'saved';
+  h.props.isItemDisabled = item => item.id === 'pdf';
+  h.props.layout = 'grid';
+  const tree = h.render();
+  const candidates = tree.props.collisionDetection({ active: { id: 'a' },
+    droppableContainers: h.props.items });
+  assert.deepEqual(Array.from(candidates, item => item.id), ['a', 'b']);
+  drop(tree, 'a', 'pdf');
+  assert.deepEqual(h.moves, []);
+
+  const { strategy } = tree.props.children.props;
+  const rects = [0, 100, 200].map(left => ({ left, top: 0, width: 100, height: 100 }));
+  const args = { activeIndex: 0, overIndex: 2, rects };
+  assert.equal(strategy({ ...args, index: 1 }), null);
+  assert.equal(strategy({ ...args, index: 2 }).x, -200);
 });
 
 test('only the destination gets hold listeners; disabled rows remain ordinary buttons', () => {
@@ -146,6 +166,66 @@ test('mobile project groups emit complete membership without changing pinned or 
   assert.equal(all(h.render()).filter(node => node.type === 'ul').length, 3);
 });
 
+test('owners can reorder a Portal that contains only featured projects in mobile list and grid', () => {
+  const h = projectHarness();
+  const featured = ['f1', 'f2'].map(id => ({ id, title: id, categoryId: 'origin' }));
+  Object.assign(h.props, { projects: featured, primaryPortalId: 'portal', pinnedIds: [], hiddenIds: [] });
+  const sorter = () => all(h.render()).find(node => node.type === MobileReorderList);
+  assert.equal(sorter(), undefined, 'Before the order capability, featured rows remain unmovable.');
+  h.props.supportsFeaturedOrder = true;
+  for (const layout of ['list', 'grid']) {
+    h.props.mobileLayout = layout;
+    const group = sorter();
+    assert.equal(group.props.layout, layout);
+    assert.equal(group.props.isItemDisabled, undefined);
+    const activator = { onTouchStart: activateTouch };
+    const row = group.props.renderItem(featured[0], activator, {});
+    assert.equal(row.props.reorderActivator, activator);
+    assert.equal(row.props.onTogglePinned, undefined);
+    assert.equal(row.props.onToggleHidden, undefined);
+    group.props.onReorder([...featured].reverse());
+    assert.deepEqual(h.saves.at(-1), ['f2', 'f1']);
+  }
+  h.props.isOwner = false;
+  assert.equal(sorter(), undefined, 'A viewer can browse the owner’s order without reordering.');
+});
+
+test('a pending mobile order save keeps the sorters mounted and disables new drags', () => {
+  const h = projectHarness();
+  const groups = () => all(h.render()).filter(node => node.type === MobileReorderList);
+  const labels = groups().map(node => node.props.label);
+  for (const layout of ['list', 'grid']) {
+    Object.assign(h.props, { mobileLayout: layout, mobileReorderDisabled: true, isSavingArrangement: true });
+    const pending = groups();
+    assert.deepEqual(pending.map(node => node.props.label), labels);
+    assert.ok(pending.every(node => node.props.disabled));
+    assert.ok(all(h.render()).some(node => node.props.children === 'Hold and drag to reorder.'));
+    Object.assign(h.props, { mobileReorderDisabled: false, isSavingArrangement: false });
+    assert.ok(groups().every(node => !node.props.disabled));
+  }
+});
+
+test('mobile mixed drops preserve the saved order of untouched groups and include new placements', () => {
+  const h = projectHarness();
+  const projects = [
+    ...h.props.projects.filter(project => project.id !== 'b').map(project => ({ ...project, categoryId: 'portal' })),
+    { id: 'featured', title: 'featured', categoryId: 'origin' },
+  ];
+  const savedOrder = ['p2', 'p1', 'a', 'featured', 'h2', 'h1'];
+  Object.assign(h.props, { projects, primaryPortalId: 'portal', supportsFeaturedOrder: true, savedOrder });
+  const regularGroup = () => all(h.render()).find(node => node.type === MobileReorderList && node.props.label === 'Projects');
+  let group = regularGroup();
+  assert.deepEqual(Array.from(group.props.items, project => project.id), ['a', 'featured']);
+  group.props.onReorder([...group.props.items].reverse());
+  assert.deepEqual(h.saves.at(-1), ['p2', 'p1', 'featured', 'a', 'h2', 'h1']);
+
+  h.props.projects = [...projects, { id: 'new', title: 'new', categoryId: 'origin' }];
+  h.props.savedOrder = [...savedOrder, 'removed', 'a'];
+  group = regularGroup();
+  group.props.onReorder([...group.props.items].reverse());
+  assert.deepEqual(h.saves.at(-1), ['p2', 'p1', 'new', 'featured', 'h2', 'h1', 'a']);
+});
+
 test('visitor index has no reordering and WEB keeps its original drag group', () => {
   const h = projectHarness();
   h.props.isOwner = false;
@@ -155,22 +235,23 @@ test('visitor index has no reordering and WEB keeps its original drag group', ()
   assert.equal(all(h.render()).filter(node => node.type === ReorderGroup).length, 1);
 });
 
-test('project writes are gated during unavailable arrangements, partial search, and MOBILE display sorting', () => {
+test('project writes are gated during unavailable arrangements, partial search, and read-only viewing', () => {
   const source = readFileSync(new URL('../src/components/profile/ProfileCategoryPage.tsx', import.meta.url), 'utf8');
-  const expression = source.match(/mobileReorderDisabled=\{([^}]+)\}/)?.[1];
-  assert.ok(expression);
-  const evaluate = (overrides = {}) => vm.runInNewContext(expression, {
-    arrangement: { isLoading: false, loadError: null, isSaving: false }, indexQuery: '', isMobile: true, mobileSort: 'saved', ...overrides,
+  const writeDisabled = source.match(/const arrangementWriteDisabled = ([^;]+);/)?.[1];
+  const expression = source.match(/const reorderDisabled = ([^;]+);/)?.[1];
+  assert.ok(writeDisabled && expression);
+  assert.match(source, /<ProjectIndexList[^\n]*mobileReorderDisabled=\{reorderDisabled\}/);
+  assert.match(source, /<ProjectIndexList[^\n]*isSavingArrangement=\{arrangement\.isSaving\}/);
+  const evaluate = (overrides = {}) => vm.runInNewContext(`const arrangementWriteDisabled = ${writeDisabled}; ${expression}`, {
+    arrangement: { isLoading: false, loadError: null, isSaving: false }, indexQuery: '', sharedReadOnly: false, isMobile: true, ...overrides,
   });
   assert.equal(evaluate(), false);
   for (const key of ['isLoading', 'loadError', 'isSaving']) assert.equal(evaluate({ arrangement: { [key]: key === 'loadError' ? 'Unavailable' : true } }), true);
   assert.equal(evaluate({ isMobile: false, indexQuery: 'filtered' }), true);
+  assert.equal(evaluate({ sharedReadOnly: true }), true);
   const indexQuery = source.match(/const indexQuery = ([^;]+);/)?.[1];
   assert.ok(indexQuery);
   assert.equal(vm.runInNewContext(indexQuery, { isMobile: true, query: 'filtered' }), '', 'MOBILE has no index search filter');
-  assert.equal(evaluate({ mobileSort: 'recent' }), true);
-  assert.equal(evaluate({ mobileSort: 'title' }), true);
-  assert.equal(evaluate({ isMobile: false, mobileSort: 'recent' }), false, 'MOBILE sorting never blocks WEB arrangement');
 });
 
 // Exercise the installed sensor's gesture lifecycle as well as our component
@@ -261,46 +342,57 @@ test('touch tap, scroll and pinch cancel pickup; ordinary holds still drag and c
   assert.equal(doc.listeners.get('touchcancel').length, 0);
 });
 
-test('floating mobile rows only navigate, with owner reordering kept in the menu', () => {
-  const h = projectHarness(); h.props.mobileReorderFromMenu = true;
+test('owner mobile Portal rows keep tap and menu actions while directly supporting hold-and-drag', () => {
+  const h = projectHarness();
   const selections = [];
   h.props.onSelect = id => selections.push(id);
-  let group = all(h.render()).find(node => node.type === MobileReorderList);
   const actions = { moveUp() {}, moveDown() {} };
-  const row = group.props.renderItem(group.props.items[0], { onTouchStart: activateTouch, onMouseDown: activateMouse }, actions);
-  assert.equal(row.props.reorderActivator, undefined);
-  assert.equal(row.props.reorderActions, actions);
-  let rendered = h.renderRow(row);
-  const title = all(rendered).find(node => node.type === 'button' && node.props.title === row.props.project.title);
-  for (const key of ['onTouchStart', 'onMouseDown', 'onPointerDown', 'onContextMenu', 'aria-haspopup']) {
-    assert.equal(title.props[key], undefined);
+  const activator = { onTouchStart: activateTouch, onMouseDown: activateMouse, onKeyDown: activateKeyboard };
+  for (const layout of ['list', 'grid']) {
+    h.props.mobileLayout = layout;
+    const group = all(h.render()).find(node => node.type === MobileReorderList);
+    assert.equal(group.props.layout, layout);
+    const row = group.props.renderItem(group.props.items[0], activator, actions);
+    assert.equal(row.props.reorderActions, actions);
+    const rendered = h.renderRow(row);
+    const button = all(rendered).find(node => node.type === 'button' && node.props.title === row.props.project.title);
+    for (const [name, listener] of Object.entries(activator)) assert.equal(button.props[name], listener);
+    button.props.onClick();
+    assert.equal(selections.at(-1), row.props.project.id);
   }
-  title.props.onClick();
-  assert.deepEqual(selections, [row.props.project.id]);
+
+  const group = all(h.render()).find(node => node.type === MobileReorderList);
+  const row = group.props.renderItem(group.props.items[0], activator, actions);
+  let rendered = h.renderRow(row);
   all(rendered).find(node => node.props['data-row-menu'] !== undefined).props.onClick();
   rendered = h.renderRow(row);
-  const popup = all(rendered).find(node=>node.type==='project-popup');
-  assert.ok(popup); popup.props.onOptions(); rendered = h.renderRow(row);
+  const popup = all(rendered).find(node => node.type === 'project-popup');
+  assert.ok(popup);
+  popup.props.onOptions();
+  rendered = h.renderRow(row);
   const moves = all(rendered).filter(node => node.props.role === 'menuitem').map(node => node.props.children).filter(label => typeof label === 'string');
   assert.deepEqual(moves, ['Move up', 'Move down']);
+
   h.props.isOwner = false;
   const visitorRows = all(h.render()).filter(node => node.props.project);
   assert.ok(visitorRows.length > 0);
   for (const visitorRow of visitorRows) {
     const button = all(h.renderRow(visitorRow)).find(node => node.type === 'button');
-    assert.equal(button.props.onPointerDown, undefined);
-    assert.equal(button.props['aria-haspopup'], undefined);
+    for (const name of Object.keys(activator)) assert.equal(button.props[name], undefined);
     button.props.onClick();
     assert.equal(selections.at(-1), visitorRow.props.project.id);
   }
-  h.setPresentation('web');
-  assert.ok(all(h.render()).filter(node => node.props.project).every(node => !node.props.reorderActivator));
-  h.setPresentation('mobile'); h.props.isOwner = true; h.props.mobileReorderFromMenu = false;
-  group = all(h.render()).find(node => node.type === MobileReorderList);
-  const ordinaryRow = group.props.renderItem(group.props.items[0], { onTouchStart: activateTouch }, actions);
-  assert.equal(ordinaryRow.props.reorderActivator.onTouchStart, activateTouch);
+});
+
+test('the mobile Portal opens ready to reorder for owners and resets the sort between Portals', () => {
   const source = readFileSync(new URL('../src/components/profile/ProfileCategoryPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /<ProjectIndexList[^\n]*mobileReorderFromMenu=\{isMobile\}/);
+  const defaultSort = source.match(/const mobileDefaultSort(?:: MobileProjectSort)? = ([^;]+);/)?.[1];
+  assert.ok(defaultSort);
+  assert.equal(vm.runInNewContext(defaultSort, { showsOwnerTools: true, sharedReadOnly: false, isMobile: true }), 'saved');
+  assert.equal(vm.runInNewContext(defaultSort, { showsOwnerTools: false, sharedReadOnly: true, isMobile: true }), 'recent');
+  assert.match(source, /useState<MobileProjectSort>\(mobileDefaultSort\)/);
+  assert.match(source, /setMobileSort\(mobileDefaultSort\)/);
+  assert.doesNotMatch(source, /<ProjectIndexList[^\n]*mobileReorderFromMenu/);
 });
 
 
@@ -313,6 +405,33 @@ test('WEB stages drag frames locally and saves only the final drop with complete
   assert.deepEqual(Array.from(group.props.values,p=>p.id),['b','a']);assert.deepEqual(h.saves,[]);
   group.props.children[0].props.onReorderEnd();
   assert.deepEqual(h.saves,[['p1','p2','b','a','h1','h2']]);
+});
+
+test('WEB keeps featured placements fixed while reordering primary projects in a mixed Portal', () => {
+  const h = projectHarness();
+  h.setPresentation('web');
+  Object.assign(h.props, {
+    primaryPortalId: 'portal', supportsFeaturedOrder: true,
+    projects: [
+      { id: 'p1', title: 'p1', categoryId: 'portal' },
+      { id: 'a', title: 'a', categoryId: 'portal' },
+      { id: 'featured', title: 'featured', categoryId: 'origin' },
+      { id: 'b', title: 'b', categoryId: 'portal' },
+      { id: 'h1', title: 'h1', categoryId: 'portal' },
+    ],
+  });
+  const getGroup = () => all(h.render()).find(node => node.type === ReorderGroup);
+  let group = getGroup();
+  assert.deepEqual(Array.from(group.props.values, project => project.id), ['a', 'b']);
+  assert.equal(group.props.children[1].props.children.props.isDraggable, false);
+  group.props.children[0].props.onReorderStart();
+  group.props.onReorder([...group.props.values].reverse());
+  group = getGroup();
+  const visibleOrder = Array.from(group.props.children, row => (row.props.project ?? row.props.children.props.project).id);
+  assert.deepEqual(visibleOrder, ['b', 'featured', 'a']);
+  assert.deepEqual(h.saves, []);
+  group.props.children[0].props.onReorderEnd();
+  assert.deepEqual(h.saves, [['p1', 'b', 'featured', 'a', 'h1']]);
 });
 
 test('visible move actions respect the same group boundaries and disabled state as dragging',()=>{

@@ -11,7 +11,7 @@ import { CommentServiceError, validateCommentBody } from '../../types/comments';
 import type { ProjectEngagement } from '../../types/engagement';
 import { EngagementServiceError } from '../../types/engagement';
 import type { FollowRequest, FollowState, Notification } from '../../types/domain';
-import { SocialServiceError } from '../../types/social';
+import { SocialServiceError, type ProfileConnectionPage } from '../../types/social';
 import { requireSupabase } from './client';
 
 async function currentAccountId(required: boolean): Promise<string | null> {
@@ -73,17 +73,25 @@ export const supabaseSocialService: SocialService = {
     return { ...counts, canViewConnections: !permission.error && permission.data === true };
   },
   async listProfileConnections(profileId, kind, offset = 0) {
+    const start = Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
+    const client = requireSupabase();
     const ownerId = await currentProfileId(false);
     if (ownerId !== profileId) {
-      const { data: allowed, error } = await requireSupabase().rpc('can_view_profile_connections', { p_profile_id: profileId });
-      if (error || allowed !== true) throw new SocialServiceError('permission_denied', 'Only the owner and mutual followers can view this list.');
+      const publicPage = await client.rpc('public_profile_connections', { p_profile_id: profileId, p_kind: kind, p_offset: start });
+      if (publicPage.error?.code === '42501') {
+        throw new SocialServiceError('permission_denied', 'This connection list isn’t available.');
+      }
+      if (publicPage.error && publicPage.error.code !== 'PGRST202') {
+        throw new SocialServiceError('network', 'Couldn’t load this list. Please try again.');
+      }
+      if (publicPage.data) return publicPage.data as unknown as ProfileConnectionPage;
+      const { data: allowed, error } = await client.rpc('can_view_profile_connections', { p_profile_id: profileId });
+      if (error || allowed !== true) throw new SocialServiceError('permission_denied', 'This connection list isn’t available.');
     }
-    const start = Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
     const pageSize = 54;
     const incoming = kind === 'followers';
     const personColumn = incoming ? 'follower_profile_id' : 'target_profile_id';
     const subjectColumn = incoming ? 'target_profile_id' : 'follower_profile_id';
-    const client = requireSupabase();
     const edges = await client.from('profile_follows').select(personColumn, { count: 'exact' })
       .eq(subjectColumn, profileId).eq('status', 'following')
       .order('created_at', { ascending: false }).order(personColumn, { ascending: true })

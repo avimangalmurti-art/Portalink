@@ -102,6 +102,7 @@ function documentHarness(mobile = true, rendered = true) {
     './useFocusedPageSwipe': { useFocusedPageSwipe: () => ({ isMobile: mobile, swipeStyle: {}, swipeHandlers: {} }) },
     './viewerMemory': { readViewerMemory: () => memory, updateViewerMemory: (key, patch) => writes.push({ key, patch }) },
     './useDocumentReadingScroll': { useDocumentReadingScroll() {} },
+    './useDesktopPagePacking': { useDesktopPagePacking() {} },
     '../../features/performance/rum': { rumViewToken: () => null, markRumPdf() {} },
     '../../features/projects/pageLayout': { normalizePagesPerRow: value => value, MAX_PAGES_PER_ROW: 7 },
     './GenericFileCard': { GenericFileCard: 'file-card' }, './PdfImageDocument': { PdfImageDocument: 'live-pdf' },

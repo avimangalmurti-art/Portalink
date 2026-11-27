@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import type { PortfolioCategory } from '../../types/domain';
 import type { ProfileConnection } from '../../types/social';
 import { buildPath } from '../../app/routes';
+import { portalChildren } from '../../features/profile/portalHierarchy';
 import { CreatorAvatar } from './CreatorAvatar';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -28,11 +29,12 @@ export function ProfileCollectionGrid({ shared = false, profileId, kind, portals
   const isMobile = usePresentation() === 'mobile';
   const isPortals = kind === 'portals';
   const title = isPortals ? 'Portals' : kind === 'followers' ? 'Followers' : 'Following';
-  const count = isPortals ? portals.length : people.length;
+  const rootPortals = isPortals ? portalChildren(portals) : [];
+  const count = isPortals ? rootPortals.length : people.length;
   return <section className="profile-collection" aria-label={title} aria-busy={loading}>
     {isPortals && <h2 className="mb-5 text-[14px] font-medium text-[var(--text-secondary)]">{title}</h2>}
     {count > 0 && <ul className="profile-collection-grid">
-      {isPortals ? portals.map((portal) => <li key={portal.id}>
+      {isPortals ? rootPortals.map((portal) => <li key={portal.id}>
         <Link to={buildPath(shared ? 'sharedProfileCategory' : 'profileCategory', { profileId, categoryId: portal.id })} className="profile-collection-link" title={portal.label}>
           <span className="profile-collection-tile squircle" aria-hidden="true"><InterfaceIcon icon={getCategoryIcon(portal.iconName)} size="xl" /></span>
           <span className="profile-collection-name">{portal.label}</span>

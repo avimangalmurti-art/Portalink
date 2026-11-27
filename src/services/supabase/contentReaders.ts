@@ -7,7 +7,7 @@ import type { ProfileService } from '../interfaces';
 import type { CategoryFormat, Profile, ProfileLink, ProfileStat, Project, ProjectAttachment, ProjectDesign } from '../../types/domain';
 import type { GeographicScope, ProjectRelevance } from '../../types/discovery';
 import { ProfileServiceError } from '../../types/profile';
-import { multipartSource, readMultipartSpec } from './multipartMedia';
+import { multipartPdfRangeReader, multipartSource, readMultipartSpec } from './multipartMedia';
 import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
 import { deriveProjectRelevance } from '../../domain/discovery/ranking';
 import { requireSupabase } from './client';
@@ -15,6 +15,8 @@ import { requireDirectoryAccount } from './requireDirectoryAccount';
 import { signedMediaUrls } from './mediaUrlCache';
 import { coverThumbnailWithUrls, readCoverThumbnail } from './coverThumbnailReads';
 import { readSharedProfileBundle } from './sharedProfileBundle';
+import { readFeaturedPortals } from './projectPortalFeatures';
+import { attachPortalParents, readPortalParents } from './portalHierarchy';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { normalizePublicAppearance } from '../../utils/publicAppearance';
 import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
@@ -241,6 +243,7 @@ async function hydrateProjects(
   categoryRows: Array<Pick<CategoryRow, 'id' | 'label'> & Partial<Pick<CategoryRow, 'is_hidden'>>>,
   attachmentRows: AttachmentRow[],
   mode: 'full' | 'cover' = 'full',
+  featuredPortals?: ReadonlyMap<string, string[]>,
 ): Promise<Map<string, Project>> {
   const thumbnails = new Map(projectRows.map(row => [row.id, readCoverThumbnail(row.cover_thumbnail, row.profile_id, row.id)]));
   const rawAttachments = new Map(attachmentRows.map(row => [row.id, row]));
@@ -283,9 +286,11 @@ async function hydrateProjects(
         sourceUrl = null;
       }
     }
+    const kind = playback ? 'video' : resolveStoredMediaKind(row.kind as ProjectAttachment['kind'], row.file_name, row.mime_type);
+    const multipart = metadata?.multipart;
     const attachment: ProjectAttachment = {
       id: row.id,
-      kind: playback ? 'video' : resolveStoredMediaKind(row.kind as ProjectAttachment['kind'], row.file_name, row.mime_type),
+      kind,
       fileName: row.file_name,
       displayName: row.display_name,
       extension: row.extension,
@@ -293,6 +298,9 @@ async function hydrateProjects(
       sizeBytes: row.size_bytes,
       typeLabel: row.type_label,
       sourceUrl,
+      ...(mode === 'full' && kind === 'document' && multipart && row.storage_path ? {
+        openPdfRanges: multipartPdfRangeReader(row.storage_path, multipart, row.file_name),
+      } : {}),
       storagePath: row.storage_path,
       status: row.status as ProjectAttachment['status'],
       isCover: row.is_cover,
@@ -329,6 +337,7 @@ async function hydrateProjects(
     const project: Project = {
       id: row.id,
       categoryId: row.category_id,
+      additionalPortalIds: featuredPortals?.get(row.id)?.filter(id => id !== row.category_id && categoryLabels.has(id)),
       title: row.title,
       summary: row.summary,
       tags: row.design && typeof row.design === 'object' && Array.isArray((row.design as { tags?: unknown }).tags)
@@ -390,9 +399,10 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
   const pairRequest = ownerIds.length ? Promise.allSettled([
     client.from('profile_journey_pairs').select('profile_id,pair').in('profile_id', ownerIds),
   ]) : null;
-  const [categoryResult, projectResult] = await Promise.all([
+  const [categoryResult, projectResult, portalParents] = await Promise.all([
     client.from('portfolio_categories').select('*').in('profile_id', profileIds).order('position'),
     client.from('projects').select('*').in('profile_id', profileIds).order('published_at', { ascending: false }),
+    readPortalParents(profileIds),
   ]);
   if (categoryResult.error) throw new Error(categoryResult.error.message);
   if (projectResult.error) throw new Error(projectResult.error.message);
@@ -404,9 +414,12 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
   const projectIds = projectRows
     .filter(row => mediaMode !== 'overview' || !readCoverThumbnail(row.cover_thumbnail, row.profile_id, row.id))
     .map((row) => row.id);
-  const attachmentResult = projectIds.length > 0
-    ? await client.from('project_attachments').select('*').in('project_id', projectIds).order('position')
-    : { data: [], error: null };
+  const [attachmentResult, featured] = await Promise.all([
+    projectIds.length > 0
+      ? client.from('project_attachments').select('*').in('project_id', projectIds).order('position')
+      : { data: [], error: null },
+    profileId ? readFeaturedPortals(projectRows.map(row => row.id)) : undefined,
+  ]);
   if (attachmentResult.error) throw new Error(attachmentResult.error.message);
   let attachmentRows = (attachmentResult.data ?? []) as unknown as AttachmentRow[];
   if (mediaMode === 'overview') {
@@ -427,7 +440,7 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
       return cover ? [cover] : [];
     });
   }
-  const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows, mediaMode === 'overview' || publicOnly ? 'cover' : 'full');
+  const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows, mediaMode === 'overview' || publicOnly ? 'cover' : 'full', featured);
   if (mediaMode === 'overview') {
     projectsById.forEach(project => {
       // The authenticated wall also uses `cover` to decide whether a published
@@ -488,13 +501,13 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
     stats: asStats(row.stats),
     socialLinks: asStringRecord(row.social_links),
     links: asLinks(row.links),
-    categories: visibleCategories.map((category) => ({
+    categories: attachPortalParents(row.id, visibleCategories.map((category) => ({
         id: category.id,
         label: category.label,
         iconName: category.icon_name,
         format: category.format as CategoryFormat,
         blurb: category.blurb,
-      })),
+      })), portalParents),
     projects: (projectsByProfile.get(row.id) ?? []).filter((project) => visibleProjectIds.has(project.id)),
     isPrivate: row.is_private,
     publicAppearance: normalizePublicAppearance(row.public_appearance),
@@ -536,7 +549,11 @@ async getSharedProfile(profileId) {
     }
     if (!response.bundle) throw new ProfileServiceError('not_found', 'That creator profile could not be found.');
     const { profile: row, categories, projects, attachments, citations } = response.bundle;
-    const hydrated = await hydrateProjects(projects, categories, attachments, 'cover');
+    const [featured, portalParents] = await Promise.all([
+      readFeaturedPortals(projects.map(project => project.id)),
+      readPortalParents([row.id]),
+    ]);
+    const hydrated = await hydrateProjects(projects, categories, attachments, 'cover', featured);
     const ordered = projects.some(project => project.position < 0)
       ? [...projects].sort((a, b) => a.position - b.position || b.published_at.localeCompare(a.published_at)) : projects;
     return {
@@ -545,7 +562,9 @@ async getSharedProfile(profileId) {
       id: row.id, name: row.name, handle: `@${row.handle}`, headline: row.headline, location: row.location,
       initials: deriveInitials(row.name), avatar: row.avatar_url, navHeading: row.nav_heading,
       stats: asStats(row.stats), socialLinks: asStringRecord(row.social_links), links: asLinks(row.links),
-      categories: categories.map(category => ({ id: category.id, label: category.label, iconName: category.icon_name, format: category.format as CategoryFormat, blurb: category.blurb })),
+      categories: attachPortalParents(row.id, categories.map(category => ({
+        id: category.id, label: category.label, iconName: category.icon_name, format: category.format as CategoryFormat, blurb: category.blurb,
+      })), portalParents),
       projects: ordered.flatMap(project => { const item = hydrated.get(project.id); return item ? [item] : []; }), isPrivate: false,
       publicAppearance: normalizePublicAppearance(row.public_appearance), projectGridColumns: normalizeProjectGridColumns(row.project_grid_columns),
       showJourney: row.show_journey === true,

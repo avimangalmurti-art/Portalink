@@ -49,10 +49,10 @@ function targetKey(target: MediaInteractionTarget): string {
   return `${target.projectId}:${target.attachmentId}:${target.pageIndex}`;
 }
 
-export function mediaDeepLink(target: MediaInteractionTarget): URL {
+export function mediaDeepLink(target: MediaInteractionTarget, sharePath?: string): URL {
   const current = new URL(window.location.href);
   const url = new URL(PUBLIC_ORIGIN);
-  url.pathname = current.pathname;
+  url.pathname = sharePath ?? current.pathname;
   const safePath = readSharedReturnPath(current.pathname + current.search);
   if (safePath) url.search = new URL(safePath, PUBLIC_ORIGIN).search;
   url.searchParams.set('media', target.attachmentId);
@@ -85,7 +85,7 @@ function takePendingAction(key: string): PendingMediaAction | null {
   }
 }
 
-export function useMediaInteractions(target: MediaInteractionTarget, enabled = true) {
+export function useMediaInteractions(target: MediaInteractionTarget, enabled = true, sharePath?: string) {
   const auth = useAuth();
   const key = targetKey(target);
   const actionScope = `${key}:${auth.user?.id ?? ''}`;
@@ -275,8 +275,8 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
 
   const sendContent = useInternalContentShare();
   const share = useCallback(async () => {
-    sendContent({title:target.label,url:mediaDeepLink(target).toString(),onSent:()=>setShareState('shared')});
-  }, [target,sendContent]);
+    sendContent({title:target.label,url:mediaDeepLink(target, sharePath).toString(),onSent:()=>setShareState('shared')});
+  }, [target,sendContent,sharePath]);
 
   return {
     record,

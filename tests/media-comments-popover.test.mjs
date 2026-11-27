@@ -381,7 +381,7 @@ test('scrolling tracks the anchor and unmount removes viewport and document list
   assert.equal(env.observers[0].observed.length, 0);
 });
 
-function interactionBarHarness(mode, guest = false) {
+function interactionBarHarness(mode, guest = false, pageWidth = 390) {
   const states = [];
   let cursor = 0, retries = 0, dismissals = 0; const gates = [];
   const activity = {
@@ -417,7 +417,7 @@ function interactionBarHarness(mode, guest = false) {
     '../../components/ui/Button': { Button: 'button' },
     '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: !guest, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}) }) },
     '../auth/registration': { readSharedReturnPath: () => null },
-    './MobilePageContext': { MobilePageContext: {} },
+    './ProjectSharePathContext': { ProjectSharePathContext: {} }, './MobilePageContext': { MobilePageContext: {} },
     '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
     '../../presentation/mobile/contextActions': { contextActions: () => ({ primary: [], groups: [] }) },
     '../media/publicMediaUrl': { publicMediaUrl: source => source },
@@ -427,7 +427,7 @@ function interactionBarHarness(mode, guest = false) {
       mobileFocusedMediaToolbarLayout: () => ({ width: 200, unit: 40, slots: [1, 1, 1, 1, 1] }),
     },
     '../../presentation/usePresentation': { usePresentation: () => mode },
-    './useMediaPageSize': { useMediaPageSize: () => ({ ref: { current: null }, pageWidth: 390, hostWidth: 390, isVisible: true }) },
+    './useMediaPageSize': { useMediaPageSize: () => ({ ref: { current: null }, pageWidth, hostWidth: pageWidth, isVisible: true }) },
     './MediaCommentsPopover': { MediaCommentsPopover: popover },
   }, {window:{location:{pathname:'/share/creator/c/portal/project',search:'?page=2'}}});
   const render = (changes = {}) => {
@@ -454,6 +454,29 @@ test('the actual mobile Comments header uses animated dismissal while its parent
   h.advance(180); assert.deepEqual(h.calls, ['close']); assert.equal(descendants(env.render()).some(node => node.type === env.popover), false);
   descendants(env.render()).find(node => node.props['aria-label'] === 'Show comments for Page 1').props.onClick();
   assert.equal(descendants(env.render()).find(node => node.type === 'textarea').props.value, 'Keep this unposted draft');
+});
+
+test('desktop page and focused toolbars allocate a column for every owner and visitor action', () => {
+  for (const placement of ['page', 'focused']) {
+    for (const isOwner of [true, false]) {
+      const env = interactionBarHarness('web');
+      const toolbar = descendants(env.render({ placement, isOwner })).find(node => node.props.role === 'group');
+      const actions = descendants(toolbar).filter(node => node.type === 'button');
+      assert.deepEqual(actions.map(node => node.props['aria-label']), ['Save: Page 1', 'Show comments for Page 1', 'Cite this page', 'Share Page 1']);
+      assert.ok(toolbar.props.style.gridTemplateColumns.startsWith(`repeat(${actions.length},`));
+    }
+  }
+});
+
+test('dense desktop actions use the available width without repeating the focused page count', () => {
+  const env = interactionBarHarness('web', false, 172);
+  const overview = descendants(env.render({ isOwner: true })).find(node => node.props.role === 'group');
+  assert.equal(overview.props.style.minWidth, 172 - 2 * 4);
+
+  const focused = descendants(env.render({ isOwner: true, placement: 'focused', pageCount: 7 }));
+  const toolbar = focused.find(node => node.props.role === 'group');
+  assert.equal(focused.some(node => node.props['aria-label'] === 'Page 1 of 7' || node.props.children === '1 / 7'), false);
+  assert.equal(toolbar.props.style.minWidth, 172 - 2 * 8);
 });
 
 test('focused mobile owner and visitor actions all fit the same four-column row', () => {

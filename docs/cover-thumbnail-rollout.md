@@ -12,11 +12,11 @@ and the social-cover capability follows the updated schema/bucket guards.
 
 ## Review and approval order
 
-1. `supabase/pending/cover_thumbnail_schema.sql`: nullable `projects.cover_thumbnail`,
+1. `supabase/migrations/202609300001_cover_thumbnail_schema.sql`: nullable `projects.cover_thumbnail`,
    manifest validation, owner/service-role revision-checked setter, private
    `project-media` cover reads, attachment invalidation and privacy guards.
    Existing `project-media` remains private; existing RLS policies remain in place.
-2. `supabase/pending/project_covers_public_bucket.sql`: **separate explicit public
+2. `supabase/migrations/202609300002_project_covers_public_bucket.sql`: **separate explicit public
    storage approval**. Creates `project-covers` with WebP-only, 5 MiB object limit;
    adds owner upload/delete and public-visible listing policies, plus upload
    serialization with profile/category/project visibility changes. An existing

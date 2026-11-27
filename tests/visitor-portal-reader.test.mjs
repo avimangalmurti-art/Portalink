@@ -39,6 +39,10 @@ function fixture(presentation = 'web', { empty = false } = {}) {
     useCallback(callback, dependencies) { return react.useMemo(() => callback, dependencies); },
   };
   const { VisitorProjectPage } = sourceModule('src/visitor/VisitorProjectPage.tsx', {
+    '../features/projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
+    '../features/profile/portalHierarchy': sourceModule('src/features/profile/portalHierarchy.ts'),
+    '../features/profile/useSavedPortalOrder': { useSavedPortalOrder: (_profile, _category, enabled) => enabled ? state.savedOrder : undefined },
+    '../components/profile/PortalChildren': { PortalChildren: 'child-portals' },
     react,
     'lucide-react': { ChevronLeftIcon: 'back-icon', ListIcon: 'list-icon', PanelLeftCloseIcon: 'collapse-icon', PanelLeftOpenIcon: 'expand-icon', SearchIcon: 'search-icon', XIcon: 'close-icon' },
     '../presentation/usePresentation': { usePresentation: () => state.presentation },
@@ -54,6 +58,7 @@ function fixture(presentation = 'web', { empty = false } = {}) {
     '../utils/projectPanelLayout': panels,
     '../components/profile/ProjectIndexList': { ProjectIndexList: 'project-index' },
     '../components/profile/MobilePortalProjectToolbar': { MobilePortalProjectToolbar: 'portal-toolbar' },
+    '../components/profile/PortalLinkCopyButton': { PortalLinkCopyButton: 'portal-link-copy' },
     '../components/profile/portalProjectBrowsing': portalBrowsing,
     '../features/projects/pageLayout': pageLayout,
     '../components/profile/web-reader-spacing.css': {},
@@ -90,11 +95,40 @@ test('WEB portal reader opens its public project index beside the read-only sele
   assert.deepEqual(h.calls, ['back', 'back']);
 });
 
-test('WEB project index adjusts the public media layout for multi-page work without committing an owner change', () => {
+test('the public project index keeps Portal browsing available without a copy action in WEB and MOBILE', () => {
+  const web = fixture(), tree = web.render();
+  assert.equal(one(tree, 'portal-link-copy'), undefined);
+  button(tree, 'Close project list').props.onClick();
+  assert.equal(one(web.render(), 'portal-link-copy'), undefined);
+  const mobile = fixture('mobile');
+  let screen = mobile.render();
+  assert.equal(one(screen, 'portal-link-copy'), undefined);
+  one(screen, 'media-viewer').props.mobileNavigation.onOpenIndex();
+  screen = mobile.render();
+  const toolbar = one(one(screen, 'media-viewer').props.mobileNavigation.index, 'portal-toolbar');
+  assert.equal(toolbar.props.publicProfileId, undefined);
+  assert.equal(toolbar.props.browsingControls, true);
+  assert.equal(toolbar.props.category.id, 'work');
+});
+
+test('the reader keeps the selected Portal index when the open project is featured there', () => {
+  const h = fixture();
+  const featured = { ...h.alpha, additionalPortalIds: ['empty'] };
+  h.state.profile.projects = [featured, ...h.state.profile.projects.slice(1)];
+  h.state.categoryId = 'empty';
+  h.state.project = featured;
+  const tree = h.render();
+  assert.equal(one(tree, 'nav').props['aria-label'], 'Empty portal index');
+  assert.deepEqual(one(tree, 'project-index').props.projects.map(project => project.id), ['alpha']);
+  assert.equal(one(tree, 'media-viewer').props.projectId, 'alpha');
+});
+
+test('WEB project index adjusts the public media layout before page count resolves without committing an owner change', () => {
   const h = fixture();
   h.alpha.attachments = [{ id: 'document', kind: 'document' }];
   let tree = h.render();
-  assert.equal(one(tree, 'page-layout-control'), undefined, 'Wait for a known page total.');
+  assert.equal(one(tree, 'page-layout-control').props.value, 4);
+  assert.equal(one(tree, 'media-viewer').props.pageCount, null);
   one(tree, 'media-viewer').props.onDocumentPageCountResolved('document', 6);
   tree = h.render();
   const slider = one(one(tree, 'header'), 'page-layout-control');
@@ -114,13 +148,36 @@ test('WEB project index adjusts the public media layout for multi-page work with
 
   h.beta.pageCount = 1;
   h.state.project = h.beta;
-  assert.equal(one(h.render(), 'page-layout-control'), undefined);
+  assert.equal(one(h.render(), 'page-layout-control').props.value, 2);
   h.state.presentation = 'mobile';
   h.state.project = h.alpha;
   assert.equal(one(h.render(), 'page-layout-control'), undefined);
   assert.equal(h.render().props['data-web-reader-spacing'], undefined);
 });
 
+test('WEB single images, videos, audio and generic files open at full width and accept live density changes', () => {
+  for (const kind of ['image', 'video', 'audio', 'unknown', 'model3d', 'document']) {
+    const h = fixture();
+    h.state.project = { ...h.beta, design: undefined, pageCount: kind === 'document' ? 1 : undefined, attachments: [{ id: 'only', kind }] };
+    let tree = h.render();
+    const slider = one(tree, 'page-layout-control');
+    assert.equal(slider.props.value, 1, kind);
+    assert.equal(one(tree, 'media-viewer').props.desktopMediaColumns, undefined);
+    slider.props.onChange(2);
+    tree = h.render();
+    assert.equal(one(tree, 'page-layout-control').props.value, 2);
+    assert.equal(one(tree, 'media-viewer').props.desktopMediaColumns, 2);
+  }
+});
+
+test('mixed desktop projects start stacked and keep an authored opening density when present', () => {
+  const h = fixture();
+  const attachments = [{ id: 'image', kind: 'image' }, { id: 'pdf', kind: 'document', metadata: { pageCount: 4 } }];
+  h.state.project = { ...h.beta, attachments, design: undefined, pageCount: 4 };
+  assert.equal(one(h.render(), 'page-layout-control').props.value, 1);
+  h.state.project = { ...h.state.project, design: { pagesPerRow: 2 } };
+  assert.equal(one(h.render(), 'page-layout-control').props.value, 2);
+});
 test('shared WEB navigation colors reach the two reader rails without recoloring the media surface', () => {
   const h = fixture();
   const palette = { '--navigation-surface': '#eeeeee' };
@@ -242,7 +299,7 @@ test('WEB pending metadata never borrows prior page totals or infers them from u
     h.state.project = null; h.state.categoryId = 'work'; h.state.loading = true; h.state.pendingProjectId = 'beta';
     const tree = h.render();
     assert.equal(one(tree, 'project-index').props.activeProjectId, 'beta');
-    assert.equal(one(tree, 'page-layout-control'), undefined);
+    assert.equal(one(tree, 'page-layout-control').props.value, 2);
     assert.equal(one(tree, 'media-viewer'), undefined);
     assert.ok(one(tree, 'loading-skeleton'));
   }
@@ -327,8 +384,14 @@ test('MOBILE public reader consumes shared browsing preferences and delegates ch
   one(index, 'portal-toolbar').props.onSort('saved');
   assert.deepEqual(changes, [['layout', 'list'], ['sort', 'saved']]);
   h.state.browsing = { ...h.state.browsing, layout: 'list', sort: 'saved' };
+  h.state.savedOrder = null;
+  index = one(h.render(), 'media-viewer').props.mobileNavigation.index;
+  assert.equal(one(index, 'project-index'), undefined);
+  assert.ok(nodes(index).some(node => node.props['aria-label'] === 'Loading saved order'));
+  h.state.savedOrder = ['hidden', 'beta', 'alpha'];
   index = one(h.render(), 'media-viewer').props.mobileNavigation.index;
   assert.equal(one(index, 'project-index').props.mobileLayout, 'list');
+  assert.deepEqual(Array.from(one(index, 'project-index').props.projects, project => project.id), ['beta', 'alpha']);
   assert.equal(one(index, 'portal-toolbar').props.sort, 'saved');
   assert.equal(one(index, 'project-index').props.isOwner, false);
 });

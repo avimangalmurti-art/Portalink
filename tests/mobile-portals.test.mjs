@@ -5,11 +5,11 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 
-function compile(path, require) {
+function compile(path, require, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, require });
+  }).outputText, { exports, require, ...globals });
   return exports;
 }
 const EmptyState = () => null, LoadingState = () => null, ErrorState = () => null;
@@ -17,21 +17,50 @@ const FeatureInDesignPage = () => null;
 const CategoryOptionsMenu = () => null, NewCategoryDialog = () => null;
 const MobileReorderList = () => null;
 const Icon = () => null;
+const portalHierarchy = compile('../src/features/profile/portalHierarchy.ts');
 function harness() {
   let presentation = 'mobile';
   let auth = { isAuthenticated: true, viewerProfileId: 'owner', phase: 'authenticated' };
   const slots = []; let cursor = 0;
-  const react = { ...React, useMemo: fn => fn(), useRef: value => ({ current: value }), useEffect() {}, useState: initial => {
-    const index = cursor++;
-    if (!(index in slots)) slots[index] = initial;
-    return [slots[index], value => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
-  } };
+  const effects = [], pendingEffects = [];
+  const timers = new Map();
+  let now = 0, nextTimer = 0;
+  const window = {
+    setTimeout(callback, delay) {
+      const timer = ++nextTimer;
+      timers.set(timer, { callback, deadline: now + delay });
+      return timer;
+    },
+    clearTimeout(timer) { timers.delete(timer); },
+  };
+  const react = {
+    ...React, useMemo: fn => fn(),
+    useRef(value) {
+      const index = cursor++;
+      return slots[index] ??= { current: value };
+    },
+    useEffect(effect, deps) {
+      const index = cursor++;
+      const previous = effects[index];
+      if (previous && deps.every((dep, i) => Object.is(dep, previous.deps[i]))) return;
+      pendingEffects.push(() => {
+        previous?.cleanup?.();
+        effects[index] = { deps, cleanup: effect() };
+      });
+    },
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in slots)) slots[index] = initial;
+      return [slots[index], value => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
+    },
+  };
   const { PortalsPage } = compile('../src/features/profile/PortalsPage.tsx', name => {
     if (name.endsWith('/SavedChangeNotice')) return { SavedChangeNotice: () => null };
     if (name === 'react') return react;
-    if (name === 'lucide-react') return { ChevronLeftIcon: Icon, ChevronRightIcon: Icon, CheckIcon: Icon, PlusIcon: Icon, XIcon: Icon };
+    if (name === 'lucide-react') return { ChevronLeftIcon: Icon, ChevronRightIcon: Icon, CheckIcon: Icon, PlusIcon: Icon, XIcon: Icon, LayoutGridIcon: Icon, ListIcon: Icon };
     if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/useMobilePortalScrollFade')) return { useMobilePortalScrollFade: () => () => {} };
     if (name.endsWith('/FeatureInDesignPage')) return { FeatureInDesignPage };
     if (name.endsWith('/StateViews')) return { EmptyState, LoadingState, ErrorState };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: Icon };
@@ -40,8 +69,9 @@ function harness() {
     if (name.endsWith('/NewCategoryDialog')) return { NewCategoryDialog };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
     if (name.endsWith('/useCategoryManagement')) return { MAX_CATEGORY_LABEL: 40 };
+    if (name === './portalHierarchy') return portalHierarchy;
     throw new Error(`Unexpected import: ${name}`);
-  });
+  }, { window });
   const chosen = [];
   const profile = { id: 'owner', categories: [
     { id: 'typography', label: 'Typography', iconName: 'type' },
@@ -54,7 +84,21 @@ function harness() {
       createCategory: async () => null, renameCategory: async () => false },
     theme: 'dark', accentColor: '#ff2d55', onChangeCategoryIcon() {},
     onboardingStatus: 'ready', onContinue: () => continued++, onSelectCategory: id => chosen.push(id), onBack() {} };
-  return { props, chosen, render: () => { cursor = 0; return PortalsPage(props); },
+  return { props, chosen,
+    render() {
+      cursor = 0;
+      const tree = PortalsPage(props);
+      pendingEffects.splice(0).forEach(effect => effect());
+      return tree;
+    },
+    advance(ms) {
+      now += ms;
+      for (const [id, { callback, deadline }] of timers) {
+        if (deadline > now) continue;
+        timers.delete(id);
+        callback();
+      }
+    },
     setAuth: patch => { auth = { ...auth, ...patch }; }, setPresentation: value => { presentation = value; },
     get continued() { return continued; }, get retried() { return retried; } };
 }
@@ -65,6 +109,63 @@ function elements(node) {
 }
 const find = (tree, type) => elements(tree).find(node => node.type === type);
 
+test('mobile Portals fades only the scrolling edges that have hidden rows', () => {
+  let resize, mutation;
+  class ResizeObserver {
+    constructor(callback) { this.callback = callback; this.targets = new Set(); resize = this; }
+    observe(target) { this.targets.add(target); }
+    disconnect() { this.targets.clear(); }
+  }
+  class MutationObserver {
+    constructor(callback) { this.callback = callback; mutation = this; }
+    observe(target) { this.target = target; }
+    disconnect() { this.target = undefined; }
+  }
+  const listeners = new Map();
+  const classes = new Set(['is-at-top', 'is-at-bottom']);
+  const rows = {}, replacementRows = {};
+  const scroller = {
+    children: [rows], scrollTop: 0, scrollHeight: 180, clientHeight: 200,
+    classList: { toggle(name, force) { if (force) classes.add(name); else classes.delete(name); } },
+    addEventListener(name, handler, options) { listeners.set(name, handler); assert.equal(options?.passive, true); },
+    removeEventListener(name, handler) { if (listeners.get(name) === handler) listeners.delete(name); },
+  };
+  const { useMobilePortalScrollFade } = compile('../src/presentation/mobile/useMobilePortalScrollFade.ts', name => {
+    assert.equal(name, 'react');
+    return { useCallback: callback => callback, useRef: current => ({ current }) };
+  }, { ResizeObserver, MutationObserver });
+  const attach = useMobilePortalScrollFade();
+  attach(scroller);
+  const assertEdges = (top, bottom) => {
+    assert.equal(classes.has('is-at-top'), top);
+    assert.equal(classes.has('is-at-bottom'), bottom);
+  };
+  assertEdges(true, true);
+  assert.deepEqual(resize.targets, new Set([scroller, rows]));
+  assert.equal(mutation.target, scroller);
+
+  scroller.scrollHeight = 500;
+  resize.callback();
+  assertEdges(true, false);
+  scroller.scrollTop = 140;
+  listeners.get('scroll')();
+  assertEdges(false, false);
+  scroller.scrollTop = 300;
+  listeners.get('scroll')();
+  assertEdges(false, true);
+
+  scroller.children = [replacementRows];
+  scroller.scrollHeight = 620;
+  mutation.callback();
+  assertEdges(false, false);
+  assert.deepEqual(resize.targets, new Set([scroller, replacementRows]));
+
+  attach(null);
+  assert.equal(listeners.size, 0);
+  assert.equal(resize.targets.size, 0);
+  assert.equal(mutation.target, undefined);
+});
+
 test('mobile Portals lists the confirmed owner portals in saved order and selects by stable id', () => {
   const h = harness();
   let wentBack = 0;
@@ -73,6 +174,9 @@ test('mobile Portals lists the confirmed owner portals in saved order and select
   const headerChildren = React.Children.toArray(header.props.children);
   assert.equal(headerChildren[0].props['aria-label'], 'Go back');
   assert.equal(headerChildren[1].props.id, 'mobile-portals-title');
+  const scroller = elements(h.render()).find(node => node.props.className?.includes('mobile-portals-scroll'));
+  assert.match(scroller.props.className, /\bsidebar-scroll-fade\b/);
+  assert.equal(typeof scroller.ref, 'function');
   headerChildren[0].props.onClick();
   assert.equal(wentBack, 1);
   const buttons = elements(h.render()).filter(node => node.type === 'button' && node.props.className === 'mobile-portal-row');
@@ -170,7 +274,7 @@ test('visitor and guest profile entry shows that creator’s canonical portals w
 
 test('portal reordering saves the complete ordered IDs through the existing management boundary', async () => {
   const h = harness(), saves = [];
-  h.props.management.reorderCategories = async ids => { saves.push(ids); return true; };
+  h.props.management.reorderCategories = async ids => { saves.push(Array.from(ids)); return true; };
   const list = find(h.render(), MobileReorderList);
   assert.equal(list.props.disabled, false);
   list.props.onReorder([...list.props.items].reverse());
@@ -216,7 +320,7 @@ test('plus creates through management, retains the dialog on failure and opens t
   assert.deepEqual(h.chosen, ['created-portal']);
 });
 
-test('row options edit that portal without navigating and retain rejected rename drafts', async () => {
+test('row options retain rejected drafts and confirm a saved rename in green before closing', async () => {
   const h = harness(); const calls = [];
   h.props.management.toggleCategoryHidden = id => calls.push(['hide', id]);
   h.props.management.deleteCategory = id => calls.push(['delete', id]);
@@ -229,13 +333,40 @@ test('row options edit that portal without navigating and retain rejected rename
   assert.deepEqual(h.chosen, []);
   menu.props.onRenameStart();
   byLabel(h.render(), 'Rename Graphic Design').props.onChange({ target: { value: 'New name' } });
-  find(h.render(), 'form').props.onSubmit({ preventDefault() {} });
+  const submit = () => find(h.render(), 'form').props.onSubmit({ preventDefault() {} });
+  const saveButton = () => byLabel(h.render(), 'Save portal name');
+  let resolveRename;
+  h.props.management.renameCategory = (id, label) => {
+    assert.equal(id, 'design');
+    assert.equal(label, 'New name');
+    h.props.management.pending = { kind: 'rename', categoryId: id };
+    return new Promise(resolve => { resolveRename = resolve; });
+  };
+  submit();
+  assert.equal(saveButton().props.disabled, true);
+  assert.equal(saveButton().props.children.props.style, undefined);
+  h.props.management.pending = null;
+  resolveRename(false);
   await flush();
   assert.equal(byLabel(h.render(), 'Rename Graphic Design').props.value, 'New name');
-  h.props.management.renameCategory = async (id, label) => { assert.equal(id, 'design'); assert.equal(label, 'New name'); return true; };
-  find(h.render(), 'form').props.onSubmit({ preventDefault() {} });
+  assert.equal(saveButton().props.disabled, false);
+  assert.equal(saveButton().props.children.props.style, undefined);
+
+  submit();
+  h.props.profileQuery.profile.categories[1].label = 'New name';
+  h.props.management.pending = null;
+  resolveRename(true);
   await flush();
+  const saved = saveButton();
+  assert.equal(saved.props.disabled, true);
+  assert.equal(saved.props.children.props.keepColor, true);
+  assert.equal(saved.props.children.props.style.color, 'var(--status-success)');
+  assert.ok(elements(h.render()).some(node => node.props.role === 'status' && node.props.children === 'Portal name saved'));
+  h.advance(849);
+  assert.ok(find(h.render(), 'form'));
+  h.advance(1);
   assert.equal(find(h.render(), 'form'), undefined);
+  assert.ok(elements(h.render()).some(node => node.props.className === 'mobile-portal-label' && node.props.children === 'New name'));
   assert.deepEqual(h.chosen, []);
 });
 
@@ -275,4 +406,29 @@ test('portal view switch preserves stable selection and saved order without a ma
  assert.deepEqual(Array.from(list.props.items,item=>item.id),['typography','design']);
  elements(tree).filter(n=>n.type==='button'&&n.props.className==='mobile-portal-row')[1].props.onClick();assert.deepEqual(h.chosen,['design']);
  elements(tree).find(n=>n.props['aria-label']==='Show portals as list').props.onClick();assert.equal(h.render().props['data-portals-layout'],'list');
+});
+
+test('the mobile Portals screen shows roots and reorders only their saved slots', () => {
+  const h = harness();
+  const child = { id: 'lettering', label: 'Lettering', iconName: 'type', parentId: 'typography' };
+  const grandchild = { id: 'posters', label: 'Posters', iconName: 'type', parentId: 'lettering' };
+  const orphan = { id: 'available-child', label: 'Available child', iconName: 'window', parentId: 'unavailable-parent' };
+  h.props.profileQuery.profile.categories.push(child, grandchild, orphan);
+  h.props.management.arrangement.categoryOrder = ['typography', 'lettering', 'design', 'posters', 'available-child'];
+  const writes = [];
+  h.props.management.reorderCategories = order => writes.push(Array.from(order));
+  const list = find(h.render(), MobileReorderList);
+  assert.deepEqual(Array.from(list.props.items, item => item.id), ['typography', 'design', 'available-child']);
+  list.props.onReorder([list.props.items[1], list.props.items[0], list.props.items[2]]);
+  assert.deepEqual(writes, [['design', 'lettering', 'typography', 'posters', 'available-child']]);
+});
+
+test('a parent lists only direct children and keeps nested descendants in their order slots', () => {
+  const categories = [
+    { id: 'a' }, { id: 'b' }, { id: 'child-1', parentId: 'a' }, { id: 'other-child', parentId: 'b' },
+    { id: 'grandchild', parentId: 'child-1' }, { id: 'child-2', parentId: 'a' },
+  ];
+  assert.deepEqual(Array.from(portalHierarchy.portalChildren(categories, 'a'), category => category.id), ['child-1', 'child-2']);
+  assert.deepEqual(Array.from(portalHierarchy.applyPortalOrder(categories.map(category => category.id), ['child-2', 'child-1'])),
+    ['a', 'b', 'child-2', 'other-child', 'grandchild', 'child-1']);
 });

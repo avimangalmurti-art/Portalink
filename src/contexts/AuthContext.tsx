@@ -4,6 +4,7 @@ import { toAuthError } from '../types/auth';
 import type { AuthError, AuthIntent, AuthPhase, AuthSession, AuthUser, SignInInput } from '../types/auth';
 import type { Id } from '../types/domain';
 import { clearPasswordRecoveryReturn, isPasswordRecoveryReturn } from '../utils/passwordRecoveryReturn';
+import { setProfileAudioAccount } from '../features/profile/profileAudioPlayback';
 
 /**
  * The application's single session source of truth.
@@ -113,6 +114,8 @@ export function AuthProvider({
   } = useServices();
   const [phase, setPhase] = useState<AuthPhase>('initializing');
   const [session, setSession] = useState<AuthSession | null>(null);
+  const playbackAccountId = session?.user.id ?? null;
+  useEffect(() => { setProfileAudioAccount(playbackAccountId); }, [playbackAccountId]);
   const loginSession = useMemo(() => ({}), [session?.user.id]);
   const sessionRef = useRef(session);
   sessionRef.current = session;

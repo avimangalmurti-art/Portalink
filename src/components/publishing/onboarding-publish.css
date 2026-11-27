@@ -388,6 +388,10 @@
   overflow-wrap:anywhere;
 }
 [data-onboarding-idea-review] .onboarding-review-fields .onboarding-review-title-value { font-size:20px; font-weight:600; line-height:1.35; }
+[data-presentation='mobile'] [data-onboarding-idea-review] .onboarding-review-fields dd,
+[data-presentation='mobile'] [data-onboarding-idea-review] .onboarding-review-location > span {
+  font-weight:600;
+}
 #root .codex-shell [data-project-creation] .onboarding-review-fields .onboarding-review-summary {
   contain:none;
   min-height:0;
@@ -395,7 +399,7 @@
   margin:0;
   color:inherit;
 }
-[data-onboarding-idea-review] .onboarding-review-fields .onboarding-review-empty-description { margin:0; color:var(--text-secondary); }
+[data-onboarding-idea-review] .onboarding-review-fields .onboarding-review-empty-description { margin:0; color:var(--text-secondary); font-weight:400; }
 /* A short desktop window gives space to crop controls before the preview. */
 #root .codex-shell [data-project-creation][data-presentation='web'] [data-onboarding-files-cover] [data-focused-cover] .cover-filmstrip-track {
   height:clamp(112px,calc(var(--dialog-viewport-height,100dvh) - 480px),280px);

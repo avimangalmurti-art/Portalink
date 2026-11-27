@@ -147,7 +147,7 @@ test('saving on mobile close locks fields, cover edits and submission until dism
 });
 
 test('legacy first-project drafts use one editable description instead of story questions', () => {
- const h=harness({metadata:{title:'Saved title',summary:'Saved description',creationDetails:{answers:{what:'Old answer',did:'Old role',learned:'Old lesson'}}}}, {firstProject:{name:'Creator',categories:['Work']}});
+ const h=harness({metadata:{title:'Saved title',summary:'Saved description',creationDetails:{answers:{what:'Old answer',did:'Old role',learned:'Old lesson'}}}}, {firstProject:true});
  const tree=h.render('details');
  const fields=nodes(tree).filter(node=>node.type==='ProfileField');
  assert.deepEqual(fields.map(node=>node.props.id),['publish-title','publish-summary','publish-location']);
@@ -158,7 +158,7 @@ test('legacy first-project drafts use one editable description instead of story 
 });
 
  test('legacy drafts can add files and continue without a title on the Files step', async () => {
- const h=harness({metadata:{title:'',summary:'Description',creationDetails:{madeIn:'2026-07',field:'Old field'}}},{firstProject:{name:'Creator',categories:['Work']}});
+ const h=harness({metadata:{title:'',summary:'Description',creationDetails:{madeIn:'2026-07',field:'Old field'}}},{firstProject:true});
  let tree=h.render('files');
  assert.ok(button(tree,'Continue to details'));
  await h.submit(tree);

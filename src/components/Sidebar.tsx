@@ -13,7 +13,9 @@ import type { NavigationDestination } from './navigation';
 // mock service; production-facing components read the real contract.
 import type { Profile, PortfolioCategory as ProfileCategory } from '../types/domain';
 import { getCategoryIcon } from './profile/categoryIcons';
+import { CatalogueRowName } from './profile/PreviewCreatorName';
 import type { CategoryManagement } from '../features/profile/useCategoryManagement';
+import { applyPortalOrder, portalChildren, portalRootId } from '../features/profile/portalHierarchy';
 import type { CategoryDeletionCapability } from '../types/domain';
 import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, ChartNoAxesColumnIcon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, SearchIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, UserSearchIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, WarehouseIcon } from 'lucide-react';
 import { PortalRingIcon } from './PortalRingIcon';
@@ -271,7 +273,7 @@ function CategoryRowContent({
           setDraftLabel(category.label);
           onRenameCancel?.();
         }
-      }} aria-label={`Rename ${category.label}`} maxLength={60} className="text-control min-w-0 flex-1 px-1.5 py-1 text-small font-medium text-[var(--text-primary)]" /> : <span className="cdx-dense-label min-w-0 flex-1 py-0.5" title={category.label}>{category.label}</span>}
+      }} aria-label={`Rename ${category.label}`} maxLength={60} className="text-control min-w-0 flex-1 px-1.5 py-1 text-small font-medium text-[var(--text-primary)]" /> : <CatalogueRowName name={category.label} className="cdx-dense-label min-w-0 flex-1 py-0.5" />}
         <span className="flex w-6 shrink-0 items-center justify-center" aria-hidden="true">
           {isBusy && <Loader2Icon className="h-3.5 w-3.5 animate-spin text-[var(--text-tertiary)]" />}
         </span>
@@ -536,6 +538,9 @@ export function Sidebar({
   // Hidden categories sink to the bottom of the list.
   const arrangedCategories = useMemo(() => [...orderedCategories.filter((category) => !hiddenCategoryIds.includes(category.id)), ...orderedCategories.filter((category) => hiddenCategoryIds.includes(category.id))], [hiddenCategoryIds, orderedCategories]);
   const arrangedCategoryIds = useMemo(() => arrangedCategories.map((category) => category.id), [arrangedCategories]);
+  const rootCategories = useMemo(() => portalChildren(arrangedCategories), [arrangedCategories]);
+  const rootCategoryIds = useMemo(() => rootCategories.map(category => category.id), [rootCategories]);
+  const activeRootCategoryId = useMemo(() => portalRootId(orderedCategories, activeCategoryId ?? null), [orderedCategories, activeCategoryId]);
   const [draftCategoryIds, setDraftCategoryIds] = useState<string[] | null>(null);
   const draftCategoryIdsRef = useRef<string[] | null>(null);
 
@@ -545,21 +550,21 @@ export function Sidebar({
   useEffect(() => {
     setDraftCategoryIds((current) => {
       if (current === null) return null;
-      const known = new Set(arrangedCategoryIds);
+      const known = new Set(rootCategoryIds);
       const retained = (current ?? []).filter((id) => known.has(id));
-      const merged = [...retained, ...arrangedCategoryIds.filter((id) => !retained.includes(id))];
+      const merged = [...retained, ...rootCategoryIds.filter((id) => !retained.includes(id))];
       draftCategoryIdsRef.current = merged;
       return merged;
     });
-  }, [arrangedCategoryIds]);
+  }, [rootCategoryIds]);
 
   const displayedCategories = useMemo(() => {
     if (!draftCategoryIds) {
-      return arrangedCategories;
+      return rootCategories;
     }
-    const byId = new Map(arrangedCategories.map((category) => [category.id, category]));
+    const byId = new Map(rootCategories.map((category) => [category.id, category]));
     return draftCategoryIds.map((id) => byId.get(id)).filter((category): category is ProfileCategory => Boolean(category));
-  }, [arrangedCategories, draftCategoryIds]);
+  }, [rootCategories, draftCategoryIds]);
   const displayedCategoryIds = useMemo(() => displayedCategories.map((category) => category.id), [displayedCategories]);
   const isCategoryReorderDisabled = management.isLoadingArrangement || !management.arrangement || management.pending !== null;
 
@@ -569,7 +574,7 @@ export function Sidebar({
   }
 
   async function commitDraftCategoryOrder(nextIds = draftCategoryIdsRef.current) {
-    try { if (nextIds && !isCategoryReorderDisabled) await management.reorderCategories(nextIds); }
+    try { if (nextIds && !isCategoryReorderDisabled) await management.reorderCategories(applyPortalOrder(arrangedCategoryIds, nextIds)); }
     finally { draftCategoryIdsRef.current = null; setDraftCategoryIds(null); }
   }
 
@@ -625,6 +630,19 @@ export function Sidebar({
     </button>;
   if (isMobile) return <MobileNavigation onMessages={fromDock=>onMessagesOpen(undefined,fromDock)}
     onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} />;
+  const workspaceTools = <>
+    <SettingsTrigger collapsed={isSidebarCollapsed} onOpen={onControlCenterOpen} />
+    {isAuthenticated && <>
+      <PersonalNavigationTile destination="studio" collapsed={isSidebarCollapsed} active={isStudioActive} />
+      <PersonalNavigationTile destination="notifications" collapsed={isSidebarCollapsed} active={isActivityActive} />
+    </>}
+    <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+      aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'}
+      title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color=""
+      className={`nav-button ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control'} shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+      <InterfaceIcon icon={theme === 'dark' ? SunIcon : MoonIcon} size="sm" weight="medium" />
+    </button>
+  </>;
   return <>
       {/* Collapsed, the rail is the whole width: the aside's own side padding was
          insetting the surface by 10px on each side while the divider sat inside
@@ -633,7 +651,7 @@ export function Sidebar({
          the surface spans the full rail and its centre is the sidebar's. Each
          responsive width now follows Apple Notes-style three-pane proportions,
          leaving room for full labels while keeping the content dominant. */}
-      <aside data-saved-change-scope="" data-resizable-panel="" style={isSidebarCollapsed ? undefined : { width: `${mainSidebarWidth.width}px` }} className={`sidebar-starfield relative h-full shrink-0 transition-[width] duration-[var(--m-fast)] [transition-timing-function:var(--m-enter)] ${isSidebarCollapsed ? 'w-[48px] py-0 sm:w-[52px]' : 'p-0'}`} aria-label="Portalink navigation">
+      <aside data-saved-change-scope="" data-resizable-panel="" style={isSidebarCollapsed ? undefined : { width: `${mainSidebarWidth.width}px` }} className={`sidebar-starfield relative h-full shrink-0 ${isSidebarCollapsed ? 'w-[48px] py-0 sm:w-[52px]' : 'p-0'}`} aria-label="Portalink navigation">
         {/* Flat application region: one hairline divider, no floating card.
            It sits above the starfield layers behind it. */}
         {/* Collapsed, the surface carries no side padding: a 40px rail tile does
@@ -641,6 +659,7 @@ export function Sidebar({
            mark off the rail's axis. With the padding gone the tile centres in the
            column, which is the sidebar's own centre. */}
         <div data-material="navigation" className={`ps-panel sidebar-surface relative z-10 flex h-full min-h-0 flex-col overflow-hidden border-r pb-2 ${isSidebarCollapsed ? 'px-0' : 'side-panel-content-inset'}`}>
+          {!isSidebarCollapsed && <nav className="sidebar-tools-rail" aria-label="Workspace tools">{workspaceTools}</nav>}
           {/* Collapsed, the rail owns the rhythm: brand, then destinations, all
              on one axis with one gap. Expanded, this is the header row. */}
           <div className={`global-control-header shrink-0 ${isSidebarCollapsed ? 'sidebar-rail sidebar-rail-brand justify-center' : 'justify-between gap-1.5'}`}>
@@ -778,14 +797,14 @@ export function Sidebar({
                       </span>
                     </div>}
                   {isOwnerMode ? <Reorder.Group as="ul" axis="y" values={displayedCategoryIds} onReorder={updateDraftCategoryOrder} className="m-0 list-none p-0">
-                      {displayedCategories.map((category) => <DraggableCategoryRow key={category.id} category={decorateCategory(category)} isActive={activeTarget === 'category' && activeCategoryId === category.id} accentColor={accentColor} theme={theme} isHidden={hiddenCategoryIds.includes(category.id)} isReorderDisabled={isCategoryReorderDisabled} isRenaming={renamingCategoryId === category.id} isBusy={management.pending?.categoryId === category.id} readDeletionCapability={() => management.readDeletionCapability(category.id)} onSelect={() => handleCategorySelect(category.id)} onMoveByKeyboard={moveCategory} onReorderCommit={() => void commitDraftCategoryOrder()} onHideToggle={() => void management.toggleCategoryHidden(category.id)} onRenameStart={() => setRenamingCategoryId(category.id)} onRenameCancel={() => setRenamingCategoryId(null)} onRenameCommit={(label) => {
+                      {displayedCategories.map((category) => <DraggableCategoryRow key={category.id} category={decorateCategory(category)} isActive={activeTarget === 'category' && activeRootCategoryId === category.id} accentColor={accentColor} theme={theme} isHidden={hiddenCategoryIds.includes(category.id)} isReorderDisabled={isCategoryReorderDisabled} isRenaming={renamingCategoryId === category.id} isBusy={management.pending?.categoryId === category.id} readDeletionCapability={() => management.readDeletionCapability(category.id)} onSelect={() => handleCategorySelect(category.id)} onMoveByKeyboard={moveCategory} onReorderCommit={() => void commitDraftCategoryOrder()} onHideToggle={() => void management.toggleCategoryHidden(category.id)} onRenameStart={() => setRenamingCategoryId(category.id)} onRenameCancel={() => setRenamingCategoryId(null)} onRenameCommit={(label) => {
                         // The category page titles itself from the record, so the
                         // rename goes to the record rather than to a local label map.
                         void commitRename(category.id, label);
                       }} onChangeIcon={() => onChangeCategoryIcon(category.id)} onDelete={() => deleteCategory(category.id)} />)}
                     </Reorder.Group> : <ul className="m-0 list-none p-0">
-                      {arrangedCategories.map((category) => <li key={category.id} className="relative list-none">
-                          <CategoryRowContent category={decorateCategory(category)} isActive={activeTarget === 'category' && activeCategoryId === category.id} accentColor={accentColor} theme={theme} isDraggable={false} isHidden={hiddenCategoryIds.includes(category.id)} onSelect={() => handleCategorySelect(category.id)} />
+                      {rootCategories.map((category) => <li key={category.id} className="relative list-none">
+                          <CategoryRowContent category={decorateCategory(category)} isActive={activeTarget === 'category' && activeRootCategoryId === category.id} accentColor={accentColor} theme={theme} isDraggable={false} isHidden={hiddenCategoryIds.includes(category.id)} onSelect={() => handleCategorySelect(category.id)} />
                         </li>)}
                     </ul>}
                   </nav>
@@ -796,29 +815,7 @@ export function Sidebar({
 
           </>}
 
-          {/* Studio and Activity share the footer between Settings and Appearance
-              in either rail size. */}
-          <div className={`sidebar-account-footer mt-auto shrink-0 border-t border-[var(--hairline)] ${isSidebarCollapsed ? 'sidebar-rail' : 'pt-2'}`}>
-            {isSidebarCollapsed ? <>
-              <SettingsTrigger collapsed onOpen={onControlCenterOpen} />
-              {isAuthenticated && <>
-                <PersonalNavigationTile destination="studio" collapsed active={isStudioActive} />
-                <PersonalNavigationTile destination="notifications" collapsed active={isActivityActive} />
-              </>}
-              <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
-              </button>
-            </> : <div className="sidebar-network-grid h-12 w-full min-w-0 items-center">
-                <SettingsTrigger collapsed={false} onOpen={onControlCenterOpen} />
-                {isAuthenticated && <>
-                  <PersonalNavigationTile destination="studio" active={isStudioActive} />
-                  <PersonalNavigationTile destination="notifications" active={isActivityActive} />
-                </>}
-                <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
-                </button>
-              </div>}
-          </div>
+          {isSidebarCollapsed && <div className="sidebar-account-footer sidebar-rail mt-auto shrink-0 border-t border-[var(--hairline)]">{workspaceTools}</div>}
         </div>
         {!isSidebarCollapsed && <ResizablePanelHandle side="right" value={mainSidebarWidth.width} min={184} max={360} onResize={mainSidebarWidth.updateWidth} onResizeEnd={mainSidebarWidth.commitWidth} onReset={mainSidebarWidth.resetWidth} label="Resize main navigation. Double-click to restore the default width." />}
       </aside>

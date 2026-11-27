@@ -5,8 +5,11 @@ import { sourceModule } from './helpers/source-module.mjs';
 
 function fixture() {
   const calls = [], query = { status: 'loading', profile: null, retry() { calls.push('retry'); } };
+  let portalPath;
   const { WebPortalSearchPopup } = sourceModule('src/features/portals/WebPortalSearchPopup.tsx', {
-    react: { ...React, useMemo: fn => fn(), useRef: current => ({ current }) },
+    '../projects/projectPortals': sourceModule('src/features/projects/projectPortals.ts'),
+    '../profile/portalHierarchy': sourceModule('src/features/profile/portalHierarchy.ts'),
+    react: { ...React, useMemo: fn => fn(), useRef: current => ({ current }), useState: initial => [portalPath ??= initial, next => { portalPath = typeof next === 'function' ? next(portalPath) : next; }] },
     'lucide-react': { ChevronLeftIcon: 'back-icon' },
     '../../components/profile/PortalProjectPopup': { PortalProjectPopup: 'chooser' },
     '../../components/profile/categoryIcons': { getCategoryIcon: () => 'portal-icon' },
@@ -51,6 +54,22 @@ test('unavailable or private creators/categories never become chooser rows, and 
   h.query.status = 'not-found'; assert.equal(h.render().props.children.type, 'empty');
 });
 
+test('WEB Portal Search can open a child and selects its project through the child portal', () => {
+  const h = fixture();
+  h.query.status = 'ready';
+  h.query.profile = { ...h.profile, categories: [...h.profile.categories, { id: 'other', label: 'Detail', parentId: 'work' }] };
+  h.render().props.onOpenChild('other');
+  let chooser = h.render();
+  assert.equal(chooser.props.categoryId, 'other');
+  assert.equal(chooser.props.backLabel, 'Back to Work');
+  chooser.props.onSelect('other', 'another');
+  assert.deepEqual(h.calls.at(-1), ['select', 'creator', 'other', 'another']);
+  chooser.props.onBack();
+  chooser = h.render();
+  assert.equal(chooser.props.categoryId, 'work');
+  assert.equal(chooser.props.backLabel, 'Back to Portal search');
+});
+
 test('read-only WEB chooser grid renders real preview labels through an explicit opt-in only', () => {
   const state = { presentation: 'web' };
   const react = { ...React, lazy: () => 'lazy', useState: initial => [initial, () => {}], useRef: current => ({ current }), useCallback: fn => fn };
@@ -58,10 +77,14 @@ test('read-only WEB chooser grid renders real preview labels through an explicit
     react, 'react-dom': { createPortal: value => value },
     '../media/MobileProjectPopup': { MobileProjectPopup: 'popup' }, '../../hooks/useMenuFocus': { useMenuFocus: () => ({}) },
     '../../utils/anchoredMenu': { positionAnchoredMenu: () => ({}) },
+    '../../features/media/videoPlayback': { videoSources: () => [] },
+    '../../features/profile/useInlineProjectContent': { useInlineProjectContent: ({ project }) => ({ project }) },
     'framer-motion': { AnimatePresence: 'presence', motion: {}, Reorder: {}, useDragControls: () => ({}) },
     'lucide-react': new Proxy({}, { get: (_, key) => String(key) }),
     '../ui/InterfaceIcon': { InterfaceIcon: 'icon' }, './TypographyInspector': { TypographyInspector: 'typeface' },
     '../../presentation/usePresentation': { usePresentation: () => state.presentation },
+    '../../presentation/mobile/MobileBackNavigation': { useMobileScreenActive: () => true },
+    './PreviewCreatorName': { PreviewCreatorName: 'scrolling-title' },
     '../media/ProjectCover': { ProjectCover: 'cover' }, '../../utils/projectPresentation': { getProjectCoverPreview: () => 'public-thumbnail.webp' },
   });
   const props = { projects: [{ id: 'work', title: 'Work', publishedAt: '2026-01-01' }], typefaceStacks: {}, hiddenIds: [], pinnedIds: [], activeProjectId: null,
@@ -72,7 +95,10 @@ test('read-only WEB chooser grid renders real preview labels through an explicit
   const row = elements(list).find(node => typeof node.type === 'function' && node.type.name === 'ProjectLink');
   const label = elements(row.type(row.props)).find(node => typeof node.type === 'function' && node.type.name === 'MobileProjectLabel');
   assert.ok(label);
-  const cover = elements(label.type(label.props)).find(node => node.type === 'cover');
+  const labelElements = elements(label.type(label.props));
+  assert.equal(labelElements.some(node => node.type === 'scrolling-title'), false);
+  const indexCover = labelElements.find(node => node.type?.name === 'ProjectIndexCover');
+  const cover = indexCover.type(indexCover.props);
   assert.equal(cover.props.allowPdfFallback, false); assert.equal(cover.props.allowVideoFallback, false);
   assert.equal(ProjectIndexList(props).props['data-web-project-layout'], undefined);
   state.presentation = 'mobile';

@@ -10,13 +10,13 @@ const transpile = source => ts.transpileModule(source, { compilerOptions: { modu
 const routes = {};
 vm.runInNewContext(transpile(read('../src/app/routes.ts')), { exports: routes, require: () => ({ navigationDestinations: [] }) });
 
-// Exercise the actual account-menu handler without sending a real invitation.
-function invite({ profileHref, share, clipboardFails = false } = {}) {
+// Exercise the Settings handlers without sending an invitation.
+function invite({ profileHref, share, isMobile = false, clipboardFails = false } = {}) {
   const source = read('../src/components/ControlCenterPage.tsx');
-  const handler = source.slice(source.indexOf('  async function inviteFriend()'), source.indexOf('  async function handleSignOut()'));
+  const handler = source.slice(source.indexOf('  const inviteData ='), source.indexOf('  async function handleSignOut()'));
   const exports = {}, copied = [], statuses = [];
   vm.runInNewContext(transpile(handler.replace('async function inviteFriend', 'export async function inviteFriend').replace('async function copyInvite', 'export async function copyInvite')), {
-    exports, URL, DOMException, profileHref, PUBLIC_ORIGIN: 'https://portalink.example', buildPath: routes.buildPath,
+    exports, URL, DOMException, profileHref, isMobile, PUBLIC_ORIGIN: 'https://portalink.example', buildPath: routes.buildPath,
     window: { location: { origin: 'http://127.0.0.1:5193' } },
     navigator: { share, clipboard: { async writeText(value) { if (clipboardFails) throw Error('Unavailable'); copied.push(value); } } },
     setInviteStatus(value) { statuses.push(value); },
@@ -36,19 +36,31 @@ test('native invitations always share welcome, regardless of the sender or viewe
   }
 });
 
-test('clipboard fallback copies the same invitation URL and only confirms successful copying', async () => {
+test('mobile clipboard fallback copies the same invitation URL and only confirms successful copying', async () => {
   for (const share of [undefined, async () => { throw Error('Sharing unavailable'); }]) {
-    const h = invite({ profileHref: '/p/sender', share }); await h.run();
+    const h = invite({ profileHref: '/p/sender', share, isMobile: true }); await h.run();
     assert.deepEqual(h.copied, ['https://portalink.example/?welcome=1']);
-    assert.deepEqual(h.statuses, ['idle', 'copied']);
+    assert.deepEqual(h.statuses, ['', 'Invite link copied.']);
   }
-  const denied = invite({ clipboardFails: true }); await denied.run();
-  assert.deepEqual(denied.statuses, ['idle', 'failed']);
+  const denied = invite({ isMobile: true, clipboardFails: true }); await denied.run();
+  assert.deepEqual(denied.statuses, ['', 'Unable to share the invite link. Please try again.']);
+});
+
+test('failed desktop sharing leaves copying to the explicit Copy action', async () => {
+  const h = invite({ share: async () => { throw new DOMException('Sharing denied', 'NotAllowedError'); } });
+  await h.run();
+  assert.deepEqual(h.copied, []);
+  assert.deepEqual(h.statuses, ['', 'Sharing is unavailable. Use Copy invite link.']);
+  await h.copy();
+  assert.deepEqual(h.copied, ['https://portalink.example/?welcome=1']);
+  assert.equal(h.statuses.at(-1), 'Invite link copied.');
 });
 
 test('cancelling native sharing does not copy or claim an invitation was sent', async () => {
-  const h = invite({ share: async () => { throw new DOMException('Cancelled', 'AbortError'); } });
-  await h.run(); assert.deepEqual(h.copied, []); assert.deepEqual(h.statuses, ['idle']);
+  for (const isMobile of [false, true]) {
+    const h = invite({ isMobile, share: async () => { throw new DOMException('Cancelled', 'AbortError'); } });
+    await h.run(); assert.deepEqual(h.copied, []); assert.deepEqual(h.statuses, ['']);
+  }
 });
 
 test('the sidebar gear directly opens Settings without a menu in either sidebar size', () => {
@@ -74,7 +86,7 @@ test('the sidebar gear directly opens Settings without a menu in either sidebar 
     const h = invite({ clipboardFails, share: async () => assert.fail('Copy must not open native sharing') });
     await h.copy();
     assert.deepEqual(h.copied, clipboardFails ? [] : ['https://portalink.example/?welcome=1']);
-    assert.deepEqual(h.statuses, ['idle', clipboardFails ? 'failed' : 'copied']);
+    assert.deepEqual(h.statuses, ['', clipboardFails ? 'Unable to copy the invite link. Please try again.' : 'Invite link copied.']);
   }
 });
 test('invite entry holds Hello World on both presentations without requesting signup', () => {

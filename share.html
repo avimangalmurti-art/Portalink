@@ -25,11 +25,11 @@
     <link rel="icon" href="/favicon.ico?v=dfe8dd2bfb25" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48 64x64" />
     <link rel="icon" href="/favicon-32x32.png?v=6ec8b9ebf296" type="image/png" sizes="32x32" />
     <link rel="icon" href="/favicon-96x96.png?v=2acb2fcdd41b" type="image/png" sizes="96x96" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon-120x120.png?v=b320cd2ef5cd" sizes="120x120" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon-152x152.png?v=fc086b51273d" sizes="152x152" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon-167x167.png?v=798436d7c2af" sizes="167x167" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=270f6b244543" sizes="180x180" />
-    <link rel="manifest" href="/site.webmanifest?v=2c28ff135075" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-120x120.png?v=6c181f7b9b56" sizes="120x120" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-152x152.png?v=c88a704b460e" sizes="152x152" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-167x167.png?v=e1d0ae890887" sizes="167x167" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=132dfc755891" sizes="180x180" />
+    <link rel="manifest" href="/site.webmanifest?v=f651d117c1f3" />
     <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Noto+Sans:wght@400;500;600;700&amp;family=Noto+Sans+JP:wght@400;500;600;700&amp;family=Noto+Sans+Devanagari:wght@400;500;600;700&amp;family=Noto+Sans+Siddham&amp;display=swap" />
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&amp;display=swap" /></noscript>
     <title>Catalogue | Portalink</title>
@@ -46,20 +46,94 @@
     <meta name="twitter:title" content="Catalogue | Portalink" />
     <meta name="twitter:description" content="Explore a creator's catalogue on Portalink." />
     <meta name="twitter:image" content="https://portalinknetworks.com/portalink-social-preview-centered.png" />
-    <style>html,body,#root{margin:0;width:100%;min-height:100%}body{background:inherit}html{background:#fff;color:#1c1c1e}@media(prefers-color-scheme:dark){html{background:#000;color:#f5f5f7}}@media(max-width:639px){html[data-appearance='light']{background:#fff}html[data-appearance='dark']{background:#000}}</style>
+    <style>
+      html, body, #root { margin: 0; width: 100%; min-height: 100%; }
+      html {
+        --shared-catalogue-canvas: #fff;
+        background-color: var(--shared-catalogue-canvas);
+        color: #1c1c1e;
+      }
+      body { background-color: var(--shared-catalogue-canvas); }
+      @media (prefers-color-scheme: dark) {
+        html:not([data-appearance]) { --shared-catalogue-canvas: #000; color: #f5f5f7; }
+      }
+      html[data-appearance='dark'] { --shared-catalogue-canvas: #000; color: #f5f5f7; }
+      html:root[data-web-catalogue-launch],
+      html:root[data-web-catalogue-launch] body {
+        background-color: #ffffff;
+      }
+      html[data-web-catalogue-launch] #root { visibility: hidden; }
+      @media (max-width: 639px) {
+        /* Keep the scroll boundary on the catalogue's canvas in embedded browsers. */
+        html[data-shared-view] { overscroll-behavior-y: none; }
+        html[data-mobile-catalogue-launch],
+        html[data-mobile-catalogue-launch] body {
+          background-color: #ffffff !important;
+          color-scheme: light !important;
+        }
+        html[data-mobile-catalogue-launch] #root { visibility: hidden; }
+      }
+      html[data-shared-view][data-mobile-project-launch] {
+        --shared-catalogue-canvas: #000;
+        background-color: var(--shared-catalogue-canvas);
+        color: #fff;
+      }
+      html[data-mobile-project-launch] #portalink-mobile-launch {
+        position: fixed;
+        inset: 0;
+        z-index: 1002;
+        display: grid;
+        place-items: center;
+        background: #000;
+      }
+      html[data-mobile-project-launch] #portalink-mobile-launch > span {
+        width: 18px;
+        height: 18px;
+        background: url('/loading-spokes.svg') center / contain no-repeat;
+        animation: portalink-opening-project 600ms steps(8) infinite;
+      }
+      @keyframes portalink-opening-project { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        html[data-mobile-project-launch] #portalink-mobile-launch > span { animation: none; }
+      }
+    </style>
     <script>
       (() => {
-        const resolved = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        const presentation = window.matchMedia?.('(max-width: 639px)').matches ? 'mobile' : 'web';
+        const projectLaunch = presentation === 'mobile'
+          && /^\/(?:share\/[^/]+|[^/]+)\/c\/[^/]+\/[^/]+\/?$/i.test(window.location.pathname);
+        let mode = 'auto';
+        try {
+          const legacyMode = window.localStorage.getItem('portalinknetworks.deviceAppearanceMode');
+          if (['light', 'dark', 'auto'].includes(legacyMode)) mode = legacyMode;
+          try {
+            const preferences = JSON.parse(window.localStorage.getItem(`portalinknetworks.interfaceAppearance.${presentation}`) || 'null');
+            if (['light', 'dark', 'auto'].includes(preferences?.mode)) mode = preferences.mode;
+          } catch { /* An invalid saved record falls back to the device setting. */ }
+        } catch { /* Private browsing can restrict storage access. */ }
+        const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+        const resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
         const root = document.documentElement;
+        const catalogueLaunch = presentation === 'mobile' && !projectLaunch;
+        if (presentation === 'web') {
+          const path = window.location.pathname.replace(/\/$/, '');
+          const search = new URLSearchParams(window.location.search);
+          const profileLink = /^\/(?:share\/[^/]+|(?!share$|share\.html$)[a-z0-9][a-z0-9.]{2,29})$/i.test(path);
+          const portalLink = search.get('view') === 'portal' && /^\/(?:share\/[^/]+|[^/]+)\/c\/[^/]+$/i.test(path);
+          if (search.get('settings') !== '1' && (profileLink || portalLink)) root.setAttribute('data-web-catalogue-launch', '');
+        }
+        if (projectLaunch) root.setAttribute('data-mobile-project-launch', '');
+        if (catalogueLaunch) root.setAttribute('data-mobile-catalogue-launch', '');
         root.dataset.appearance = resolved;
         root.style.colorScheme = resolved;
         const color = resolved === 'dark' ? '#000000' : '#ffffff';
         document.querySelectorAll('meta[name="theme-color"]').forEach(tag => {
           tag.setAttribute('data-portalink-theme-original', tag.getAttribute('content'));
-          tag.setAttribute('content', color);
+          tag.setAttribute('content', projectLaunch ? '#000000' : catalogueLaunch ? '#ffffff' : color);
         });
       })();
     </script>
+    <script defer src="/portalink-mobile-launch.js?v=15e81945" data-launch-entry="catalogue" onerror="document.documentElement.removeAttribute('data-mobile-catalogue-launch'); document.documentElement.removeAttribute('data-web-catalogue-launch')"></script>
   </head>
   <body>
     <div id="root"></div>

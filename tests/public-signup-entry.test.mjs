@@ -4,7 +4,6 @@ import test from 'node:test';
 import vm from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
-import {sourceModule} from './helpers/source-module.mjs';
 
 const nodes=tree=>!React.isValidElement(tree)?[]:[tree,...React.Children.toArray(tree.props.children).flatMap(nodes)];
 
@@ -14,7 +13,7 @@ function signupParent(presentation,initialSignupStep){
  const states=[];let cursor=0;
  const exports={};
  vm.runInNewContext(ts.transpileModule(block,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,{
-  exports,React,ChevronLeftIcon:'chevron-left',hasEnteredCatalogWelcome:()=>true,CatalogWelcome:'catalog-welcome',useAuth:()=>({pendingView:'signUp',closeAuth(){},requestAuth(){}}),usePresentation:()=>presentation,
+  exports,React,ChevronLeftIcon:'chevron-left',useAuth:()=>({pendingView:'signUp',closeAuth(){},requestAuth(){}}),usePresentation:()=>presentation,
   useState:initial=>{const index=cursor++;if(!(index in states))states[index]=typeof initial==='function'?initial():initial;return[states[index],next=>{states[index]=typeof next==='function'?next(states[index]):next;}];},
   useRef:()=>({current:null}),useEffect:()=>{},PortalinkSplashLoader:'welcome',EntryChoices:'choices',SignUpForm:'signup',
  });
@@ -27,7 +26,7 @@ test('both presentations open one inline account form instead of required appear
   let closed=0;
   const exports={};
   vm.runInNewContext(ts.transpileModule(block,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,{
-   exports,React,ChevronLeftIcon:'chevron-left',hasEnteredCatalogWelcome:()=>true,CatalogWelcome:'catalog-welcome',useAuth:()=>({pendingView:'signUp',closeAuth:()=>closed++,requestAuth:()=>{}}),usePresentation:()=>presentation,
+   exports,React,ChevronLeftIcon:'chevron-left',useAuth:()=>({pendingView:'signUp',closeAuth:()=>closed++,requestAuth:()=>{}}),usePresentation:()=>presentation,
    useState:initial=>[typeof initial==='function'?initial():initial,()=>{}],useRef:()=>({current:null}),useEffect:()=>{},PortalinkSplashLoader:'welcome',EntryChoices:'choices',SignUpForm:'signup',
   });
   const fragment=exports.AuthDialog({});
@@ -74,26 +73,25 @@ test('verification success retains its live status and complete copy without mar
 });
 
 /** Execute the actual auth parent without mounting or calling any auth service. */
-function catalogAuthParent({ presentation = 'mobile', view = 'signUp', search = '', hash = '', authenticated = false, recovery = false, state: existingState } = {}) {
+function authParent({ presentation = 'mobile', view = 'signUp', search = '', hash = '', authenticated = false, recovery = false } = {}) {
  const source=readFileSync(new URL('../src/features/auth/AuthDialog.tsx',import.meta.url),'utf8');
  const block=source.slice(source.indexOf('export function AuthDialog'),source.indexOf('function useFormActivity'));
- const state=existingState??sourceModule('src/components/auth/catalogWelcomeState.ts',{}, {window:{localStorage:{getItem:()=>null,setItem(){}}}});
  const slots=[],calls=[];let cursor=0;
  const auth={pendingView:view,isAuthenticated:authenticated,isInitializing:false,phase:authenticated?'authenticated':'guest',session:recovery?{isPasswordRecovery:true}:null,closeAuth:()=>calls.push(['close']),requestAuth:next=>calls.push(['request',next])};
  const exports={};
  vm.runInNewContext(ts.transpileModule(block,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,{
-  exports,React,ChevronLeftIcon:'chevron-left',ConfirmationDialog:'confirm',window:{location:{search,hash}},...state,CatalogWelcome:'catalog-welcome',useAuth:()=>auth,usePresentation:()=>presentation,
+  exports,React,ChevronLeftIcon:'chevron-left',ConfirmationDialog:'confirm',window:{location:{search,hash}},useAuth:()=>auth,usePresentation:()=>presentation,
   useState(initial){const index=cursor++;slots[index]??={value:typeof initial==='function'?initial():initial};return[slots[index].value,next=>{slots[index].value=typeof next==='function'?next(slots[index].value):next;}];},
   useRef:initial=>({current:initial}),useEffect(){},PortalinkSplashLoader:'welcome',EntryChoices:'choices',SignUpForm:'signup',SignInForm:'signin',ForgotPasswordForm:'forgot',ResetPasswordForm:'reset',AccountWelcomeSurface:'surface',
   titles:{signIn:'Sign in',signUp:'Create your account',forgotPassword:'Reset your password',resetPassword:'Set a new password'},mobileSignupTitles:{appearance:'Choose appearance',account:'Create account',profile:'Create your profile',verification:'Check your email'},
  });
  const props={registrationReturnPath:'/share/creator/c/work/project?page=2',showWelcomeMedia:false,accentColor:'#ff2d55'};
- return {state,auth,calls,props,render(){cursor=0;return exports.AuthDialog(props);}};
+ return {auth,calls,props,render(){cursor=0;return exports.AuthDialog(props);}};
 }
 
 test('only MOBILE signup mounts an inert backdrop immediately before its keyboard-responsive loader',()=>{
  for(const presentation of ['mobile','web'])for(const view of [null,'signUp','signIn','forgotPassword','resetPassword']){
-  const h=catalogAuthParent({presentation,view}),tree=h.render();
+  const h=authParent({presentation,view}),tree=h.render();
   const backdrops=nodes(tree).filter(node=>node.props.className==='portalink-signup-backdrop');
   assert.equal(backdrops.length,presentation==='mobile'&&view==='signUp'?1:0,`${presentation}/${view}`);
   assert.deepEqual(h.calls,[],'Rendering decorative backing does not perform an account action');
@@ -114,7 +112,7 @@ test('only MOBILE signup mounts an inert backdrop immediately before its keyboar
 
 test('direct sign-in and signup mount their original forms immediately on both presentations',()=>{
  for(const presentation of ['mobile','web'])for(const view of ['signIn','signUp']){
-  const h=catalogAuthParent({presentation,view}),entry=h.render();assert.notEqual(entry.type,'catalog-welcome');
+  const h=authParent({presentation,view}),entry=h.render();assert.notEqual(entry.type,'catalog-welcome');
   assert.equal(h.auth.pendingView,view);assert.deepEqual(h.calls,[]);
   if(view==='signIn'){assert.equal(entry.type,'surface');assert.equal(entry.props.title,'Sign in');assert.equal(entry.props.registrationReturnPath,h.props.registrationReturnPath);}
   else{const welcome=nodes(entry).find(node=>node.type==='welcome');assert.ok(welcome);assert.equal(welcome.props.landing.content.props.returnPath,h.props.registrationReturnPath);assert.equal(nodes(welcome.props.landing.content).some(node=>node.type==='signup'),true);}
@@ -123,20 +121,19 @@ test('direct sign-in and signup mount their original forms immediately on both p
 
 test('auth recovery, callbacks and signed-in forms bypass the catalog gate without changing their requested view',()=>{
  for(const presentation of ['mobile','web'])for(const change of [{view:'resetPassword'},{view:'forgotPassword'},{view:'signIn',recovery:true},{view:'signIn',authenticated:true},{view:'signUp',search:'?code=callback'},{view:'signUp',hash:'#access_token=callback'},{view:'signIn',search:'?%63ode=callback'}]){
-  const h=catalogAuthParent({presentation,...change}),entry=h.render();assert.notEqual(entry.type,'catalog-welcome',`${presentation}/${JSON.stringify(change)}`);assert.equal(h.auth.pendingView,change.view);assert.deepEqual(h.calls,[]);
+  const h=authParent({presentation,...change}),entry=h.render();assert.notEqual(entry.type,'catalog-welcome',`${presentation}/${JSON.stringify(change)}`);assert.equal(h.auth.pendingView,change.view);assert.deepEqual(h.calls,[]);
  }
 });
 
-test('form cancellation retains the original close action independently of optional film state',()=>{
- const first=catalogAuthParent({view:'signIn'}),entry=first.render();assert.equal(entry.type,'surface');entry.props.onDismiss();assert.deepEqual(first.calls,[['close']]);
- first.state.rememberCatalogWelcomeEntry();const second=catalogAuthParent({view:'signUp',state:first.state});assert.notEqual(second.render().type,'catalog-welcome');assert.deepEqual(second.calls,[]);
+test('sign-in cancellation retains the original close action',()=>{
+ const h=authParent({view:'signIn'}),entry=h.render();assert.equal(entry.type,'surface');entry.props.onDismiss();assert.deepEqual(h.calls,[['close']]);
 });
 
 const accountEntryNodes = tree => nodes(nodes(tree).find(n=>n.type==='welcome')?.props.landing.content);
 
 test('signup Back closes the account flow on both presentations without submitting or switching auth views',()=>{
  for(const presentation of ['mobile','web']){
-  const h=catalogAuthParent({presentation}),back=accountEntryNodes(h.render()).find(n=>n.props['aria-label']==='Back to Portalink');
+  const h=authParent({presentation}),back=accountEntryNodes(h.render()).find(n=>n.props['aria-label']==='Back to Portalink');
   assert.ok(back);assert.equal(back.type,'button');assert.equal(back.props.type,'button');assert.equal(back.props.disabled,false);
   back.props.onClick();assert.deepEqual(h.calls,[['close']]);
  }
@@ -144,7 +141,7 @@ test('signup Back closes the account flow on both presentations without submitti
 
 test('signup Back preserves unsaved details until the existing discard confirmation is accepted',()=>{
  for(const presentation of ['mobile','web']){
-  const h=catalogAuthParent({presentation});
+  const h=authParent({presentation});
   accountEntryNodes(h.render()).find(n=>n.type==='signup').props.onDirtyChange(true);
   accountEntryNodes(h.render()).find(n=>n.props['aria-label']==='Back to Portalink').props.onClick();
   let dialog=nodes(h.render()).find(n=>n.type==='confirm');
@@ -158,7 +155,7 @@ test('signup Back preserves unsaved details until the existing discard confirmat
 
 test('signup Back cannot interrupt an in-flight account request',()=>{
  for(const presentation of ['mobile','web']){
-  const h=catalogAuthParent({presentation});
+  const h=authParent({presentation});
   accountEntryNodes(h.render()).find(n=>n.type==='signup').props.onBusyChange(true);
   const back=accountEntryNodes(h.render()).find(n=>n.props['aria-label']==='Back to Portalink');
   assert.equal(back.props.disabled,true);back.props.onClick();assert.deepEqual(h.calls,[]);
@@ -168,7 +165,7 @@ test('signup Back cannot interrupt an in-flight account request',()=>{
 
 test('signup modal dismissal keeps busy and dirty guards while MOBILE backing remains behind the discard dialog',()=>{
  for(const presentation of ['mobile','web']){
-  const h=catalogAuthParent({presentation});
+  const h=authParent({presentation});
   accountEntryNodes(h.render()).find(node=>node.type==='signup').props.onBusyChange(true);
   nodes(h.render()).find(node=>node.type==='welcome').props.landing.onDismiss();
   assert.deepEqual(h.calls,[]);assert.equal(nodes(h.render()).some(node=>node.type==='confirm'),false);

@@ -25,6 +25,7 @@ function harness({ collapsed = false, authenticated = true, presentation = 'web'
   });
   const { Sidebar } = sourceModule('src/components/Sidebar.tsx', {
     react, 'react-router-dom': router, 'lucide-react': icons,
+    '../features/profile/portalHierarchy': sourceModule('src/features/profile/portalHierarchy.ts'),
     'framer-motion': { Reorder: { Group: 'reorder-group', Item: 'reorder-item' }, useDragControls: () => ({ start() {} }), useReducedMotion: () => true },
     './ui/SavedChangeNotice': { SavedChangeNotice: 'saved-notice' },
     '../presentation/mobile/MobileNavigation': { MobileNavigation },
@@ -32,6 +33,7 @@ function harness({ collapsed = false, authenticated = true, presentation = 'web'
     '../hooks/useCompactNavigation': { useCompactNavigation: (value, change) => ({ collapsed: value, toggle: () => change(!value), closeCompact() {} }) },
     '../app/routes': routes,
     './profile/categoryIcons': { getCategoryIcon: () => 'category-icon' },
+    './profile/PreviewCreatorName': { CatalogueRowName: 'catalogue-row-name' },
     './PortalRingIcon': { PortalRingIcon: 'portal-ring-icon' },
     './profile/NewCategoryDialog': { NewCategoryDialog: 'new-category-dialog' },
     './profile/CategoryOptionsMenu': { CategoryOptionsMenu: 'category-options-menu' },
@@ -64,6 +66,8 @@ const controls = tree => nodes(tree).filter(node => node.type === 'a' || node.ty
 const label = node => node.props['aria-label'];
 const main = (tree, collapsed) => nodes(tree).find(node => node.type === 'nav' && label(node) === (collapsed ? 'Compact main destinations' : 'Main destinations'));
 const footer = tree => nodes(tree).find(node => node.props.className?.split(' ').includes('sidebar-account-footer'));
+const toolsRail = tree => nodes(tree).find(node => node.type === 'nav' && label(node) === 'Workspace tools');
+const workspaceTools = (tree, collapsed) => collapsed ? footer(tree) : toolsRail(tree);
 const named = (tree, name) => controls(tree).find(node => label(node) === name);
 
 test('authenticated WEB destinations place Insights first and Portal search fifth in expanded and collapsed navigation', () => {
@@ -97,14 +101,16 @@ test('personal links retain their own active flags and canonical routes in both 
     assert.equal(selectedItems[0].props.href, path);
     assert.match(selectedItems[0].props.className, collapsed ? /surface-selected/ : /font-semibold/,
       'Each existing tile variant retains its selected presentation');
-    assert.ok(controls(footer(tree)).every(node => node.props['aria-current'] === undefined), 'Footer destinations never inherit unrelated route selection');
+    assert.ok(controls(workspaceTools(tree, collapsed)).every(node => node.props['aria-current'] === undefined), 'Workspace tools never inherit unrelated route selection');
   }
 });
 
-test('authenticated WEB footer places Activity after Studio while preserving Settings and Appearance order', () => {
+test('authenticated WEB tools appear once in the expanded strip or compact footer', () => {
   for (const collapsed of [false, true]) for (const theme of ['light', 'dark']) {
-    const h = harness({ collapsed, theme }), tree = h.render(), items = controls(footer(tree));
+    const h = harness({ collapsed, theme }), tree = h.render(), items = controls(workspaceTools(tree, collapsed));
+    assert.equal(collapsed ? toolsRail(tree) : footer(tree), undefined);
     assert.deepEqual(items.map(label), ['Open settings', 'Open Studio', 'Open Activity', `Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`]);
+    for (const item of items) assert.equal(controls(tree).filter(other => label(other) === label(item)).length, 1);
     for (const [index, href, title, icon] of [[1, '/studio', 'Studio', icons.WarehouseIcon], [2, '/notifications', 'Activity', icons.BellIcon]]) {
       const destination = items[index];
       assert.equal(destination.type, 'a'); assert.equal(destination.props.disabled, undefined);
@@ -128,7 +134,7 @@ test('signed-out WEB preserves upper inactive Portals and Studio without exposin
     assert.equal(items[0].props.onClick, undefined); assert.equal(items[4].props.onClick, undefined);
     assert.equal(named(tree, 'Open Insights'), undefined); assert.equal(named(tree, 'Open Activity'), undefined);
     assert.equal(named(tree, 'Open Studio'), undefined); assert.equal(named(tree, 'Open Portal search'), undefined);
-    assert.deepEqual(controls(footer(tree)).map(label), ['Open settings', 'Switch to dark appearance']);
+    assert.deepEqual(controls(workspaceTools(tree, collapsed)).map(label), ['Open settings', 'Switch to dark appearance']);
     assert.equal(controls(tree).filter(node => label(node) === 'Portals unavailable').length, 1);
     assert.equal(controls(tree).filter(node => label(node) === 'Studio unavailable').length, 1);
   }
@@ -157,7 +163,8 @@ test('MOBILE renders its actual five-destination dock without WEB personal links
     assert.equal(items[2].props.onClick, undefined);
     const icon = nodes(items[2]).find(node => node.type === 'interface-icon');
     assert.equal(icon.props.icon, 'portal-ring-icon'); assert.equal(icon.props.weight, 'medium');
-    assert.equal(footer(tree), undefined); assert.equal(nodes(tree).some(node => node.type === 'aside'), false);
+    assert.equal(footer(tree), undefined); assert.equal(toolsRail(tree), undefined);
+    assert.equal(nodes(tree).some(node => node.type === 'aside'), false);
     items[1].props.onClick();
     assert.deepEqual(h.calls, [['messages', undefined, true]], 'The dock retains its existing fromDock context');
     const profileControl = named(h.render({ profileHref: undefined }), 'Profile'); profileControl.props.onClick();
@@ -193,18 +200,18 @@ test('Portal search works without a profile href while WEB destinations remain u
     const web = harness({ presentation: 'web', collapsed });
     const webTree = web.render();
     assert.deepEqual(controls(main(webTree, collapsed)).map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Portal search', 'Search accounts', 'Open messages', 'Open your profile']);
-    assert.deepEqual(controls(footer(webTree)).map(label), ['Open settings', 'Open Studio', 'Open Activity', 'Switch to dark appearance']);
+    assert.deepEqual(controls(workspaceTools(webTree, collapsed)).map(label), ['Open settings', 'Open Studio', 'Open Activity', 'Switch to dark appearance']);
     assert.deepEqual(web.calls, []);
   }
 });
 
 
-test('WEB footer destinations use only their own active flags in either sidebar size', () => {
+test('WEB tools use only their own active flags in either sidebar size', () => {
   for (const collapsed of [false, true]) for (const [flag, selected, href] of [
     ['isStudioActive', 'Open Studio', '/studio'], ['isActivityActive', 'Open Activity', '/notifications'],
   ]) {
     const tree = harness({ collapsed }).render({ [flag]: true });
-    const selectedItems = controls(footer(tree)).filter(node => node.props['aria-current'] === 'page');
+    const selectedItems = controls(workspaceTools(tree, collapsed)).filter(node => node.props['aria-current'] === 'page');
     assert.deepEqual(selectedItems.map(label), [selected]);
     assert.equal(selectedItems[0].props.href, href);
     assert.match(selectedItems[0].props.className, collapsed ? /surface-selected/ : /font-semibold/);

@@ -16,8 +16,6 @@ function load(path, imports, globals = {}) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
-    if (name.endsWith('/CatalogWelcome') && !(name in imports)) return { CatalogWelcome: 'catalog-welcome' };
-    if (name.endsWith('/catalogWelcomeState') && !(name in imports)) return { hasEnteredCatalogWelcome: () => true, canOfferCatalogWelcome: () => false };
     if (name === 'lucide-react' && !(name in imports)) return new Proxy({}, { get: (_object, key) => key });
     if (name.endsWith('/InterfaceIcon') && !(name in imports)) return { InterfaceIcon: 'icon' };
 
@@ -260,7 +258,11 @@ test('shared preboot chooses neutral first paint before the body and leaves othe
   assert.ok(script); assert.ok(html.indexOf(script) < html.indexOf('<body>'));
   for (const [pathname, expected] of [['/share/a', true], ['/share/a/c/b/c', true], ['/share', true], ['/', false], ['/settings', false], ['/shared/a', false]]) for (const presentation of ['mobile', 'web']) {
     const attributes = new Map();
-    const root = { dataset: {}, style: {}, toggleAttribute(name, enabled) { if (enabled) attributes.set(name, ''); else attributes.delete(name); } };
+    const root = {
+      dataset: {}, style: {},
+      hasAttribute: name => attributes.has(name),
+      toggleAttribute(name, enabled) { if (enabled) attributes.set(name, ''); else attributes.delete(name); },
+    };
     const themeTags = ['#ffffff', '#000000'].map(content => {
       const attributes = new Map([['content', content]]);
       return { getAttribute: name => attributes.get(name) ?? null, setAttribute: (name, value) => attributes.set(name, value) };

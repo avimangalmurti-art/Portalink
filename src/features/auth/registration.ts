@@ -1,4 +1,4 @@
-import { handleFromPath, validHandle } from '../sharing/shareModel';
+import { handleFromPath, portalPopupSearch, validHandle } from '../sharing/shareModel';
 import type { AuthService, ProfileService } from '../../services/interfaces';
 import type { AuthSession } from '../../types/auth';
 import type { CreateProfileInput, PreparedAvatar } from '../../types/profile';
@@ -33,7 +33,7 @@ export function readSharedReturnPath(value: unknown): string | undefined {
   const media = url.searchParams.get('media');
   const via = url.searchParams.get('via');
   if (via && /^[a-z0-9]{1,16}$/i.test(via)) safe.searchParams.set('via', via);
-  if (view === 'projects' || view === 'portals') safe.searchParams.set('view', view);
+  if (view === 'projects' || view === 'portals' || (view === 'portal' && portalPopupSearch(url))) safe.searchParams.set('view', view);
   if (page && /^[1-9]\d{0,4}$/.test(page)) safe.searchParams.set('page', page);
   if (media && /^[a-z0-9_-]{1,128}$/i.test(media)) safe.searchParams.set('media', media);
   return safe.pathname + safe.search;

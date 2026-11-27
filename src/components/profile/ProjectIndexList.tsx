@@ -11,15 +11,25 @@ import type { Project as ProjectEntry } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { TypographyInspector } from './TypographyInspector';
 import { usePresentation } from '../../presentation/usePresentation';
+import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
 import type { MobileReorderList as MobileReorderListType, MobileReorderActivator, MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
 import { ProjectCover } from '../media/ProjectCover';
 import { getProjectCoverPreview } from '../../utils/projectPresentation';
+import { videoSources } from '../../features/media/videoPlayback';
+import { useInlineProjectContent } from '../../features/profile/useInlineProjectContent';
+import { CatalogueRowName, PreviewCreatorName } from './PreviewCreatorName';
 const ProjectExportSheet=lazy(()=>import('../../features/references/ExportSheet').then(module=>({default:module.ExportSheet})));
 const MobileReorderList = lazy(() => import('../../presentation/mobile/MobileReorderList').then(module => ({ default: module.MobileReorderList }))) as unknown as typeof MobileReorderListType;
 type ProjectIndexListProps = {
   profileId?: string;
   arrangementWriteDisabled?: boolean;
   projects: ProjectEntry[];
+  /** Pinning and hiding still belong to the original Portal. */
+  primaryPortalId?: string;
+  /** The store can save the order of primary and featured placements together. */
+  supportsFeaturedOrder?: boolean;
+  /** Canonical order before applying the current browsing sort. */
+  savedOrder?: readonly string[];
   /** Each row reads in the face of the project it points at, keyed by id. */
   typefaceStacks: Record<string, string>;
   typefaceIds: Record<string, string>;
@@ -33,8 +43,7 @@ type ProjectIndexListProps = {
   sharedReadOnly?: boolean;
   /** MOBILE waits for a complete, writable arrangement before starting a hold. */
   mobileReorderDisabled?: boolean;
-  /** The floating MOBILE navigation list keeps reordering in its row menu. */
-  mobileReorderFromMenu?: boolean;
+  isSavingArrangement?: boolean;
   /** MOBILE changes only the presentation of this same navigation list. */
   mobileLayout?: 'list' | 'grid';
   /** Explicit WEB chooser adaptation; ordinary desktop indexes stay unchanged. */
@@ -72,10 +81,21 @@ function SectionHeading({
       {label}
     </h3>;
 }
+
+/** Replace the moved group's slots without disturbing the rest of the Portal. */
+function replaceProjectOrderSlots(order: ProjectEntry[], reordered: ProjectEntry[]) {
+  const movedIds = new Set(reordered.map(project => project.id));
+  let index = 0;
+  return order.map(project => movedIds.has(project.id) ? reordered[index++] : project);
+}
+
 export function ProjectIndexList({
   profileId,
   arrangementWriteDisabled = false,
   projects,
+  primaryPortalId,
+  supportsFeaturedOrder = false,
+  savedOrder,
   typefaceStacks,
   typefaceIds,
   hiddenIds,
@@ -84,7 +104,7 @@ export function ProjectIndexList({
   isOwner,
   sharedReadOnly = false,
   mobileReorderDisabled = false,
-  mobileReorderFromMenu = false,
+  isSavingArrangement = false,
   mobileLayout = 'list',
   readOnlyBrowsing = false,
   onReorder,
@@ -97,6 +117,7 @@ export function ProjectIndexList({
   onDelete,
 }: ProjectIndexListProps) {
   const isMobile = usePresentation() === 'mobile';
+  const mobileGrid = isMobile && mobileLayout === 'grid';
   /*
    * Three groups, in reading order: pinned work first, then the rest of the
    * category, then — for the owner alone — work they have hidden. Pinning is a
@@ -106,24 +127,28 @@ export function ProjectIndexList({
    */
   const [desktopDraft, setDesktopDraft] = useState<{ scope: string; ids: string[] } | null>(null);
   const desktopDraftRef = useRef<typeof desktopDraft>(null);
-  const dragScope = JSON.stringify([projects.map(project => project.id), pinnedIds, hiddenIds]);
+  const projectIds = projects.map(project => project.id);
+  const dragScope = JSON.stringify([projectIds, pinnedIds, hiddenIds, supportsFeaturedOrder, savedOrder]);
   const byId = new Map(projects.map(project => [project.id, project]));
   const displayedProjects = !isMobile && desktopDraft?.scope === dragScope
     ? desktopDraft.ids.flatMap(id => byId.get(id) ?? []) : projects;
   const pinned = displayedProjects.filter((project) => pinnedIds.includes(project.id) && !hiddenIds.includes(project.id));
   const hidden = displayedProjects.filter((project) => hiddenIds.includes(project.id));
   const rest = displayedProjects.filter((project) => !pinnedIds.includes(project.id) && !hiddenIds.includes(project.id));
+  const isPrimary = (project: ProjectEntry) => !primaryPortalId || project.categoryId === primaryPortalId;
 
   // Keep drag frames local; persist exactly the final dropped order.
   const startDesktopDrag = () => {
     if (mobileReorderDisabled) return;
-    const next = { scope: dragScope, ids: projects.map(project => project.id) };
+    const next = { scope: dragScope, ids: projectIds };
     desktopDraftRef.current = next;
     setDesktopDraft(next);
   };
   const stageDesktopDrag = (reordered: ProjectEntry[]) => {
     if (desktopDraftRef.current?.scope !== dragScope) return;
-    const next = { scope: dragScope, ids: [...pinned, ...reordered, ...hidden].map(project => project.id) };
+    const nextOrder = supportsFeaturedOrder ? replaceProjectOrderSlots(projects, reordered)
+      : [...pinned, ...reordered, ...rest.filter(project => !isPrimary(project)), ...hidden];
+    const next = { scope: dragScope, ids: nextOrder.map(project => project.id) };
     desktopDraftRef.current = next;
     setDesktopDraft(next);
   };
@@ -132,8 +157,8 @@ export function ProjectIndexList({
     desktopDraftRef.current = null;
     setDesktopDraft(null);
     if (!draft || draft.scope !== dragScope || mobileReorderDisabled ||
-      JSON.stringify(draft.ids) === JSON.stringify(projects.map(project => project.id))) return;
-    onReorder(draft.ids.flatMap(id => byId.get(id) ?? []));
+      JSON.stringify(draft.ids) === JSON.stringify(projectIds)) return;
+    onReorder(draft.ids.flatMap(id => byId.get(id) ?? []).filter(project => supportsFeaturedOrder || isPrimary(project)));
   };
 
   // A visitor reads a published index, so it is a plain list with no handles.
@@ -143,7 +168,7 @@ export function ProjectIndexList({
             <SectionHeading label="Pinned" icon={PinIcon} />
             <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
               {pinned.map((project) => <li key={project.id}>
-                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} previewLabel={!isMobile && readOnlyBrowsing} onSelect={() => onSelect(project.id)} />
+                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} previewLabel={!isMobile && readOnlyBrowsing} mobileGrid={mobileGrid} onSelect={() => onSelect(project.id)} />
                 </li>)}
             </ul>
           </>}
@@ -151,7 +176,7 @@ export function ProjectIndexList({
             {pinned.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
             <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
               {rest.map((project) => <li key={project.id}>
-                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} previewLabel={!isMobile && readOnlyBrowsing} onSelect={() => onSelect(project.id)} />
+                  <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} previewLabel={!isMobile && readOnlyBrowsing} mobileGrid={mobileGrid} onSelect={() => onSelect(project.id)} />
                 </li>)}
             </ul>
           </>}
@@ -159,14 +184,13 @@ export function ProjectIndexList({
   }
 
   /*
-   * Only the unpinned group is draggable — dragging inside a pinned group would
-   * be arranging something whose position is the point of pinning it. A drag
-   * still emits the WHOLE order, with the pinned and hidden ids kept in place
-   * around it, so reordering one group can never drop the others from the saved
-   * arrangement.
+   * Desktop drags only the regular group. On mobile each group can be arranged
+   * independently. A drop includes the complete order, preserving the other
+   * groups and their visibility.
    */
   const rowProps = (project: ProjectEntry) => ({
     profileId,
+    mobileGrid,
     contextDisabled: arrangementWriteDisabled,
     project,
     typefaceStack: typefaceStacks[project.id],
@@ -174,8 +198,8 @@ export function ProjectIndexList({
     isHidden: hiddenIds.includes(project.id),
     isPinned: pinnedIds.includes(project.id),
     isActive: project.id === activeProjectId,
-    onToggleHidden: () => onToggleHidden(project.id),
-    onTogglePinned: () => onTogglePinned(project.id),
+    onToggleHidden: isPrimary(project) ? () => onToggleHidden(project.id) : undefined,
+    onTogglePinned: isPrimary(project) ? () => onTogglePinned(project.id) : undefined,
     onSelect: () => onSelect(project.id),
     onChangeCover: onChangeCover ? () => onChangeCover(project.id) : undefined,
     onEdit: onEdit ? () => onEdit(project.id) : undefined,
@@ -183,18 +207,33 @@ export function ProjectIndexList({
     onDelete: onDelete ? () => onDelete(project.id) : undefined,
   });
   if (isMobile) {
-    const group = (items: ProjectEntry[], label: string, combine: (reordered: ProjectEntry[]) => ProjectEntry[]) =>
-      mobileReorderDisabled ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} disabled={mobileReorderDisabled}
+    const canReorder = (project: ProjectEntry) => supportsFeaturedOrder || isPrimary(project);
+    // Keep the same keyed rows mounted while their order is being saved.
+    const canReorderGroup = (items: ProjectEntry[]) => (!mobileReorderDisabled || isSavingArrangement) && items.filter(canReorder).length > 1;
+    const showReorderHint = [pinned, rest, hidden].some(canReorderGroup);
+    const unsaved = new Map([...pinned, ...rest, ...hidden].filter(canReorder).map(project => [project.id, project]));
+    const canonical = (savedOrder ?? []).flatMap(id => {
+      const project = unsaved.get(id);
+      unsaved.delete(id);
+      return project ?? [];
+    });
+    canonical.push(...unsaved.values());
+    const group = (items: ProjectEntry[], label: string) =>
+      !canReorderGroup(items) ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} layout={mobileLayout} disabled={mobileReorderDisabled}
         className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons"
-        onReorder={reordered => onReorder(combine(reordered))}
-        renderItem={(project, activator, actions) => <ProjectRow reorderActions={actions} {...rowProps(project)} isDraggable={false} reorderActivator={mobileReorderFromMenu ? undefined : activator} />} /></Suspense>;
+        groupForItem={supportsFeaturedOrder ? undefined : project => isPrimary(project) ? 'primary' : project.id}
+        isItemDisabled={supportsFeaturedOrder ? undefined : project => !isPrimary(project)}
+        onReorder={reordered => onReorder(replaceProjectOrderSlots(canonical, reordered.filter(canReorder)))}
+        renderItem={(project, activator, actions) => <ProjectRow reorderActions={canReorder(project) ? actions : undefined}
+          {...rowProps(project)} isDraggable={false} reorderActivator={canReorder(project) ? activator : undefined} />} /></Suspense>;
     return <div data-mobile-project-layout={mobileLayout}>
-      {pinned.length > 0 && <><SectionHeading label="Pinned" icon={PinIcon} />{group(pinned, 'Pinned projects', reordered => [...reordered, ...rest, ...hidden])}</>}
+      {showReorderHint && <p className="px-2 pb-2 text-[12px] text-[var(--text-secondary)]">Hold and drag to reorder.</p>}
+      {pinned.length > 0 && <><SectionHeading label="Pinned" icon={PinIcon} />{group(pinned, 'Pinned projects')}</>}
       {rest.length > 0 && <>
         {(pinned.length > 0 || hidden.length > 0) && <SectionHeading label="Projects" icon={FolderIcon} />}
-        {group(rest, 'Projects', reordered => [...pinned, ...reordered, ...hidden])}
+        {group(rest, 'Projects')}
       </>}
-      {hidden.length > 0 && <><SectionHeading label="Hidden" icon={EyeOffIcon} />{group(hidden, 'Hidden projects', reordered => [...pinned, ...rest, ...reordered])}</>}
+      {hidden.length > 0 && <><SectionHeading label="Hidden" icon={EyeOffIcon} />{group(hidden, 'Hidden projects')}</>}
     </div>;
   }
   return <div>
@@ -208,8 +247,10 @@ export function ProjectIndexList({
         </>}
 
       {(pinned.length > 0 || hidden.length > 0) && rest.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
-      {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest} onReorder={stageDesktopDrag} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
-          {rest.map((project) => <ProjectRow key={project.id} {...rowProps(project)} isDraggable dragDisabled={mobileReorderDisabled} onReorderStart={startDesktopDrag} onReorderEnd={finishDesktopDrag} />)}
+      {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest.filter(isPrimary)} onReorder={stageDesktopDrag} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
+          {rest.map(project => isPrimary(project)
+            ? <ProjectRow key={project.id} {...rowProps(project)} isDraggable dragDisabled={mobileReorderDisabled} onReorderStart={startDesktopDrag} onReorderEnd={finishDesktopDrag} />
+            : <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}
         </Reorder.Group>}
 
       {/* Hidden work sits under its own heading, dimmed, so the owner can see
@@ -225,16 +266,56 @@ export function ProjectIndexList({
     </div>;
 }
 
+function ProjectIndexCover({ project, sharedReadOnly, sources, frame = project.coverFrame }: {
+  project: ProjectEntry; sharedReadOnly: boolean; sources?: string[]; frame?: ProjectEntry['coverFrame'];
+}) {
+  return <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} previewSource={getProjectCoverPreview(project)}
+    alt={project.coverAlt} kind={project.coverKind} frame={frame} pageNumber={project.coverPageNumber} aspectRatio={project.coverAspectRatio}
+    sizes="160px" priority={sharedReadOnly ? 'viewport' : undefined} allowPdfFallback={!sharedReadOnly}
+    allowVideoFallback={!sharedReadOnly} autoplaySources={sources} />;
+}
+
+function ProjectIndexVideoCover({ project, profileId, sharedReadOnly }: {
+  project: ProjectEntry; profileId: string; sharedReadOnly: boolean;
+}) {
+  const hostRef = useRef<HTMLSpanElement>(null);
+  const coverId = project.coverThumbnail?.sourceAttachmentId;
+  const findVideo = (work: ProjectEntry) => work.attachments?.find(attachment =>
+    attachment.kind === 'video' && (coverId ? attachment.id === coverId : videoSources(attachment).includes(work.cover)));
+  const summaryVideo = findVideo(project);
+  const summarySources = summaryVideo ? videoSources(summaryVideo) : !coverId && project.cover ? [project.cover] : [];
+  const { project: loadedProject } = useInlineProjectContent({
+    project, creatorId: profileId, enabled: summarySources.length === 0, active: true, hostRef,
+  });
+  const loadedVideo = findVideo(loadedProject);
+  return <span ref={hostRef} className="block h-full w-full">
+    <ProjectIndexCover project={project} sharedReadOnly={sharedReadOnly}
+      sources={loadedVideo ? videoSources(loadedVideo) : summarySources}
+      frame={loadedVideo?.metadata?.coverFrame ?? project.coverFrame} />
+  </span>;
+}
+
 /** Mobile navigation shows the real cover and publication date without a preview popup. */
-function MobileProjectLabel({ project, isActive, sharedReadOnly = false }: { project: ProjectEntry; isActive: boolean; sharedReadOnly?: boolean }) {
+function MobileProjectLabel({ project, isActive, profileId, mobileGrid = false, sharedReadOnly = false }: {
+  project: ProjectEntry; isActive: boolean; profileId?: string; mobileGrid?: boolean; sharedReadOnly?: boolean;
+}) {
+  const isMobile = usePresentation() === 'mobile';
+  const active = useMobileScreenActive();
   const published = project.publishedAt ? new Date(project.publishedAt) : null;
   const validPublished = published && Number.isFinite(published.getTime()) ? published : null;
+  const titleClassName = `mobile-project-index-title ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)]'}`;
   return <>
     <span className="mobile-project-index-cover" aria-hidden="true">
-      <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={project.coverAspectRatio} sizes="160px" priority={sharedReadOnly ? 'viewport' : undefined} allowPdfFallback={!sharedReadOnly} allowVideoFallback={!sharedReadOnly} />
+      <span className="mobile-project-index-artwork">
+        {mobileGrid && project.coverKind === 'video' && profileId
+          ? <ProjectIndexVideoCover project={project} profileId={profileId} sharedReadOnly={sharedReadOnly} />
+          : <ProjectIndexCover project={project} sharedReadOnly={sharedReadOnly} />}
+      </span>
     </span>
     <span className="mobile-project-index-copy">
-      <span className={`mobile-project-index-title ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)]'}`}>{project.title}</span>
+      {isMobile && !mobileGrid
+        ? <PreviewCreatorName name={project.title} active={active} centered visibleOnly animatePosition fadeInset={8} className={titleClassName} />
+        : <span className={titleClassName}>{project.title}</span>}
       {validPublished && <time className="mobile-project-index-date" dateTime={project.publishedAt}>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(validPublished)}</time>}
     </span>
   </>;
@@ -242,12 +323,14 @@ function MobileProjectLabel({ project, isActive, sharedReadOnly = false }: { pro
 
 /** The shared row body: a tinted fill and weight mark the current document. */
 function ProjectLink({
+  profileId,
   project,
   typefaceStack,
   isActive,
   isHidden = false,
   sharedReadOnly = false,
   previewLabel = false,
+  mobileGrid = false,
   onSelect
 
 
@@ -257,18 +340,19 @@ function ProjectLink({
 
 
 
-}: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;sharedReadOnly?: boolean;previewLabel?: boolean;onSelect: () => void;}) {
+}: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;sharedReadOnly?: boolean;previewLabel?: boolean;mobileGrid?: boolean;onSelect: () => void;}) {
   const isMobile = usePresentation() === 'mobile';
   return <div className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-[var(--m-fast)] ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
       <button data-preview-open="" type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
-        {isMobile || previewLabel ? <MobileProjectLabel project={project} isActive={isActive} sharedReadOnly={sharedReadOnly} /> : <span data-font-preview="" style={{
+        {isMobile || previewLabel ? <MobileProjectLabel project={project} isActive={isActive} profileId={profileId} sharedReadOnly={sharedReadOnly} mobileGrid={mobileGrid} /> : <span data-font-preview="" style={{
         fontFamily: typefaceStack
-      }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>}
+      }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}><CatalogueRowName name={project.title} className="block" /></span>}
       </button>
     </div>;
 }
 function ProjectRow({
   profileId,
+  mobileGrid,
   project,
   typefaceStack,
   typefaceId,
@@ -300,7 +384,7 @@ function ProjectRow({
 
 
 
-}: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;dragDisabled?: boolean;onReorderStart?: () => void;onReorderEnd?: () => void;reorderActivator?: MobileReorderActivator;reorderActions?: MobileReorderActions;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onChangeCover?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
+}: {profileId?: string;mobileGrid?: boolean;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;dragDisabled?: boolean;onReorderStart?: () => void;onReorderEnd?: () => void;reorderActivator?: MobileReorderActivator;reorderActions?: MobileReorderActions;onToggleHidden?: () => void;onTogglePinned?: () => void;onSelect: () => void;onEdit?: () => void;onChangeCover?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
   const isMobile = usePresentation() === 'mobile';
   const dragControls = useDragControls();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -336,9 +420,9 @@ function ProjectRow({
             <GripVerticalIcon className="h-3 w-3" />
           </span>}
         <button {...reorderActivator} data-preview-open="" type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] py-1 pl-1.5 ${isMobile ? 'pr-14' : 'pr-10'} text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
-          {isMobile ? <MobileProjectLabel project={project} isActive={isActive} /> : <span data-font-preview="" style={{
+          {isMobile ? <MobileProjectLabel project={project} isActive={isActive} profileId={profileId} mobileGrid={mobileGrid} /> : <span data-font-preview="" style={{
           fontFamily: typefaceStack
-        }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>}
+        }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}><CatalogueRowName name={project.title} className="block" /></span>}
         </button>
 
         {/* Matches the portal-row control: hidden until hover/focus, round hit
@@ -376,20 +460,20 @@ function ProjectRow({
                 Edit project…
               </button>}
             {onTypefaceChange && <TypographyInspector typefaceId={typefaceId} triggerVariant="menu" onTypefaceChange={onTypefaceChange} onSelectComplete={() => setIsMenuOpen(false)} />}
-            <button type="button" role="menuitem" onClick={() => {
+            {onTogglePinned && <button type="button" role="menuitem" onClick={() => {
           onTogglePinned();
           setIsMenuOpen(false);
         }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               {isPinned ? <PinOffIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <PinIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isPinned ? 'Unpin' : 'Pin'}
-            </button>
-            <button type="button" role="menuitem" onClick={() => {
+            </button>}
+            {onToggleHidden && <button type="button" role="menuitem" onClick={() => {
           onToggleHidden();
           setIsMenuOpen(false);
         }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               {isHidden ? <EyeIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <EyeOffIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isHidden ? 'Make visible' : 'Hide'}
-            </button>
+            </button>}
             {isActive&&profileId&&<button type="button" role="menuitem" className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px]" onClick={()=>{setIsMenuOpen(false);setExportOpen(true);}}>Export</button>}
             {isActive&&profileId&&onEdit&&project.attachments?.some(attachment=>attachment.kind==='image'||attachment.kind==='document')&&<button type="button" role="menuitem" className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px]" onClick={()=>{setIsMenuOpen(false);const attachment=project.attachments?.find(item=>item.kind==='image'||item.kind==='document');if(attachment)void import('../../features/references/ownCitation').then(module=>module.ownPageCitation(profileId,project.id,attachment.id,0)).then(text=>navigator.clipboard.writeText(text)).then(()=>setCitationStatus('Citation copied.')).catch(()=>setCitationStatus('Citation could not be copied.'));}}>Copy citation</button>}
             {/* These act on the published record itself, through the project

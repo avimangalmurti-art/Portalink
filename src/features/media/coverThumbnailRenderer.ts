@@ -71,14 +71,20 @@ async function loadVideoFrame(url: string): Promise<DecodedCoverSource> {
   } catch (error) { dispose(); throw error; }
 }
 
-const browserRuntime: CoverThumbnailRuntime = {
-  createCanvas, loadImage, renderPdfPage, loadVideoFrame,
-  encodeWebp: canvas => new Promise((resolve, reject) => {
+async function encodeWebp(canvas: HTMLCanvasElement): Promise<Blob> {
+  const native = await new Promise<Blob | null>((resolve, reject) => {
     try {
-      canvas.toBlob(blob => blob?.type === 'image/webp' ? resolve(blob)
-        : reject(new Error('This browser could not encode a WebP cover. Try a current browser.')), 'image/webp', 0.86);
+      canvas.toBlob(resolve, 'image/webp', 0.86);
     } catch { reject(new Error('The cover cannot be read from this source. Choose a local cover file.')); }
-  }),
+  });
+  if (native?.type === 'image/webp') return native;
+  // Safari can return PNG for a WebP request. Stored covers require real WebP bytes.
+  const { encodeCoverWebp } = await import('./coverWebpEncoder');
+  return encodeCoverWebp(canvas);
+}
+
+const browserRuntime: CoverThumbnailRuntime = {
+  createCanvas, loadImage, renderPdfPage, loadVideoFrame, encodeWebp,
 };
 
 /** Bakes the chosen frame once at publish time; originals remain untouched. */

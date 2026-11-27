@@ -216,7 +216,6 @@
     .project-form-actions button[type='submit'], .project-description-top-save,
     .project-description-editor footer button, .project-description-discard button,
     .project-description-saved button, .project-popup-owner-button,
-    .public-welcome-sheet footer > button,
     .mobile-context-primary > button, .mobile-project-gesture-hint > button
   ):not([data-borderless-control], [role='radio'], [role='switch'], [role='tab'], [role='option'], [role='checkbox']):not(:where(
     .studio-selection-toolbar *, .mobile-navigation-dock *, .side-panel-filter-grid *,

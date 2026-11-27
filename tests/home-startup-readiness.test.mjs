@@ -11,7 +11,9 @@ function bitmap(extra = {}) {
 }
 function artwork({ id = 'work', top = 100, images = [], videos = [], pdf = null, canvases = [] } = {}) {
   return { getBoundingClientRect: () => rect(top), getAttribute: name => name === 'data-project-continuity-id' ? id : null,
-    querySelectorAll: selector => selector === 'img' ? images : selector === 'video' ? videos : selector === 'canvas' ? canvases : [],
+    querySelectorAll: selector => selector === 'img' ? images
+      : selector === 'video:not([data-feed-cover-video])' ? videos.filter(video => !video.autoplayPreview)
+      : selector === 'canvas' ? canvases : [],
     querySelector: selector => selector === '.pdf-page-viewport' ? pdf : null };
 }
 function rootFor(artworks) {
@@ -20,11 +22,11 @@ function rootFor(artworks) {
     addEventListener: (name, callback) => listeners.set(name, callback), removeEventListener: name => listeners.delete(name),
     event(name) { listeners.get(name)?.(); } };
 }
-function fixture({ artworks = [], settled = true, terminalError = false, projectCount = artworks.length, documentProjects = new Set() } = {}) {
+function fixture({ artworks = [], settled = true, terminalError = false, waitForArtwork = true, projectCount = artworks.length, documentProjects = new Set() } = {}) {
   const reports = [], frames = new Map(), timers = new Map(), observers = [];
   let next = 0;
   const root = rootFor(artworks);
-  const options = { enabled: true, attempt: 0, ref: { current: root }, settled, terminalError, projectCount, documentProjects, onReady: ready => reports.push(ready) };
+  const options = { enabled: true, attempt: 0, ref: { current: root }, settled, terminalError, waitForArtwork, projectCount, documentProjects, onReady: ready => reports.push(ready) };
   const h = hookHarness(file, 'useHomeStartupReadiness', {}, {}, options, {}, {}, {
     requestAnimationFrame(callback) { frames.set(++next, callback); return next; }, cancelAnimationFrame(id) { frames.delete(id); },
     getComputedStyle: element => ({ opacity: element.opacity ?? '1' }),
@@ -50,6 +52,18 @@ test('launch waits for data/layout/notes/scroll settlement and all visible cover
   first.resolve(); await f.paint(); assert.equal(f.reports.at(-1), false);
   second.resolve(); await f.paint(); assert.equal(f.reports.at(-1), true);
   assert.equal(offscreenDecodes, 0);
+});
+
+test('desktop Home opens after feed settlement while visible artwork is still loading', async () => {
+  const image = bitmap({ complete: false });
+  const f = fixture({ settled: false, waitForArtwork: false, artworks: [artwork({ images: [image] })] });
+  f.root.querySelectorAll = () => assert.fail('Desktop Home readiness should not inspect artwork');
+  await f.paint();
+  assert.deepEqual(f.reports, [false]);
+  f.update({ settled: true });
+  await f.paint();
+  assert.deepEqual(f.reports, [false, true]);
+  assert.equal(image.complete, false);
 });
 
 test('measured source exposure and ImageMotion paint must complete before the splash handoff', async () => {
@@ -90,6 +104,13 @@ test('legacy PDF module placeholders wait for rendered or failed PDF state; vide
   const v = fixture({ artworks: [artwork({ videos: [video] })] });
   await v.paint(); assert.equal(v.reports.at(-1), false);
   video.readyState = 2; v.root.event('loadeddata'); await v.paint(); assert.equal(v.reports.at(-1), true);
+});
+
+test('a pending autoplay preview does not hold Home on the splash after its poster is ready', async () => {
+  const preview = { autoplayPreview: true, readyState: 0, error: null };
+  const f = fixture({ artworks: [artwork({ images: [bitmap()], videos: [preview] })] });
+  await f.paint();
+  assert.deepEqual(f.reports, [false, true]);
 });
 
 test('empty Home, terminal load failures, and unavailable artwork finish without trapping startup', async () => {
@@ -165,7 +186,7 @@ test('WeeklyReadNote reports settlement and dismisses smoothly once per login', 
   assert.equal(webCard.some(node=>node.type==='img'),false,'A hidden mobile image would trigger the action row loading background.');
   presentation='mobile';
   const mobileCard=walk(render(1));
-  assert.ok(mobileCard.some(node=>node.type==='img'&&node.props.className==='reads-weekly-character'));
+  assert.equal(mobileCard.some(node=>node.type==='img'),false,'The Earth background replaces the foreground character.');
   assert.equal(mobileCard.filter(node=>node.type==='li').length,2);
   assert.deepEqual(mobileCard.filter(node=>node.type==='li').map(node=>React.Children.toArray(node.props.children).join('')),['48 project opens.','6 reads reached the end.']);
   assert.equal(mobileCard.some(node=>node.type==='p'||node.type==='h2'),false);

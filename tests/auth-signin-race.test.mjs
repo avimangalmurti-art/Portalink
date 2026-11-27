@@ -62,6 +62,7 @@ function harness() {
   };
   const { AuthProvider } = load('../src/contexts/AuthContext.tsx', {
     react, './ServicesContext': { useServices: () => ({ auth }) }, '../types/auth': authTypes,
+    '../features/profile/profileAudioPlayback': { setProfileAudioAccount() {} },
     '../utils/passwordRecoveryReturn': { isPasswordRecoveryReturn: () => false, clearPasswordRecoveryReturn() {} },
   }, { window: { location: { href: 'https://example.test/' } }, document: { activeElement: null }, HTMLElement: class {} });
   const render = () => {

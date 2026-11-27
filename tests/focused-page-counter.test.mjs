@@ -27,7 +27,7 @@ test('mobile page count stays visible independently of engagement or fading page
   }
 });
 
-test('WEB retains its existing inline engagement counter and read-only fallback', () => {
+test('WEB uses the project counter with engagement and keeps the read-only fallback', () => {
   presentation = 'web';
   assert.equal(exports.FocusedPageCounter({ current: 1, total: 5, showMediaInteractions: true }), null);
   const counter = exports.FocusedPageCounter({ current: 1, total: 5, showMediaInteractions: false });

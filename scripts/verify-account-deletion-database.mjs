@@ -1,43 +1,21 @@
 // In-memory PostgreSQL ONLY. No network, Supabase credentials or real accounts.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
-const { PGlite } = await import(process.env.PGLITE_MODULE_PATH ? pathToFileURL(process.env.PGLITE_MODULE_PATH).href : '@electric-sql/pglite');
-const db = new PGlite();
+import { readFileSync } from 'node:fs';
+import { replaySupabaseSchema } from '../tests/support/replay-supabase-schema.mjs';
+const { db } = await replaySupabaseSchema();
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
 let passed=0;
 const check=async(name,fn)=>{await fn(); passed++; console.log(`PASS ${name}`);};
 const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0])[0];
-const system=async()=>{await db.exec("reset role; select set_config('request.jwt.claim.sub','',false); select set_config('request.jwt.claim.role','service_role',false)");};
-const user=async n=>{await system();await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id(n)]);await db.exec("select set_config('request.jwt.claim.role','authenticated',false); set role authenticated");};
+const system=async()=>{await db.exec("reset role; select set_config('request.jwt.claims','',false); select set_config('request.jwt.claim.role','service_role',false)");};
+const user=async n=>{await system();await db.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({role:'authenticated',sub:id(n),session_id:id(n+300)})]);await db.exec("select set_config('request.jwt.claim.role','authenticated',false); set role authenticated");};
 try {
  await db.exec(`
- create role anon; create role authenticated; create role service_role bypassrls;
- create schema auth; create schema storage; create schema realtime;
- create table auth.users(id uuid primary key,email text);
- create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
- create function auth.role() returns text language sql stable as $$select current_setting('request.jwt.claim.role',true)$$;
- create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
- create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,metadata jsonb default '{}',owner uuid,owner_id text);
- create function storage.foldername(path text) returns text[] language sql immutable as $$select (string_to_array(path,'/'))[1:array_length(string_to_array(path,'/'),1)-1]$$;
- create table realtime.messages(id uuid primary key default gen_random_uuid(),extension text);
- create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;
  -- Replace only the provider's network sender; messaging triggers still run.
  create table realtime.test_sent_events(sequence bigserial primary key,payload jsonb,event text,topic text,private boolean);
- create function realtime.send(payload jsonb,event text,topic text,private boolean default true)
+ create or replace function realtime.send(jsonb,text,text,boolean default true)
  returns void language sql as $$insert into realtime.test_sent_events(payload,event,topic,private) values($1,$2,$3,$4)$$;
- revoke all on function realtime.send(jsonb,text,text,boolean) from public,anon,authenticated;
- alter table storage.objects enable row level security; alter table realtime.messages enable row level security;
- grant usage on schema public,auth,storage,realtime to anon,authenticated,service_role;
- grant all on storage.objects to authenticated,service_role;
- grant select,insert on realtime.messages to authenticated;
- create publication supabase_realtime;
- alter default privileges in schema public grant all on tables to anon,authenticated,service_role;
  `);
- for(const f of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql')).sort()) {
-   const sql=readFileSync(`supabase/migrations/${f}`,'utf8').replace(/create extension if not exists pgcrypto;/i,'');
-   try{await db.exec(sql);}catch(error){throw new Error(`Baseline ${f}: ${error.message}`);}
- }
  await check('candidate applies atomically to the full existing migration history',async()=>{
    try { await db.exec(readFileSync('supabase/pending/account_deletion_safety.sql','utf8')); }
    catch(error) { throw new Error(`Candidate: ${error.message}; position ${error.position}`); }
@@ -45,6 +23,7 @@ try {
  await system();
  for(const n of [1,2,3]){
    await db.query('insert into auth.users(id,email) values($1,$2)',[id(n),`test${n}@example.test`]);
+   await db.query('insert into auth.sessions(id,user_id) values($1,$2)',[id(n+300),id(n)]);
    await db.query('insert into public.profiles(id,account_id,name,handle,headline) values($1,$2,$3,$4,$5)',[id(n+10),id(n),`Person ${n}`,`person${n}`,'']);
  }
  const c=id(100),a=id(101),b=id(102),aFile=`${id(11)}/${c}/own.png`,bFile=`${id(12)}/${c}/survivor.png`;
@@ -57,8 +36,14 @@ try {
    const category=await scalar('select id from portfolio_categories where profile_id=$1 limit 1',[profile]);
    await db.query('insert into projects(id,profile_id,category_id,title,summary) values($1,$2,$3,$4,$5)',[project,profile,category,'Synthetic project','Synthetic description']);
  }
- const ownCover=`${id(11)}/${ownProject}/digest/400.webp`, survivorCover=`${id(12)}/${survivorProject}/digest/400.webp`;
- await db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1),('project-covers',$2)",[ownCover,survivorCover]);
+ const digest = 'a'.repeat(64);
+ const ownCover=`${id(11)}/${ownProject}/${digest}/400.webp`, survivorCover=`${id(12)}/${survivorProject}/${digest}/400.webp`;
+ const lateCover=`${id(11)}/${ownProject}/${digest}/800.webp`;
+ await user(1);
+ await db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1)",[ownCover]);
+ await user(2);
+ await db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1)",[survivorCover]);
+ await system();
  await db.query("insert into storage.objects(bucket_id,name,metadata) values('project-media',$1,'{\"size\":100,\"mimetype\":\"application/pdf\"}')",[pdfPath]);
  await db.query("insert into project_attachments(id,project_id,kind,file_name,display_name,extension,mime_type,size_bytes,type_label,storage_path,status) values($1,$2,'document','source.pdf','source.pdf','pdf','application/pdf',100,'PDF',$1,'ready')",[pdfPath,ownProject]);
  await db.query('insert into project_comments(id,project_id,author_profile_id,body) values($1,$2,$3,$4)',[id(210),survivorProject,id(11),'Departing comment']);
@@ -88,7 +73,7 @@ try {
    await assert.rejects(db.query('update direct_messages set body=$1 where id=$2',['changed',a]),/pending deletion/);
    await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('message-media',$1)",[`${id(11)}/${c}/late.png`]),/pending deletion/);
    await assert.rejects(db.query('delete from storage.objects where name=$1',[aFile]),/removal disabled/);
-   await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1)",[`${id(11)}/${ownProject}/late.webp`]),/pending deletion/);
+   await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1)",[lateCover]),/pending deletion/);
    await assert.rejects(db.query('update storage.objects set name=$1 where name=$2',[`${id(12)}/moved.png`,aFile]),/move disabled/);
    await assert.rejects(db.query('delete from auth.users where id=$1',[id(1)]),/pending deletion|lifecycle/);
    assert.equal((await db.query("select * from claim_pdf_processing_job('synthetic-worker')")).rows.length,0);
@@ -133,7 +118,7 @@ try {
    assert.ok(batch.files.some(f=>f.bucket==='project-covers'&&f.path===ownCover));
    await user(1);
    await assert.rejects(db.query('delete from storage.objects where name=$1',[aFile]),/removal disabled/);
-   await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1)",[`${id(11)}/${ownProject}/late.webp`]),/pending deletion/);
+   await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1)",[lateCover]),/pending deletion/);
    await system();
    await assert.rejects(db.query('select checkpoint_account_deletion_files($1,$2,$3)',[...keys,JSON.stringify(batch.files)]),/not confirmed/);
    // Simulate Storage API deleting metadata ONLY in this in-memory fixture.
@@ -174,7 +159,9 @@ try {
    assert.equal(await scalar('select count(*)::int from direct_messages where conversation_id=$1',[c]),2);
  });
  await check('survivor can later remove their own project containing tombstoned comments',async()=>{
-   await user(2);await db.query('delete from projects where id=$1',[survivorProject]);
+   await user(2);
+   await db.query("delete from storage.objects where bucket_id='project-covers' and name=$1",[survivorCover]);
+   await db.query('delete from projects where id=$1',[survivorProject]);
    await system();assert.equal(await scalar('select count(*)::int from projects where id=$1',[survivorProject]),0);
  });
  await check('a failed soft-delete transaction rolls back the job and every pending marker',async()=>{

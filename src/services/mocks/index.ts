@@ -1,4 +1,6 @@
 import { withProjectLocation } from '../../features/publishing/projectLocation';
+import { projectBelongsToPortal } from '../../features/projects/projectPortals';
+import { sameTimelineCoverPosition } from '../../features/journey/journey';
 import { normalizePublicAppearance } from '../../utils/publicAppearance';
 import { projectRelevanceForPersistence } from '../../domain/discovery/ranking';
 /**
@@ -22,7 +24,7 @@ import { defaultReportingPeriodId, gazeCapital, getReportingPeriod, kpisForPerio
 import { getSeededProjectTypefaceId } from '../../data/projectTypefaces';
 import { typefaces } from '../../data/typefaces';
 import { attachmentsFromPreparedMedia } from '../../features/media/projectAttachments';
-import type { CommentService, DiscoveryService, EngagementService, LiveService, MediaService, MessagingService, NotificationService, ProfileService, ProjectService, SocialService } from '../interfaces';
+import type { CommentService, DiscoveryService, EngagementService, LiveService, MediaService, MessagingService, NotificationService, ProfileService, ProjectService, SocialService, TimelinePair } from '../interfaces';
 import { EngagementServiceError } from '../../types/engagement';
 import { SocialServiceError } from '../../types/social';
 import { CommentServiceError, validateCommentBody } from '../../types/comments';
@@ -117,16 +119,23 @@ function profileForCurrentViewer(profile: PrototypeProfile): Profile {
   const session = readPrototypeSession();
   const isOwner = session?.user.profileId === profile.id;
   const hiddenCategoryIds = new Set(savedArrangements.get(profile.id)?.hiddenCategoryIds ?? []);
-  const categories = isOwner ? profile.categories : profile.categories.filter((category) => !hiddenCategoryIds.has(category.id));
+  const categories: PortfolioCategory[] = isOwner ? profile.categories : profile.categories.filter((category) => !hiddenCategoryIds.has(category.id));
   const visibleCategoryIds = new Set(categories.map((category) => category.id));
+  const visibleCategories = categories.map(category => {
+    if (!category.parentId || visibleCategoryIds.has(category.parentId)) return category;
+    const visibleCategory = { ...category };
+    delete visibleCategory.parentId;
+    return visibleCategory;
+  });
   const projects = isOwner ? profile.projects : profile.projects.filter((project) => {
     if (!visibleCategoryIds.has(project.categoryId)) return false;
     return !(savedProjectArrangements.get(projectArrangementKey(profile.id, project.categoryId))?.hiddenProjectIds.includes(project.id) ?? false);
-  });
-  return { ...profile, categories, projects } as Profile;
+  }).map(project => ({ ...project, additionalPortalIds: project.additionalPortalIds?.filter(id => visibleCategoryIds.has(id)) }));
+  return { ...profile, categories: visibleCategories, projects } as Profile;
 }
 
-const timelinePairs = new Map<string, Array<{ id: string; then: string; now: string }>>();
+const timelinePairs = new Map<string, TimelinePair[]>();
+const timelinePairOrders = new Map<Id, string[]>();
 let timelinePairSequence = 0;
 export const mockProfileService: ProfileService = {
   async listTimelinePairs(profileId) {
@@ -135,6 +144,28 @@ export const mockProfileService: ProfileService = {
     if (!profile || (!own && (!profileForCurrentViewer(profile).showJourney || profile.isPrivate))) return [];
     const visible = new Set(profileForCurrentViewer(profile).projects.filter(project => project.isPubliclyVisible !== false).map(project => project.id));
     return (timelinePairs.get(profileId) ?? []).filter(pair => visible.has(pair.then) && visible.has(pair.now));
+  },
+  async listTimelinePairOrder(profileId) {
+    const profile = findProfileById(profileId);
+    const own = currentFollower()?.profileId === profileId;
+    if (!profile) return [];
+    const viewed = profileForCurrentViewer(profile);
+    if (!own && (!viewed.showJourney || viewed.isPrivate)) return [];
+    const pairIds = new Set((await this.listTimelinePairs?.(profileId))?.map(pair => pair.id));
+    const legacy = viewed.thenNow;
+    if (legacy && viewed.projects.some(project => project.id === legacy.then && project.isPubliclyVisible !== false)
+      && viewed.projects.some(project => project.id === legacy.now && project.isPubliclyVisible !== false)) pairIds.add('legacy');
+    return (timelinePairOrders.get(profileId) ?? []).filter(id => pairIds.has(id));
+  },
+  async reorderTimelinePairs(profileId, pairIds) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can reorder pairs.');
+    const currentIds = new Set((timelinePairs.get(profileId) ?? []).map(pair => pair.id));
+    const profile = findProfileById(profileId);
+    if (profile && profileForCurrentViewer(profile).thenNow) currentIds.add('legacy');
+    if (new Set(pairIds).size !== pairIds.length || pairIds.some(id => !currentIds.has(id))) {
+      throw new Error('The available pairs may have changed. Reopen the editor and try again.');
+    }
+    timelinePairOrders.set(profileId, [...pairIds]);
   },
   async addTimelinePair(profileId, thenId, nowId) {
     if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can add pairs.');
@@ -145,9 +176,30 @@ export const mockProfileService: ProfileService = {
     if (pairs.some(pair => pair.then === thenId && pair.now === nowId)) throw new Error('This pair already exists.');
     timelinePairs.set(profileId, [...pairs, { id: 'pair-' + ++timelinePairSequence, then: thenId, now: nowId }]);
   },
+  async updateTimelinePair(profileId, pairId, thenId, nowId, expected, framing) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can edit pairs.');
+    const profile = findProfileById(profileId);
+    const visible = new Set((profile ? profileForCurrentViewer(profile).projects : []).filter(project => !project.sessionOnly && project.isPubliclyVisible !== false).map(project => project.id));
+    if (thenId === nowId || !visible.has(thenId) || !visible.has(nowId)) throw new Error('Choose two visible projects.');
+    const pairs = timelinePairs.get(profileId) ?? [];
+    const existing = pairs.find(pair => pair.id === pairId);
+    if (!existing || (expected && (existing.then !== expected.then || existing.now !== expected.now ||
+      (framing && (!sameTimelineCoverPosition(existing.thenCover, expected.thenCover)
+        || !sameTimelineCoverPosition(existing.nowCover, expected.nowCover)))))) {
+      throw new Error('This pair has changed. Reopen the editor and try again.');
+    }
+    if (pairs.some(pair => pair.id !== pairId && pair.then === thenId && pair.now === nowId)) throw new Error('This pair already exists.');
+    const thenCover = framing?.thenCover !== undefined ? framing.thenCover : existing.then === thenId ? existing.thenCover : null;
+    const nowCover = framing?.nowCover !== undefined ? framing.nowCover : existing.now === nowId ? existing.nowCover : null;
+    timelinePairs.set(profileId, pairs.map(pair => pair.id === pairId
+      ? { id: pairId, then: thenId, now: nowId, ...(thenCover ? { thenCover } : {}), ...(nowCover ? { nowCover } : {}) }
+      : pair));
+  },
   async removeTimelinePair(profileId, pairId) {
     if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can remove pairs.');
     timelinePairs.set(profileId, (timelinePairs.get(profileId) ?? []).filter(pair => pair.id !== pairId));
+    const order = timelinePairOrders.get(profileId);
+    if (order) timelinePairOrders.set(profileId, order.filter(id => id !== pairId));
   },
   async getProfile(profileId) {
     const profile = findProfileById(profileId);
@@ -235,6 +287,8 @@ export const mockProfileService: ProfileService = {
     // profile sees the same values for the rest of the session. `avatar` has no
     // transport, so the prepared file is deliberately NOT written — inventing a
     // storage URL would be a lie. Reload resets all of this.
+    const order = timelinePairOrders.get(profileId);
+    if (order && input.thenNow === null) timelinePairOrders.set(profileId, order.filter(id => id !== 'legacy'));
     return applyPrototypeProfileUpdate(profileId, {
       ...fields,
       handle: nextHandle ? `@${nextHandle}` : current.handle,
@@ -269,8 +323,12 @@ export const mockProfileService: ProfileService = {
   async createCategory(profileId, input) {
     const label = input.label.trim();
     assertUsableCategoryLabel(profileId, label, null);
+    if (input.parentId && !findProfileById(profileId)?.categories.some(category => category.id === input.parentId)) {
+      throw new CategoryMutationError('not_found', 'Choose a parent Portal in your own Catalogue.');
+    }
     const category: PortfolioCategory = {
       id: `${toLocationId(label)}-${Math.random().toString(36).slice(2, 7)}`,
+      ...(input.parentId ? { parentId: input.parentId } : {}),
       label,
       iconName: input.iconName ?? 'FolderIcon',
       format: input.format ?? 'grid',
@@ -309,6 +367,15 @@ export const mockProfileService: ProfileService = {
       }, 90);
     }
     const blockingProjectCount = countPrototypeCategoryProjects(profileId, categoryId);
+    const categories: PortfolioCategory[] = profile.categories;
+    if (categories.some(child => child.parentId === categoryId)) {
+      return resolve({
+        isAvailable: false,
+        removes: [],
+        reason: 'Remove the subportals before deleting this Portal.',
+        blockingProjectCount,
+      }, 90);
+    }
     if (blockingProjectCount > 0) {
       // Refusing is the only safe answer: deleting the work would destroy
       // published projects, and keeping it would leave those projects filed
@@ -328,6 +395,11 @@ export const mockProfileService: ProfileService = {
   },
   async deleteCategory(profileId, categoryId) {
     const blockingProjectCount = countPrototypeCategoryProjects(profileId, categoryId);
+    const categories: PortfolioCategory[] = getProfileById(profileId).categories;
+    if (categories.some(child => child.parentId === categoryId)) {
+      throw new CategoryMutationError(blockingProjectCount > 0 ? 'category_not_empty' : 'deletion_unavailable',
+        'Remove the subportals before deleting this Portal.', blockingProjectCount);
+    }
     if (blockingProjectCount > 0) {
       // Re-checked here as well as in the capability: a destructive operation
       // never trusts the caller to have asked the right question first.
@@ -426,6 +498,26 @@ function designFor(projectId: Id): ProjectDesign {
   };
 }
 export const mockProjectService: ProjectService = {
+  async getPortalMemberships(projectId) {
+    const owner = findProjectOwner(projectId);
+    if (!owner || requireOwnProfile().profileId !== owner.profile.id) throw new Error('You can only feature projects you own.');
+    const portals = owner.profile.categories;
+    return { primaryPortalId: owner.project.categoryId,
+      selectedPortalIds: (owner.project.additionalPortalIds ?? []).filter(id => portals.some(portal => portal.id === id)), portals };
+  },
+  async setPortalMemberships(projectId, additionalPortalIds) {
+    const owner = findProjectOwner(projectId);
+    if (!owner || requireOwnProfile().profileId !== owner.profile.id) throw new Error('You can only feature projects you own.');
+    if (additionalPortalIds.some(id => !owner.profile.categories.some(portal => portal.id === id))) throw new Error('One of these Portals is no longer available.');
+    const selected = [...new Set(additionalPortalIds)].filter(id => id !== owner.project.categoryId);
+    for (const portalId of owner.project.additionalPortalIds ?? []) {
+      if (selected.includes(portalId)) continue;
+      const arrangement = savedProjectArrangements.get(projectArrangementKey(owner.profile.id, portalId));
+      if (arrangement) arrangement.projectOrder = arrangement.projectOrder.filter(id => id !== projectId);
+    }
+    updatePrototypeProject(owner.profile.id, { ...owner.project, additionalPortalIds: selected });
+    return selected;
+  },
   async getProject(projectId) {
     const owner = findProjectOwner(projectId);
     if (!owner) {
@@ -446,8 +538,8 @@ export const mockProjectService: ProjectService = {
     return resolve(views);
   },
   async listProjects(profileId, categoryId) {
-    const all = getProfileById(profileId).projects as Project[];
-    return resolve(categoryId ? all.filter((project) => project.categoryId === categoryId) : all);
+    const all = profileForCurrentViewer(getProfileById(profileId)).projects;
+    return resolve(categoryId ? all.filter(project => projectBelongsToPortal(project, categoryId)) : all);
   },
   async getProjectDesign(projectId) {
     const owner = findProjectOwner(projectId);
@@ -506,10 +598,13 @@ export const mockProjectService: ProjectService = {
     // correctly rather than dropped or invented: known ids keep their saved
     // position, newly published work joins the end, and ids that no longer name
     // a project in this category fall out of both lists.
-    const live = getProfileById(profileId).projects.filter((project) => project.categoryId === categoryId).map((project) => project.id);
+    const projects = getProfileById(profileId).projects.filter((project) => projectBelongsToPortal(project, categoryId));
+    const homeIds = projects.filter((project) => project.categoryId === categoryId).map((project) => project.id);
+    const live = [...homeIds, ...projects.filter((project) => project.categoryId !== categoryId).map((project) => project.id)];
     const saved = savedProjectArrangements.get(projectArrangementKey(profileId, categoryId));
     if (!saved) {
       return resolve({
+        supportsFeaturedOrder: true,
         projectOrder: live,
         hiddenProjectIds: [],
         pinnedProjectIds: []
@@ -518,19 +613,24 @@ export const mockProjectService: ProjectService = {
     const known = saved.projectOrder.filter((projectId) => live.includes(projectId));
     const added = live.filter((projectId) => !known.includes(projectId));
     return resolve({
+      supportsFeaturedOrder: true,
       projectOrder: [...known, ...added],
-      hiddenProjectIds: saved.hiddenProjectIds.filter((projectId) => live.includes(projectId)),
+      hiddenProjectIds: saved.hiddenProjectIds.filter((projectId) => homeIds.includes(projectId)),
       // Reconciled the same way: a pin cannot outlive the project it names.
-      pinnedProjectIds: (saved.pinnedProjectIds ?? []).filter((projectId) => live.includes(projectId))
+      pinnedProjectIds: (saved.pinnedProjectIds ?? []).filter((projectId) => homeIds.includes(projectId))
     } satisfies ProjectArrangement);
   },
   async saveProjectArrangement(profileId, categoryId, arrangement) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the profile owner can arrange this work.');
     await resolve(undefined, 220);
     // An arrangement can only speak about work this category actually holds, so
     // an id from anywhere else is refused rather than silently stored.
-    const live = getProfileById(profileId).projects.filter((project) => project.categoryId === categoryId).map((project) => project.id);
-    const foreign = [...arrangement.projectOrder, ...arrangement.hiddenProjectIds, ...arrangement.pinnedProjectIds].find((projectId) => !live.includes(projectId));
-    if (foreign) {
+    const projects = getProfileById(profileId).projects;
+    const homeIds = new Set(projects.filter((project) => project.categoryId === categoryId).map((project) => project.id));
+    const live = new Set(projects.filter((project) => projectBelongsToPortal(project, categoryId)).map((project) => project.id));
+    if (new Set(arrangement.projectOrder).size !== live.size || arrangement.projectOrder.length !== live.size
+      || arrangement.projectOrder.some((projectId) => !live.has(projectId))
+      || [...arrangement.hiddenProjectIds, ...arrangement.pinnedProjectIds].some((projectId) => !homeIds.has(projectId))) {
       throw new Error('That arrangement refers to work this category does not hold.');
     }
     savedProjectArrangements.set(projectArrangementKey(profileId, categoryId), {
@@ -1102,17 +1202,22 @@ function requireFollowTarget(profileId: Id, action: string): {
 }
 export const mockSocialService: SocialService = {
   async listProfileConnections(profileId, kind, offset = 0) {
-    const viewer = requireOwnProfile();
-    if (viewer.profileId !== profileId) throw new SocialServiceError('permission_denied', 'Only the profile owner can view this list.');
-    const ids = kind === 'following' ? [...followsFor(viewer.accountId)] : [...followsByAccount.entries()]
+    const viewer = currentFollower();
+    if (!viewer) throw new SocialServiceError('unauthenticated', 'Sign in to see this connection list.');
+    const subject = profiles.find(profile => profile.id === profileId);
+    const owner = viewer.profileId === profileId;
+    if (!subject || (!owner && subject.isPrivate)) throw new SocialServiceError('permission_denied', 'This connection list isn’t available.');
+    const subjectAccount = owner ? viewer.accountId : [...accountProfileIds].find(([, id]) => id === profileId)?.[0];
+    const ids = kind === 'following' ? (subjectAccount ? [...(followsByAccount.get(subjectAccount) ?? [])] : []) : [...followsByAccount.entries()]
       .filter(([, targets]) => targets.has(profileId))
       .map(([accountId]) => accountProfileIds.get(accountId) ?? followRequests.find((request) => request.requesterAccountId === accountId)?.requesterProfileId);
     const people = ids.flatMap((id) => {
       const person = profiles.find((candidate) => candidate.id === id);
-      return person ? [{ profileId: person.id, name: person.name, avatar: person.avatar }] : [];
+      return person && (owner || !person.isPrivate || person.id === viewer.profileId || followsByAccount.get(viewer.accountId)?.has(person.id))
+        ? [{ profileId: person.id, name: person.name, avatar: person.avatar }] : [];
     }).sort((a, b) => a.profileId.localeCompare(b.profileId));
     const start = Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
-    return resolve({ items: people.slice(start, start + 54), total: people.length, nextOffset: start + 54 < people.length ? start + 54 : null }, 0);
+    return resolve({ items: people.slice(start, start + 54), total: ids.length, nextOffset: start + 54 < people.length ? start + 54 : null }, 0);
   },
   async getFollowState(profileId) {
     // Open to guests: the answer for someone with no account is "you do not".
@@ -1551,7 +1656,7 @@ export const mockMessagingService: MessagingService = {
   async deleteMessage() {
     return resolve(undefined);
   },
-  async toggleReaction() {
+  async setReaction() {
     return resolve([]);
   },
   async markConversationRead() {

@@ -80,7 +80,7 @@ function getFeedCacheEntry(discovery: object, scope: object, cacheKey: string): 
 }
 
 export function useFeed(locationId?: Id, { preserveSnapshotAcrossRevision = false, revalidateOnOpen = false }: {
-  /** MOBILE retained screens keep their complete placement while canonical reads refresh. */
+  /** Keep this screen’s complete placement while canonical reads refresh. */
   preserveSnapshotAcrossRevision?: boolean;
   /** A reopened installed Home starts at the first page with a fresh request. */
   revalidateOnOpen?: boolean;
@@ -99,7 +99,7 @@ export function useFeed(locationId?: Id, { preserveSnapshotAcrossRevision = fals
   const cachedInitialSnapshot = getFeedCacheEntry(discovery, scope, cacheKey).snapshot;
   // A revision is refresh intent, not a different account or placement. Keep
   // only this mounted screen's last confirmed feed; never carry it into a new
-  // visibility scope, service, account, city, or the default WEB behavior.
+  // visibility scope, service, account, or city.
   if (!preserveSnapshotAcrossRevision || completedPlacement.current?.placement !== placement) completedPlacement.current = null;
   if (preserveSnapshotAcrossRevision && cachedInitialSnapshot) completedPlacement.current = { placement, snapshot: cachedInitialSnapshot };
   const initialSnapshot = cachedInitialSnapshot ?? completedPlacement.current?.snapshot;

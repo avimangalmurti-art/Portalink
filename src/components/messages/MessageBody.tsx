@@ -14,16 +14,16 @@ export function messageContentParts(body: string, origin: string) {
      || url.origin === 'https://portalinknetworksinc.avimangalmurti566055.chatgpt.site';
    if(trusted && !url.username && !url.password && (/^\/p\/[^/]+\//.test(url.pathname) || isPublicSharePath(url.pathname))) {
     const to = url.pathname + url.search + url.hash;
-    return {text: new URL(to.replace(/^\/p\//, '/share/'), PUBLIC_ORIGIN).href, to};
+    return {text: new URL(to.replace(/^\/p\//, '/share/'), PUBLIC_ORIGIN).href, to, original: text};
    }
   } catch { /* Ordinary message text. */ }
   return {text,to:null};
  });
 }
-export function MessageBody({body, previewLinks = false}: {body:string; previewLinks?:boolean}) {
+export function MessageBody({body}: {body:string}) {
  const parts = useMemo(() => messageContentParts(body, window.location.origin).map(part => ({ ...part,
-  target: previewLinks && part.to ? parseSharedContentLink(new URL(part.to, PUBLIC_ORIGIN).href, PUBLIC_ORIGIN) : null,
- })), [body, previewLinks]);
+  target: part.original ? parseSharedContentLink(part.original, window.location.origin) : null,
+ })), [body]);
  const [before, shared, after] = parts;
  if (parts.length === 3 && shared.target?.attachmentId && !after.text.trim()) {
   if (!before.text.trim() || isGeneratedPageShareLabel(before.text, shared.target)) {

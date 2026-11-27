@@ -172,6 +172,9 @@ test('images resolve by attachment identity after reordering; inaccessible or re
   const image = presentation({ ...target, attachmentId: 'image-one', pageIndex: 0 }, view);
   assert.equal(image.source, 'first-image'); assert.equal(image.pageNumber, 2);
   assert.equal(new URL(image.href, 'https://site.test').searchParams.get('media'), 'image-one');
+  const movedImage = presentation({ ...target, attachmentId: 'image-one', pageIndex: 4 }, view);
+  assert.equal(movedImage.source, 'first-image');
+  assert.equal(new URL(movedImage.href, 'https://site.test').searchParams.get('page'), '2');
   assert.equal(presentation(target, undefined), null);
   assert.equal(presentation({ ...target, attachmentId: 'missing' }, view), null);
   assert.equal(presentation({ ...target, pageIndex: 9 }, view), null);
@@ -238,5 +241,5 @@ test('saved links explicitly request single-page mode and never match another at
  assert.equal(item.source,'correct-page');assert.equal(new URL(item.href,'https://site.test').searchParams.get('view'),'page');
  const without={...mixed,project:{...mixed.project,attachments:[{...mixed.project.attachments[0],metadata:{pageCount:8,renderedPages:[{attachmentId:'other-document',withinDocumentIndex:5,sourceUrl:'wrong-page'}]}}]}};
  assert.equal(presentation(target,without).source,'original-pdf');assert.equal(presentation(target,without).pageNumber,5);
- assert.equal(presentation({...target,attachmentId:'image-one',pageIndex:2},view),null);
+ assert.equal(presentation({...target,attachmentId:'image-one',pageIndex:-1},view),null);
 });

@@ -7,7 +7,7 @@ import ts from 'typescript';
 
 function harness(reduced = false) {
   let reads = 0, id = 0;
-  const frames = new Map(), animations = [];
+  const frames = new Map(), animations = [], windowScrolls = [];
   const scroll = { isConnected: true, scrollTop: 500, scrollLeft: 0, overflow: 'auto' };
   const page = (number, x, y) => ({ dataset: { projectPageNumber: String(number) }, parentElement: scroll,
     style: { transform: '', transformOrigin: '', transition: '', willChange: '' }, rect: { left: x, top: y, width: 100, height: 200 },
@@ -15,13 +15,13 @@ function harness(reduced = false) {
     animate(keyframes, options) { const animation = { keyframes, options, cancelled: false, finished: new Promise(() => {}), cancel() { this.cancelled = true; } }; animations.push(animation); return animation; }
   });
   const pages = [page(1, 0, -200), page(2, 0, 10), page(3, 102, 10)];
-  const surface = { getBoundingClientRect: () => ({ top: 0, bottom: 400, height: 400 }), querySelectorAll: () => pages };
+  const surface = { scrollLeft: 0, getBoundingClientRect: () => ({ top: 0, bottom: 400, height: 400 }), querySelectorAll: () => pages };
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/contentPinchMotion.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
-  }).outputText, { exports, require:name=>{assert.equal(name,'../../presentation/motion/motion');return motionFixture;}, getComputedStyle: el => ({ overflowY: el.overflow }), window: { matchMedia: () => ({ matches: reduced }) },
+  }).outputText, { exports, require:name=>{assert.equal(name,'../../presentation/motion/motion');return motionFixture;}, getComputedStyle: el => ({ overflowY: el.overflow }), window: { innerHeight: 400, matchMedia: () => ({ matches: reduced }), scrollBy: ({ top }) => windowScrolls.push(top) },
     requestAnimationFrame(fn) { frames.set(++id, fn); return id; }, cancelAnimationFrame(i) { frames.delete(i); } });
-  return { pages, scroll, frames, animations, get reads() { return reads; }, begin: () => exports.beginContentPinch(surface, { x: 101, y: 110 }),
+  return { pages, scroll, surface, frames, animations, windowScrolls, get reads() { return reads; }, begin: (mode) => exports.beginContentPinch(surface, { x: 101, y: 110 }, mode),
     flush() { const work = [...frames.values()]; frames.clear(); work.forEach(fn => fn()); } };
 }
 
@@ -48,4 +48,16 @@ test('a gutter pinch anchors the nearest page rather than the offscreen overscan
 test('reduced motion keeps direct finger tracking but skips settling animation', () => {
   const h = harness(true), motion = h.begin(); motion.update(1.2, { x: 101, y: 110 }); h.flush();
   motion.settle(false); assert.equal(h.animations.length, 0); assert.equal(h.pages[1].style.transform, '');
+});
+
+test('a mobile overview anchors vertical zoom to the document and pans horizontally inside the attachment', () => {
+  const h = harness(true), motion = h.begin('overview');
+  motion.update(2, { x: 106, y: 120 });
+  h.pages[1].rect = { left: 0, top: 10, width: 200, height: 400 };
+  motion.settle();
+
+  assert.deepEqual(h.windowScrolls, [90]);
+  assert.equal(h.surface.scrollLeft, 94);
+  assert.equal(h.scroll.scrollTop, 500);
+  assert.equal(h.scroll.scrollLeft, 0);
 });

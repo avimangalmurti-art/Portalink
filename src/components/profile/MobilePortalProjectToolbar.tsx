@@ -6,12 +6,13 @@ import { getCategoryIcon } from './categoryIcons';
 import { PreviewCreatorName } from './PreviewCreatorName';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useMobileScreenActive } from '../../presentation/mobile/MobileBackNavigation';
+import { PortalLinkCopyButton } from './PortalLinkCopyButton';
 
 export type MobileProjectSort = 'recent' | 'title' | 'saved';
 
 /** Mobile browsing controls; authoring callbacks are supplied only for the owner. */
 export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout, onLayout,
-  sort, onSort, sharedReadOnly = false, browsingControls = !sharedReadOnly, backLabel }: {
+  sort, onSort, sharedReadOnly = false, browsingControls = !sharedReadOnly, backLabel, publicProfileId, createChoices = false, createExpanded, animateTitleOnWeb = false }: {
   category: PortfolioCategory; onBack: () => void; onCreate?: () => void;
   layout: 'list' | 'grid'; onLayout: (value: 'list' | 'grid') => void;
   sort: MobileProjectSort; onSort: (value: MobileProjectSort) => void;
@@ -19,6 +20,11 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
   /** Local sorting and view controls do not grant authoring permissions. */
   browsingControls?: boolean;
   backLabel?: string;
+  /** Only supplied in the owner's workspace for a publicly visible Portal. */
+  publicProfileId?: string;
+  createChoices?: boolean;
+  createExpanded?: boolean;
+  animateTitleOnWeb?: boolean;
 }) {
   const isMobile = usePresentation() === 'mobile';
   const active = useMobileScreenActive();
@@ -30,9 +36,12 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
       </button>
       {!isMobile && categoryIcon}
       <h2 title={category.label} className={isMobile ? 'flex items-center justify-center gap-2' : undefined}>
-        {isMobile ? <>{categoryIcon}<PreviewCreatorName name={category.label} active={active} centered className="block !flex-initial [font:inherit]" /></> : category.label}
+        {isMobile ? <>{categoryIcon}<PreviewCreatorName name={category.label} active={active} centered className="block !flex-initial [font:inherit]" /></>
+          : animateTitleOnWeb ? <PreviewCreatorName name={category.label} active={active} centered animateOnWeb fadeInset={12} className="block [font:inherit]" />
+          : category.label}
       </h2>
-      {onCreate && <button type="button" onClick={onCreate} aria-label={`Add a new project to ${category.label}`} className="mobile-portal-index-control">
+      {onCreate && <button type="button" onClick={onCreate} aria-label={createChoices ? `Add to ${category.label}` : `Add a new project to ${category.label}`}
+        aria-haspopup={createChoices ? 'dialog' : undefined} aria-expanded={createChoices ? createExpanded : undefined} className="mobile-portal-index-control">
         <InterfaceIcon icon={PlusIcon} size="lg" />
       </button>}
     </div>
@@ -44,6 +53,9 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
           <option value="recent">Recent</option><option value="title">Name</option><option value="saved">Saved order</option>
         </select>
       </label>
+      {publicProfileId && <div className="flex min-w-0 flex-1 justify-center">
+        <PortalLinkCopyButton key={`${publicProfileId}:${category.id}`} profileId={publicProfileId} categoryId={category.id} />
+      </div>}
       <div className="mobile-portal-index-view-controls">
         <button type="button" className="mobile-portal-index-control mobile-portal-index-layout" aria-label={layout === 'list' ? 'Show project grid' : 'Show project list'} aria-pressed={layout === 'grid'} onClick={() => onLayout(layout === 'list' ? 'grid' : 'list')}>
           <InterfaceIcon icon={layout === 'list' ? Grid2X2Icon : ListIcon} />

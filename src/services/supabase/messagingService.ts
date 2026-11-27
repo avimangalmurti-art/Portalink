@@ -423,18 +423,16 @@ export const supabaseMessagingService: MessagingService = {
     if (storagePaths.length) await client.storage.from('message-media').remove(storagePaths);
   },
 
-  async toggleReaction(messageId, emoji) {
+  async setReaction(messageId, emoji, selected) {
     const profileId = await viewerProfileId();
     if (!['❤', '👏', '✨'].includes(emoji)) throw new Error('That reaction is not available.');
     const client = requireSupabase();
-    const existing = await client.from('direct_message_reactions').select('message_id').eq('message_id', messageId).eq('profile_id', profileId).eq('emoji', emoji).maybeSingle();
-    if (existing.error) throw publicMessageError(existing.error, 'This reaction could not be updated.');
-    const mutation = existing.data
-      ? await client.from('direct_message_reactions').delete().eq('message_id', messageId).eq('profile_id', profileId).eq('emoji', emoji)
-      : await client.from('direct_message_reactions').upsert(
+    const mutation = selected
+      ? await client.from('direct_message_reactions').upsert(
           { message_id: messageId, profile_id: profileId, emoji },
           { onConflict: 'message_id,profile_id,emoji', ignoreDuplicates: true },
-        );
+        )
+      : await client.from('direct_message_reactions').delete().eq('message_id', messageId).eq('profile_id', profileId).eq('emoji', emoji);
     if (mutation.error) throw publicMessageError(mutation.error, 'This reaction could not be updated.');
     const result = await client.from('direct_message_reactions').select('profile_id,emoji').eq('message_id', messageId);
     if (result.error) throw publicMessageError(result.error, 'Reactions could not be refreshed.');

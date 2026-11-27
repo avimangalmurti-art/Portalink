@@ -4,7 +4,7 @@ import { useNavigate, type Location, type NavigationType } from 'react-router-do
 type RouteEntry = Pick<Location, 'key' | 'pathname' | 'search' | 'hash'>;
 type BrowserEntry = { state: unknown; pathname: string; search: string; hash: string };
 type Entry = RouteEntry & { index: number };
-type Collection = { categoryPath: string; profilePath: string; owner: boolean };
+type Collection = { categoryPath: string; profilePath: string; owner: boolean; parentPath?: string };
 const ENTRY_LIMIT = 32;
 const path = (value: string) => value.replace(/\/+$/, '') || '/';
 
@@ -63,7 +63,7 @@ export class MobilePortalCollectionHistory {
       const previous = this.entries.get(entry.index - distance);
       if (!previous) return false;
       if (path(previous.pathname) === path(collection.categoryPath)) continue;
-      if (!isCollection(previous, collection)) return false;
+      if (collection.parentPath ? path(previous.pathname) !== path(collection.parentPath) : !isCollection(previous, collection)) return false;
       this.returningKey = entry.key;
       go(-distance);
       return true;

@@ -257,7 +257,7 @@ test('requests publish no read, typing or reaction activity until acceptance', a
     listMessages: async () => ({ messages: [message('invitation')], before: null }),
     subscribeToTyping: (id) => { channels.push(id); return () => {}; },
     broadcastTyping: (...args) => typing.push(args),
-    toggleReaction: async (...args) => { reactions.push(args); return []; },
+    setReaction: async (...args) => { reactions.push(args); return []; },
     acceptRequest: async () => { current = { ...request, status: 'active' }; return current; },
   });
   await hook.flush();
@@ -265,7 +265,7 @@ test('requests publish no read, typing or reaction activity until acceptance', a
   await hook.flush();
   hook.value.markVisibleMessagesRead();
   hook.value.broadcastTyping(true);
-  assert.equal(await hook.value.toggleReaction('invitation', '❤'), false);
+  assert.equal(await hook.value.setReaction('invitation', '❤', true), false);
   await hook.flush();
   assert.equal(reads.length, 0);
   assert.equal(typing.length, 0);
@@ -275,12 +275,12 @@ test('requests publish no read, typing or reaction activity until acceptance', a
   await hook.flush();
   hook.value.markVisibleMessagesRead();
   hook.value.broadcastTyping(true);
-  await hook.value.toggleReaction('invitation', '❤');
+  await hook.value.setReaction('invitation', '❤', true);
   await hook.flush();
   assert.ok(reads.length > 0);
   assert.equal(channels.length, 1);
   assert.equal(typing[0][2], true);
-  assert.equal(reactions.length, 1);
+  assert.deepEqual(reactions, [['invitation', '❤', true]]);
   hook.dispose();
 });
 
@@ -292,8 +292,8 @@ test('rapid reaction taps share one write per message and a later tap can remove
   const bothHearts = { emoji: '❤', count: 2, isMine: true };
   const { hook } = setup({
     listMessages: async () => ({ messages: [{ ...message('first'), reactions: [otherHeart] }, message('second')], before: null }),
-    toggleReaction: (id, emoji) => {
-      calls.push([id, emoji]);
+    setReaction: (id, emoji, selected) => {
+      calls.push([id, emoji, selected]);
       if (calls.length === 1) return first.promise;
       if (calls.length === 2) return second.promise;
       return Promise.resolve([otherHeart]);
@@ -304,9 +304,9 @@ test('rapid reaction taps share one write per message and a later tap can remove
   const settledPendingCheck = hook.value.isReactionPending;
   hook.rerender();
   assert.equal(hook.value.isReactionPending, settledPendingCheck, 'Unchanged thread renders retain the pending-state callback.');
-  const add = hook.value.toggleReaction('first', '❤');
-  assert.equal(await hook.value.toggleReaction('first', '❤'), false);
-  const differentMessage = hook.value.toggleReaction('second', '❤');
+  const add = hook.value.setReaction('first', '❤', true);
+  assert.equal(await hook.value.setReaction('first', '❤', true), false);
+  const differentMessage = hook.value.setReaction('second', '❤', true);
   await hook.flush();
   assert.notEqual(hook.value.isReactionPending, settledPendingCheck);
   assert.equal(hook.value.isReactionPending('first'), true);
@@ -316,16 +316,16 @@ test('rapid reaction taps share one write per message and a later tap can remove
   await hook.flush();
   assert.equal(hook.value.isReactionPending('first'), true);
   assert.equal(hook.value.isReactionPending('second'), false);
-  assert.equal(await hook.value.toggleReaction('first', '❤'), false);
+  assert.equal(await hook.value.setReaction('first', '❤', true), false);
   first.resolve([bothHearts]);
   assert.equal(await add, true);
   await hook.flush();
   assert.equal(hook.value.isReactionPending('first'), false);
   assert.equal(hook.value.messages.find(item => item.id === 'first').reactions[0], bothHearts);
-  assert.equal(await hook.value.toggleReaction('first', '❤'), true);
+  assert.equal(await hook.value.setReaction('first', '❤', false), true);
   await hook.flush();
   assert.equal(hook.value.messages.find(item => item.id === 'first').reactions[0], otherHeart);
-  assert.deepEqual(calls, [['first', '❤'], ['second', '❤'], ['first', '❤']]);
+  assert.deepEqual(calls, [['first', '❤', true], ['second', '❤', true], ['first', '❤', false]]);
   hook.dispose();
 });
 

@@ -22,7 +22,7 @@ export function studioSharePath(row: StudioRow): string | null {
     return buildPath('sharedProject', { profileId: row.creator.id, categoryId: row.project.categoryId, projectId: row.project.id });
   }
   if (row.kind === 'saved-creator' && row.profile) return buildPath('sharedProfile', { profileId: row.creatorId });
-  if (row.kind === 'saved-page' && row.presentation) {
+  if (row.kind === 'saved-page') {
     const { view, pageNumber } = row.presentation;
     const path = buildPath('sharedProject', { profileId: view.creator.id, categoryId: view.project.categoryId, projectId: view.project.id });
     return `${path}?${new URLSearchParams({ media: row.target.attachmentId, page: String(pageNumber), view: 'page' })}`;

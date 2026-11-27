@@ -71,7 +71,7 @@ function setup() {
       }
       assert.equal(parsed.pathname, '/rest/v1/projects');
       assert.equal(init.method, undefined);
-      assert.match(parsed.searchParams.get('select'), /^(?:profile_id,category_id,title,profile:profiles!projects_profile_id_fkey!inner\(account_id\),)?id,category:portfolio_categories!inner\(id\),attachments:project_attachments\(id,kind,position,page_count:metadata->pageCount\)$/);
+      assert.match(parsed.searchParams.get('select'), /^(?:profile_id,category_id,title,profile:profiles!projects_profile_id_fkey!inner\(account_id\),)?id,category:portfolio_categories!projects_category_id_fkey!inner\(id\),attachments:project_attachments\(id,kind,position,page_count:metadata->pageCount\)$/);
       assert.equal(parsed.searchParams.get('attachments.order'), 'position.asc');
       assert.equal(parsed.searchParams.get('attachments.limit'), '106');
       if (accessFailure) return accessFailure();

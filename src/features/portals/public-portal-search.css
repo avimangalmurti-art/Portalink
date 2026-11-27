@@ -20,8 +20,6 @@
 .public-portal-pagination { display: block; width: fit-content; margin: 16px auto 0; text-align: center; }
 #root .codex-shell[data-presentation='web'] [data-public-portal-search] .profile-collection-grid {
   grid-template-columns: repeat(var(--portal-search-columns, 6), minmax(0, 1fr));
-  max-width: 960px;
-  margin-inline: auto;
   gap: 12px;
 }
 #root .codex-shell[data-presentation='web'] [data-public-portal-search] .public-portal-search-header {
@@ -201,21 +199,27 @@
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link:active {
   background: var(--surface-hover);
 }
-/* The extra crop keeps the blur filled to the rounded edge of the card. */
-#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link:has(> .public-portal-avatar-backdrop) {
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-link:has(> .public-portal-avatar-crop) {
   isolation: isolate;
+}
+/* Clip the filtered image separately so it cannot paint square corners over the card. */
+#root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar-crop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
   overflow: hidden;
+  clip-path: inset(0 round var(--ui-row-radius));
+  pointer-events: none;
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar-backdrop {
   position: absolute;
   inset: -24px;
-  z-index: -1;
   width: calc(100% + 48px);
   height: calc(100% + 48px);
   max-width: none;
   object-fit: cover;
   opacity: 0;
-  pointer-events: none;
 }
 #root .codex-shell[data-presentation='mobile'] [data-public-portal-search] .public-portal-avatar-backdrop[data-portal-avatar-ready] {
   opacity: .22;

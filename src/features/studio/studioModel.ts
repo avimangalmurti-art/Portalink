@@ -51,9 +51,9 @@ export function savedProjectStudioRows(views: ProjectView[]): StudioRow[] {
 
 export function savedPageStudioRows(entries: SavedPageEntry[]): StudioRow[] {
   return entries.map(({ target, presentation }) => ({ kind: 'saved-page', id: `saved-page:${savedPageKey(target)}`,
-    title: presentation?.view.project.title ?? 'Unavailable page',
-    secondary: presentation ? `${presentation.label} · ${presentation.view.creator.name}` : 'This page is no longer shared with you.',
-    date: realDate(presentation?.view.project.madeOn ?? presentation?.view.project.publishedAt), href: presentation?.href, target, presentation }));
+    title: presentation.view.project.title,
+    secondary: `${presentation.label} · ${presentation.view.creator.name}`,
+    date: realDate(presentation.view.project.madeOn ?? presentation.view.project.publishedAt), href: presentation.href, target, presentation }));
 }
 
 export function savedCreatorStudioRows(entries: SavedCreatorEntry[]): StudioRow[] {

@@ -1,6 +1,6 @@
 # References and exports — review package
 
-This task is source-only. `supabase/pending/external_references.sql` is pending user review, not applied. No worker, runtime configuration, Sites release or merge is authorized until approval. Existing Supabase identities/data and the Sites worker/D1 interaction data are retained. The earlier Terms and immediate session-revocation PRs are separate.
+This document records the original source-only proposal and the later approved application. The applied SQL is now [numbered for fresh database replay](../supabase/migrations/202610120003_external_references.sql). See the application receipt below.
 
 ## Product scope
 

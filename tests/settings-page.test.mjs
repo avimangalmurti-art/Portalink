@@ -8,10 +8,10 @@ const props={theme:'dark',appearanceMode:'dark',systemGray:'gray',accentColor:'#
 const all=node=>React.isValidElement(node)?[node,...React.Children.toArray(node.props.children).flatMap(all)]:[];
 function expand(node){if(!React.isValidElement(node))return node;if(node.type.name==='SettingsSection')return expand(node.type(node.props));return React.cloneElement(node,{},...React.Children.toArray(node.props.children).map(expand));}
 const action=(tree,label)=>all(tree).find(n=>n.type==='button'&&typeof n.props.onClick==='function'&&(n.props['aria-label']===label||all(n).some(c=>c.props.children===label||React.Children.toArray(c.props.children).some(child=>typeof child==='string'&&child.trim()===label))));
-function harness(auth={},query='',routeState=null,presentation='mobile',pathname='/settings'){let params=new URLSearchParams(query),state=routeState,cursor=0,idx=1;const slots=[],calls=[],stack=[];const location={pathname,search:query?'?'+query:'',state};
+function harness(auth={},query='',routeState=null,presentation='mobile',pathname='/settings',browserNavigator={}){let params=new URLSearchParams(query),state=routeState,cursor=0,idx=1;const slots=[],calls=[],stack=[];const location={pathname,search:query?'?'+query:'',state};
  const react={...React,useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return[slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}];}};
  const nav={back:()=>calls.push(['back']),to:path=>calls.push(['to',path]),profileEditor:()=>calls.push(['edit'])};
- const {ControlCenterPage}=sourceModule('src/components/ControlCenterPage.tsx',{react,'lucide-react':{ArrowLeftIcon:'back',ChevronRightIcon:'right'},'react-router-dom':{useLocation:()=>location,useNavigate:()=>value=>{calls.push(['navigate',value]);if(value===-1){const prev=stack.pop();params=prev.params;location.search=prev.search;state=location.state=prev.state;idx--; }},useSearchParams:()=>[params,(next,options={})=>{calls.push(['params',next.toString(),options]);if(!options.replace){stack.push({params,search:location.search,state});idx++;}params=next;location.search=next.toString()?'?'+next:'';state=location.state=options.state;}]},'./settings/settingsSections':sections,'./settings/NavigationButtonsPanel':{NavigationButtonsPanel:'appearance-panel'},'./auth/ProfessionalEntry':{ProfessionalEntry:'professional-entry'},'./ui/InterfaceIcon':{InterfaceIcon:()=>null},'./ui/Button':{Button:'button'},'../contexts/AuthContext':{useAuth:()=>auth},'../app/useAppRoute':{useRouteNavigator:()=>nav},'../app/routes':{buildPath:name=>'/'+name},'../features/auth/AccountSecurityPage':{AccountSecurityPage:'security-page'},'../features/auth/DeleteAccountDialog':{DeleteAccountDialog:'delete-dialog'},'../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.test'},'../presentation/usePresentation':{usePresentation:()=>presentation},'../features/install/MobileHomeScreenInstall':{MobileHomeScreenInstall:'install-guidance'},'./settings/settings-page.css':{}},{window:{history:{get state(){return{idx};}}},DOMException});
+ const {ControlCenterPage}=sourceModule('src/components/ControlCenterPage.tsx',{react,'lucide-react':{ArrowLeftIcon:'back',ChevronRightIcon:'right'},'react-router-dom':{useLocation:()=>location,useNavigate:()=>value=>{calls.push(['navigate',value]);if(value===-1){const prev=stack.pop();params=prev.params;location.search=prev.search;state=location.state=prev.state;idx--; }},useSearchParams:()=>[params,(next,options={})=>{calls.push(['params',next.toString(),options]);if(!options.replace){stack.push({params,search:location.search,state});idx++;}params=next;location.search=next.toString()?'?'+next:'';state=location.state=options.state;}]},'./settings/settingsSections':sections,'./settings/NavigationButtonsPanel':{NavigationButtonsPanel:'appearance-panel'},'./auth/ProfessionalEntry':{ProfessionalEntry:'professional-entry'},'./ui/InterfaceIcon':{InterfaceIcon:()=>null},'./ui/Button':{Button:'button'},'../contexts/AuthContext':{useAuth:()=>auth},'../app/useAppRoute':{useRouteNavigator:()=>nav},'../app/routes':{buildPath:name=>name==='home'?'/':'/'+name},'../features/auth/AccountSecurityPage':{AccountSecurityPage:'security-page'},'../features/auth/DeleteAccountDialog':{DeleteAccountDialog:'delete-dialog'},'../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.test'},'../presentation/usePresentation':{usePresentation:()=>presentation},'../features/install/MobileHomeScreenInstall':{MobileHomeScreenInstall:'install-guidance'},'./settings/settings-page.css':{}},{navigator:browserNavigator,window:{history:{get state(){return{idx};}}},DOMException});
  return{calls,location,render(overrides={}){cursor=0;return expand(ControlCenterPage({...props,...overrides}));},get section(){return params.get('section');}};
 }
 test('MOBILE Settings starts with seven navigation rows and right chevrons, never accordions',()=>{
@@ -120,8 +120,23 @@ test('shared public sections retain appearance callbacks and ordinary public con
   tree=harness(a.auth,'settings=1&section=language',null,presentation,'/creator').render(sharedProps);
   assert.match(renderToStaticMarkup(tree),/currently available in English/);assertPublicOnly(tree);
   tree=harness(a.auth,'settings=1&section=invite',null,presentation,'/creator').render(sharedProps);
-  assert.ok(action(tree,'Share invite link'));assert.ok(action(tree,'Copy invite link'));assertPublicOnly(tree);
+  assert.equal(Boolean(action(tree,'Share invite link')),presentation==='mobile');assert.ok(action(tree,'Copy invite link'));assertPublicOnly(tree);
   assert.deepEqual(a.calls,[]);
+ }
+});
+
+test('desktop offers native sharing only when supported for the welcome invitation',()=>{
+ const inviteUrl='https://portalink.test/?welcome=1';
+ for(const [browser,expected] of [
+  [{},false],
+  [{share:true},false],
+  [{share(){}},true],
+  [{share(){},canShare:()=>false},false],
+  [{share(){},canShare:data=>data.url===inviteUrl&&data.title==='Portalink Networks'&&data.text==='Join me on the Portalink Network.'},true],
+ ]){
+  const tree=harness({},'section=invite',null,'web','/settings',browser).render();
+  assert.equal(Boolean(action(tree,'Share invite link')),expected);
+  assert.ok(action(tree,'Copy invite link'));
  }
 });
 

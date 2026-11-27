@@ -1,3 +1,435 @@
+## 2026-11-18 — Combine the mobile loading and shared desktop fixes
+
+The user authorized publishing all three pending fixes. The release checkout is `logs/mobile-and-shared-polish-release` on `codex/mobile-and-shared-polish-release`, based on GitHub main `4ec84bff605810da040c5264136442b2443bdd1e`. It combines the main MOBILE neutral session-wait loading symbol, the hidden WEB Portal-popup scrollbar with normal scrolling, and WEB shared Catalogue/direct Portal splash edge masking. The independent changes to `tests/splash-lifecycle.test.mjs` are merged. Both launch-script hashes are `15e81945`.
+
+The five product files come from `logs/mobile-standard-loader`, `logs/desktop-portal-scrollbar` and `logs/shared-splash-video-edge`. Their prior focused and local browser evidence remains in those checkouts. The earlier Sites publication/GitHub receipts below are preserved. All 107 combined focused tests, typecheck, the production client and worker build, both configuration bundle guards and diff checks passed. Scoped lint returned zero errors and one existing non-null assertion warning. Independent source review confirmed all three fixes and both test changes, with no unrelated files. GitHub source traceability and Sites publication are pending. No backend, migration, account, dependency or runtime-setting change is needed. The existing Sites worker and D1 data must be retained.
+
+## 2026-11-17 — GitHub sync completed for Sites 644
+
+PR [179](https://github.com/avimangalmurti-art/Portalink/pull/179) merged Sites 644 into GitHub main `4ec84bff605810da040c5264136442b2443bdd1e`. All five PR checks passed before the squash merge. All six checks passed again on main, including the iOS simulator build. Main's product and test files match published Sites source `eacd4af8945c0a33cde989e744f7b696e204649d`; its complete tree matches checked PR head `464a698db2f1e6c9d3f134a2a0db55fbc284e622`.
+
+PR [Quality](https://github.com/avimangalmurti-art/Portalink/actions/runs/44248805016), main [Quality](https://github.com/avimangalmurti-art/Portalink/actions/runs/44250454596) and main [iOS](https://github.com/avimangalmurti-art/Portalink/actions/runs/44250454643) all completed successfully. The isolated review checkout is `logs/github-sites644-sync` on `codex/sync-sites-644`. This task synchronized GitHub source and verified CI. Sites remains the already-published version 644; no additional deployment or database migration was performed. This completion receipt is local and does not alter the checked merge commit.
+
+## 2026-11-17 — Sites 644 desktop loading update published
+
+Published at https://portalinknetworks.com as Sites 644 from `eacd4af8945c0a33cde989e744f7b696e204649d` in `logs/sites640-portal-sharing-release/.sites-checkout`. Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_73536942de388191a2257432e16414bd`, deployment `appgdep_6afd3e51e0d88191b720ab75c82c10f5`, succeeded at 2026-11-18T05:57:50.735394+00:00. Public access, runtime revision 2 and the existing worker/D1 data were retained. Archive `logs/portalink-desktop-loading-release.tar.gz` has SHA-256 `a44c63db1119c419713f69a7bdfb479ad68bc3d9ab5d03b19209f89511851cb5`. No database migration was applied.
+
+Typecheck, the focused release regressions, six build-entry checks, the production client and worker build, and both configuration bundle guards passed. Real live Chromium verified platform root, invite, shared Catalogue and direct Portal entry with real data and media in a fresh signed-out browser. Each reached the visible native clip end at 1.466667 seconds, with the final decoded frame at 1.433 seconds and no exposed grey loading shapes or uncaught exceptions. Shared readiness markers existed at splash exit. Normal live data finished before the clip ended. Delayed loading, the held final frame and loading icon, timeout and Retry remain covered by the local fixture cases. Authenticated Home was verified locally. All four public routes returned HTTP 200 and all 113 checked live assets matched the final build. An initial geography-asset 404 resolved on retry before the final complete asset pass.
+
+Live receipts are `logs/desktop-splash-loading/logs/desktop-splash-loading-qa/live-verified.json` and `logs/sites640-portal-sharing-release/.sites-checkout/logs/loading644-live-assets.json`. The implementation task checkout remains `logs/desktop-splash-loading` on `codex/desktop-splash-loading`. GitHub main remains `b40c17c`, synced through Sites 643. This publication is separate from the next GitHub review.
+
+## 2026-11-17 — Desktop splash covers the first content load
+
+Working in `logs/desktop-splash-loading` on `codex/desktop-splash-loading`, based on GitHub main `b40c17c` (published Sites 643 product source). Desktop platform startup keeps the completed splash frame while authentication or Home's existing content and shell checks are pending. Shared Catalogue and direct Portal launches release after the full clip and a committed readiness marker, including the Portal's saved order. A standard loading mark appears on the held artwork. Shared launch has a bounded fallback to the normal loading or error UI if the application does not settle.
+
+`StateViews.tsx` and desktop CSS replace grey loading geometry with the standard icon for desktop screens. Mobile keeps the original loading geometry. The desktop deferred-dialog pending state uses the same icon. This task changes presentation and startup handoff only. The work is local, uncommitted and unpublished. No migration or deployment has been performed.
+
+Typecheck, scoped lint with zero errors and one existing warning, the configured client and worker build, both bundle guards, focused startup/visitor/loading regressions, six build-entry checks and diff checks passed. Local Chromium verified 12 behavioral cases with fixture data, including slow platform Home, slow Catalogue and Portal saved order, terminal failures, timeout/Retry, media fallback, Reduced Motion and mobile at 420 × 912. The final visual run confirmed full 1.466667-second playback, a stationary final frame and centered standard loading mark, zero exposed grey placeholders, correct content handoff, and the 12-second shared fallback. Root visually inspected the held platform/shared scenes and fallback screenshots. Receipts and screenshots are in ignored `logs/desktop-splash-loading-qa`. Live production and physical-device verification have not been performed for this unpublished change. The final launch-script hash is `c49e2dd0`.
+
+## 2026-11-17 — GitHub sync completed for Sites 643
+
+PR [178](https://github.com/avimangalmurti-art/Portalink/pull/178) merged all Sites 643 changes into GitHub main `b40c17cb887d236783811cc56d6a42d3ff6735bf`. All five PR checks passed before merge, and all six main checks passed afterward, including the existing iOS simulator build. The application and test files match this published Sites source. The isolated review checkout is `logs/github-sites643-sync` on `codex/sync-sites-643`.
+
+## 2026-11-17 — Sites 643 splash fix published and verified live
+
+Published the complete desktop splash fix at https://portalinknetworks.com as Sites 643 from `2902998bcf3ba6d19b8b46e8e490d47911083e3d`. Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_a9c817122f4481919fbcaa13e4e49b27`, deployment `appgdep_6afccb299cc48191b9658fb12934cdf8`, succeeded at 2026-11-17T21:46:26.532934+00:00. The public audience, runtime revision 2, worker and four D1 migration payloads were retained. Archive `logs/portalink-nov17-full-desktop-splash.tar.gz` has SHA-256 `7db39919eedc639f5670c1885bcf43271cbfc03b19e929ce640786cb9108aa79`. No Supabase migration was applied.
+
+Real live Chromium verified the signed-out desktop platform, invite entry, public Portalite Catalogue and exact Application - Product Design Roles Portal link. All four displayed the full 1.466667-second clip, including the final visible decoded frame at 1.433 seconds, then handed off to the correct destination. Source, data and media came from the real network. There were no uncaught runtime exceptions. Authenticated playback was covered by the earlier local fixture, with no live signed-in run. All four live public routes returned HTTP 200, and 113 live assets matched the release build by SHA-256. Receipts are ignored `logs/desktop-splash-e2e/live-verified.json` and `logs/splash643-live-assets.json`.
+
+The 120 startup regressions, six build checks, typecheck, production build and configured main/visitor bundle guards passed. The clean published source is on the Sites repository's main branch. GitHub review and integration remain separate.
+
+## 2026-11-17 — Play the complete desktop splash
+
+Continued in `logs/sites640-portal-sharing-release/.sites-checkout` on the Sites source branch from `dfda684` (live Sites 642). `ApplicationBootstrap.tsx` keeps the desktop startup clip mounted while account restoration, sign-in entry and Home readiness settle. `public/portalink-mobile-launch.js` uses the same existing 1.47-second MP4 on public Catalogue and exact Portal links. The shared overlay releases on video end, pauses in hidden tabs and falls back if video is unavailable. The mobile launch and reduced-motion paths retain their existing media.
+
+Chromium verified 12 cases against the built HTML, including signed-out and restored platform entry with fixture data, desktop invites, Catalogue and direct Portal links, delayed media, background pause and resume, unavailable media, Reduced Motion and 420 × 912 mobile. All 120 startup regressions and six postbuild checks passed, as did typecheck, the production client and worker build and bundle guards. Scoped lint reported one existing warning and zero errors. The change is local and unpublished. No migration is needed.
+
+## 2026-11-17 — Integrate the pending Portalink release
+
+The checkout at `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` combines the pending reader, Portal title, shared Catalogue splash and soundtrack changes below with the two previously separate desktop fixes. The performance changes from `logs/desktop-performance-followup` apply each sidebar's final width once, reserve scroll gutters, request smaller catalogue covers and let Home open while artwork loads. The invite fix from `logs/desktop-invite-splash` lets the existing desktop invite clip finish before sign-in or a Home retry appears. The active soundtrack implementation supersedes the earlier prototype in `logs/web-soundtrack-dialog`.
+
+The integration uses GitHub main `57b9031`, the synced Sites 641 application source. There are no migration, worker binding or dependency changes. Pending rollout and final release checks are tracked separately from the feature receipts below.
+
+## 2026-11-17 — Match desktop reader sidebar headers
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). The desktop rules in `src/presentation/web/web.css` now let the project list and response sidebar paint their header backgrounds, extending the existing shared reader treatment to the workspace. Content scrolling behind a header retains the navigation tint. The change is local and unpublished. All 37 focused header, presentation and public reader tests passed.
+
+Chromium at 1920 × 875 verified that both header fills matched their sidebar bodies in dark and light appearance, in the workspace and shared reader. The 420 × 912 mobile preview kept its page counter and mobile controls.
+
+## 2026-11-17 — Fill gaps between desktop reader pages
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). `useDesktopPagePacking.ts` places the next page directly below the shortest available equal-width column for desktop ordered projects and standalone PDFs. The reader keeps each page's proportions and DOM order. The existing single-column, focused and mobile paths are retained. Renderer markers let both generated PDF-page images and live PDF canvases keep their existing loading and focus behavior.
+
+Chromium verified the desktop workspace and shared catalogue at 1440 × 900 with portrait and landscape pages, including mixed files, standalone PDFs, and both PDF renderers. Pages repacked cleanly when switching from three columns to one and back, the page count reached the final page, and page focus worked. Shared mobile at 420 × 912 kept its vertical layout and page count. No uncaught runtime exceptions were observed.
+
+Typecheck, client and worker build with CI fixture configuration, bundle guards, focused reader and build tests, and diff checks passed. Scoped lint returned zero errors and one existing warning. This change is local and unpublished. No migration is needed.
+
+## 2026-11-16 — Mixed desktop page grid and shared mobile Portal titles
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). When zooming out in mixed desktop projects, `ProjectMediaViewer.tsx` and the renderers expose image and PDF overview pages to a shared equal-column grid. Pages retain source order, proportions, focus behavior and existing lazy PDF rendering. Mixed projects without a saved density start stacked. Mobile reading is unchanged.
+
+In mobile Portal project rows, `PreviewCreatorName.tsx`, `ProjectIndexList.tsx` and `mobile-project-popup.css` animate positioned text and show an unmasked fallback whenever the title is static. Chromium at 420 × 912 verified long and short titles, the animated fade, Reduced Motion and missing animation support on a shared Portal. The physical iPhone WhatsApp browser remains unverified.
+
+The 125 reader and 29 title tests, typecheck, build with CI fixture configuration and bundle guards passed. Scoped lint found zero errors and one existing warning. Chromium checked both desktop readers with real image, live PDF canvas and pre-rendered PDF pages, including Ctrl+wheel and slider changes, equal widths, page proportions, non-overlapping rows, ordered page counts, fullscreen page focus and unchanged mobile reading. The built stylesheet contains the final grid rules. Changes are local and unpublished. No migration is needed.
+
+## 2026-11-16 — Page count at the top of both desktop readers
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). The shared `ProjectMediaViewer.tsx` renders a top-left current/total badge for desktop image and document reading. `MobileProjectPageCounter.tsx` shares the existing page measurement across desktop and mobile, including mixed ordered sections. `web.css` anchors the badge above the scroll surface and suppresses the old focused-mode badge when the new badge is present. Non-paginated media and mobile retain their original controls.
+
+Typecheck, the client and worker build with CI fixture configuration, bundle guards, 144 reader tests and diff checks passed. Scoped lint returned zero errors and one existing warning. Local Chromium used disposable media to check the top-left position in shared and signed-in desktop readers, scrolling through image, PDF and mixed projects, the focus view and mobile counter behavior. The changes are local and unpublished. No migration is needed.
+
+## 2026-11-16 — Pages per row for all desktop project files
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). `VisitorProjectPage.tsx` and `ProfileCategoryPage.tsx` show Pages per row for single-page, unpaginated and multipage projects in the desktop toolbar. `ProjectMediaViewer.tsx` uses the existing page grids for documents and image sets and sizes standalone previews to the selected column width. Single items open at full width unless an authored setting applies. Public adjustments remain local to the reader, and owner saves still use the existing project design path. Mobile controls retain their existing behavior.
+
+Typecheck, the client and worker build with CI fixture configuration, bundle guards and 172 focused tests passed. Scoped lint returned zero errors and two warnings on existing code. Local Chromium with synthetic data measured actual single image, one-page PDF, audio and video widths changing at 1440 × 900, and actual column changes in multipage image, PDF and mixed collections. Mobile Chromium at 420 × 912 retained its existing controls and sizing. The changes are local and unpublished. No migration is needed.
+
+## 2026-11-16 — Splash on desktop shared Catalogue links
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). `share.html` enables the existing one-second Catalogue animation on desktop public profile links and exact Portal popup links. `public/portalink-mobile-launch.js` uses the existing still with Reduced Motion and removes the overlay after the animation or a media failure. The profile can load underneath. Desktop direct project, bare category, collaboration and Settings links skip the splash. Both HTML entries reference the updated script hash.
+
+Typecheck, the client and worker build with CI fixture configuration, bundle guards, 207 focused tests and diff checks passed. Local Chromium loaded the built visitor entry with disposable profile data and verified animated frames, dark-mode handoff, Reduced Motion, missing media, exact Catalogue and Portal destinations, desktop reader exclusions and mobile Catalogue entry. Changes are local and unpublished. No migration is needed.
+
+## 2026-11-16 — Shared desktop Portal title and soundtrack startup
+
+Continued in `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup` from GitHub main `57b9031` (Sites 641). `PortalProjectPopup.tsx`, `MobilePortalProjectToolbar.tsx`, `PreviewCreatorName.tsx` and `mobile-project-popup.css` reuse mobile's overflow motion and two-edge mask for the desktop shared Portal heading. `VisitorApp.tsx` prepares shared catalogue and exact Portal audio while the profile loads. `ProfileAudio.tsx` uses the existing autoplay and trusted-interaction retry on desktop shared catalogues. Signed-in desktop keeps manual playback.
+
+132 focused tests, typecheck, scoped lint and a local build with CI fixture configuration passed. A local Chromium full-route fixture checked animation and fades for long desktop titles, static short titles, Reduced Motion wrapping, one early audio lookup, playback before any click when allowed, and playback on a trusted Portal click when required. Mobile Chromium at 420 × 912 confirmed the existing title motion and autoplay. The changes are local and unpublished. There is no migration.
+
+## 2026-11-16 — Desktop soundtrack layout and frosted backdrop
+
+Local worktree `logs/desktop-soundtrack-popup` on `codex/desktop-soundtrack-popup`, based on GitHub main `57b9031` (Sites 641). `ProfileAudio.tsx` and `profile-audio.css` keep the cover art and controls in one scrollable desktop column. `index.css` applies the profile-avatar backdrop styles to the soundtrack popup for both the desktop profile and shared catalogue.
+
+Typecheck, the local Sites build with the CI fixture, and 59 focused tests passed. Chromium component fixtures verified playback controls below the artwork, matching avatar and soundtrack backdrops, reduced translucency, and matching mobile layout measurements against the baseline. Changes are local and unpublished. There is no migration.
+
+## 2026-11-15 — Sites 641 published for Portal sharing and ordering
+
+Published Sites 641 from `0854ce22a290a156bfb8d674a12661cbc97f5dce`, deployment `appgdep_6af9e50486748191bbe3104eec753814`. It includes the mobile icon-only Copy Portal control, in-place owner reorder, the saved default order on shared Portal links, and the creator avatar in copied Portal previews. Sites 640 exposed a production storage path mismatch: avatar uploads use the owner's account UUID. Sites 641 validates the account folder or the earlier profile folder within the existing public avatar bucket. The source release carries the already-applied arrangement migration's GitHub filename. No database migration was run. This GitHub sync takes the published release source from `0854ce2`.
+
+Production build and bundle guards, typecheck, lint, 191 release regressions and 63 focused follow-up checks passed. The live custom domain matches the built main and visitor entry assets. A WhatsApp crawler request for Application - Product Design Roles returned the same reachable PNG as the public Portalite profile, and the individual Campus Posters link returned its project cover. WhatsApp Web rendered Portalite's current avatar and the correct Portal title in an unsent self-chat draft using the exact Copy Portal URL. The temporary draft was cleared and no message was sent.
+
+## 2026-11-15 — Use the creator's avatar in copied Portal previews
+
+Continued in `logs/mobile-copy-portal-icon` on `codex/mobile-copy-portal-icon` from GitHub main `def45a4`. `sharedPreview.ts` uses the public creator avatar for copied `?view=portal` URLs, keeping the exact Portal as the destination. The preview works for empty public Portals and uses the standard image when the creator has no usable avatar. Direct project links and ordinary category URLs still use project artwork.
+
+Typecheck, scoped lint, a local Sites build with the CI fixture, and 93 focused tests passed. One optional database fixture skipped because its isolated runtime was unavailable. Crawler tests cover WhatsApp-style requests, both Portal URL formats, and private or hidden Portal responses. The fix is local and awaits production and real WhatsApp verification. There is no migration.
+
+## 2026-11-15 — Shared Portal links open in the owner's order
+
+Continued in `logs/mobile-copy-portal-icon` on `codex/mobile-copy-portal-icon` from GitHub main `def45a4`. `VisitorApp.tsx` defaults copied Portal links on mobile and desktop, and the mobile public catalogue chooser and reader, to Saved order. Recent and Name remain visitor choices scoped to each Portal. `useSavedPortalOrder.ts` distinguishes a pending read from an unavailable saved order so the shared popup and mobile reader do not briefly show the wrong sequence. Unavailable ranks fall back to the visible catalogue order. No Supabase migration or permission change is required.
+
+Typecheck, focused lint, diff checks, and 128 focused tests passed across this and the prior two mobile Portal fixes. A Chromium preview of the real visitor app with a disposable mixed Portal and delayed service response confirmed no project rows before the saved order was ready, the featured project first on mobile and desktop, and Recent and Saved order switching on mobile. Physical-device and production behavior remain unverified. The changes are local and unpublished.
+
+## 2026-11-15 — Keep the mobile Portal open while reordering
+
+Local worktree `logs/mobile-copy-portal-icon` on `codex/mobile-copy-portal-icon`, based on GitHub main `def45a4` (Sites 639). `App.tsx` keeps the authenticated owner's existing mobile Portal mounted through the same profile's background refresh. `ProfileCategoryPage.tsx` and `ProjectIndexList.tsx` keep the same sortable rows and reorder hint mounted during the save while blocking a second in-flight drop. Profile invalidation, access checks, error and retry behavior, and desktop ordering remain in their existing paths.
+
+`PortalLinkCopyButton.tsx` restores the previously requested icon-only mobile idle control that missed the Sites 639 release. Successful copies still show the green check and “Copied.” The desktop compact control retains its existing behavior.
+
+Fifty focused regressions and typecheck passed. Scoped ESLint returned zero errors and four existing warnings. Local Chromium at 420 × 912 used simulated accounts and a deliberately delayed save and profile refresh. Two consecutive touch drops kept the same popup, rows, route and scroll position. The copy action showed an idle 44 × 44 icon, announced successful copying and returned to idle. The desktop compact icon was checked at 1366 × 900. Physical iPhone and live behavior remain unverified. There is no migration. The changes are local and unpublished.
+
+## 2026-11-14 — Sites 639 Portal order and reader navigation
+
+Published Sites 639 from `ef97b09746a00030e59b10872552b867290954cf`. Mobile Portal owners can hold and drag original and featured projects in the same Portal, including featured-only Portals. The release also handles mobile back-swipe conflicts and preserves the Portal project index when opening a project from a shared Portal.
+
+Production Supabase already has the approved migration recorded as `20261115014245_portal_project_arrangement`. The repository file uses the hosted timestamp and the applied SQL bytes. See [migration status](migration-status.md#applied--project-order-within-a-portal-2026-11-14). No second migration or Sites publication is needed for the source sync.
+
+Release typecheck, build, and 180 focused checks passed. Homepage and shared catalogue assets matched the published build. Mobile Chromium verified both Portal arrangements with disposable in-memory records and confirmed the read-only viewer sees the saved order. Physical iPhone testing remains outstanding.
+
+## 2026-11-14 — Owner Portal drag without changing sort
+
+Prepared in `logs/sites638-release` from Sites 637 source `d833b78`. The release contains `ProfileCategoryPage.tsx` and two focused test updates from `codex/portal-project-drag` (GitHub base `10b51b5`). Owners can hold and drag in a Portal from Recent, Name, or Saved order. The completed drop saves the new sequence and switches mobile to Saved order automatically. Permissions, Portal membership, and desktop arrangement follow the existing model. No database migration is required.
+
+An isolated Chromium preview with prototype data at 420 × 912 repeated successful touch drags from both Recent and Name and showed the dropped order. Physical iPhone testing remains pending.
+
+## 2026-11-14 — Combined Sites release from 636
+
+Prepared from Sites source `a9da6272` with the same tree as GitHub main `10b51b5`. Includes the mobile cover-card layout, Timeline reader Back on web and mobile, mobile Portal project reordering, green Portal rename confirmation, faded scrolling Portal list titles, and a compact mixed-media file switcher on mobile. The release requires no migration. Typecheck, lint (107 warnings, zero errors), 254 focused tests, and the configured client and worker build passed on the combined task worktree. Reviewed the 30 changed source and test files against the release checkout. The Sites checkout repeated the production build and the 254 focused tests. Prior browser checks used prototype data. A physical iPhone remains unverified.
+
+## 2026-11-14 — Compact mobile file switcher
+
+Continued in `logs/portal-project-drag` on `codex/portal-project-drag`, based on `github/main` at `10b51b5`. `ProjectMediaViewer.tsx` and the shared mobile reader CSS give mixed-media projects a compact capsule with 44 px rounded file buttons. Generated filenames use a short media label with numbering when needed, and the original name remains available to assistive technology. Named files keep their titles. The capsule stays above the reader dock during switching and avoids double clearance below videos. The redundant padding rules were removed from both mobile entry stylesheets. Desktop and the continuous image/PDF reader retain their behavior.
+
+Typecheck and all 82 focused reader tests passed. Scoped ESLint found one existing non-null assertion warning. Local Chromium verified video and image switching in the workspace at 420 × 912 and the shared reader at 420 × 912 and 390 × 844. At 390 × 844 the capsule remained 52 px tall and 16 px above the dock in both states. Desktop at 1366 × 900 kept its original file strip. The preview used prototype data. A physical iPhone and production remain unverified. Changes are local and require no migration.
+
+## 2026-11-14 — Scrolling mobile Portal project titles
+
+Local worktree `logs/portal-project-drag`, branch `codex/portal-project-drag`, from `github/main` at `10b51b5`. Mobile project list rows in the app and shared catalogue use the Portal header's overflow motion. `ProjectIndexList.tsx`, `PreviewCreatorName.tsx`, and `mobile-project-popup.css` add soft edge fades and room to read the first and last letters at each pause. Motion runs for visible overflow rows, and Reduced Motion wraps the title. Grid cards and desktop titles remain static.
+
+Typecheck, scoped ESLint, diff checks, and 108 focused tests passed, including project index rows, label animation, and the desktop Portal chooser. A local Chromium preview with prototype data confirmed movement, fades, and clearance from the row menu at 420 × 912 and 390 × 844. The grid stayed static and the desktop title used its original rendering at 1366 × 900. Physical iPhone and live shared catalogue behavior remain unverified. No migration is needed. The branch is unpublished.
+
+## 2026-11-14 — Mobile Portal rename confirmation
+
+Continued in `logs/portal-project-drag` on `codex/portal-project-drag` at `10b51b5`. `PortalsPage.tsx` gives the inline rename check the same semantic green as Copy public catalogue link for 850 ms after a confirmed save. It then returns to the renamed row. A failed save retains the draft.
+
+Typecheck, scoped ESLint, diff checks, and all 91 focused tests passed. A 420 × 912 Chromium preview with prototype data confirmed the inline success color token and the updated row after closing. Physical iPhone and live behavior remain unchecked. Changes are local and require no migration.
+
+## 2026-11-14 — Hold and drag projects inside a Portal
+
+Local worktree `logs/portal-project-drag`, branch `codex/portal-project-drag`, from `github/main` at `10b51b5`. In the signed-in owner's mobile Portal, `ProfileCategoryPage.tsx` starts in Saved order. `ProjectIndexList.tsx` enables direct hold-and-drag in list and grid and uses the existing arrangement save. An ordinary tap still opens the project. The existing ordering model applies to projects in their home Portal and keeps pinned, regular, and hidden groups separate. Desktop continues to use its existing drag handles.
+
+At 420 × 912 CSS pixels, a Chromium preview with prototype data verified Saved order on entry, keyboard reordering in list and grid, and reopening the Portal with the saved order. The desktop index showed the same saved order at 1366 × 900. All 126 focused tests passed, covering direct touch activation and the owner and visitor entry paths. A separate featured-project test also passed against a fresh local database replay. Scoped ESLint reported one existing hook dependency warning. Physical iPhone and live behavior have not been checked. This branch is unpublished and requires no migration.
+
+## 2026-11-13 — Portal and Timeline release preparation
+
+Release checkout `logs/mobile-catalogue-portals-tab`, branch `codex/mobile-catalogue-portals-tab`, from GitHub main `c23bb59`, which matches live Sites 632. The combined source contains the main and shared mobile Portals tabs, public follower and following lists for signed-in platform visitors, nested Portals on mobile and web, and independent Then/Now cover framing. The Then/Now patch was reconciled with the current Journey and prototype-service changes. Current release work excludes the separately prepared manual Splash Screen project thumbnail repair and the older cross-service audit branch.
+
+Three reviewed additive migrations are pending in production, in order `20261114043924_timeline_pair_cover_framing.sql`, `20261114071624_public_profile_connections.sql`, and `20261114072330_portal_hierarchy.sql`. Hosted read-only preflight confirmed prerequisites and absence of the target objects. Production application and the Sites rollout remain separate. No production data was changed during preparation.
+
+## 2026-11-13 — Nested Portals
+
+Continued in `logs/mobile-catalogue-portals-tab` on `codex/mobile-catalogue-portals-tab` from GitHub main `c23bb59`. Inside a Portal, its owner can choose **New project** or **New sub-portal** from the plus menu on mobile and web. A sub-portal appears under its parent and can contain projects and further sub-portals. The platform Portal indexes, shared catalogue and reader navigation follow the hierarchy. Project placements and existing Portal URLs continue to use their existing IDs.
+
+`20261114072330_portal_hierarchy.sql` adds an owner-checked creation RPC and a same-profile parent relation. Each Portal retains its own visibility. Readers receive a relationship only if both Portals are visible, and a Portal with sub-portals cannot be deleted. Changes are local and unpublished. The hierarchy and earlier public-connections migrations are unapplied in production.
+
+Typecheck, scoped ESLint with existing warnings, and a web and worker build with synthetic configuration passed. Eleven adjacent database and service checks passed, including the full replay of 60 migrations and the access and membership boundaries. Focused Portal, reader, profile persistence, and startup checks passed after updating their fixtures. Chromium with compiled prototype data verified owner creation, the nested listing, and returning to the parent at 420 and 1366 CSS pixels. The broader suite initially received an incorrect PGlite path. Targeted reruns used the corrected path. Windows also denied symlink creation for two unrelated checkpoint tests. Physical-device and live behavior remain unverified.
+
+## 2026-11-13 — Main mobile profile Portals and public follow lists
+
+Continued in `logs/mobile-catalogue-portals-tab` on `codex/mobile-catalogue-portals-tab` from GitHub main `c23bb59`. The main mobile profile uses Catalogue, Portals, Timeline in its header, with Projects, Followers, and Following in the count row. Portals opens the existing profile popup. The desktop profile keeps its current Portals count.
+
+Signed-in visitors on the main platform can open the two follow lists for public accounts. The additive `20261114071624_public_profile_connections.sql` returns paginated identity summaries for accepted connections. The existing private-profile rules and table permissions remain intact. The separate shared link keeps its current social UI. Changes are local and unpublished, and the migration is unapplied in production.
+
+Typecheck, targeted lint with five existing warnings, and 132 focused tests passed. The two PGlite checks replayed all 59 migrations and covered the new query and existing access boundaries. Chromium with prototype data verified the profile header and Portals popup at 320 and 420 CSS pixels and the desktop header at 1366. Live profile connection lists and physical iPhone testing remain pending.
+
+## 2026-11-13 — Mobile shared catalogue Portals button
+
+In `logs/mobile-catalogue-portals-tab` on `codex/mobile-catalogue-portals-tab` from GitHub main `c23bb59`, the public mobile header places Portals between Catalogue and Timeline. The text button opens the existing drawer and replaces the floating app icon on the catalogue. Portals remains available when the creator hides Timeline, and desktop keeps its sidebar. Changes are local and unpublished.
+
+Changed `VisitorApp.tsx`, `VisitorProfileGrid.tsx`, `JourneyToggle.tsx`, `SharedProfileSidebar.tsx`, `PublicProfileDrawer.tsx` and `public-mobile.css`. Typecheck, targeted ESLint and 124 focused tests passed. Local Chromium with fixture data verified the header, drawer interaction and focus return at 320, 376 and 420 CSS pixels, the project chooser at 420, and the existing desktop sidebar at 1366. Physical iPhone and Instagram testing remain pending.
+
+## 2026-11-13 — Mobile profile audio close button
+
+In `logs/portal-catalogue-release` on `codex/portal-copy-owner-only` at `071767c`, `ProfileAudio.tsx` and `profile-audio.css` use the system red fill and white X on the mobile player close button. The change is local and unpublished. A local Chromium fixture confirmed that the 44px circle uses red in light and dark themes and closes the popup while playback continues. Desktop retains the secondary style.
+
+## 2026-11-13 — Mobile Insights date filters
+
+In `logs/portal-catalogue-release` on `codex/portal-copy-owner-only` at `071767c`, `MobileInsights.tsx` and `insights.css` remove the separate Week/Day switch and its spacing. The existing date dropdown still includes Today and Last 7 days and drives the selected period in project drill-down. Desktop keeps its existing controls.
+
+All 24 focused Insights and Reads navigation tests, targeted ESLint, and diff checks passed. The change is local and unpublished.
+
+## 2026-11-13 — Mobile catalogue appearance, reader label and Now Playing artwork
+
+Local checkout `logs/portal-catalogue-release`, branch `codex/portal-copy-owner-only` at `071767c`. `VisitorApp.tsx`, `VisitorProfileGrid.tsx` and `appearancePreferences.ts` add a light/dark shortcut beside High Contrast on mobile shared catalogues. The theme follows the viewer’s appearance, and a fresh shared-catalogue visit starts with High Contrast off. Explicit shared-catalogue choices still persist. `MobileProjectPageCounter.tsx` displays “2 per row” as the slider moves, with the full screen-reader value.
+
+`ProfileAudio.tsx`, `ProfileAudioSlot.tsx` and `profileAudio.ts` supply Portalite’s dedicated `portalite-now-playing.png` to Media Session for both the public and platform profile. The 640 × 640 export extends the source artwork’s adjacent colors through its four white outer corners. The center including the entire mascot matches the resized source pixel for pixel. Other profiles still use their own avatars, and the in-page cover and playback controls keep their existing behavior.
+
+Phone-width Chromium checks at 420, 390 and 320 px verified the shared theme shortcut, first-visit contrast and saved choice, with desktop controls unchanged. Typecheck, targeted lint, the configured client and worker build, four emitted-entry tests and 237 focused tests passed. The database integration test was skipped. The compiled artwork returned HTTP 200 as a byte-identical PNG from a local server. A physical iPhone lock screen remains unverified. These edits are local and unpublished, alongside the earlier local Portal and splash work below.
+
+## 2026-11-13 — White shared catalogue splash in mobile browsers
+
+In `logs/portal-catalogue-release` on `codex/portal-copy-owner-only` at `071767c`, the shared catalogue sets its white launch canvas and both theme-color tags before the animation script loads. The browser surface hook preserves white while the animation runs and the exit restores the catalogue theme. `share.html`, the versioned launch script and the browser surface hook implement this. The Home entry updates its asset reference and retains its existing behavior. Direct project links retain the black loading screen.
+
+The reported black bands were outside the supplied animation frames. Live handle and share routes served the earlier white overlay with the original theme handoff. Typecheck, the configured client and worker build, and focused splash, browser-surface and built visitor-entry tests passed. At iPhone 15 CSS dimensions, a Chromium preview with the saved dark theme showed white document and body before the animation script and with the artwork visible, then a black document and dark scheme after exit. Physical Instagram on iPhone remains unverified. The change is local and preserves the earlier pending Portal edits.
+
+## 2026-11-13 — Mobile Portal Search card corners
+
+In `logs/portal-catalogue-release` on `codex/portal-copy-owner-only` at `071767c`, the mobile Portal Search avatar blur now clips to the system row radius in a separate decorative layer. `PublicPortalSearchPage.tsx` and `public-portal-search.css` contain the change. The card keeps its original border, focus outline, and blur. The prior owner-only Copy Portal edits are preserved.
+
+All 18 Portal Search tests passed. A local browser preview with synthetic data checked loaded avatar blur clipped to 14px in mobile light mode at three columns and in dark high contrast at four columns, and confirmed desktop retains its existing avatar treatment at 1280 × 900. Physical iPhone Safari was not tested. Local and unpublished.
+
+## 2026-11-13 — Owner-only Copy Portal action
+
+Local branch `codex/portal-copy-owner-only` in `logs/portal-catalogue-release` builds on `071767c` from [PR #172](https://github.com/avimangalmurti-art/Portalink/pull/172), where Portal links were introduced. The public chooser and project index omit the copy action on mobile and web, and the main platform uses its owner and public visibility checks before offering **Copy Portal**. Existing public links still open the intended Portal.
+
+Typecheck and 91 focused tests passed. Targeted lint reported three existing warnings and no errors. The local browser fixture confirmed the shared toolbar and grid toggle at 420 × 912 and 1280 × 900, and the owner toolbar showed **Copy Portal** and a successful copy confirmation at 420 × 912. Ready for review. The fix is local and Sites 628 is still live.
+
+## 2026-11-13 — Portal and mobile catalogue changes published in Sites 628
+
+[Portalink](https://portalinknetworks.com/) runs Sites 628 from `b6c7854c497a5b649c0d1fee0dbf61abc05388b6` in [PR #172](https://github.com/avimangalmurti-art/Portalink/pull/172). All five [Quality jobs](https://github.com/avimangalmurti-art/Portalink/actions/runs/43540304588) passed on that source. The PR is open and GitHub main remains at the PR #171 merge. Sites deployment `appgdep_6af7b9eb1dc0819194779564323da069` succeeded with the original public audience and runtime revision 2. The verified 662-file archive preserved all four D1 SQL payloads. Sites 626 is the prior live version. Sites 627 was saved and never deployed.
+
+Seven features are live. The production homepage and Portalite shared catalogue returned HTTP 200, and 110 assets matched the release build. The live desktop browser opened the individual public Portal link directly to the Portalink Networks Inc. chooser. Local Chromium with synthetic services confirmed the combined mobile editor, grid covers and looping video, and both states of the multi-Portal menu. No physical iPhone test or production placement write was performed.
+
+After explicit user approval, Supabase applied the exact multi-Portal SQL as [`20261114013655_project_portal_features.sql`](../supabase/migrations/20261114013655_project_portal_features.sql). The hosted statement matched the original 4,625 bytes; Git uses the hosted version in the filename. Postflight confirmed the relation, row-level security, foreign keys, index, and owner save grants. After the filename alignment, PGlite replayed all 58 migrations and both focused checks passed. No older migrations were changed.
+
+On live Sites 628, the signed-in Portalite owner opened the Brand Identity Guidelines project popup. Its three-dot menu displayed **Feature in Portals** between **Edit project** and **Delete project**. The picker locked the original Portal and enabled Save after selecting Graphic Design. Cancel cleared the selection on reopening. Save was not submitted, no project placements changed, and a physical iPhone was not tested.
+
+## 2026-11-13 — Portal and mobile catalogue release preparation
+
+Release checkout `logs/portal-catalogue-release`, branch `codex/portal-catalogue-release` from GitHub main `c4e1371`. Combines Week/Day in mobile Insights, the white mobile shared-catalogue splash, the cover editor and photo ordering, the mobile Edit project layout, the reader Pages per row indicator, taller mobile Portal covers with looping video previews, individual public Portal links, and featuring one project in several Portals. The original task checkouts retain their edits.
+
+The Portal features share one project identity and keep their existing access rules. A copied Portal link opens its chooser, including visible featured projects. The multi-Portal migration was prepared as a separate additive change. The owner menu checks for the relation so the web release can ship independently and show the action when the database supports it. Earlier manually applied schema changes and their ledger remain outside this release.
+
+Public Sites 626 is the rollback baseline. It corresponds to the web source from PR #171. The release checklist includes the GitHub Quality run, the configured client and worker archive, migration verification, and live smoke checks. Physical iPhone behavior remains unverified.
+
+## 2026-11-13 — Cleanup and mobile reorder release preparation
+
+Release branch `codex/cleanup-reorder-release` from GitHub main `e4a3358`. Combines the verified source cleanup, the four retired public asset deletions and the mobile profile and file reorder controls from their separate worktrees. The profile header uses the system Cancel and Done buttons. Both mobile views use compact order badges. The file ellipsis has a 28px visible backing, a 14px glyph and a 44 × 44px touch target.
+
+The retired public files total 1,898,114 bytes. Counts across the 33 production Supabase application tables, account metadata, Storage object metadata and the URL-bearing Sites D1 tables found zero references. Exact URL and filename searches found no indexed links, and the most recent 100 worker events showed no requests for these names. The current mobile splash remains. Earlier focused Chromium checks covered both reorder flows in light and dark with synthetic data and matched desktop baselines.
+
+The release contains no SQL or hosting configuration changes. Historical migrations already on main remain part of repository history. The original cleanup and reorder worktrees retain their local edits.
+
+## 2026-11-13 — Fresh Supabase schema replay
+
+Local branch `codex/migration-replay` from GitHub `main` at `d9666d4`. Eight historically applied SQL files moved unchanged into the numbered migrations. The existing October citation migration can now find the Journey columns when replayed from an empty database. The [migration register](migration-status.md) records the order and the [development workflow](development-workflow.md#rebuild-the-database-locally) shows how to run the replay. The change adds a regression to the existing Node suite and updates the fixtures and SQL file paths used by the related tests and scripts.
+
+A fresh native PostgreSQL 17.11 instance and PGlite both applied all 57 files in order using synthetic Auth, Storage, and Realtime fixtures. Native catalog checks found row-level security enabled on all 34 public tables and the intended Then/Now order grants. The focused suite passed 48 tests. The local work used disposable databases and made no hosted changes. Full Supabase service integration and the production migration ledger remain separate checks.
+
+## 2026-11-13 — Then/Now released in Sites 624
+
+See [the production release record](production-release.md) for the live source, rollback version, and numbered Supabase migrations. The production migration ledger matches the checked-in SQL byte for byte.
+
+Sites 624 published on [Portalink](https://portalinknetworks.com) from `1fe45038300010b1d69925dc375864281a401e55` in [PR #169](https://github.com/avimangalmurti-art/Portalink/pull/169), with all five Quality jobs passing. Deployment `appgdep_6af7683ab2b08191a3ee044ce59b5ab1` succeeded at 19:42:59 UTC. The live home and Portalite shared entry matched the build, including 109 asset byte comparisons and both Timeline chunks.
+
+The user approved the two Then/Now SQL files. Supabase applied them and recorded versions `20261113193355` (edit) and `20261113194228` (order). Catalog checks verified the edit policy and column grants, order row-level security and its three policies, the RPC grants, and the legacy cleanup trigger.
+
+The signed-in 420 × 912 browser opened the editor with both projects selected, opened and canceled deletion, and moved a pair in the reorder draft. Back restored the published order. Public Chrome showed the same two pairs on desktop and mobile with no owner controls. The user separately approved one rollback-only production test. It verified saving an edit, persisting a new order, deleting saved and legacy pairs, preserving their projects, and hiding private pair data from anonymous readers. After rollback, the test confirmed that the temporary account, session, private profile, portal, projects, pairs, legacy record, and order entries were absent.
+
+## 2026-11-13 — Reorder Then/Now pairs on mobile
+
+Local branch `codex/timeline-pair-edit` from GitHub main `f63fad3`. Profile owners with multiple pairs can open Timeline → Then/Now → Reorder pairs, move cards with up/down controls and save. Back discards the draft. `JourneyView.tsx`, `ThenNowDialog.tsx`, `journey.css`, and `useTimelinePairs.ts` keep pair order separate from project roles and the Timeline date sort. Desktop and shared catalogue readers show the same saved order.
+
+Typecheck, the fixture-configured build, 105 focused tests and diff checks passed. Scoped lint had zero errors and four existing warnings. Mobile Chromium at 420 × 912 light and 390 × 844 dark verified legacy and saved pairs, cancellation, save retry, focus restoration and reload with simulated persistence. Mobile visitor and 1366 × 900 desktop scenarios verified the saved order with their existing controls. Disposable PostgreSQL verified atomic saves, owner-only writes, public visibility and cleanup. The order migration and the edit migration below remain pending. No production SQL, source publication or deployment was performed.
+
+Release preparation confirmed Sites 623 on the Portalink domain and checked the live Supabase schema in read-only mode. Both pending migrations are absent. PostgreSQL 17.6 has the required tables, owner and visibility helpers, and private legacy-pair deletion path. These checks used catalog metadata only.
+
+## 2026-11-13 — Edit Then/Now pairs on mobile
+
+Local branch `codex/timeline-pair-edit` from GitHub main `f63fad3`. A creator can edit a pair directly from their mobile Timeline. The existing chooser opens with both projects preselected, validates changes, and returns to Timeline after saving. Additional pairs are updated in place with their original identity and position. Legacy pairs use the existing profile field. Visitors have no edit action.
+
+The follow-up adds Delete pair to the mobile pair editor. Portalink's standard confirmation explains that both projects stay in the catalogue. Deletion uses the existing owner-only pair removal path, with failures shown in the confirmation for retry. No additional SQL is needed for deletion. Typecheck, scoped lint, 38 focused follow-up tests, and mobile Chromium scenarios passed. See `logs/timeline-pair-edit-qa/deletion-receipt.jsonl` for cancel, Back, and targeted deletion using the simulated service.
+
+Typecheck, the fixture-configured build, and 108 focused checks passed, including the pending SQL in disposable PostgreSQL. Chromium at 420 × 912 light and 390 × 844 dark confirmed prefilled choices, cancel, save, retained order and focus, and no edit action for a visitor. The browser used a local fixture with actual profile and editor components. Scoped lint reported zero errors and four existing warnings. The staged `supabase/pending/profile_timeline_pair_edit.sql` is required before publishing editing for additional pairs. No production SQL or deployment was performed.
+
+## 2026-11-13 — Shared catalogue loading and Now Playing artwork
+
+Integrated the two fixes on `codex/mobile-catalogue-loading-appearance`, based on GitHub main `bb5e027`. `ProfileAudio.tsx` supplies the viewed creator's avatar, title, and artist to the browser's Now Playing controls on profiles and shared catalogues. The in-page player uses the track's selected cover. Profile exit and project video playback release the audio artwork. Isolated Chromium verified the mobile platform and shared catalogue with autoplay and desktop with manual Play. Playback tests cover first-touch start, artwork refresh, video suspension, and profile exit. The iPhone lock screen needs a device check.
+
+Local branch `codex/mobile-catalogue-loading-appearance` from GitHub main `bb5e027`. The shared entry paints the document and branded launch backdrop from the viewer's resolved light or dark appearance. `VisitorApp.tsx` paints the catalogue spinner on the themed workspace surface. The public mobile document contains vertical overscroll where the browser honors it. The launch script hash changed in both HTML entries. Installed Home artwork and the black mobile project opener retain their existing appearance.
+
+Typecheck, scoped lint, diff check, a fixture-configured build, 195 focused tests, and four emitted-entry tests passed. At 420 × 912 in Chromium, the launch and centered indicator matched System Dark and both saved overrides with the JS entry and profile data delayed. The ready catalogue scrolled normally. Desktop kept its existing loader, and direct mobile project entry retained its black opening surface with Light selected. See ignored `logs/catalogue-loading-appearance-qa`. Instagram's native iPhone refresh area needs a physical device check. The change is local.
+
+## 2026-11-12 — Shared catalogue audio gesture
+
+Local branch `codex/catalogue-audio-first-gesture` from GitHub main `558bcae`. The mobile shared catalogue also retries blocked audio on a trusted touch or pen pointer release. It uses passive listeners, leaves native scrolling in place, and retains the existing click and touchend fallback.
+
+Typecheck, scoped lint, and 79 focused tests passed. In a local 420 × 912 Chromium fixture with autoplay blocked, a native swipe scrolled the catalogue but did not grant playback, and the next ordinary Catalogue tap started audio with the player closed. An instrumented pen release invoked playback during pointerup, before click. Opening from Messages on a physical iPhone remains unverified. The source change is local.
+
+## 2026-11-12 — Shared catalogue waveform shortcut
+
+Local branch `codex/shared-catalogue-waveform` starts at GitHub main `745c4d7b84717d1760043f627a012b06abd2a37c` (Sites 620). The shared mobile header shows a waveform without a text label or tooltip if the browser blocks audible autoplay. The waveform retains its accessible action name. The existing playback request runs as soon as the active catalogue has a playable track, and an eligible in-page interaction can still start it when the browser requires one.
+
+Typecheck, scoped lint, and 79 focused audio and visitor-navigation tests passed. Local Chromium at 420 × 912 played before any interaction when autoplay was allowed and started on the first waveform touch when activation was required. Both states showed an icon without text. At 1280 × 912 desktop playback started only through the player's Play control. Browser receipts are in ignored `logs/profile-audio-shared-route-qa/waveform-*.log`. Opening a shared link from Messages on a physical iPhone remains unverified. This source change is local.
+
+## 2026-11-12 — Mobile project opening published in Sites 619
+
+PR #164 CI follow-up pins the public launch script to LF and uses its canonical content hash in both entries. The shared catalogue appearance test now supplies a browser pathname. Sites 619 remains at the deployed revision below.
+
+Sites 619 deployed `b167341d874bc27f5a62505d2cad6623cd2bd4d2` from `codex/profile-audio` (draft PR #164). The platform and shared catalogue use one centered system spinner on a black mobile viewport from project resolution through first visible content. Direct public project links use the same indicator before the app mounts. Once the project opens, the reader continues loading pages individually.
+
+The 666-file archive retained the existing worker, hosting configuration and all four D1 SQL files byte for byte. Three custom-domain routes and 109 live assets matched the deployed build. Release details are in the ignored `logs/mobile-project-opening-release-receipt.json`. This handoff is a local post-deployment receipt.
+
+Live 420 × 912 Chromium verified one centered spinner on black on the PUBLIC WORKS direct link, then the first page and reader controls appeared without JavaScript errors. The physical iPhone and live signed-in reader remain unverified.
+
+Typecheck, lint, production build, 422 focused tests, and four emitted-entry checks passed. At 420 × 912, isolated Chromium verified opening from the public catalogue, signed-in project routing, progressive processed-PDF pages, and retry after a first-image failure. Chromium also verified the handoff from the static indicator to the reader on both direct public URL forms with the built visitor entry delayed. A 1366 × 850 Chromium check covered the existing desktop reader. Browser receipts are in ignored `logs/reader-opening-qa`. Physical iPhone and in-app browser testing remain open.
+
+## 2026-11-12 — Sites 618 published
+
+The circled reader information icon, cover-first profile audio player and shared-catalogue Play audio fallback are live on `portalinknetworks.com`. Sites 618 deployed source `aa84e0a14fb188aa8397fd3b8c038b6ed4de728a` from `codex/profile-audio` (draft GitHub PR #164). The 666-file archive preserved the existing worker, D1 files and public static files. Both public entries and six release assets were verified on the custom domain. Typecheck, lint and 251 focused local checks passed.
+
+Live signed-out Chromium verified the public mobile audio fallback and continuing playback, the reader's circled IBM Plex Mono “i” opening project information, and desktop playback with its separate reader rail. Physical iPhone testing and live signed-in behavior remain unverified. Exact deployment and GitHub check details are in the ignored `logs/profile-audio-player-release-receipt.json`. This entry is a post-deployment receipt.
+
+## 2026-11-12 — Project navigation information icon
+
+Local on `codex/profile-audio` above `c180415`, alongside the pending audio player changes. The center of the three-button project navigation pill now uses the circled IBM Plex Mono “i” from the About design. The platform and shared reader use the same component, including at mobile widths in the browser. The wide desktop reader retains its separate information control. The glyph changes in `ProjectMediaViewer.tsx` and `reader-scroll-controls.css` leave the information popup, the pill's other controls and all other overflow menus in place. Typecheck, scoped lint with one existing warning, diff check and 72 reader tests passed. At 420 × 912, Chromium verified the actual font, circle and information popup on the signed-in platform fixture and public touch fixture. Sites 617 remains live.
+
+## 2026-11-12 — Profile audio player
+
+Local cover-first player above `c180415` on `codex/profile-audio`. One Portalink popup is used on mobile and desktop profiles and shared catalogues. It uses the track cover, then the creator avatar as fallback, shows the title and artist, and provides seeking, 10-second skips, play/pause, and a volume slider on browsers with writable media volume. The signed-in profile owner can edit the track, metadata and cover. Public catalogues are read-only. Desktop playback begins from Play in the popup. Mobile autoplay and the blocked shared-link Play audio action are preserved. Closing the popup leaves playback running, and switching public creators clears the outgoing track.
+
+Typecheck, lint, production build with both configured entry graphs, and 201 focused tests passed. Isolated Chromium guest flows and the signed-in mobile owner route verified layout, glass and Reduce Transparency, owner edit fields, playback continuing after Close, 10-second seeks, native volume changes and the hidden slider when volume is unsupported. See ignored `logs/profile-audio-player-*`, `logs/profile-audio-route-qa/owner-player-fields-final.log`, and `logs/profile-audio-shared-route-qa/volume-*-receipt.log`. Physical iPhone and Instagram browser checks remain open. Sites 617 remains live.
+
+Local shared catalogue follow-up above `c180415`. Audible autoplay is attempted as before when a visitor opens the link, including from Messages. When the browser requires an in-page gesture, the waveform displays Play audio. The first press starts the track in the header and a later press opens playback controls. The shared route retains its first eligible page gesture fallback. Production remains at Sites 617. Typecheck, lint, production build, and 187 focused checks passed. A 420 × 912 Chromium visitor fixture verified the blocked state and first waveform press. Opening the link from Messages on a physical iPhone remains unverified.
+
+Sites 617 is live from `c180415`. Both mobile routes look up the track and sign its playback URL alongside profile data. The platform clears a departing creator’s track, including the signed-in owner, and keeps playback within the same creator’s portals and projects. All five GitHub jobs passed for draft PR #164. The custom domain serves the audited main and visitor assets. Live 420 × 912 Chromium started the public track with the player closed after the first Catalogue tap, and the playhead advanced to 5.46 seconds. In isolated Chromium with the real recording and simulated backend responses, playback began while covers loaded, stopped on Home or creator switch, and did not start after leaving a pending profile. The production browser was signed out. Live signed-in exit behavior, production startup timing, and physical iPhone behavior remain unverified. See ignored `logs/profile-audio-startup-release-receipt.json`, `logs/profile-audio-route-qa`, and `logs/profile-audio-shared-route-qa`.
+
+Sites 616 introduced audible autoplay when the active profile’s enabled track is ready. If the browser rejects autoplay with `NotAllowedError`, the next eligible click or touch release retries playback without opening the panel. The banner waveform reflects actual playback. Fresh 420 × 912 Chromium sessions with the recording verified allowed autoplay and the click and touch fallback. Live Chromium verified the first Catalogue tap started the uploaded track with the popup closed on both routes. See ignored `logs/profile-audio-autoplay-release-receipt.json`. Instagram on a physical iPhone remains unverified.
+
+Previous release: Sites 615 at `cb459f5` shipped after all five GitHub jobs passed for draft PR #164. The user explicitly approved `supabase/pending/profile_audio_tracks.sql`. It was applied, and the private bucket, row-level security, and anonymous viewer access were verified. Portalite’s “Montlake, Seattle Mix1” by aviwashere is enabled. Both the mobile profile and the shared catalogue showed a 1:31:48 duration and an advancing playhead at 420 × 912 CSS pixels. On the profile, closing the panel preserved playback, opening a project video paused it, closing the video resumed it, and a manual pause persisted. See ignored `logs/profile-audio-release-receipt.json` for the deployment and checks. This handoff is a local release receipt.
+
+The playback follow-up keeps a single native audio element alive across in-app navigation. Closing the panel and viewing non-video projects leave playback running. The active video reader suspends it, then resumes at the same position if the listener still wants playback. Manual pause persists when the audio panel is reopened. The outgoing video is paused before the track resumes. Account changes and owner removal or replacement release the old source.
+
+Before release, Chrome verified the recording with real media elements and simulated video opening and closing. Mounted reader tests cover video selection, retained screens, and returning to non-video content on both catalogue paths. The build, typecheck, lint and 263 focused checks passed. See ignored `logs/profile-audio-lifecycle-qa/receipt.log` and `logs/audio-lifecycle-*.log`.
+
+Worktree `logs/profile-audio`, branch `codex/profile-audio`, starts from reviewed GitHub `main` at `fa2d75d` (PR #163). The mobile profile and shared catalogue use the former Collaboration shortcut slot for an optional waveform and player. An owner can choose a track, edit title, artist and description, set cover art, and enable or disable visitor playback. Sites 615 starts playback from the waveform popup. Desktop profile navigation retains its established behavior.
+
+`supabase/pending/profile_audio_tracks.sql` creates a private Storage bucket and an owner-managed track per profile. Viewer reads require an enabled track on a public profile. Previously issued Storage URLs expire after three hours. The supplied 92-minute WAV was converted locally to a complete 43.4 MiB stereo M4A tagged “Montlake, Seattle Mix1” by aviwashere. The upload source remains in ignored `logs/01 Montlake, Seattle Mix1.m4a`. The original had no embedded cover art.
+
+Typecheck, lint, both production entry checks and 195 initial focused tests passed, including the isolated ownership and Storage policy test. Before release, Chrome playback used the actual M4A and checked the mobile player, native controls, focus return, reduced motion and owner form with simulated persistence. Receipts are in ignored `logs/profile-audio-qa` and `logs/profile-audio-final-*.log`.
+
+## 2026-11-12 — Catalogue and mobile reader release
+
+Release worktree `logs/latest-catalogue-release` on `codex/latest-catalogue-release` is based on verified GitHub `main` at `9f3d19f` and follows Sites 612. It combines ten task checkouts: file-cover accent, three-column portal cards, project creation rounding, embedded-browser PDF loading, the one-second mobile splash and catalogue loader, iPhone cover encoding, viewer appearance and About, reader toolbar order, popup and video spacing, and mobile Portals header actions. The task checkouts retain their individual browser receipts.
+
+Independent review matched all 45 changed source, test and asset paths, including the shared-file merges and exact splash images. The existing Sites identity, audience, worker bindings and data are retained. No database migrations or separate media worker deploys are included. Combined verification and deployment receipts belong in this checkout's ignored `logs` directory. Physical iPhone and signed-in testing were limited to the scopes recorded in the task handoffs.
+
+## 2026-11-12 — Combined mobile popup and shared catalogue release
+
+Worktree `logs/mobile-portal-updates-release` on `codex/mobile-portal-updates-release` integrates the verified mobile popup minimize button (`d8c48ac`), mobile shared catalogue gutters and viewer theme (`bd9d03b`), and scroll fades for the platform and shared mobile Portals lists (`53a887e`) from reviewed `github/main` at `85cb832`. Their local QA records remain in their task worktrees. This release uses the existing Portalink Site and its current public audience and worker bindings.
+
+## 2026-11-12 — Mobile continuous project reader
+
+Worktree `logs/mobile-ordered-project-reader` on `codex/mobile-ordered-project-reader` builds on local commit `663b5f6`. The mobile platform and public catalogue project readers put images and PDFs in stored attachment order on one vertical scroll surface. Each image occupies one page and PDF pages continue the project counter. Page actions keep their attachment and local page identity. Ordinary links land on the linked attachment and page after layout settles, and taking over the scroll cancels that alignment. Explicit focused page links and desktop file tabs retain their behavior.
+
+The change is scoped to the media renderer, shared mobile reader styles, catalogue reading links, and focused regressions. Typecheck and all 161 focused tests passed. Lint passed with existing warnings, and the production build verified the main and visitor bundle configurations. Chromium passed seven cases with the actual reader and synthetic attachments at 390px, 420px, and 1280px, including delayed PDF.js rendering, touch scrolling, and desktop tabs. Receipts are in `logs/ordered-reader-checks` and `logs/ordered-reader-qa`. Physical iPhone testing and deployment remain pending. No migrations or service changes.
+
+## 2026-11-11 — Mobile Home weekly card Earth background
+
+Worktree `logs/mobile-weekly-reads-earth` on `codex/mobile-weekly-reads-earth` builds on the local Home video autoplay commit `57ced0b3ee847715824c9eba9ecd56def486aa4d`. Mobile Weekly Reads uses the original moving Earth backdrop cropped from the top 620 rows of the supplied portrait splash, clear of the mascot in every frame. The blurred 432×248 WebP runs for 12 seconds and loops. Reduced Motion uses a matched still. The mobile card no longer contains the foreground character, and the neutral action buttons retain their existing positions and behavior.
+
+Typecheck, targeted lint, 23 focused tests, production build and both entry configuration checks passed. The 144-frame animation and single-frame poster decoded successfully. The isolated Chromium fixture checked the actual card's animation, still under Reduced Motion, button readability, See reads and Dismiss. Receipts are in `logs/earth-checks` and `logs/earth-qa`. Physical iPhone verification and publication remain pending.
+
+## 2026-11-11 — Mobile Home video cover autoplay
+
+Worktree `logs/mobile-home-video-autoplay` on `codex/mobile-home-video-autoplay` starts from live Sites 610 source `88a884f2e19a1d3aaad77ae7ea28d19103a6eae2` (draft PR #160). Home opts in only on MOBILE. A visible video cover plays muted and inline, starting with the authorized compatible source and falling back to the original. The existing nearby project reader resolves playable sources for stored video thumbnails. The poster stays available while playback is pending, blocked or unavailable. Offscreen previews, hidden tabs and retained Home screens stop playback. The full reader, desktop and shared catalogues keep their existing behavior.
+
+Typecheck, targeted lint, 109 focused tests and the production build with both entry configuration guards passed. The startup regression test covers a ready poster with a blocked or pending autoplay preview. A Chromium fixture using the actual feed card and local synthetic media verified thumbnailed and legacy autoplay, offscreen pause, retained Home, fallback to the original, unavailable-media poster, one-column autoplay and the desktop poster. Receipts are in logs/autoplay-checks and logs/autoplay-qa. No migration or service change. Physical iPhone verification and publication remain pending.
+
+## 2026-11-11 — Mobile shared catalogue navigation icon
+
+Worktree `logs/mobile-shared-catalogue-icon`, branch `codex/mobile-shared-catalogue-icon`, starts from live Sites 609 source `5b2ad8c743170d735fdc4d84b1e9c8ed88b70ecb` (draft PR #159). The floating mobile shared catalogue opener uses the existing 120px image made from the matching attachment and the standard squircle mask. Its opaque 2px high-contrast edge and focus outline follow light/dark without depending on the contrast toggle. The 50px target, placement and drawer behavior are retained. Changes are limited to `src/visitor/mobile/PublicProfileDrawer.tsx` and `src/visitor/mobile/public-mobile.css`.
+
+Typecheck, lint of the edited TSX and all 80 focused checks passed. A Chromium fixture using the actual shared sidebar and visitor styles verified the two themes with contrast on and off, the 50px hit target, touch opening and dismissal, and the separate desktop sidebar control. Receipts are in `logs/drawer-qa`. Physical iPhone verification and publication are pending. No migrations or service changes.
+
+## 2026-11-11 — Mobile Home weekly card accent
+
+Task checkout `logs/mobile-weekly-reads-accent` on `codex/mobile-weekly-reads-accent` follows live Sites 608 source `b16986945fc17ffbbaf821e76fee6095a5d63a72`. The mobile Home weekly reads card uses the viewer's accent and its paired foreground. The two actions keep neutral fills with theme text and an accent-aware focus outline. The change is scoped in `src/features/reads/reads.css`.
+
+The production build, both entry configuration guards and 36 focused checks passed. A Chromium fixture used the actual card and synthetic data to verify pink, navy and yellow, light and dark themes, high contrast, and the desktop comparison. Publication and physical iPhone verification are pending.
+
+## 2026-11-11 — Latest iPhone Home Screen artwork
+
+The `codex/portalite-iphone-home-icon-v2` worktree at `logs/portalite-iphone-home-icon-v2` continues from live Sites 607 source `0700e0e7165c4b26fafe8d3576d03c2c9e2a06ce`. The new `C778D63B` attachment is preserved byte-for-byte as `docs/design/portalite-icons/iphone-home-screen.jpg`. The 180px and 120px Apple touch icons are opaque direct resizes, with the original ICC profile. The three entry pages reference revisions `132dfc755891` and `6c181f7b9b56`.
+
+The production build and both configuration guards passed. Local HTTP confirmed all three entry pages and both versioned and unversioned URLs for the two PNGs. Both sizes were inspected visually. Publication and physical iPhone installation are pending.
+
+## 2026-11-11 — Revised iPhone Home Screen artwork
+
+Task checkout `logs/portalite-iphone-home-icon-v2` on `codex/portalite-iphone-home-icon-v2` starts from Sites 606 source `5328b3368ed85a627946d50af109f6a8ca0a0753`. The latest source JPEG is stored byte-for-byte at `docs/design/portalite-icons/iphone-home-screen.jpg`. The 180px and 120px iPhone touch icons use direct opaque resizes with the original framing and color profile. The three entry pages reference content revisions `2cc94c3b2798` and `4ebf6407f1d4`.
+
+Production build and both entry guards passed. Local HTTP verified three entry pages and both versioned and unversioned URLs for the two exact resized images. Both sizes were inspected at native resolution. Physical iPhone installation remains pending.
+
+Portalink published Sites 607 from `0700e0e7165c4b26fafe8d3576d03c2c9e2a06ce` in [draft PR #158](https://github.com/avimangalmurti-art/Portalink/pull/158). Saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_3e04daed804c819199b589d0b534ba16` and deployment `appgdep_6af5096c74348191bd932f2659df5a24` succeeded at `2026-11-12T00:33:56.509053+00:00` with runtime revision 2. All 652 archive files match the build. The official domain matches all three entry pages, 17 icon and manifest URLs, and both unversioned Apple touch icon URLs. Receipts are in `logs/icon-qa`.
+
+## 2026-11-11 — Primary iPhone Home Screen artwork
+
+Task checkout `logs/portalite-iphone-home-icon` on `codex/portalite-iphone-home-icon` follows the live Sites 605 commit `2eb46f2871dc220668de1b1a5e53b35913f8f508`, which is under review in PR #158. The new source JPEG is preserved under `docs/design/portalite-icons`. The primary 180px and alternate 120px iPhone touch icons are direct opaque Lanczos resizes with the source framing and color profile. The three HTML entry pages reference their new content revisions. The 120px icon uses the same artwork because Safari may choose that size when both are available.
+
+The configured client and worker build and both entry guards passed. Local HTTP confirmed exact image bytes and MIME types at both versioned and root URLs, with the intended metadata on all three entries. Both icon sizes were inspected visually and matched the exact source resize. Physical iPhone installation and publication are pending.
+
+## 2026-11-11 — Portalite Home Screen and installed web icons
+
+Task checkout `logs/portalite-original-icons` on `codex/portalite-original-icons` starts from `c60c8ef70bbbbe1bf7daa0f8112f9a54deaafec0`. The full-square glowing artwork and rounded reference are preserved byte-for-byte under `docs/design/portalite-icons` from the JPEG copies in the conversation attachments. The four Apple touch icons and three standard web app sizes are direct Lanczos resizes of the full-square artwork. The three separate maskable exports center the complete artwork at about 84% scale with an opaque edge extension. The measured mascot and nearby glow fit within the 40% safe circle. The three entry pages use versioned links, and the manifest is stored with LF so its content revision is stable across platforms.
+
+The configured production build and both bundle guards passed. HTTP verified 17 unique asset URLs from three built entries, including content types, image sizes and exact bytes. Chromium verified the three rendered heads and previewed the rounded Home Screen shape and circular mask. Device installation has not been tested. Browser favicon implementation awaits the alpha-bearing mascot PNG. The available mascot attachment is an RGB JPEG. No public release was made.
+
+## 2026-11-10 — MOBILE reader zoom stays on the current page
+
+Task checkout `logs/mobile-reader-zoom-hold` on `codex/mobile-reader-zoom-hold`, based on GitHub `main` at `8074d941862bee2cf47a29b308602b8c95fecf4f`. Mobile image and PDF overviews keep their scroll-through layout during pinch zoom. The page under the fingers stays anchored as the zoom settles, and a deliberate double tap opens the tapped page in single-page view. In the focused reader, a two-finger pinch cancels any pending page-turn swipe.
+
+The 420 × 912 Chromium preview used the actual reader components with local test artwork. It verified pinch-in-place, zoom back to fit and double-tap entry. At 1280 × 900, desktop Control-wheel still opened the page under the pointer. Typecheck, changed-file lint, production build and 137 focused tests passed. Browser gestures were simulated. Physical iPhone verification and publication remain pending. No worker source, database, or native project files changed.
+
 ## 2026-11-04 - ALL iOS TestFlight upload workflow (user-approved), unpublished
 
 Devin owned branch devin/ios-testflight, originally stacked on devin/capacitor-ios-shell (PR149, since merged; now targets main). User confirmed bundle ID com.portalinknetworks.app and Apple Developer enrollment. Added .github/workflows/ios-testflight.yml (manual dispatch or ios-v* tag only, macos-15, excludes autosave/**; fails unless HEAD is on main or the head of an open PR against main): xcodebuild archive + exportArchive upload with automatic signing via an App Store Connect API key from repository secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY; build number = workflow run number. Added ios/App/ExportOptions.plist, ITSAppUsesNonExemptEncryption=false, iPhone-only device family, and the existing 1024 App Store icon (alpha removed) as AppIcon. No upload run yet; signing unverified. Universal Links for Auth email callbacks remain a follow-up. No SQL, Sites publish or worker deploy.

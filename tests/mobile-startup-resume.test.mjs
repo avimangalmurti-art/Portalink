@@ -27,8 +27,8 @@ function events() {
 }
 
 /** Real bootstrap and real resume hook/state; only browser, Auth and child rendering are controlled. */
-function fixture({ presentation = 'mobile', installed = false, authoring = false, authenticated = true, initializing = true, path = '/', search = '', hash = '', state = null, savedPath = '/p/creator/c/work/project', pendingView = null, phase = authenticated ? 'authenticated' : 'guest', sessionUnavailable = false, enteredWelcome = true, welcomeState } = {}) {
-  const slots = [], timers = new Map(), captures = [], trace = [], storage = new Map(), sessionStorage = new Map();
+function fixture({ presentation = 'mobile', installed = false, installedHomeIntro = false, authoring = false, authenticated = true, initializing = true, path = '/', search = '', hash = '', state = null, savedPath = '/p/creator/c/work/project', pendingView = null, phase = authenticated ? 'authenticated' : 'guest', sessionUnavailable = false, storage = new Map() } = {}) {
+  const slots = [], timers = new Map(), captures = [], trace = [], sessionStorage = new Map();
   let cursor = 0, effects = [], dirty = true, rendered, timerId = 0;
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => Object.is(item, b[index]));
   const react = { ...React,
@@ -44,7 +44,7 @@ function fixture({ presentation = 'mobile', installed = false, authoring = false
     setTimeout(callback, delay) { timers.set(++timerId, { callback, delay }); return timerId; }, clearTimeout(id) { timers.delete(id); }, location: { replace: value => trace.push(['replace', value]) } };
   const dispatch = window.dispatchEvent; window.dispatchEvent = event => { trace.push(['window-event', event.type]); dispatch(event); };
   let bootRemoved = false;
-  const document = { ...events(), documentElement: { hasAttribute: name => installed && name === 'data-standalone' }, querySelector: () => authoring ? {} : null, visibilityState: 'visible', getElementById(id) {
+  const document = { ...events(), documentElement: { hasAttribute: name => (installed && name === 'data-standalone') || (installedHomeIntro && name === 'data-installed-home-launch') }, querySelector: () => authoring ? {} : null, visibilityState: 'visible', getElementById(id) {
     if (id === 'portalink-preboot') return bootRemoved ? null : { remove() { bootRemoved = true; trace.push(['remove-preboot']); } };
     if (id === 'portalink-preboot-video') return bootRemoved ? null : { dispatchEvent: event => trace.push(['video-event', event.type]), pause: () => trace.push(['pause-video']) };
     assert.fail(`Unexpected DOM read ${id}`);
@@ -63,7 +63,6 @@ function fixture({ presentation = 'mobile', installed = false, authoring = false
     react, 'framer-motion': { AnimatePresence: 'presence' }, 'react-router-dom': { Navigate: 'navigate', matchPath, useLocation: () => location },
     '../App': { App: 'app' }, '../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'splash' },
     '../components/auth/ProfessionalEntry': { ProfessionalEntry: 'professional-entry' }, '../presentation/usePresentation': { PresentationContext: { Provider: 'presentation-provider' } },
-    '../components/auth/CatalogWelcome': { CatalogWelcome: 'catalog-welcome' }, '../components/auth/catalogWelcomeState': welcomeState ?? { hasEnteredCatalogWelcome: () => enteredWelcome },
     '../components/ui/StateViews': { LoadingState: 'loading', ErrorState: 'error' }, '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes, buildPath: (_name, params) => `/share/${params.profileId}` }, './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
     './screenModules': { warmScreenForPath: value => { trace.push(['warm', value]); return Promise.resolve(); } }, './homeStartup': { HOME_STARTUP_TIMEOUT_MS: 12000 },
@@ -102,6 +101,21 @@ test('installed MOBILE opens Home from a bare launch even with a saved reader', 
   h.app.props.installedHomeOpening.complete();
   h.settle();
   assert.equal(h.app.props.installedHomeOpening, null);
+  h.dispose();
+});
+
+test('installed Home leaves the document intro in charge while authentication restores', () => {
+  const h = fixture({ installed: true, installedHomeIntro: true });
+  h.render();
+  assert.equal(h.splash, null, 'The legacy video must not replace the document intro');
+  assert.equal(h.waiting.props.children.props['aria-label'], 'Opening Portalink…');
+  assert.ok(h.trace.some(([action]) => action === 'remove-preboot'));
+  h.auth.isInitializing = false;
+  h.rerender();
+  h.settle();
+  assert.equal(h.app.type, 'app');
+  assert.equal(h.app.props.installedHomeOpening.refresh, false);
+  assert.equal(h.splash, null);
   h.dispose();
 });
 
@@ -181,14 +195,18 @@ test('MOBILE account entry stays gated through cancellation and ignores another 
   assert.equal(h.app.type, 'app'); assert.equal(h.splash, null); assert.equal(h.app.props.homeStartupPending, false); h.dispose();
 });
 
-test('restored WEB skips the intro but retains decoded Home readiness instead of using MOBILE resume or install capture', () => {
+test('restored WEB prepares Home under the intro without using MOBILE resume or install capture', () => {
   const h = fixture({ presentation: 'web', initializing: false }); h.render(); h.settle();
-  assert.equal(h.app.type, 'app'); assert.equal(h.splash, null);
+  assert.equal(h.app.type, 'app'); assert.equal(h.splash.type, 'splash');
+  const key = h.splash.key;
   assert.equal(h.app.props.homeStartupPending, true); assert.equal(h.destination.props.enabled, false); assert.ok(h.captures.every(enabled => enabled === false));
   h.app.props.onHomeStartupShellReady(true); h.rerender(); h.settle(); assert.equal(h.app.props.homeStartupPending, true);
-  h.app.props.onHomeStartupReady(true); h.app.props.onHomeStartupShellReady(true); h.rerender(); h.settle(); assert.equal(h.splash, null);
+  h.app.props.onHomeStartupReady(true); h.app.props.onHomeStartupShellReady(true); h.rerender(); h.settle();
+  assert.equal(h.splash.key, key); assert.equal(h.splash.props.stillOnly, false);
+  assert.equal(h.trace.some(item => item[0] === 'pause-video'), false);
+  h.splash.props.onComplete(); h.rerender(); h.settle(); assert.equal(h.splash, null);
   assert.equal(h.app.props.homeStartupPending, false);
-  assert.equal(h.trace.some(item => item[0] === 'pause-video'), true); h.dispose();
+  h.dispose();
 });
 
 test('explicit projects, city pages and Settings/security links stay authoritative over saved route hints', () => {
@@ -276,13 +294,17 @@ test('bootstrap passes only MOBILE presentation to install capture, including la
 test('a skipped MOBILE intro stays complete when session revalidation temporarily returns to initializing', () => {
   const h = fixture({ initializing: false, savedPath: null }); h.render(); h.settle(); assert.equal(h.splash, null);
   h.auth.isInitializing = true; h.rerender(); h.settle();
-  assert.equal(h.app, null); assert.equal(h.splash, null); assert.equal(h.waiting.props.children.type, 'loading');
-  assert.equal(h.waiting.props.children.props.label, 'Opening Portalink…'); h.dispose();
+  assert.equal(h.app, null); assert.equal(h.splash, null); assert.equal(h.waiting.props.children.props.role, 'status');
+  assert.equal(h.waiting.props.children.props['aria-label'], 'Opening Portalink…'); h.dispose();
 });
 
-test('MOBILE and WEB root visitors receive immediate account-only company entry', () => {
+test('MOBILE and WEB root visitors receive account-only company entry after any opening clip', () => {
   for (const presentation of ['mobile', 'web']) {
-    const h = fixture({ presentation, authenticated: false, initializing: false, enteredWelcome: false, savedPath: null }); h.render(); h.settle();
+    const h = fixture({ presentation, authenticated: false, initializing: false, savedPath: null }); h.render(); h.settle();
+    if (presentation === 'web') {
+      assert.equal(h.splash.props.landing, undefined);
+      h.splash.props.onComplete(); h.rerender(); h.settle();
+    }
     assert.equal(h.catalogWelcome, false); assert.equal(h.splash.props.hidden, false); assert.equal(h.splash.props.landing.ready, true);
     assert.equal(h.trace.some(item => item[0] === 'request-auth'), false); assert.equal(h.auth.pendingView, null);
     const landing = h.splash.props.landing;
@@ -297,17 +319,20 @@ test('MOBILE and WEB root visitors receive immediate account-only company entry'
 
 test('account entry preserves explicit public links, callback/recovery routes, signed-in users and open auth forms', () => {
   for (const presentation of ['mobile', 'web']) for (const change of [{ path: '/share/creator/c/work/project' }, { path: '/messages' }, { search: '?code=callback' }, { hash: '#access_token=callback' }, { pendingView: 'resetPassword' }, { pendingView: 'signIn' }, { pendingView: 'signUp' }, { authenticated: true }]) {
-    const h = fixture({ presentation, authenticated: false, initializing: false, savedPath: null, enteredWelcome: false, ...change }); h.render(); h.settle();
+    const h = fixture({ presentation, authenticated: false, initializing: false, savedPath: null, ...change }); h.render(); h.settle();
     assert.equal(h.catalogWelcome, false, `${presentation}/${JSON.stringify(change)}`); assert.equal(h.trace.some(item => item[0] === 'request-auth'), false); h.dispose();
   }
 });
 
 test('a legacy browser-local entered marker cannot bypass account entry after cancellation or remount', () => {
-  const welcomeState = sourceModule('src/components/auth/catalogWelcomeState.ts', {}, { window: { localStorage: { getItem: () => null, setItem() {} } } });
-  welcomeState.rememberCatalogWelcomeEntry();
-  const first = fixture({ authenticated: false, initializing: false, savedPath: null, welcomeState }); first.render(); first.settle(); assert.equal(first.catalogWelcome, false);
+  const legacyMarker = 'portalink:catalog-welcome:v1';
+  const storage = new Map([[legacyMarker, 'done']]);
+  const first = fixture({ authenticated: false, initializing: false, savedPath: null, storage }); first.render(); first.settle(); assert.equal(first.catalogWelcome, false);
   first.splash.props.landing.onCreateAccount(); first.rerender(); first.settle(); assert.equal(first.splash.props.hidden, true);
   first.auth.pendingView = null; first.rerender(); first.settle(); assert.equal(first.splash.props.hidden, false); first.dispose();
-  const next = fixture({ presentation: 'web', authenticated: false, initializing: false, savedPath: null, welcomeState }); next.render(); next.settle();
+  const next = fixture({ presentation: 'web', authenticated: false, initializing: false, savedPath: null, storage }); next.render(); next.settle();
+  assert.equal(next.splash.props.landing, undefined);
+  next.splash.props.onComplete(); next.rerender(); next.settle();
   assert.equal(next.catalogWelcome, false); assert.equal(next.splash.props.hidden, false); assert.equal(next.splash.props.landing.onDismiss, undefined); assert.equal(next.splash.props.landing.onContinue, undefined); next.dispose();
+  assert.equal(storage.get(legacyMarker), 'done');
 });

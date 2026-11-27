@@ -11,10 +11,10 @@ import type { ProjectAttachment } from '../../types/domain';
  * loading, ready, and failure are all stated.
  */
 export function ModelAttachment({
-  attachment
+  attachment, mobileProjectReader = false
 
 
-}: {attachment: ProjectAttachment;}) {
+}: {attachment: ProjectAttachment;mobileProjectReader?: boolean;}) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [attempt, setAttempt] = useState(0);
@@ -121,10 +121,13 @@ export function ModelAttachment({
         <ErrorState title="This model cannot be shown yet" description={`${attachment.displayName} needs conversion before it can be viewed.`} />
       </div>;
   }
-  return <div className="relative h-full w-full">
+  return <div data-reader-media-state={mobileProjectReader && status === 'loading' ? 'pending' : undefined} className="relative h-full w-full">
       <div ref={mountRef} className="h-full w-full" />
       {status !== 'ready' && <div className="absolute inset-0 flex items-center justify-center bg-[var(--surface-canvas)] p-8">
-          {status === 'loading' ? <LoadingState label={`Loading ${attachment.displayName}`} /> : <ErrorState title="This model could not be loaded" description={attachment.fileName} onRetry={() => setAttempt((current) => current + 1)} />}
+          {status === 'loading' ? mobileProjectReader
+            ? <span role="status" aria-label={`Loading ${attachment.displayName}`} className="flex justify-center"><span className="premium-media-loading-mark" aria-hidden="true" /></span>
+            : <LoadingState label={`Loading ${attachment.displayName}`} />
+            : <ErrorState title="This model could not be loaded" description={attachment.fileName} onRetry={() => setAttempt((current) => current + 1)} />}
         </div>}
     </div>;
 }

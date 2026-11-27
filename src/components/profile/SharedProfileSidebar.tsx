@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, LayoutGridIcon, ListIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
+import { CatalogueRowName } from './PreviewCreatorName';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
@@ -10,12 +11,15 @@ import { buildPath } from '../../app/routes';
 import { useResizablePanelWidth } from '../ui/ResizablePanelHandle';
 import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 import { usePresentation } from '../../presentation/usePresentation';
+import { useMobilePortalScrollFade } from '../../presentation/mobile/useMobilePortalScrollFade';
 import { PublicProfileDrawer } from '../../visitor/mobile/PublicProfileDrawer';
+import { portalChildren, portalRootId } from '../../features/profile/portalHierarchy';
 
 type SharedProfileSidebarProps = {
   profile: Profile;
   mobileNavigationEnabled?: boolean;
   mobileNavigationRequest?: object;
+  useMobileHeaderOpener?: boolean;
   activeCategoryId: string | null;
   theme: AppearanceTheme;
   desktopNavigationStyle?: React.CSSProperties;
@@ -27,13 +31,14 @@ type SharedProfileSidebarProps = {
 /**
  * The shell used by a shared profile URL. It deliberately contains only the
  * creator and their public Portal navigation: no Home, account, messaging,
- * network, publishing, following, or platform-discovery controls. The footer
- * opens Settings, where visitors can also sign in or create a Portalink account.
+ * network, publishing, following, or platform-discovery controls. Visitors can
+ * sign in or create a Portalink account in Settings.
  */
 export function SharedProfileSidebar({
   profile,
   mobileNavigationEnabled = true,
   mobileNavigationRequest,
+  useMobileHeaderOpener,
   activeCategoryId,
   theme,
   desktopNavigationStyle,
@@ -42,6 +47,8 @@ export function SharedProfileSidebar({
   onSettingsOpen
 }: SharedProfileSidebarProps) {
   const isMobile = usePresentation() === 'mobile';
+  const rootPortals = portalChildren(profile.categories);
+  const activeRootId = portalRootId(profile.categories, activeCategoryId);
   const sharedSidebarWidth = useResizablePanelWidth({
     // Public viewing keeps its own resize choice, with the same navigation default.
     id: 'shared-profile-navigation-standard',
@@ -54,6 +61,7 @@ export function SharedProfileSidebar({
   // Preserve the choice between shared routes.
   const [preferredCollapsed, setIsCollapsed] = useState(false);
   const [portalLayout, setPortalLayout] = useState<'list' | 'grid'>('list');
+  const portalScrollRef = useMobilePortalScrollFade<HTMLElement>();
   useEffect(() => {
     const reset = () => setIsCollapsed(false);
     window.addEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
@@ -63,7 +71,7 @@ export function SharedProfileSidebar({
   const isCollapsed = !isMobile && compactNavigation.collapsed;
   const sidebarStyle = isMobile ? undefined : isCollapsed ? desktopNavigationStyle : { ...desktopNavigationStyle, width: `${sharedSidebarWidth.width}px` };
   const toggleLabel = isMobile ? 'Close profile navigation' : isCollapsed ? 'Expand navigation' : 'Collapse navigation';
-  const renderSidebar = (closeDrawer?: () => void) => <aside data-mobile-shared-sidebar={isMobile || undefined} data-resizable-panel="" data-collapsed={isCollapsed ? 'true' : 'false'} style={sidebarStyle} aria-label={`${profile.name} shared profile navigation`} className={`shared-profile-sidebar sidebar-starfield relative flex h-full min-h-0 shrink-0 flex-col bg-transparent transition-[width] duration-[var(--m-fast)] motion-reduce:transition-none ${isCollapsed ? 'w-[48px] sm:w-[52px]' : ''}`}>
+  const renderSidebar = (closeDrawer?: () => void) => <aside data-mobile-shared-sidebar={isMobile || undefined} data-resizable-panel="" data-collapsed={isCollapsed ? 'true' : 'false'} style={sidebarStyle} aria-label={`${profile.name} shared profile navigation`} className={`shared-profile-sidebar sidebar-starfield relative flex h-full min-h-0 shrink-0 flex-col bg-transparent ${isCollapsed ? 'w-[48px] sm:w-[52px]' : ''}`}>
       <div data-shared-navigation-header="" className={`global-control-header shrink-0 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
         <div data-shared-navigation-row="" className={`flex h-full w-full min-w-0 flex-1 items-center ${isCollapsed ? 'justify-center' : 'side-panel-control-row'}`}>
           {!isCollapsed ? <Link onClick={closeDrawer} to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -82,16 +90,17 @@ export function SharedProfileSidebar({
           </span>
         </h2>
         <ul className={`sidebar-pill-group m-0 flex list-none flex-col p-0 ${isCollapsed ? 'items-center' : ''}`}>
-          {profile.categories.map((category) => {
+          {rootPortals.map((category) => {
           const Icon = getCategoryIcon(category.iconName);
           const isActive = category.id === activeCategoryId;
+          const isActiveBranch = category.id === activeRootId;
           return <li key={category.id} className={`side-panel-row group/row relative mb-[var(--side-panel-row-gap)] list-none ${isCollapsed ? 'w-10 shrink-0' : 'w-full'}`}>
-                <button type="button" data-category-row="" onClick={() => { closeDrawer?.(); compactNavigation.closeCompact(); onOpenCategory(category.id); }} aria-label={category.label} title={category.label} aria-current={isActive ? 'page' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[var(--m-base)]  ease-[var(--m-enter)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isCollapsed ? 'justify-center' : ''} ${isActive ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
+                <button type="button" data-category-row="" onClick={() => { closeDrawer?.(); compactNavigation.closeCompact(); onOpenCategory(category.id); }} aria-label={category.label} title={category.label} aria-current={isActive ? 'page' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[var(--m-base)]  ease-[var(--m-enter)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isCollapsed ? 'justify-center' : ''} ${isActiveBranch ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
                   <span aria-hidden="true" data-icon-tile="" className="flex h-4 w-6 shrink-0 items-center justify-center">
                     <InterfaceIcon icon={Icon} weight="medium" />
                   </span>
                   {!isCollapsed ? <>
-                    <span className="cdx-dense-label min-w-0 flex-1 truncate py-0.5" title={category.label}>{category.label}</span>
+                    <CatalogueRowName name={category.label} className="cdx-dense-label min-w-0 flex-1 truncate py-0.5" />
                     <span className="flex w-6 shrink-0 items-center justify-center" aria-hidden="true" />
                   </> : null}
                 </button>
@@ -113,23 +122,29 @@ export function SharedProfileSidebar({
         </div>
       </div>
     </aside>;
-  return isMobile ? <PublicProfileDrawer name={profile.name} enabled={mobileNavigationEnabled} openRequest={mobileNavigationRequest}>{close => <section className="mobile-portals-page shared-mobile-portals" data-portals-layout={portalLayout} aria-label={`${profile.name} portals`}>
+  return isMobile ? <PublicProfileDrawer name={profile.name} enabled={mobileNavigationEnabled} openRequest={mobileNavigationRequest} hideFloatingOpener={useMobileHeaderOpener}>{close => <section className="mobile-portals-page shared-mobile-portals" data-portals-layout={portalLayout} aria-label={`${profile.name} portals`}>
     <header className="global-control-header shrink-0 gap-2 px-4">
       <button type="button" aria-label="Go back" className="mobile-portal-action" onClick={close}><InterfaceIcon icon={ChevronLeftIcon} size="lg" mirroredInRtl /></button>
       <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold">Portals</h1>
-      <button type="button" className="mobile-portal-action" aria-label={portalLayout === 'list' ? 'Show portals as cards' : 'Show portals as list'} onClick={() => setPortalLayout(value => value === 'list' ? 'grid' : 'list')}><InterfaceIcon icon={portalLayout === 'list' ? LayoutGridIcon : ListIcon} size="lg" /></button>
+      <div className="flex shrink-0 items-center">
+        <button type="button" className="mobile-portal-action" aria-label="Open settings" title="Settings" onClick={() => { close(); onSettingsOpen(); }}>
+          <InterfaceIcon icon={SettingsIcon} size="lg" />
+        </button>
+        <button type="button" className="mobile-portal-action" data-system-color="" aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}>
+          <InterfaceIcon icon={theme === 'dark' ? SunIcon : MoonIcon} size="lg" />
+        </button>
+        <button type="button" className="mobile-portal-action" aria-label={portalLayout === 'list' ? 'Show portals as cards' : 'Show portals as list'} onClick={() => setPortalLayout(value => value === 'list' ? 'grid' : 'list')}>
+          <InterfaceIcon icon={portalLayout === 'list' ? LayoutGridIcon : ListIcon} size="lg" />
+        </button>
+      </div>
     </header>
-    <nav className="mobile-portals-scroll scrollbar-overlay" aria-label={`${profile.name} public portals`}>
+    <nav ref={portalScrollRef} className="mobile-portals-scroll scrollbar-overlay sidebar-scroll-fade is-at-top is-at-bottom" aria-label={`${profile.name} public portals`}>
       <ul className="mobile-portals-list">
-        {profile.categories.map(category => <li key={category.id} className="mobile-portal-item"><button type="button" data-category-row="" className="mobile-portal-row" aria-current={category.id === activeCategoryId ? 'page' : undefined} onClick={() => { close(); onOpenCategory(category.id); }}>
+        {rootPortals.map(category => <li key={category.id} className="mobile-portal-item"><button type="button" data-category-row="" className="mobile-portal-row" aria-current={category.id === activeCategoryId ? 'page' : undefined} onClick={() => { close(); onOpenCategory(category.id); }}>
           <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" weight="medium" /><span className="mobile-portal-label">{category.label}</span><InterfaceIcon icon={ChevronRightIcon} size="sm" className="text-[var(--text-tertiary)]" />
         </button></li>)}
       </ul>
-      {!profile.categories.length && <p className="p-4 text-[var(--text-secondary)]">No portals yet</p>}
+      {!rootPortals.length && <p className="p-4 text-[var(--text-secondary)]">No portals yet</p>}
     </nav>
-    <footer className="shared-mobile-portals-footer">
-      <div><button type="button" aria-label="Open settings" onClick={() => { close(); onSettingsOpen(); }}><InterfaceIcon icon={SettingsIcon} /><span>Settings</span></button>
-      <button type="button" data-system-color="" aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}><InterfaceIcon icon={theme === 'dark' ? SunIcon : MoonIcon} /><span>Appearance</span></button></div>
-    </footer>
   </section>}</PublicProfileDrawer> : renderSidebar();
 }

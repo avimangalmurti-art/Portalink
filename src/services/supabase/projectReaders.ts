@@ -4,6 +4,8 @@ import { ProjectMutationError } from '../../types/publishing';
 import { requireSupabase } from './client';
 import { hydrateProjects, asDesign, throwProfileError, supabaseProfileReadService } from './contentReaders';
 import type { ProfileRow, CategoryRow, ProjectRow, AttachmentRow } from './contentReaders';
+import { readFeaturedPortals } from './projectPortalFeatures';
+import { projectBelongsToPortal } from '../../features/projects/projectPortals';
 
 async function loadRequestedProjectViews(projectIds: string[]): Promise<ProjectView[]> {
   const requestedIds = [...new Set(projectIds)];
@@ -62,8 +64,12 @@ async getProject(projectId) {
   },
 
 async getProjectView(projectId) {
-    const view = (await loadRequestedProjectViews([projectId]))[0];
+    const [views, featured] = await Promise.all([
+      loadRequestedProjectViews([projectId]), readFeaturedPortals([projectId]),
+    ]);
+    const view = views[0];
     if (!view) throw new ProjectMutationError('not_found', 'That project could not be found.');
+    view.project.additionalPortalIds = featured.get(projectId)?.filter(id => id !== view.project.categoryId);
     return view;
   },
 
@@ -73,7 +79,7 @@ async listProjectViews(projectIds) {
 
 async listProjects(profileId, categoryId) {
     const projects = (await supabaseProfileReadService.getProfile(profileId)).projects;
-    return categoryId ? projects.filter((project) => project.categoryId === categoryId) : projects;
+    return categoryId ? projects.filter((project) => projectBelongsToPortal(project, categoryId)) : projects;
   },
 
 async getProjectDesign(projectId) {

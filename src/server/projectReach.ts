@@ -119,7 +119,7 @@ export async function sessionHash(token: string, project: string, day: string): 
     const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${day}:${project}:${token}`));
     return Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, '0')).join('');
 }
-const projectSelect = 'id,profile_id,category_id,title,pdf_page_count,is_hidden,profile:profiles!projects_profile_id_fkey!inner(id,account_id,is_private),category:portfolio_categories!inner(id,profile_id,is_hidden),attachments:project_attachments(id,storage_path,kind,position,metadata)';
+const projectSelect = 'id,profile_id,category_id,title,pdf_page_count,is_hidden,profile:profiles!projects_profile_id_fkey!inner(id,account_id,is_private),category:portfolio_categories!projects_category_id_fkey!inner(id,profile_id,is_hidden),attachments:project_attachments(id,storage_path,kind,position,metadata)';
 async function supabaseRows<T>(config: Config, table: string, query: URLSearchParams, authorization?: string | null): Promise<T[]> {
     if (!config.supabaseUrl || !config.publishableKey)
         throw unavailable();

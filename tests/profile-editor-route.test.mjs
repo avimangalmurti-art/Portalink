@@ -188,18 +188,11 @@ function evaluate(expression, values) {
 }
 const initializer = name => findNode(node => ts.isVariableDeclaration(node) && node.name.getText(parsed) === name).initializer.getText(parsed);
 
-test('mobile Collaboration has its own destination while Message and WEB keep their existing action', () => {
-  const callback = name => findNode(node => ts.isJsxAttribute(node) && node.name.getText(parsed) === name).initializer.expression.getText(parsed);
-  for (const presentation of ['mobile', 'web']) for (const isSharedRoute of [false, true]) {
-    const calls = [];
-    const values = { presentation, isSharedRoute, viewedProfile: { id: 'creator' }, auth: { viewerProfileId: 'viewer' },
-      nav: { collaboration: (...args) => calls.push(['collaboration', ...args]) }, openMessages: id => calls.push(['messages', id]) };
-    evaluate(callback('onCollaboration'), values)();
-    assert.deepEqual(calls, presentation === 'mobile' ? [['collaboration', 'creator', isSharedRoute]] : [['messages', 'creator']]);
-    calls.length = 0;
-    evaluate(callback('onMessage'), values)();
-    assert.deepEqual(calls, [['messages', 'creator']]);
-  }
+test('the profile Message action opens a conversation with the viewed creator', () => {
+  const callback = findNode(node => ts.isJsxAttribute(node) && node.name.getText(parsed) === 'onMessage').initializer.expression.getText(parsed);
+  const recipients = [];
+  evaluate(callback, { viewedProfile: { id: 'creator' }, auth: { viewerProfileId: 'viewer' }, openMessages: id => recipients.push(id) })();
+  assert.deepEqual(recipients, ['creator']);
 });
 
 test('collaboration resolves the routed creator through the existing profile access boundary', () => {
@@ -266,11 +259,14 @@ test('the editor is mounted in the routed screen, with one shared Back/Save call
   const RouteError = () => null;
   assert.equal(evaluate(sidebar, { isProfileEditorRoute: false, routeStateView: {type: RouteError}, RouteError, auth: {isAuthenticated: false} }), false, 'Signed-out error screens have no dock');
   const snapshot=findNode(node=>ts.isJsxAttribute(node)&&node.name.getText(parsed)==='snapshot').initializer.expression.getText(parsed);
-  const values={screenMainClassName:'main',screenAriaLabel:'editor',isSharedRoute:false,projectNavigation:{resolution:{state:'ready'}},routeItemId:null,screenContent:screen};
+  const values={presentation:'web',screenMainClassName:'main',screenAriaLabel:'editor',isSharedRoute:false,projectNavigation:{resolution:{state:'ready'}},routeItemId:null,screenContent:screen};
   assert.equal(evaluate(snapshot,values).content,screen,'The routed editor remains the active screen content');
   const LoadingSkeleton=()=>null;
   const pending=evaluate(snapshot,{...values,projectNavigation:{resolution:{state:'loading',projectId:'work'}},LoadingSkeleton});
   assert.equal(pending.content.type,LoadingSkeleton);assert.equal(pending.content.props.projectId,'work');
+  const ProjectOpeningLoader=()=>null;
+  const mobilePending=evaluate(snapshot,{...values,presentation:'mobile',projectNavigation:{resolution:{state:'loading',projectId:'work'}},ProjectOpeningLoader});
+  assert.equal(mobilePending.content.type,ProjectOpeningLoader);
   assert.equal(evaluate(snapshot,{...values,isSharedRoute:true,projectNavigation:{resolution:{state:'loading'}}}).content,screen,'Visitor routes keep their existing read boundary');
   assert.doesNotMatch(app, /isProfileEditorOpen|setIsProfileEditorOpen|<ProfileEditorDialog\b/);
 });
