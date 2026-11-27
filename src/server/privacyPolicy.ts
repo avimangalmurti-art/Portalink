@@ -1,4 +1,4 @@
-export const PRIVACY_POLICY_PATH = '/privacy';
+export const PRIVACY_POLICY_PATH = '/privacy-policy';
 const UPDATED = 'November 27, 2026';
 const CONTACT = 'avi@portalinknetworks.com';
 

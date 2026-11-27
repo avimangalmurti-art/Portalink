@@ -209,7 +209,7 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
       </SettingsSection>
       <SettingsSection active={activeSection} inline={!isMobile} onOpen={openSection} id="about" title="About" subtitle="Version, legal and more">
         {sharedReadOnly && !isMobile ? <ProfessionalEntry embedded ready={!auth.isInitializing} onSignIn={() => auth.requestAuth('signIn')} onCreate={() => auth.requestAuth('signUp')} /> : <><p>Portalink Networks</p><p>Web app</p></>}
-        <Button variant="secondary" onClick={() => window.location.assign('/privacy')}><span className="settings-action-label">Privacy policy</span></Button>
+        <Button variant="secondary" onClick={() => window.location.assign('/privacy-policy')}><span className="settings-action-label">Privacy policy</span></Button>
         {isMobile && <MobileHomeScreenInstall />}
       </SettingsSection>
     </div>
