@@ -45,9 +45,9 @@ test('client schedules only its verified account and keeps the session for cance
  await assert.rejects(authService(client).deleteAccount({accountId:'other',confirmation:'owner@example.test'}));
  assert.equal(calls.length,0);
  const result=await authService(client).deleteAccount({accountId:'a',confirmation:'owner@example.test'});
- assert.equal(result.isDeleted,false);assert.equal(result.status,'pending');assert.equal(calls[0].action,'request');
+ assert.equal(result.isDeleted,false);assert.equal(result.status,'pending');assert.deepEqual(calls.map(call=>call.action),['preflight','request']);
  await assert.rejects(authService(client,false).deleteAccount({accountId:'a',confirmation:'owner@example.test'}));
- assert.equal(calls.length,1);
+ assert.equal(calls.length,2);
 });
 
 test('client keeps server error details and does not sign out on a failed deletion', async () => {

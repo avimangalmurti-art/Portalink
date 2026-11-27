@@ -409,6 +409,13 @@ export const supabaseAuthService: AuthService = {
     if (!user.email?.trim() || user.id !== input.accountId || user.email.toLowerCase() !== input.confirmation.trim().toLowerCase()) {
       throw new AuthServiceError('confirmation_mismatch', 'That does not match the email address on this account.');
     }
+    const preflight = await requireSupabase().functions.invoke('delete-account', { body: { action: 'preflight' } });
+    if (preflight.error) {
+      const response = preflight.error.context instanceof Response ? preflight.error.context : null;
+      const details = response ? await response.clone().json().catch(() => null) as { message?: string } | null : null;
+      if (response?.status === 401) throw new AuthServiceError('reauthentication_required', details?.message ?? 'Sign in again to delete your account.');
+      throw new AuthServiceError(response?.status === 503 ? 'deletion_unavailable' : 'network', details?.message ?? 'Account deletion is unavailable right now. Nothing was changed.');
+    }
     await removeSiteActivity();
     const { data, error } = await requireSupabase().functions.invoke('delete-account', {
       body: { action: 'request', confirmation: input.confirmation },

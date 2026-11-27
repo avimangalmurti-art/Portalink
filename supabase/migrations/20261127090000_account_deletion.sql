@@ -735,4 +735,12 @@ begin
 end;
 $$;
 
+
+create function public.account_deletion_requests_open() returns boolean
+language sql stable security definer set search_path=public,pg_temp as $$
+  select requests_enabled from deletion_private.release_gate;
+$$;
+revoke all on function public.account_deletion_requests_open() from public, anon, authenticated;
+grant execute on function public.account_deletion_requests_open() to service_role;
+
 commit;
