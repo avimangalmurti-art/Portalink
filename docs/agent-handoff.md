@@ -1,3 +1,7 @@
+## 2026-11-27 - ALL iOS App Store readiness on PR150, unpublished
+
+Devin continued `devin/ios-testflight` (PR150) after merging current `main`. Info.plist adds camera, microphone and photo-library usage strings, because upload inputs accepting image/video offer camera capture and iOS terminates apps that lack these strings. `UIRequiredDeviceCapabilities` is now `arm64`. The TestFlight workflow reads the Apple Team ID from the `APPLE_TEAM_ID` repository variable and passes `DEVELOPMENT_TEAM` to the archive step. No upload has run; it still needs the user's active Apple Developer membership, Team ID, the ASC API key secrets and an App Store Connect app record. App Review blockers remain open: account deletion is hard-disabled, no privacy policy URL was found, and a reviewer demo account is needed. No SQL, Sites publish or worker deploy.
+
 ## 2026-11-18 — Combine the mobile loading and shared desktop fixes
 
 The user authorized publishing all three pending fixes. The release checkout is `logs/mobile-and-shared-polish-release` on `codex/mobile-and-shared-polish-release`, based on GitHub main `4ec84bff605810da040c5264136442b2443bdd1e`. It combines the main MOBILE neutral session-wait loading symbol, the hidden WEB Portal-popup scrollbar with normal scrolling, and WEB shared Catalogue/direct Portal splash edge masking. The independent changes to `tests/splash-lifecycle.test.mjs` are merged. Both launch-script hashes are `15e81945`.
