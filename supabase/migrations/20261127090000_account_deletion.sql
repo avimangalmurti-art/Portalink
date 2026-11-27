@@ -670,7 +670,10 @@ returns boolean language sql stable security definer set search_path = public as
 $$;
 
 
--- The deployed worker uses v2: skip, never fence-fail on, a deleting owner's queued PDFs.
+-- Where the v2 worker claim exists: skip, never fence-fail on, a deleting owner's queued PDFs.
+do $guard$ begin
+  if to_regprocedure('public.claim_pdf_processing_job_v2(text,integer)') is not null then
+    execute $sql$
 create or replace function public.claim_pdf_processing_job_v2(
   p_worker_id text, p_lease_seconds integer default 1200
 ) returns table (
@@ -734,6 +737,10 @@ begin
       c.page_offset, c.attempt_count, c.lease_token from claimed c;
 end;
 $$;
+    $sql$;
+  end if;
+end $guard$;
+
 
 
 create function public.account_deletion_requests_open() returns boolean
