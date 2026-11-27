@@ -669,4 +669,70 @@ returns boolean language sql stable security definer set search_path = public as
   );
 $$;
 
+
+-- The deployed worker uses v2: skip, never fence-fail on, a deleting owner's queued PDFs.
+create or replace function public.claim_pdf_processing_job_v2(
+  p_worker_id text, p_lease_seconds integer default 1200
+) returns table (
+  id uuid, post_id uuid, attachment_id text, source_bucket text, source_path text,
+  page_offset integer, attempt_count integer, lease_token uuid
+)
+language plpgsql security definer set search_path = public as $$
+declare stale_post uuid;
+begin
+  if nullif(trim(p_worker_id), '') is null then raise exception 'worker id is required'; end if;
+
+  for stale_post in
+    with exhausted as (
+      update public.pdf_processing_jobs j set
+        status = 'failed', error_code = 'worker_timeout',
+        error_message = 'PDF processing stopped before it finished. The original file is safe and the preview can be retried.',
+        is_retryable = true, finished_at = now(), lease_expires_at = null,
+        lease_token = null, updated_at = now()
+      where not exists(select 1 from public.projects owner_project where owner_project.id=j.post_id and deletion_private.profile_pending(owner_project.profile_id)) and j.status = 'processing' and j.lease_expires_at < now()
+        and j.attempt_count >= j.max_attempts
+      returning j.post_id
+    ) select distinct e.post_id from exhausted e
+  loop
+    update public.project_attachments a set status = 'processing-failed',
+      metadata = coalesce(a.metadata, '{}'::jsonb) || jsonb_build_object(
+        'processingError', 'PDF processing stopped before it finished.')
+    from public.pdf_processing_jobs j
+    where j.post_id = stale_post and j.attachment_id = a.id and j.status = 'failed';
+    perform public.refresh_pdf_post_status(stale_post);
+  end loop;
+
+  return query
+  with candidate as (
+    select j.id from public.pdf_processing_jobs j
+    where not exists(select 1 from public.projects owner_project where owner_project.id=j.post_id and deletion_private.profile_pending(owner_project.profile_id))
+      and ((j.status = 'queued' and j.available_at <= now())
+      or (j.status = 'processing' and j.lease_expires_at < now() and j.attempt_count < j.max_attempts))
+      and not exists (select 1 from public.pdf_processing_jobs failed
+        where failed.post_id = j.post_id and failed.status = 'failed')
+      and not exists (select 1 from public.pdf_processing_jobs previous
+        where previous.post_id = j.post_id and previous.status <> 'completed'
+          and (previous.source_position, previous.created_at, previous.id)
+            < (j.source_position, j.created_at, j.id))
+    order by j.available_at, j.created_at, j.id
+    for update skip locked limit 1
+  ), claimed as (
+    update public.pdf_processing_jobs j set
+      status = 'processing', worker_id = trim(p_worker_id),
+      attempt_count = j.attempt_count + 1, lease_token = gen_random_uuid(),
+      started_at = coalesce(j.started_at, now()), finished_at = null,
+      lease_expires_at = now() + make_interval(secs => greatest(60, least(p_lease_seconds, 3600))),
+      page_offset = coalesce((select sum(previous.page_count)
+        from public.pdf_processing_jobs previous
+        where previous.post_id = j.post_id and previous.status = 'completed'
+          and (previous.source_position, previous.created_at, previous.id)
+            < (j.source_position, j.created_at, j.id)), 0)::integer,
+      processed_pages = 0, page_count = null, page_metadata = '[]'::jsonb,
+      error_code = null, error_message = null, failed_page = null, updated_at = now()
+    from candidate where j.id = candidate.id returning j.*
+  ) select c.id, c.post_id, c.attachment_id, c.source_bucket, c.source_path,
+      c.page_offset, c.attempt_count, c.lease_token from claimed c;
+end;
+$$;
+
 commit;
