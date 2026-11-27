@@ -380,7 +380,7 @@ begin
     then conversation.participant_two_profile_id else conversation.participant_one_profile_id end;
   if conversation.request_message_sent_at is not null and conversation.initiator_profile_id <> viewer_profile_id
   then raise exception 'accept request before replying'; end if;
-  if not public.can_view_profile(recipient_profile_id) then raise exception 'messages unavailable'; end if;
+  if not public.can_view_profile_identity(recipient_profile_id) then raise exception 'messages unavailable'; end if;
   select exists (select 1 from public.profile_follows follow
     where follow.follower_profile_id = recipient_profile_id and follow.target_profile_id = viewer_profile_id
       and follow.status = 'following') into recipient_follows_sender;
@@ -657,39 +657,15 @@ end;
 $$;
 
 create or replace function public.can_view_profile(p_profile_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
+returns boolean language sql stable security definer set search_path = public as $$
   select exists (
-    select 1
-    from public.profiles p
-    where p.id = p_profile_id and (p.pending_deletion_at is null or p.account_id = (select auth.uid()))
-      and (
-        not p.is_private
-        or p.account_id = (select auth.uid())
-        or exists (
-          select 1 from public.profile_follows f
-          where f.target_profile_id = p.id
-            and f.follower_account_id = (select auth.uid())
-            and f.status = 'following'
-        )
-        or exists (
-          select 1 from public.profile_follows f
-          where f.follower_profile_id = p.id
-            and public.owns_profile(f.target_profile_id)
-        )
-        or exists (
-          select 1 from public.direct_conversations conversation
-          where (conversation.participant_one_profile_id = p.id or conversation.participant_two_profile_id = p.id)
-            and (
-              public.owns_profile(conversation.participant_one_profile_id)
-              or public.owns_profile(conversation.participant_two_profile_id)
-            )
-        )
+    select 1 from public.profiles p where p.id = p_profile_id
+      and (p.pending_deletion_at is null or p.account_id = (select auth.uid())) and (
+      p.account_id = (select auth.uid()) or not p.is_private or exists (
+        select 1 from public.profile_follows f where f.target_profile_id = p.id
+          and f.follower_account_id = (select auth.uid()) and f.status = 'following'
       )
+    )
   );
 $$;
 
