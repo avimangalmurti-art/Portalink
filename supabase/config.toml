@@ -21,3 +21,6 @@ additional_redirect_urls = [
 
 [functions.delete-account]
 verify_jwt = true
+
+[functions.account-deletion-worker]
+verify_jwt = false

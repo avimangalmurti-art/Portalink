@@ -1,5 +1,5 @@
--- REVIEW CANDIDATE. Not in migrations: cannot be applied by db push accidentally.
--- No deletion is enabled by applying this transaction. No jobs are scheduled.
+-- Account deletion lifecycle (docs/account-deletion-safety.md).
+-- Applying this enables nothing: both release gates default to false.
 begin;
 
 create schema if not exists deletion_private;
@@ -35,7 +35,7 @@ create unique index one_account_deletion on deletion_private.jobs(account_id) wh
 create index due_account_deletions on deletion_private.jobs(delete_after) where status in ('pending','processing');
 create table deletion_private.files (
   job_id uuid not null references deletion_private.jobs(id) on delete restrict,
-  bucket text not null check(bucket in ('avatars','project-media','message-media','project-covers')),
+  bucket text not null check(bucket in ('avatars','project-media','message-media','project-covers','profile-audio')),
   path text not null,
   removed_at timestamptz,
   primary key(job_id,bucket,path)
@@ -103,6 +103,7 @@ language sql immutable as $$
     when 'avatars' then split_part(path,'/',1)=j.account_id::text
     when 'project-covers' then split_part(path,'/',1)=j.profile_id::text
     when 'message-media' then split_part(path,'/',1)=j.profile_id::text
+    when 'profile-audio' then split_part(path,'/',1)=j.profile_id::text
     when 'project-media' then split_part(path,'/',1)=j.profile_id::text
       or (split_part(path,'/',1)='posts' and split_part(path,'/',2)=any(select unnest(j.project_ids)::text))
     else false end;
@@ -114,7 +115,7 @@ create function deletion_private.path_account(bucket text,path text) returns uui
 language sql stable security definer set search_path=public,pg_temp as $$
   select coalesce(
     (select u.id from auth.users u where bucket='avatars' and u.id::text=split_part(path,'/',1)),
-    (select p.account_id from public.profiles p where bucket in ('project-media','message-media','project-covers') and (
+    (select p.account_id from public.profiles p where bucket in ('project-media','message-media','project-covers','profile-audio') and (
       p.id::text=split_part(path,'/',1) or (bucket='project-media' and split_part(path,'/',1)='posts'
         and exists(select 1 from public.projects pr where pr.profile_id=p.id and pr.id::text=split_part(path,'/',2))))),
     (select j.account_id from deletion_private.jobs j where j.status<>'cancelled' and deletion_private.owns_path(j,bucket,path) limit 1)
@@ -145,7 +146,7 @@ begin
   end if;
   if new.bucket_id='avatars' then
     begin owner_account:=split_part(new.name,'/',1)::uuid; exception when invalid_text_representation then owner_account:=null; end;
-  elsif new.bucket_id in ('project-media','message-media','project-covers') then
+  elsif new.bucket_id in ('project-media','message-media','project-covers','profile-audio') then
     select p.account_id into owner_account from public.profiles p where
       p.id::text=split_part(new.name,'/',1) or (new.bucket_id='project-media' and split_part(new.name,'/',1)='posts'
         and exists(select 1 from public.projects pr where pr.profile_id=p.id and pr.id::text=split_part(new.name,'/',2)));

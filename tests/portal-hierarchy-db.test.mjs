@@ -111,6 +111,9 @@ test('subportals enforce ownership and preserve independent Portal visibility af
   await assert.rejects(db.query('insert into public.portal_hierarchy values ($1, $2, $3)', [followerProfile, privateParent, foreignParent]), { code: '23503' });
   await assert.rejects(db.query('insert into public.portal_hierarchy values ($1, $2, $2)', [strangerProfile, foreignParent]), { code: '23514' });
   await as('authenticated', follower, id(92));
+  await assert.rejects(db.query('delete from public.profiles where id = $1', [followerProfile]), { code: '42501' }, 'profiles are removed only by the account deletion lifecycle');
+  await db.exec("reset role; select set_config('request.jwt.claims', '', false); select set_config('portalink.deletion_internal', 'on', false)");
   await db.query('delete from public.profiles where id = $1', [followerProfile]);
+  await db.exec("select set_config('portalink.deletion_internal', 'off', false)");
   assert.deepEqual(await links(followerProfile), [], 'whole-profile deletion cascades its categories and hierarchy');
 });

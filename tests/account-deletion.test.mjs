@@ -12,17 +12,13 @@ const compile = (path) => ts.transpileModule(readFileSync(new URL(`../${path}`, 
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
 }).outputText;
 
-test('production endpoint is unconditionally disabled without constructing clients or touching data', async () => {
-  let handler;
-  vm.runInNewContext(compile('supabase/functions/delete-account/index.ts'), {
-    exports: {}, Response, Deno: { serve: fn => { handler = fn; } },
-    require: () => { throw new Error('Disabled endpoint must not import a client'); },
-  });
-  for (const body of [{}, { action: 'request', confirmation: 'owner@example.test' }]) {
-    const result=await handler(new Request('https://example.test/delete-account',{method:'POST',body:JSON.stringify(body)}));
-    assert.equal(result.status,503); assert.equal((await result.json()).isDeleted,false);
-  }
-  assert.equal((await handler(new Request('https://example.test/delete-account',{method:'OPTIONS'}))).status,200);
+test('delete-account wires the verified handler with immediate processing and an emergency stop', () => {
+  const source = readFileSync(new URL('../supabase/functions/delete-account/index.ts', import.meta.url), 'utf8');
+  assert.match(source, /createDeletionHandler\(admin, \{\s*enabled: Deno\.env\.get\('ACCOUNT_DELETION_ENABLED'\) !== 'false',\s*processImmediately: true,/);
+  assert.match(source, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(source, /console\./);
+  const worker = readFileSync(new URL('../supabase/functions/account-deletion-worker/index.ts', import.meta.url), 'utf8');
+  assert.match(worker, /token !== serviceKey/);
 });
 
 function authService(client, enabled = true) {

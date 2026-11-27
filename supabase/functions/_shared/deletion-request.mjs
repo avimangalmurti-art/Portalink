@@ -24,6 +24,11 @@ export function createDeletionHandler(admin, { enabled = false, processImmediate
         ? 'Cancellation is unavailable because permanent deletion has started.'
         : 'The request could not be confirmed. Check your deletion status before trying again.' });
     }
+    if (body.action === 'status' && processImmediately && result.data?.status === 'processing') {
+      // A request that stopped at a checkpoint resumes when its owner checks on it.
+      const outcome = await runDeletionTick(admin, { enabled: true, accountId: data.user.id });
+      if (outcome.status === 'completed') return response(200, { isDeleted: true, status: 'completed', message: 'Your account has been deleted.' });
+    }
     if (body.action === 'request' && processImmediately) {
       const outcome = await runDeletionTick(admin, { enabled: true, accountId: data.user.id });
       if (outcome.status === 'completed') return response(200, { isDeleted: true, status: 'completed', message: 'Your account has been deleted. You can register again with the same email address.' });

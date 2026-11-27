@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { runDeletionTick } from '../supabase/pending/deletion-worker.mjs';
-import { createDeletionHandler } from '../supabase/pending/deletion-request.mjs';
+import { runDeletionTick } from '../supabase/functions/_shared/deletion-worker.mjs';
+import { createDeletionHandler } from '../supabase/functions/_shared/deletion-request.mjs';
 
 test('worker defaults off with no side effects',async()=>{
  assert.deepEqual(await runDeletionTick(new Proxy({},{get(){throw Error('no access');}})),{status:'disabled'});

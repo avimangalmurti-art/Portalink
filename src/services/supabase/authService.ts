@@ -183,6 +183,19 @@ function authFailure(error: { message: string; status?: number | null; code?: st
   return new AuthServiceError('network', message);
 }
 
+/** Removes the account's likes, saves and page comments from the Sites D1 store. */
+async function removeSiteActivity(): Promise<void> {
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+  const { data } = await requireSupabase().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new AuthServiceError('reauthentication_required', 'Sign in again to delete your account.');
+  const response = await fetch('/api/account/interactions', { method: 'DELETE', headers: { authorization: `Bearer ${token}` } }).catch(() => null);
+  // 404 means no Sites worker (local development); there is no activity store to clear.
+  if (!response || (!response.ok && response.status !== 404)) {
+    throw new AuthServiceError('network', 'Your account could not be deleted right now. Nothing was changed. Try again.');
+  }
+}
+
 async function currentProviderUser(): Promise<User> {
   const client = requireSupabase();
   const { data, error } = await client.auth.getUser();
@@ -396,6 +409,7 @@ export const supabaseAuthService: AuthService = {
     if (!user.email?.trim() || user.id !== input.accountId || user.email.toLowerCase() !== input.confirmation.trim().toLowerCase()) {
       throw new AuthServiceError('confirmation_mismatch', 'That does not match the email address on this account.');
     }
+    await removeSiteActivity();
     const { data, error } = await requireSupabase().functions.invoke('delete-account', {
       body: { action: 'request', confirmation: input.confirmation },
     });

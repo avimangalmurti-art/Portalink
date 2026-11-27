@@ -1,4 +1,13 @@
-# Account deletion: immediate-deletion candidate, disabled
+# Account deletion
+
+## November 27 release for the App Store
+
+The user chose the full automatic flow (Apple guideline 5.1.1(v)). The schema is now the migration `supabase/migrations/20261127090000_account_deletion.sql` (both `deletion_private.release_gate` flags default to false). It adds the `profile-audio` bucket to the ownership manifest and upload fences. `delete-account` runs the verified handler from `supabase/functions/_shared/` with immediate processing; checking status resumes a job that stopped at a checkpoint. `account-deletion-worker` retries due jobs for a service-role caller (no scheduler is configured yet). Before the request, the client asks the Sites worker (`DELETE /api/account/interactions`) to remove the account's D1 likes, saves, page comments, page actions and notification state; anonymous reach counts remain. The frontend flag is on.
+
+Verified locally: the 13 PGlite safety checks, the Node suites, and an end-to-end run on a local Supabase stack (real Postgres, Storage API and Auth). That run confirmed the wrong-email rejection, removal of every owned file's bytes across all five buckets, preservation of the survivor's file and message, the `Message removed` tombstone, Auth removal, re-registration with the same email, and that the survivor can still read the conversation.
+
+Go-live order: apply the migration, deploy both functions, set both release-gate flags to true, then publish the Sites build that turns on the UI and the D1 endpoint.
+
 
 ## October 4 immediate-deletion revision
 

@@ -16,9 +16,8 @@ try {
  create or replace function realtime.send(jsonb,text,text,boolean default true)
  returns void language sql as $$insert into realtime.test_sent_events(payload,event,topic,private) values($1,$2,$3,$4)$$;
  `);
- await check('candidate applies atomically to the full existing migration history',async()=>{
-   try { await db.exec(readFileSync('supabase/pending/account_deletion_safety.sql','utf8')); }
-   catch(error) { throw new Error(`Candidate: ${error.message}; position ${error.position}`); }
+ await check('deletion migration applies with both release gates off',async()=>{
+   assert.equal(await scalar('select requests_enabled or worker_enabled from deletion_private.release_gate'),false);
  });
  await system();
  for(const n of [1,2,3]){
