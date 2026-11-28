@@ -46,6 +46,7 @@ function harness({ collapsed = false, authenticated = true, presentation = 'web'
     isInsightsActive: false, isActivityActive: false, isSavedActive: false, isStudioActive: false, isPortalSearchActive: false, isProfileActive: false,
     accentColor: '#007aff', isAuthenticated: authenticated, isAuthActionPending: false,
     onSearchOpen: () => calls.push('search'), onControlCenterOpen: () => calls.push('settings'),
+    onUploadProject: () => calls.push('upload'),
     onSignIn: () => calls.push('signIn'), onSignOut: async () => false, onPortalinkOpen: () => calls.push('world'),
     addCategoryRequest: null, liveShow: null, onLeaveShow() {},
     management: { arrangement: { categoryOrder: [], hiddenCategoryIds: [] }, categoryIcons: {}, pending: null },
@@ -109,7 +110,10 @@ test('authenticated WEB tools appear once in the expanded strip or compact foote
   for (const collapsed of [false, true]) for (const theme of ['light', 'dark']) {
     const h = harness({ collapsed, theme }), tree = h.render(), items = controls(workspaceTools(tree, collapsed));
     assert.equal(collapsed ? toolsRail(tree) : footer(tree), undefined);
-    assert.deepEqual(items.map(label), ['Open settings', 'Open Studio', 'Open Activity', `Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`]);
+    assert.deepEqual(items.map(label), [
+      'Open settings', 'Open Studio', 'Open Activity', ...(collapsed ? [] : ['Upload project']),
+      `Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`,
+    ]);
     for (const item of items) assert.equal(controls(tree).filter(other => label(other) === label(item)).length, 1);
     for (const [index, href, title, icon] of [[1, '/studio', 'Studio', icons.WarehouseIcon], [2, '/notifications', 'Activity', icons.BellIcon]]) {
       const destination = items[index];
@@ -120,9 +124,20 @@ test('authenticated WEB tools appear once in the expanded strip or compact foote
       assert.match(destination.props.className, collapsed ? /sidebar-rail-slot/ : /sidebar-primary-control/);
       assert.ok(nodes(destination).some(node => node.type === 'interface-icon' && node.props.icon === icon));
     }
-    items[0].props.onClick(); items[3].props.onClick();
+    items[0].props.onClick(); items.at(-1).props.onClick();
     assert.deepEqual(h.calls, ['settings', ['theme', theme === 'light' ? 'dark' : 'light']]);
   }
+});
+
+test('Upload project opens the upload flow once from the expanded WEB rail', () => {
+  const h = harness();
+  const upload = named(toolsRail(h.render()), 'Upload project');
+  assert.equal(upload.type, 'button');
+  assert.equal(upload.props.title, 'Upload project');
+  assert.ok(nodes(upload).some(node => node.type === 'interface-icon' && node.props.icon === icons.PlusIcon));
+  upload.props.onClick();
+  assert.deepEqual(h.calls, ['upload']);
+  assert.equal(named(h.render({ isCollapsed: true }), 'Upload project'), undefined);
 });
 
 test('signed-out WEB preserves upper inactive Portals and Studio without exposing personal destination links or footer markers', () => {
@@ -134,6 +149,7 @@ test('signed-out WEB preserves upper inactive Portals and Studio without exposin
     assert.equal(items[0].props.onClick, undefined); assert.equal(items[4].props.onClick, undefined);
     assert.equal(named(tree, 'Open Insights'), undefined); assert.equal(named(tree, 'Open Activity'), undefined);
     assert.equal(named(tree, 'Open Studio'), undefined); assert.equal(named(tree, 'Open Portal search'), undefined);
+    assert.equal(named(tree, 'Upload project'), undefined);
     assert.deepEqual(controls(workspaceTools(tree, collapsed)).map(label), ['Open settings', 'Switch to dark appearance']);
     assert.equal(controls(tree).filter(node => label(node) === 'Portals unavailable').length, 1);
     assert.equal(controls(tree).filter(node => label(node) === 'Studio unavailable').length, 1);
@@ -200,7 +216,9 @@ test('Portal search works without a profile href while WEB destinations remain u
     const web = harness({ presentation: 'web', collapsed });
     const webTree = web.render();
     assert.deepEqual(controls(main(webTree, collapsed)).map(label), ['Open Insights', 'Open Saved', 'Open Portalink world view', 'Open Home', 'Open Portal search', 'Search accounts', 'Open messages', 'Open your profile']);
-    assert.deepEqual(controls(workspaceTools(webTree, collapsed)).map(label), ['Open settings', 'Open Studio', 'Open Activity', 'Switch to dark appearance']);
+    assert.deepEqual(controls(workspaceTools(webTree, collapsed)).map(label), [
+      'Open settings', 'Open Studio', 'Open Activity', ...(collapsed ? [] : ['Upload project']), 'Switch to dark appearance',
+    ]);
     assert.deepEqual(web.calls, []);
   }
 });
