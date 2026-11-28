@@ -67,7 +67,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
               {deletion.hasFailed && deletion.error?.code !== 'confirmation_mismatch' && <p role="alert" className="text-[13px] leading-relaxed text-[var(--status-danger)]">{deletion.error?.message}</p>}
               <div className="flex flex-wrap justify-end gap-2">
                 <Button size="lg" onClick={close} disabled={deletion.isDeleting}>Cancel</Button>
-                <Button type="submit" variant="danger" size="lg" isLoading={deletion.isDeleting} disabled={!deletion.canSubmit}>{deletion.isDeleting ? 'Scheduling…' : 'Schedule deletion'}</Button>
+                <Button type="submit" variant="danger" size="lg" isLoading={deletion.isDeleting} disabled={!deletion.canSubmit}>{deletion.isDeleting ? 'Deleting…' : 'Delete account'}</Button>
               </div>
             </form>
           </> : <div className="mt-4 space-y-5">

@@ -143,6 +143,6 @@ export function requireSupabaseProjectUrl(): string {
   return projectUrl;
 }
 
-// Release lock: do not restore the environment flag until the replacement
-// shared-content rules and delayed deletion flow have been reviewed.
-export const accountDeletionEnabled = false;
+// Self-service deletion (Apple guideline 5.1.1(v)). The database release gate
+// and the delete-account function stay authoritative; see docs/account-deletion-safety.md.
+export const accountDeletionEnabled = true;
