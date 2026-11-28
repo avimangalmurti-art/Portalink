@@ -45,6 +45,7 @@ function setup() {
       if (id === './features/citations/publicOrigin') return publicOriginFixture;
       if (id === './server/publicOriginRedirect') return publicRedirectFixture;
       if(id==='./server/referenceResolver'||id==='./server/portfolioExport')return{};
+      if (id === './server/privacyPolicy') return { privacyPolicyResponse: () => null };
       if (id === './server/citation') return { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } };
       if (id === './server/publicMedia') return { isPublicMediaRoute: () => false };
       if (id === './server/rum' || id === './server/rumOwner') return {};

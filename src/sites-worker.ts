@@ -3,6 +3,7 @@ import { PUBLIC_ORIGIN } from './features/citations/publicOrigin';
 import { publicOriginRedirect } from './server/publicOriginRedirect';
 import {handlePortfolioExport} from './server/portfolioExport';
 import { handleCitation, citationLicenseResponse } from './server/citation';
+import { privacyPolicyResponse } from './server/privacyPolicy';
 import { readPortfolioCard } from './server/sharedPreview';
 import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
 import { resolveShareRequest, injectShareResolution, publicSitemap } from './server/shareAddress';
@@ -410,6 +411,7 @@ const worker = {
     if(url.pathname==='/api/references/resolve')return handleReferenceResolve(request,authenticatedUser);
     const exportProfile=/^\/api\/exports\/portfolio\/([^/]+)$/.exec(url.pathname);
     if(exportProfile)return handlePortfolioExport(request,exportProfile[1],environment,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
+    const privacy = privacyPolicyResponse(request); if (privacy) return privacy;
     const license = citationLicenseResponse(url.pathname); if (license) return license;
     if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}
