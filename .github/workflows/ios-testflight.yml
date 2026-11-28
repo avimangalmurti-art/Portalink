@@ -111,28 +111,28 @@ jobs:
           print(f'API key accepted; apps with this bundle ID: {len(apps)}')
           if not apps: print('::warning::No App Store Connect app uses com.portalinknetworks.app yet.')
           PY
+      # Archive unsigned: development signing needs a registered device. Export signs for
+      # App Store distribution with a cloud-managed certificate, which needs no device.
       - name: Archive
         run: >
           xcodebuild -project ios/App/App.xcodeproj -scheme App
           -configuration Release -destination 'generic/platform=iOS'
           -archivePath "$ARCHIVE_PATH"
-          -allowProvisioningUpdates
-          -authenticationKeyPath "$ASC_KEY_PATH"
-          -authenticationKeyID "$ASC_KEY_ID"
-          -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
-          CODE_SIGN_STYLE=Automatic
+          CODE_SIGNING_ALLOWED=NO
           CURRENT_PROJECT_VERSION=${{ github.run_number }}
           archive
       - name: Upload to TestFlight
-        run: >
-          xcodebuild -exportArchive
-          -archivePath "$ARCHIVE_PATH"
-          -exportOptionsPlist ios/App/ExportOptions.plist
-          -exportPath "$RUNNER_TEMP/export"
-          -allowProvisioningUpdates
-          -authenticationKeyPath "$ASC_KEY_PATH"
-          -authenticationKeyID "$ASC_KEY_ID"
+        run: |
+          cp ios/App/ExportOptions.plist "$RUNNER_TEMP/ExportOptions.plist"
+          plutil -replace teamID -string "$APPLE_TEAM_ID" "$RUNNER_TEMP/ExportOptions.plist"
+          xcodebuild -exportArchive \
+          -archivePath "$ARCHIVE_PATH" \
+          -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+          -exportPath "$RUNNER_TEMP/export" \
+          -allowProvisioningUpdates \
+          -authenticationKeyPath "$ASC_KEY_PATH" \
+          -authenticationKeyID "$ASC_KEY_ID" \
           -authenticationKeyIssuerID "$ASC_ISSUER_ID"
       - name: Remove API key
         if: always()
