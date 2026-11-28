@@ -59,7 +59,7 @@ function setup() {
     './features/citations/publicOrigin': publicOriginFixture,
     './server/publicOriginRedirect': publicRedirectFixture,
     './features/sharing/shareModel': load('src/features/sharing/shareModel.ts'),
-    './server/shareAddress': {}, './server/referenceResolver':{},'./server/portfolioExport':{},'./server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach': {},
+    './server/shareAddress': {}, './server/referenceResolver':{},'./server/portfolioExport':{},'./server/privacyPolicy': { privacyPolicyResponse: () => null }, './server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach': {},
     './server/sharedPreview': {}, './server/publicMedia': { isPublicMediaRoute: () => false },
     './server/rumOwner': owner, './server/rum': rum,
   }, { fetch }).default;

@@ -1,3 +1,7 @@
+## 2026-11-27 — Public privacy policy page for App Store review
+
+Branch `devin/1795770118-privacy-policy` from GitHub main. Adds `/privacy-policy` (served by the Sites worker before share routing, `GET`/`HEAD` only; the hyphen keeps it outside the portfolio-handle grammar so existing `/privacy` catalogue links are untouched), linked from Settings → About including the mobile shared About screen. Contact is avi@portalinknetworks.com. Existing worker test fixtures gained a `./server/privacyPolicy` stub. Typecheck, lint (0 errors), the guarded build and the affected focused tests passed. Not published to Sites; the App Store privacy URL will be https://portalinknetworks.com/privacy-policy once published. Account deletion is unchanged and still hard-disabled pending the user's choice of deletion approach. No migration or deployment was performed.
+
 ## 2026-11-18 — Combine the mobile loading and shared desktop fixes
 
 The user authorized publishing all three pending fixes. The release checkout is `logs/mobile-and-shared-polish-release` on `codex/mobile-and-shared-polish-release`, based on GitHub main `4ec84bff605810da040c5264136442b2443bdd1e`. It combines the main MOBILE neutral session-wait loading symbol, the hidden WEB Portal-popup scrollbar with normal scrolling, and WEB shared Catalogue/direct Portal splash edge masking. The independent changes to `tests/splash-lifecycle.test.mjs` are merged. Both launch-script hashes are `15e81945`.

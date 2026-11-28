@@ -20,6 +20,7 @@ function load(path, imports = {}, globals = {}) {
       if (id.endsWith('/publicOriginRedirect')) return publicRedirectFixture;
       if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
       if (id === './server/referenceResolver' || id === './server/portfolioExport') return {};
+      if (id === './server/privacyPolicy') return { privacyPolicyResponse: () => null };
       if (id === './server/citation') return { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } };
     if (id === './features/sharing/shareModel') return load('../src/features/sharing/shareModel.ts');
       if (id === './server/shareAddress') return load('../src/server/shareAddress.ts', {'../features/sharing/shareModel':load('../src/features/sharing/shareModel.ts')}, globals);
