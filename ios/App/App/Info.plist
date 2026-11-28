@@ -47,9 +47,19 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Portalink uses the camera when you take a photo or video to add to your projects, profile or messages.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Portalink uses the microphone to record sound when you capture a video for your projects or messages.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Portalink accesses your photo library when you choose photos or videos to add to your projects, profile or messages.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Portalink saves images to your photo library when you choose to download them.</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
