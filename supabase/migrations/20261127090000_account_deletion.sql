@@ -1,5 +1,5 @@
--- REVIEW CANDIDATE. Not in migrations: cannot be applied by db push accidentally.
--- No deletion is enabled by applying this transaction. No jobs are scheduled.
+-- Account deletion lifecycle (docs/account-deletion-safety.md).
+-- Applying this enables nothing: both release gates default to false.
 begin;
 
 create schema if not exists deletion_private;
@@ -35,7 +35,7 @@ create unique index one_account_deletion on deletion_private.jobs(account_id) wh
 create index due_account_deletions on deletion_private.jobs(delete_after) where status in ('pending','processing');
 create table deletion_private.files (
   job_id uuid not null references deletion_private.jobs(id) on delete restrict,
-  bucket text not null check(bucket in ('avatars','project-media','message-media','project-covers')),
+  bucket text not null check(bucket in ('avatars','project-media','message-media','project-covers','profile-audio')),
   path text not null,
   removed_at timestamptz,
   primary key(job_id,bucket,path)
@@ -103,6 +103,7 @@ language sql immutable as $$
     when 'avatars' then split_part(path,'/',1)=j.account_id::text
     when 'project-covers' then split_part(path,'/',1)=j.profile_id::text
     when 'message-media' then split_part(path,'/',1)=j.profile_id::text
+    when 'profile-audio' then split_part(path,'/',1)=j.profile_id::text
     when 'project-media' then split_part(path,'/',1)=j.profile_id::text
       or (split_part(path,'/',1)='posts' and split_part(path,'/',2)=any(select unnest(j.project_ids)::text))
     else false end;
@@ -114,7 +115,7 @@ create function deletion_private.path_account(bucket text,path text) returns uui
 language sql stable security definer set search_path=public,pg_temp as $$
   select coalesce(
     (select u.id from auth.users u where bucket='avatars' and u.id::text=split_part(path,'/',1)),
-    (select p.account_id from public.profiles p where bucket in ('project-media','message-media','project-covers') and (
+    (select p.account_id from public.profiles p where bucket in ('project-media','message-media','project-covers','profile-audio') and (
       p.id::text=split_part(path,'/',1) or (bucket='project-media' and split_part(path,'/',1)='posts'
         and exists(select 1 from public.projects pr where pr.profile_id=p.id and pr.id::text=split_part(path,'/',2))))),
     (select j.account_id from deletion_private.jobs j where j.status<>'cancelled' and deletion_private.owns_path(j,bucket,path) limit 1)
@@ -145,7 +146,7 @@ begin
   end if;
   if new.bucket_id='avatars' then
     begin owner_account:=split_part(new.name,'/',1)::uuid; exception when invalid_text_representation then owner_account:=null; end;
-  elsif new.bucket_id in ('project-media','message-media','project-covers') then
+  elsif new.bucket_id in ('project-media','message-media','project-covers','profile-audio') then
     select p.account_id into owner_account from public.profiles p where
       p.id::text=split_part(new.name,'/',1) or (new.bucket_id='project-media' and split_part(new.name,'/',1)='posts'
         and exists(select 1 from public.projects pr where pr.profile_id=p.id and pr.id::text=split_part(new.name,'/',2)));
@@ -379,7 +380,7 @@ begin
     then conversation.participant_two_profile_id else conversation.participant_one_profile_id end;
   if conversation.request_message_sent_at is not null and conversation.initiator_profile_id <> viewer_profile_id
   then raise exception 'accept request before replying'; end if;
-  if not public.can_view_profile(recipient_profile_id) then raise exception 'messages unavailable'; end if;
+  if not public.can_view_profile_identity(recipient_profile_id) then raise exception 'messages unavailable'; end if;
   select exists (select 1 from public.profile_follows follow
     where follow.follower_profile_id = recipient_profile_id and follow.target_profile_id = viewer_profile_id
       and follow.status = 'following') into recipient_follows_sender;
@@ -656,40 +657,97 @@ end;
 $$;
 
 create or replace function public.can_view_profile(p_profile_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
+returns boolean language sql stable security definer set search_path = public as $$
   select exists (
-    select 1
-    from public.profiles p
-    where p.id = p_profile_id and (p.pending_deletion_at is null or p.account_id = (select auth.uid()))
-      and (
-        not p.is_private
-        or p.account_id = (select auth.uid())
-        or exists (
-          select 1 from public.profile_follows f
-          where f.target_profile_id = p.id
-            and f.follower_account_id = (select auth.uid())
-            and f.status = 'following'
-        )
-        or exists (
-          select 1 from public.profile_follows f
-          where f.follower_profile_id = p.id
-            and public.owns_profile(f.target_profile_id)
-        )
-        or exists (
-          select 1 from public.direct_conversations conversation
-          where (conversation.participant_one_profile_id = p.id or conversation.participant_two_profile_id = p.id)
-            and (
-              public.owns_profile(conversation.participant_one_profile_id)
-              or public.owns_profile(conversation.participant_two_profile_id)
-            )
-        )
+    select 1 from public.profiles p where p.id = p_profile_id
+      and (p.pending_deletion_at is null or p.account_id = (select auth.uid())) and (
+      p.account_id = (select auth.uid()) or not p.is_private or exists (
+        select 1 from public.profile_follows f where f.target_profile_id = p.id
+          and f.follower_account_id = (select auth.uid()) and f.status = 'following'
       )
+    )
   );
 $$;
+
+
+-- Where the v2 worker claim exists: skip, never fence-fail on, a deleting owner's queued PDFs.
+do $guard$ begin
+  if to_regprocedure('public.claim_pdf_processing_job_v2(text,integer)') is not null then
+    execute $sql$
+create or replace function public.claim_pdf_processing_job_v2(
+  p_worker_id text, p_lease_seconds integer default 1200
+) returns table (
+  id uuid, post_id uuid, attachment_id text, source_bucket text, source_path text,
+  page_offset integer, attempt_count integer, lease_token uuid
+)
+language plpgsql security definer set search_path = public as $$
+declare stale_post uuid;
+begin
+  if nullif(trim(p_worker_id), '') is null then raise exception 'worker id is required'; end if;
+
+  for stale_post in
+    with exhausted as (
+      update public.pdf_processing_jobs j set
+        status = 'failed', error_code = 'worker_timeout',
+        error_message = 'PDF processing stopped before it finished. The original file is safe and the preview can be retried.',
+        is_retryable = true, finished_at = now(), lease_expires_at = null,
+        lease_token = null, updated_at = now()
+      where not exists(select 1 from public.projects owner_project where owner_project.id=j.post_id and deletion_private.profile_pending(owner_project.profile_id)) and j.status = 'processing' and j.lease_expires_at < now()
+        and j.attempt_count >= j.max_attempts
+      returning j.post_id
+    ) select distinct e.post_id from exhausted e
+  loop
+    update public.project_attachments a set status = 'processing-failed',
+      metadata = coalesce(a.metadata, '{}'::jsonb) || jsonb_build_object(
+        'processingError', 'PDF processing stopped before it finished.')
+    from public.pdf_processing_jobs j
+    where j.post_id = stale_post and j.attachment_id = a.id and j.status = 'failed';
+    perform public.refresh_pdf_post_status(stale_post);
+  end loop;
+
+  return query
+  with candidate as (
+    select j.id from public.pdf_processing_jobs j
+    where not exists(select 1 from public.projects owner_project where owner_project.id=j.post_id and deletion_private.profile_pending(owner_project.profile_id))
+      and ((j.status = 'queued' and j.available_at <= now())
+      or (j.status = 'processing' and j.lease_expires_at < now() and j.attempt_count < j.max_attempts))
+      and not exists (select 1 from public.pdf_processing_jobs failed
+        where failed.post_id = j.post_id and failed.status = 'failed')
+      and not exists (select 1 from public.pdf_processing_jobs previous
+        where previous.post_id = j.post_id and previous.status <> 'completed'
+          and (previous.source_position, previous.created_at, previous.id)
+            < (j.source_position, j.created_at, j.id))
+    order by j.available_at, j.created_at, j.id
+    for update skip locked limit 1
+  ), claimed as (
+    update public.pdf_processing_jobs j set
+      status = 'processing', worker_id = trim(p_worker_id),
+      attempt_count = j.attempt_count + 1, lease_token = gen_random_uuid(),
+      started_at = coalesce(j.started_at, now()), finished_at = null,
+      lease_expires_at = now() + make_interval(secs => greatest(60, least(p_lease_seconds, 3600))),
+      page_offset = coalesce((select sum(previous.page_count)
+        from public.pdf_processing_jobs previous
+        where previous.post_id = j.post_id and previous.status = 'completed'
+          and (previous.source_position, previous.created_at, previous.id)
+            < (j.source_position, j.created_at, j.id)), 0)::integer,
+      processed_pages = 0, page_count = null, page_metadata = '[]'::jsonb,
+      error_code = null, error_message = null, failed_page = null, updated_at = now()
+    from candidate where j.id = candidate.id returning j.*
+  ) select c.id, c.post_id, c.attachment_id, c.source_bucket, c.source_path,
+      c.page_offset, c.attempt_count, c.lease_token from claimed c;
+end;
+$$;
+    $sql$;
+  end if;
+end $guard$;
+
+
+
+create function public.account_deletion_requests_open() returns boolean
+language sql stable security definer set search_path=public,pg_temp as $$
+  select requests_enabled from deletion_private.release_gate;
+$$;
+revoke all on function public.account_deletion_requests_open() from public, anon, authenticated;
+grant execute on function public.account_deletion_requests_open() to service_role;
 
 commit;

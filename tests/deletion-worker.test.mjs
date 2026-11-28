@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { runDeletionTick } from '../supabase/pending/deletion-worker.mjs';
-import { createDeletionHandler } from '../supabase/pending/deletion-request.mjs';
+import { runDeletionTick } from '../supabase/functions/_shared/deletion-worker.mjs';
+import { createDeletionHandler } from '../supabase/functions/_shared/deletion-request.mjs';
 
 test('worker defaults off with no side effects',async()=>{
  assert.deepEqual(await runDeletionTick(new Proxy({},{get(){throw Error('no access');}})),{status:'disabled'});
@@ -77,6 +77,15 @@ test('request handler trusts verified identity, requires confirmation, allows re
  const r=await on(request({action:'request',confirmation:'OWNER@example.test',accountId:'victim'}));
  assert.equal(r.status,200);assert.equal((await r.json()).isDeleted,false);
  assert.deepEqual(calls.at(-1),['request_account_deletion',{p_account_id:'verified-owner'}]);
+});
+
+test('preflight reports readiness only when both the function and database gate accept requests',async()=>{
+ const gate={open:false};
+ const admin={auth:{getUser:async()=>({data:{user:{id:'owner',email:'owner@example.test'}}})},rpc:async name=>{assert.equal(name,'account_deletion_requests_open');return {data:gate.open};}};
+ const ask=handler=>handler(new Request('https://example.test',{method:'POST',headers:{authorization:'Bearer test'},body:JSON.stringify({action:'preflight'})}));
+ assert.equal((await ask(createDeletionHandler(admin))).status,503);
+ assert.equal((await ask(createDeletionHandler(admin,{enabled:true}))).status,503);
+ gate.open=true;assert.equal((await ask(createDeletionHandler(admin,{enabled:true}))).status,200);
 });
 
 test('an uncertain request or cancel response never falsely reports that nothing happened',async()=>{

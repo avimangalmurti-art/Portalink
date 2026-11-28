@@ -3,6 +3,7 @@ import { PUBLIC_ORIGIN } from './features/citations/publicOrigin';
 import { publicOriginRedirect } from './server/publicOriginRedirect';
 import {handlePortfolioExport} from './server/portfolioExport';
 import { handleCitation, citationLicenseResponse } from './server/citation';
+import { privacyPolicyResponse } from './server/privacyPolicy';
 import { readPortfolioCard } from './server/sharedPreview';
 import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
 import { resolveShareRequest, injectShareResolution, publicSitemap } from './server/shareAddress';
@@ -262,6 +263,17 @@ async function requestBody(request: Request): Promise<Record<string, unknown>> {
   return request.json() as Promise<Record<string, unknown>>
 }
 
+/** Account deletion: remove rows identifying the account; anonymous reach counts are kept. */
+async function deleteAccountInteractions(db: D1Database, account: string): Promise<void> {
+  await db.batch([
+    db.prepare('DELETE FROM media_engagements WHERE account_id = ?').bind(account),
+    db.prepare('DELETE FROM media_comments WHERE account_id = ?').bind(account),
+    db.prepare('DELETE FROM project_page_actions WHERE actor_account_id = ? OR owner_account_id = ?').bind(account, account),
+    db.prepare('DELETE FROM project_notification_reads WHERE owner_account_id = ?').bind(account),
+    db.prepare('DELETE FROM project_weekly_notes WHERE owner_account_id = ?').bind(account),
+  ])
+}
+
 async function handleMediaInteractions(request: Request, db: D1Database): Promise<Response> {
   // Schema is owned by drizzle migrations. Existing deployed D1 tables and
   // records are reused; page reads never perform DDL on a cold isolate.
@@ -399,6 +411,7 @@ const worker = {
     if(url.pathname==='/api/references/resolve')return handleReferenceResolve(request,authenticatedUser);
     const exportProfile=/^\/api\/exports\/portfolio\/([^/]+)$/.exec(url.pathname);
     if(exportProfile)return handlePortfolioExport(request,exportProfile[1],environment,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
+    const privacy = privacyPolicyResponse(request); if (privacy) return privacy;
     const license = citationLicenseResponse(url.pathname); if (license) return license;
     if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}
@@ -425,6 +438,17 @@ const worker = {
       }
     }
     if (url.pathname.startsWith('/api/rum/')) return json({ error: 'Not found.' }, 404);
+    if (url.pathname === '/api/account/interactions') {
+      if (request.method !== 'DELETE') return json({ error: 'Method not allowed' }, 405)
+      try {
+        const user = await authenticatedUser(request, true)
+        if (environment.DB && user) await deleteAccountInteractions(environment.DB, user.id)
+        return json({ deleted: true })
+      } catch (error) {
+        if (error instanceof Response) return error
+        return json({ error: 'Activity could not be removed.' }, 503)
+      }
+    }
     if (url.pathname.startsWith('/api/media-interactions')) {
       if (!environment.DB) return json({ error: 'Page activity is not available yet.' }, 503)
       try {
