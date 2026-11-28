@@ -70,7 +70,20 @@ jobs:
             echo "::error::Set the APPLE_TEAM_ID repository variable (Settings > Secrets and variables > Actions > Variables)."
             exit 1
           fi
-          printf '%s\n' "$ASC_PRIVATE_KEY" > "$ASC_KEY_PATH"
+          # Rebuild the PEM so pasted keys survive CRLFs, lost newlines or missing BEGIN/END lines.
+          python3 - <<'PY'
+          import base64, binascii, os, re, sys, textwrap
+          raw = os.environ['ASC_PRIVATE_KEY']
+          body = re.sub(r'-----(BEGIN|END)[A-Z ]*-----', '', raw)
+          body = re.sub(r'[^A-Za-z0-9+/=]', '', body)
+          try:
+              der = base64.b64decode(body, validate=True)
+          except binascii.Error:
+              print(f'::error::ASC_PRIVATE_KEY is not base64 ({len(body)} key characters found). Paste the whole AuthKey_<KEY_ID>.p8 file.'); sys.exit(1)
+          print(f'ASC_PRIVATE_KEY: BEGIN line {"present" if "BEGIN PRIVATE KEY" in raw else "missing"}, {len(der)} key bytes (a .p8 key is about 138).')
+          pem = '-----BEGIN PRIVATE KEY-----\n' + '\n'.join(textwrap.wrap(base64.b64encode(der).decode(), 64)) + '\n-----END PRIVATE KEY-----\n'
+          with open(os.environ['ASC_KEY_PATH'], 'w') as f: f.write(pem)
+          PY
           chmod 600 "$ASC_KEY_PATH"
       # Fails fast with a readable reason when the API key, issuer or role is wrong.
       - name: Check App Store Connect API key
@@ -84,7 +97,7 @@ jobs:
           signing_input = f'{header}.{claims}'.encode()
           der = subprocess.run(['openssl', 'dgst', '-sha256', '-sign', os.environ['ASC_KEY_PATH']], input=signing_input, capture_output=True)
           if der.returncode:
-              print('::error::ASC_PRIVATE_KEY is not a readable .p8 private key.'); sys.exit(1)
+              print('::error::ASC_PRIVATE_KEY is not a readable .p8 private key: ' + der.stderr.decode(errors='replace').splitlines()[0][:200]); sys.exit(1)
           # DER ECDSA signature -> raw 64-byte r||s for JWS.
           sig = der.stdout; r_len = sig[3]; r = sig[4:4 + r_len]; s_len = sig[5 + r_len]; s = sig[6 + r_len:6 + r_len + s_len]
           raw = r.lstrip(b'\0').rjust(32, b'\0') + s.lstrip(b'\0').rjust(32, b'\0')
